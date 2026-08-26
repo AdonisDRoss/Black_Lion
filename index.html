@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0e0d0c">
+<title>Iron Lion — Raven Hook, 1986</title>
+<style>
+  html,body{margin:0;padding:0;background:#0e0d0c;color:#e8d9b5;
+    font-family:ui-monospace,Menlo,Consolas,monospace;overscroll-behavior:none;}
+  #root{width:100vw;height:100dvh;overflow:hidden;}
+  #boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:10px;letter-spacing:.18em;font-size:11px;text-align:center;padding:24px;}
+  #boot b{color:#e9a842;letter-spacing:.24em;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="boot"><b>IRON LION</b><span id="bootmsg">COMPILING…</span></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+
+<script>
+/* game.jsx is a single ES module that imports React and default-exports the component.
+   Babel Standalone compiles it in the browser, so there is no build step and no toolchain --
+   push the folder and GitHub Pages serves it. The trade is a few seconds of compile on load,
+   which is what the boot message is for.
+
+   Assets are fetched from ./assets, same origin as this page, so no CORS is involved. That is
+   also why ASSET_BASE in game.jsx is left empty: only set it if the assets ever move to a
+   different domain from the page. */
+(async function () {
+  const msg = document.getElementById('bootmsg');
+  try {
+    const src = await (await fetch('game.jsx?v=' + Date.now())).text();
+    const out = Babel.transform(src, {
+      presets: [['react', { runtime: 'classic' }]],
+      plugins: [['transform-modules-commonjs']],
+      filename: 'game.jsx',
+    }).code;
+    const module = { exports: {} };
+    // the file's only import is React; hand it over rather than letting require() escape
+    new Function('require', 'module', 'exports', out)(
+      (n) => { if (n === 'react') return React; throw new Error('unexpected import: ' + n); },
+      module, module.exports
+    );
+    const Game = module.exports.default || module.exports;
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Game));
+    document.getElementById('boot').remove();
+  } catch (e) {
+    msg.textContent = 'FAILED — ' + (e && e.message ? e.message : e);
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>
