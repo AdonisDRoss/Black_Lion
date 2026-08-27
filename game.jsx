@@ -1161,6 +1161,11 @@ const MKM = {
    side by side, so "assets/..." resolves relative to the page and no CORS is involved at all.
    Only set this to an absolute URL if the assets live on a DIFFERENT origin from the page. */
 const ASSET_BASE = "";
+
+/* Bump this every build. It is printed under the title, and it is the only way to tell from
+   the running game whether the file you just uploaded is the one being served -- this label
+   read "LAYER 170" for forty-odd layers, so it could never answer that question. */
+const BUILD_TAG = "LAYER 217 — THREE VEHICLES";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -13911,7 +13916,7 @@ export default function IronLionLayer004() {
       <div style={{ position: "absolute", top: 12, left: 12, fontFamily: mono, color: "#e8d9b5",
         pointerEvents: "none", opacity: hud.title ? 0 : 1 }}>
         <div style={{ fontSize: 11, letterSpacing: "0.22em", color: C.gold }}>IRON LION · RAVEN HOOK 1986</div>
-        <div style={{ fontSize: 9, letterSpacing: "0.18em", opacity: 0.55, marginTop: 2 }}>LAYER 170 — NOT LYING DOWN</div>
+        <div style={{ fontSize: 9, letterSpacing: "0.18em", opacity: 0.55, marginTop: 2 }}>{BUILD_TAG}</div>
         <div style={{ marginTop: 10, fontSize: 12, background: "rgba(10,11,14,0.7)", border: "1px solid rgba(217,164,65,0.3)", padding: "6px 9px" }}>
           <div style={{ letterSpacing: "0.06em" }}>{hud.place}</div>
           <div style={{ fontSize: 10, opacity: 0.7, marginTop: 3 }}>

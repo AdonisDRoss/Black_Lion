@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0e0d0c">
+<!-- index.html itself was cacheable. game.jsx already loads with a ?v= buster, but if the
+     BROWSER serves a stale index.html the boot script and its buster are stale too. On iOS
+     Safari that is the difference between seeing a new build and swearing nothing changed. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Iron Lion — Raven Hook, 1986</title>
 <style>
   html,body{margin:0;padding:0;background:#0e0d0c;color:#e8d9b5;
@@ -34,7 +40,7 @@
 (async function () {
   const msg = document.getElementById('bootmsg');
   try {
-    const src = await (await fetch('game.jsx?v=' + Date.now())).text();
+    const src = await (await fetch('game.jsx?v=' + Date.now(), { cache: 'no-store' })).text();
     const out = Babel.transform(src, {
       presets: [['react', { runtime: 'classic' }]],
       plugins: [['transform-modules-commonjs']],
@@ -48,6 +54,8 @@
     );
     const Game = module.exports.default || module.exports;
     ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Game));
+    const tag = (src.match(/BUILD_TAG\s*=\s*"([^"]+)"/) || [])[1];
+    if (tag) console.log('Iron Lion build:', tag);
     document.getElementById('boot').remove();
   } catch (e) {
     msg.textContent = 'FAILED — ' + (e && e.message ? e.message : e);
