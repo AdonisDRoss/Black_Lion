@@ -1165,7 +1165,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 218 — IMAGE FALLBACKS";
+const BUILD_TAG = "LAYER 219 — RIDER SCALE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -12803,7 +12803,11 @@ export default function IronLionLayer004() {
       if (prefix === "rd_lion_ride") {
         const bike = imgs.current.motorcycle, rider = imgs.current.darius_top;
         if (bike && bike.width && rider && rider.width) {
-          const L = lenUnits * 0.77;                    // the combined plate includes the rider
+          /* Match the old plate's footprint, which is 28 x 65 on screen. Two wrong guesses
+             either side of this: at the character scale the rider was 49 px across a 19 px bike
+             and hid it; then shrinking BOTH left the whole rig visibly smaller than the plate it
+             replaced, which reads as the wrong sprite rather than a smaller one. */
+          const L = lenUnits;
           const w = L * (bike.width / bike.height);
           ctx.save();
           ctx.translate(x, y); ctx.rotate(ang + Math.PI / 2);
@@ -12813,8 +12817,8 @@ export default function IronLionLayer004() {
           /* Size him against the BIKE, not against a person standing on the street. At the
              character scale he came out 49 px across a 19 px-wide bike and hid it completely,
              which read as the bike having gone missing. */
-          const d = L * 0.62;
-          ctx.translate(0, L * 0.05);
+          const d = L * 0.72;
+          ctx.translate(0, L * 0.06);
           ctx.rotate(Math.PI);
           ctx.drawImage(rider, 4 * GANGTOP_CELL, (g.plain ? 0 : 1) * GANGTOP_CELL,
             GANGTOP_CELL, GANGTOP_CELL, -d / 2, -d / 2, d, d);
