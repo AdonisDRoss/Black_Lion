@@ -8607,6 +8607,11 @@ export default function IronLionLayer004() {
     function wolfKit(build) {
       const img = imgs.current["det_" + build];
       const meta = DET_META[build];
+      /* A key that is not in DET_META used to take the whole frame down on `meta.frames`.
+         The unnamed detective pair asked for "lean" and "heavy" when the table holds
+         "det_lean" and "det_heavy", so every plain detective call crashed the renderer.
+         Returning null is enough -- outfitOK already rejects it and the caller falls back. */
+      if (!meta || !meta.frames) return null;
       const fmap = {}; meta.frames.forEach((f, i) => (fmap[f] = i));
       return { canvas: img, cw: meta.cw, ch: meta.ch, fmap, scale: 1 };
     }
@@ -10136,6 +10141,11 @@ export default function IronLionLayer004() {
     function emsKit(build) {
       const img = imgs.current["det_" + build];
       const meta = DET_META[build];
+      /* A key that is not in DET_META used to take the whole frame down on `meta.frames`.
+         The unnamed detective pair asked for "lean" and "heavy" when the table holds
+         "det_lean" and "det_heavy", so every plain detective call crashed the renderer.
+         Returning null is enough -- outfitOK already rejects it and the caller falls back. */
+      if (!meta || !meta.frames) return null;
       const fmap = {}; meta.frames.forEach((f, i) => (fmap[f] = i));
       return { canvas: img, cw: meta.cw, ch: meta.ch, fmap, scale: 1 };
     }
@@ -10636,6 +10646,11 @@ export default function IronLionLayer004() {
     function detKit(build) {
       const img = imgs.current["det_" + build];
       const meta = DET_META[build];
+      /* A key that is not in DET_META used to take the whole frame down on `meta.frames`.
+         The unnamed detective pair asked for "lean" and "heavy" when the table holds
+         "det_lean" and "det_heavy", so every plain detective call crashed the renderer.
+         Returning null is enough -- outfitOK already rejects it and the caller falls back. */
+      if (!meta || !meta.frames) return null;
       const fmap = {}; meta.frames.forEach((f, i) => (fmap[f] = i));
       return { canvas: img, cw: meta.cw, ch: meta.ch, fmap, scale: 1 };
     }
@@ -10668,10 +10683,10 @@ export default function IronLionLayer004() {
               pose: "idle", name: "ramos" },
           ]
         : [
-            { x: car.x, y: car.y, vx: 0, vy: 0, o: detKit("lean"), anim: Math.random() * 6,
+            { x: car.x, y: car.y, vx: 0, vy: 0, o: detKit("det_lean"), anim: Math.random() * 6,
               jit: 1, state: "wait", timer: 0, phase: 0, hx: car.x, hy: car.y, say: 0, line: "",
               pose: "idle" },
-            { x: car.x, y: car.y, vx: 0, vy: 0, o: detKit("heavy"), anim: Math.random() * 6,
+            { x: car.x, y: car.y, vx: 0, vy: 0, o: detKit("det_heavy"), anim: Math.random() * 6,
               jit: 1, state: "wait", timer: 0, phase: Math.random() * 6, hx: car.x, hy: car.y, say: 0, line: "",
               pose: "idle" },
           ];
@@ -12796,9 +12811,31 @@ export default function IronLionLayer004() {
         }
         return;
       }
-      const im = imgs.current.rd_lion_bike || imgs.current.motorcycle;
-      if (!im || !im.width) return;
+      /* rd_lion_bike is one plate with the suited Lion painted onto it, so riding in plain
+         clothes still showed the suit. Draw the bare bike and put the rider on top from his own
+         sheet instead -- same trick as drawGangRider, and it means the man on the bike is
+         whichever man you currently are. Falls back to the old combined plate if the bare
+         motorcycle asset is missing. */
       const L = MOTO_M.len;
+      const bike = imgs.current.motorcycle;
+      const rider = imgs.current.darius_top;
+      if (bike && bike.width && rider && rider.width) {
+        const w = L * (bike.width / bike.height);
+        ctx.save();
+        ctx.translate(c.x, c.y); ctx.rotate(c.ang + Math.PI / 2);
+        drawShadow(1, 4, w * 0.42, L * 0.4, 0.32);
+        ctx.drawImage(bike, -w / 2, -L / 2, w, L);
+        // the sheet faces DOWN its cell and the bike's front is -y, so the rider turns through PI
+        const d = GANGTOP_CELL * GANGTOP_SCALE * 0.92;
+        ctx.translate(0, L * 0.07);
+        ctx.rotate(Math.PI);
+        ctx.drawImage(rider, 4 * GANGTOP_CELL, (g.plain ? 0 : 1) * GANGTOP_CELL,
+          GANGTOP_CELL, GANGTOP_CELL, -d / 2, -d / 2, d, d);
+        ctx.restore();
+        return;
+      }
+      const im = imgs.current.rd_lion_bike || bike;
+      if (!im || !im.width) return;
       const w = L * (im.width / im.height);
       ctx.save();
       ctx.translate(c.x, c.y); ctx.rotate(c.ang + Math.PI / 2);
