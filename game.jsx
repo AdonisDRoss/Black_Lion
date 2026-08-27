@@ -12770,7 +12770,30 @@ export default function IronLionLayer004() {
     // mismatch as you turn. Both bases below are the "riding north" view: rider seen from
     // behind and above, front wheel at the top of the plate.
     const RIDE_BASE = { rd_lion_ride: "rd_lion_ride_s", rd_wolf_ride: "rd_wolf_ride_n" };
+    /* Darius rides the bare bike with his own torso on top, so the man on it is whichever man
+       you currently are. rd_lion_ride_s is a single plate with the SUITED Lion painted onto it,
+       which is why plain clothes still rode as the Lion -- and why patching drawMoto's parked
+       branch changed nothing: mounted returns here long before that code is reached. */
     function drawRider(prefix, x, y, ang, lenUnits) {
+      if (prefix === "rd_lion_ride") {
+        const bike = imgs.current.motorcycle, rider = imgs.current.darius_top;
+        if (bike && bike.width && rider && rider.width) {
+          const L = lenUnits * 0.77;                    // the combined plate includes the rider
+          const w = L * (bike.width / bike.height);
+          ctx.save();
+          ctx.translate(x, y); ctx.rotate(ang + Math.PI / 2);
+          drawShadow(1, 4, w * 0.42, L * 0.40, 0.34);
+          ctx.drawImage(bike, -w / 2, -L / 2, w, L);
+          // his sheet faces DOWN its cell and the bike's front is -y, so turn him through PI
+          const d = GANGTOP_CELL * GANGTOP_SCALE * 0.92;
+          ctx.translate(0, L * 0.06);
+          ctx.rotate(Math.PI);
+          ctx.drawImage(rider, 4 * GANGTOP_CELL, (g.plain ? 0 : 1) * GANGTOP_CELL,
+            GANGTOP_CELL, GANGTOP_CELL, -d / 2, -d / 2, d, d);
+          ctx.restore();
+          return true;
+        }
+      }
       const im = imgs.current[RIDE_BASE[prefix]];
       if (!im || !im.width) return false;
       const K = lenUnits / im.height;
@@ -12811,30 +12834,12 @@ export default function IronLionLayer004() {
         }
         return;
       }
-      /* rd_lion_bike is one plate with the suited Lion painted onto it, so riding in plain
-         clothes still showed the suit. Draw the bare bike and put the rider on top from his own
-         sheet instead -- same trick as drawGangRider, and it means the man on the bike is
-         whichever man you currently are. Falls back to the old combined plate if the bare
-         motorcycle asset is missing. */
+      /* A PARKED bike has nobody on it. rd_lion_bike is a combined rider-and-bike plate, so
+         the bare motorcycle is the right art here -- the rider only appears when mounted, in
+         drawRider above. */
       const L = MOTO_M.len;
-      const bike = imgs.current.motorcycle;
-      const rider = imgs.current.darius_top;
-      if (bike && bike.width && rider && rider.width) {
-        const w = L * (bike.width / bike.height);
-        ctx.save();
-        ctx.translate(c.x, c.y); ctx.rotate(c.ang + Math.PI / 2);
-        drawShadow(1, 4, w * 0.42, L * 0.4, 0.32);
-        ctx.drawImage(bike, -w / 2, -L / 2, w, L);
-        // the sheet faces DOWN its cell and the bike's front is -y, so the rider turns through PI
-        const d = GANGTOP_CELL * GANGTOP_SCALE * 0.92;
-        ctx.translate(0, L * 0.07);
-        ctx.rotate(Math.PI);
-        ctx.drawImage(rider, 4 * GANGTOP_CELL, (g.plain ? 0 : 1) * GANGTOP_CELL,
-          GANGTOP_CELL, GANGTOP_CELL, -d / 2, -d / 2, d, d);
-        ctx.restore();
-        return;
-      }
-      const im = imgs.current.rd_lion_bike || bike;
+      // bare bike first; the combined plate is only a fallback if that asset is missing
+      const im = imgs.current.motorcycle || imgs.current.rd_lion_bike;
       if (!im || !im.width) return;
       const w = L * (im.width / im.height);
       ctx.save();
