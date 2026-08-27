@@ -3805,7 +3805,9 @@ export default function IronLionLayer004() {
         for (const m of g.missions || [])
           if (m.show) pip(m.x, m.y, 5.5, m.active ? "#f2c24e" : "#8fd8ff", "#fff");
         // the player last, so nothing hides it
-        const v = g.mode === "foot" ? g.p : (g.mode === "car" ? g.car : g.moto);
+        // the same two-way test: in a civilian car this put your blip on the parked motorcycle
+        const v = g.mode === "foot" ? g.p
+          : (g.mode === "car" ? g.car : g.mode === "moto" ? g.moto : g.civ);
         const [px, py] = P(v.x, v.y);
         x.save(); x.translate(px, py); x.rotate((v.ang || 0) + Math.PI / 2);
         x.fillStyle = "#ffffff";
@@ -3991,7 +3993,7 @@ export default function IronLionLayer004() {
         // drive straight into the tunnel and park in the bay -- still behind the wheel,
         // get out with the normal car-exit control once you're stopped
         g.inside = dp; g.floor = 0;
-        const v = g.mode === "car" ? g.car : g.moto;
+        const v = g.mode === "car" ? g.car : g.mode === "moto" ? g.moto : g.civ;
         v.x = dp._cx; v.y = dp._cy; v.ang = -Math.PI / 2; v.vx = 0; v.vy = 0;
         return;
       }
@@ -4038,7 +4040,13 @@ export default function IronLionLayer004() {
     if (g.mode === "foot") {
       mountNearest();
     } else {
-      const v = g.mode === "car" ? g.car : g.moto;
+      /* Three drivable things, not two: g.car, g.moto and g.civ. This read `g.moto` for
+         anything that was not the car, so stepping out of a stolen civilian car put you down
+         beside the motorcycle -- parked back at the den, which read as being teleported home.
+         Inlined rather than calling activeVeh(): doAction is declared outside the component
+         and cannot see it. */
+      const v = g.mode === "car" ? g.car : g.mode === "moto" ? g.moto : g.civ;
+      if (!v) return;
       const sp = Math.hypot(v.vx, v.vy);
       if (sp < 60) {
         const rx = Math.cos(v.ang + Math.PI / 2), ry = Math.sin(v.ang + Math.PI / 2);
@@ -12785,8 +12793,11 @@ export default function IronLionLayer004() {
           drawShadow(1, 4, w * 0.42, L * 0.40, 0.34);
           ctx.drawImage(bike, -w / 2, -L / 2, w, L);
           // his sheet faces DOWN its cell and the bike's front is -y, so turn him through PI
-          const d = GANGTOP_CELL * GANGTOP_SCALE * 0.92;
-          ctx.translate(0, L * 0.06);
+          /* Size him against the BIKE, not against a person standing on the street. At the
+             character scale he came out 49 px across a 19 px-wide bike and hid it completely,
+             which read as the bike having gone missing. */
+          const d = L * 0.62;
+          ctx.translate(0, L * 0.05);
           ctx.rotate(Math.PI);
           ctx.drawImage(rider, 4 * GANGTOP_CELL, (g.plain ? 0 : 1) * GANGTOP_CELL,
             GANGTOP_CELL, GANGTOP_CELL, -d / 2, -d / 2, d, d);
