@@ -1165,7 +1165,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 217 — THREE VEHICLES";
+const BUILD_TAG = "LAYER 218 — IMAGE FALLBACKS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5691,7 +5691,7 @@ export default function IronLionLayer004() {
       if (!sp) return;
       // closed normally; open while the menu is up, and stocked once you own more than one
       const key = g.lockerOpen ? (g.outfits.length > 1 ? "lk_02" : "lk_01") : "lk_00";
-      const im = imgs.current[key] || imgs.current.lk_00;
+      const im = firstImg(key, "lk_00");
       if (!im || !im.width) return;
       const h = LOCKER_H, w = h * (im.width / im.height);
       ctx.fillStyle = "rgba(0,0,0,0.38)";
@@ -6615,7 +6615,7 @@ export default function IronLionLayer004() {
       ctx.fillStyle = "rgba(0,0,0,0.35)";
       ctx.fillRect(-w / 2 + 2, -h / 2 + 3, w, h);
       if (!faceUp) {
-        const bim = imgs.current.cz_03 || imgs.current.cz_18;
+        const bim = firstImg("cz_03", "cz_18");
         if (bim && bim.width) ctx.drawImage(bim, -w / 2, -h / 2, w, h);
         else {
           ctx.fillStyle = "#9c2f34"; ctx.fillRect(-w / 2, -h / 2, w, h);
@@ -6954,7 +6954,7 @@ export default function IronLionLayer004() {
           }
           // same rule as the player's: empty bikes get the bare cruiser plate, the occupied
           // one gets a rider plate
-          const rimg = imgs.current.rd_wolf_ride_n || imgs.current.rd_torque_ride;
+          const rimg = firstImg("rd_wolf_ride_n", "rd_torque_ride");
           if (rimg && rimg.width) {
             const rw = mw * 1.6, rh = rw * (rimg.height / rimg.width);
             ctx.drawImage(rimg, dp[0] - 10 - rw / 2, dp[1] + 30 - rh * 0.5, rw, rh);
@@ -7104,6 +7104,18 @@ export default function IronLionLayer004() {
     };
     /* One place that draws a rect from an atlas into a footprint, turning the plate a quarter
        when the footprint's long axis disagrees with it. Both atlases go through it. */
+    /* `a || b` does NOT fall back between images. The loader keeps a failed Image rather than
+       nulling it -- that is deliberate, every `im && im.width` guard rejects it -- but it is
+       TRUTHY, so `||` picks the broken one and the guard below then draws nothing at all.
+       That is why the motorcycle vanished: swapping the order of a `||` pair moved a failed
+       asset to the front. Pick on width, never on truthiness. */
+    function firstImg(...keys) {
+      for (const k of keys) {
+        const im = imgs.current[k];
+        if (im && im.width) return im;
+      }
+      return null;
+    }
     function propRect(img, fr, x, y, w, h) {
       const turn = (w > h) !== (fr[2] > fr[3]) && Math.abs(w - h) > 4;
       const iw = turn ? fr[3] : fr[2], ih = turn ? fr[2] : fr[3];
@@ -8070,7 +8082,7 @@ export default function IronLionLayer004() {
       } else { ctx.fillStyle = "#9c2f2a"; ctx.fillRect(-26, -L / 2, 52, L); }
       ctx.restore();
       // the chief's wagon
-      const cim = imgs.current.fd_03 || imgs.current.fd_02;
+      const cim = firstImg("fd_03", "fd_02");
       if (cim && cim.width) {
         const CL = 112, cw = CL * (cim.width / cim.height);
         ctx.save();
@@ -12481,7 +12493,7 @@ export default function IronLionLayer004() {
          when the hit lands. */
       if (p.atk > 0 && drawLionAction(0, p)) return;
       if (p.grapT > 0 && drawLionAction(1, p)) return;
-      const im = imgs.current[key] || imgs.current.idle;
+      const im = firstImg(key, "idle");
       if (!im || !im.height) return;      // no plate loaded: draw nothing rather than throw
       const HH = 46;
       const bob = moving ? Math.sin(p.anim * Math.PI) * (p.running ? 2.6 : 1.5) : Math.sin(g.t * 1.6) * 0.6;
@@ -12753,7 +12765,7 @@ export default function IronLionLayer004() {
         return;
       }
       const c = g.car;
-      const im = imgs.current[(c.skin && c.skin.k) || "car"] || imgs.current.car;
+      const im = firstImg((c.skin && c.skin.k) || "car", "car");
       const L = (c.skin && c.skin.len) || 108;
       const sc = L / im.height, w = im.width * sc;
       ctx.save();
@@ -12855,7 +12867,7 @@ export default function IronLionLayer004() {
          drawRider above. */
       const L = MOTO_M.len;
       // bare bike first; the combined plate is only a fallback if that asset is missing
-      const im = imgs.current.motorcycle || imgs.current.rd_lion_bike;
+      const im = firstImg("motorcycle", "rd_lion_bike");
       if (!im || !im.width) return;
       const w = L * (im.width / im.height);
       ctx.save();
@@ -13416,7 +13428,7 @@ export default function IronLionLayer004() {
           const b = garageBay(n);
           if (!b) break;
           const e = g.garage[n];
-          const im = imgs.current[e.k] || imgs.current.car;
+          const im = firstImg(e.k, "car");
           ctx.strokeStyle = "rgba(226,217,181,0.22)"; ctx.lineWidth = 3;
           ctx.strokeRect(b[0] - 34, b[1] - 70, 68, 140);
           if (im && im.width) {
