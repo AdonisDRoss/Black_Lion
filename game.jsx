@@ -1165,7 +1165,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 219 — RIDER SCALE";
+const BUILD_TAG = "LAYER 221 — STRONGHOLDS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -8703,6 +8703,61 @@ export default function IronLionLayer004() {
       cr.car = g.traffic[g.traffic.length - 1];
     }
 
+    /* --- strongholds ----------------------------------------------------------
+
+       A hideout with nobody at it is just a building. Every faction head already has a `where`
+       cell, so each one gets a standing crew posted on it and, for the Wolves, bikes parked
+       outside. Spawned once and kept -- these are not the wandering crews that come and go
+       with the player, they are the reason the address means anything.
+
+       They hold their ground rather than patrol: `hx, hy` is the post, and the ordinary crew
+       AI walks them back to it. */
+    const HQ_GUARD = {};
+    function spawnStronghold(key, L) {
+      if (HQ_GUARD[key]) return;
+      HQ_GUARD[key] = 1;
+      const gang = key === "mob_old" || key === "mob_young" ? "mob" : key;
+      const wing = key === "mob_old" ? "old" : key === "mob_young" ? "young" : null;
+      const n = 4 + ((Math.random() * 3) | 0);
+      const members = [];
+      for (let i = 0; i < n; i++) {
+        const ang = (i / n) * 6.283 + Math.random() * 0.4;
+        const r = 46 + Math.random() * 54;
+        const px = L.x + Math.cos(ang) * r, py = L.y + Math.sin(ang) * r;
+        members.push({
+          x: px, y: py, vx: 0, vy: 0, stun: 0, atk: 0, anim: Math.random() * 6,
+          ...rankKit(gang, null),   // rank, hp and the faction's kit
+
+          wpn: weaponFor(gang, wing),
+          o: null, pose: Math.random() < 0.5 ? "hang1" : "hang2",
+          jit: 0.95 + Math.random() * 0.12, phase: Math.random() * 6.28,
+          hx: px, hy: py, fireCd: 1 + Math.random(),
+          say: 0, line: "", chatCd: 1 + Math.random() * 3, drawnT: 0,
+        });
+      }
+      const cr = { x: L.x, y: L.y, members, state: "hang", timer: 0,
+                   gang, wing, hq: true, leash: 320 };
+      g.crews.push(cr);
+      if (gang === "wolves") {
+        // their own bikes, parked where you can see whose house it is
+        for (let i = 0; i < 3; i++) {
+          const m = WF_BIKES[(Math.random() * WF_BIKES.length) | 0];
+          g.traffic.push({
+            x: L.x - 70 + i * 46, y: L.y + 96,
+            ang: -Math.PI / 2, m, spd: 0, brake: 0, rad: 19,
+            dead: 1, crewCar: 1, axis: "h", si: 0, k: 0, dir: 1, fleeing: 0,
+            gang: "wolves",
+          });
+        }
+      }
+    }
+    function updateStrongholds() {
+      // built the first time the player is near enough for it to matter, then left alone
+      for (const L of leaderList()) {
+        if (Math.hypot(L.x - g.p.x, L.y - g.p.y) < 1600) spawnStronghold(L.key, L);
+      }
+    }
+
     function spawnCrew(cx, cy) {
       const raid = Math.random() < POSTURE.kings.raid;
       const a = raid ? raidAnchor(cx, cy, ["industrial", "uptown", "barrio"]) : crewAnchor(cx, cy);
@@ -9399,9 +9454,13 @@ export default function IronLionLayer004() {
     function startMission(def) {
       const st = missionState(def.id);
       st.active = true;
-      g.cut = { panels: def.pre, i: 0, then: null };
-      g.paused = true;
-      setHud((h) => ({ ...h, cut: { panel: def.pre[0], i: 0, n: def.pre.length },
+      /* Only pause if there is something to show. A cutscene with no panels pauses the game
+         and then renders no overlay, and nothing can clear a pause that has no owner -- which
+         is a hard freeze with no way out. */
+      const pre = (def.pre && def.pre.length) ? def.pre : null;
+      g.cut = pre ? { panels: pre, i: 0, then: null } : null;
+      g.paused = !!pre;
+      setHud((h) => ({ ...h, cut: pre ? { panel: pre[0], i: 0, n: pre.length } : null,
         mentorJob: false }));
       syncMissions();
     }
@@ -9413,9 +9472,10 @@ export default function IronLionLayer004() {
       if (def.id === "w6") { g.bossStage = 2; g.war = 1; }
       g.p.cash += def.pay;
       g.pickupFlash = { nm: `$${def.pay}`, t: 2.2 };
-      g.cut = { panels: def.post, i: 0, then: null };
-      g.paused = true;
-      setHud((h) => ({ ...h, cut: { panel: def.post[0], i: 0, n: def.post.length } }));
+      const post = (def.post && def.post.length) ? def.post : null;
+      g.cut = post ? { panels: post, i: 0, then: null } : null;
+      g.paused = !!post;
+      setHud((h) => ({ ...h, cut: post ? { panel: post[0], i: 0, n: post.length } : null }));
       syncMissions();
     }
     /* A slow circuit of the landmarks, eased between waypoints so it reads as a flyover
@@ -9689,7 +9749,23 @@ export default function IronLionLayer004() {
           }
         }
 
+        /* Morale. A crew that is losing breaks -- half the men down, or the last man standing
+           out of a group, and they stop advancing and run. Checked before the rival branch so
+           a losing crew leaves a turf fight rather than dying in it, and it latches: once they
+           have broken they do not rally two seconds later because one of them got a lucky hit.
+           `alive` is already counted above. */
+        const started = cr.started || (cr.started = cr.members.length);
+        if (alive && !cr.broke && (alive <= started * 0.4 || (started > 2 && alive === 1))) {
+          cr.broke = true;
+          cr.fleeT = 9 + Math.random() * 5;
+        }
+        if (cr.broke) {
+          cr.fleeT -= dt;
+          // long enough gone and they are not coming back into this fight
+          if (cr.fleeT <= 0 && alive) { cr.broke = false; cr.state = "hang"; cr.rival = null; }
+        }
         if (!alive) { cr.state = "hang"; }
+        else if (cr.broke) { cr.state = "flee"; }
         else if (cr.rival) {
           cr.state = "hostile";
           // depth of organisation: the Vescari answer a fight on their turf by sending more
@@ -9723,6 +9799,16 @@ export default function IronLionLayer004() {
             }
           }
           const canSeePlayer = onFoot;
+          if (cr.state === "hostile" && m.wpn && WPN_THROWN[m.wpn] &&
+              (targetIsPlayer ? canSeePlayer : true) && m.stun <= 0) {
+            const rd0 = Math.hypot(tx - m.x, ty - m.y);
+            m.fireCd = Math.max(0, (m.fireCd || 0) - dt);
+            if (rd0 > 90 && rd0 < 240 && m.fireCd <= 0) {
+              m.fireCd = 3.5 + Math.random() * 2.5;
+              throwAt(m, tx, ty, m.wpn, false);
+              m.wpn = null;              // he had the one bottle
+            }
+          }
           // a bat is swung, not fired; melee kit gets no ranged behaviour at all
           if (cr.state === "hostile" && m.wpn && !WPN_MELEE[m.wpn] &&
               (targetIsPlayer ? canSeePlayer : true)) {
@@ -9748,6 +9834,20 @@ export default function IronLionLayer004() {
             }
           }
           if (m.stun > 0) { m.x += m.vx * dt; m.y += m.vy * dt; m.vx *= 0.86; m.vy *= 0.86; continue; }
+          // one hit from going down: he runs whatever the rest of them are doing
+          if (m.hp <= 1 && cr.state === "hostile" && !m.wpn) {
+            const ax = m.x - tx, ay = m.y - ty, ad = Math.hypot(ax, ay) || 1;
+            m.vx = (ax / ad) * 140; m.vy = (ay / ad) * 140;
+            m.x += m.vx * dt; m.y += m.vy * dt;
+            continue;
+          }
+          if (cr.state === "flee") {
+            // straight away from whatever is hurting them, and they do not shoot while running
+            const ax = m.x - tx, ay = m.y - ty, ad = Math.hypot(ax, ay) || 1;
+            m.vx = (ax / ad) * 150; m.vy = (ay / ad) * 150;
+            m.x += m.vx * dt; m.y += m.vy * dt;
+            continue;
+          }
           if (cr.state === "hostile" && pastLeash(cr, tx, ty)) {
             // target has left their quarter: the family does not give chase, it goes back
             const hx = m.hx, hy = m.hy, hd = Math.hypot(hx - m.x, hy - m.y) || 1;
@@ -11225,6 +11325,17 @@ export default function IronLionLayer004() {
       const lionHit = (g.lionOn ? 2 : 1) * (g.plain ? 0.55 : 1);
       if (g.mode !== "foot" || g.p.atkCd > 0) return;
       // a gun in hand reaches past melee range -- find the nearest hostile within gun range first
+      /* A bottle is thrown at where you are aiming and then it is gone -- one use, no
+         magazine, and it lands where you let go rather than tracking anyone. */
+      if (g.p.wpn && WPN_THROWN[g.p.wpn] && (g.p.fireCd || 0) <= 0) {
+        const DIRV = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+        const dv = DIRV[g.p.dir] || [0, 1];
+        throwAt(g.p, g.p.x + dv[0] * 200, g.p.y + dv[1] * 200, g.p.wpn, true);
+        g.p.fireCd = 0.7; g.p.atkCd = 0.5;
+        g.p.wpn = null; g.p.ammo = 0;
+        g.pickupFlash = { nm: "spent", t: 1.2 };
+        return;
+      }
       if (g.p.wpn && !WPN_MELEE[g.p.wpn] && (g.p.ammo || 0) > 0 && (g.p.fireCd || 0) <= 0) {
         let best = null, bd = 380;
         for (const cr of g.crews) {
@@ -11766,7 +11877,7 @@ export default function IronLionLayer004() {
        They ride a little quicker than the cars and they are ambient, not hostile -- a rider is
        a vehicle, not a crew member, so he will not stop and fight. Seeing Wolves on the move
        through Ironside is the point; making them fight from the saddle is a separate job. */
-    const WOLF_TURF_R = 4.2 * PITCH;
+    const WOLF_TURF_R = 7 * PITCH;      // four cells was tight enough that they never showed
     function inWolfTurf(cx, cy) {
       return Math.hypot(cx - (SX(WOLVES_CELL.i) + PITCH / 2),
                         cy - (SX(WOLVES_CELL.j) + PITCH / 2)) < WOLF_TURF_R;
@@ -11814,8 +11925,8 @@ export default function IronLionLayer004() {
       const rural = ruralHere();
       if (g.traffic.length < (rural ? Math.ceil(cap * 0.3) : cap)) spawnTraffic(cx, cy);
       if (g.traffic.filter((v) => v.bus).length < 2 && Math.random() < 0.02) spawnBus(cx, cy);
-      if (inWolfTurf(cx, cy) && Math.random() < 0.06 &&
-          g.traffic.filter((v) => v.wolfRider).length < 3) spawnWolfRider(cx, cy);
+      if (inWolfTurf(cx, cy) && Math.random() < 0.22 &&
+          g.traffic.filter((v) => v.wolfRider).length < 4) spawnWolfRider(cx, cy);
       // the bike was invisible to traffic entirely: this read g.car unconditionally, so
       // riding meant no shunt, no impact sound and no reaction from anyone you hit
       const pc = inVehicle() ? activeVeh() : g.p;
@@ -12608,6 +12719,94 @@ export default function IronLionLayer004() {
       b.fire = { t: 0, life: permanent ? 26 : 40, seed: (b.key || 1) * 2654435761 };
       if (permanent) b.doomed = true;
     }
+    /* --- throwables -----------------------------------------------------------
+
+       A grenade and a molotov are the same object with different landings. Both travel to a
+       fixed point rather than tracking, because a thrown thing does not steer -- you commit to
+       where it goes when you let go, which is the whole difference between a thrown weapon and
+       a gun.
+
+       `h` is the arc height, purely cosmetic: the sprite lifts and its shadow stays on the
+       ground, which is what makes a top-down throw read as leaving the ground at all. */
+    function throwAt(from, tx, ty, kind, byPlayer) {
+      const dx = tx - from.x, dy = ty - from.y;
+      const d = Math.min(Math.hypot(dx, dy), 260);
+      const a = Math.atan2(dy, dx);
+      const t = 0.28 + d / 420;
+      (g.thrown || (g.thrown = [])).push({
+        x: from.x, y: from.y, sx: from.x, sy: from.y,
+        tx: from.x + Math.cos(a) * d, ty: from.y + Math.sin(a) * d,
+        t: 0, life: t, kind, byPlayer: !!byPlayer, spin: Math.random() * 6.28,
+      });
+    }
+    function blastAt(x, y, kind) {
+      const R = kind === "grenade" ? 92 : 74;
+      const dmg = kind === "grenade" ? 9 : 5;
+      const hit = (o, isPlayer) => {
+        if (!o || (o.hp != null && o.hp <= 0)) return;
+        const d = Math.hypot(o.x - x, o.y - y);
+        if (d > R) return;
+        const f = 1 - d / R;
+        if (isPlayer) { g.p.hp = Math.max(0, g.p.hp - dmg * f * 1.6); return; }
+        o.hp -= dmg * f; o.stun = Math.max(o.stun || 0, 0.5 * f);
+        const a = Math.atan2(o.y - y, o.x - x);
+        o.vx = Math.cos(a) * 210 * f; o.vy = Math.sin(a) * 210 * f;
+        if (o.hp <= 0) { dropLoot(o.x, o.y, LOOT_KING); dropWeapon(o); }
+      };
+      for (const cr of g.crews) for (const m of cr.members) hit(m);
+      if (g.crime) for (const t of g.crime.thugs) hit(t);
+      if (g.shop && g.shop.rob) for (const t of g.shop.rob.thugs) hit(t);
+      if (g.police) for (const u of g.police.units) hit(u);
+      hit(g.p, true);
+      g.shake = Math.max(g.shake, kind === "grenade" ? 16 : 9);
+      g.scanner = Math.max(g.scanner || 0, 3);
+      if (kind === "molotov" && !g.inside) {
+        // a bottle that lands against a building sets it alight -- not a ruin, so the brigade
+        // has something to save
+        // a small box around the impact, not the camera: a bottle lights what it lands on
+        const near = visibleBuildings({ x0: x - 60, x1: x + 60, y0: y - 60, y1: y + 60 });
+        for (const b of near) {
+          if (b.burnt || b.fire) continue;
+          if (x > b.x - 12 && x < b.x + b.w + 12 && y > b.y - 12 && y < b.y + b.h + 12) {
+            igniteBuilding(b, false); registerFire(b); break;
+          }
+        }
+      }
+    }
+    function updateThrown(dt) {
+      const l = g.thrown;
+      if (!l || !l.length) return;
+      for (let i = l.length - 1; i >= 0; i--) {
+        const o = l[i];
+        o.t += dt;
+        const k = Math.min(1, o.t / o.life);
+        o.x = o.sx + (o.tx - o.sx) * k;
+        o.y = o.sy + (o.ty - o.sy) * k;
+        o.h = Math.sin(k * Math.PI) * 26;      // the arc
+        o.spin += dt * 9;
+        if (k >= 1) { blastAt(o.x, o.y, o.kind); l.splice(i, 1); }
+      }
+    }
+    function drawThrown() {
+      const l = g.thrown;
+      if (!l || !l.length) return;
+      for (const o of l) {
+        drawShadow(o.x, o.y + 2, 4, 2.4, 0.34);       // stays on the ground, the sprite rises
+        const r = WPN[o.kind], wa = imgs.current.weapon_atlas;
+        ctx.save();
+        ctx.translate(o.x, o.y - (o.h || 0));
+        ctx.rotate(o.spin);
+        if (r && wa && wa.width) {
+          const w = 11, h = w * (r[3] / r[2]);
+          ctx.drawImage(wa, r[0], r[1], r[2], r[3], -w / 2, -h / 2, w, h);
+        } else {
+          ctx.fillStyle = o.kind === "molotov" ? "#7a9a6a" : "#5a6448";
+          ctx.beginPath(); ctx.arc(0, 0, 4, 0, 6.3); ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
     function updateFires(dt) {
       const seen2 = g.fires || (g.fires = []);
       // a fire has to keep ticking whether or not the player is looking at it, so a building
@@ -13245,6 +13444,20 @@ export default function IronLionLayer004() {
       if (g.lionOn) dt *= LION_SCALE;
       // paused: skip the whole tick. The canvas keeps whatever was last drawn, which is
       // exactly what you want sitting behind a map overlay.
+      /* Nine different things set g.paused and each is supposed to clear its own. If one is
+         ever left standing with nothing on screen that can dismiss it, the game is frozen with
+         no way out -- which is exactly what a stuck cutscene looks like. Two seconds of an
+         unowned pause and it clears itself. */
+      if (g.paused) {
+        const owned = (g.cut && g.cut.panels && g.cut.panels.length) || g.title ||
+          g.lockerOpen || g.travelOpen || g.raceTalk || g.leaderTalk || g.mapOpen ||
+          g.garagePick || g.mentorJob;
+        g.pauseOrphan = owned ? 0 : (g.pauseOrphan || 0) + dt;
+        if (g.pauseOrphan > 2) {
+          g.paused = false; g.pauseOrphan = 0;
+          g.pickupFlash = { nm: "unstuck", t: 1.4 };
+        }
+      } else g.pauseOrphan = 0;
       if (g.paused) return;
       g.t += dt;
 
@@ -13257,6 +13470,8 @@ export default function IronLionLayer004() {
       updatePeds(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       if (!g.title) updateCrime(dt);
       if (!g.title) updateShop(dt);
+      if (!g.title) updateThrown(dt);
+      if (!g.title && !g.inside) updateStrongholds();
       stepBailers(dt);
       repairInBay(dt);
       updateBodyShop(dt);
@@ -13426,6 +13641,7 @@ export default function IronLionLayer004() {
       if (g.inside) drawInterior(g.inside, g.floor, g.insideT);
       // staff, customers and anyone robbing them, on top of the floor and its furniture
       if (g.inside && g.insideT > 0.5) drawShopFolk();
+      drawThrown();
       if (g.inside && g.inside.kind === "den" && g.floor === 0) {
         // the bays: cars you have kept, parked and takeable
         for (let n = 0; n < g.garage.length; n++) {
@@ -13659,7 +13875,11 @@ export default function IronLionLayer004() {
             depth: Math.round((g.depth || 0) * 100), sink: Math.round((g.sink || 0) * 100),
             title: !!g.title,
             frameCrash: g.frameCrash || null, frameCrashN: g.frameCrashN || 0,
-            cut: g.cut ? { panel: g.cut.panels[g.cut.i], i: g.cut.i, n: g.cut.panels.length } : null,
+            /* A pause is always owned by something the player can dismiss. If one is left
+               standing with no cutscene, no map and no title, nothing on screen can clear it
+               and the game is frozen -- so clear it here rather than trap them. */
+            cut: (g.cut && g.cut.panels && g.cut.panels.length)
+              ? { panel: g.cut.panels[g.cut.i], i: g.cut.i, n: g.cut.panels.length } : null,
             mission: (() => {
               const d = activeMissionDef();
               if (!d) return null;
@@ -14490,7 +14710,7 @@ export default function IronLionLayer004() {
             border: `2px solid ${C.gold}`, background: "#141216", padding: 8,
             display: "flex", flexDirection: "column", alignItems: "center" }}>
             {/* the drawn panel where it exists; the written brief where it does not */}
-            {hud.cut.panel.img ? (
+            {hud.cut.panel && hud.cut.panel.img ? (
               <img src={PNL[hud.cut.panel.img] || PN2[hud.cut.panel.img]} alt=""
                 style={{ display: "block", maxWidth: "100%", maxHeight: "74vh",
                   width: "auto", height: "auto", objectFit: "contain",
@@ -14501,7 +14721,7 @@ export default function IronLionLayer004() {
                 padding: "22px 14px", minHeight: 96, display: "flex", alignItems: "center",
                 justifyContent: "center", textAlign: "center" }}>
                 <div style={{ fontSize: 10, lineHeight: 1.5, color: "rgba(232,217,181,0.62)", fontStyle: "italic" }}>
-                  {hud.cut.panel.art}
+                  {(hud.cut.panel && hud.cut.panel.art) || "…"}
                 </div>
               </div>
             )}
