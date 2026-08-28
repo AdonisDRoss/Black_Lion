@@ -1165,7 +1165,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 224 — MENTOR";
+const BUILD_TAG = "LAYER 225 — FACTION MAP";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1481,6 +1481,73 @@ const ZONES = {
   chinatown: { i0: 0, i1: 5,  j0: 11, j1: 15, super: false },
   irish:     { i0: 12, i1: 16, j0: 0, j1: 3,  super: false },
   barrio:    { i0: 13, i1: 18, j0: 9,  j1: 13, super: false },
+};
+/* Module scope on purpose. This is pure data with no dependencies, and it is read from
+   BOTH scopes in this file -- the map draw sits in the outer one and could not see it
+   where it used to live, which threw "Can't find variable: LEADERS" and took the whole
+   map down. Every faction pip on the map comes from here. */
+const LEADERS = {
+  kings: {
+    name: "ANDRE COLE", title: "THE KINGS", where: { i: 3, j: 8 },
+    note: "Runs the hood the way a man runs a block he still lives on. Grew up two doors from Darius.",
+    line: "We ain't picking. Whoever wins, they still gotta drive through here.",
+    side: "none",
+  },
+  wolves: {
+    name: "TORQUE HALLERAN", title: "THE STEEL WOLVES", where: { i: 19, j: 5 },
+    note: "Held the garage while Warhound was inside. Never wanted it. Hands it straight back.",
+    line: "We were always his. You just didn't know who was signing.",
+    side: "old",
+  },
+  mob_old: {
+    name: "DON MATTEO VESCARI", title: "THE FAMILY · INSIDE", where: { i: 16, j: 23 },
+    note: "Sixty-one, in Kestrel State, and still the most dangerous man in Raven Hook.",
+    line: "I have not left this room in nine years. Everything you are frightened of, I did from here.",
+    side: "old",
+  },
+  mob_young: {
+    name: "SALVATORE 'SAL' RIZZO", title: "THE FAMILY · OUTSIDE", where: { i: 9, j: 1 },
+    note: "The underboss. Runs Uptown in person and resents every order that arrives by visitor's phone.",
+    line: "He gave my city to a man in a mask. A convict. I am owed an answer.",
+    side: "young",
+  },
+  chi: {
+    name: "MRS LILY FONG", title: "THE MERCHANTS ASSOCIATION", where: { i: 2, j: 13 },
+    note: "Speaks for the lanes. Has an arrangement with Rizzo that predates all of this.",
+    line: "My arrangement is with a man. Not with whoever he is frightened of this month.",
+    side: "young",
+  },
+  irish: {
+    name: "DECLAN BRENNAN", title: "LOCAL 114", where: { i: 14, j: 1 },
+    note: "Union hall and the parish. No fighters, but he moves everything that arrives by water.",
+    line: "You cannot run a city from a visiting room. Somebody ought to tell him that.",
+    side: "young",
+  },
+  barrio: {
+    name: "ESTELA MORENO", title: "LA PERLA", where: { i: 15, j: 11 },
+    note: "Holds the block and nothing else. Has told both sides no, twice.",
+    line: "We are not a side. We are people who live here. Say it to them for me.",
+    side: "none",
+  },
+  brack: {
+    name: "CURTIS BRACKEN", title: "BRACKEN COUNTY", where: { i: 25, j: 25 },
+    note: "Doesn't care about the city. Cares that the money is good and the man asking talks straight.",
+    line: "City business is city business. He pays on time, and he don't lie to me.",
+    side: "old",
+  },
+};
+
+/* One colour per faction, bright enough to read as a pip on a dark map. These are the map
+   versions of each crew's wardrobe palette rather than the palette itself -- oxblood and bottle
+   green are right on a jacket and invisible at 4px. Keyed to match LEADERS, so the two Family
+   wings get their own shades: they are on opposite sides of the war and the map should say so. */
+const GANG_COL = {
+  kings: "#c9556a", wolves: "#e9a842", mob_young: "#5b86c4", mob_old: "#9fc4f0",
+  chi: "#d2564a", irish: "#5aa86a", barrio: "#d9a05a", brack: "#e0793a",
+};
+const GANG_LABEL = {
+  kings: "KINGS", wolves: "WOLVES", mob_young: "RIZZO", mob_old: "VESCARI",
+  chi: "MERCHANTS", irish: "LOCAL 114", barrio: "LA PERLA", brack: "BRACKEN",
 };
 const WOLVES_CELL = { i: 19, j: 5 };
 // wf_00/02/04 are choppers, wf_01/03 the rust buckets. Hoisted out of the crew spawn so the
@@ -3749,8 +3816,9 @@ export default function IronLionLayer004() {
         pip(SX(f.i) + PITCH / 2, SX(f.j) + PITCH / 2, 3.4, "#c8452f", "rgba(255,255,255,0.85)");
       for (const k in LEADERS) {
         const L = LEADERS[k];
-        pip(SX(L.where.i) + PITCH / 2, SX(L.where.j) + PITCH / 2, 3.6,
-          L.side === "old" ? "#7fb0ef" : L.side === "young" ? "#ef7a6c" : "#8cf08c", "#fff");
+        // by faction, not by war side -- three colours for eight crews told you nothing
+        pip(SX(L.where.i) + PITCH / 2, SX(L.where.j) + PITCH / 2, 4.2,
+          GANG_COL[k] || "#8cf08c", "#fff");
       }
       if (g.engine) pip(g.engine.x, g.engine.y, 4.4, "#ef7a6c", "#fff");
       if (g.alarm2) pip(g.alarm2.x, g.alarm2.y, 5, "#ffb46a", "#fff");
@@ -3933,7 +4001,7 @@ export default function IronLionLayer004() {
       bossStage: 0,
       // 0 = tense, 1 = open war. Set by the release, read by every faction's posture.
       war: 0, garage: [], garagePick: null, plain: false, qWasDown: false,
-      lockerOpen: false, outfits: ["suit", "plain"], roof: null, grap: null, jump: null,
+      lockerOpen: false, outfits: ["suit", "plain"], rack: [], roof: null, grap: null, jump: null,
       // what the player wants cluttering the screen; everything is still in the pause map
       show: { stats: true, scanner: true, debug: false },
       topDown: true, topAng: 0,          // TEST: rotating sprite on by default so it is seen
@@ -9222,56 +9290,6 @@ export default function IronLionLayer004() {
        Every faction gets a named head, a place they hold court, and a reason they will end up
        on the side they end up on. The war reads as politics rather than colour-coded teams
        only if the player has met the people first.                                        */
-    const LEADERS = {
-      kings: {
-        name: "ANDRE COLE", title: "THE KINGS", where: { i: 3, j: 8 },
-        note: "Runs the hood the way a man runs a block he still lives on. Grew up two doors from Darius.",
-        line: "We ain't picking. Whoever wins, they still gotta drive through here.",
-        side: "none",
-      },
-      wolves: {
-        name: "TORQUE HALLERAN", title: "THE STEEL WOLVES", where: { i: 19, j: 5 },
-        note: "Held the garage while Warhound was inside. Never wanted it. Hands it straight back.",
-        line: "We were always his. You just didn't know who was signing.",
-        side: "old",
-      },
-      mob_old: {
-        name: "DON MATTEO VESCARI", title: "THE FAMILY · INSIDE", where: { i: 16, j: 23 },
-        note: "Sixty-one, in Kestrel State, and still the most dangerous man in Raven Hook.",
-        line: "I have not left this room in nine years. Everything you are frightened of, I did from here.",
-        side: "old",
-      },
-      mob_young: {
-        name: "SALVATORE 'SAL' RIZZO", title: "THE FAMILY · OUTSIDE", where: { i: 9, j: 1 },
-        note: "The underboss. Runs Uptown in person and resents every order that arrives by visitor's phone.",
-        line: "He gave my city to a man in a mask. A convict. I am owed an answer.",
-        side: "young",
-      },
-      chi: {
-        name: "MRS LILY FONG", title: "THE MERCHANTS ASSOCIATION", where: { i: 2, j: 13 },
-        note: "Speaks for the lanes. Has an arrangement with Rizzo that predates all of this.",
-        line: "My arrangement is with a man. Not with whoever he is frightened of this month.",
-        side: "young",
-      },
-      irish: {
-        name: "DECLAN BRENNAN", title: "LOCAL 114", where: { i: 14, j: 1 },
-        note: "Union hall and the parish. No fighters, but he moves everything that arrives by water.",
-        line: "You cannot run a city from a visiting room. Somebody ought to tell him that.",
-        side: "young",
-      },
-      barrio: {
-        name: "ESTELA MORENO", title: "LA PERLA", where: { i: 15, j: 11 },
-        note: "Holds the block and nothing else. Has told both sides no, twice.",
-        line: "We are not a side. We are people who live here. Say it to them for me.",
-        side: "none",
-      },
-      brack: {
-        name: "CURTIS BRACKEN", title: "BRACKEN COUNTY", where: { i: 25, j: 25 },
-        note: "Doesn't care about the city. Cares that the money is good and the man asking talks straight.",
-        line: "City business is city business. He pays on time, and he don't lie to me.",
-        side: "old",
-      },
-    };
 
     const MISSIONS = [
       {
@@ -10663,6 +10681,10 @@ export default function IronLionLayer004() {
         const k = nm.slice(4);
         g.p.wpn = k;
         g.p.ammo = WPN_AMMO[k] || 5;
+        /* Anything he picks up goes on the rack at the den. He still does not carry a gun by
+           choice -- he takes one off a man who was carrying it -- but a gun he has brought home
+           is his, and the rack is where those live rather than a shop he browses before work. */
+        if (!WPN_THROWN[k] && (g.rack || (g.rack = [])).indexOf(k) < 0) g.rack.push(k);
         g.pickupFlash = { nm, t: 1.4 };
         sfxPickup();
         return;
@@ -13810,6 +13832,7 @@ export default function IronLionLayer004() {
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
             lion: Math.round(g.lion), lionOn: !!g.lionOn, plain: !!g.plain,
             atLocker: nearLocker(), lockerOpen: !!g.lockerOpen, outfits: g.outfits.slice(),
+            rack: (g.rack || []).slice(),
             roof: !!g.roof, canHook: !!grappleTarget(), canJump: !!jumpTarget(),
             sewer: !!g.sewer,
             fireHouse: (() => {
@@ -13968,6 +13991,16 @@ export default function IronLionLayer004() {
     G.garageFn = nearGarageBay; G.garageTakeFn = takeFromGarage; G.garagePickFn = garageReplace;
     G.lockerFn = nearLocker;
     G.mentorFn = talkMentor;
+    /* Take one off the rack. Ammo comes with it -- a gun sitting at home is a loaded gun -- and
+       taking a second one puts the first back, because he carries one thing at a time. */
+    G.takeFn = (k) => {
+      const gg = G.current;
+      if (!gg.rack || gg.rack.indexOf(k) < 0) return;
+      gg.p.wpn = k;
+      gg.p.ammo = WPN_AMMO[k] || 5;
+      gg.pickupFlash = { nm: "wpn_" + k, t: 1.6 };
+      setHud((h) => ({ ...h, wpn: k, ammo: gg.p.ammo }));
+    };
     G.grapFn = fireGrapple;
     // TEST: torch whatever building you are standing next to, permanently
     /* Stairs up, pole down. The pole is the point: you go up the slow way and come down the
@@ -14520,6 +14553,32 @@ export default function IronLionLayer004() {
                 </div>
               );
             })}
+          {/* the rack: what he has taken off people and brought home */}
+          <div style={{ fontSize: 9, letterSpacing: "0.22em", color: C.gold, marginTop: 18 }}>
+            THE RACK
+          </div>
+          <div style={{ fontSize: 8, opacity: 0.5, marginTop: 3, letterSpacing: "0.12em" }}>
+            {(hud.rack || []).length ? "TAKEN OFF MEN WHO WERE CARRYING" : "NOTHING ON IT YET"}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10,
+            justifyContent: "center", maxWidth: "min(86vw, 560px)" }}>
+            {(hud.rack || []).map((k) => {
+              const held = hud.wpn === k;
+              return (
+                <div key={k} onClick={() => G.takeFn && G.takeFn(k)}
+                  style={{ padding: "9px 14px", cursor: "pointer", minWidth: 116,
+                    border: `1px solid ${held ? C.gold : "rgba(217,164,65,0.35)"}`,
+                    background: held ? "rgba(217,164,65,0.14)" : "rgba(12,13,17,0.8)" }}>
+                  <div style={{ fontSize: 10, letterSpacing: "0.12em", color: "#e8d9b5" }}>
+                    {k.replace(/_/g, " ").toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: 8, opacity: 0.6, marginTop: 2, letterSpacing: "0.10em" }}>
+                    {held ? "IN HAND" : "TAKE"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
           <div onClick={() => G.lockerCloseFn && G.lockerCloseFn()}
             style={{ marginTop: 16, fontSize: 9, opacity: 0.55, letterSpacing: "0.16em", cursor: "pointer" }}>
             CLOSE
@@ -14863,9 +14922,10 @@ export default function IronLionLayer004() {
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 10,
             fontSize: 8, letterSpacing: "0.1em", opacity: 0.75, justifyContent: "center", maxWidth: "92vw" }}>
-            {[["#ffffff", "YOU"], ["#ff6fc0", "DEN"], ["#d46ff0", "CLUB"], ["#e9a842", "WOLVES"],
-              ["#8cbee8", "VESCARI"], ["#6cf06c", "GAS"], ["#5abedc", "SHOP"],
-              ["#eb4638", "INCIDENT"], ["#f2c24e", "MISSION"]]
+            {[["#ffffff", "YOU"], ["#ff6fc0", "DEN"], ["#d46ff0", "CLUB"],
+              ["#6cf06c", "GAS"], ["#5abedc", "SHOP"],
+              ["#eb4638", "INCIDENT"], ["#f2c24e", "MISSION"],
+              ...Object.keys(GANG_COL).map((k) => [GANG_COL[k], GANG_LABEL[k]])]
               .map(([col, lbl]) => (
                 <span key={lbl} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                   <span style={{ width: 7, height: 7, borderRadius: 7, background: col,
