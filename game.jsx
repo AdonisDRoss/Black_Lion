@@ -1165,7 +1165,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 222 — MAP";
+const BUILD_TAG = "LAYER 223 — MAP ERRORS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -3596,6 +3596,7 @@ export default function IronLionLayer004() {
   const [zoomUI, setZoomUI] = useState(1);
   const [hud, setHud] = useState({ mode: "foot", mph: 0, place: "", night: false });
   const [mapOpen, setMapOpen] = useState(false);
+  const [mapErr, setMapErr] = useState(null);
   const mapCv = useRef(null);
 
   /* ---------- pause map ----------
@@ -3605,13 +3606,25 @@ export default function IronLionLayer004() {
      only renders when opened and wants the exact position, not a 0.15s-old copy. */
   useEffect(() => {
     if (!mapOpen) return;
+    setMapErr(null);
     const g = G.current;
     // mirror onto the game object: the pause watchdog reads g.*, not React state, and without
     // this it would treat an open map as an unowned pause and clear it after two seconds
     if (g) { g.paused = true; g.mapOpen = true; }
     let alive = true;
+    /* An exception thrown inside an effect takes React's whole tree down and leaves a black
+       page with nothing on it -- no HUD, no message, no way back. The game loop has had a
+       FRAME ERROR banner for exactly this reason; the map never did. Catch it, stop the loop,
+       and put the message where it can be read. */
     const draw = () => {
       if (!alive) return;
+      try { drawBody(); } catch (e) {
+        alive = false;
+        setMapErr(String((e && e.message) || e));
+        const gg = G.current; if (gg) { gg.paused = false; gg.mapOpen = false; }
+      }
+    };
+    const drawBody = () => {
       const cv = mapCv.current;
       if (!cv) return;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -3828,8 +3841,12 @@ export default function IronLionLayer004() {
       requestAnimationFrame(draw);
     };
     draw();
-    return () => { alive = false; const gg = G.current; if (gg) gg.paused = false; };
-    return () => { const gg = G.current; if (gg) gg.mapOpen = false; };
+    // one cleanup, not two -- the second was unreachable and left g.mapOpen set forever
+    return () => {
+      alive = false;
+      const gg = G.current;
+      if (gg) { gg.paused = false; gg.mapOpen = false; }
+    };
   }, [mapOpen]);
 
 
@@ -14813,6 +14830,13 @@ export default function IronLionLayer004() {
           style={{ position: "absolute", inset: 0, background: "rgba(6,7,9,0.93)", zIndex: 60,
             display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center",
             gap: 18, padding: 8 }}>
+          {mapErr && (
+            <div style={{ position: "absolute", top: 14, left: 14, right: 14, zIndex: 5,
+              border: "1px solid #eb4638", background: "rgba(40,10,10,0.92)", color: "#ff9a90",
+              padding: "10px 12px", fontSize: 10, letterSpacing: "0.08em", lineHeight: 1.5 }}>
+              MAP ERROR: {mapErr}
+            </div>
+          )}
           {/* studying the map should not dismiss it -- closing is the backdrop or the button */}
           <canvas ref={mapCv} onClick={(e) => e.stopPropagation()}
             style={{ width: "min(58vw, 92vh)", height: "min(58vw, 92vh)",
