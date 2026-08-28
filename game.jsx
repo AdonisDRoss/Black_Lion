@@ -1165,7 +1165,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 221 — STRONGHOLDS";
+const BUILD_TAG = "LAYER 222 — MAP";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -3606,7 +3606,9 @@ export default function IronLionLayer004() {
   useEffect(() => {
     if (!mapOpen) return;
     const g = G.current;
-    if (g) g.paused = true;
+    // mirror onto the game object: the pause watchdog reads g.*, not React state, and without
+    // this it would treat an open map as an unowned pause and clear it after two seconds
+    if (g) { g.paused = true; g.mapOpen = true; }
     let alive = true;
     const draw = () => {
       if (!alive) return;
@@ -3827,6 +3829,7 @@ export default function IronLionLayer004() {
     };
     draw();
     return () => { alive = false; const gg = G.current; if (gg) gg.paused = false; };
+    return () => { const gg = G.current; if (gg) gg.mapOpen = false; };
   }, [mapOpen]);
 
 
@@ -13320,28 +13323,9 @@ export default function IronLionLayer004() {
       ctx.strokeStyle = "rgba(217,164,65,0.5)"; ctx.lineWidth = 1;
       ctx.strokeRect(ox + 0.5, oy + 0.5, S, S);
 
-      // legend: coloured pips are only useful if you know what they mean
-      const leg = [["#ff6fc0", "DEN"], ["#d46ff0", "CLUB"], ["#6cf06c", "GAS"],
-        ["#5abedc", "SHOP"], ["#e9a842", "WOLVES"], ["#8cbee8", "VESCARI"]];
-      ctx.font = "7px ui-monospace, monospace";
-      ctx.textAlign = "left";
-      let lx = ox, ly = oy + S - 4;    // was oy + S + 9, which sat under the zoom slider
-      for (const [col, label] of leg) {
-        const wpx = ctx.measureText(label).width;
-        // S bottoms out at 96px and four entries overrun that, so wrap instead of clipping
-        if (lx + 8 + wpx > ox + S && lx > ox) { lx = ox; ly -= 9; }   // stack upward inside the box
-        ctx.fillStyle = col;
-        ctx.beginPath(); ctx.arc(lx + 3, ly, 2.6, 0, 6.3); ctx.fill();
-        ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(lx + 3, ly, 2.6, 0, 6.3); ctx.stroke();
-        ctx.fillStyle = "rgba(10,11,14,0.55)";
-        ctx.fillRect(lx - 2, ly - 5, wpx + 12, 10);
-        ctx.fillStyle = col;
-        ctx.beginPath(); ctx.arc(lx + 3, ly, 2.6, 0, 6.3); ctx.fill();
-        ctx.fillStyle = "rgba(232,217,181,0.82)";
-        ctx.fillText(label, lx + 8, ly + 2.5);
-        lx += 8 + wpx + 7;
-      }
+      /* No legend here any more. Six labelled pips at 7px inside a box that bottoms out at
+         96px ate a third of the minimap and stacked upward over the city -- the thing the
+         minimap exists to show. The full map carries the legend, where there is room for it. */
       ctx.textAlign = "start";
     }
 
@@ -14829,7 +14813,8 @@ export default function IronLionLayer004() {
           style={{ position: "absolute", inset: 0, background: "rgba(6,7,9,0.93)", zIndex: 60,
             display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center",
             gap: 18, padding: 8 }}>
-          <canvas ref={mapCv}
+          {/* studying the map should not dismiss it -- closing is the backdrop or the button */}
+          <canvas ref={mapCv} onClick={(e) => e.stopPropagation()}
             style={{ width: "min(58vw, 92vh)", height: "min(58vw, 92vh)",
               border: `1px solid ${C.gold}`, background: "#101116", flexShrink: 0 }} />
           {/* the reading column sits beside the map in landscape rather than under it */}
@@ -14844,8 +14829,9 @@ export default function IronLionLayer004() {
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 10,
             fontSize: 8, letterSpacing: "0.1em", opacity: 0.75, justifyContent: "center", maxWidth: "92vw" }}>
-            {[["#ffffff", "YOU"], ["#ff6fc0", "DEN"], ["#d46ff0", "CROWN"], ["#e9a842", "WOLVES"],
-              ["#6cf06c", "GAS"], ["#5abedc", "SHOP"], ["#eb4638", "INCIDENT"], ["#f2c24e", "MISSION"]]
+            {[["#ffffff", "YOU"], ["#ff6fc0", "DEN"], ["#d46ff0", "CLUB"], ["#e9a842", "WOLVES"],
+              ["#8cbee8", "VESCARI"], ["#6cf06c", "GAS"], ["#5abedc", "SHOP"],
+              ["#eb4638", "INCIDENT"], ["#f2c24e", "MISSION"]]
               .map(([col, lbl]) => (
                 <span key={lbl} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                   <span style={{ width: 7, height: 7, borderRadius: 7, background: col,
@@ -14894,8 +14880,13 @@ export default function IronLionLayer004() {
                 ))}
             </div>
           </div>
-          <div style={{ fontSize: 9, opacity: 0.5, marginTop: 12, letterSpacing: "0.14em" }}>
-            TAP OUTSIDE TO CLOSE
+          {/* "tap outside" is not obvious when the map fills the screen on a phone */}
+          <div onClick={(e) => { e.stopPropagation(); setMapOpen(false); }}
+            style={{ marginTop: 14, alignSelf: "stretch", textAlign: "center",
+              padding: "10px 14px", border: `1px solid ${C.gold}`, borderRadius: 6,
+              background: "rgba(217,164,65,0.10)", color: C.gold,
+              fontSize: 11, letterSpacing: "0.24em", cursor: "pointer" }}>
+            CLOSE
           </div>
           </div>
         </div>
