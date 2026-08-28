@@ -1165,7 +1165,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 223 — MAP ERRORS";
+const BUILD_TAG = "LAYER 224 — MENTOR";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -4030,6 +4030,11 @@ export default function IronLionLayer004() {
     if (!g.inside && g.mode === "foot" && G.fireHouseFn && G.fireHouseFn()) return;
     if (!g.inside && g.mode === "foot" && G.sewerFn && G.sewerFn()) return;
     if (!g.inside && G.raceTalkFn && G.raceTalkFn()) return;
+    /* The mentor is inside the den, so this has to come BEFORE the door/stairs branch or E
+       walks you out of the room instead of talking to him. `talkMentor` has existed since the
+       mentor did and nothing ever called it -- the HUD has been offering "[E] HE HAS SOMETHING
+       FOR YOU" to a key that did something else. */
+    if (g.mode === "foot" && g.inside && G.mentorFn && G.mentorFn()) return;
     if (g.mode === "foot" && g.inside && g.inside.kind === "den" && G.lockerFn && G.lockerFn()) {
       const gg = G.current;
       if (gg.lockerOpen) { G.lockerCloseFn && G.lockerCloseFn(); return; }
@@ -8854,6 +8859,9 @@ export default function IronLionLayer004() {
       const mrow = m.suited ? MENTOR_SUIT : MENTOR_PLAIN;
       if (drawActorTop("face", mrow,
             { x: m.x, y: m.y, vx: 0, vy: 0, anim: m.anim * 6, jit: 1, topAng: 0 }, "idle")) {
+        // the older mn_mentor branch draws his bubble and this one did not, so he answered
+        // you in silence -- every path that draws him has to draw what he is saying
+        if (m.say > 0) bubble(m.x, m.y - 24, m.line, "#8fd0e0");
         return;
       }
       const img = imgs.current.mentor_idle;
@@ -9606,8 +9614,9 @@ export default function IronLionLayer004() {
       // he has work for you before he has small talk
       const job = pendingMentorMission();
       if (job) { startMission(job); return true; }
-      m.say = 3.2;
+      m.say = 4.0;
       m.pose = "turn_talk";
+      g.pickupFlash = { nm: "mentor", t: 2.0 };
       m.line = g.suspicion > 50 ? MENTOR_LINES[0] : MENTOR_LINES[(Math.random() * MENTOR_LINES.length) | 0];
       return true;
     }
@@ -13958,6 +13967,7 @@ export default function IronLionLayer004() {
       travelAll: !!g.travelAll }));
     G.garageFn = nearGarageBay; G.garageTakeFn = takeFromGarage; G.garagePickFn = garageReplace;
     G.lockerFn = nearLocker;
+    G.mentorFn = talkMentor;
     G.grapFn = fireGrapple;
     // TEST: torch whatever building you are standing next to, permanently
     /* Stairs up, pole down. The pole is the point: you go up the slow way and come down the
