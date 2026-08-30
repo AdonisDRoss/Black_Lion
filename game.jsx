@@ -422,6 +422,9 @@ const DA = {
   det_torque: "assets/det_torque.webp",
   det_dutch: "assets/det_dutch.webp",
   motorcycle: "assets/motorcycle.webp",
+  ft_hotdog: "assets/ft_hotdog.webp", ft_burger: "assets/ft_burger.webp",
+  ft_coffee: "assets/ft_coffee.webp", ft_taco: "assets/ft_taco.webp",
+  ft_noodle: "assets/ft_noodle.webp", ft_chips: "assets/ft_chips.webp",
 };
 const DET_META = {
  "det_lean": {
@@ -1183,7 +1186,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 227 — RUN OVER";
+const BUILD_TAG = "LAYER 229 — FOOD TRUCKS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1567,6 +1570,31 @@ const GANG_LABEL = {
   kings: "KINGS", wolves: "WOLVES", mob_young: "RIZZO", mob_old: "VESCARI",
   chi: "MERCHANTS", irish: "LOCAL 114", barrio: "LA PERLA", brack: "BRACKEN",
 };
+/* --- food trucks -------------------------------------------------------------
+
+   Parked, never in traffic: a food truck that drives away is not a landmark. Each one is fixed
+   to a cell and stays there for the whole game, so "the coffee wagon by the terminal" is a
+   place you can go back to.
+
+   Each sells only what suits it. A noodle cart with a hot dog on the menu is worse than no
+   noodle cart, and one list per truck costs nothing -- every item here already exists in
+   ITEM_FX, heals or restores what it always did, and applyItem does the work. */
+const FOOD_TRUCKS = [
+  { k: "ft_burger", cell: { i: 7, j: 7 },   name: "PATTY'S",
+    menu: [["sandwich", 12], ["chips", 6], ["soda", 5]] },
+  { k: "ft_coffee", cell: { i: 11, j: 12 }, name: "THE URN",
+    menu: [["coffee", 4], ["chocolate", 5], ["sandwich", 12]] },
+  { k: "ft_taco",   cell: { i: 15, j: 11 }, name: "EL FAROLITO",
+    menu: [["sandwich", 11], ["soda", 5], ["apple", 4]] },
+  { k: "ft_noodle", cell: { i: 2, j: 13 },  name: "LANE NOODLE",
+    menu: [["sandwich", 10], ["coffee", 4]] },
+  { k: "ft_chips",  cell: { i: 13, j: 2 },  name: "SEA & SALT",
+    menu: [["chips", 6], ["hotdog", 9], ["beer", 7]] },
+  { k: "ft_hotdog", cell: { i: 9, j: 5 },   name: "CORNER DOG",
+    menu: [["hotdog", 8], ["soda", 5]] },
+  { k: "ft_hotdog", cell: { i: 5, j: 16 },  name: "SIXTH ST DOG",
+    menu: [["hotdog", 8], ["chips", 6], ["soda", 5]] },
+];
 const WOLVES_CELL = { i: 19, j: 5 };
 // wf_00/02/04 are choppers, wf_01/03 the rust buckets. Hoisted out of the crew spawn so the
 // turf patrol can pick a bike from the same garage the parked ones come from.
@@ -4120,6 +4148,7 @@ export default function IronLionLayer004() {
        walks you out of the room instead of talking to him. `talkMentor` has existed since the
        mentor did and nothing ever called it -- the HUD has been offering "[E] HE HAS SOMETHING
        FOR YOU" to a key that did something else. */
+    if (g.mode === "foot" && !g.inside && G.truckFn && G.truckFn()) return;
     if (g.mode === "foot" && g.inside && G.mentorFn && G.mentorFn()) return;
     if (g.mode === "foot" && g.inside && g.inside.kind === "den" && G.lockerFn && G.lockerFn()) {
       const gg = G.current;
@@ -5797,6 +5826,32 @@ export default function IronLionLayer004() {
       if (!sp || g.mode !== "foot") return false;
       return Math.hypot(g.p.x - sp[0], g.p.y - sp[1]) < 62;
     }
+    /* Fixed pitches, resolved once. Cell centre plus a small offset so a truck sits at the
+       kerb rather than in the middle of the junction. */
+    function truckPos(t) {
+      if (!t._p) t._p = [SX(t.cell.i) + PITCH / 2 + 74, SX(t.cell.j) + PITCH / 2 - 40];
+      return t._p;
+    }
+    function nearTruck() {
+      if (g.mode !== "foot" || g.inside) return null;
+      for (const t of FOOD_TRUCKS) {
+        const p = truckPos(t);
+        if (Math.hypot(g.p.x - p[0], g.p.y - p[1]) < 74) return t;
+      }
+      return null;
+    }
+    function drawFoodTrucks(view) {
+      for (const t of FOOD_TRUCKS) {
+        const p = truckPos(t);
+        if (p[0] < view.x0 - 200 || p[0] > view.x1 + 200 ||
+            p[1] < view.y0 - 200 || p[1] > view.y1 + 200) continue;
+        const im = imgs.current[t.k];
+        if (!im || !im.width) continue;
+        const h = im.height * 0.58, w = im.width * 0.58;   // sedan scale, not sprite scale
+        drawShadow(p[0], p[1] + 3, w * 0.46, h * 0.30, 0.34);
+        ctx.drawImage(im, p[0] - w / 2, p[1] - h / 2, w, h);
+      }
+    }
     function drawLocker() {
       const sp = lockerSpot();
       if (!sp) return;
@@ -6111,6 +6166,166 @@ export default function IronLionLayer004() {
       drawShadow(x, y + 2, d * 0.34, d * 0.20, 0.30);
     }
 
+    /* --- what the war looks like on the street --------------------------------
+
+       Flashpoints are what the war does to NEUTRALS -- a shop burns in the barrio, somebody
+       gets beaten in Chinatown. They are the cost, and they are the reason Darius is in it.
+
+       War acts are what the two sides do to EACH OTHER. Nobody has to be saved and the player
+       is not required: they happen near him because that is where the game is being rendered,
+       and he can walk into one, break it up, or drive past. A war you only ever hear about in
+       a mission briefing is weather; a war you keep stumbling into is a war.
+
+       Every act reuses machinery that already exists -- crews with rivals, the blast from a
+       grenade, the shop robbery, building fire -- rather than adding a second combat system. */
+    const WAR_ACTS = ["fight", "driveby", "bomb", "raid", "hit"];
+    function warFactions() {
+      // one from each side, and never a neutral: the Kings and La Perla are staying out
+      const old = [], young = [];
+      for (const k in WAR_SIDE) {
+        if (WAR_SIDE[k] === "old") old.push(k);
+        else if (WAR_SIDE[k] === "young") young.push(k);
+      }
+      old.push("mob"); young.push("mob");
+      const a = old[(Math.random() * old.length) | 0];
+      const b = young[(Math.random() * young.length) | 0];
+      return Math.random() < 0.5 ? [a, b] : [b, a];
+    }
+    function warCrew(gang, x, y, n, wing) {
+      const members = [];
+      for (let i = 0; i < n; i++) {
+        const ang = (i / n) * 6.283 + Math.random() * 0.5;
+        const px = x + Math.cos(ang) * (20 + Math.random() * 26);
+        const py = y + Math.sin(ang) * (20 + Math.random() * 26);
+        members.push({
+          x: px, y: py, vx: 0, vy: 0, stun: 0, atk: 0, anim: Math.random() * 6,
+          ...rankKit(gang, null),
+          wpn: weaponFor(gang, wing || null),
+          o: null, pose: "hang1", jit: 0.95 + Math.random() * 0.12,
+          phase: Math.random() * 6.28, hx: px, hy: py, fireCd: 0.6 + Math.random(),
+          say: 0, line: "", chatCd: 1 + Math.random() * 3, drawnT: 0,
+        });
+      }
+      const cr = { x, y, members, state: "hang", timer: 0, gang, wing: wing || null, war: 1 };
+      g.crews.push(cr);
+      return cr;
+    }
+
+    function startWarAct(cx, cy) {
+      if (!g.war || g.warOver || g.warAct) return;
+      const [ga, gb] = warFactions();
+      if (ga === gb) return;
+      const kind = WAR_ACTS[(Math.random() * WAR_ACTS.length) | 0];
+      // far enough that it is not on top of him, near enough to be reachable and audible
+      const ang = Math.random() * 6.283, r = 520 + Math.random() * 420;
+      const x = cx + Math.cos(ang) * r, y = cy + Math.sin(ang) * r;
+
+      if (kind === "fight") {
+        // two crews meet at a border. The existing rival AI does the rest.
+        const A = warCrew(ga, x, y, 3 + ((Math.random() * 2) | 0));
+        const B = warCrew(gb, x + 90, y + 30, 3 + ((Math.random() * 2) | 0));
+        A.rival = B; B.rival = A; A.state = "hostile"; B.state = "hostile";
+        g.warAct = { kind, t: 0, life: 70, a: A, b: B };
+        g.scanner = Math.max(g.scanner || 0, 3);
+      } else if (kind === "hit") {
+        // two men sent for one. Small, quiet, and over quickly.
+        const target = warCrew(gb, x, y, 1);
+        const killers = warCrew(ga, x + 140, y + 90, 2);
+        killers.rival = target; killers.state = "hostile";
+        target.rival = killers;
+        g.warAct = { kind, t: 0, life: 55, a: killers, b: target };
+      } else if (kind === "driveby") {
+        const target = warCrew(gb, x, y, 3);
+        const m = CARM[(Math.random() * (CARM.length - 1)) | 0];
+        /* `dead: 1` keeps the traffic AI off it -- that flag means parked, and the AI skips
+           those. This one is driven by hand in updateWarAct instead, because a drive-by has to
+           run a specific line past a specific crew, which the road-following AI will not do. */
+        const car = {
+          x: x - 340, y: y + 26, ang: 0, m, spd: 0, brake: 0, rad: 22,
+          dead: 1, crewCar: 1, axis: "h", si: 0, k: 0, dir: 1, fleeing: 0, gang: ga,
+          shoot: 2.6, run: 168,
+        };
+        g.traffic.push(car);
+        g.warAct = { kind, t: 0, life: 40, a: null, b: target, car };
+        g.scanner = Math.max(g.scanner || 0, 2.5);
+      } else if (kind === "bomb") {
+        // a car left outside their door, and a fuse
+        const target = warCrew(gb, x, y, 3);
+        const m = CARM[(Math.random() * (CARM.length - 1)) | 0];
+        const car = { x: x + 54, y: y + 40, ang: Math.PI / 2, m, spd: 0, brake: 0,
+                      rad: 22, dead: 1, crewCar: 1, axis: "h", si: 0, k: 0, dir: 1,
+                      fleeing: 0, gang: ga, fuse: 9 + Math.random() * 5 };
+        g.traffic.push(car);
+        g.warAct = { kind, t: 0, life: 30, a: null, b: target, car };
+      } else {
+        // raid: they come through the door of a business on the other side's ground
+        const A = warCrew(ga, x, y, 3 + ((Math.random() * 2) | 0));
+        const B = warCrew(gb, x + 70, y - 40, 2 + ((Math.random() * 2) | 0));
+        A.rival = B; B.rival = A; A.state = "hostile"; B.state = "hostile";
+        g.warAct = { kind, t: 0, life: 65, a: A, b: B };
+        g.scanner = Math.max(g.scanner || 0, 2.5);
+      }
+      g.warActFlash = { kind, t: 5 };
+    }
+
+    function updateWarAct(dt) {
+      if (!g.war || g.warOver) {
+        if (g.warActCd == null) g.warActCd = 0;
+        return;
+      }
+      g.warActCd = (g.warActCd == null ? 26 : g.warActCd) - dt;
+      const pv = inVehicle() ? activeVeh() : g.p;
+      if (!g.warAct && g.warActCd <= 0 && !g.inside && !g.flash) {
+        startWarAct(pv.x, pv.y);
+        g.warActCd = 55 + Math.random() * 70;
+      }
+      const W = g.warAct;
+      if (!W) return;
+      W.t += dt;
+      if (W.kind === "driveby" && W.car) {
+        const c = W.car;
+        c.x += c.run * dt;                 // straight past them and gone
+        c.ang = 0;
+        c.shoot -= dt;
+        const live = W.b.members.filter((m) => m.hp > 0);
+        // it shoots as it passes, then it keeps going -- it does not stop and fight
+        if (c.shoot <= 0 && live.length) {
+          c.shoot = 0.22;
+          const t = live[(Math.random() * live.length) | 0];
+          if (Math.abs(t.x - c.x) < 300) {
+            c.muzzle = 0.1;
+            if (Math.random() < 0.45) {
+              t.hp -= 1 + Math.random() * 2;
+              t.stun = 0.3;
+              if (t.hp <= 0) { dropLoot(t.x, t.y, LOOT_KING); dropWeapon(t); }
+            }
+          }
+        }
+        /* Break the crew rather than set a field nothing reads: being shot at from a car you
+           cannot reach is exactly the case the morale code at layer 220 was written for. */
+        if (!W.b.broke) { W.b.broke = true; W.b.fleeT = 8 + Math.random() * 4; }
+      }
+      if (W.kind === "bomb" && W.car) {
+        W.car.fuse -= dt;
+        if (W.car.fuse <= 0) {
+          blastAt(W.car.x, W.car.y, "grenade");
+          blastAt(W.car.x, W.car.y, "molotov");     // and it burns after
+          W.car.dead = 2; W.car.burn = 6;
+          g.warAct = null;
+          return;
+        }
+      }
+      if (W.t > W.life) {
+        // done: whoever is left goes back to standing around, and the scene is released
+        for (const cr of [W.a, W.b]) if (cr) { cr.state = "hang"; cr.rival = null; cr.war = 0; }
+        if (W.car && W.kind === "driveby") {
+          const ix = g.traffic.indexOf(W.car);
+          if (ix >= 0) g.traffic.splice(ix, 1);
+        }
+        g.warAct = null;
+      }
+    }
+
     /* --- getting run over ------------------------------------------------------
 
        Anything on foot that a moving vehicle touches gets hit. Speed decides everything: below
@@ -6143,7 +6358,14 @@ export default function IronLionLayer004() {
         o.vx = Math.cos(va) * (60 + sp * 0.9) + Math.cos(a) * 40;
         o.vy = Math.sin(va) * (60 + sp * 0.9) + Math.sin(a) * 40;
         o.x += o.vx * dt; o.y += o.vy * dt;
-        if (isPed) { o.scare = 3.5; return; }
+        if (isPed) {
+          /* `panic` with a flee vector is the ped system's own language -- `scare` is a field
+             nothing in this file reads, so setting it would have looked like working code and
+             done nothing. fx/fy is the direction he runs. */
+          o.mode = "panic"; o.timer = 1.6 + Math.random() * 1.4;
+          o.fx = dx; o.fy = dy;
+          return;
+        }
         o.hp -= dmg; o.stun = Math.max(o.stun || 0, 0.5 + dmg * 0.12);
         if (o.hp <= 0) { dropLoot(o.x, o.y, LOOT_KING); dropWeapon(o); }
       };
@@ -13565,7 +13787,7 @@ export default function IronLionLayer004() {
       if (g.paused) {
         const owned = (g.cut && g.cut.panels && g.cut.panels.length) || g.title ||
           g.lockerOpen || g.travelOpen || g.raceTalk || g.leaderTalk || g.mapOpen ||
-          g.garagePick || g.mentorJob;
+          g.garagePick || g.mentorJob || g.truckOpen;
         g.pauseOrphan = owned ? 0 : (g.pauseOrphan || 0) + dt;
         if (g.pauseOrphan > 2) {
           g.paused = false; g.pauseOrphan = 0;
@@ -13585,6 +13807,7 @@ export default function IronLionLayer004() {
       if (!g.title) updateCrime(dt);
       if (!g.title) updateShop(dt);
       if (!g.title) updateThrown(dt);
+      if (!g.title) updateWarAct(dt);
       if (!g.title && !g.inside) updateStrongholds();
       stepBailers(dt);
       repairInBay(dt);
@@ -13752,6 +13975,7 @@ export default function IronLionLayer004() {
       if (g.inside) {
         for (const b of blds) drawBuildingExt(b, g.inside === b ? 1 - g.insideT : 1);
       }
+      if (!g.inside) drawFoodTrucks(view);
       if (g.inside) drawInterior(g.inside, g.floor, g.insideT);
       // staff, customers and anyone robbing them, on top of the floor and its furniture
       if (g.inside && g.insideT > 0.5) drawShopFolk();
@@ -13913,6 +14137,7 @@ export default function IronLionLayer004() {
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
             lion: Math.round(g.lion), lionOn: !!g.lionOn, plain: !!g.plain,
+            atTruck: (() => { const t = nearTruck(); return t ? t.name : null; })(),
             atLocker: nearLocker(), lockerOpen: !!g.lockerOpen, outfits: g.outfits.slice(),
             rack: (g.rack || []).slice(),
             roof: !!g.roof, canHook: !!grappleTarget(), canJump: !!jumpTarget(),
@@ -14073,6 +14298,26 @@ export default function IronLionLayer004() {
     G.garageFn = nearGarageBay; G.garageTakeFn = takeFromGarage; G.garagePickFn = garageReplace;
     G.lockerFn = nearLocker;
     G.mentorFn = talkMentor;
+    G.truckFn = () => {
+      const gg = G.current;
+      const t = nearTruck();
+      if (!t) return false;
+      gg.truckOpen = t; gg.paused = true;
+      setHud((h) => ({ ...h, truck: { name: t.name, menu: t.menu } }));
+      return true;
+    };
+    G.truckCloseFn = () => {
+      const gg = G.current;
+      gg.truckOpen = null; gg.paused = false;
+      setHud((h) => ({ ...h, truck: null }));
+    };
+    G.buyFn = (item, cost) => {
+      const gg = G.current;
+      if (gg.p.cash < cost) { gg.pickupFlash = { nm: "no_cash", t: 1.4 }; return; }
+      gg.p.cash -= cost;
+      applyItem(item);
+      setHud((h) => ({ ...h, cash: gg.p.cash }));
+    };
     /* Take one off the rack. Ammo comes with it -- a gun sitting at home is a loaded gun -- and
        taking a second one puts the first back, because he carries one thing at a time. */
     G.takeFn = (k) => {
@@ -14571,6 +14816,38 @@ export default function IronLionLayer004() {
       {hud.mentorJob && (
         <div style={{ marginTop: 8, fontSize: 10, color: C.gold, letterSpacing: "0.12em" }}>
           [E] HE HAS SOMETHING FOR YOU
+        </div>
+      )}
+      {hud.atTruck && !hud.truck && (
+        <div style={{ marginTop: 8, fontSize: 10, color: C.gold, letterSpacing: "0.12em" }}>
+          [E] {hud.atTruck}
+        </div>
+      )}
+      {hud.truck && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 84, background: "rgba(6,7,9,0.94)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          fontFamily: mono, padding: 18 }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.26em", color: C.gold }}>{hud.truck.name}</div>
+          <div style={{ fontSize: 9, opacity: 0.55, marginTop: 4, letterSpacing: "0.14em" }}>
+            ${hud.cash} ON HIM
+          </div>
+          {hud.truck.menu.map(([item, cost]) => (
+            <div key={item} onClick={() => G.buyFn && G.buyFn(item, cost)}
+              style={{ marginTop: 10, padding: "11px 22px", minWidth: 240, cursor: "pointer",
+                display: "flex", justifyContent: "space-between",
+                border: `1px solid ${hud.cash >= cost ? C.gold : "rgba(217,164,65,0.25)"}`,
+                background: "rgba(12,13,17,0.8)",
+                opacity: hud.cash >= cost ? 1 : 0.45 }}>
+              <span style={{ fontSize: 12, letterSpacing: "0.12em", color: "#e8d9b5" }}>
+                {item.replace(/_/g, " ").toUpperCase()}
+              </span>
+              <span style={{ fontSize: 12, color: C.gold }}>${cost}</span>
+            </div>
+          ))}
+          <div onClick={() => G.truckCloseFn && G.truckCloseFn()}
+            style={{ marginTop: 16, fontSize: 9, opacity: 0.55, letterSpacing: "0.16em", cursor: "pointer" }}>
+            CLOSE
+          </div>
         </div>
       )}
       {hud.atLocker && !hud.lockerOpen && (
