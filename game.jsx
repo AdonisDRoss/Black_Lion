@@ -1183,7 +1183,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 226 — COMIC PAGES";
+const BUILD_TAG = "LAYER 227 — RUN OVER";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -6109,6 +6109,62 @@ export default function IronLionLayer004() {
     function downedPose(x, y, d) {
       // sits under the body, wider than the standing shadow and much softer
       drawShadow(x, y + 2, d * 0.34, d * 0.20, 0.30);
+    }
+
+    /* --- getting run over ------------------------------------------------------
+
+       Anything on foot that a moving vehicle touches gets hit. Speed decides everything: below
+       a walking pace it is a shove, above that it hurts, and a car at speed puts a man down.
+       That matters for the player as much as for them -- driving through a crowd should be a
+       decision, not a shortcut.
+
+       Peds scatter rather than take damage. They are scenery with somewhere to be, and killing
+       civilians with a car by accident is not a thing this game should reward or punish. */
+    function carHits(v, dt) {
+      /* The player's car carries vx/vy; TRAFFIC does not -- it moves as `spd` along `ang`.
+         Reading vx/vy for both would have made every traffic car harmless and silently, which
+         is the sort of thing that looks like the feature was never wired at all. */
+      const sp = v.vx != null || v.vy != null
+        ? Math.hypot(v.vx || 0, v.vy || 0)
+        : Math.abs(v.spd || 0);
+      if (sp < 34) return;                         // parked or crawling: nothing happens
+      const rad = (v.rad || 20) + 11;
+      const dmg = Math.min(9, (sp - 34) / 46);     // a glancing clip is not a killing blow
+      const hit = (o, isPed) => {
+        if (!o || (o.hp != null && o.hp <= 0)) return;
+        const dx = o.x - v.x, dy = o.y - v.y;
+        if (dx > rad || dx < -rad || dy > rad || dy < -rad) return;
+        const d = Math.hypot(dx, dy);
+        if (d > rad || d < 0.001) return;
+        const a = Math.atan2(dy, dx);
+        // thrown along the car's travel, not away from its centre -- it is a car, not a bomb
+        const va = (v.vx != null || v.vy != null)
+          ? Math.atan2(v.vy || 0, v.vx || 0) : (v.ang || 0);
+        o.vx = Math.cos(va) * (60 + sp * 0.9) + Math.cos(a) * 40;
+        o.vy = Math.sin(va) * (60 + sp * 0.9) + Math.sin(a) * 40;
+        o.x += o.vx * dt; o.y += o.vy * dt;
+        if (isPed) { o.scare = 3.5; return; }
+        o.hp -= dmg; o.stun = Math.max(o.stun || 0, 0.5 + dmg * 0.12);
+        if (o.hp <= 0) { dropLoot(o.x, o.y, LOOT_KING); dropWeapon(o); }
+      };
+      if (!g.inside) for (const p2 of g.peds) hit(p2, true);
+      for (const cr of g.crews) {
+        if (cr.indoor) continue;
+        for (const m of cr.members) hit(m);
+      }
+      if (g.crime) for (const t of g.crime.thugs) hit(t);
+      if (g.police) for (const u of g.police.units) hit(u);
+      // and the player, when somebody else is driving
+      if (g.mode === "foot" && !g.inside) {
+        const dx = g.p.x - v.x, dy = g.p.y - v.y;
+        if (Math.hypot(dx, dy) < rad) {
+          const va = (v.vx != null || v.vy != null)
+            ? Math.atan2(v.vy || 0, v.vx || 0) : (v.ang || 0);
+          g.p.vx = Math.cos(va) * (70 + sp); g.p.vy = Math.sin(va) * (70 + sp);
+          g.p.hp = Math.max(0, g.p.hp - dmg * 1.4);
+          g.shake = Math.max(g.shake, 10);
+        }
+      }
     }
 
     function collideActors(e, rad) {
@@ -12000,6 +12056,14 @@ export default function IronLionLayer004() {
       // riding meant no shunt, no impact sound and no reaction from anyone you hit
       const pc = inVehicle() ? activeVeh() : g.p;
       const pcs = Math.hypot(pc.vx || 0, pc.vy || 0);
+      /* Anyone on foot that a moving vehicle touches gets hit -- the player's first, then every
+         traffic car, so being run over is not something only the player can do. */
+      if (inVehicle()) carHits(pc, dt);
+      for (const v of g.traffic) {
+        if (v.dead) continue;                    // parked
+        if (Math.abs(v.x - cx) > 900 || Math.abs(v.y - cy) > 900) continue;
+        carHits(v, dt);
+      }
 
       // Traffic only ever avoided the player, so two NPC cars would sit inside each other at
       // a junction. One pairwise separation pass is cheap and fixes the stacking.
