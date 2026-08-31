@@ -1197,7 +1197,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 245 — THE RECORD";
+const BUILD_TAG = "LAYER 247 — ZOOM CLEAR";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -4369,8 +4369,6 @@ export default function IronLionLayer004() {
        walks you out of the room instead of talking to him. `talkMentor` has existed since the
        mentor did and nothing ever called it -- the HUD has been offering "[E] HE HAS SOMETHING
        FOR YOU" to a key that did something else. */
-    if (g.mode === "foot" && !g.inside && G.truckFn && G.truckFn()) return;
-    if (g.mode === "foot" && g.inside && G.tableFn && G.tableFn()) return;
     if (g.mode === "foot" && g.inside && G.compFn && G.compFn()) return;
     if (g.mode === "foot" && g.inside && G.mentorFn && G.mentorFn()) return;
     if (g.mode === "foot" && g.inside && g.inside.kind === "den" && G.lockerFn && G.lockerFn()) {
@@ -4399,12 +4397,18 @@ export default function IronLionLayer004() {
       if (st === 1 && g.floor < g.inside.floors - 1) { g.floor++; return; }
       if (st === -1) { if (g.floor > 0) { g.floor--; return; } }
       if (g.floor === 0 && G.doorFn && G.doorFn() === g.inside) { g.inside = null; return; }
+      /* Last, and only last. Leaving always wins: stairs, then the door, then the table. This
+         block returns unconditionally, so anything indoors has to live inside it. */
+      if (G.tableFn && G.tableFn()) return;
       return;
     }
     if (g.mode === "foot" && G.doorFn) {
       const b = G.doorFn();
       if (b) { g.inside = b; g.floor = 0; return; }
     }
+    /* After the door, for the same reason the table is: a truck parked near an entrance should
+       not stop you going inside. Walking up to something never beats walking into something. */
+    if (g.mode === "foot" && !g.inside && G.truckFn && G.truckFn()) return;
     if (g.mode === "foot") {
       mountNearest();
     } else {
@@ -15155,8 +15159,7 @@ export default function IronLionLayer004() {
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
             lion: Math.round(g.lion), lionOn: !!g.lionOn, plain: !!g.plain,
             atTruck: (() => { const t = nearTruck(); return t ? t.name : null; })(),
-            atTable: !!(g.inside && !g.table &&
-              ["casino", "cardroom", "arcade"].indexOf(g.inside.biz) >= 0),
+            atTable: nearTable(),
             atLocker: nearLocker(), lockerOpen: !!g.lockerOpen, outfits: g.outfits.slice(),
             rack: (g.rack || []).slice(),
             roof: !!g.roof, canHook: !!grappleTarget(), canJump: !!jumpTarget(),
@@ -15347,9 +15350,31 @@ export default function IronLionLayer004() {
        the game on offer follows the sign over the door rather than being the same everywhere. */
     const TABLE_FOR = { casino: ["slots", "blackjack", "roulette"], cardroom: ["poker", "blackjack"],
                         arcade: ["slots"] };
+    /* A table is a THING IN A ROOM you walk up to, not a property of being indoors. It used to
+       fire anywhere inside a casino, which meant E opened a card game instead of letting you
+       out of the door -- the one control that has to always work.
+
+       The spot is the middle of the gaming floor, resolved from the plan and cached. */
+    function tableSpot() {
+      const b = g.inside;
+      if (!b || !TABLE_FOR[b.biz]) return null;
+      if (b._tbl === undefined) {
+        const plan = buildingPlans(b)[g.floor];
+        const r = plan && plan.rooms.find((q) => q.k === "retail" || q.k === "floor"
+                                              || q.k === "cage" || q.k === "backroom");
+        b._tbl = r ? [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2] : null;
+      }
+      return b._tbl;
+    }
+    function nearTable() {
+      if (g.mode !== "foot" || !g.inside || g.table) return false;
+      const sp = tableSpot();
+      if (!sp) return false;
+      return Math.hypot(g.p.x - sp[0], g.p.y - sp[1]) < 78;
+    }
     G.tableFn = () => {
       const gg = G.current;
-      if (gg.mode !== "foot" || !gg.inside || gg.table) return false;
+      if (!nearTable()) return false;
       const kinds = TABLE_FOR[gg.inside.biz];
       if (!kinds) return false;
       openTable(kinds[(Math.random() * kinds.length) | 0], gg.inside.name || "THE TABLE");
@@ -16458,9 +16483,14 @@ export default function IronLionLayer004() {
         }} />
       </div>
 
+      {/* Under the minimap, not above the buttons. The button row is `wrap-reverse` and grows
+          UPWARD from bottom: 22, so anything anchored to the bottom right gets covered the
+          moment a button is added -- which is exactly what happened when DRAW appeared. The
+          minimap bottoms out at 12 + 46 + 150 = 208, so 216 clears it at every size. */}
       <div style={{
-        position: "absolute", right: 18, bottom: 104, width: 168,
+        position: "absolute", right: 18, top: 216, width: 152, zIndex: 12,
         fontFamily: mono, color: "#e8d9b5", textAlign: "right",
+        display: hud.title ? "none" : "block", pointerEvents: "auto",
       }}>
         <div style={{ fontSize: 8, letterSpacing: "0.22em", opacity: 0.6, marginBottom: 3 }}>
           ZOOM {zoomUI.toFixed(2)}×
