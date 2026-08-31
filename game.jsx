@@ -424,6 +424,14 @@ const DA = {
   motorcycle: "assets/motorcycle.webp",
   tx_kestrel_wall: "assets/tx_kestrel_wall.png",
   sec_jeep: "assets/sec_jeep.webp",
+  semi_box: "assets/semi_box.webp", semi_tank: "assets/semi_tank.webp",
+  semi_flat: "assets/semi_flat.webp",
+  sl_seven: "assets/sl_seven.webp", sl_bar: "assets/sl_bar.webp",
+  sl_bell: "assets/sl_bell.webp", sl_plum: "assets/sl_plum.webp",
+  sl_cherry: "assets/sl_cherry.webp", sl_lemon: "assets/sl_lemon.webp",
+  tb_back: "assets/tb_back.webp", tb_felt: "assets/tb_felt.webp",
+  tb_chips: "assets/tb_chips.webp", tb_wheel: "assets/tb_wheel.webp",
+  tb_cabinet: "assets/tb_cabinet.webp",
   comp_scoot: "assets/comp_scoot.webp",
   comp_hatch: "assets/comp_hatch.webp", comp_hatch2: "assets/comp_hatch2.webp",
   ft_hotdog: "assets/ft_hotdog.webp", ft_burger: "assets/ft_burger.webp",
@@ -1197,7 +1205,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 247 — ZOOM CLEAR";
+const BUILD_TAG = "LAYER 251 — FREIGHT";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2185,6 +2193,9 @@ function floorKind(b, f) {
   if (b.kind === "precinct") return f === 0 ? "precinct" : "offices";
   if (b.kind === "cityhall") return f === 0 ? "cityhall" : "offices";
   if (b.kind === "sechq") return f === 0 ? "sechq" : "offices";
+  /* The Kestrel gets its own plan rather than the generic venue floor: you come in at the top
+     of the steps, cross a lobby, and the room opens out in front of you. */
+  if (b.landmark) return f === 0 ? "casino" : f === 1 ? "cardroom" : "offices";
   if (b.kind === "warehouse" || b.kind === "garage") return "warehouse";
   if (b.kind === "terminal") return "terminal";
   if (b.kind === "club") return "club";
@@ -2310,6 +2321,22 @@ function makeFloor(b, f, rnd) {
     put(0, Math.round(GY * 0.66) + 1, Math.round(GX * 0.34), GY - 1, "bar");
     put(Math.round(GX * 0.34) + 1, Math.round(GY * 0.66) + 1, Math.round(GX * 0.66), GY - 1, "cage");
     put(Math.round(GX * 0.66) + 1, Math.round(GY * 0.66) + 1, GX - 1, GY - 1, "backroom");
+  } else if (kind === "casino") {
+    /* Entered from the south, so the lobby is the bottom band and the floor is everything
+       past it. The cage is in a corner where it can be seen from the whole room, which is how
+       a real one is laid out and also why it is the thing people rob. */
+    const lob = Math.max(1, Math.round(GY * 0.20));
+    hub = put(0, GY - lob, GX - 1, GY - 1, "vestibule");
+    put(0, 0, GX - 1, GY - lob - 1, "retail");
+    put(GX - Math.max(2, Math.round(GX * 0.24)), 0,
+        GX - 1, Math.max(1, Math.round(GY * 0.26)), "cage");
+    put(0, 0, Math.max(1, Math.round(GX * 0.22)), Math.max(1, Math.round(GY * 0.22)), "bar");
+  } else if (kind === "cardroom") {
+    const lob = Math.max(1, Math.round(GY * 0.18));
+    hub = put(0, GY - lob, GX - 1, GY - 1, "corridor");
+    put(0, 0, Math.round(GX * 0.55), GY - lob - 1, "retail");
+    put(Math.round(GX * 0.55) + 1, 0, GX - 1, Math.round(GY * 0.45), "backroom");
+    put(Math.round(GX * 0.55) + 1, Math.round(GY * 0.45) + 1, GX - 1, GY - lob - 1, "office");
   } else if (kind === "precinct") {
     /* A police station is three things the public never see together: the counter you are
        kept at, the room they work in, and the cells. Laid out in that order front to back, so
@@ -3220,7 +3247,12 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       b.biz = "casino"; b.signKey = "sign_marquee"; b.name = "THE KESTREL";
       b.arch = "night"; b.eatery = false;
       b.stair = { depth: LH * 0.24, width: bw * 0.52 };   // the approach, drawn in front
-      out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+      /* Not faceDoor. That picks whichever side is nearest the block edge, and the stair is
+         drawn off the SOUTH face -- so the entrance has to be side 2 or the player climbs a
+         flight of steps to a blank wall and walks round the back to get in. */
+      faceDoor(b, lx0, ly0, lx1, ly1, rnd);
+      b.door = { side: 2, pos: 0.5 };
+      out.push(b);
       return out;
     }
     /* The strip: deep-plan venues built hard to the kerb on both sides of one street, with
@@ -4899,9 +4931,10 @@ export default function IronLionLayer004() {
     }
 
     function updatePeds(dt, cx, cy) {
-      const cap = Math.min(W, H) < 520 ? 42 : 70;
+      const cap = Math.min(W, H) < 520 ? 56 : 104;
+      // four a frame filled 70 in under a second; at 104 it wants six or the street stays thin
       let tries = 0;
-      while (g.peds.length < cap && tries++ < 4) spawnPed(cx, cy);
+      while (g.peds.length < cap && tries++ < 6) spawnPed(cx, cy);
 
       const car = g.car;
       const carSp = Math.hypot(car.vx, car.vy);
@@ -6133,6 +6166,68 @@ export default function IronLionLayer004() {
       if (groups[0] === 2) return [1, "PAIR"];
       return [0, "HIGH CARD"];
     }
+    /* --- who else is at the table -------------------------------------------
+
+       A table with a faceless dealer is a slot machine that deals cards. The point of sitting
+       down is the people, so every seat is somebody with a habit, and the habit is visible in
+       what they do rather than in a stat block.
+
+       They are not opponents in the strict sense -- the player still plays the dealer -- they
+       sit alongside, bet their own money, and react. What they are for is atmosphere with
+       consequences: the addict is the reason you notice you have been here an hour. */
+    const TABLE_FOLK = [
+      { name: "MERLE",   habit: "chases",   line: ["One more.", "It's due.", "I can feel it turning."] },
+      { name: "AUGIE",   habit: "grinds",   line: ["Small and slow.", "I'll sit this one.", "Not at those odds."] },
+      { name: "PEARL",   habit: "reads",    line: ["You blinked.", "I know that face.", "You've got nothing."] },
+      { name: "DOC",     habit: "drinks",   line: ["Another and I'm out.", "What was the bet?", "Deal, deal."] },
+      { name: "THE HAT", habit: "quiet",    line: ["...", "Hm.", "Go on then."] },
+      { name: "RUBY",    habit: "loud",     line: ["Table's cold!", "Give me the seven!", "Look at that."] },
+    ];
+    /* Each habit is one rule about money, and one about staying. `chase` is the addict: he
+       raises after a loss and he never leaves, which is the whole of that character. */
+    const HABIT = {
+      chases: { bet: (b, lost) => (lost ? b * 2 : b), stay: () => true },
+      grinds: { bet: (b) => Math.max(5, Math.round(b * 0.5)), stay: (c) => c.cash > 40 },
+      reads:  { bet: (b) => b, stay: (c) => c.cash > 20 },
+      drinks: { bet: (b) => Math.round(b * (0.6 + Math.random())), stay: (c) => c.cash > 10 },
+      quiet:  { bet: (b) => b, stay: (c) => c.cash > 60 },
+      loud:   { bet: (b, lost) => (lost ? b : Math.round(b * 1.5)), stay: (c) => c.cash > 25 },
+    };
+    function seatFolk(kind) {
+      // slots and roulette are stood at; cards are sat at, so only cards get company
+      if (kind !== "poker" && kind !== "blackjack") return [];
+      const pool = TABLE_FOLK.slice();
+      const n = 2 + ((Math.random() * 2) | 0);
+      const out = [];
+      for (let i = 0; i < n && pool.length; i++) {
+        const p = pool.splice((Math.random() * pool.length) | 0, 1)[0];
+        out.push({ ...p, cash: 60 + ((Math.random() * 240) | 0), bet: 10, lost: false,
+                   say: "", gone: false });
+      }
+      return out;
+    }
+    function runFolk(playerWon) {
+      const t = g.table;
+      if (!t || !t.folk) return;
+      for (const c of t.folk) {
+        if (c.gone) continue;
+        const h = HABIT[c.habit];
+        c.bet = Math.max(5, Math.min(120, h.bet(c.bet, c.lost)));
+        if (c.cash < c.bet) { c.bet = c.cash; }
+        c.cash -= c.bet;
+        // their own hand, resolved as a coin weighted slightly to the house
+        const won = Math.random() < 0.46;
+        c.lost = !won;
+        if (won) c.cash += c.bet * 2;
+        c.say = won ? "Ha." : c.line[(Math.random() * c.line.length) | 0];
+        /* Leaving is the tell. Everybody has a line they will not cross except the one who
+           does not have one -- and when the rest have gone home he is still sitting there. */
+        if (!h.stay(c) || c.cash <= 0) {
+          c.gone = true;
+          c.say = c.habit === "chases" ? "I'll get it back tomorrow." : "That's me done.";
+        }
+      }
+    }
     const SLOT_SYMS = ["7", "BAR", "BELL", "PLUM", "CHERRY", "LEMON"];
 
     function tableSync() {
@@ -6142,7 +6237,7 @@ export default function IronLionLayer004() {
     function openTable(kind, name) {
       g.table = { kind, name, bet: 10, msg: "PLACE YOUR BET", stage: "bet",
                   hand: [], dealer: [], reels: null, held: [null, null, null, null, null],
-                  last: 0 };
+                  last: 0, folk: seatFolk(kind) };
       g.paused = true;
       tableSync();
     }
@@ -6166,6 +6261,7 @@ export default function IronLionLayer004() {
         if (r[0] === r[1] && r[1] === r[2]) pay = r[0] === "7" ? t.bet * 40 : t.bet * 12;
         else if (r[0] === r[1] || r[1] === r[2] || r[0] === r[2]) pay = t.bet * 2;
         g.p.cash += pay; t.last = pay;
+        runFolk(pay > 0);
         t.msg = pay ? "PAYS $" + pay : "NOTHING";
         t.stage = "bet";
       } else if (t.kind === "roulette") {
@@ -6211,6 +6307,7 @@ export default function IronLionLayer004() {
           if (d > 21 || p > d) pay = p === 21 && t.hand.length === 2 ? Math.round(t.bet * 2.5) : t.bet * 2;
           else if (p === d) pay = t.bet;        // push: the stake comes back
           g.p.cash += pay; t.last = pay;
+          runFolk(pay > 0);
           t.msg = d > 21 ? "DEALER BUSTS \u2014 $" + pay
                 : p > d ? "YOU TAKE IT \u2014 $" + pay
                 : p === d ? "PUSH" : "DEALER " + d;
@@ -6230,6 +6327,7 @@ export default function IronLionLayer004() {
           if (pv > dv) pay = t.bet * (pv >= 6 ? 4 : 2);
           else if (pv === dv) pay = t.bet;
           g.p.cash += pay; t.last = pay;
+          runFolk(pay > 0);
           t.msg = pn + (pay ? " \u2014 $" + pay : " \u2014 DEALER TAKES IT");
           t.stage = "bet";
           tableSync(); return;
@@ -8247,11 +8345,31 @@ export default function IronLionLayer004() {
         }
         const simg = imgs.current["sg_" + skey];
         if (simg && simg.width) {
-          const sw = 24, sh = sw * (simg.height / simg.width);
+          /* A 24px sign is right for a bodega and absurd for the building the whole town points
+             at. The landmark gets a marquee three times the size, set higher, with its name
+             lettered across it and a glow that carries down the strip at night. */
+          const sw = b.landmark ? 76 : 24, sh = sw * (simg.height / simg.width);
           const glow = g.night > 0.3 ? 0.85 : 0.6;
           ctx.globalAlpha = glow;
-          ctx.drawImage(simg, dp[0] - sw / 2, dp[1] - sh - 16, sw, sh);
+          ctx.drawImage(simg, dp[0] - sw / 2, dp[1] - sh - (b.landmark ? 34 : 16), sw, sh);
           ctx.globalAlpha = 1;
+          if (b.landmark && b.name) {
+            const gy = dp[1] - sh - 34 + sh * 0.52;
+            ctx.font = "700 13px ui-monospace, Menlo, monospace";
+            ctx.textAlign = "center";
+            ctx.fillStyle = `rgba(20,14,8,${0.9})`;
+            ctx.fillText(b.name, dp[0] + 1, gy + 1);
+            ctx.fillStyle = g.night > 0.3 ? "#ffd978" : "#e7c98f";
+            ctx.fillText(b.name, dp[0], gy);
+            ctx.textAlign = "start";
+            if (g.night > 0.25) {
+              const gr = ctx.createRadialGradient(dp[0], gy, 6, dp[0], gy, 150);
+              gr.addColorStop(0, `rgba(255,206,120,${0.16 * g.night})`);
+              gr.addColorStop(1, "rgba(255,206,120,0)");
+              ctx.fillStyle = gr;
+              ctx.beginPath(); ctx.arc(dp[0], gy, 150, 0, 6.3); ctx.fill();
+            }
+          }
         }
       }
       ctx.fillStyle = g.night > 0.35 ? "rgba(255,200,110,0.85)" : "rgba(210,175,110,0.7)";
@@ -10148,6 +10266,8 @@ export default function IronLionLayer004() {
       { z: "town",      name: "HAZELBROOK",    i: 25, j: 25 },
       { z: "prison",    name: "KESTREL STATE",  i: 16, j: 23 },
       { z: "neon",      name: "EMBER FLATS",    i: 28, j: 23 },
+      // the Kestrel is the reason anyone goes out there, so it gets its own line
+      { z: "neon",      name: "THE KESTREL",    i: 28, j: 23, landmark: true },
     ];
     function markSeen() {
       if (g.inside) return;
@@ -10185,7 +10305,15 @@ export default function IronLionLayer004() {
       const list = travelList();
       const t = list[idx % Math.max(1, list.length)];
       if (!t) return;
-      const c = corner(t.i, t.j, 0);
+      let c = corner(t.i, t.j, 0);
+      /* A landmark drops you at its own door rather than the corner of the block -- travelling
+         to THE KESTREL and arriving in a car park two streets away is the same as not having
+         the entry. The stair foot is south of the building, which is where the door now is. */
+      if (t.landmark) {
+        const b = visibleBuildings({ x0: SX(t.i), x1: SX(t.i + 1),
+                                     y0: SX(t.j), y1: SX(t.j + 1) }).find((q) => q.landmark);
+        if (b) c = [b.x + b.w / 2, b.y + b.h + (b.stair ? b.stair.depth + 34 : 60)];
+      }
       g.inside = null; g.floor = 0; g.mode = "foot";
       g.paused = false;
       g.p.x = c[0]; g.p.y = c[1]; g.p.vx = 0; g.p.vy = 0;
@@ -13183,6 +13311,92 @@ export default function IronLionLayer004() {
       }
     }
 
+    /* --- parked cars ----------------------------------------------------------
+
+       An empty kerb reads as a film set. These are the same vehicles as traffic, placed at
+       LANE 0.80 instead of 0.46 -- outside the driving lane, against the kerb -- and marked
+       `dead: 1` so the road AI leaves them where they are.
+
+       They are scenery with one exception: `crewCar` is NOT set, so the existing cleanup culls
+       them once they are far enough behind, which is what stops a session accumulating a
+       thousand parked cars in a grid nobody will ever drive back through. */
+    const PARK_LANE = 0.80;
+    /* --- expressway traffic ---------------------------------------------------
+
+       The deck has been empty for its whole life. `spawnTraffic` ends with
+       `if (onDeckSpan(v.x, v.y)) return;` -- surface cars are refused anywhere near a freeway
+       line, and nothing was ever spawned to replace them, so the one road built to be fast has
+       had nothing on it.
+
+       These run straight down a span at deck speed. No junctions, no turning, no road AI: an
+       expressway is a line, and the only thing on it is which lane you are in. */
+    const SEMIS = [
+      { k: "semi_box", len: 206, w: 58 },
+      { k: "semi_tank", len: 198, w: 56 },
+      { k: "semi_flat", len: 190, w: 58 },
+    ];
+    function spawnFwy(cx, cy) {
+      const vert = Math.random() < 0.5;
+      const lines = vert ? FWY_V : FWY_H;
+      if (!lines || !lines.length) return;
+      // the nearest span to the camera, so what spawns is what the player might actually see
+      let best = null, bd = 1e9;
+      for (const i of lines) {
+        const d = Math.abs((vert ? cx : cy) - SX(i));
+        if (d < bd) { bd = d; best = i; }
+      }
+      if (best == null || bd > 2600) return;
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      /* Semis keep to the inside lane and run slower, which is what makes a freeway read as a
+         freeway: something to overtake. A third of what is up here is freight -- this is a
+         city with a rail yard, a port and a county behind it. */
+      const rig = Math.random() < 0.34;
+      const lane = rig ? 1 : 1 + ((Math.random() * 3) | 0);
+      const off = SX(best) + dir * (LANE_W * (lane - 0.5));
+      const along = (vert ? cy : cx) - dir * (1500 + Math.random() * 1400);
+      const m = rig ? SEMIS[(Math.random() * SEMIS.length) | 0]
+                    : CARM[(Math.random() * (CARM.length - 1)) | 0];
+      const v = {
+        axis: vert ? "v" : "h", si: best, dir, k: 0, m,
+        spd: (rig ? 190 : 250) + Math.random() * 90,
+        cruise: (rig ? 200 : 260) + Math.random() * 90, brake: 0,
+        fwy: 1, dead: 1, crewCar: 1, fleeing: 0,
+      };
+      if (vert) { v.x = off; v.y = along; v.ang = dir > 0 ? Math.PI / 2 : -Math.PI / 2; }
+      else { v.y = off; v.x = along; v.ang = dir > 0 ? 0 : Math.PI; }
+      g.traffic.push(v);
+    }
+    function updateFwyTraffic(dt, cx, cy) {
+      const list = g.traffic;
+      for (let n = list.length - 1; n >= 0; n--) {
+        const v = list[n];
+        if (!v.fwy) continue;
+        v.x += Math.cos(v.ang) * v.spd * dt;
+        v.y += Math.sin(v.ang) * v.spd * dt;
+        if (Math.abs(v.x - cx) > 3400 || Math.abs(v.y - cy) > 3400) list.splice(n, 1);
+      }
+      const on = list.filter((v) => v.fwy).length;
+      if (on < (Math.min(W, H) < 520 ? 8 : 16)) spawnFwy(cx, cy);
+    }
+
+    function spawnParked(cx, cy) {
+      const vertical = Math.random() < 0.5;
+      const si = clamp(Math.round((vertical ? cx : cy) / PITCH) + ((Math.random() * 5) | 0) - 2, 0, N);
+      const along = (vertical ? cy : cx) + (Math.random() < 0.5 ? -1 : 1) * (300 + Math.random() * 1500);
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      const m = CARM[(Math.random() * (CARM.length - 1)) | 0];
+      const off = SX(si) - dir * halfW(si) * PARK_LANE;
+      const v = {
+        axis: vertical ? "v" : "h", si, dir, k: clamp(Math.round(along / PITCH), 0, N), m,
+        spd: 0, cruise: 0, brake: 1, dead: 1, parked: 1,
+      };
+      if (vertical) { v.x = off; v.y = along; v.ang = dir > 0 ? Math.PI / 2 : -Math.PI / 2; }
+      else { v.y = SX(si) + dir * halfW(si) * PARK_LANE; v.x = along; v.ang = dir > 0 ? 0 : Math.PI; }
+      // never on top of the player, and never blocking a junction mouth
+      if (Math.hypot(v.x - cx, v.y - cy) < 220) return;
+      g.traffic.push(v);
+    }
+
     function spawnTraffic(cx, cy) {
       const vertical = Math.random() < 0.5;
       const si = clamp(Math.round((vertical ? cx : cy) / PITCH) + ((Math.random() * 5) | 0) - 2, 0, N);
@@ -13259,9 +13473,16 @@ export default function IronLionLayer004() {
     }
 
     function updateTraffic(dt, cx, cy) {
-      const cap = Math.min(W, H) < 520 ? 16 : 26;
+      /* 26 moving cars across a two-thousand-unit view is a quiet Sunday, not a city. The cost
+         is per-car AI, so the ceiling is a phone question -- small screens see a smaller world
+         anyway and stay at the old number plus a little. */
+      const cap = Math.min(W, H) < 520 ? 24 : 42;
       const rural = ruralHere();
-      if (g.traffic.length < (rural ? Math.ceil(cap * 0.3) : cap)) spawnTraffic(cx, cy);
+      const moving = g.traffic.filter((v) => !v.parked).length;
+      if (moving < (rural ? Math.ceil(cap * 0.3) : cap)) spawnTraffic(cx, cy);
+      const parked = g.traffic.filter((v) => v.parked).length;
+      if (!rural && parked < (Math.min(W, H) < 520 ? 14 : 26)) spawnParked(cx, cy);
+      updateFwyTraffic(dt, cx, cy);
       if (g.traffic.filter((v) => v.bus).length < 2 && Math.random() < 0.02) spawnBus(cx, cy);
       if (inWolfTurf(cx, cy) && Math.random() < 0.22 &&
           g.traffic.filter((v) => v.wolfRider).length < 4) spawnWolfRider(cx, cy);
@@ -15577,6 +15798,10 @@ export default function IronLionLayer004() {
     return "+ " + nm.replace(/_/g, " ").toUpperCase();
   };
 
+  const SLOT_ART = {
+    "7": "assets/sl_seven.webp", BAR: "assets/sl_bar.webp", BELL: "assets/sl_bell.webp",
+    PLUM: "assets/sl_plum.webp", CHERRY: "assets/sl_cherry.webp", LEMON: "assets/sl_lemon.webp",
+  };
   const btn = (label, sub, onDown, onUp, active, size) => (
     <div
       onContextMenu={(e) => e.preventDefault()}
@@ -15969,20 +16194,43 @@ export default function IronLionLayer004() {
             {label}
           </div>
         );
-        const card = (c, i, held) => (
-          <div key={i} onClick={() => T.kind === "poker" && T.stage === "draw"
-                                      && G.tableActFn && G.tableActFn("hold" + i)}
-            style={{ minWidth: 42, padding: "10px 6px", textAlign: "center",
-              border: `1px solid ${held ? C.gold : "rgba(232,217,181,0.35)"}`,
-              background: held ? "rgba(217,164,65,0.18)" : "#f0e7d2",
-              color: (c.s === "H" || c.s === "D") ? "#a8322c" : "#181818",
-              fontSize: 15, letterSpacing: "0.02em",
-              cursor: T.kind === "poker" && T.stage === "draw" ? "pointer" : "default" }}>
-            {RANKS[c.r] + SUIT_GLYPH[c.s]}
-          </div>
+        /* The 52 drawn faces live on the game canvas and cannot be reached from here, so these
+           are built instead: cream stock, a corner index and one large centre pip. At this size
+           that is all a player reads anyway, and it needs no art. */
+        const card = (c, i, held) => {
+          const red = c.s === "H" || c.s === "D";
+          return (
+            <div key={i} onClick={() => T.kind === "poker" && T.stage === "draw"
+                                        && G.tableActFn && G.tableActFn("hold" + i)}
+              style={{ position: "relative", width: 46, height: 66, borderRadius: 4,
+                border: `1px solid ${held ? C.gold : "rgba(30,26,22,0.55)"}`,
+                boxShadow: held ? `0 0 0 2px ${C.gold}` : "0 2px 4px rgba(0,0,0,0.5)",
+                background: "linear-gradient(#f6efdc, #e6dcc2)",
+                color: red ? "#a8322c" : "#1a1a1a",
+                cursor: T.kind === "poker" && T.stage === "draw" ? "pointer" : "default",
+                userSelect: "none", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 2, left: 4, fontSize: 11,
+                lineHeight: 1, fontWeight: 700 }}>{RANKS[c.r]}</div>
+              <div style={{ position: "absolute", top: 13, left: 4, fontSize: 9, lineHeight: 1 }}>
+                {SUIT_GLYPH[c.s]}
+              </div>
+              <div style={{ position: "absolute", inset: 0, display: "flex",
+                alignItems: "center", justifyContent: "center", fontSize: 24, opacity: 0.92 }}>
+                {SUIT_GLYPH[c.s]}
+              </div>
+              <div style={{ position: "absolute", bottom: 2, right: 4, fontSize: 11,
+                lineHeight: 1, fontWeight: 700, transform: "rotate(180deg)" }}>{RANKS[c.r]}</div>
+            </div>
+          );
+        };
+        const cardBack = (i) => (
+          <div key={"b" + i} style={{ width: 46, height: 66, borderRadius: 4,
+            border: "1px solid rgba(30,26,22,0.55)", boxShadow: "0 2px 4px rgba(0,0,0,0.5)",
+            background: "url(assets/tb_back.webp) center/cover, #7a2b2b" }} />
         );
         return (
-          <div style={{ position: "absolute", inset: 0, zIndex: 86, background: "rgba(6,7,9,0.95)",
+          <div style={{ position: "absolute", inset: 0, zIndex: 86,
+            background: "linear-gradient(rgba(6,7,9,0.86), rgba(6,7,9,0.92)), url(assets/tb_felt.webp) repeat",
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             fontFamily: mono, padding: 16, gap: 10 }}>
             <div style={{ fontSize: 10, letterSpacing: "0.26em", color: C.gold }}>
@@ -15997,11 +16245,20 @@ export default function IronLionLayer004() {
             {T.kind === "slots" && T.reels && (
               <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
                 {T.reels.map((r, i) => (
-                  <div key={i} style={{ minWidth: 76, padding: "16px 8px", textAlign: "center",
-                    border: `1px solid ${C.gold}`, background: "#12131a",
-                    fontSize: 13, letterSpacing: "0.10em", color: "#e8d9b5" }}>{r}</div>
+                  <div key={i} style={{ width: 76, height: 76, display: "flex",
+                    alignItems: "center", justifyContent: "center",
+                    border: `1px solid ${C.gold}`, background: "#12131a" }}>
+                    <img src={SLOT_ART[r]} alt={r}
+                      style={{ width: 54, height: 54, imageRendering: "pixelated" }} />
+                  </div>
                 ))}
               </div>
+            )}
+            {T.kind === "roulette" && (
+              <img src="assets/tb_wheel.webp" alt=""
+                style={{ width: 190, height: 190, imageRendering: "pixelated",
+                  transform: `rotate(${(T.spin == null ? 0 : T.spin) * (360 / 37)}deg)`,
+                  transition: "transform 1.6s cubic-bezier(.15,.8,.2,1)" }} />
             )}
             {(T.kind === "blackjack" || T.kind === "poker") && !!T.hand.length && (
               <>
@@ -16010,6 +16267,17 @@ export default function IronLionLayer004() {
                 </div>
                 {T.kind === "blackjack" && (
                   <div style={{ fontSize: 9, opacity: 0.6 }}>YOU {handValue(T.hand)}</div>
+                )}
+                {/* Blackjack hides the hole card while the hand is live -- a dealer showing both
+                    is not blackjack, and the back is the one place the drawn card art is used. */}
+                {T.kind === "blackjack" && T.stage === "play" && !!T.dealer.length && (
+                  <>
+                    <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                      {card(T.dealer[0], "du", false)}
+                      {cardBack(0)}
+                    </div>
+                    <div style={{ fontSize: 9, opacity: 0.6 }}>DEALER SHOWS</div>
+                  </>
                 )}
                 {!!T.dealer.length && T.stage === "bet" && (
                   <>
@@ -16037,6 +16305,23 @@ export default function IronLionLayer004() {
               {T.kind === "poker" && T.stage === "draw" && btn("DRAW", () => G.tableActFn("go"))}
             </div>
 
+            {!!(T.folk && T.folk.length) && (
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 3,
+                minWidth: 260, maxWidth: "min(92vw, 460px)" }}>
+                {T.folk.map((c) => (
+                  <div key={c.name} style={{ display: "flex", justifyContent: "space-between",
+                    gap: 10, fontSize: 9, letterSpacing: "0.10em",
+                    opacity: c.gone ? 0.35 : 1,
+                    color: c.gone ? "#8a8378" : "#cbbfa4" }}>
+                    <span style={{ minWidth: 62 }}>{c.name}</span>
+                    <span style={{ flex: 1, fontStyle: "italic", opacity: 0.75 }}>{c.say}</span>
+                    <span style={{ color: c.gone ? "#8a8378" : C.gold }}>
+                      {c.gone ? "GONE" : "$" + c.cash}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div onClick={() => G.tableCloseFn && G.tableCloseFn()}
               style={{ marginTop: 12, fontSize: 9, opacity: 0.55, letterSpacing: "0.16em",
                 cursor: "pointer" }}>
