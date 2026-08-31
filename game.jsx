@@ -1067,6 +1067,13 @@ const MNT = {
 const DNC = {
   dn_console: "assets/dn_console.webp",
 };
+const DVN = {
+  d1p_0: "assets/d1p_0.webp",
+  d1p_1: "assets/d1p_1.webp",
+  d1p_2: "assets/d1p_2.webp",
+  d1p_3: "assets/d1p_3.webp",
+  d1p_4: "assets/d1p_4.webp",
+};
 const PNL = {
   m1p_0: "assets/m1p_0.webp",
   m1p_1: "assets/m1p_1.webp",
@@ -1190,7 +1197,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 242 — SINOBI BRO";
+const BUILD_TAG = "LAYER 245 — THE RECORD";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -3920,6 +3927,7 @@ export default function IronLionLayer004() {
   const [hud, setHud] = useState({ mode: "foot", mph: 0, place: "", night: false });
   const [mapOpen, setMapOpen] = useState(false);
   const [mapErr, setMapErr] = useState(null);
+  const [cutErr, setCutErr] = useState(null);
   const mapCv = useRef(null);
 
   /* ---------- pause map ----------
@@ -6247,6 +6255,24 @@ export default function IronLionLayer004() {
        Darius uses DEVON until the boy has earned the other one. The HUD follows: `earned` flips
        after twenty landed hits, and that is the only place in the game the made-up name is
        treated as real. */
+    /* His five pages: the night he was carried out, the nine weeks looking, and the meeting.
+       The captions are lettered into the art, so these carry only the key and the fallback
+       description shown if an image ever fails to load. */
+    const DEVON_PAGES = [
+      { img: "d1p_0", art: "A stairwell full of smoke. The Lion carrying a young man down.",
+        cap: ["HE DOES NOT REMEMBER BEING CARRIED OUT.", "HE REMEMBERS THE HANDS."], say: [] },
+      { img: "d1p_1", art: "A bedroom wall of cuttings and thread. Devon winding rag round his forearm.",
+        cap: ["THE PAPERS SAID A GAS MAIN.", "HE STOPPED READING THE PAPERS."], say: [] },
+      { img: "d1p_2", art: "The den. Devon standing in the bay with his hands open.",
+        cap: ["NOBODY FINDS THIS PLACE.", "HE FOUND IT IN NINE WEEKS."],
+        say: [["DEVON", "They call me Sinobi Bro."]] },
+      { img: "d1p_3", art: "Closer. The scarf down, the hood back. He looks younger.",
+        cap: ["NOBODY CALLS HIM THAT.", "HE MADE IT UP HIMSELF."],
+        say: [["DEVON", "It's Devon. Devon Reeves."]] },
+      { img: "d1p_4", art: "The Lion sitting on a workbench so their heads are level.",
+        cap: ["HE DID NOT COME TO BE SAVED AGAIN."],
+        say: [["DEVON", "Teach me the part where you don't finish it."]] },
+    ];
     const COMP_NAME = "DEVON";
     const COMP_HERO = "SINOBI BRO";
     const COMP_LINES = [
@@ -6256,7 +6282,94 @@ export default function IronLionLayer004() {
       "It's Devon. Devon Reeves.",
       "Teach me the part where you don't finish it.",
     ];
-    function compEarned() { return (g.saved || 0) >= 3; }
+    /* THE TRIGGER.
+
+       This used to be `g.saved >= 3`, and `g.saved` only ever increments in `resolveFlashSite`
+       -- which is inside `updateFlashpoints`, which begins `if (!g.war) return`. So the only
+       way to earn him was during the war, which starts after w6, the end of the Warhound arc.
+       A boy who turns up to be taught, arriving in the last act, has nothing to be taught in.
+
+       `g.pulled` counts every street crime broken up with the victim still standing, which
+       happens from the first night. Flashpoint saves still count double, because reaching one
+       costs more. Three of either and he is at the door. */
+    /* --- saving -------------------------------------------------------------
+
+       The city is procedural from a fixed seed, so none of it needs saving -- the streets, the
+       buildings and the shops rebuild identically every boot. What has to persist is only what
+       the PLAYER changed: his money, his rack, his garage, what he has done and who is with him.
+       That keeps the save small and, more importantly, keeps it valid when the world code
+       changes underneath it.
+
+       Written to localStorage. This ships as a real page on its own domain, so that is
+       available; it would not be inside a sandboxed preview. */
+    const SAVE_KEY = "ironlion.save.v2";
+    function collectSave() {
+      const p = g.p;
+      return {
+        v: 2, t: Date.now(),
+        cash: p.cash, hp: p.hp, wpn: p.wpn, ammo: p.ammo, rack: (g.rack || []).slice(),
+        outfits: (g.outfits || []).slice(), plain: !!g.plain,
+        x: p.x, y: p.y,
+        saved: g.saved || 0, lost: g.lost || 0, pulled: g.pulled || 0,
+        suspicion: g.suspicion || 0, heat: g.heat || 0,
+        kingsTurfHeat: g.kingsTurfHeat || 0,
+        garage: (g.garage || []).map((e) => ({ k: e.k, name: e.name, len: e.len })),
+        missions: (g.missions || []).map((m) => ({ id: m.id, done: m.done, stage: m.stage })),
+        war: g.war || 0, warOver: g.warOver || null,
+        warSaved: g.warSaved || 0, warLost: g.warLost || 0,
+        races: g.races || 0,
+        comp: g.comp ? { met: g.comp.met, seen: !!g.comp.seen, out: !!g.comp.out,
+                         earned: !!g.comp.earned, hits: g.comp.hits || 0 } : null,
+      };
+    }
+    function saveGame() {
+      try {
+        window.localStorage.setItem(SAVE_KEY, JSON.stringify(collectSave()));
+        g.savedAt = g.t;
+        return true;
+      } catch (e) { return false; }
+    }
+    function loadSave() {
+      try {
+        const raw = window.localStorage.getItem(SAVE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    }
+    function applySave(o) {
+      if (!o) return false;
+      const p = g.p;
+      p.cash = o.cash ?? p.cash;
+      p.hp = o.hp ?? p.hp;
+      p.wpn = o.wpn || null; p.ammo = o.ammo || 0;
+      g.rack = (o.rack || []).slice();
+      if (o.outfits) g.outfits = o.outfits.slice();
+      g.plain = !!o.plain;
+      if (o.x != null) { p.x = o.x; p.y = o.y; }
+      g.saved = o.saved || 0; g.lost = o.lost || 0; g.pulled = o.pulled || 0;
+      g.suspicion = o.suspicion || 0; g.heat = o.heat || 0;
+      g.kingsTurfHeat = o.kingsTurfHeat || 0;
+      g.garage = (o.garage || []).slice();
+      g.war = o.war || 0; g.warOver = o.warOver || null;
+      g.warSaved = o.warSaved || 0; g.warLost = o.warLost || 0;
+      g.races = o.races || 0;
+      /* Mission records are merged rather than replaced: missionState() builds each one lazily
+         with a world position, and a saved record has no position in it. */
+      for (const m of (o.missions || [])) {
+        const rec = missionState(m.id);
+        rec.done = !!m.done; rec.stage = m.stage || 0; rec.active = false;
+      }
+      if (o.comp) { g.compSave = o.comp; }
+      return true;
+    }
+    function clearSave() {
+      try { window.localStorage.removeItem(SAVE_KEY); return true; } catch (e) { return false; }
+    }
+
+    /* Five street crimes broken up with the victim still standing. Flashpoint saves count
+       double, because reaching one costs more -- but flashpoints only exist during the war, so
+       the street is the road that is actually open. Then he is in the den when you next go
+       home, which is why the pages open with somebody already inside. */
+    function compEarned() { return (g.pulled || 0) + (g.saved || 0) * 2 >= 5; }
     function ensureComp() {
       if (g.comp || !compEarned()) return;
       const s2 = denSpot();
@@ -6268,11 +6381,27 @@ export default function IronLionLayer004() {
         state: "waiting", jit: 1.02, topAng: 0, say: 3.5, line: COMP_LINES[0],
         met: false, out: false,
       };
+      // carried over from a save, so he does not re-introduce himself every session
+      if (g.compSave) {
+        Object.assign(g.comp, g.compSave);
+        g.comp.state = g.comp.out ? "follow" : "waiting";
+        g.comp.say = 0;
+        g.compSave = null;
+      }
     }
     function talkComp() {
       const c = g.comp;
       if (!c || g.inside !== denOf()) return false;
       if (Math.hypot(c.x - g.p.x, c.y - g.p.y) > 66) return false;
+      if (!c.met && !c.seen) {
+        /* Not a mission -- a mission is a job you are given, and this is somebody turning up.
+           The pages run once, on the first approach, and then the conversation happens. */
+        c.seen = true;
+        g.cut = { panels: DEVON_PAGES, i: 0, then: null };
+        g.paused = true;
+        setHud((h) => ({ ...h, cut: { panel: DEVON_PAGES[0], i: 0, n: DEVON_PAGES.length } }));
+        return true;
+      }
       if (!c.met) {
         /* He gives the name he made up. Next time you speak to him he gives his real one --
            the beat is a man who will not let a kid be a legend before he is a person. */
@@ -12431,7 +12560,11 @@ export default function IronLionLayer004() {
         g.detScene = [lerp(cr.x, g.p.x, biasT), lerp(cr.y, g.p.y, biasT), corrupt, named];
         g.detTimer = 75;
       }
-      if (cr.victim) cr.victim.state = "flee";
+      if (cr.victim) {
+        cr.victim.state = "flee";
+        // somebody walked away because he was there: that is what Devon is counting
+        g.pulled = (g.pulled || 0) + 1;
+      }
       for (const t of cr.thugs) if (t.hp > 0) t.state = "flee";
       g.scanner = 2.5;
     }
@@ -14677,6 +14810,12 @@ export default function IronLionLayer004() {
       if (!g.title) updateCrime(dt);
       if (!g.title) updateShop(dt);
       if (!g.title) updateComp(dt);
+      /* Autosave every 25 seconds of play, and never during the title. Cheap -- the payload is
+         a few hundred bytes because the world is not in it. */
+      if (!g.title) {
+        g.saveCd = (g.saveCd == null ? 25 : g.saveCd) - dt;
+        if (g.saveCd <= 0) { saveGame(); g.saveCd = 25; }
+      }
       if (!g.title) updateThrown(dt);
       if (!g.title) updateWarAct(dt);
       if (!g.title) updatePatrols(dt, inVehicle() ? activeVeh().x : g.p.x,
@@ -15100,6 +15239,7 @@ export default function IronLionLayer004() {
             /* A pause is always owned by something the player can dismiss. If one is left
                standing with no cutscene, no map and no title, nothing on screen can clear it
                and the game is frozen -- so clear it here rather than trap them. */
+            hasSave: !!(G.hasSaveFn && G.hasSaveFn()),
             cut: (g.cut && g.cut.panels && g.cut.panels.length)
               ? { panel: g.cut.panels[g.cut.i], i: g.cut.i, n: g.cut.panels.length } : null,
             mission: (() => {
@@ -15180,6 +15320,18 @@ export default function IronLionLayer004() {
     G.garageFn = nearGarageBay; G.garageTakeFn = takeFromGarage; G.garagePickFn = garageReplace;
     G.lockerFn = nearLocker;
     G.mentorFn = talkMentor;
+    G.saveFn = () => { const ok = saveGame();
+      G.current.pickupFlash = { nm: ok ? "saved" : "save_failed", t: 1.8 }; };
+    G.hasSaveFn = () => !!loadSave();
+    G.loadFn = () => {
+      const gg = G.current;
+      const o = loadSave();
+      if (!o) return false;
+      applySave(o);
+      setHud((h) => ({ ...h, cash: gg.p.cash, wpn: gg.p.wpn, ammo: gg.p.ammo }));
+      return true;
+    };
+    G.wipeFn = () => { clearSave(); G.current.pickupFlash = { nm: "save_cleared", t: 1.8 }; };
     G.compFn = talkComp;
     /* He does not carry a gun by choice -- he takes one off a man who was carrying it. So the
        field control is not a loadout, it is whether the thing in his pocket is in his hand.
@@ -15391,6 +15543,7 @@ export default function IronLionLayer004() {
     vehicle_lost: "THE CAR IS GONE", they_have_your_plate: "THEY HAVE YOUR PLATE",
     nothing_left_to_fight_over: "NOTHING LEFT TO FIGHT OVER",
     district_logged: "DISTRICT LOGGED",
+    saved: "SAVED", save_failed: "COULD NOT SAVE", save_cleared: "SAVE CLEARED",
   };
   const flashText = (nm) => {
     if (!nm) return null;
@@ -15636,6 +15789,9 @@ export default function IronLionLayer004() {
           <div
             onClick={() => {
               const gg = G.current;
+              // a save is picked up here rather than on boot, so the attract screen is always
+              // the same city and starting fresh is still one tap away
+              if (G.loadFn) G.loadFn();
               gg.title = false;
               gg.nightTarget = 0;
               gg.bootDen = true;               // drop back into the den properly
@@ -15645,8 +15801,22 @@ export default function IronLionLayer004() {
               background: "rgba(10,11,14,0.72)", color: "#e8d9b5", fontSize: 12,
               letterSpacing: "0.28em", cursor: "pointer", userSelect: "none",
               boxShadow: "0 0 22px rgba(217,164,65,0.18)" }}>
-            BEGIN
+            {hud.hasSave ? "CONTINUE" : "BEGIN"}
           </div>
+          {hud.hasSave && (
+            /* Starting over has to be deliberate. The button above always picks the save up if
+               there is one, so the only way to a clean city is through here. */
+            <div onClick={() => {
+                const gg = G.current;
+                if (G.wipeFn) G.wipeFn();
+                gg.title = false; gg.nightTarget = 0; gg.bootDen = true;
+                setHud((h) => ({ ...h, title: false, hasSave: false }));
+              }}
+              style={{ marginTop: 12, fontSize: 9, letterSpacing: "0.20em",
+                color: "rgba(232,217,181,0.45)", cursor: "pointer", userSelect: "none" }}>
+              START OVER
+            </div>
+          )}
 
           <div style={{ position: "absolute", bottom: 16, textAlign: "center",
             fontSize: 8, letterSpacing: "0.18em", color: "rgba(232,217,181,0.35)", pointerEvents: "none" }}>
@@ -16163,6 +16333,7 @@ export default function IronLionLayer004() {
           onClick={() => {
             const gg = G.current;
             if (!gg.cut) return;
+            setCutErr(null);           // a new page gets a clean slate
             gg.cut.i++;
             if (gg.cut.i >= gg.cut.panels.length) { gg.cut = null; gg.paused = false; }
             setHud((h) => ({ ...h, cut: gg.cut ? { panel: gg.cut.panels[gg.cut.i], i: gg.cut.i, n: gg.cut.panels.length } : null }));
@@ -16176,8 +16347,20 @@ export default function IronLionLayer004() {
             border: `2px solid ${C.gold}`, background: "#141216", padding: 8,
             display: "flex", flexDirection: "column", alignItems: "center" }}>
             {/* the drawn panel where it exists; the written brief where it does not */}
-            {hud.cut.panel && hud.cut.panel.img ? (
-              <img src={PNL[hud.cut.panel.img] || PN2[hud.cut.panel.img]} alt=""
+            {cutErr && (
+              <div style={{ border: "1px solid #eb4638", background: "rgba(40,10,10,0.92)",
+                color: "#ff9a90", padding: "8px 10px", fontSize: 10, letterSpacing: "0.08em",
+                marginBottom: 8, maxWidth: "100%", wordBreak: "break-all" }}>
+                PANEL NOT FOUND: {cutErr}
+              </div>
+            )}
+            {hud.cut.panel && hud.cut.panel.img && !cutErr ? (
+              /* A panel that fails to load used to leave an empty frame with no clue why -- the
+                 same silence the map had before it got a banner. Say the path it tried. */
+              <img src={PNL[hud.cut.panel.img] || PN2[hud.cut.panel.img] || DVN[hud.cut.panel.img]} alt=""
+                onError={() => setCutErr(
+                  (PNL[hud.cut.panel.img] || PN2[hud.cut.panel.img] || DVN[hud.cut.panel.img]
+                   || hud.cut.panel.img))}
                 style={{ display: "block", maxWidth: "100%", maxHeight: "74vh",
                   width: "auto", height: "auto", objectFit: "contain",
                   border: "1px solid rgba(0,0,0,0.6)" }} />
@@ -16372,6 +16555,27 @@ export default function IronLionLayer004() {
             </div>
           </div>
           {/* "tap outside" is not obvious when the map fills the screen on a phone */}
+          <div style={{ fontSize: 9, letterSpacing: "0.22em", color: C.gold, marginTop: 16 }}>
+            THE RECORD
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap",
+            justifyContent: "center" }}>
+            <div onClick={(e) => { e.stopPropagation(); G.saveFn && G.saveFn(); }}
+              style={{ padding: "8px 14px", border: `1px solid ${C.gold}`, cursor: "pointer",
+                background: "rgba(217,164,65,0.10)", color: C.gold, fontSize: 10,
+                letterSpacing: "0.18em" }}>
+              SAVE NOW
+            </div>
+            <div onClick={(e) => { e.stopPropagation(); G.wipeFn && G.wipeFn(); }}
+              style={{ padding: "8px 14px", border: "1px solid rgba(235,70,56,0.55)",
+                cursor: "pointer", background: "rgba(40,12,12,0.6)", color: "#ef8a80",
+                fontSize: 10, letterSpacing: "0.18em" }}>
+              WIPE SAVE
+            </div>
+          </div>
+          <div style={{ fontSize: 8, opacity: 0.45, marginTop: 6, letterSpacing: "0.10em" }}>
+            SAVES EVERY 25 SECONDS ON ITS OWN
+          </div>
           <div onClick={(e) => { e.stopPropagation(); setMapOpen(false); }}
             style={{ marginTop: 14, alignSelf: "stretch", textAlign: "center",
               padding: "10px 14px", border: `1px solid ${C.gold}`, borderRadius: 6,
