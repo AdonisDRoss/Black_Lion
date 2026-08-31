@@ -1186,7 +1186,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 229 — FOOD TRUCKS";
+const BUILD_TAG = "LAYER 230 — THE TABLES";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -4149,6 +4149,7 @@ export default function IronLionLayer004() {
        mentor did and nothing ever called it -- the HUD has been offering "[E] HE HAS SOMETHING
        FOR YOU" to a key that did something else. */
     if (g.mode === "foot" && !g.inside && G.truckFn && G.truckFn()) return;
+    if (g.mode === "foot" && g.inside && G.tableFn && G.tableFn()) return;
     if (g.mode === "foot" && g.inside && G.mentorFn && G.mentorFn()) return;
     if (g.mode === "foot" && g.inside && g.inside.kind === "den" && G.lockerFn && G.lockerFn()) {
       const gg = G.current;
@@ -5850,6 +5851,157 @@ export default function IronLionLayer004() {
         const h = im.height * 0.58, w = im.width * 0.58;   // sedan scale, not sprite scale
         drawShadow(p[0], p[1] + 3, w * 0.46, h * 0.30, 0.34);
         ctx.drawImage(im, p[0] - w / 2, p[1] - h / 2, w, h);
+      }
+    }
+    /* --- the tables -----------------------------------------------------------
+
+       Four games behind the casino and cardroom doors. All four are pure state: a bet comes off
+       g.p.cash the moment it is placed and winnings go back on when the hand settles, so there
+       is no way to walk out mid-hand with money the table has not paid.
+
+       The deck helpers below are shared. RANKS and SUIT_GLYPH already existed for the drawn
+       card faces, so a card here is the same {r, s} pair the table renderer uses. */
+    function freshDeck() {
+      const d = [];
+      for (const s2 of SUITS) for (let i = 0; i < RANKS.length; i++) d.push({ r: i, s: s2 });
+      for (let i = d.length - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0;
+        const t = d[i]; d[i] = d[j]; d[j] = t;
+      }
+      return d;
+    }
+    const cardTxt = (c) => RANKS[c.r] + SUIT_GLYPH[c.s];
+    function handValue(cs) {
+      // aces are 11 until that busts, then they are 1 -- the only fiddly rule in blackjack
+      let v = 0, aces = 0;
+      for (const c of cs) {
+        if (c.r === 0) { v += 11; aces++; }
+        else v += Math.min(10, c.r + 1);
+      }
+      while (v > 21 && aces > 0) { v -= 10; aces--; }
+      return v;
+    }
+    function pokerRank(cs) {
+      const rs = cs.map((c) => c.r).sort((a, b) => a - b);
+      const counts = {};
+      for (const r of rs) counts[r] = (counts[r] || 0) + 1;
+      const groups = Object.values(counts).sort((a, b) => b - a);
+      const flush = cs.every((c) => c.s === cs[0].s);
+      // ace is index 0 but plays high: treat A-K-Q-J-10 as a straight too
+      const uniq = [...new Set(rs)];
+      let straight = uniq.length === 5 && uniq[4] - uniq[0] === 4;
+      if (!straight && uniq.join() === "0,9,10,11,12") straight = true;
+      if (straight && flush) return [8, "STRAIGHT FLUSH"];
+      if (groups[0] === 4) return [7, "FOUR OF A KIND"];
+      if (groups[0] === 3 && groups[1] === 2) return [6, "FULL HOUSE"];
+      if (flush) return [5, "FLUSH"];
+      if (straight) return [4, "STRAIGHT"];
+      if (groups[0] === 3) return [3, "THREE OF A KIND"];
+      if (groups[0] === 2 && groups[1] === 2) return [2, "TWO PAIR"];
+      if (groups[0] === 2) return [1, "PAIR"];
+      return [0, "HIGH CARD"];
+    }
+    const SLOT_SYMS = ["7", "BAR", "BELL", "PLUM", "CHERRY", "LEMON"];
+
+    function tableSync() {
+      const t = g.table;
+      setHud((h) => ({ ...h, table: t ? { ...t, cash: g.p.cash } : null, cash: g.p.cash }));
+    }
+    function openTable(kind, name) {
+      g.table = { kind, name, bet: 10, msg: "PLACE YOUR BET", stage: "bet",
+                  hand: [], dealer: [], reels: null, held: [null, null, null, null, null],
+                  last: 0 };
+      g.paused = true;
+      tableSync();
+    }
+
+    function tableBet(delta) {
+      const t = g.table;
+      if (!t || t.stage !== "bet") return;
+      t.bet = Math.max(5, Math.min(200, t.bet + delta));
+      tableSync();
+    }
+    function tablePlay() {
+      const t = g.table;
+      if (!t || t.stage !== "bet") return;
+      if (g.p.cash < t.bet) { t.msg = "NOT ENOUGH ON HIM"; tableSync(); return; }
+      g.p.cash -= t.bet;                       // the bet is gone the moment it is placed
+      t.last = 0;
+      if (t.kind === "slots") {
+        const r = [0, 1, 2].map(() => SLOT_SYMS[(Math.random() * SLOT_SYMS.length) | 0]);
+        t.reels = r;
+        let pay = 0;
+        if (r[0] === r[1] && r[1] === r[2]) pay = r[0] === "7" ? t.bet * 40 : t.bet * 12;
+        else if (r[0] === r[1] || r[1] === r[2] || r[0] === r[2]) pay = t.bet * 2;
+        g.p.cash += pay; t.last = pay;
+        t.msg = pay ? "PAYS $" + pay : "NOTHING";
+        t.stage = "bet";
+      } else if (t.kind === "roulette") {
+        const n = (Math.random() * 37) | 0;     // 0 to 36, single zero
+        const red = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36].indexOf(n) >= 0;
+        t.spin = n; t.spinRed = red;
+        let pay = 0;
+        if (t.pick === "red" && red) pay = t.bet * 2;
+        else if (t.pick === "black" && n !== 0 && !red) pay = t.bet * 2;
+        else if (t.pick === "odd" && n !== 0 && n % 2 === 1) pay = t.bet * 2;
+        else if (t.pick === "even" && n !== 0 && n % 2 === 0) pay = t.bet * 2;
+        else if (t.pick === "zero" && n === 0) pay = t.bet * 36;
+        g.p.cash += pay; t.last = pay;
+        t.msg = n + (n === 0 ? " ZERO" : red ? " RED" : " BLACK") + (pay ? " \u2014 PAYS $" + pay : "");
+      } else if (t.kind === "blackjack") {
+        t.deck = freshDeck();
+        t.hand = [t.deck.pop(), t.deck.pop()];
+        t.dealer = [t.deck.pop(), t.deck.pop()];
+        t.stage = "play";
+        t.msg = handValue(t.hand) === 21 ? "BLACKJACK \u2014 STAND" : "HIT OR STAND";
+      } else {
+        t.deck = freshDeck();
+        t.hand = [0,1,2,3,4].map(() => t.deck.pop());
+        t.held = [false, false, false, false, false];
+        t.stage = "draw";
+        t.msg = "HOLD WHAT YOU WANT, THEN DRAW";
+      }
+      tableSync();
+    }
+    function tableAct(act) {
+      const t = g.table;
+      if (!t) return;
+      if (t.kind === "roulette" && t.stage === "bet") { t.pick = act; t.msg = "ON " + act.toUpperCase(); tableSync(); return; }
+      if (t.kind === "blackjack" && t.stage === "play") {
+        if (act === "hit") {
+          t.hand.push(t.deck.pop());
+          if (handValue(t.hand) > 21) { t.stage = "bet"; t.msg = "BUST \u2014 " + handValue(t.hand); }
+          else t.msg = "HIT OR STAND";
+        } else {
+          while (handValue(t.dealer) < 17) t.dealer.push(t.deck.pop());
+          const p = handValue(t.hand), d = handValue(t.dealer);
+          let pay = 0;
+          if (d > 21 || p > d) pay = p === 21 && t.hand.length === 2 ? Math.round(t.bet * 2.5) : t.bet * 2;
+          else if (p === d) pay = t.bet;        // push: the stake comes back
+          g.p.cash += pay; t.last = pay;
+          t.msg = d > 21 ? "DEALER BUSTS \u2014 $" + pay
+                : p > d ? "YOU TAKE IT \u2014 $" + pay
+                : p === d ? "PUSH" : "DEALER " + d;
+          t.stage = "bet";
+        }
+        tableSync(); return;
+      }
+      if (t.kind === "poker") {
+        if (t.stage === "draw" && act.slice(0, 4) === "hold") {
+          const i = +act.slice(4); t.held[i] = !t.held[i]; tableSync(); return;
+        }
+        if (t.stage === "draw" && act === "go") {
+          for (let i = 0; i < 5; i++) if (!t.held[i]) t.hand[i] = t.deck.pop();
+          t.dealer = [0,1,2,3,4].map(() => t.deck.pop());
+          const [pv, pn] = pokerRank(t.hand), [dv] = pokerRank(t.dealer);
+          let pay = 0;
+          if (pv > dv) pay = t.bet * (pv >= 6 ? 4 : 2);
+          else if (pv === dv) pay = t.bet;
+          g.p.cash += pay; t.last = pay;
+          t.msg = pn + (pay ? " \u2014 $" + pay : " \u2014 DEALER TAKES IT");
+          t.stage = "bet";
+          tableSync(); return;
+        }
       }
     }
     function drawLocker() {
@@ -13787,7 +13939,7 @@ export default function IronLionLayer004() {
       if (g.paused) {
         const owned = (g.cut && g.cut.panels && g.cut.panels.length) || g.title ||
           g.lockerOpen || g.travelOpen || g.raceTalk || g.leaderTalk || g.mapOpen ||
-          g.garagePick || g.mentorJob || g.truckOpen;
+          g.garagePick || g.mentorJob || g.truckOpen || g.table;
         g.pauseOrphan = owned ? 0 : (g.pauseOrphan || 0) + dt;
         if (g.pauseOrphan > 2) {
           g.paused = false; g.pauseOrphan = 0;
@@ -14138,6 +14290,8 @@ export default function IronLionLayer004() {
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
             lion: Math.round(g.lion), lionOn: !!g.lionOn, plain: !!g.plain,
             atTruck: (() => { const t = nearTruck(); return t ? t.name : null; })(),
+            atTable: !!(g.inside && !g.table &&
+              ["casino", "cardroom", "arcade"].indexOf(g.inside.biz) >= 0),
             atLocker: nearLocker(), lockerOpen: !!g.lockerOpen, outfits: g.outfits.slice(),
             rack: (g.rack || []).slice(),
             roof: !!g.roof, canHook: !!grappleTarget(), canJump: !!jumpTarget(),
@@ -14298,6 +14452,26 @@ export default function IronLionLayer004() {
     G.garageFn = nearGarageBay; G.garageTakeFn = takeFromGarage; G.garagePickFn = garageReplace;
     G.lockerFn = nearLocker;
     G.mentorFn = talkMentor;
+    /* Inside a casino, cardroom or arcade. `b.biz` is the shop kind that drives the signage, so
+       the game on offer follows the sign over the door rather than being the same everywhere. */
+    const TABLE_FOR = { casino: ["slots", "blackjack", "roulette"], cardroom: ["poker", "blackjack"],
+                        arcade: ["slots"] };
+    G.tableFn = () => {
+      const gg = G.current;
+      if (gg.mode !== "foot" || !gg.inside || gg.table) return false;
+      const kinds = TABLE_FOR[gg.inside.biz];
+      if (!kinds) return false;
+      openTable(kinds[(Math.random() * kinds.length) | 0], gg.inside.name || "THE TABLE");
+      return true;
+    };
+    G.tableCloseFn = () => {
+      const gg = G.current;
+      gg.table = null; gg.paused = false;
+      setHud((h) => ({ ...h, table: null }));
+    };
+    G.tableBetFn = tableBet;
+    G.tablePlayFn = tablePlay;
+    G.tableActFn = tableAct;
     G.truckFn = () => {
       const gg = G.current;
       const t = nearTruck();
@@ -14818,6 +14992,98 @@ export default function IronLionLayer004() {
           [E] HE HAS SOMETHING FOR YOU
         </div>
       )}
+      {hud.atTable && (
+        <div style={{ marginTop: 8, fontSize: 10, color: C.gold, letterSpacing: "0.12em" }}>
+          [E] SIT DOWN
+        </div>
+      )}
+      {hud.table && (() => {
+        const T = hud.table;
+        const btn = (label, fn, on) => (
+          <div key={label} onClick={fn}
+            style={{ padding: "10px 16px", cursor: "pointer", minWidth: 74, textAlign: "center",
+              border: `1px solid ${on ? C.gold : "rgba(217,164,65,0.35)"}`,
+              background: on ? "rgba(217,164,65,0.16)" : "rgba(12,13,17,0.85)",
+              fontSize: 11, letterSpacing: "0.14em", color: "#e8d9b5" }}>
+            {label}
+          </div>
+        );
+        const card = (c, i, held) => (
+          <div key={i} onClick={() => T.kind === "poker" && T.stage === "draw"
+                                      && G.tableActFn && G.tableActFn("hold" + i)}
+            style={{ minWidth: 42, padding: "10px 6px", textAlign: "center",
+              border: `1px solid ${held ? C.gold : "rgba(232,217,181,0.35)"}`,
+              background: held ? "rgba(217,164,65,0.18)" : "#f0e7d2",
+              color: (c.s === "H" || c.s === "D") ? "#a8322c" : "#181818",
+              fontSize: 15, letterSpacing: "0.02em",
+              cursor: T.kind === "poker" && T.stage === "draw" ? "pointer" : "default" }}>
+            {RANKS[c.r] + SUIT_GLYPH[c.s]}
+          </div>
+        );
+        return (
+          <div style={{ position: "absolute", inset: 0, zIndex: 86, background: "rgba(6,7,9,0.95)",
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            fontFamily: mono, padding: 16, gap: 10 }}>
+            <div style={{ fontSize: 10, letterSpacing: "0.26em", color: C.gold }}>
+              {T.name} \u00b7 {T.kind.toUpperCase()}
+            </div>
+            <div style={{ fontSize: 9, opacity: 0.6, letterSpacing: "0.14em" }}>
+              ${T.cash} ON HIM \u00b7 BET ${T.bet}
+            </div>
+            <div style={{ fontSize: 11, color: T.last > 0 ? "#8cf08c" : "#e8d9b5",
+              letterSpacing: "0.12em", minHeight: 16, marginTop: 2 }}>{T.msg}</div>
+
+            {T.kind === "slots" && T.reels && (
+              <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                {T.reels.map((r, i) => (
+                  <div key={i} style={{ minWidth: 76, padding: "16px 8px", textAlign: "center",
+                    border: `1px solid ${C.gold}`, background: "#12131a",
+                    fontSize: 13, letterSpacing: "0.10em", color: "#e8d9b5" }}>{r}</div>
+                ))}
+              </div>
+            )}
+            {(T.kind === "blackjack" || T.kind === "poker") && !!T.hand.length && (
+              <>
+                <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                  {T.hand.map((c, i) => card(c, i, T.kind === "poker" && T.held[i]))}
+                </div>
+                {T.kind === "blackjack" && (
+                  <div style={{ fontSize: 9, opacity: 0.6 }}>YOU {handValue(T.hand)}</div>
+                )}
+                {!!T.dealer.length && T.stage === "bet" && (
+                  <>
+                    <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                      {T.dealer.map((c, i) => card(c, "d" + i, false))}
+                    </div>
+                    <div style={{ fontSize: 9, opacity: 0.6 }}>
+                      DEALER {T.kind === "blackjack" ? handValue(T.dealer) : ""}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center",
+              marginTop: 8, maxWidth: "min(92vw, 620px)" }}>
+              {T.stage === "bet" && btn("\u2212$5", () => G.tableBetFn(-5))}
+              {T.stage === "bet" && btn("+$5", () => G.tableBetFn(5))}
+              {T.kind === "roulette" && T.stage === "bet" &&
+                ["red", "black", "odd", "even", "zero"].map((p) =>
+                  btn(p.toUpperCase(), () => G.tableActFn(p), T.pick === p))}
+              {T.stage === "bet" && btn(T.kind === "slots" ? "PULL" : "DEAL", () => G.tablePlayFn())}
+              {T.kind === "blackjack" && T.stage === "play" && btn("HIT", () => G.tableActFn("hit"))}
+              {T.kind === "blackjack" && T.stage === "play" && btn("STAND", () => G.tableActFn("stand"))}
+              {T.kind === "poker" && T.stage === "draw" && btn("DRAW", () => G.tableActFn("go"))}
+            </div>
+
+            <div onClick={() => G.tableCloseFn && G.tableCloseFn()}
+              style={{ marginTop: 12, fontSize: 9, opacity: 0.55, letterSpacing: "0.16em",
+                cursor: "pointer" }}>
+              WALK AWAY
+            </div>
+          </div>
+        );
+      })()}
       {hud.atTruck && !hud.truck && (
         <div style={{ marginTop: 8, fontSize: 10, color: C.gold, letterSpacing: "0.12em" }}>
           [E] {hud.atTruck}
