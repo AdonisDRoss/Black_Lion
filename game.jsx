@@ -1205,7 +1205,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 255 — THE HOUSE";
+const BUILD_TAG = "LAYER 256 — WHICH ROOM";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -9022,9 +9022,18 @@ export default function IronLionLayer004() {
       brack:  { f: ["CURTIS","EARL","DWAYNE","BOBBY","HANK","JUNIOR","WYATT","DALE"],
                 l: ["BRACKEN","TULLY","HOLT","CARVER","SIKES","RAMSEY","DEAN"] },
     };
+    /* Named characters are drawn from the same pools as the extras, so a random body can come up
+       DEVON REEVES -- the companion's own name, on a rap sheet, with a warrant on it. Reserve
+       the names that belong to somebody and reroll. */
+    const RESERVED_NAMES = ["DEVON REEVES", "ANDRE COLE", "DEL HOLLIS", "SAL RIZZO"];
     function gangName(gang) {
       const set = NAMES[gang] || NAMES.kings;
-      return set.f[(Math.random() * set.f.length) | 0] + " " + set.l[(Math.random() * set.l.length) | 0];
+      for (let i = 0; i < 8; i++) {
+        const n = set.f[(Math.random() * set.f.length) | 0] + " "
+                + set.l[(Math.random() * set.l.length) | 0];
+        if (RESERVED_NAMES.indexOf(n) < 0) return n;
+      }
+      return set.f[0] + " " + set.l[1];
     }
 
     /* The sheet. Priors are drawn from what that gang actually does, so a Wolf's record reads
@@ -15529,6 +15538,13 @@ export default function IronLionLayer004() {
             lion: Math.round(g.lion), lionOn: !!g.lionOn, plain: !!g.plain,
             atTruck: (() => { const t = nearTruck(); return t ? t.name : null; })(),
             atTable: nearTable(),
+            /* Which building and which floor plan. "the casino has no tables" and "I am not in
+               the casino" look identical from the outside, and this tells them apart. */
+            dbgPlan: g.inside
+              ? [(g.inside.name || g.inside.kind || "?"),
+                 (buildingPlans(g.inside)[g.floor] || {}).kind || "?",
+                 g.inside.landmark ? "LANDMARK" : ""].filter(Boolean).join(" / ")
+              : null,
             atLocker: nearLocker(), lockerOpen: !!g.lockerOpen, outfits: g.outfits.slice(),
             rack: (g.rack || []).slice(),
             roof: !!g.roof, canHook: !!grappleTarget(), canJump: !!jumpTarget(),
@@ -16035,6 +16051,7 @@ export default function IronLionLayer004() {
           {hud.show && hud.show.debug && (
             <div style={{ fontSize: 9, opacity: 0.6, marginTop: 2, color: "#7fd0ff" }}>
               MODE {String(hud.mode).toUpperCase()} · CAR {hud.dCarDbg}u · BIKE {hud.dMotoDbg}u · T{String(hud.tick ?? "--").padStart(3, "0")} · MUS {hud.mus || "-"}
+              {hud.dbgPlan ? <><br />IN {hud.dbgPlan}</> : null}
             </div>
           )}
           {hud.hudCrash && (
