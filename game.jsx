@@ -1205,7 +1205,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 270 — HE HAS WORK";
+const BUILD_TAG = "LAYER 271 — NO GREY BOXES";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -8990,7 +8990,12 @@ export default function IronLionLayer004() {
       if (b.landmark && floor === 2) drawVipDancers(b, floor, alpha);
       const tierName = ["lo", "mid", "hi"][wtier];
       const FURN_MAP = { sofa: "sofa", table: "table", tv: "tv", bed: "bed", dresser: "dresser", shelf: "bookshelf" };
+      /* drawGamingFloor already painted the machines, the felt and the wheel. Letting the prop
+         loop draw them again puts its grey fallback box straight over the top -- which is why
+         the tables read grey while the carpet and the staff were right. */
+      const OWNED_BY_FLOOR = { slotbank: 1, cardtable: 1, wheeltable: 1 };
       for (const p of plan.props) {
+        if (OWNED_BY_FLOOR[p.t]) continue;
         if (p.t === "floorlit") {
           const cols = ["#8a3f6a", "#3f5f9a", "#8a7a3f", "#3f8a6a"];
           const cell = 22;
