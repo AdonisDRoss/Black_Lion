@@ -1205,7 +1205,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 257 — THE FLOOR, AGAIN";
+const BUILD_TAG = "LAYER 258 — SAY WHAT IS MISSING";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -4299,7 +4299,12 @@ export default function IronLionLayer004() {
            anything reads im.height, and twenty draw sites do exactly that.
            This is what broke when the game ran without the assets folder: 542 nulls. */
         failed++;
-        if (failed <= 6) console.warn("asset missing:", all[k]);
+        /* Every failure by name, not just the character sheets. A missing prop or staff sheet
+           produces a grey box and a civilian standing in for a dealer -- which looks exactly
+           like the feature was never built, and has cost several rounds of looking in the wrong
+           place. The HUD says the count; the console says which. */
+        (g0.missingAll = g0.missingAll || []).push(k);
+        if (failed <= 12) console.warn("asset missing:", all[k]);
         settle();
       };
       /* Set crossOrigin BEFORE src or the browser caches the request without CORS and the
@@ -15553,6 +15558,8 @@ export default function IronLionLayer004() {
             atTable: nearTable(),
             /* Which building and which floor plan. "the casino has no tables" and "I am not in
                the casino" look identical from the outside, and this tells them apart. */
+            missingCount: (g.missingAll || []).length,
+            missingSome: (g.missingAll || []).slice(0, 4).join(" "),
             planKind: g.inside
               ? ((buildingPlans(g.inside)[g.floor] || {}).kind || "?") : null,
             dbgPlan: g.inside
@@ -15758,13 +15765,24 @@ export default function IronLionLayer004() {
     function tableSpot() {
       const b = g.inside;
       if (!b || !TABLE_FOR[b.biz]) return null;
-      if (b._tbl === undefined) {
+      /* Sit down AT A TABLE. This used to look for retail/floor/cage/backroom -- none of which
+         is the casino's main room, which is `gaming` -- so the prompt appeared in the cage or
+         the back office and there was nothing to walk up to on the floor itself.
+
+         A real cardtable prop wins over a room centre: the player should be standing at the
+         furniture, not in the middle of the carpet. */
+      const key = "_tbl" + g.floor;
+      if (b[key] === undefined) {
         const plan = buildingPlans(b)[g.floor];
-        const r = plan && plan.rooms.find((q) => q.k === "retail" || q.k === "floor"
-                                              || q.k === "cage" || q.k === "backroom");
-        b._tbl = r ? [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2] : null;
+        const t = plan && (plan.props || []).find((p) => p.t === "cardtable");
+        if (t) b[key] = [t.x + t.w / 2, t.y + t.h / 2];
+        else {
+          const r = plan && plan.rooms.find((q) => q.k === "gaming" || q.k === "retail"
+                                                || q.k === "floor" || q.k === "backroom");
+          b[key] = r ? [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2] : null;
+        }
       }
-      return b._tbl;
+      return b[key];
     }
     function nearTable() {
       if (g.mode !== "foot" || !g.inside || g.table) return false;
@@ -16067,6 +16085,11 @@ export default function IronLionLayer004() {
             <div style={{ fontSize: 9, opacity: 0.6, marginTop: 2, color: "#7fd0ff" }}>
               MODE {String(hud.mode).toUpperCase()} · CAR {hud.dCarDbg}u · BIKE {hud.dMotoDbg}u · T{String(hud.tick ?? "--").padStart(3, "0")} · MUS {hud.mus || "-"}
               {hud.dbgPlan ? <><br />IN {hud.dbgPlan}</> : null}
+            </div>
+          )}
+          {hud.missingCount > 0 && (
+            <div style={{ fontSize: 9, marginTop: 3, color: "#ff9a5a", letterSpacing: "0.10em" }}>
+              {hud.missingCount} ASSETS MISSING · {hud.missingSome}
             </div>
           )}
           {hud.hudCrash && (
