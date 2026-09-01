@@ -1205,7 +1205,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 258 — SAY WHAT IS MISSING";
+const BUILD_TAG = "LAYER 259 — TABLES ON THE FLOOR";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -8674,6 +8674,107 @@ export default function IronLionLayer004() {
       throne: "rgba(200,160,60,0.13)",
     };
 
+    /* --- the gaming floor, drawn directly ---------------------------------------
+
+       Four attempts at furnishing this room through the prop pipeline produced nothing on
+       screen, and each attempt cost a round of asking the player to go and look. The pipeline
+       has several places a prop can vanish without a word -- the inProps bounds filter, the
+       atlas lookup order in propSprite, a missing image key -- and diagnosing which one from
+       screenshots is not working.
+
+       So this room does not use it. It draws its own furniture from the room rectangle with
+       canvas primitives: no atlas, no image keys, no assets to upload, nothing to fail
+       silently. If the room exists, the tables are on it.
+
+       Positions are computed the same way the props were, so if the pipeline is ever fixed the
+       two agree. */
+    function gamingRoomOf(b, floor) {
+      const plan = buildingPlans(b)[floor];
+      if (!plan) return null;
+      return plan.rooms.find((r) => r.k === "gaming") || null;
+    }
+    function drawGamingFloor(b, floor, alpha) {
+      const r = gamingRoomOf(b, floor);
+      if (!r) return;
+      const x0 = r.x0, y0 = r.y0, x1 = r.x1, y1 = r.y1;
+      const W2 = x1 - x0, H2 = y1 - y0, pad = 16;
+      const wide = W2 >= H2;
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      ctx.globalAlpha = alpha;
+
+      // carpet: the floor of a gaming room is never the same as the corridor outside it
+      ctx.fillStyle = "#3a1f26";
+      ctx.fillRect(x0, y0, W2, H2);
+      ctx.fillStyle = "rgba(214,176,96,0.07)";
+      for (let gx = x0; gx < x1; gx += 34) ctx.fillRect(gx, y0, 2, H2);
+
+      const cabinet = (px, py, w, h) => {
+        ctx.fillStyle = "rgba(0,0,0,0.34)";
+        ctx.fillRect(px + 2, py + 3, w, h);
+        ctx.fillStyle = "#4a3226";                       // wood body
+        ctx.fillRect(px, py, w, h);
+        ctx.fillStyle = "#22242a";                       // the glass at the top
+        ctx.fillRect(px + 2, py + 2, w - 4, h * 0.32);
+        ctx.fillStyle = "#b9a06a";                       // brass plate
+        ctx.fillRect(px + w * 0.18, py + h * 0.46, w * 0.64, h * 0.30);
+        ctx.fillStyle = "#c4372e";                       // the button
+        ctx.beginPath();
+        ctx.arc(px + w * 0.66, py + h * 0.61, Math.min(w, h) * 0.10, 0, 6.3);
+        ctx.fill();
+      };
+      const feltTable = (px, py, w, h, oval) => {
+        ctx.fillStyle = "rgba(0,0,0,0.34)";
+        ctx.fillRect(px + 2, py + 3, w, h);
+        ctx.fillStyle = "#5a3a22";                       // the rail
+        ctx.fillRect(px, py, w, h);
+        ctx.fillStyle = "#1f4a30";                       // baize
+        if (oval) {
+          ctx.beginPath();
+          ctx.ellipse(px + w / 2, py + h / 2, w * 0.40, h * 0.40, 0, 0, 6.3);
+          ctx.fill();
+        } else ctx.fillRect(px + 5, py + 5, w - 10, h - 10);
+        ctx.strokeStyle = "rgba(214,176,96,0.5)"; ctx.lineWidth = 1;
+        ctx.strokeRect(px + 8, py + 8, w - 16, h - 16);
+      };
+
+      const iw = W2 - pad * 2, ih = H2 - pad * 2;
+      const banks = clamp(Math.floor((wide ? iw : ih) / 74), 2, 7);
+      for (let i = 0; i < banks; i++) {
+        const t = (i + 0.5) / banks;
+        if (wide) {
+          cabinet(x0 + pad + iw * t - 20, y0 + pad, 40, 30);
+          cabinet(x0 + pad + iw * t - 20, y1 - pad - 30, 40, 30);
+        } else {
+          cabinet(x0 + pad, y0 + pad + ih * t - 20, 30, 40);
+          cabinet(x1 - pad - 30, y0 + pad + ih * t - 20, 30, 40);
+        }
+      }
+      const tables = clamp(banks - 1, 1, 4);
+      for (let i = 0; i < tables; i++) {
+        const t = (i + 0.5) / tables;
+        if (wide) feltTable(x0 + pad + iw * t - 39, cy - 24, 78, 48, true);
+        else feltTable(cx - 24, y0 + pad + ih * t - 39, 48, 78, true);
+      }
+      // the wheel, dead centre
+      feltTable(cx - 28, cy - 28, 56, 56, false);
+      const wim = imgs.current.tb_wheel;
+      if (wim && wim.width) ctx.drawImage(wim, cx - 22, cy - 22, 44, 44);
+      else {
+        ctx.fillStyle = "#2a2018";
+        ctx.beginPath(); ctx.arc(cx, cy, 20, 0, 6.3); ctx.fill();
+        for (let i = 0; i < 12; i++) {
+          ctx.fillStyle = i === 0 ? "#2f6b3a" : (i % 2 ? "#8c2b26" : "#181818");
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, 19, i * 0.5236, (i + 1) * 0.5236);
+          ctx.closePath(); ctx.fill();
+        }
+        ctx.fillStyle = "#b9a06a";
+        ctx.beginPath(); ctx.arc(cx, cy, 6, 0, 6.3); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
     function drawInterior(b, floor, alpha) {
       if (alpha <= 0.01) return;
       const plan = buildingPlans(b)[floor];
@@ -8695,6 +8796,9 @@ export default function IronLionLayer004() {
         const t = ROOM_TINT[r.k];
         if (t) { ctx.fillStyle = t; ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0); }
       }
+      /* Before the props, so anything the pipeline DOES place lands on top of the carpet rather
+         than under it. Draws nothing if this floor has no gaming room. */
+      drawGamingFloor(b, floor, alpha);
       const tierName = ["lo", "mid", "hi"][wtier];
       const FURN_MAP = { sofa: "sofa", table: "table", tv: "tv", bed: "bed", dresser: "dresser", shelf: "bookshelf" };
       for (const p of plan.props) {
@@ -12722,10 +12826,18 @@ export default function IronLionLayer004() {
       if (!S) return;
       for (const f of S.folk) {
         if (f.house != null) {
-          /* `continue` regardless of the return value made every staff member INVISIBLE when
-             house_top had not loaded -- a floor with dealers and no dealers on it. Fall through
-             to a civilian so somebody is always standing there. */
           if (drawActorTop("house", f.house, f, "hang")) continue;
+          /* No sheet, so draw him anyway. A dealer who is invisible when an asset is missing is
+             indistinguishable from a dealer who was never written, and telling those apart from
+             a screenshot has already cost several rounds. */
+          const col = f.house === HOUSE_DEALER ? "#e8dcc0"
+                    : f.house === HOUSE_SERVER ? "#7a2b30" : "#2a2c32";
+          drawShadow(f.x, f.y + 2, 10, 5, 0.34);
+          ctx.fillStyle = col;
+          ctx.beginPath(); ctx.ellipse(f.x, f.y, 9, 11, 0, 0, 6.3); ctx.fill();
+          ctx.fillStyle = "#6b4a33";
+          ctx.beginPath(); ctx.arc(f.x, f.y - 3, 5, 0, 6.3); ctx.fill();
+          continue;
         }
         if (f.civ === undefined && civPool.length) f.civ = pickCiv();
         if (f.civ && drawCivilian(f.civ, f.x, f.y, f.vx, f.vy, f.anim * 0.16)) continue;
