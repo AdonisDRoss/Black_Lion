@@ -1205,7 +1205,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 261 — TRAFFIC STOP";
+const BUILD_TAG = "LAYER 262 — E WORKS AGAIN";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -4482,8 +4482,10 @@ export default function IronLionLayer004() {
       const st = G.stairFn && G.stairFn();
       if (st === 1 && g.floor < g.inside.floors - 1) {
         // the door to the top floor is a man, not a lock
-        if (isVipFloor(g.inside, g.floor + 1) && !vipOK()) {
-          g.pickupFlash = { nm: "not_tonight", t: 2.6 };
+        /* Bridged, not called directly: doAction is declared outside the component and cannot
+           see `isVipFloor`. Calling it here threw a ReferenceError, which silently killed the
+           WHOLE E key -- stairs, doors and everything else in this branch. */
+        if (G.vipBlockFn && G.vipBlockFn(g.floor + 1)) {
           return;
         }
         g.floor++; return;
@@ -16116,6 +16118,12 @@ export default function IronLionLayer004() {
       openTable(kind, gg.inside.name || "THE TABLE");
       return true;
     };
+    G.vipBlockFn = (f) => {
+      const gg = G.current;
+      if (!isVipFloor(gg.inside, f) || vipOK()) return false;
+      gg.pickupFlash = { nm: "not_tonight", t: 2.6 };
+      return true;
+    };
     G.tableAskFn = (yes) => {
       const gg = G.current;
       const a = gg.tableAsk;
@@ -16327,9 +16335,12 @@ export default function IronLionLayer004() {
     return "+ " + nm.replace(/_/g, " ").toUpperCase();
   };
 
-  const SLOT_ART = {
-    "7": "assets/sl_seven.webp", BAR: "assets/sl_bar.webp", BELL: "assets/sl_bell.webp",
-    PLUM: "assets/sl_plum.webp", CHERRY: "assets/sl_cherry.webp", LEMON: "assets/sl_lemon.webp",
+  /* Map to LOADER KEYS, not paths. The overlay then asks the already-loaded Image for its own
+     resolved `src`, so it can never disagree with the loader about where a file lives -- a fresh
+     relative path in an <img> resolves against the page URL and the two can differ. */
+  const SLOT_KEY = {
+    "7": "sl_seven", BAR: "sl_bar", BELL: "sl_bell",
+    PLUM: "sl_plum", CHERRY: "sl_cherry", LEMON: "sl_lemon",
   };
   const btn = (label, sub, onDown, onUp, active, size) => (
     <div
@@ -16813,18 +16824,21 @@ export default function IronLionLayer004() {
         const cardBack = (i) => (
           <div key={"b" + i} style={{ width: 46, height: 66, borderRadius: 4,
             border: "1px solid rgba(30,26,22,0.55)", boxShadow: "0 2px 4px rgba(0,0,0,0.5)",
-            background: "url(assets/tb_back.webp) center/cover, #7a2b2b" }} />
+            background: (imgs.current.tb_back && imgs.current.tb_back.width
+              ? `url(${imgs.current.tb_back.src}) center/cover, #7a2b2b` : "#7a2b2b") }} />
         );
         return (
           <div style={{ position: "absolute", inset: 0, zIndex: 86,
-            background: "linear-gradient(rgba(6,7,9,0.86), rgba(6,7,9,0.92)), url(assets/tb_felt.webp) repeat",
+            background: (imgs.current.tb_felt && imgs.current.tb_felt.width
+              ? `linear-gradient(rgba(6,7,9,0.86), rgba(6,7,9,0.92)), url(${imgs.current.tb_felt.src}) repeat`
+              : "rgba(6,7,9,0.95)"),
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             fontFamily: mono, padding: 16, gap: 10 }}>
             <div style={{ fontSize: 10, letterSpacing: "0.26em", color: C.gold }}>
-              {T.name} \u00b7 {T.kind.toUpperCase()}
+              {T.name} · {T.kind.toUpperCase()}
             </div>
             <div style={{ fontSize: 9, opacity: 0.6, letterSpacing: "0.14em" }}>
-              ${T.cash} ON HIM \u00b7 BET ${T.bet}
+              ${T.cash} ON HIM · BET ${T.bet}
             </div>
             <div style={{ fontSize: 11, color: T.last > 0 ? "#8cf08c" : "#e8d9b5",
               letterSpacing: "0.12em", minHeight: 16, marginTop: 2 }}>{T.msg}</div>
@@ -16835,14 +16849,20 @@ export default function IronLionLayer004() {
                   <div key={i} style={{ width: 76, height: 76, display: "flex",
                     alignItems: "center", justifyContent: "center",
                     border: `1px solid ${C.gold}`, background: "#12131a" }}>
-                    <img src={SLOT_ART[r]} alt={r}
-                      style={{ width: 54, height: 54, imageRendering: "pixelated" }} />
+                    {(() => {
+                      const im = imgs.current[SLOT_KEY[r]];
+                      return im && im.width
+                        ? <img src={im.src} alt={r}
+                            style={{ width: 54, height: 54, imageRendering: "pixelated" }} />
+                        : <span style={{ fontSize: 12, letterSpacing: "0.10em",
+                            color: "#e8d9b5" }}>{r}</span>;
+                    })()}
                   </div>
                 ))}
               </div>
             )}
             {T.kind === "roulette" && (
-              <img src="assets/tb_wheel.webp" alt=""
+              <img src={(imgs.current.tb_wheel && imgs.current.tb_wheel.src) || ""} alt=""
                 style={{ width: 190, height: 190, imageRendering: "pixelated",
                   transform: `rotate(${(T.spin == null ? 0 : T.spin) * (360 / 37)}deg)`,
                   transition: "transform 1.6s cubic-bezier(.15,.8,.2,1)" }} />
@@ -17128,7 +17148,7 @@ export default function IronLionLayer004() {
       )}
       {hud.comp ? (
         <div style={{ marginTop: 6, fontSize: 9, letterSpacing: "0.16em", color: "#9fe0c0" }}>
-          {hud.compName} \u00b7 {hud.comp}
+          {hud.compName} · {hud.comp}
         </div>
       ) : null}
       {hud.wpn && (
