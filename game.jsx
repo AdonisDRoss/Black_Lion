@@ -1205,7 +1205,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 259 — TABLES ON THE FLOOR";
+const BUILD_TAG = "LAYER 261 — TRAFFIC STOP";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2198,7 +2198,9 @@ function floorKind(b, f) {
   if (b.kind === "sechq") return f === 0 ? "sechq" : "offices";
   /* The Kestrel gets its own plan rather than the generic venue floor: you come in at the top
      of the steps, cross a lobby, and the room opens out in front of you. */
-  if (b.landmark) return f === 0 ? "casino" : f === 1 ? "cardroom" : "offices";
+  /* The Kestrel climbs: machines on the ground where anyone can walk in, cards on two, and the
+     room on three you have to be let into. */
+  if (b.landmark) return f === 0 ? "casino" : f === 1 ? "cardroom" : "vip";
   if (b.kind === "warehouse" || b.kind === "garage") return "warehouse";
   if (b.kind === "terminal") return "terminal";
   if (b.kind === "club") return "club";
@@ -2334,6 +2336,14 @@ function makeFloor(b, f, rnd) {
     put(GX - Math.max(2, Math.round(GX * 0.24)), 0,
         GX - 1, Math.max(1, Math.round(GY * 0.26)), "cage");
     put(0, 0, Math.max(1, Math.round(GX * 0.22)), Math.max(1, Math.round(GY * 0.22)), "bar");
+  } else if (kind === "vip") {
+    /* The top floor. A stage against the back wall, a few tables in front of it, and a door
+       staff decide about. Deliberately smaller and emptier than the floors below -- the point
+       of a room like this is that there is space in it. */
+    const lob = Math.max(1, Math.round(GY * 0.16));
+    hub = put(0, GY - lob, GX - 1, GY - 1, "vestibule");
+    put(0, 0, GX - 1, Math.max(1, Math.round(GY * 0.30)), "stage");
+    put(0, Math.round(GY * 0.30) + 1, GX - 1, GY - lob - 1, "gaming");
   } else if (kind === "cardroom") {
     const lob = Math.max(1, Math.round(GY * 0.18));
     hub = put(0, GY - lob, GX - 1, GY - 1, "corridor");
@@ -2709,6 +2719,10 @@ function makeFloor(b, f, rnd) {
         P(q2.x0 + 8, q2.y0 + 8, 18, 20, "toilet");
         P(q2.x1 - 26, q2.y0 + 8, 18, 14, "sink");
         if (W2 > 70 && H2 > 60) P(q2.x0 + 8, q2.y1 - 34, Math.min(56, W2 - 16), 26, "tub");
+        break;
+      case "stage":
+        // a raised deck and a rail. The dancers stand on it; nothing else belongs up there.
+        P(q2.x0 + pad, q2.y0 + pad, W2 - pad * 2, H2 - pad * 2, "stagedeck");
         break;
       case "gaming": {
         /* Laid out from the room's own edges rather than by arithmetic that can walk outside
@@ -4466,7 +4480,14 @@ export default function IronLionLayer004() {
     if (g.mode === "foot" && g.inside && g.inside.kind === "den" && G.mentorFn && G.mentorFn()) return;
     if (g.mode === "foot" && g.inside) {
       const st = G.stairFn && G.stairFn();
-      if (st === 1 && g.floor < g.inside.floors - 1) { g.floor++; return; }
+      if (st === 1 && g.floor < g.inside.floors - 1) {
+        // the door to the top floor is a man, not a lock
+        if (isVipFloor(g.inside, g.floor + 1) && !vipOK()) {
+          g.pickupFlash = { nm: "not_tonight", t: 2.6 };
+          return;
+        }
+        g.floor++; return;
+      }
       if (st === -1) { if (g.floor > 0) { g.floor--; return; } }
       if (g.floor === 0 && G.doorFn && G.doorFn() === g.inside) { g.inside = null; return; }
       /* Last, and only last. Leaving always wins: stairs, then the door, then the table. This
@@ -7129,51 +7150,137 @@ export default function IronLionLayer004() {
        one at a time, riding the streets rather than answering calls, and he goes where a cruiser
        will not. Composed like every other rider -- bare bike, man on top from his own sheet. */
     const HOUSE_MOTOR = 0, HOUSE_DEALER = 1, HOUSE_SERVER = 2, HOUSE_BOSS = 3;
+    /* Traffic patrol. The expressway is where a motorcycle earns its place, so most of them
+       ride it -- and unlike a cruiser answering a call, a motor officer is looking for something
+       to stop. He picks a car, comes up behind it, lights on, and it pulls over.
+
+       He does not chase the player. Getting stopped is a nuisance, not a wanted level. */
+    const MOTOR_MAX = 3;
+    function motorCount() { return (g.motors || []).length; }
     function spawnMotor(cx, cy) {
-      if (g.motor) return;
+      if (motorCount() >= MOTOR_MAX) return;
       const a = Math.random() * 6.283, r = 900 + Math.random() * 500;
-      g.motor = {
-        x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, ang: Math.random() * 6.283,
-        vx: 0, vy: 0, spd: 150 + Math.random() * 60, turn: 0, anim: 0,
-        life: 80 + Math.random() * 60, jit: 1, toprow: HOUSE_MOTOR, state: "wait",
-      };
+      // two in three ride the expressway, which is where the bike is actually worth having
+      const onFwy = Math.random() < 0.66 && FWY_V.length;
+      let mx = cx + Math.cos(a) * r, my = cy + Math.sin(a) * r, mang = Math.random() * 6.283;
+      if (onFwy) {
+        const vert = Math.random() < 0.5;
+        const lines = vert ? FWY_V : FWY_H;
+        let best = null, bd = 1e9;
+        for (const i of lines) {
+          const d = Math.abs((vert ? cx : cy) - SX(i));
+          if (d < bd) { bd = d; best = i; }
+        }
+        if (best != null && bd < 2600) {
+          const dir = Math.random() < 0.5 ? 1 : -1;
+          const off = SX(best) + dir * (LANE_W * 1.5);
+          if (vert) { mx = off; my = (cy) - dir * (1300 + Math.random() * 900);
+                      mang = dir > 0 ? Math.PI / 2 : -Math.PI / 2; }
+          else { my = off; mx = (cx) - dir * (1300 + Math.random() * 900);
+                 mang = dir > 0 ? 0 : Math.PI; }
+        }
+      }
+      (g.motors = g.motors || []).push({
+        x: mx, y: my, ang: mang,
+        vx: 0, vy: 0, spd: (onFwy ? 250 : 150) + Math.random() * 60, turn: 0, anim: 0,
+        life: 110 + Math.random() * 70, jit: 1, toprow: HOUSE_MOTOR, state: "wait",
+        fwy: onFwy ? 1 : 0, stopCd: 6 + Math.random() * 10, pulling: null, holdT: 0,
+      });
     }
     function updateMotor(dt, cx, cy) {
       if (g.inside) return;
-      g.motorCd = (g.motorCd == null ? 20 : g.motorCd) - dt;
-      if (!g.motor && g.motorCd <= 0) { spawnMotor(cx, cy); g.motorCd = 45 + Math.random() * 60; }
-      const m = g.motor;
-      if (!m) return;
-      m.life -= dt;
-      m.turn = clamp(m.turn + (Math.random() - 0.5) * dt * 2.0, -0.8, 0.8);
-      m.ang += m.turn * dt;
-      m.vx = Math.cos(m.ang) * m.spd; m.vy = Math.sin(m.ang) * m.spd;
-      m.x += m.vx * dt; m.y += m.vy * dt;
-      m.anim += dt * 4;
-      if (m.life <= 0 || Math.abs(m.x - cx) > 2800 || Math.abs(m.y - cy) > 2800) g.motor = null;
+      g.motorCd = (g.motorCd == null ? 10 : g.motorCd) - dt;
+      if (g.motorCd <= 0) { spawnMotor(cx, cy); g.motorCd = 14 + Math.random() * 20; }
+      const list = g.motors || [];
+      for (let n = list.length - 1; n >= 0; n--) {
+        const m = list[n];
+        m.life -= dt;
+        m.anim += dt * 4;
+
+        if (m.pulling) {
+          /* Behind and slightly offset, lights on. The car slows and stops; he sits there for a
+             while and then lets it go. Nothing is arrested -- a traffic stop is scenery with a
+             beginning and an end. */
+          const v = m.pulling;
+          if (v.gone || (g.traffic.indexOf(v) < 0)) { m.pulling = null; continue; }
+          v.spd = Math.max(0, v.spd - 150 * dt);
+          v.brake = 1;
+          const bx = v.x - Math.cos(v.ang) * 54, by = v.y - Math.sin(v.ang) * 54;
+          m.x += (bx - m.x) * Math.min(1, dt * 3);
+          m.y += (by - m.y) * Math.min(1, dt * 3);
+          m.ang = v.ang;
+          if (v.spd <= 2) {
+            m.holdT += dt;
+            if (m.holdT > 9) {          // done: he waves them on
+              v.brake = 0; v.spd = 40; v.pulled = 0;
+              m.pulling = null; m.holdT = 0; m.stopCd = 20 + Math.random() * 20;
+            }
+          }
+          continue;
+        }
+
+        if (m.fwy) {
+          m.x += Math.cos(m.ang) * m.spd * dt;
+          m.y += Math.sin(m.ang) * m.spd * dt;
+        } else {
+          m.turn = clamp(m.turn + (Math.random() - 0.5) * dt * 2.0, -0.8, 0.8);
+          m.ang += m.turn * dt;
+          m.x += Math.cos(m.ang) * m.spd * dt;
+          m.y += Math.sin(m.ang) * m.spd * dt;
+        }
+
+        // look for somebody to stop: ahead of him, going his way, not already pulled
+        m.stopCd -= dt;
+        if (m.stopCd <= 0) {
+          for (const v of g.traffic) {
+            if (v.dead || v.pulled || v.patrol || v.fwy !== m.fwy) continue;
+            const dx = v.x - m.x, dy = v.y - m.y;
+            const d = Math.hypot(dx, dy);
+            if (d > 420 || d < 60) continue;
+            if (Math.cos(m.ang) * dx + Math.sin(m.ang) * dy < 0) continue;   // must be ahead
+            v.pulled = 1; m.pulling = v; m.holdT = 0;
+            g.scanner = Math.max(g.scanner || 0, 2);
+            break;
+          }
+          if (!m.pulling) m.stopCd = 5 + Math.random() * 8;
+        }
+
+        if (m.life <= 0 || Math.abs(m.x - cx) > 3000 || Math.abs(m.y - cy) > 3000) {
+          if (m.pulling) { m.pulling.pulled = 0; m.pulling.brake = 0; }
+          list.splice(n, 1);
+        }
+      }
     }
     function drawMotor() {
-      const m = g.motor;
-      if (!m || g.inside) return;
+      const list = g.motors || [];
+      if (!list.length || g.inside) return;
       const bike = imgs.current.police_bike, rider = imgs.current.house_top;
       if (!bike || !bike.width) return;
-      const L = 210 * 0.42, w = L * (bike.width / bike.height);
-      ctx.save();
-      ctx.translate(m.x, m.y); ctx.rotate(m.ang + Math.PI / 2);
-      drawShadow(1, 4, w * 0.42, L * 0.40, 0.32);
-      ctx.drawImage(bike, -w / 2, -L / 2, w, L);
-      if (rider && rider.width) {
-        const d = L * 0.62;
-        ctx.translate(0, L * 0.05);
-        ctx.rotate(Math.PI);
-        ctx.drawImage(rider, 4 * GANGTOP_CELL, HOUSE_MOTOR * GANGTOP_CELL,
-          GANGTOP_CELL, GANGTOP_CELL, -d / 2, -d / 2, d, d);
+      for (const m of list) {
+        const L = 210 * 0.42, w = L * (bike.width / bike.height);
+        ctx.save();
+        ctx.translate(m.x, m.y); ctx.rotate(m.ang + Math.PI / 2);
+        drawShadow(1, 4, w * 0.42, L * 0.40, 0.32);
+        ctx.drawImage(bike, -w / 2, -L / 2, w, L);
+        if (rider && rider.width) {
+          const d = L * 0.62;
+          ctx.translate(0, L * 0.05);
+          ctx.rotate(Math.PI);
+          ctx.drawImage(rider, 4 * GANGTOP_CELL, HOUSE_MOTOR * GANGTOP_CELL,
+            GANGTOP_CELL, GANGTOP_CELL, -d / 2, -d / 2, d, d);
+        }
+        ctx.restore();
+        // red and blue, and only while he is stopping somebody
+        if (m.pulling) {
+          const on = Math.sin(g.t * 9) > 0;
+          ctx.fillStyle = on ? "rgba(70,110,255,0.95)" : "rgba(255,60,50,0.95)";
+          ctx.beginPath(); ctx.arc(m.x, m.y, 4.6, 0, 6.3); ctx.fill();
+          if (g.night > 0.25) {
+            ctx.fillStyle = `rgba(${on ? "70,110,255" : "255,60,50"},${0.10 * g.night})`;
+            ctx.beginPath(); ctx.arc(m.x, m.y, 90, 0, 6.3); ctx.fill();
+          }
+        }
       }
-      ctx.restore();
-      // amber-free: he is police, so red and blue, and only at speed
-      const on = Math.sin(g.t * 8) > 0;
-      ctx.fillStyle = on ? "rgba(70,110,255,0.9)" : "rgba(255,60,50,0.9)";
-      ctx.beginPath(); ctx.arc(m.x, m.y, 3.4, 0, 6.3); ctx.fill();
     }
 
     function spawnPatrol(cx, cy) {
@@ -8688,6 +8795,63 @@ export default function IronLionLayer004() {
 
        Positions are computed the same way the props were, so if the pipeline is ever fixed the
        two agree. */
+    /* You get into the top floor by looking like somebody who belongs there. Two ways in:
+       carry real money, or have won at their tables. Security stand on the stairs and say so --
+       being turned away by a man rather than by a locked door is the difference between a rule
+       and a wall. */
+    const VIP_CASH = 1500;
+    function vipOK() { return (g.p.cash >= VIP_CASH) || (g.vipEarned || 0) >= 3; }
+    function isVipFloor(b, f) {
+      return !!(b && b.landmark && f === 2);
+    }
+    let vipGirls = null;
+    function drawVipDancers(b, floor, alpha) {
+      const plan = buildingPlans(b)[floor];
+      const r = plan && plan.rooms.find((q) => q.k === "stage");
+      if (!r) return;
+      if (!vipGirls) {
+        vipGirls = [];
+        for (let i = 0; i < 3; i++) {
+          vipGirls.push({
+            x: r.x0 + (r.x1 - r.x0) * (0.28 + i * 0.22),
+            y: r.y0 + (r.y1 - r.y0) * 0.52,
+            phase: Math.random() * 6.28,
+          });
+        }
+      }
+      ctx.globalAlpha = alpha;
+      for (const d of vipGirls) {
+        d.phase += 0.045;
+        const sway = Math.sin(d.phase) * 5;
+        const y = d.y + Math.abs(Math.cos(d.phase)) * 2;
+        drawShadow(d.x + sway, y + 3, 9, 4, 0.3);
+        ctx.fillStyle = "#c04a6a";
+        ctx.beginPath(); ctx.ellipse(d.x + sway, y, 8, 11, 0, 0, 6.3); ctx.fill();
+        ctx.fillStyle = "#7a4a30";
+        ctx.beginPath(); ctx.arc(d.x + sway, y - 4, 5, 0, 6.3); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+    function drawStage(b, floor, alpha) {
+      const plan = buildingPlans(b)[floor];
+      const r = plan && plan.rooms.find((q) => q.k === "stage");
+      if (!r) return;
+      ctx.globalAlpha = alpha;
+      // the deck, lit from the front
+      ctx.fillStyle = "#2a1c22";
+      ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0);
+      ctx.fillStyle = "#3d2a26";
+      ctx.fillRect(r.x0 + 10, r.y0 + 10, r.x1 - r.x0 - 20, r.y1 - r.y0 - 20);
+      const gr = ctx.createLinearGradient(0, r.y0, 0, r.y1 + 40);
+      gr.addColorStop(0, "rgba(255,196,120,0.20)");
+      gr.addColorStop(1, "rgba(255,196,120,0)");
+      ctx.fillStyle = gr;
+      ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, (r.y1 - r.y0) + 40);
+      // the rail
+      ctx.fillStyle = "#b9a06a";
+      ctx.fillRect(r.x0 + 10, r.y1 - 12, r.x1 - r.x0 - 20, 3);
+      ctx.globalAlpha = 1;
+    }
     function gamingRoomOf(b, floor) {
       const plan = buildingPlans(b)[floor];
       if (!plan) return null;
@@ -8799,6 +8963,8 @@ export default function IronLionLayer004() {
       /* Before the props, so anything the pipeline DOES place lands on top of the carpet rather
          than under it. Draws nothing if this floor has no gaming room. */
       drawGamingFloor(b, floor, alpha);
+      if (b.landmark) drawStage(b, floor, alpha);
+      if (b.landmark && floor === 2) drawVipDancers(b, floor, alpha);
       const tierName = ["lo", "mid", "hi"][wtier];
       const FURN_MAP = { sofa: "sofa", table: "table", tv: "tv", bed: "bed", dresser: "dresser", shelf: "bookshelf" };
       for (const p of plan.props) {
@@ -12734,6 +12900,15 @@ export default function IronLionLayer004() {
       const folk = [];
       const gaming = r.k === "gaming";
       if (gaming) {
+        /* Ember Flats' private security work INSIDE the building as well as on the steps. Two on
+           a floor, standing off to the sides where they can see the room -- the same crew that
+           makes the Flats neutral ground, doing the job they are paid for. */
+        for (let i = 0; i < 2; i++) {
+          const sx2 = i ? r.x1 - 44 : r.x0 + 44;
+          const sy2 = r.y0 + 52;
+          folk.push({ x: sx2, y: sy2, hx: sx2, hy: sy2, vx: 0, vy: 0, anim: Math.random() * 6,
+                      guard: 1, gang: "sec", hp: 5, state: "hang", jit: 1.04 });
+        }
         /* A floor is staff before it is customers. A dealer at each table, a boss where he can
            watch the room, and a server crossing it -- the furniture is already placed, so the
            people go where the furniture is. */
@@ -12825,6 +13000,7 @@ export default function IronLionLayer004() {
       const S = g.shop;
       if (!S) return;
       for (const f of S.folk) {
+        if (f.guard) { drawGangTop(f, "hang"); continue; }
         if (f.house != null) {
           if (drawActorTop("house", f.house, f, "hang")) continue;
           /* No sheet, so draw him anyway. A dealer who is invisible when an asset is missing is
@@ -15301,7 +15477,7 @@ export default function IronLionLayer004() {
       if (g.paused) {
         const owned = (g.cut && g.cut.panels && g.cut.panels.length) || g.title ||
           g.lockerOpen || g.travelOpen || g.raceTalk || g.leaderTalk || g.mapOpen ||
-          g.garagePick || g.mentorJob || g.truckOpen || g.table;
+          g.garagePick || g.mentorJob || g.truckOpen || g.table || g.tableAsk;
         g.pauseOrphan = owned ? 0 : (g.pauseOrphan || 0) + dt;
         if (g.pauseOrphan > 2) {
           g.paused = false; g.pauseOrphan = 0;
@@ -15667,7 +15843,8 @@ export default function IronLionLayer004() {
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
             lion: Math.round(g.lion), lionOn: !!g.lionOn, plain: !!g.plain,
             atTruck: (() => { const t = nearTruck(); return t ? t.name : null; })(),
-            atTable: nearTable(),
+            atTable: nearTable() || !!nearDealer(),
+            atDealer: !!nearDealer(),
             /* Which building and which floor plan. "the casino has no tables" and "I am not in
                the casino" look identical from the outside, and this tells them apart. */
             missingCount: (g.missingAll || []).length,
@@ -15869,6 +16046,16 @@ export default function IronLionLayer004() {
        the game on offer follows the sign over the door rather than being the same everywhere. */
     const TABLE_FOR = { casino: ["slots", "blackjack", "roulette"], cardroom: ["poker", "blackjack"],
                         arcade: ["slots"] };
+    /* In the Kestrel the floor decides, not the building: machines on the ground, cards on two,
+       high stakes upstairs. A player should be able to say what is on a floor by standing on
+       it. */
+    const FLOOR_GAME = ["slots", "blackjack", "poker"];
+    function tableKindHere() {
+      const b = g.inside;
+      if (b && b.landmark) return FLOOR_GAME[Math.min(g.floor, 2)];
+      const kinds = TABLE_FOR[b && b.biz];
+      return kinds ? kinds[(Math.random() * kinds.length) | 0] : null;
+    }
     /* A table is a THING IN A ROOM you walk up to, not a property of being indoors. It used to
        fire anywhere inside a casino, which meant E opened a card game instead of letting you
        out of the door -- the one control that has to always work.
@@ -15896,19 +16083,45 @@ export default function IronLionLayer004() {
       }
       return b[key];
     }
+    function nearDealer() {
+      const S = g.shop;
+      if (!S || g.table || g.tableAsk) return null;
+      for (const f of S.folk) {
+        if (f.house !== HOUSE_DEALER) continue;
+        if (Math.hypot(f.x - g.p.x, f.y - g.p.y) < 62) return f;
+      }
+      return null;
+    }
     function nearTable() {
       if (g.mode !== "foot" || !g.inside || g.table) return false;
       const sp = tableSpot();
       if (!sp) return false;
       return Math.hypot(g.p.x - sp[0], g.p.y - sp[1]) < 78;
     }
+    /* A dealer asks; the table does not just open. Being invited is most of what a casino is,
+       and it also means E never puts the player into a card game he did not choose. */
     G.tableFn = () => {
       const gg = G.current;
+      const d = nearDealer();
+      const kind = tableKindHere();
+      if (!kind) return false;
+      if (d) {
+        gg.tableAsk = { kind, name: gg.inside.name || "THE TABLE",
+                        stake: gg.floor >= 2 ? 50 : 10 };
+        gg.paused = true;
+        setHud((h) => ({ ...h, tableAsk: gg.tableAsk }));
+        return true;
+      }
       if (!nearTable()) return false;
-      const kinds = TABLE_FOR[gg.inside.biz];
-      if (!kinds) return false;
-      openTable(kinds[(Math.random() * kinds.length) | 0], gg.inside.name || "THE TABLE");
+      openTable(kind, gg.inside.name || "THE TABLE");
       return true;
+    };
+    G.tableAskFn = (yes) => {
+      const gg = G.current;
+      const a = gg.tableAsk;
+      gg.tableAsk = null; gg.paused = false;
+      setHud((h) => ({ ...h, tableAsk: null }));
+      if (yes && a) { openTable(a.kind, a.name); if (a.stake > 10) g.table.bet = a.stake; }
     };
     G.tableCloseFn = () => {
       const gg = G.current;
@@ -16105,6 +16318,7 @@ export default function IronLionLayer004() {
     nothing_left_to_fight_over: "NOTHING LEFT TO FIGHT OVER",
     district_logged: "DISTRICT LOGGED",
     saved: "SAVED", save_failed: "COULD NOT SAVE", save_cleared: "SAVE CLEARED",
+    not_tonight: "NOT TONIGHT, SIR", vip_in: "THIS WAY, SIR",
   };
   const flashText = (nm) => {
     if (!nm) return null;
@@ -16501,7 +16715,39 @@ export default function IronLionLayer004() {
       )}
       {hud.atTable && (
         <div style={{ marginTop: 8, fontSize: 10, color: C.gold, letterSpacing: "0.12em" }}>
-          [E] SIT DOWN
+          [E] {hud.atDealer ? "TALK TO THE DEALER" : "SIT DOWN"}
+        </div>
+      )}
+      {hud.tableAsk && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 88, background: "rgba(6,7,9,0.92)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          fontFamily: mono, gap: 14, padding: 20 }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.24em", color: C.gold }}>
+            {hud.tableAsk.name}
+          </div>
+          <div style={{ fontSize: 13, color: "#e8d9b5", letterSpacing: "0.06em",
+            textAlign: "center", maxWidth: "min(88vw, 460px)", lineHeight: 1.6 }}>
+            “{hud.tableAsk.kind === "slots" ? "Machines are open. Want a go?"
+              : hud.tableAsk.kind === "poker" ? "Seat's free. Five card draw. In?"
+              : "Table's open. Care to sit?"}”
+          </div>
+          <div style={{ fontSize: 9, opacity: 0.55, letterSpacing: "0.14em" }}>
+            MINIMUM ${hud.tableAsk.stake}
+          </div>
+          <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+            <div onClick={() => G.tableAskFn && G.tableAskFn(true)}
+              style={{ padding: "12px 30px", border: `1px solid ${C.gold}`, color: C.gold,
+                background: "rgba(217,164,65,0.12)", fontSize: 12, letterSpacing: "0.22em",
+                cursor: "pointer" }}>
+              SIT DOWN
+            </div>
+            <div onClick={() => G.tableAskFn && G.tableAskFn(false)}
+              style={{ padding: "12px 30px", border: "1px solid rgba(232,217,181,0.3)",
+                color: "rgba(232,217,181,0.7)", fontSize: 12, letterSpacing: "0.22em",
+                cursor: "pointer" }}>
+              NOT NOW
+            </div>
+          </div>
         </div>
       )}
       {hud.table && tableErr && (
