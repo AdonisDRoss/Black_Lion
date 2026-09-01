@@ -1205,7 +1205,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 256 — WHICH ROOM";
+const BUILD_TAG = "LAYER 257 — THE FLOOR, AGAIN";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2711,20 +2711,28 @@ function makeFloor(b, f, rnd) {
         if (W2 > 70 && H2 > 60) P(q2.x0 + 8, q2.y1 - 34, Math.min(56, W2 - 16), 26, "tub");
         break;
       case "gaming": {
-        /* The reason to walk in. Banks of machines along the walls and tables down the middle,
-           which is how a floor is laid out and also why the room reads as a casino the moment
-           you are through the door rather than after you press E. */
-        const n = Math.max(3, Math.round((wide ? W2 : H2) / 86));
-        if (wide) {
-          runX(q2, q2.y0 + pad, n, 40, 30, "slotbank", pad);
-          runX(q2, q2.y1 - pad - 30, n, 40, 30, "slotbank", pad);
-          for (let i = 0; i < Math.max(1, n - 1); i++)
-            P(q2.x0 + pad + 28 + i * 96, cy - 24, 78, 48, "cardtable");
-        } else {
-          runY(q2, q2.x0 + pad, n, 30, 40, "slotbank", pad);
-          runY(q2, q2.x1 - pad - 30, n, 30, 40, "slotbank", pad);
-          for (let i = 0; i < Math.max(1, n - 1); i++)
-            P(cx - 24, q2.y0 + pad + 28 + i * 96, 48, 78, "cardtable");
+        /* Laid out from the room's own edges rather than by arithmetic that can walk outside
+           it -- an overshooting prop is dropped by the inProps filter without a word, which
+           looks exactly like the room was never furnished.
+
+           Machines against both long walls, tables down the middle, the wheel dead centre. */
+        const iw = W2 - pad * 2, ih = H2 - pad * 2;
+        const banks = clamp(Math.floor((wide ? iw : ih) / 74), 2, 7);
+        for (let i2 = 0; i2 < banks; i2++) {
+          const t = (i2 + 0.5) / banks;
+          if (wide) {
+            P(q2.x0 + pad + iw * t - 20, q2.y0 + pad, 40, 30, "slotbank");
+            P(q2.x0 + pad + iw * t - 20, q2.y1 - pad - 30, 40, 30, "slotbank");
+          } else {
+            P(q2.x0 + pad, q2.y0 + pad + ih * t - 20, 30, 40, "slotbank");
+            P(q2.x1 - pad - 30, q2.y0 + pad + ih * t - 20, 30, 40, "slotbank");
+          }
+        }
+        const tables = clamp(banks - 1, 1, 4);
+        for (let i2 = 0; i2 < tables; i2++) {
+          const t = (i2 + 0.5) / tables;
+          if (wide) P(q2.x0 + pad + iw * t - 39, cy - 24, 78, 48, "cardtable");
+          else P(cx - 24, q2.y0 + pad + ih * t - 39, 48, 78, "cardtable");
         }
         P(cx - 26, cy - 26, 52, 52, "wheeltable");
         break;
@@ -12708,7 +12716,12 @@ export default function IronLionLayer004() {
       const S = g.shop;
       if (!S) return;
       for (const f of S.folk) {
-        if (f.house != null) { drawActorTop("house", f.house, f, "hang"); continue; }
+        if (f.house != null) {
+          /* `continue` regardless of the return value made every staff member INVISIBLE when
+             house_top had not loaded -- a floor with dealers and no dealers on it. Fall through
+             to a civilian so somebody is always standing there. */
+          if (drawActorTop("house", f.house, f, "hang")) continue;
+        }
         if (f.civ === undefined && civPool.length) f.civ = pickCiv();
         if (f.civ && drawCivilian(f.civ, f.x, f.y, f.vx, f.vy, f.anim * 0.16)) continue;
         drawShadow(f.x, f.y + 2, 9, 5, 0.3);
@@ -15540,6 +15553,8 @@ export default function IronLionLayer004() {
             atTable: nearTable(),
             /* Which building and which floor plan. "the casino has no tables" and "I am not in
                the casino" look identical from the outside, and this tells them apart. */
+            planKind: g.inside
+              ? ((buildingPlans(g.inside)[g.floor] || {}).kind || "?") : null,
             dbgPlan: g.inside
               ? [(g.inside.name || g.inside.kind || "?"),
                  (buildingPlans(g.inside)[g.floor] || {}).kind || "?",
@@ -16144,7 +16159,7 @@ export default function IronLionLayer004() {
         )}
         {hud.inside && (
           <div style={{ marginTop: 8, fontSize: 10, color: C.gold, letterSpacing: "0.12em" }}>
-            FLOOR {(hud.floor ?? 0) + 1} / {hud.floors}
+            FLOOR {(hud.floor ?? 0) + 1} / {hud.floors}{hud.planKind ? " \u00b7 " + hud.planKind.toUpperCase() : ""}
             {hud.fkind ? ` · ${{ club: "CLUB FLOOR", terminal: "CONCOURSE", house_g1: "HOUSE", house_g2: "HOUSE", house_u: "UPSTAIRS", tower_flats: "FLATS", dining: "HOUSE", store: "STORE", lobby: "LOBBY", apartments: "APARTMENTS", offices: "OFFICES", reception: "RECEPTION" }[hud.fkind] || ""}` : ""}
           </div>
         )}
