@@ -1205,7 +1205,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 262 — E WORKS AGAIN";
+const BUILD_TAG = "LAYER 263 — CARDS AND COUNTS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1676,6 +1676,23 @@ const FOOD_TRUCKS = [
   { k: "ft_burger", cell: { i: 28, j: 22 }, name: "STRIP GRILL",
     menu: [["sandwich", 3], ["chips", 1], ["beer", 2]] },
 ];
+/* Module scope on purpose. These lived inside the big render useEffect, which the JSX
+   return cannot see -- so the card overlay threw "Can't find variable: RANKS" the moment
+   a hand was dealt. Pure data and one pure function; both scopes need them. */
+const SUITS = ["S", "H", "D", "C"];
+const SUIT_GLYPH = { S: "\u2660", H: "\u2665", D: "\u2666", C: "\u2663" };
+const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+function handValue(cs) {
+  // aces are 11 until that busts, then they are 1 -- the only fiddly rule in blackjack
+  let v = 0, aces = 0;
+  for (const c of cs) {
+    if (c.r === 0) { v += 11; aces++; }
+    else v += Math.min(10, c.r + 1);
+  }
+  while (v > 21 && aces > 0) { v -= 10; aces--; }
+  return v;
+}
+
 const WOLVES_CELL = { i: 19, j: 5 };
 // wf_00/02/04 are choppers, wf_01/03 the rust buckets. Hoisted out of the crew spawn so the
 // turf patrol can pick a bike from the same garage the parked ones come from.
@@ -6199,16 +6216,6 @@ export default function IronLionLayer004() {
       return d;
     }
     const cardTxt = (c) => RANKS[c.r] + SUIT_GLYPH[c.s];
-    function handValue(cs) {
-      // aces are 11 until that busts, then they are 1 -- the only fiddly rule in blackjack
-      let v = 0, aces = 0;
-      for (const c of cs) {
-        if (c.r === 0) { v += 11; aces++; }
-        else v += Math.min(10, c.r + 1);
-      }
-      while (v > 21 && aces > 0) { v -= 10; aces--; }
-      return v;
-    }
     function pokerRank(cs) {
       const rs = cs.map((c) => c.r).sort((a, b) => a - b);
       const counts = {};
@@ -8089,9 +8096,6 @@ export default function IronLionLayer004() {
        faces are DRAWN: a cream rounded rect, the rank and suit in the corners, and the pips
        laid out on the standard grid. 52 exact, legible cards for no bytes, at any scale.
        The backs, the shoe and the tables are the real art from the sheet. */
-    const SUITS = ["S", "H", "D", "C"];
-    const SUIT_GLYPH = { S: "\u2660", H: "\u2665", D: "\u2666", C: "\u2663" };
-    const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
     // where the pips sit on a standard face, in fractions of the card
     const PIPS = {
       A: [[0.5, 0.5]],
@@ -15849,8 +15853,12 @@ export default function IronLionLayer004() {
             atDealer: !!nearDealer(),
             /* Which building and which floor plan. "the casino has no tables" and "I am not in
                the casino" look identical from the outside, and this tells them apart. */
-            missingCount: (g.missingAll || []).length,
-            missingSome: (g.missingAll || []).slice(0, 4).join(" "),
+            /* The loader writes to `window.__ironlion`, NOT to the game object -- reading
+               `g.missingAll` gave a permanent zero, which is why this warning never appeared
+               even when files really were absent. */
+            missingCount: ((window.__ironlion && window.__ironlion.missingAll) || []).length,
+            missingSome: ((window.__ironlion && window.__ironlion.missingAll) || [])
+              .slice(0, 4).join(" "),
             planKind: g.inside
               ? ((buildingPlans(g.inside)[g.floor] || {}).kind || "?") : null,
             dbgPlan: g.inside
