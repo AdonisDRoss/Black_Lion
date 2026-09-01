@@ -1205,7 +1205,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 264 — EMBEDDED STAFF";
+const BUILD_TAG = "LAYER 265 — THE STRIP";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -7122,6 +7122,8 @@ export default function IronLionLayer004() {
     const PATROL_HOME = {
       kings: ["hood"], irish: ["irish"], chi: ["chinatown"],
       barrio: ["barrio"], mob: ["uptown"], wolves: ["industrial"],
+      // licensed men patrolling the strip they are paid to keep quiet
+      sec: ["neon"],
     };
     function zoneGang(i, j) {
       const z = zoneOf(i, j);
@@ -7302,8 +7304,9 @@ export default function IronLionLayer004() {
       /* The Wolves ride. A patrol of theirs in a saloon car would be somebody else's patrol,
          and the bike is most of how they are recognised at a glance. */
       const bike = gang === "wolves";
-      const m = bike
-        ? WF_BIKES[(Math.random() * WF_BIKES.length) | 0]
+      // house security ride their own jeep, which is the only amber-lit thing in the city
+      const m = gang === "sec" ? { k: "sec_jeep", len: 128 * 0.62, w: 64 * 0.62 }
+        : bike ? WF_BIKES[(Math.random() * WF_BIKES.length) | 0]
         : CARM[(Math.random() * (CARM.length - 1)) | 0];
       const a = Math.random() * 6.283, r = 700 + Math.random() * 500;
       const v = {
@@ -10492,12 +10495,17 @@ export default function IronLionLayer004() {
       HQ_GUARD[key] = 1;
       const gang = key === "mob_old" || key === "mob_young" ? "mob" : key;
       const wing = key === "mob_old" ? "old" : key === "mob_young" ? "young" : null;
-      const n = 4 + ((Math.random() * 3) | 0);
+      const n = (key === "sec" ? 6 : 4) + ((Math.random() * 3) | 0);
       const members = [];
+      /* The Kestrel's crew stand on the steps, not in the middle of the building -- L.x/L.y is
+         the cell centre, which for them is inside the casino footprint. */
+      /* Measured, not guessed: the cell centre is 35250 and the building runs to 35640, so +150
+         is still indoors. The stair foot is about 36000, which is +750 from the centre. */
+      const ox = 0, oy = key === "sec" ? 780 : 0;
       for (let i = 0; i < n; i++) {
         const ang = (i / n) * 6.283 + Math.random() * 0.4;
         const r = 46 + Math.random() * 54;
-        const px = L.x + Math.cos(ang) * r, py = L.y + Math.sin(ang) * r;
+        const px = L.x + ox + Math.cos(ang) * r, py = L.y + oy + Math.sin(ang) * r;
         members.push({
           x: px, y: py, vx: 0, vy: 0, stun: 0, atk: 0, anim: Math.random() * 6,
           ...rankKit(gang, null),   // rank, hp and the faction's kit
@@ -10511,7 +10519,7 @@ export default function IronLionLayer004() {
       }
       /* House security do not leave the property -- that is the entire difference between them
          and everyone else with a gun. Chase them off the steps and they stop and go back. */
-      const cr = { x: L.x, y: L.y, members, state: "hang", timer: 0,
+      const cr = { x: L.x + ox, y: L.y + oy, members, state: "hang", timer: 0,
                    gang, wing, hq: true, leash: gang === "sec" ? 190 : 320 };
       g.crews.push(cr);
       if (gang === "wolves") {
@@ -13958,10 +13966,25 @@ export default function IronLionLayer004() {
          anyway and stay at the old number plus a little. */
       const cap = Math.min(W, H) < 520 ? 24 : 42;
       const rural = ruralHere();
-      const moving = g.traffic.filter((v) => !v.parked).length;
-      if (moving < (rural ? Math.ceil(cap * 0.3) : cap)) spawnTraffic(cx, cy);
-      const parked = g.traffic.filter((v) => v.parked).length;
-      if (!rural && parked < (Math.min(W, H) < 520 ? 14 : 26)) spawnParked(cx, cy);
+      /* Count ONLY ordinary surface traffic. Patrols, freeway cars and parked cars all live in
+         g.traffic too, and counting them against the cap meant a few gang patrols could hold the
+         streets empty.
+
+         And try several times a frame: spawnTraffic rejects most attempts -- too close, on the
+         expressway deck, no drivable lane -- so one attempt per frame fills 42 slots very
+         slowly, which is exactly what "there is no traffic" looks like. */
+      let moving = 0, parked = 0;
+      for (const v of g.traffic) {
+        if (v.parked) parked++;
+        else if (!v.patrol && !v.fwy && !v.crewCar) moving++;
+      }
+      const want = rural ? Math.ceil(cap * 0.3) : cap;
+      // attempts, not spawns: most are rejected, and the real count settles next frame
+      const tries = Math.min(5, Math.max(0, want - moving));
+      for (let t = 0; t < tries; t++) spawnTraffic(cx, cy);
+      if (!rural && parked < (Math.min(W, H) < 520 ? 14 : 26)) {
+        for (let t = 0; t < 3; t++) spawnParked(cx, cy);
+      }
       updateFwyTraffic(dt, cx, cy);
       updateMotor(dt, cx, cy);
       if (g.traffic.filter((v) => v.bus).length < 2 && Math.random() < 0.02) spawnBus(cx, cy);
@@ -14175,7 +14198,14 @@ export default function IronLionLayer004() {
            a player who has looked at the map already knows whose car this is. */
         // a bike patrol shows its rider; a car shows faction bars on the roof
         if (v.patrol && v.bike && v.gang) drawGangRider(v);
-        if (v.patrol && !v.bike && GANG_COL[v.gang]) {
+        if (v.patrol && v.gang === "sec") {
+          // amber, alternating, the same signature as the jeep parked at the steps
+          const on = Math.sin(g.t * 7) > 0;
+          ctx.fillStyle = on ? "rgba(255,168,40,0.95)" : "rgba(126,76,22,0.8)";
+          ctx.fillRect(-w * 0.22, -L * 0.012, w * 0.14, L * 0.030);
+          ctx.fillStyle = on ? "rgba(126,76,22,0.8)" : "rgba(255,168,40,0.95)";
+          ctx.fillRect(w * 0.09, -L * 0.012, w * 0.13, L * 0.030);
+        } else if (v.patrol && !v.bike && GANG_COL[v.gang]) {
           ctx.fillStyle = GANG_COL[v.gang];
           ctx.fillRect(-w * 0.30, -L * 0.12, w * 0.16, L * 0.24);
           ctx.fillRect(w * 0.14, -L * 0.12, w * 0.16, L * 0.24);
@@ -16865,8 +16895,16 @@ export default function IronLionLayer004() {
               : "rgba(6,7,9,0.95)"),
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             fontFamily: mono, padding: 16, gap: 10 }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.26em", color: C.gold }}>
-              {T.name} · {T.kind.toUpperCase()}
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ fontSize: 10, letterSpacing: "0.26em", color: C.gold }}>
+                {T.name} · {T.kind.toUpperCase()}
+              </div>
+              <div onClick={() => G.tableCloseFn && G.tableCloseFn()}
+                style={{ padding: "5px 12px", cursor: "pointer", fontSize: 10,
+                  border: "1px solid rgba(232,217,181,0.4)", color: "rgba(232,217,181,0.8)",
+                  letterSpacing: "0.16em" }}>
+                LEAVE
+              </div>
             </div>
             <div style={{ fontSize: 9, opacity: 0.6, letterSpacing: "0.14em" }}>
               ${T.cash} ON HIM · BET ${T.bet}
@@ -16961,9 +16999,13 @@ export default function IronLionLayer004() {
                 ))}
               </div>
             )}
+            {/* A real button, and up here rather than a grey word under everything else --
+                on a phone the bottom of this panel can sit under the browser chrome, so the way
+                out has to be somewhere it cannot be pushed off. */}
             <div onClick={() => G.tableCloseFn && G.tableCloseFn()}
-              style={{ marginTop: 12, fontSize: 9, opacity: 0.55, letterSpacing: "0.16em",
-                cursor: "pointer" }}>
+              style={{ marginTop: 14, padding: "11px 26px", cursor: "pointer",
+                border: `1px solid ${C.gold}`, background: "rgba(217,164,65,0.10)",
+                color: C.gold, fontSize: 11, letterSpacing: "0.22em" }}>
               WALK AWAY
             </div>
           </div>
