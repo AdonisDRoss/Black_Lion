@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 283 — DEN FURNISHED";
+const BUILD_TAG = "LAYER 284 — THE BED AND THE DRESSER";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -9351,7 +9351,14 @@ export default function IronLionLayer004() {
             continue;
           }
         }
-        const fkey = FURN_MAP[p.t] && "fu_" + FURN_MAP[p.t] + "_" + tierName;
+        /* The per-tier `fu_<thing>_<tier>` plates come BEFORE propSprite, so a bed, a dresser,
+           a sofa, a table or a shelf never reached the redrawn atlas -- which is why the den
+           still looked old while its bathroom, which has no fu_ plate, looked right.
+
+           The drawn set wins now. The tier plates stay as the fallback for anything the atlas
+           does not have. */
+        const fkey = FURN2[p.t] || FURN2[FURN2_ALIAS[p.t]] ? null
+                   : FURN_MAP[p.t] && "fu_" + FURN_MAP[p.t] + "_" + tierName;
         const fimg = fkey && imgs.current[fkey];
         if (fimg && fimg.width) {
           const pw = p.w, ph = pw * (fimg.height / fimg.width);
