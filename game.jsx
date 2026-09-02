@@ -9023,8 +9023,9 @@ export default function IronLionLayer004() {
     function propSprite(kind, x, y, w, h) {
       /* Shop set first, then the house set, then the older atlases. */
       const s2 = SHOP2[kind] || SHOP2[SHOP2_ALIAS[kind]];
-      const sa = s2 && imgs.current.shop2_atlas;
-      if (s2 && sa && sa.width) return propRect(sa, s2, x, y, w, h);
+      // s2a, not sa -- `sa` is the OLD shop_atlas four lines down, in this same scope
+      const s2a = s2 && imgs.current.shop2_atlas;
+      if (s2 && s2a && s2a.width) return propRect(s2a, s2, x, y, w, h);
       const f2 = FURN2[kind] || FURN2[FURN2_ALIAS[kind]], a2 = f2 && imgs.current.furn2_atlas;
       if (f2 && a2 && a2.width) return propRect(a2, f2, x, y, w, h);
       const ia = PROP_ALIAS[kind], iat = ia && imgs.current.item_atlas;
@@ -10969,10 +10970,12 @@ export default function IronLionLayer004() {
 
          Pose picks the column: seated at the terminal, leaning with a hand up when he has work,
          standing otherwise. `pose` is the only state he has and it already meant this. */
-      const mrow = m.pose === "seated_console" ? 1
-                 : (pendingMentorMission() ? 2 : 0);
-      m.toprow = mrow;
-      if (drawActorTop("mentor", mrow, m, "hang")) {
+      /* poseRow, not mrow -- there is already an `mrow` further down this same function for
+         the old face sheet, and a second const of the same name is a SyntaxError. */
+      const poseRow = m.pose === "seated_console" ? 1
+                    : (pendingMentorMission() ? 2 : 0);
+      m.toprow = poseRow;
+      if (drawActorTop("mentor", poseRow, m, "hang")) {
         if (m.say > 0) bubble(m.x, m.y - 24, m.line, "#8fd0e0");
         return;
       }
