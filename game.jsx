@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 284 — THE BED AND THE DRESSER";
+const BUILD_TAG = "LAYER 287 — THE ELEVATED";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1497,6 +1497,74 @@ function inRampGap(x, y) {
   return false;
 }
 const SX = (i) => i * PITCH;
+
+/* --- the elevated ----------------------------------------------------------
+
+   A rectangular loop just inside the map edge, on a raised deck. It exists for three reasons
+   and only the first is transport:
+
+   1. It is fast travel you can SEE. The den terminal is a menu that skips the city; this is a
+      thing that moves through it and can be missed, boarded late, or jumped onto.
+   2. It gives the outer ring anchors. The farm, the cemetery and the prison approach are the
+      thinnest parts of the map and nothing out there is worth driving to.
+   3. It is a moving rooftop in a game that already has a grapple.
+
+   Geometry is a single closed rectangle parameterised by arc length, so a train's position is
+   one number. Inset 4 cells so it runs behind the outer districts rather than through them. */
+/* Inset MEASURED, not chosen. At 4 the loop runs through the outer ring, which is mostly farm
+   and water -- three stations landed in fields and one over the river, with names that matched
+   nothing around them. Sampling every inset from 3 to 9:
+
+     inset 4  ->  4 of 8 stops in a real district, 440s a lap
+     inset 9  ->  8 of 8,                          240s a lap
+
+   Nine it is. It also makes the lap short enough that riding one is a journey rather than a
+   commitment. */
+const EL_INSET = 9;
+const EL_X0 = SX(EL_INSET), EL_Y0 = SX(EL_INSET);
+const EL_X1 = SX(N - EL_INSET), EL_Y1 = SX(N - EL_INSET);
+const EL_W = EL_X1 - EL_X0, EL_H = EL_Y1 - EL_Y0;
+const EL_PERIM = (EL_W + EL_H) * 2;
+/* Clockwise from the north-west corner: east along the top, south down the right, west along
+   the bottom, north up the left. */
+function elPos(s) {
+  let d = ((s % EL_PERIM) + EL_PERIM) % EL_PERIM;
+  if (d < EL_W) return { x: EL_X0 + d, y: EL_Y0, ang: 0 };
+  d -= EL_W;
+  if (d < EL_H) return { x: EL_X1, y: EL_Y0 + d, ang: Math.PI / 2 };
+  d -= EL_H;
+  if (d < EL_W) return { x: EL_X1 - d, y: EL_Y1, ang: Math.PI };
+  d -= EL_W;
+  return { x: EL_X0, y: EL_Y1 - d, ang: -Math.PI / 2 };
+}
+/* Eight stations, named for what they serve. Arc lengths are fractions of the loop so they stay
+   correct if the inset ever changes. */
+/* Named for the district each one actually lands in, checked in node rather than assumed. */
+const EL_STOPS = [
+  { s: 0.02, name: "DOWNTOWN" },
+  { s: 0.145, name: "LA PERLA" },
+  { s: 0.27, name: "EAST MARKET" },
+  { s: 0.395, name: "THE FLATS LINE" },
+  { s: 0.52, name: "SOUTH CROSS" },
+  { s: 0.645, name: "CANAL STREET" },
+  { s: 0.77, name: "WEST YARD" },
+  { s: 0.895, name: "HOLLOWAY PARK" },
+].map((q) => ({ ...q, d: q.s * EL_PERIM }));
+function elNearestStop(d) {
+  let best = EL_STOPS[0], bd = 1e9;
+  for (const q of EL_STOPS) {
+    let gap = ((q.d - d) % EL_PERIM + EL_PERIM) % EL_PERIM;   // ahead only
+    if (gap < bd) { bd = gap; best = q; }
+  }
+  return { stop: best, ahead: bd };
+}
+function onElSpan(x, y) {
+  const m = 60;
+  const nearX = Math.abs(x - EL_X0) < m || Math.abs(x - EL_X1) < m;
+  const nearY = Math.abs(y - EL_Y0) < m || Math.abs(y - EL_Y1) < m;
+  return (nearX && y > EL_Y0 - m && y < EL_Y1 + m)
+      || (nearY && x > EL_X0 - m && x < EL_X1 + m);
+}
 
 /* ---------- the sewers ----------
    A tunnel GRAPH, not a second map. Corridors run under the avenues -- every fourth grid
@@ -4250,6 +4318,10 @@ export default function IronLionLayer004() {
           const [px, py] = P(dx, dy);
           x.beginPath(); x.arc(px, py, 9, 0, 6.3); x.stroke();
         }
+        for (const q of EL_STOPS) {
+          const p = elPos(q.d);
+          pip(p.x, p.y, 3.4, "#8fd0e0", "#0b0c10");
+        }
         for (const c of CIVIC)
           pip(SX(c.cell.i) + PITCH / 2, SX(c.cell.j) + PITCH / 2, 4.0, c.pip, "#fff");
         // by faction, not by war side -- three colours for eight crews told you nothing
@@ -4587,6 +4659,7 @@ export default function IronLionLayer004() {
       if (G.tableFn && G.tableFn()) return;
       return;
     }
+    if (g.mode === "foot" && G.trainFn && G.trainFn()) return;
     if (g.mode === "foot" && G.doorFn) {
       const b = G.doorFn();
       if (b) { g.inside = b; g.floor = 0; return; }
@@ -7470,6 +7543,69 @@ export default function IronLionLayer004() {
       g.raid = { x, y, from, held, zone, t: 0, life: 55 + Math.random() * 35, att, def };
       g.scanner = Math.max(g.scanner || 0, 2);
       g.raidCall = { from, held, zone, t: 6 };
+    }
+    /* --- the train --------------------------------------------------------------
+
+       One train on the loop, always running whether or not the player is near it. It has to
+       exist when he is not looking or catching it means nothing -- a train that spawns when you
+       reach a platform is a menu with a longer animation.
+
+       Four cars. It runs, it slows into a station, it waits, it goes. */
+    const EL_CARS = 4, EL_CAR_LEN = 190, EL_GAP = 16;
+    const EL_TOP = 300;                     // cruise
+    function ensureTrain() {
+      if (g.train) return;
+      g.train = { d: EL_PERIM * 0.42, spd: EL_TOP, wait: 0, at: null };
+    }
+    function updateTrain(dt) {
+      ensureTrain();
+      const t = g.train;
+      if (t.wait > 0) {
+        t.wait -= dt;
+        t.spd = 0;
+        if (t.wait <= 0) t.at = null;
+        return;
+      }
+      const { stop, ahead } = elNearestStop(t.d);
+      // brake into the platform rather than stopping dead on it
+      const brakeIn = 420;
+      if (ahead < brakeIn) {
+        t.spd = Math.max(38, EL_TOP * (ahead / brakeIn));
+      } else {
+        t.spd = Math.min(EL_TOP, t.spd + 90 * dt);
+      }
+      const step = t.spd * dt;
+      if (ahead <= step + 2) {
+        t.d = stop.d; t.spd = 0; t.wait = 6; t.at = stop;
+      } else {
+        t.d += step;
+      }
+      // the player rides with it
+      if (g.onTrain) {
+        const p0 = elPos(t.d - EL_CAR_LEN * 0.5);
+        g.p.x = p0.x; g.p.y = p0.y;
+        g.p.vx = 0; g.p.vy = 0;
+      }
+    }
+    function trainCarPos(k) {
+      // car 0 is the front; each sits a car-length plus a coupling behind the last
+      return elPos(g.train.d - k * (EL_CAR_LEN + EL_GAP));
+    }
+    function nearPlatform() {
+      if (g.mode !== "foot" || g.inside || g.onTrain) return null;
+      for (const q of EL_STOPS) {
+        const p = elPos(q.d);
+        if (Math.hypot(g.p.x - p.x, g.p.y - p.y) < 150) return q;
+      }
+      return null;
+    }
+    function canBoard() {
+      if (g.mode !== "foot" || g.inside || g.onTrain || !g.train) return false;
+      for (let k = 0; k < EL_CARS; k++) {
+        const c = trainCarPos(k);
+        if (Math.hypot(g.p.x - c.x, g.p.y - c.y) < 110) return true;
+      }
+      return false;
     }
     function updateRaid(dt) {
       g.raidCd = (g.raidCd == null ? 70 : g.raidCd) - dt;
@@ -12164,7 +12300,17 @@ export default function IronLionLayer004() {
       if (!im || !im.width) return;
       const sw = wr ? wr[2] : im.width, sh = wr ? wr[3] : im.height;
       const gw = h * 0.22 * (WPN_SCALE[m.wpn] || 1), gh = gw * (sh / sw);
-      const ang = m.aimAng ?? 0;
+      /* `aimAng` is only written when somebody FIRES, so between shots every weapon pointed at
+         a stale target -- or at 0, dead right, for anyone who had not shot yet. A man walking
+         north with a rifle held out sideways reads as broken, and it is why the gun looked like
+         it only appeared while shooting: it was there, aimed at nothing.
+
+         So: the target for the beat after a shot, and otherwise wherever the holder is actually
+         going. One place, so it covers the player, every gang member and the boss. */
+      const mvs = Math.hypot(m.vx || 0, m.vy || 0);
+      const ang = (m.drawnT > 0 && m.aimAng != null) ? m.aimAng
+                : mvs > 6 ? Math.atan2(m.vy, m.vx)
+                : (m.aimAng ?? -Math.PI / 2);
       /* Side-on, the gun sits at chest height off one shoulder. From overhead there is no
          chest to sit at -- it goes out in front along the aim, which is where a hand is. */
       const hx = top ? m.x + Math.cos(ang) * w * 0.24 : m.x + (flip ? -w * 0.30 : w * 0.30);
@@ -14426,6 +14572,7 @@ export default function IronLionLayer004() {
          too moved every deck vehicle twice and doubled the spawn rate. */
       updateMotor(dt, cx, cy);
       updateRaid(dt);
+      updateTrain(dt);
       if (g.traffic.filter((v) => v.bus).length < 2 && Math.random() < 0.02) spawnBus(cx, cy);
       if (inWolfTurf(cx, cy) && Math.random() < 0.22 &&
           g.traffic.filter((v) => v.wolfRider).length < 4) spawnWolfRider(cx, cy);
@@ -15384,6 +15531,69 @@ export default function IronLionLayer004() {
           if (hit(g.p, true)) gone = true;
         }
         if (gone) l.splice(i, 1);
+      }
+    }
+    /* Deck, then stations, then the train. Drawn late so it sits above the street the way an
+       elevated line does -- the shadow underneath is what sells the height. */
+    function drawEl() {
+      const seg = (x0, y0, x1, y1) => {
+        const vert = Math.abs(x1 - x0) < 1;
+        const w = 54;
+        ctx.fillStyle = "rgba(0,0,0,0.30)";
+        if (vert) ctx.fillRect(x0 - w / 2 + 10, Math.min(y0, y1), w, Math.abs(y1 - y0));
+        else ctx.fillRect(Math.min(x0, x1), y0 - w / 2 + 10, Math.abs(x1 - x0), w);
+        ctx.fillStyle = "#2b2b30";
+        if (vert) ctx.fillRect(x0 - w / 2, Math.min(y0, y1), w, Math.abs(y1 - y0));
+        else ctx.fillRect(Math.min(x0, x1), y0 - w / 2, Math.abs(x1 - x0), w);
+        // two rails and the sleepers between them
+        ctx.fillStyle = "#4a4a52";
+        for (const o of [-13, 13]) {
+          if (vert) ctx.fillRect(x0 + o - 2, Math.min(y0, y1), 4, Math.abs(y1 - y0));
+          else ctx.fillRect(Math.min(x0, x1), y0 + o - 2, Math.abs(x1 - x0), 4);
+        }
+        ctx.fillStyle = "rgba(18,18,20,0.55)";
+        const len = vert ? Math.abs(y1 - y0) : Math.abs(x1 - x0);
+        for (let u = 0; u < len; u += 26) {
+          if (vert) ctx.fillRect(x0 - 18, Math.min(y0, y1) + u, 36, 6);
+          else ctx.fillRect(Math.min(x0, x1) + u, y0 - 18, 6, 36);
+        }
+      };
+      seg(EL_X0, EL_Y0, EL_X1, EL_Y0);
+      seg(EL_X1, EL_Y0, EL_X1, EL_Y1);
+      seg(EL_X0, EL_Y1, EL_X1, EL_Y1);
+      seg(EL_X0, EL_Y0, EL_X0, EL_Y1);
+      for (const q of EL_STOPS) {
+        const p = elPos(q.d);
+        const vert = Math.abs(p.ang) > 1;
+        ctx.fillStyle = "#3a3630";
+        if (vert) ctx.fillRect(p.x - 46, p.y - 90, 92, 180);
+        else ctx.fillRect(p.x - 90, p.y - 46, 180, 92);
+        ctx.fillStyle = "rgba(242,194,78,0.85)";
+        ctx.font = "700 11px ui-monospace, Menlo, monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(q.name, p.x, p.y - 56);
+        ctx.textAlign = "start";
+      }
+    }
+    function drawTrain() {
+      if (!g.train) return;
+      const im = imgs.current.el_car, imf = imgs.current.el_front;
+      for (let k = EL_CARS - 1; k >= 0; k--) {
+        const c = trainCarPos(k);
+        const plate = (k === 0 && imf && imf.width) ? imf : im;
+        ctx.save();
+        ctx.translate(c.x, c.y); ctx.rotate(c.ang + Math.PI / 2);
+        ctx.fillStyle = "rgba(0,0,0,0.34)";
+        ctx.fillRect(-30 + 10, -EL_CAR_LEN / 2 + 10, 60, EL_CAR_LEN);
+        if (plate && plate.width) {
+          ctx.drawImage(plate, -30, -EL_CAR_LEN / 2, 60, EL_CAR_LEN);
+        } else {
+          ctx.fillStyle = "#8d9096";
+          ctx.fillRect(-30, -EL_CAR_LEN / 2, 60, EL_CAR_LEN);
+          ctx.fillStyle = "#2a2c31";
+          ctx.fillRect(-26, -EL_CAR_LEN / 2 + 12, 52, EL_CAR_LEN - 24);
+        }
+        ctx.restore();
       }
     }
     function drawBullets() {
@@ -16349,6 +16559,8 @@ export default function IronLionLayer004() {
       drawComp();
       drawThrown();
       drawBlasts();
+      drawEl();
+      drawTrain();
       drawBullets();
       /* An arrow at the rim of the screen for the live objective. A distance alone in an open
          city tells you nothing -- 300m could be any direction, and "I need to know exactly where
@@ -16551,6 +16763,10 @@ export default function IronLionLayer004() {
               held: GANG_LABEL[g.raid.held] || g.raid.held.toUpperCase(),
               dist: Math.round(Math.hypot(g.p.x - g.raid.x, g.p.y - g.raid.y) / 21),
             } : null,
+            train: g.onTrain
+              ? { riding: true, next: elNearestStop(g.train ? g.train.d : 0).stop.name }
+              : (canBoard() ? { board: true }
+                 : (nearPlatform() ? { wait: nearPlatform().name } : null)),
             missingCount: ((window.__ironlion && window.__ironlion.missingAll) || []).length,
             missingSome: ((window.__ironlion && window.__ironlion.missingAll) || [])
               .slice(0, 4).join(" "),
@@ -16854,6 +17070,30 @@ export default function IronLionLayer004() {
       gg.pickupFlash = { nm: "armed", t: 2.0 };
       setHud((h) => ({ ...h, rack: gg.rack.slice(), stock: { ...gg.thrownStock } }));
     };
+    /* Board from a platform OR from a rooftop -- landing on a moving train is the reason to
+       put it in a game that already has a grapple, so the roof case is not an afterthought. */
+    G.trainFn = () => {
+      const gg = G.current;
+      if (gg.onTrain) { gg.onTrain = false; gg.roof = null; return true; }
+      if (!canBoard() && !nearPlatform()) return false;
+      if (!canBoard()) return false;            // at a platform, but the train is not in
+      gg.onTrain = true; gg.roof = null;
+      gg.pickupFlash = { nm: "aboard", t: 1.6 };
+      return true;
+    };
+    /* The skip. Real time is the point -- you see the city go past and you can get off early --
+       but nobody should be made to ride a full loop, so this jumps to the next station and
+       lands him on the platform. */
+    G.trainSkipFn = () => {
+      const gg = G.current;
+      if (!gg.onTrain || !gg.train) return;
+      const { stop } = elNearestStop(gg.train.d);
+      gg.train.d = stop.d; gg.train.spd = 0; gg.train.wait = 6; gg.train.at = stop;
+      const p = elPos(stop.d);
+      gg.p.x = p.x; gg.p.y = p.y + 70;
+      gg.onTrain = false;
+      gg.pickupFlash = { nm: "arrived", t: 1.8 };
+    };
     G.vipBlockFn = (f) => {
       const gg = G.current;
       if (!isVipFloor(gg.inside, f) || vipOK()) return false;
@@ -17064,6 +17304,7 @@ export default function IronLionLayer004() {
     district_logged: "DISTRICT LOGGED",
     saved: "SAVED", save_failed: "COULD NOT SAVE", save_cleared: "SAVE CLEARED",
     reloading: "RELOADING",
+    aboard: "ABOARD", arrived: "THIS IS YOUR STOP",
     repairing: "THE CREW ARE ON IT",
     armed: "THE WHOLE RACK",
     spent: "THAT WAS THE LAST ONE",
@@ -17165,7 +17406,14 @@ export default function IronLionLayer004() {
               {hud.dbgPlan ? <><br />IN {hud.dbgPlan}</> : null}
             </div>
           )}
-          {hud.raid && (
+          {hud.train && (
+        <div style={{ marginTop: 6, fontSize: 9, letterSpacing: "0.14em", color: "#8fd0e0" }}>
+          {hud.train.riding ? "NEXT \u00b7 " + hud.train.next
+            : hud.train.board ? "[E] GET ON"
+            : hud.train.wait + " \u00b7 WAIT FOR THE TRAIN"}
+        </div>
+      )}
+      {hud.raid && (
         <div style={{ marginTop: 6, fontSize: 9, letterSpacing: "0.12em", color: "#ff9a5a" }}>
           {hud.raid.from} IN {hud.raid.held} TURF \u00b7 {hud.raid.dist}m
         </div>
@@ -18409,6 +18657,8 @@ export default function IronLionLayer004() {
             {btn("RUN", "sprint",
               () => { input.current.run = true; },
               () => { input.current.run = false; })}
+            {hud.train && hud.train.riding
+              && btn("SKIP", "next stop", () => G.trainSkipFn && G.trainSkipFn())}
             {btn("STR",
               !hud.wpn || hud.holstered ? "strike"
                 : hud.wpn === "grenade" || hud.wpn === "molotov" ? "throw"
