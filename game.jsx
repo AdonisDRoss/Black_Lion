@@ -1081,6 +1081,11 @@ const DVN = {
   d1p_2: "assets/d1p_2.webp",
   d1p_3: "assets/d1p_3.webp",
   d1p_4: "assets/d1p_4.webp",
+  /* Not drawn yet. Registered so the cutscene falls back to the description rather than
+     showing PANEL NOT FOUND -- an unmade page and a missing file should not look alike. */
+  d1p_5: "assets/d1p_5.webp",
+  d1p_6: "assets/d1p_6.webp",
+  d1p_7: "assets/d1p_7.webp",
 };
 const PNL = {
   m1p_0: "assets/m1p_0.webp",
@@ -6492,10 +6497,10 @@ export default function IronLionLayer004() {
        The captions are lettered into the art, so these carry only the key and the fallback
        description shown if an image ever fails to load. */
     const DEVON_PAGES = [
-      { img: "d1p_0", art: "A stairwell full of smoke. The Lion carrying a young man down.",
-        cap: ["HE DOES NOT REMEMBER BEING CARRIED OUT.", "HE REMEMBERS THE HANDS."], say: [] },
+      /* The fire pages are retired: he is the boy from the shop door now, and the player was
+         there. d1p_0 and d1p_1 stay in assets but nothing reaches them. */
       { img: "d1p_1", art: "A bedroom wall of cuttings and thread. Devon winding rag round his forearm.",
-        cap: ["THE PAPERS SAID A GAS MAIN.", "HE STOPPED READING THE PAPERS."], say: [] },
+        cap: ["HE WENT LOOKING THE NEXT MORNING.", "IT TOOK HIM NINE WEEKS."], say: [] },
       { img: "d1p_2", art: "The den. Devon standing in the bay with his hands open.",
         cap: ["NOBODY FINDS THIS PLACE.", "HE FOUND IT IN NINE WEEKS."],
         say: [["DEVON", "They call me Sinobi Bro."]] },
@@ -6505,6 +6510,11 @@ export default function IronLionLayer004() {
       { img: "d1p_4", art: "The Lion sitting on a workbench so their heads are level.",
         cap: ["HE DID NOT COME TO BE SAVED AGAIN."],
         say: [["DEVON", "Teach me the part where you don't finish it."]] },
+      /* Darius does not say yes. The mentor does it for him, which is exactly the mentor's job
+         and spares the character a speech he would not make. */
+      { img: "d1p_7", art: "The war room door. The mentor in it, having listened to all of it.",
+        cap: ["DARIUS DOES NOT ANSWER HIM."],
+        say: [["MENTOR", "I'll teach him. You just let him watch you work."]] },
     ];
     const COMP_NAME = "DEVON";
     const COMP_HERO = "SINOBI BRO";
@@ -6551,6 +6561,7 @@ export default function IronLionLayer004() {
         war: g.war || 0, warOver: g.warOver || null,
         warSaved: g.warSaved || 0, warLost: g.warLost || 0,
         races: g.races || 0,
+        compBase: g.compBase == null ? null : g.compBase,
         comp: g.comp ? { met: g.comp.met, seen: !!g.comp.seen, out: !!g.comp.out,
                          earned: !!g.comp.earned, hits: g.comp.hits || 0 } : null,
       };
@@ -6592,6 +6603,7 @@ export default function IronLionLayer004() {
         const rec = missionState(m.id);
         rec.done = !!m.done; rec.stage = m.stage || 0; rec.active = false;
       }
+      if (o.compBase != null) g.compBase = o.compBase;
       if (o.comp) { g.compSave = o.comp; }
       return true;
     }
@@ -6603,13 +6615,19 @@ export default function IronLionLayer004() {
        double, because reaching one costs more -- but flashpoints only exist during the war, so
        the street is the road that is actually open. Then he is in the den when you next go
        home, which is why the pages open with somebody already inside. */
+    /* He turns up because of a specific night, not because a counter reached five. `d1` is the
+       shop door on 6th -- the player was there, put three Kings down in front of him, and the
+       boy on the stairs saw all of it. */
     function compEarned() {
-      /* Five rescues is reachable in the first few minutes, so on its own it put a stranger in
-         the den before the story had started. He also has to have somewhere to have SEEN the
-         Iron Lion work -- that is m1, the night the city decides the ghost is real. */
-      const m1 = missionState("m1");
-      if (!m1 || !m1.done) return false;
-      return (g.pulled || 0) + (g.saved || 0) * 2 >= 5;
+      const d1 = missionState("d1");
+      return !!(d1 && d1.done);
+    }
+    /* Being in the den is not the same as being ready. He watches for FIVE radio calls before
+       he is allowed out -- the mentor's condition, and the reason the counter still matters. */
+    const COMP_CALLS = 5;
+    function compCallsLeft() {
+      if (g.compBase == null) return COMP_CALLS;
+      return Math.max(0, COMP_CALLS - ((g.pulled || 0) - g.compBase));
     }
     function ensureComp() {
       if (g.comp || !compEarned()) return;
@@ -6659,6 +6677,12 @@ export default function IronLionLayer004() {
       if (c.met === 2) {
         c.met = 3;
         c.say = 4.5; c.line = COMP_LINES[4];
+        if (g.compBase == null) g.compBase = g.pulled || 0;   // the count starts here
+        return true;
+      }
+      if (compCallsLeft() > 0 && !c.out) {
+        c.say = 3.6;
+        c.line = "The old man says " + compCallsLeft() + " more. I'm counting them.";
         return true;
       }
       // afterwards, talking is hiring and standing him down
@@ -11181,6 +11205,27 @@ export default function IronLionLayer004() {
             art: "A crate stencilled with a military lot number.",
             cap: ["MILITARY CRATES.", "IN A GANG GARAGE.", "SOMEBODY UPSTREAM IS SELLING."],
             say: [["DARIUS", "This isn't street business anymore."]] },
+        ],
+      },
+      {
+        /* The Kings leaning on a shopkeeper -- HIS OWN people. That is the point of it: the
+           faction he protects doing the thing he protects people from, and him having to put
+           his own crew down over a woman's till. The boy on the stairs is Devon. */
+        id: "d1", title: "SOMEBODY'S SON", at: { i: 4, j: 6 }, night: true,
+        give: "SCENE", obj: "clear", goal: { i: 4, j: 6 }, pay: 120, needs: "m1", foes: 3,
+        brief: "Kings on a shop door on 6th. There is a boy in the stairwell who is going to "
+             + "do something stupid.",
+        pre: [
+          { img: "d1p_5", art: "From a rooftop across the street: three Kings at a shop door, "
+              + "the owner in the light of it. On the fire stairs below, a boy watching them.",
+            cap: ["THEY ARE HIS OWN PEOPLE.", "THAT IS WHY HE HAS TO GO DOWN THERE."],
+            say: [] },
+        ],
+        post: [
+          { img: "d1p_6", art: "The three of them down in the doorway. The boy at the foot of "
+              + "the stairs, close enough to have been in it, looking straight up at the Lion.",
+            cap: ["THE BOY DOES NOT RUN.", "HE HAS SEEN THE WHOLE THING."],
+            say: [["OWNER", "You go inside, Devon. Now."]] },
         ],
       },
       {
@@ -16314,6 +16359,7 @@ export default function IronLionLayer004() {
             reloading: (g.p.reload || 0) > 0,
             thrownLeft: (g.thrownStock || {})[g.p.wpn] || 0,
             comp: g.comp ? (g.comp.out ? Math.round(g.comp.hp) : 0) : null,
+            compWait: g.comp && g.comp.met >= 3 && !g.comp.out ? compCallsLeft() : 0,
             compName: g.comp && g.comp.earned ? COMP_HERO : COMP_NAME,
             missing: (window.__ironlion && window.__ironlion.missing) || 0,
             missingArt: ((window.__ironlion && window.__ironlion.missingArt) || []).length,
@@ -17642,6 +17688,11 @@ export default function IronLionLayer004() {
           RHFD {hud.rhfd}
         </div>
       )}
+      {hud.compWait > 0 ? (
+        <div style={{ marginTop: 6, fontSize: 9, letterSpacing: "0.14em", color: "#8fd0c0" }}>
+          DEVON WAITS \u00b7 {hud.compWait} MORE CALLS
+        </div>
+      ) : null}
       {hud.comp ? (
         <div style={{ marginTop: 6, fontSize: 9, letterSpacing: "0.16em", color: "#9fe0c0" }}>
           {hud.compName} · {hud.comp}
