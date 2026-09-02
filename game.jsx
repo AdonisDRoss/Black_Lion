@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 273 — SOLID GROUND";
+const BUILD_TAG = "LAYER 283 — DEN FURNISHED";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -9014,7 +9014,9 @@ export default function IronLionLayer004() {
       tub: [254, 116, 49, 34],
       urns: [365, 116, 47, 29],
     };
-    const SHOP2_ALIAS = { crate: "crate2", cage_win: "cage_win2", shelf: "shelf2" };
+    const SHOP2_ALIAS = { crate: "crate2", cage_win: "cage_win2", shelf: "shelf2",
+      // bagged and boxed on a rack -- the retail shelf plate is exactly that shape
+      evidence: "shelf2" };
     const FURN2_ALIAS = {
       dresser: "cab", fridge: "freezer", console: "desk",
       m_bar: "bartop", bench_row: "bench", m_coats: "stool",
