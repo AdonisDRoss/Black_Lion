@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 287 — THE ELEVATED";
+const BUILD_TAG = "LAYER 293 — THE ENGINE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1229,6 +1229,15 @@ const GANGTOP_ART = {
   weapon_atlas: "data:image/png;base64,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",
   item_atlas: "assets/item_atlas.png",
   shop2_atlas: "assets/shop2_atlas.webp",
+  /* The elevated. Registered before the art exists so the loader is the thing that reports them
+     missing, rather than the train silently staying grey with no explanation. */
+  el_roof: "assets/el_roof.webp", el_roof_front: "assets/el_roof_front.webp",
+  el_roof2: "assets/el_roof2.webp", el_roof3: "assets/el_roof3.webp",
+  el_roof4: "assets/el_roof4.webp",
+  el_eng_roof: "assets/el_eng_roof.webp", el_eng_in: "assets/el_eng_in.webp",
+  transit_top: "assets/transit_top.png",
+  el_in: "assets/el_in.webp", el_in_front: "assets/el_in_front.webp",
+  el_in2: "assets/el_in2.webp", el_in3: "assets/el_in3.webp",
   furn2_atlas: "assets/furn2_atlas.webp",
   furn_atlas: "assets/furn_atlas.png",
   cop_top: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAigAAAFwCAMAAACl5nCwAAAAwFBMVEXq7O24usDElYOFkqCAfIRfeplXeqFUdp6JYlVeZnJTcZhSXnBKaY5FYIJBWHVATmJFQ0tBNjgwO0wuLzcmNEwlLkUkLEQlKzogL0cgLUUgLEQfK0IgKkIdKUIfKT0oJCwgJTQeJzweIS0cJjscIzYcIC4cHSMYJTkXIjUZHzAUHzIXHC4TGy4XGyMcFxwWFh0UFyMTEhYQFigPFB0NEiEQERYSDxQTChQNDRQJDh4JDBEGBgwNABYAAAkAAAAAAAC0Moe6AAAAQHRSTlP///////////////////////////////////////////////////////////////////////////////////8AwnuxRAAAK4FJREFUeNrtnQt7ojq3x8extlpb76BijFKogiAioPUyM37/b3WCs/c5zRWy1V4OyTPvs+ed/vrvMuvPYgVt8uOkhho5xg81BWooo6hxW6MMtJ6m5ZZQdBFohlEMDS4WQB/puaQVXQyaYRR7YTWbtjP3c4kruhg0bZR9stdKpek+OfzOoa3ogtCUUTab3bFbKvd3m902W1vRRaEpoxyPu03Y7i432+MxW1zRRaEpo0zefq9X8SqevQU5qpWii0JTRml3/0y67fZk+9aeZIsruig0ZZRDtRVM2u0gqLaOwexXhriii0ITRml1j+2fP6to/Pw5OXRnXaG0ootDE0ZpTg4BItGfn9X1ZpIhruji0IRRkiicnY3182d7tTmuZ0JxRReHxo0yH5p77Q3xKd0/BJO3WKCt6ALRuFHGA7AfT2etNuppRs5hFqw0my+u9WRoOW2K7g1vp/2VaHitOaGycxlNGMXQI7/fbx2OrU4v3E6SPhSI64bpE7QleJlS2iRtDoF9K+0vRRvAyktDHbh8bYPIzoU0YZQxcPbe/vfxcIymh9nO00emwIXAJmlBLFLaGkUPgciEUnEzaHhDbTkaGAbMSWel3ore06YOhBe9Fb6nLZLGjGKMx2Po+N7yeHz1j+vgZYoMzo0FaMClaG425bQ1igYG9K6jfUtaZ9BQirYAMNgZpWhkFEdwGRsWri00igYo2uIbRTPQtABghqvVa7Ja10tlS+OrGzr0KJo7h1LaQ5oW2koq7qEUrX0wfbIhYF9uFG1mpR7X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",
@@ -3977,6 +3986,29 @@ export default function IronLionLayer004() {
       uptown:    { data: null, url: "assets/uptown.mp3" },
       county:    { data: null, url: "assets/county.mp3" },
       chase:     { data: null, url: "assets/chase.mp3" },
+      hood:       { data: null, url: "assets/hood.mp3" },
+      downtown:   { data: null, url: "assets/downtown.mp3" },
+      industrial: { data: null, url: "assets/industrial.mp3" },
+      neon:       { data: null, url: "assets/neon.mp3" },
+      /* boss.mp3, not fight.mp3 -- named to match the files that exist. `old` is Don Matteo:
+         the prison is his, and it is the one district that should sound like somebody else's
+         house rather than like the county around it. */
+      boss:       { data: null, url: "assets/boss.mp3" },
+      old:        { data: null, url: "assets/old.mp3" },
+      irish:      { data: null, url: "assets/irish.mp3" },
+      barrio:     { data: null, url: "assets/barrio.mp3" },
+    };
+    /* Which track a district gets. Anything unlisted falls through to `drive`, which has played
+       everywhere until now -- so a gap is ordinary music, not silence. */
+    const ZONE_MUSIC = {
+      hood: "hood", downtown: "downtown", city: "downtown",
+      uptown: "uptown", chinatown: "chinatown", neon: "neon",
+      /* The Sixth Ward and La Perla were both borrowing the hood track. They are two of the
+         four gang districts with their own architecture, their own faction and their own
+         missions -- borrowing was a placeholder, not a decision. */
+      industrial: "industrial", irish: "irish", barrio: "barrio", projects: "hood",
+      farm: "county", cemetery: "county", prison: "old", town: "county",
+      park: "uptown", water: "county",
     };
     const MUS = { buf: {}, cur: null, src: null, gain: null, want: null, tried: {}, vol: 0.5 };
 
@@ -7551,7 +7583,10 @@ export default function IronLionLayer004() {
        reach a platform is a menu with a longer animation.
 
        Four cars. It runs, it slows into a station, it waits, it goes. */
-    const EL_CARS = 4, EL_CAR_LEN = 190, EL_GAP = 16;
+    /* Five units now: an ENGINE at the front and four passenger cars behind it. Car 0 is the
+       engine -- no seats, all machinery -- so the drawn lead passenger car moved back one and
+       the cab interior belongs to the engine. */
+    const EL_CARS = 5, EL_CAR_LEN = 190, EL_GAP = 16;
     const EL_TOP = 300;                     // cruise
     function ensureTrain() {
       if (g.train) return;
@@ -7580,10 +7615,26 @@ export default function IronLionLayer004() {
       } else {
         t.d += step;
       }
-      // the player rides with it
+      /* Aboard, the player lives in the TRAIN's frame, not the world's -- `u` along it from the
+         front, `v` across it. The train carries him; his own walking moves u and v. That is what
+         makes it a place you are in rather than a seat you are stuck to, and it is the same
+         trick a building interior uses.
+
+         His world position is derived every frame from those two numbers, so the track can turn
+         a corner under him and he stays where he was standing. */
       if (g.onTrain) {
-        const p0 = elPos(t.d - EL_CAR_LEN * 0.5);
-        g.p.x = p0.x; g.p.y = p0.y;
+        // whatever the controls asked for this frame, rotated out of the world and into the car
+        const here = elPos(t.d - (g.trainU || 0));
+        const c = Math.cos(here.ang), sn = Math.sin(here.ang);
+        const wx = g.p.vx || 0, wy = g.p.vy || 0;
+        g.trainU = (g.trainU || 0) - (wx * c + wy * sn) * dt;
+        g.trainV = (g.trainV || 0) + (-wx * sn + wy * c) * dt;
+        g.trainU = clamp(g.trainU, 10, EL_CARS * (EL_CAR_LEN + EL_GAP) - 10);
+        g.trainV = clamp(g.trainV, -20, 20);
+        const p0 = elPos(t.d - g.trainU);
+        const a0 = p0.ang;
+        g.p.x = p0.x + Math.cos(a0 + Math.PI / 2) * g.trainV;
+        g.p.y = p0.y + Math.sin(a0 + Math.PI / 2) * g.trainV;
         g.p.vx = 0; g.p.vy = 0;
       }
     }
@@ -7812,6 +7863,9 @@ export default function IronLionLayer004() {
            across the street is not something he should feel. */
         if (v === g.car || v === g.moto || v === g.civ) {
           g.shake = Math.max(g.shake, Math.min(7, 1.5 + sp * 0.035));
+          /* Hitting a person is worse than hitting a car, and hitting either in front of an
+             officer is what turns it into a pursuit. */
+          witnessed(v.x, v.y, isPed ? 2 : 1, false);
         }
         if (isPed) {
           o.fly = 0.45 + Math.min(0.35, sp / 400);
@@ -11176,6 +11230,9 @@ export default function IronLionLayer004() {
       { z: "neon",      name: "EMBER FLATS",    i: 28, j: 23 },
       // the Kestrel is the reason anyone goes out there, so it gets its own line
       { z: "neon",      name: "THE KESTREL",    i: 28, j: 23, landmark: true },
+      /* The elevated. Downtown is the busiest stop and the one worth arriving at, and the
+         terminal is how you reach it without driving the whole way round to test the train. */
+      { z: "downtown",  name: "DOWNTOWN \u2014 THE L", elStop: 0 },
     ];
     function markSeen() {
       if (g.inside) return;
@@ -11208,12 +11265,22 @@ export default function IronLionLayer004() {
     /* TEST MODE: every destination is listed whether or not it has been driven to. The
        earned-unlock rule is the better design and it should come back before release --
        flip g.travelAll to false and the discovery gate returns exactly as it was. */
-    function travelList() { return g.travelAll ? TRAVEL.slice() : TRAVEL.filter((t) => g.seen[t.z]); }
+    function travelList() {
+      // the L is always listed: it is a public railway, not somewhere you have to discover
+      return g.travelAll ? TRAVEL.slice()
+        : TRAVEL.filter((t) => t.elStop != null || g.seen[t.z]);
+    }
     function doTravel(idx) {
       const list = travelList();
       const t = list[idx % Math.max(1, list.length)];
       if (!t) return;
-      let c = corner(t.i, t.j, 0);
+      /* A station destination lands you ON the platform, not in whichever block it happens to
+         sit in. elPos gives the track point; the platform is just south of it. */
+      let c = t.elStop != null ? null : corner(t.i, t.j, 0);
+      if (t.elStop != null) {
+        const p = elPos(EL_STOPS[t.elStop].d);
+        c = [p.x, p.y + 70];
+      }
       /* A landmark drops you at its own door rather than the corner of the block -- travelling
          to THE KESTREL and arriving in a car park two streets away is the same as not having
          the entry. The stair foot is south of the building, which is where the door now is. */
@@ -12505,6 +12572,8 @@ export default function IronLionLayer004() {
       /* The mentor: standing 0, seated 1, leaning 2. One man, three poses, so a single build --
          three builds would have changed his size depending on what he was doing. */
       mentor: { sheet: "mentor_top", lift: 0.0288, types: 3, builds: 1 },
+      /* Driver 0, platform guard 1, ticket clerk 2, bus driver 3. */
+      transit: { sheet: "transit_top", lift: 0.0148, types: 4, builds: 1 },
       /* Three separate people on one sheet, so it is keyed by role rather than by faction:
          0 Andre Cole, 1 the mentor out of the suit, 2 the mentor in it. */
       face:   { sheet: "face_top",   lift: 0.0257, types: 3, builds: 2 },
@@ -12796,6 +12865,42 @@ export default function IronLionLayer004() {
       return [mk(), mk()];   // two to a car, always
     }
     /* level 0 a call, 1 shots fired, 2 a body on the ground */
+    /* --- being seen -------------------------------------------------------------
+
+       Police were dispatched by specific events calling `escalatePolice` -- a shot fired, a body
+       found. Nothing ever WATCHED. You could beat a man down in front of a patrol car and it
+       would sit there, because nobody had told it that had happened.
+
+       `witnessed` asks the question the other way round: is there an officer close enough and
+       facing this to have seen it? If so it becomes a pursuit, and the level decides how much of
+       one. It is deliberately generous about distance and blind to walls -- a cop hearing a
+       gunshot round a corner is fine; a cop ignoring a beating at fifty feet is not. */
+    const SEE_NEAR = 460;
+    function isCop(o) { return !!o && policeUnits().indexOf(o) >= 0; }
+    function copsWatching(x, y) {
+      if (g.inside) return false;                 // indoors is not the street
+      for (const u of policeUnits()) {
+        if (!u || u.hp <= 0) continue;
+        if (Math.hypot(u.x - x, u.y - y) < SEE_NEAR) return true;
+      }
+      for (const v of policeCars()) {
+        if (!v) continue;
+        if (Math.hypot(v.x - x, v.y - y) < SEE_NEAR) return true;
+      }
+      for (const m of (g.motors || [])) {
+        if (Math.hypot(m.x - x, m.y - y) < SEE_NEAR) return true;
+      }
+      return false;
+    }
+    /* One entry point for everything the player can be caught doing. `always` is for things
+       loud enough that being seen is beside the point -- a gunshot carries. */
+    function witnessed(x, y, level, always) {
+      if (g.inside && !always) return;
+      if (!always && !copsWatching(x, y)) return;
+      g.heat = Math.max(g.heat || 0, level >= 2 ? 3 : level >= 1 ? 2 : 1);
+      g.wantedT = 26 + level * 12;                // how long they stay interested
+      escalatePolice(x, y, level);
+    }
     function escalatePolice(x, y, level) {
       const want = level >= 2 ? 4 : level >= 1 ? 2 : 1;
       if (!g.police) dispatchPolice(x, y);
@@ -13902,7 +14007,7 @@ export default function IronLionLayer004() {
         {
           g.p.atkCd = Math.min(0.5, st.rate); g.p.fireCd = st.rate;
           g.p.ammo = (g.p.ammo || 0) - 1;
-          if (!g.inside) escalatePolice(g.p.x, g.p.y, 1);
+          if (!g.inside) witnessed(g.p.x, g.p.y, 1, true);   // a gunshot carries
           /* Nearest man if there is one; otherwise the way he is moving, and failing that
              wherever he last aimed. `faceAng` does not exist on the player -- velocity is the
              only facing this character actually has. */
@@ -13958,6 +14063,10 @@ export default function IronLionLayer004() {
           const dx = m.x - g.p.x, dy = m.y - g.p.y, d = Math.hypot(dx, dy);
           if (d > 56 || (dx / d) * f[0] + (dy / d) * f[1] < 0.1) continue;
           m.hp -= lionHit; m.stun = 0.42 * lionHit;
+          /* A beating in front of a patrol car is a crime whoever is on the receiving end. The
+             Lion putting gang members down is still assault to a man in uniform, and that
+             tension is most of what the mask is for. */
+          witnessed(m.x, m.y, m.hp <= 0 ? 2 : 1, false);
           m.vx = (dx / d) * 250 * lionHit; m.vy = (dy / d) * 250 * lionHit;
           cr.state = "hostile";
           g.shake = Math.max(g.shake, 6);
@@ -14573,6 +14682,29 @@ export default function IronLionLayer004() {
       updateMotor(dt, cx, cy);
       updateRaid(dt);
       updateTrain(dt);
+      /* Wanted decays. Without this `heat` latched on forever and the chase music never stopped
+         -- a pursuit has to be something you can get out of. */
+      if ((g.wantedT || 0) > 0) {
+        g.wantedT -= dt;
+        if (g.wantedT <= 0) { g.heat = 0; g.wantedT = 0; }
+      }
+      /* Decided once a second, not every frame. The crossfade is half a second, and re-deciding
+         at 60Hz along a district boundary makes it stutter between two tracks as you drive the
+         line. `musicPlay` already ignores a request for the track that is playing, so this is
+         just a throttle on changing our mind. */
+      MUS.tick = (MUS.tick == null ? 0 : MUS.tick) - dt;
+      if (MUS.tick <= 0) {
+        MUS.tick = 1;
+        // a chase and the boss both override the district; nothing else does
+        if (g.boss && (!g.boss.roof || g.roof === g.boss.roof)) musicPlay("boss");
+        else if (policeCars().length && (g.heat || 0) > 0) musicPlay("chase");
+        else {
+          const pv = inVehicle() ? activeVeh() : g.p;
+          const z = zoneOf(clamp(Math.floor(pv.x / PITCH), 0, N - 1),
+                           clamp(Math.floor(pv.y / PITCH), 0, N - 1));
+          musicPlay(ZONE_MUSIC[z] || "drive");
+        }
+      }
       if (g.traffic.filter((v) => v.bus).length < 2 && Math.random() < 0.02) spawnBus(cx, cy);
       if (inWolfTurf(cx, cy) && Math.random() < 0.22 &&
           g.traffic.filter((v) => v.wolfRider).length < 4) spawnWolfRider(cx, cy);
@@ -15575,16 +15707,94 @@ export default function IronLionLayer004() {
         ctx.textAlign = "start";
       }
     }
+    const TR_DRIVER = 0, TR_GUARD = 1, TR_CLERK = 2, TR_BUS = 3;
+    /* Somebody at the controls, and somebody on the platform. An empty train and an empty
+       station read as scenery; one figure each is what makes the system look staffed. */
+    function drawTransitFolk() {
+      if (g.inside) return;
+      const t = g.train;
+      if (t) {
+        const c = trainCarPos(0);
+        const dp = { x: c.x + Math.cos(c.ang) * 52, y: c.y + Math.sin(c.ang) * 52,
+                     vx: 0, vy: 0, anim: g.t * 2, jit: 1, toprow: TR_DRIVER };
+        drawActorTop("transit", TR_DRIVER, dp, "hang");
+      }
+      /* The bus has run a route since it was added with nobody in it. One figure at the wheel
+         fixes a hole that has been open the whole time. */
+      for (const v of g.traffic) {
+        if (!v.bus) continue;
+        if (Math.abs(v.x - g.p.x) > 1200 || Math.abs(v.y - g.p.y) > 1200) continue;
+        const a = v.ang || 0;
+        const bp = { x: v.x + Math.cos(a) * 34 - Math.sin(a) * 10,
+                     y: v.y + Math.sin(a) * 34 + Math.cos(a) * 10,
+                     vx: 0, vy: 0, anim: g.t * 2, jit: 1, toprow: TR_BUS };
+        drawActorTop("transit", TR_BUS, bp, "hang");
+      }
+      for (let i = 0; i < EL_STOPS.length; i++) {
+        if (i % 3) continue;                      // not every platform is manned
+        const p = elPos(EL_STOPS[i].d);
+        if (Math.abs(p.x - g.p.x) > 1400 || Math.abs(p.y - g.p.y) > 1400) continue;
+        const gp = { x: p.x + 34, y: p.y + 34, vx: 0, vy: 0,
+                     anim: g.t * 1.4 + i, jit: 1, toprow: TR_GUARD };
+        drawActorTop("transit", TR_GUARD, gp, "hang");
+      }
+    }
     function drawTrain() {
       if (!g.train) return;
-      const im = imgs.current.el_car, imf = imgs.current.el_front;
+      /* The roof fades out when you are aboard, exactly the way a building's does, and what is
+         under it is a room -- floor, seats down both sides, grab poles, and the gap between one
+         car and the next. Riding is standing somewhere, not sitting in a cutscene. */
+      g.trainFade = clamp((g.trainFade == null ? 1 : g.trainFade)
+        + (g.onTrain ? -1 : 1) * 0.06, 0.12, 1);
+      const roofA = g.trainFade;
+      /* el_roof / el_roof_front are the plate names; el_car / el_front are accepted as well so
+         an earlier drop under the old names still works. */
+      /* Three middle pieces cycled across the three trailing cars, so no two adjacent cars
+         carry the same paint. They were tagged at different times; a train of four identical
+         roofs looks like a toy. */
+      const ROOFS = ["el_roof", "el_roof2", "el_roof3", "el_roof4"];
+      const INS = ["el_in", "el_in2", "el_in3"];
+      const imf = imgs.current.el_roof_front || imgs.current.el_front;
       for (let k = EL_CARS - 1; k >= 0; k--) {
         const c = trainCarPos(k);
-        const plate = (k === 0 && imf && imf.width) ? imf : im;
+        const rk = imgs.current[ROOFS[(k - 1 + ROOFS.length) % ROOFS.length]]
+                || imgs.current.el_roof || imgs.current.el_car;
+        const eng = imgs.current.el_eng_roof;
+        const plate = (k === 0 && eng && eng.width) ? eng
+                    : (k === 0 && imf && imf.width) ? imf : rk;
         ctx.save();
         ctx.translate(c.x, c.y); ctx.rotate(c.ang + Math.PI / 2);
         ctx.fillStyle = "rgba(0,0,0,0.34)";
         ctx.fillRect(-30 + 10, -EL_CAR_LEN / 2 + 10, 60, EL_CAR_LEN);
+
+        // the inside, under the roof
+        if (roofA < 0.98) {
+          const inKey = k === 0 ? "el_eng_in" : INS[(k - 1 + INS.length) % INS.length];
+          const inImg = imgs.current[inKey] || imgs.current.el_in_front || imgs.current.el_in;
+          if (inImg && inImg.width) {
+            ctx.drawImage(inImg, -30, -EL_CAR_LEN / 2, 60, EL_CAR_LEN);
+          } else {
+          const L2 = EL_CAR_LEN;
+          ctx.fillStyle = "#40434a";
+          ctx.fillRect(-30, -L2 / 2, 60, L2);
+          ctx.fillStyle = "#2f323a";                       // the floor run
+          ctx.fillRect(-19, -L2 / 2 + 8, 38, L2 - 16);
+          ctx.fillStyle = "#7a4a3a";                       // bench seats, both sides
+          for (const sx2 of [-27, 19]) {
+            ctx.fillRect(sx2, -L2 / 2 + 22, 8, L2 * 0.34);
+            ctx.fillRect(sx2, L2 * 0.06, 8, L2 * 0.34);
+          }
+          ctx.fillStyle = "rgba(190,190,200,0.7)";         // grab poles
+          for (const py2 of [-L2 * 0.22, L2 * 0.16]) {
+            ctx.beginPath(); ctx.arc(0, py2, 3, 0, 6.3); ctx.fill();
+          }
+          ctx.fillStyle = "rgba(20,20,24,0.8)";            // doorways at each end
+          ctx.fillRect(-12, -L2 / 2 - 1, 24, 4);
+          ctx.fillRect(-12, L2 / 2 - 3, 24, 4);
+          }
+        }
+
+        ctx.globalAlpha = roofA;
         if (plate && plate.width) {
           ctx.drawImage(plate, -30, -EL_CAR_LEN / 2, 60, EL_CAR_LEN);
         } else {
@@ -15593,6 +15803,7 @@ export default function IronLionLayer004() {
           ctx.fillStyle = "#2a2c31";
           ctx.fillRect(-26, -EL_CAR_LEN / 2 + 12, 52, EL_CAR_LEN - 24);
         }
+        ctx.globalAlpha = 1;
         ctx.restore();
       }
     }
@@ -16561,6 +16772,7 @@ export default function IronLionLayer004() {
       drawBlasts();
       drawEl();
       drawTrain();
+      drawTransitFolk();
       drawBullets();
       /* An arrow at the rim of the screen for the live objective. A distance alone in an open
          city tells you nothing -- 300m could be any direction, and "I need to know exactly where
