@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 294 — ALL ABOARD";
+const BUILD_TAG = "LAYER 296 — DRIVE UNDERNEATH";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1357,6 +1357,10 @@ const inTown = (i, j) => i >= TOWN.i0 && i <= TOWN.i1 && j >= TOWN.j0 && j <= TO
    somewhere you pass. The Vescari boss runs the family from inside it. */
 const PRISON = { i0: 15, i1: 18, j0: 23, j1: 25 };
 const inPrison = (i, j) => i >= PRISON.i0 && i <= PRISON.i1 && j >= PRISON.j0 && j <= PRISON.j1;
+/* Kestrel State. w5 sends you here, Warhound is inside it and Don Matteo runs the family from a
+   wing -- it is where two arcs meet, and `zone === "prison"` returned NO BUILDINGS AT ALL, so
+   there has never been anything on the ground to walk into. */
+const PRISON_CELL = { i: 16, j: 23 };
 const PITCH = 1500;           // 71 m between street centrelines
 const AVE_EVERY = 4;          // every 4th line is a wide avenue
 const SW = 64;                // 3 m pavement
@@ -1569,6 +1573,23 @@ function elNearestStop(d) {
     if (gap < bd) { bd = gap; best = q; }
   }
   return { stop: best, ahead: bd };
+}
+/* Anywhere the deck is overhead: the track band itself, or inside a station's rectangle. Used to
+   fade it out so the street underneath stays visible and drivable. */
+function elFootprint(x, y) {
+  const m = 42;
+  const nearX = Math.abs(x - EL_X0) < m || Math.abs(x - EL_X1) < m;
+  const nearY = Math.abs(y - EL_Y0) < m || Math.abs(y - EL_Y1) < m;
+  if ((nearX && y > EL_Y0 - m && y < EL_Y1 + m)
+   || (nearY && x > EL_X0 - m && x < EL_X1 + m)) return true;
+  for (const q of EL_STOPS) {
+    const p = elPos(q.d);
+    const vert = Math.abs(p.ang) > 1;
+    const AL = EL_STA_LEN / 2 + 40, AC = EL_STA_W / 2 + 40;
+    const hw = vert ? AC : AL, hh = vert ? AL : AC;
+    if (Math.abs(x - p.x) < hw && Math.abs(y - p.y) < hh) return true;
+  }
+  return false;
 }
 function onElSpan(x, y) {
   const m = 60;
@@ -2330,6 +2351,9 @@ function floorKind(b, f) {
   if (b.kind === "precinct") return f === 0 ? "precinct" : "offices";
   if (b.kind === "cityhall") return f === 0 ? "cityhall" : "offices";
   if (b.kind === "sechq") return f === 0 ? "sechq" : "offices";
+  /* Ground floor is where visitors and inmates meet; upstairs is where the place is run from.
+     Don Matteo is on the ground floor because that is where w5 puts the player. */
+  if (b.kind === "prison") return f === 0 ? "cellblock" : "wardenwing";
   /* The Kestrel gets its own plan rather than the generic venue floor: you come in at the top
      of the steps, cross a lobby, and the room opens out in front of you. */
   /* The Kestrel climbs: machines on the ground where anyone can walk in, cards on two, and the
@@ -2470,6 +2494,20 @@ function makeFloor(b, f, rnd) {
     put(GX - Math.max(2, Math.round(GX * 0.24)), 0,
         GX - 1, Math.max(1, Math.round(GY * 0.26)), "cage");
     put(0, 0, Math.max(1, Math.round(GX * 0.22)), Math.max(1, Math.round(GY * 0.22)), "bar");
+  } else if (kind === "cellblock") {
+    /* Gate, then a search room, then the block itself with cells down both sides, and the
+       visiting room off to one side. You are walked through it in that order. */
+    const lob = Math.max(1, Math.round(GY * 0.16));
+    hub = put(0, GY - lob, GX - 1, GY - 1, "gate");
+    put(0, 0, Math.round(GX * 0.62), GY - lob - 1, "block");
+    put(Math.round(GX * 0.62) + 1, 0, GX - 1, Math.round(GY * 0.42), "visiting");
+    put(Math.round(GX * 0.62) + 1, Math.round(GY * 0.42) + 1, GX - 1, GY - lob - 1, "guardpost");
+  } else if (kind === "wardenwing") {
+    const lob = Math.max(1, Math.round(GY * 0.18));
+    hub = put(0, GY - lob, GX - 1, GY - 1, "corridor");
+    put(0, 0, Math.round(GX * 0.5), GY - lob - 1, "warden");
+    put(Math.round(GX * 0.5) + 1, 0, GX - 1, Math.round(GY * 0.5), "records");
+    put(Math.round(GX * 0.5) + 1, Math.round(GY * 0.5) + 1, GX - 1, GY - lob - 1, "guardpost");
   } else if (kind === "vip") {
     /* The top floor. A stage against the back wall, a few tables in front of it, and a door
        staff decide about. Deliberately smaller and emptier than the floors below -- the point
@@ -2865,6 +2903,62 @@ function makeFloor(b, f, rnd) {
       case "stage":
         // a raised deck and a rail. The dancers stand on it; nothing else belongs up there.
         P(q2.x0 + pad, q2.y0 + pad, W2 - pad * 2, H2 - pad * 2, "stagedeck");
+        break;
+      case "gate":
+        // a counter you are processed at, lockers behind it, a bench to wait on
+        facing(q2, 90, 24, "counter");
+        runX(q2, q2.y0 + pad, 3, 30, 26, "locker", pad);
+        P(cx - 34, q2.y1 - pad - 18, 68, 18, "bench");
+        break;
+      case "block": {
+        /* Cells down both long walls with a walkway between. The cells are what the room is,
+           so they are drawn as a run rather than scattered. */
+        const n3 = clamp(Math.floor((wide ? W2 : H2) / 62), 3, 8);
+        for (let i2 = 0; i2 < n3; i2++) {
+          const t = (i2 + 0.5) / n3;
+          if (wide) {
+            P(q2.x0 + pad + (W2 - pad * 2) * t - 22, q2.y0 + pad, 44, 40, "bed");
+            P(q2.x0 + pad + (W2 - pad * 2) * t - 22, q2.y1 - pad - 40, 44, 40, "bed");
+          } else {
+            P(q2.x0 + pad, q2.y0 + pad + (H2 - pad * 2) * t - 22, 40, 44, "bed");
+            P(q2.x1 - pad - 40, q2.y0 + pad + (H2 - pad * 2) * t - 22, 40, 44, "bed");
+          }
+        }
+        P(cx - 14, cy - 14, 28, 28, "toilet");
+        break;
+      }
+      case "visiting": {
+        // a row of tables with a chair each side: the room w5 actually happens in
+        const n4 = clamp(Math.floor((wide ? W2 : H2) / 78), 2, 5);
+        for (let i2 = 0; i2 < n4; i2++) {
+          const t = (i2 + 0.5) / n4;
+          if (wide) {
+            P(q2.x0 + pad + (W2 - pad * 2) * t - 26, cy - 16, 52, 32, "table");
+            P(q2.x0 + pad + (W2 - pad * 2) * t - 12, cy - 46, 24, 24, "chair");
+            P(q2.x0 + pad + (W2 - pad * 2) * t - 12, cy + 22, 24, 24, "chair");
+          } else {
+            P(cx - 16, q2.y0 + pad + (H2 - pad * 2) * t - 26, 32, 52, "table");
+            P(cx - 46, q2.y0 + pad + (H2 - pad * 2) * t - 12, 24, 24, "chair");
+            P(cx + 22, q2.y0 + pad + (H2 - pad * 2) * t - 12, 24, 24, "chair");
+          }
+        }
+        break;
+      }
+      case "guardpost":
+        P(q2.x0 + pad, q2.y0 + pad, 56, 26, "desk");
+        P(q2.x1 - pad - 30, q2.y0 + pad, 30, 42, "locker");
+        P(q2.x0 + pad, q2.y1 - pad - 24, 34, 24, "cab");
+        break;
+      case "warden":
+        P(cx - 40, q2.y0 + pad + 10, 80, 34, "desk");
+        P(cx - 12, q2.y0 + pad + 50, 24, 24, "chair");
+        P(q2.x1 - pad - 34, q2.y1 - pad - 30, 34, 30, "safe");
+        P(q2.x0 + pad, q2.y1 - pad - 30, 40, 30, "bookshelf");
+        break;
+      case "records":
+        runX(q2, q2.y0 + pad, 4, 30, 42, "cab", pad);
+        runX(q2, q2.y1 - pad - 42, 4, 30, 42, "cab", pad);
+        P(cx - 24, cy - 12, 48, 24, "table");
         break;
       case "gaming": {
         /* Laid out from the room's own edges rather than by arithmetic that can walk outside
@@ -3401,7 +3495,20 @@ function assignBiz(b, zone, key) {
 function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
   const LW = lx1 - lx0, LH = ly1 - ly0, key = i * 1000 + j;
   const out = [];
-  if (zone === "park" || zone === "cemetery" || zone === "prison") return out;
+  if (zone === "prison") {
+    // one block, filling most of the cell, with a yard round it
+    if (i !== PRISON_CELL.i || j !== PRISON_CELL.j) return out;
+    const bw = LW * 0.74, bh = LH * 0.62;
+    const b = mkB(lx0 + (LW - bw) / 2, ly0 + (LH - bh) / 2, bw, bh, 2, "prison", rnd, key);
+    b.name = "KESTREL STATE";
+    b.tone = 0.12; b.retail = false; b.arch = null; b.eatery = false;
+    b.landmark = false; b.prison = true;
+    faceDoor(b, lx0, ly0, lx1, ly1, rnd);
+    b.door = { side: 2, pos: 0.5 };          // the gate faces the approach road
+    out.push(b);
+    return out;
+  }
+  if (zone === "park" || zone === "cemetery") return out;
 
   /* A fixed civic building takes its whole cell and nothing else is generated there. Checked
      before the zone branches so it does not matter what the surrounding district would have
@@ -15674,6 +15781,17 @@ export default function IronLionLayer004() {
     /* Deck, then stations, then the train. Drawn late so it sits above the street the way an
        elevated line does -- the shadow underneath is what sells the height. */
     function drawEl() {
+      /* The deck is drawn over everything, which is correct -- it is above the street. But that
+         means anything BENEATH it disappears, including the player and the traffic he is driving
+         through. The gas canopies already solved this: go translucent when whoever is looking is
+         underneath.
+
+         `elUnder` is true when the camera subject is at street level and within the deck's
+         footprint. On the train or on a roof he is level with it and it stays solid. */
+      const pvE = inVehicle() ? activeVeh() : g.p;
+      const elUnder = !g.onTrain && !g.roof && !g.inside && elFootprint(pvE.x, pvE.y);
+      const deckA = elUnder ? 0.26 : 1;
+      ctx.globalAlpha = deckA;
       const seg = (x0, y0, x1, y1) => {
         const vert = Math.abs(x1 - x0) < 1;
         const w = 54;
@@ -15774,6 +15892,7 @@ export default function IronLionLayer004() {
         ctx.fillText(q.name, p.x, y0 - 44);
         ctx.textAlign = "start";
       }
+      ctx.globalAlpha = 1;
     }
     const TR_DRIVER = 0, TR_GUARD = 1, TR_CLERK = 2, TR_BUS = 3;
     /* Somebody at the controls, and somebody on the platform. An empty train and an empty
@@ -15815,6 +15934,10 @@ export default function IronLionLayer004() {
       g.trainFade = clamp((g.trainFade == null ? 1 : g.trainFade)
         + (g.onTrain ? -1 : 1) * 0.06, 0.12, 1);
       const roofA = g.trainFade;
+      /* The train fades with the deck for the same reason -- a solid car sliding over the street
+         you are driving on hides you completely. */
+      const pvT = inVehicle() ? activeVeh() : g.p;
+      const trainA = (!g.onTrain && !g.roof && !g.inside && elFootprint(pvT.x, pvT.y)) ? 0.34 : 1;
       /* el_roof / el_roof_front are the plate names; el_car / el_front are accepted as well so
          an earlier drop under the old names still works. */
       /* Three middle pieces cycled across the three trailing cars, so no two adjacent cars
@@ -15862,7 +15985,7 @@ export default function IronLionLayer004() {
           }
         }
 
-        ctx.globalAlpha = roofA;
+        ctx.globalAlpha = roofA * trainA;
         if (plate && plate.width) {
           ctx.drawImage(plate, -30, -EL_CAR_LEN / 2, 60, EL_CAR_LEN);
         } else {
