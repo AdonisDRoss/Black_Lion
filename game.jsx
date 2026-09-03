@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 296 — DRIVE UNDERNEATH";
+const BUILD_TAG = "LAYER 298 — UP ON THE PLATFORM";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2862,8 +2862,14 @@ function makeFloor(b, f, rnd) {
         break;
       case "warroom":
         P(q2.x0 + 10, q2.y0 + 10, Math.min(150, W2 - 20), 34, "console");
-        P(q2.x1 - 46, q2.y1 - 30, 40, 22, "evidence");
-        P(cx - 24, cy + 10, 48, 20, "table");
+        P(q2.x1 - 46, q2.y1 - 34, 48, 30, "evidence");
+        /* The map table was 48x20 -- thinner than a man, in the room the whole war is planned
+           in. The readable scale in this game is the PLAYER, not metres: he is 43 tall, so
+           anything people stand round has to be a clear multiple of that or it reads as a shelf.
+           96x58 is a table four people can lean over. */
+        P(cx - 48, cy - 6, 96, 58, "table");
+        P(cx - 62, cy + 16, 22, 22, "chair");
+        P(cx + 42, cy + 16, 22, 22, "chair");
         P(q2.x0 + 12, q2.y1 - 26, 16, 16, "reel");
         P(q2.x0 + 32, q2.y1 - 26, 14, 14, "scanner");
         P(q2.x1 - 20, q2.y0 + 40, 14, 16, "cbradio");
@@ -4727,6 +4733,25 @@ export default function IronLionLayer004() {
     g.car.tough = 1;                                  // a street car is not the Lion's car
     g.car.crush = null; g.car.dents = []; g.car.dmg = 0;
     g.car.fuel = 40 + Math.random() * 55;
+    /* Somebody was driving it. The car used to simply vanish from traffic and reappear under
+       the player, which meant a hijacking with no victim -- and the whole point of the mask is
+       that people see what he does.
+
+       The driver is put on the pavement beside his own car, panicking, and he is a witness: a
+       car taken in front of police is a car taken in front of police. */
+    if (!best.dead && !best.parked) {
+      const a = (best.ang || 0) + Math.PI / 2;
+      g.peds.push({
+        x: best.x + Math.cos(a) * 34, y: best.y + Math.sin(a) * 34,
+        vx: 0, vy: 0, anim: 0, jit: 0.96 + Math.random() * 0.1,
+        mode: "panic", timer: 3.4 + Math.random() * 2,
+        fx: Math.cos(a), fy: Math.sin(a), hp: 3, fly: 0,
+      });
+      /* Bridged: mountNearest is at indent 2, outside the component, and cannot see
+         `witnessed` at indent 4. Calling it directly is a ReferenceError that would kill the
+         whole steal-a-car path. */
+      if (G.seenFn) G.seenFn(best.x, best.y, 1);
+    }
     g.traffic.splice(g.traffic.indexOf(best), 1);
     g.mode = "car"; g.hint = 0;
     // people saw that -- though a man in plain clothes taking a car is just a car thief
@@ -4801,6 +4826,7 @@ export default function IronLionLayer004() {
       if (G.tableFn && G.tableFn()) return;
       return;
     }
+    if (g.mode === "foot" && G.stairsElFn && G.stairsElFn()) return;
     if (g.mode === "foot" && G.trainFn && G.trainFn()) return;
     if (g.mode === "foot" && G.doorFn) {
       const b = G.doorFn();
@@ -7907,6 +7933,9 @@ export default function IronLionLayer004() {
           const t = live[(Math.random() * live.length) | 0];
           if (Math.abs(t.x - c.x) < 300) {
             c.muzzle = 0.1;
+            // which side the barrel is out of, and for how long the arm stays out
+            c.gunSide = t.y > c.y ? 1 : -1;
+            c.gunOut = 0.55;
             if (Math.random() < 0.45) {
               t.hp -= 1 + Math.random() * 2;
               t.stun = 0.3;
@@ -12493,8 +12522,15 @@ export default function IronLionLayer004() {
                 : (m.aimAng ?? -Math.PI / 2);
       /* Side-on, the gun sits at chest height off one shoulder. From overhead there is no
          chest to sit at -- it goes out in front along the aim, which is where a hand is. */
-      const hx = top ? m.x + Math.cos(ang) * w * 0.24 : m.x + (flip ? -w * 0.30 : w * 0.30);
-      const hy = top ? m.y + Math.sin(ang) * w * 0.24 : m.y - h * 0.5;
+      /* Forward along the aim AND out to the RIGHT. It only offset forward before, so every
+         weapon sat dead on the body's centreline -- a man appeared to be firing out of his
+         sternum. A right hand is about a quarter of the shoulder width off centre, and that
+         small sideways shift is the difference between holding a gun and being impaled by one. */
+      const rx = Math.cos(ang + Math.PI / 2), ry = Math.sin(ang + Math.PI / 2);
+      const hx = top ? m.x + Math.cos(ang) * w * 0.24 + rx * w * 0.26
+                     : m.x + (flip ? -w * 0.30 : w * 0.30);
+      const hy = top ? m.y + Math.sin(ang) * w * 0.24 + ry * w * 0.26
+                     : m.y - h * 0.5;
       ctx.save();
       ctx.translate(hx, hy);
       ctx.rotate(ang + Math.PI);   // source art's muzzle points left (180deg); this aims it along ang
@@ -14795,6 +14831,7 @@ export default function IronLionLayer004() {
       updateMotor(dt, cx, cy);
       updateRaid(dt);
       updateTrain(dt);
+      updatePlatform();
       /* Wanted decays. Without this `heat` latched on forever and the chase music never stopped
          -- a pursuit has to be something you can get out of. */
       if ((g.wantedT || 0) > 0) {
@@ -15780,6 +15817,51 @@ export default function IronLionLayer004() {
     }
     /* Deck, then stations, then the train. Drawn late so it sits above the street the way an
        elevated line does -- the shadow underneath is what sells the height. */
+    /* --- being ON the platform ---------------------------------------------------
+
+       The fade solved driving underneath and created a worse problem: walking toward a station
+       made it vanish, so there was no way onto it. A platform is not a canopy -- it is a floor,
+       and it has to behave the way a roof does.
+
+       `g.onPlat` is the station he is standing on. Up there the deck is SOLID, he walks inside
+       its rectangle, and he is above both the street and the expressway. */
+    function platRect(k) {
+      const p = elPos(EL_STOPS[k].d);
+      const vert = Math.abs(p.ang) > 1;
+      const AL = EL_STA_LEN / 2, AC = EL_STA_W / 2;
+      return { x0: p.x - (vert ? AC : AL), x1: p.x + (vert ? AC : AL),
+               y0: p.y - (vert ? AL : AC), y1: p.y + (vert ? AL : AC), p, vert };
+    }
+    function stairFeet(k) {
+      const r = platRect(k);
+      return r.vert
+        ? [[r.x0 - 40, r.y0 + 20], [r.x1 + 40, r.y0 + 20],
+           [r.x0 - 40, r.y1 - 20], [r.x1 + 40, r.y1 - 20]]
+        : [[r.x0 + 20, r.y0 - 40], [r.x0 + 20, r.y1 + 40],
+           [r.x1 - 20, r.y0 - 40], [r.x1 - 20, r.y1 + 40]];
+    }
+    function nearStairs() {
+      if (g.mode !== "foot" || g.inside || g.onTrain) return -1;
+      for (let k = 0; k < EL_STOPS.length; k++) {
+        for (const c of stairFeet(k)) {
+          if (Math.hypot(g.p.x - c[0], g.p.y - c[1]) < 92) return k;
+        }
+      }
+      return -1;
+    }
+    function updatePlatform() {
+      if (g.onPlat == null) return;
+      if (g.inside || inVehicle()) { g.onPlat = null; return; }
+      const r = platRect(g.onPlat);
+      const M2 = 12;
+      if (g.p.x < r.x0 - M2 || g.p.x > r.x1 + M2 || g.p.y < r.y0 - M2 || g.p.y > r.y1 + M2) {
+        // stepped off, and it is the same drop as a roof
+        g.onPlat = null;
+        g.p.hp = Math.max(0, g.p.hp - 10);
+        g.shake = Math.max(g.shake, 14);
+        g.pickupFlash = { nm: "long_way_down", t: 2.0 };
+      }
+    }
     function drawEl() {
       /* The deck is drawn over everything, which is correct -- it is above the street. But that
          means anything BENEATH it disappears, including the player and the traffic he is driving
@@ -15789,7 +15871,8 @@ export default function IronLionLayer004() {
          `elUnder` is true when the camera subject is at street level and within the deck's
          footprint. On the train or on a roof he is level with it and it stays solid. */
       const pvE = inVehicle() ? activeVeh() : g.p;
-      const elUnder = !g.onTrain && !g.roof && !g.inside && elFootprint(pvE.x, pvE.y);
+      const elUnder = g.onPlat == null && !g.onTrain && !g.roof && !g.inside
+                   && elFootprint(pvE.x, pvE.y);
       const deckA = elUnder ? 0.26 : 1;
       ctx.globalAlpha = deckA;
       const seg = (x0, y0, x1, y1) => {
@@ -15937,7 +16020,8 @@ export default function IronLionLayer004() {
       /* The train fades with the deck for the same reason -- a solid car sliding over the street
          you are driving on hides you completely. */
       const pvT = inVehicle() ? activeVeh() : g.p;
-      const trainA = (!g.onTrain && !g.roof && !g.inside && elFootprint(pvT.x, pvT.y)) ? 0.34 : 1;
+      const trainA = (g.onPlat == null && !g.onTrain && !g.roof && !g.inside
+                      && elFootprint(pvT.x, pvT.y)) ? 0.34 : 1;
       /* el_roof / el_roof_front are the plate names; el_car / el_front are accepted as well so
          an earlier drop under the old names still works. */
       /* Three middle pieces cycled across the three trailing cars, so no two adjacent cars
@@ -16961,9 +17045,39 @@ export default function IronLionLayer004() {
       drawComp();
       drawThrown();
       drawBlasts();
+      /* The drive-by car has a gun out of it. It fired, took lives and left, and the only sign
+         was a muzzle flash inside the bodywork -- from above you could not tell a drive-by from
+         a car going past. An arm and a barrel out of the window is the whole read. */
+      {
+        const W = g.warAct;
+        if (W && W.kind === "driveby" && W.car && (W.car.gunOut || 0) > 0) {
+          const c = W.car;
+          c.gunOut -= 0.016;
+          const side = c.gunSide || 1;
+          const bx = c.x - 8, by = c.y + side * 20;
+          ctx.save();
+          ctx.translate(bx, by);
+          ctx.rotate(side > 0 ? Math.PI / 2 : -Math.PI / 2);
+          ctx.fillStyle = "#3a3d44";                    // the barrel
+          ctx.fillRect(-2.5, 0, 5, 22);
+          ctx.fillStyle = "#6b4a33";                    // a forearm holding it
+          ctx.fillRect(-4, -9, 8, 11);
+          ctx.restore();
+          if ((c.muzzle || 0) > 0) {
+            const gr = ctx.createRadialGradient(bx, by + side * 22, 1, bx, by + side * 22, 16);
+            gr.addColorStop(0, "rgba(255,242,190,0.95)");
+            gr.addColorStop(1, "rgba(255,170,60,0)");
+            ctx.fillStyle = gr;
+            ctx.beginPath(); ctx.arc(bx, by + side * 22, 16, 0, 6.3); ctx.fill();
+          }
+        }
+      }
       drawEl();
       drawTrain();
       drawTransitFolk();
+      /* On the platform he is ABOVE the deck, so he is drawn again over it -- the same thing
+         drawRoof does for a rooftop. Without this he stands under the floor he is on. */
+      if (g.onPlat != null && g.mode === "foot" && !g.inside) drawHero();
       drawBullets();
       /* An arrow at the rim of the screen for the live objective. A distance alone in an open
          city tells you nothing -- 300m could be any direction, and "I need to know exactly where
@@ -17166,6 +17280,8 @@ export default function IronLionLayer004() {
               held: GANG_LABEL[g.raid.held] || g.raid.held.toUpperCase(),
               dist: Math.round(Math.hypot(g.p.x - g.raid.x, g.p.y - g.raid.y) / 21),
             } : null,
+            stairsEl: g.onPlat != null ? "down" : (nearStairs() >= 0 ? "up" : null),
+            onPlat: g.onPlat != null,
             train: g.onTrain
               ? { riding: true, next: elNearestStop(g.train ? g.train.d : 0).stop.name,
                   dwell: g.train && g.train.wait > 0 ? Math.ceil(g.train.wait) : 0 }
@@ -17476,11 +17592,47 @@ export default function IronLionLayer004() {
     };
     /* Board from a platform OR from a rooftop -- landing on a moving train is the reason to
        put it in a game that already has a grapple, so the roof case is not an afterthought. */
+    /* Stairs first: at the foot you go up, at a stairhead you come down. Checked before the
+       train so E always means the obvious thing -- and boarding needs you up there anyway. */
+    G.stairsElFn = () => {
+      const gg = G.current;
+      if (gg.onPlat != null) {
+        const feet = stairFeet(gg.onPlat);
+        let best = null, bd = 1e9;
+        for (const c of feet) {
+          const d = Math.hypot(gg.p.x - c[0], gg.p.y - c[1]);
+          if (d < bd) { bd = d; best = c; }
+        }
+        if (bd > 130) return false;
+        gg.onPlat = null;
+        gg.p.x = best[0]; gg.p.y = best[1];
+        return true;
+      }
+      const k = nearStairs();
+      if (k < 0) return false;
+      const r = platRect(k);
+      gg.onPlat = k;
+      gg.p.x = clamp(gg.p.x, r.x0 + 24, r.x1 - 24);
+      gg.p.y = clamp(gg.p.y, r.y0 + 24, r.y1 - 24);
+      gg.pickupFlash = { nm: "up_top", t: 1.4 };
+      return true;
+    };
     G.trainFn = () => {
       const gg = G.current;
-      if (gg.onTrain) { gg.onTrain = false; gg.roof = null; return true; }
-      if (!canBoard() && !nearPlatform()) return false;
-      if (!canBoard()) return false;            // at a platform, but the train is not in
+      if (gg.onTrain) {
+        // stepping off leaves him on the platform if one is under him, not in the road
+        const { stop } = elNearestStop(gg.train ? gg.train.d : 0);
+        const k = EL_STOPS.indexOf(stop);
+        gg.onTrain = false; gg.roof = null;
+        if (k >= 0 && Math.hypot(gg.p.x - elPos(stop.d).x, gg.p.y - elPos(stop.d).y) < 260) {
+          gg.onPlat = k;
+        }
+        return true;
+      }
+      /* Up on the platform, or landing on it from a roof. Not from the street -- you cannot
+         board a train that is a storey above your head. */
+      if (gg.onPlat == null && !gg.roof) return false;
+      if (!canBoard()) return false;            // right place, but the train is not in
       gg.onTrain = true; gg.roof = null;
       gg.pickupFlash = { nm: "aboard", t: 1.6 };
       return true;
@@ -17498,6 +17650,7 @@ export default function IronLionLayer004() {
       gg.onTrain = false;
       gg.pickupFlash = { nm: "arrived", t: 1.8 };
     };
+    G.seenFn = (x, y, level) => witnessed(x, y, level, false);
     G.vipBlockFn = (f) => {
       const gg = G.current;
       if (!isVipFloor(gg.inside, f) || vipOK()) return false;
@@ -17709,6 +17862,7 @@ export default function IronLionLayer004() {
     saved: "SAVED", save_failed: "COULD NOT SAVE", save_cleared: "SAVE CLEARED",
     reloading: "RELOADING",
     aboard: "ABOARD", arrived: "THIS IS YOUR STOP", all_aboard: "ALL ABOARD",
+    up_top: "UP ON THE PLATFORM",
     repairing: "THE CREW ARE ON IT",
     armed: "THE WHOLE RACK",
     spent: "THAT WAS THE LAST ONE",
@@ -17810,7 +17964,12 @@ export default function IronLionLayer004() {
               {hud.dbgPlan ? <><br />IN {hud.dbgPlan}</> : null}
             </div>
           )}
-          {hud.train && (
+          {hud.stairsEl && (
+        <div style={{ marginTop: 6, fontSize: 9, letterSpacing: "0.14em", color: "#8fd0e0" }}>
+          {hud.stairsEl === "up" ? "[E] UP TO THE PLATFORM" : "[E] DOWN TO THE STREET"}
+        </div>
+      )}
+      {hud.train && (
         <div style={{ marginTop: 6, fontSize: 9, letterSpacing: "0.14em", color: "#8fd0e0" }}>
           {hud.train.riding
             ? (hud.train.dwell > 0
