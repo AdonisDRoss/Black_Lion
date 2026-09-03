@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 300 — ABOVE EVERYTHING";
+const BUILD_TAG = "LAYER 301 — DOORS OPEN";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1536,7 +1536,10 @@ const SX = (i) => i * PITCH;
 const EL_INSET = 9;
 /* A station is 340 along the track by 200 across -- long enough for the front two cars to sit
    in it and wide enough for a platform each side of the running line plus stair towers. */
-const EL_STA_LEN = 340, EL_STA_W = 200;
+/* 700 long, not 340. Cars sit 206 apart, so a 340 platform put exactly ONE car beside it and
+   the other three hung off both ends -- measured in node, not guessed. At 700 the middle three
+   cars are all at the platform and their doors open onto it. */
+const EL_STA_LEN = 700, EL_STA_W = 200;
 const EL_X0 = SX(EL_INSET), EL_Y0 = SX(EL_INSET);
 const EL_X1 = SX(N - EL_INSET), EL_Y1 = SX(N - EL_INSET);
 const EL_W = EL_X1 - EL_X0, EL_H = EL_Y1 - EL_Y0;
@@ -4826,7 +4829,6 @@ export default function IronLionLayer004() {
       if (G.tableFn && G.tableFn()) return;
       return;
     }
-    if (g.mode === "foot" && G.stairsElFn && G.stairsElFn()) return;
     if (g.mode === "foot" && G.trainFn && G.trainFn()) return;
     if (g.mode === "foot" && G.doorFn) {
       const b = G.doorFn();
@@ -7797,15 +7799,22 @@ export default function IronLionLayer004() {
        the platform is decoration, and the station has a platform on both sides of the line. */
     function boardDoor() {
       if (g.mode !== "foot" || g.inside || g.onTrain || !g.train) return null;
-      for (let k = 1; k < EL_CARS; k++) {           // car 0 is the engine: no passenger door
+      if (!doorsOpen()) return null;              // you cannot walk through a shut door
+      let best = null, bd = 130;                  // generous: the doorway is 4px wide from above
+      for (let k = 1; k < EL_CARS; k++) {         // car 0 is the engine: no passenger door
         const c = trainCarPos(k);
         for (const side of [-1, 1]) {
-          const dx = c.x + Math.cos(c.ang + Math.PI / 2) * 26 * side;
-          const dy = c.y + Math.sin(c.ang + Math.PI / 2) * 26 * side;
-          if (Math.hypot(g.p.x - dx, g.p.y - dy) < 84) return { car: k, side };
+          for (const off of [-EL_CAR_LEN * 0.22, EL_CAR_LEN * 0.16]) {
+            const dx = c.x + Math.cos(c.ang + Math.PI / 2) * 28 * side
+                     + Math.cos(c.ang) * off;
+            const dy = c.y + Math.sin(c.ang + Math.PI / 2) * 28 * side
+                     + Math.sin(c.ang) * off;
+            const d = Math.hypot(g.p.x - dx, g.p.y - dy);
+            if (d < bd) { bd = d; best = { car: k, side, off }; }
+          }
         }
       }
-      return null;
+      return best;
     }
     function canBoard() { return !!boardDoor(); }
     function updateRaid(dt) {
@@ -16094,6 +16103,13 @@ export default function IronLionLayer004() {
         drawActorTop("transit", TR_GUARD, gp, "hang");
       }
     }
+    /* Doors are OPEN only while the train is standing, and shut for the last two seconds of the
+       dwell so you can see it about to go. `doorsOpen` is the single source of truth -- the draw
+       and the boarding test both read it, so what you see is what you can walk through. */
+    function doorsOpen() {
+      const t = g.train;
+      return !!(t && t.spd < 4 && t.wait > 2);
+    }
     function drawTrain() {
       if (!g.train) return;
       /* The roof fades out when you are aboard, exactly the way a building's does, and what is
@@ -16154,6 +16170,28 @@ export default function IronLionLayer004() {
           }
         }
 
+        /* Doorways, two a side, drawn as thin dark bars: a GAP between them when open, a solid
+           bar across when shut. From above that is the whole read -- a door is a break in the
+           side of the car. */
+        {
+          const L3 = EL_CAR_LEN, op = k > 0 && doorsOpen();
+          const dY = [-L3 * 0.22, L3 * 0.16];
+          for (const dy2 of dY) {
+            for (const sx3 of [-30, 26]) {
+              if (op) {
+                ctx.fillStyle = "rgba(10,10,12,0.92)";      // the opening itself
+                ctx.fillRect(sx3, dy2 - 15, 4, 30);
+                ctx.fillStyle = "rgba(240,214,140,0.75)";   // light spilling out
+                ctx.fillRect(sx3 + (sx3 < 0 ? 4 : -1), dy2 - 15, 2, 30);
+              } else {
+                ctx.fillStyle = "rgba(16,16,18,0.9)";       // shut: one bar across the gap
+                ctx.fillRect(sx3, dy2 - 15, 4, 30);
+                ctx.fillStyle = "rgba(120,124,130,0.8)";
+                ctx.fillRect(sx3, dy2 - 1, 4, 2);
+              }
+            }
+          }
+        }
         ctx.globalAlpha = roofA * trainA;
         if (plate && plate.width) {
           ctx.drawImage(plate, -30, -EL_CAR_LEN / 2, 60, EL_CAR_LEN);
@@ -17373,7 +17411,11 @@ export default function IronLionLayer004() {
               ? { riding: true, next: elNearestStop(g.train ? g.train.d : 0).stop.name,
                   dwell: g.train && g.train.wait > 0 ? Math.ceil(g.train.wait) : 0 }
               : (canBoard() ? { board: true }
-                 : (nearPlatform() ? { wait: nearPlatform().name } : null)),
+                 : (g.onPlat != null
+                    ? { wait: EL_STOPS[g.onPlat].name
+                          + (g.train && g.train.spd > 4 ? " \u00b7 TRAIN MOVING"
+                             : g.train && g.train.wait > 0 ? " \u00b7 DOORS CLOSING" : "") }
+                    : (nearPlatform() ? { wait: nearPlatform().name } : null))),
             missingCount: ((window.__ironlion && window.__ironlion.missingAll) || []).length,
             missingSome: ((window.__ironlion && window.__ironlion.missingAll) || [])
               .slice(0, 4).join(" "),
@@ -17725,7 +17767,7 @@ export default function IronLionLayer004() {
       const door = boardDoor();
       gg.onTrain = true; gg.roof = null; gg.onPlat = null;
       if (door) {
-        gg.trainU = door.car * (EL_CAR_LEN + EL_GAP) + EL_CAR_LEN * 0.5;
+        gg.trainU = door.car * (EL_CAR_LEN + EL_GAP) + EL_CAR_LEN * 0.5 - door.off;
         gg.trainV = door.side * 14;               // steps in on the side he was standing
       }
       gg.pickupFlash = { nm: "aboard", t: 1.6 };
@@ -18069,7 +18111,7 @@ export default function IronLionLayer004() {
             ? (hud.train.dwell > 0
                 ? "DEPARTING IN " + hud.train.dwell
                 : "NEXT \u00b7 " + hud.train.next)
-            : hud.train.board ? "[E] GET ON"
+            : hud.train.board ? "[E] GET ON \u00b7 DOORS OPEN"
             : hud.train.wait + " \u00b7 WAIT FOR THE TRAIN"}
         </div>
       )}
