@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 305 — THE TICKET WINDOW";
+const BUILD_TAG = "LAYER 306 — HIS OWN BIKE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1845,8 +1845,16 @@ const WOLVES_CELL = { i: 19, j: 5 };
    top-down ones are wf_03, wf_04 and wf_05 (46x78) and wf_01 (145x200).
 
    Anything wider than it is tall is a side view and does not belong in this list. */
-const WF_RIDES = [{ k: "wf_04", len: 62, w: 37 }, { k: "wf_05", len: 62, w: 37 },
-                  { k: "wf_03", len: 62, w: 37 }, { k: "wf_01", len: 120, w: 87 }];
+/* The Wolves have never had a bike sprite. `wf_*` is the WATERFRONT PROP PACK -- wf_00 and
+   wf_01 are fences and decking, wf_03 to wf_05 are log piles, wf_07 is a manhole cover. They
+   were listed as motorcycles from the day the crew was written, which is why riders looked
+   wrong however the sizes were tuned, and why "the Wolves' bike was never fixed" was true in a
+   more literal way than anyone realised.
+
+   They ride `motorcycle` now -- the Lion's old plate, a plain street bike, which is exactly what
+   a Wolf rides. `ct_dirtbike` gives the crew a second machine so they are not all identical. */
+const WF_RIDES = [{ k: "motorcycle", len: 62, w: 24 },
+                  { k: "ct_dirtbike", len: 58, w: 22 }];
 const WF_BIKES = WF_RIDES.filter((r) => r.len < 90);
 // the garage was the only thing on record for them -- the crew needs ground it holds, so the
 // blocks around the shop read as claimed. Kept inside the industrial belt (i17-21, j2-8).
@@ -13541,7 +13549,7 @@ export default function IronLionLayer004() {
       "LET IT GO.", "FILE IT AND MOVE ON."];
     const DETM = { len: 106, w: 42 };
     // a real cruiser motorcycle is roughly half a sedan's length -- 2.4m vs ~5.1m for the cars above
-    const MOTO_M = { len: 50, w: 19, k: "motorcycle" };
+    const MOTO_M = { len: 50, w: 19, k: "rd_lion_bike" };
 
     function detKit(build) {
       const img = imgs.current["det_" + build];
@@ -16636,12 +16644,15 @@ export default function IronLionLayer004() {
         }
         return;
       }
-      /* A PARKED bike has nobody on it. rd_lion_bike is a combined rider-and-bike plate, so
-         the bare motorcycle is the right art here -- the rider only appears when mounted, in
-         drawRider above. */
+      /* rd_lion_bike is a BARE bike -- black with a gold flame tank, no rider on it. The old
+         comment here claimed it was a combined rider-and-bike plate, which was wrong, and that
+         mistake left the Lion's own machine unused while he rode the generic one.
+
+         His bike is his; the plain `motorcycle` plate goes to the Wolves, who never had one of
+         their own that worked. */
       const L = MOTO_M.len;
       // bare bike first; the combined plate is only a fallback if that asset is missing
-      const im = firstImg("motorcycle", "rd_lion_bike");
+      const im = firstImg("rd_lion_bike", "motorcycle");
       if (!im || !im.width) return;
       const w = L * (im.width / im.height);
       ctx.save();
@@ -17390,7 +17401,11 @@ export default function IronLionLayer004() {
         drawTransitFolk();
         // riders go on after the cars so they are inside them, not under the floor
         drawRiders();
-        if (g.onPlat != null && g.mode === "foot" && !g.inside) drawHero();
+        /* Aboard as well as on the platform. He was drawn before the train, so the car body
+           covered him -- an arm poking out from under the floor was the only part of him
+           visible. Inside a train he is above its floor and below its roof, and the roof has
+           already faded, so redrawing him here puts him in the carriage. */
+        if ((g.onPlat != null || g.onTrain) && g.mode === "foot" && !g.inside) drawHero();
         // climbing a ramp: redraw above the apron so you are not buried by it
         if (g.onRamp && inVehicle()) { if (g.mode === "car") drawCar(); else drawMoto(); }
         // on the deck you must be drawn above the slab you are standing on
