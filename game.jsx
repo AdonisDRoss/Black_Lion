@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 298 — UP ON THE PLATFORM";
+const BUILD_TAG = "LAYER 299 — SOLID DECK";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -11422,6 +11422,16 @@ export default function IronLionLayer004() {
       if (t.elStop != null) {
         const p = elPos(EL_STOPS[t.elStop].d);
         c = [p.x, p.y + 70];
+        /* Bring the train in and hold it. Travelling to a station to stand on an empty platform
+           for two minutes is not a way to test a railway -- and once you have ridden it, the
+           timetable takes over again on its own. */
+        if (g.train) {
+          g.train.d = EL_STOPS[t.elStop].d;
+          g.train.spd = 0;
+          g.train.wait = 22;
+          g.train.at = EL_STOPS[t.elStop];
+        }
+        g.onPlat = t.elStop;                     // and put him up on the platform, not below it
       }
       /* A landmark drops you at its own door rather than the corner of the block -- travelling
          to THE KESTREL and arriving in a car park two streets away is the same as not having
@@ -12501,7 +12511,14 @@ export default function IronLionLayer004() {
          equipped gun was invisible except in the instant it fired and the player looked like he
          was punching. If it is in his hand it is in his hand; `holstered` is what puts it away,
          and that is decided by the caller. */
+      /* Drawn only while it is BEING USED. Keeping it out permanently looked worse than not
+         drawing it at all: from above the arms hang at the sides, so a rifle sitting in front of
+         a man with his arms down is a gun floating in space.
+
+         `drawnT` is set on every shot and on drawing the weapon, and runs about a second -- so
+         it is up while he is shooting and for a beat after, and away the rest of the time. */
       if (m.holstered) return;
+      if (!(m.drawnT > 0)) return;
       const w2 = WPN2[m.wpn], a2 = w2 && imgs.current.wpn2_atlas;
       const wr = (a2 && a2.width) ? w2 : WPN[m.wpn];
       const wa = (a2 && a2.width) ? a2 : imgs.current.weapon_atlas;
@@ -14832,6 +14849,7 @@ export default function IronLionLayer004() {
       updateRaid(dt);
       updateTrain(dt);
       updatePlatform();
+      autoStairs();
       /* Wanted decays. Without this `heat` latched on forever and the chase music never stopped
          -- a pursuit has to be something you can get out of. */
       if ((g.wantedT || 0) > 0) {
@@ -15849,6 +15867,40 @@ export default function IronLionLayer004() {
       }
       return -1;
     }
+    /* Walk onto it. Pressing a button at the foot of a staircase is not how stairs work, and
+       the [E] prompt competed with every other [E] in the game. Reaching a stairhead just takes
+       you up, and walking off the top of one takes you down. */
+    function autoStairs() {
+      if (g.mode !== "foot" || g.inside || g.onTrain || g.title) return;
+      if (g.stairCd > 0) { g.stairCd -= 0.016; return; }
+      if (g.onPlat != null) {
+        for (const c of stairFeet(g.onPlat)) {
+          if (Math.hypot(g.p.x - c[0], g.p.y - c[1]) < 46) {
+            g.onPlat = null;
+            g.p.x = c[0]; g.p.y = c[1];
+            g.stairCd = 0.9;                    // so he does not bounce straight back up
+            return;
+          }
+        }
+        return;
+      }
+      const k = nearStairsTight();
+      if (k < 0) return;
+      const r = platRect(k);
+      g.onPlat = k;
+      g.p.x = clamp(g.p.x, r.x0 + 26, r.x1 - 26);
+      g.p.y = clamp(g.p.y, r.y0 + 26, r.y1 - 26);
+      g.stairCd = 0.9;
+      g.pickupFlash = { nm: "up_top", t: 1.2 };
+    }
+    function nearStairsTight() {
+      for (let k = 0; k < EL_STOPS.length; k++) {
+        for (const c of stairFeet(k)) {
+          if (Math.hypot(g.p.x - c[0], g.p.y - c[1]) < 44) return k;
+        }
+      }
+      return -1;
+    }
     function updatePlatform() {
       if (g.onPlat == null) return;
       if (g.inside || inVehicle()) { g.onPlat = null; return; }
@@ -15919,7 +15971,12 @@ export default function IronLionLayer004() {
         ctx.fillStyle = "rgba(0,0,0,0.34)";
         ctx.fillRect(x0 + 12, y0 + 14, x1 - x0, y1 - y0);
 
-        // the deck
+        /* A SOLID base first, then the pattern over it. `PF` returns a texture pattern and a
+           pattern with any transparency in it lets the road -- and the cars on it -- show
+           straight through the platform you are standing on. That is why traffic looked like it
+           was driving across the deck. */
+        ctx.fillStyle = "#4e4c48";
+        ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
         ctx.fillStyle = PF("slab", "#5c5a56");
         ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
         ctx.strokeStyle = "rgba(20,20,22,0.7)"; ctx.lineWidth = 3;
@@ -17489,7 +17546,9 @@ export default function IronLionLayer004() {
       const gg = G.current;
       if (!gg.p.wpn) return;
       gg.p.holstered = !gg.p.holstered;
-      gg.p.drawnT = gg.p.holstered ? 0 : 0.9;
+      /* A deliberate draw holds it up longer than a shot does -- 0.9s made pressing DRAW look
+         like nothing happened. Firing refreshes it, so in a fight it stays up throughout. */
+      gg.p.drawnT = gg.p.holstered ? 0 : 2.6;
       setHud((h) => ({ ...h, holstered: !!gg.p.holstered }));
     };
     /* Inside a casino, cardroom or arcade. `b.biz` is the shop kind that drives the signage, so
