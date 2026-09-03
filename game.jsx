@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 306 — HIS OWN BIKE";
+const BUILD_TAG = "LAYER 307 — KESTREL STATE, POPULATED";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2513,19 +2513,35 @@ function makeFloor(b, f, rnd) {
         GX - 1, Math.max(1, Math.round(GY * 0.26)), "cage");
     put(0, 0, Math.max(1, Math.round(GX * 0.22)), Math.max(1, Math.round(GY * 0.22)), "bar");
   } else if (kind === "cellblock") {
-    /* Gate, then a search room, then the block itself with cells down both sides, and the
-       visiting room off to one side. You are walked through it in that order. */
-    const lob = Math.max(1, Math.round(GY * 0.16));
-    hub = put(0, GY - lob, GX - 1, GY - 1, "gate");
-    put(0, 0, Math.round(GX * 0.62), GY - lob - 1, "block");
-    put(Math.round(GX * 0.62) + 1, 0, GX - 1, Math.round(GY * 0.42), "visiting");
-    put(Math.round(GX * 0.62) + 1, Math.round(GY * 0.42) + 1, GX - 1, GY - lob - 1, "guardpost");
+    /* Ground floor of Kestrel State. Gate at the bottom because that is the way in, then the
+       three blocks side by side, with the rooms that serve them across the top: chow hall,
+       laundry, yard. You are walked in through the gate and everything else opens off it.
+
+       Three blocks was the ask and it is also the right shape -- one long hall reads as a
+       corridor, three read as a prison. */
+    const gate = Math.max(1, Math.round(GY * 0.14));
+    const top = Math.max(2, Math.round(GY * 0.30));
+    hub = put(0, GY - gate, GX - 1, GY - 1, "gate");
+    const b1 = Math.round(GX * 0.33), b2 = Math.round(GX * 0.66);
+    put(0, top + 1, b1, GY - gate - 1, "blockA");
+    put(b1 + 1, top + 1, b2, GY - gate - 1, "blockB");
+    put(b2 + 1, top + 1, GX - 1, GY - gate - 1, "blockC");
+    put(0, 0, Math.round(GX * 0.30), top, "chow");
+    put(Math.round(GX * 0.30) + 1, 0, Math.round(GX * 0.58), top, "laundry");
+    put(Math.round(GX * 0.58) + 1, 0, Math.round(GX * 0.80), top, "yard");
+    put(Math.round(GX * 0.80) + 1, 0, GX - 1, top, "visiting");
   } else if (kind === "wardenwing") {
-    const lob = Math.max(1, Math.round(GY * 0.18));
-    hub = put(0, GY - lob, GX - 1, GY - 1, "corridor");
-    put(0, 0, Math.round(GX * 0.5), GY - lob - 1, "warden");
-    put(Math.round(GX * 0.5) + 1, 0, GX - 1, Math.round(GY * 0.5), "records");
-    put(Math.round(GX * 0.5) + 1, Math.round(GY * 0.5) + 1, GX - 1, GY - lob - 1, "guardpost");
+    /* Upstairs is administration, plus the one cell that is not a cell. Don Matteo has run the
+       family from in here for years and the room says so -- it is on the floor the staff use,
+       it is bigger than the warden's office, and it is furnished. */
+    const cor = Math.max(1, Math.round(GY * 0.16));
+    hub = put(0, GY - cor, GX - 1, GY - 1, "corridor");
+    put(0, 0, Math.round(GX * 0.38), Math.round(GY * 0.52), "warden");
+    put(0, Math.round(GY * 0.52) + 1, Math.round(GX * 0.38), GY - cor - 1, "records");
+    put(Math.round(GX * 0.38) + 1, 0, Math.round(GX * 0.70), Math.round(GY * 0.40), "breakroom");
+    put(Math.round(GX * 0.38) + 1, Math.round(GY * 0.40) + 1, Math.round(GX * 0.70),
+        GY - cor - 1, "guardpost");
+    put(Math.round(GX * 0.70) + 1, 0, GX - 1, GY - cor - 1, "doncell");
   } else if (kind === "vip") {
     /* The top floor. A stage against the back wall, a few tables in front of it, and a door
        staff decide about. Deliberately smaller and emptier than the floors below -- the point
@@ -2934,23 +2950,77 @@ function makeFloor(b, f, rnd) {
         runX(q2, q2.y0 + pad, 3, 30, 26, "locker", pad);
         P(cx - 34, q2.y1 - pad - 18, 68, 18, "bench");
         break;
-      case "block": {
-        /* Cells down both long walls with a walkway between. The cells are what the room is,
-           so they are drawn as a run rather than scattered. */
-        const n3 = clamp(Math.floor((wide ? W2 : H2) / 62), 3, 8);
+      case "blockA": case "blockB": case "blockC": {
+        /* A cell, not a bed in a hall. Each one gets a bunk against the back wall, a toilet in
+           the corner and a locker -- and `cellbar` down the open side, which is what makes it
+           read as a cell rather than an alcove. Walkway down the middle. */
+        const deep = 62, cw = 54;
+        const n3 = clamp(Math.floor((wide ? W2 : H2) / (cw + 6)), 2, 7);
         for (let i2 = 0; i2 < n3; i2++) {
           const t = (i2 + 0.5) / n3;
           if (wide) {
-            P(q2.x0 + pad + (W2 - pad * 2) * t - 22, q2.y0 + pad, 44, 40, "bed");
-            P(q2.x0 + pad + (W2 - pad * 2) * t - 22, q2.y1 - pad - 40, 44, 40, "bed");
+            const cx2 = q2.x0 + pad + (W2 - pad * 2) * t;
+            for (const [yy, dir] of [[q2.y0 + pad, 1], [q2.y1 - pad - deep, -1]]) {
+              P(cx2 - cw / 2, yy, cw, deep, "cellfloor");
+              P(cx2 - 20, dir > 0 ? yy + 4 : yy + deep - 44, 40, 40, "bed");
+              P(cx2 + 12, dir > 0 ? yy + deep - 26 : yy + 4, 20, 20, "toilet");
+              P(cx2 - 24, dir > 0 ? yy + deep - 26 : yy + 4, 18, 20, "locker");
+              P(cx2 - cw / 2, dir > 0 ? yy + deep - 4 : yy, cw, 4, "cellbar");
+            }
           } else {
-            P(q2.x0 + pad, q2.y0 + pad + (H2 - pad * 2) * t - 22, 40, 44, "bed");
-            P(q2.x1 - pad - 40, q2.y0 + pad + (H2 - pad * 2) * t - 22, 40, 44, "bed");
+            const cy2 = q2.y0 + pad + (H2 - pad * 2) * t;
+            for (const [xx, dir] of [[q2.x0 + pad, 1], [q2.x1 - pad - deep, -1]]) {
+              P(xx, cy2 - cw / 2, deep, cw, "cellfloor");
+              P(dir > 0 ? xx + 4 : xx + deep - 44, cy2 - 20, 40, 40, "bed");
+              P(dir > 0 ? xx + deep - 26 : xx + 4, cy2 + 12, 20, 20, "toilet");
+              P(dir > 0 ? xx + deep - 26 : xx + 4, cy2 - 24, 20, 18, "locker");
+              P(dir > 0 ? xx + deep - 4 : xx, cy2 - cw / 2, 4, cw, "cellbar");
+            }
           }
         }
-        P(cx - 14, cy - 14, 28, 28, "toilet");
         break;
       }
+      case "chow":
+        // long benches and a serving counter: everyone eats at the same time
+        facing(q2, 90, 24, "counter");
+        for (let i2 = 0; i2 < 3; i2++) {
+          const t = (i2 + 0.5) / 3;
+          if (wide) P(q2.x0 + pad + (W2 - pad * 2) * t - 40, cy - 12, 80, 34, "table");
+          else P(cx - 17, q2.y0 + pad + (H2 - pad * 2) * t - 40, 34, 80, "table");
+        }
+        break;
+      case "laundry":
+        runX(q2, q2.y0 + pad, 4, 34, 34, "freezer", pad);
+        runX(q2, q2.y1 - pad - 34, 3, 40, 34, "table", pad);
+        P(cx - 20, cy - 14, 40, 28, "crate");
+        break;
+      case "yard":
+        // walled and empty on purpose: a yard is the absence of things
+        P(q2.x0 + pad, q2.y0 + pad, W2 - pad * 2, 6, "cellbar");
+        P(q2.x0 + pad, q2.y1 - pad - 6, W2 - pad * 2, 6, "cellbar");
+        P(cx - 30, cy - 8, 60, 16, "bench");
+        P(q2.x1 - pad - 26, q2.y1 - pad - 26, 26, 26, "drum");
+        break;
+      case "breakroom":
+        P(q2.x0 + pad, q2.y0 + pad, 40, 30, "freezer");
+        P(q2.x0 + pad + 48, q2.y0 + pad, 34, 28, "cooker");
+        P(cx - 26, cy, 52, 32, "cafetable");
+        P(cx - 40, cy + 36, 22, 22, "chair");
+        P(cx + 18, cy + 36, 22, 22, "chair");
+        P(q2.x1 - pad - 30, q2.y0 + pad, 30, 40, "locker");
+        break;
+      case "doncell":
+        /* Not a cell. A rug, a proper bed, a desk he takes meetings at, a shelf of books and a
+           radio -- the room is the whole characterisation and the player should notice it is
+           nicer than the warden's office. */
+        P(q2.x0 + pad, q2.y0 + pad, W2 - pad * 2, H2 - pad * 2, "cellfloor");
+        P(cx - 30, q2.y0 + pad + 12, 60, 76, "bed2");
+        P(q2.x1 - pad - 56, cy - 18, 56, 36, "desk");
+        P(q2.x1 - pad - 34, cy + 26, 24, 24, "chair");
+        P(q2.x0 + pad + 8, cy + 10, 40, 30, "bookshelf");
+        P(q2.x0 + pad + 8, q2.y1 - pad - 30, 34, 26, "cbradio");
+        P(cx - 20, q2.y1 - pad - 40, 40, 34, "sofa2");
+        break;
       case "visiting": {
         // a row of tables with a chair each side: the room w5 actually happens in
         const n4 = clamp(Math.floor((wide ? W2 : H2) / 78), 2, 5);
@@ -3522,6 +3592,24 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
   if (zone === "prison") {
     // one block, filling most of the cell, with a yard round it
     if (i !== PRISON_CELL.i || j !== PRISON_CELL.j) return out;
+    /* A perimeter wall, as four thin blocks with a gap at the gate. It was drawn as scenery and
+       nothing collided with it, so pedestrians strolled through the fence and out the far side
+       of a maximum security prison. A wall the world does not know about is a picture. */
+    const WT2 = 26, gapW = LW * 0.16;
+    const px0 = lx0 + LW * 0.08, px1 = lx1 - LW * 0.08;
+    const py0 = ly0 + LH * 0.10, py1 = ly1 - LH * 0.10;
+    const wall = (x, y, w2, h2) => {
+      const b2 = mkB(x, y, w2, h2, 1, "wall", rnd, key);
+      b2.perimeter = true; b2.tone = 0.1; b2.retail = false; b2.arch = null;
+      b2.door = null; b2.noEnter = true;
+      out.push(b2);
+    };
+    wall(px0, py0, px1 - px0, WT2);                                  // back
+    wall(px0, py0, WT2, py1 - py0);                                  // left
+    wall(px1 - WT2, py0, WT2, py1 - py0);                            // right
+    wall(px0, py1 - WT2, (px1 - px0 - gapW) / 2, WT2);               // front, west of the gate
+    wall(px0 + (px1 - px0 + gapW) / 2, py1 - WT2,
+         (px1 - px0 - gapW) / 2, WT2);                               // front, east of the gate
     const bw = LW * 0.74, bh = LH * 0.62;
     const b = mkB(lx0 + (LW - bw) / 2, ly0 + (LH - bh) / 2, bw, bh, 2, "prison", rnd, key);
     b.name = "KESTREL STATE";
@@ -9389,6 +9477,9 @@ export default function IronLionLayer004() {
     const SHOP2_ALIAS = { crate: "crate2", cage_win: "cage_win2", shelf: "shelf2",
       // bagged and boxed on a rack -- the retail shelf plate is exactly that shape
       evidence: "shelf2" };
+    /* Cell bars and cell floor have no plate. Rather than leave them as grey boxes they are
+       drawn directly -- a run of vertical bars, and a paler concrete slab. */
+    const DRAWN_PROP = { cellbar: 1, cellfloor: 1 };
     const FURN2_ALIAS = {
       dresser: "cab", fridge: "freezer", console: "desk",
       m_bar: "bartop", bench_row: "bench", m_coats: "stool",
@@ -9651,6 +9742,21 @@ export default function IronLionLayer004() {
       const OWNED_BY_FLOOR = { slotbank: 1, cardtable: 1, wheeltable: 1 };
       for (const p of plan.props) {
         if (OWNED_BY_FLOOR[p.t]) continue;
+        if (DRAWN_PROP[p.t]) {
+          if (p.t === "cellfloor") {
+            ctx.fillStyle = "rgba(150,148,142,0.20)";
+            ctx.fillRect(p.x, p.y, p.w, p.h);
+          } else {
+            // bars: a dark frame with uprights every six units across the opening
+            const horiz = p.w >= p.h;
+            ctx.fillStyle = "#1d1f24";
+            ctx.fillRect(p.x, p.y, p.w, p.h);
+            ctx.fillStyle = "#6a6e78";
+            if (horiz) for (let u = 3; u < p.w - 2; u += 6) ctx.fillRect(p.x + u, p.y, 2, p.h);
+            else for (let u = 3; u < p.h - 2; u += 6) ctx.fillRect(p.x, p.y + u, p.w, 2);
+          }
+          continue;
+        }
         if (p.t === "floorlit") {
           const cols = ["#8a3f6a", "#3f5f9a", "#8a7a3f", "#3f8a6a"];
           const cell = 22;
@@ -9797,6 +9903,8 @@ export default function IronLionLayer004() {
     /* What you cannot walk through. Deliberately a short list: worktops and machines and beds,
        not chairs, bins, boxes or anything you would step over. */
     const SOLID_PROP = {
+      // bars stop people; the cell floor underfoot does not
+      cellbar: 1,
       lift: 1, workbench: 1, bench: 1, counter: 1, bartop: 1, cab: 1, safe: 1,
       bed: 1, sofa: 1, dresser: 1, shelf: 1, bookshelf: 1, freezer: 1, produce: 1,
       cardtable: 1, wheeltable: 1, slotbank: 1, stagedeck: 1, evidence: 1, desk: 1,
@@ -13834,6 +13942,31 @@ export default function IronLionLayer004() {
       const cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2;
       const folk = [];
       const gaming = r.k === "gaming";
+      /* A prison with nobody in it is a set. Guards on the walkways, prisoners in the blocks
+         and the yard -- placed by ROOM, so a man in a cell block is in a cell block and a man in
+         the yard is in the yard, rather than scattered evenly through a building. */
+      if (b.kind === "prison") {
+        const rk = r.k || "";
+        const isBlock = rk.indexOf("block") === 0;
+        const nGuard = rk === "gate" || rk === "guardpost" ? 2 : isBlock ? 1 : 0;
+        for (let i2 = 0; i2 < nGuard; i2++) {
+          const gx2 = r.x0 + 40 + Math.random() * Math.max(1, (r.x1 - r.x0) - 80);
+          const gy2 = r.y0 + 40 + Math.random() * Math.max(1, (r.y1 - r.y0) - 80);
+          folk.push({ x: gx2, y: gy2, hx: gx2, hy: gy2, vx: 0, vy: 0,
+                      anim: Math.random() * 6, guard: 1, gang: "sec",
+                      hp: 5, state: "hang", jit: 1.04 });
+        }
+        const nCon = isBlock ? 3 + ((Math.random() * 3) | 0)
+                   : rk === "yard" || rk === "chow" ? 4 + ((Math.random() * 3) | 0) : 0;
+        for (let i2 = 0; i2 < nCon; i2++) {
+          const cx2 = r.x0 + 30 + Math.random() * Math.max(1, (r.x1 - r.x0) - 60);
+          const cy2 = r.y0 + 30 + Math.random() * Math.max(1, (r.y1 - r.y0) - 60);
+          folk.push({ x: cx2, y: cy2, hx: cx2, hy: cy2, vx: 0, vy: 0,
+                      anim: Math.random() * 6, convict: 1, hp: 4,
+                      state: "hang", jit: 0.96 + Math.random() * 0.1,
+                      wander: rk === "yard" ? 1 : 0 });
+        }
+      }
       if (gaming) {
         /* Ember Flats' private security work INSIDE the building as well as on the steps. Two on
            a floor, standing off to the sides where they can see the room -- the same crew that
@@ -13958,6 +14091,10 @@ export default function IronLionLayer004() {
       if (!S) return;
       for (const f of S.folk) {
         if (f.guard) { drawGangTop(f, "hang"); continue; }
+        if (f.convict) {
+          // wh_top column 1 is prison denim, which is exactly what a convict wears
+          if (drawActorTop("wh", 1, f, "hang")) continue;
+        }
         if (f.house != null) {
           if (drawActorTop("house", f.house, f, "hang")) continue;
           /* No sheet, so draw him anyway. A dealer who is invisible when an asset is missing is
@@ -16579,7 +16716,11 @@ export default function IronLionLayer004() {
        branch changed nothing: mounted returns here long before that code is reached. */
     function drawRider(prefix, x, y, ang, lenUnits) {
       if (prefix === "rd_lion_ride") {
-        const bike = imgs.current.motorcycle, rider = imgs.current.darius_top;
+        /* His own bike here too. The parked branch was switched to rd_lion_bike at 306 and this
+           one still composited the generic plate, so the machine changed underneath him the
+           moment he got on it. */
+        const bike = imgs.current.rd_lion_bike || imgs.current.motorcycle;
+        const rider = imgs.current.darius_top;
         if (bike && bike.width && rider && rider.width) {
           /* Match the old plate's footprint, which is 28 x 65 on screen. Two wrong guesses
              either side of this: at the character scale the rider was 49 px across a 19 px bike
