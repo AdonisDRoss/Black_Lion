@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 307 — KESTREL STATE, POPULATED";
+const BUILD_TAG = "LAYER 308 — TAKE COVER";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -12468,20 +12468,19 @@ export default function IronLionLayer004() {
             m.fireCd = Math.max(0, (m.fireCd || 0) - dt);
             if (rd > 70 && rd < 320 && m.fireCd <= 0.4) m.drawnT = Math.max(m.drawnT || 0, 0.55);  // raises it just ahead of the shot
             const reach = m.reach || 320;
-            if (rd > 70 && rd < reach && m.fireCd <= 0 && m.stun <= 0) {
+            if (rd < reach && m.fireCd <= 0 && m.stun <= 0) {
               m.fireCd = 1.3 + Math.random() * 1.1;
               m.muzzle = 0.16;
-              m.drawnT = 0.85;   // stays up through the shot and a short follow-through, then holsters
+              m.drawnT = 0.85;
               sfxGunshot();
-              const acc = clamp((1 - rd / 420) * (m.acc || 1), 0.15, 0.82);
-              if (Math.random() < acc) {
-                if (targetIsPlayer) { g.p.hp = Math.max(0, g.p.hp - (4 + Math.random() * 5)); }
-                else if (targetMember) {
-                  targetMember.hp -= 1; targetMember.stun = 0.3;
-                  if (targetMember.hp <= 0) dropLoot(targetMember.x, targetMember.y, LOOT_KING);
-                }
-              }
-              g.shake = Math.max(g.shake, targetIsPlayer ? 4 : 2);
+              /* A real round, so it can be blocked by a car, dodged in LION time, and miss.
+                 Resolving it as a dice roll meant cover did nothing against them and the
+                 player had no way to read a shot coming. There is no minimum range either --
+                 point blank was an impossible shot for them too. */
+              const spread = clamp(0.06 + rd / 2600, 0.05, 0.34) / (m.acc || 1);
+              fireBullet(m, Math.atan2(dy, dx) + (Math.random() - 0.5) * spread * 2,
+                         980, targetIsPlayer ? 3.2 : 1.4, reach * 1.15, false, cr.gang);
+              g.shake = Math.max(g.shake, targetIsPlayer ? 3 : 1);
             }
           }
           if (m.stun > 0) { m.x += m.vx * dt; m.y += m.vy * dt; m.vx *= 0.86; m.vy *= 0.86; continue; }
@@ -12509,7 +12508,26 @@ export default function IronLionLayer004() {
           }
           if (cr.state === "hostile") {
             const dx = tx - m.x, dy = ty - m.y, dd = Math.hypot(dx, dy) || 1;
-            if (dd > 40) { m.vx = (dx / dd) * 128; m.vy = (dy / dd) * 128; }
+            /* A man with a gun does not run into arm's reach. Everyone closed to 40 units
+               whatever they were holding, which is why a shotgun and a bat behaved identically
+               and every fight was a footrace.
+
+               Armed: hold a standoff and sidestep, which keeps him shooting and makes him
+               awkward to hit. Bare hands or a bat: close, because that is the only thing those
+               can do. */
+            const armed = m.wpn && !WPN_MELEE[m.wpn] && !WPN_THROWN[m.wpn];
+            const want = armed ? (m.wpn === "shotgun_short" ? 150
+                               : m.wpn === "rifle_bolt" ? 330 : 210) : 40;
+            if (armed && dd < want * 0.75) {
+              // too close to use it: back off, still facing him
+              m.vx = -(dx / dd) * 96; m.vy = -(dy / dd) * 96;
+            } else if (armed && dd < want * 1.25) {
+              // in the pocket: strafe rather than stand still, so he is not a target either
+              m.strafe = m.strafe || (Math.random() < 0.5 ? 1 : -1);
+              m.strafeT = (m.strafeT || 0) - dt;
+              if (m.strafeT <= 0) { m.strafe *= -1; m.strafeT = 1.2 + Math.random() * 1.4; }
+              m.vx = (-dy / dd) * 74 * m.strafe; m.vy = (dx / dd) * 74 * m.strafe;
+            } else if (dd > want) { m.vx = (dx / dd) * 128; m.vy = (dy / dd) * 128; }
             else {
               m.vx = 0; m.vy = 0;
               if (m.atk <= 0) {
@@ -15979,10 +15997,10 @@ export default function IronLionLayer004() {
        These travel. 1100 units a second is fast enough to feel like a bullet and slow enough
        that at LION's time scale you can see it coming and step out of the line -- which is the
        whole reason the ability exists. */
-    function fireBullet(from, ang, spd, dmg, range, byPlayer) {
+    function fireBullet(from, ang, spd, dmg, range, byPlayer, gang) {
       (g.bullets = g.bullets || []).push({
         x: from.x, y: from.y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
-        dmg, left: range, byPlayer: !!byPlayer, t: 0,
+        dmg, left: range, byPlayer: !!byPlayer, gang: gang || null, t: 0,
       });
     }
     function updateBullets(dt) {
@@ -16010,7 +16028,23 @@ export default function IronLionLayer004() {
           if (o.hp <= 0) { dropLoot(o.x, o.y, LOOT_KING); dropWeapon(o); }
           return true;
         };
+        /* Cars stop bullets. Without this every firefight happened in the open, because the
+           one thing a street is full of did nothing -- and cover is what makes a gunfight a
+           position rather than a race. A round that hits bodywork damages it and stops. */
         let gone = false;
+        for (const v of g.traffic) {
+          if (v.fwy) continue;
+          const rr = (v.rad || 20) + 4;
+          const dxv = b.x - sx, dyv = b.y - sy, l2 = dxv * dxv + dyv * dyv || 1;
+          let tv = ((v.x - sx) * dxv + (v.y - sy) * dyv) / l2;
+          tv = Math.max(0, Math.min(1, tv));
+          if (Math.hypot(v.x - (sx + dxv * tv), v.y - (sy + dyv * tv)) > rr) continue;
+          v.dmg = (v.dmg || 0) + b.dmg * 0.10;     // a car soaks a lot before it minds
+          v.hitFx = 0.12;
+          gone = true;
+          break;
+        }
+        if (gone) { l.splice(i, 1); continue; }
         if (b.byPlayer) {
           for (const cr of g.crews) {
             if (cr.indoor ? (cr.indoor !== g.inside || cr.indoorFloor !== g.floor) : g.inside) continue;
@@ -16021,8 +16055,29 @@ export default function IronLionLayer004() {
           if (!gone && g.shop && g.shop.rob)
             for (const t of g.shop.rob.thugs) if (hit(t)) { gone = true; break; }
           if (!gone && g.boss && (!g.boss.roof || g.roof === g.boss.roof)) if (hit(g.boss)) gone = true;
+          /* Civilians as well. A round that passes through a bystander and keeps going makes the
+             city a shooting gallery -- and the whole point of this character is that he minds. */
+          if (!gone) for (const pd of g.peds) {
+            if (pd.hp == null) pd.hp = 3;
+            if (hit(pd)) {
+              gone = true;
+              pd.mode = "panic"; pd.timer = 4; pd.fx = b.vx; pd.fy = b.vy;
+              if (pd.hp <= 0) { g.lost = (g.lost || 0) + 1; witnessed(pd.x, pd.y, 2, true); }
+              break;
+            }
+          }
         } else if (g.mode === "foot") {
           if (hit(g.p, true)) gone = true;
+        }
+        /* Rounds fired by one crew hit the OTHER crew. Without this a gang fight was two lines
+           of men firing blanks past each other while only the player could be hurt. */
+        if (!gone && b.gang) {
+          for (const cr of g.crews) {
+            if (cr.gang === b.gang) continue;
+            if (cr.indoor ? (cr.indoor !== g.inside || cr.indoorFloor !== g.floor) : g.inside) continue;
+            for (const m of cr.members) if (hit(m)) { gone = true; break; }
+            if (gone) break;
+          }
         }
         if (gone) l.splice(i, 1);
       }
@@ -16434,6 +16489,60 @@ export default function IronLionLayer004() {
         ctx.fillStyle = "rgba(255,248,214,0.95)";
         ctx.fillRect(0, -1, 3, 2);
         ctx.restore();
+      }
+    }
+    /* --- a car dying -------------------------------------------------------------
+
+       Damage was a number that only changed how dented the paint looked. A car that has been
+       shot to pieces should stop being cover and start being a hazard: it smokes, then it
+       catches, then it goes up and takes whoever is behind it with it.
+
+       Three stages so the player gets a warning. Standing behind a burning car is a decision. */
+    function updateCarDamage(dt) {
+      for (let n = g.traffic.length - 1; n >= 0; n--) {
+        const v = g.traffic[n];
+        if (v.hitFx > 0) v.hitFx -= dt;
+        const d = v.dmg || 0;
+        if (d < 0.55) continue;
+        if (d >= 0.85 && !v.onFire) { v.onFire = 0.0001; }
+        if (v.onFire) {
+          v.onFire += dt;
+          v.dmg = Math.min(1.4, d + dt * 0.06);
+          if (v.onFire > 4.5 + Math.random()) {
+            // it goes up, and the blast is the same one a grenade makes
+            blastAt(v.x, v.y, "grenade");
+            g.traffic.splice(n, 1);
+            continue;
+          }
+        }
+      }
+    }
+    function drawCarDamage() {
+      for (const v of g.traffic) {
+        const d = v.dmg || 0;
+        if (d < 0.55) continue;
+        const t = g.t * 2.2 + v.x * 0.01;
+        if (v.onFire) {
+          // flame at the bonnet, brighter as it gets closer to going
+          const k = Math.min(1, v.onFire / 4.5);
+          const rr = 12 + k * 16 + Math.sin(t * 3) * 3;
+          const gr = ctx.createRadialGradient(v.x, v.y, 2, v.x, v.y, rr);
+          gr.addColorStop(0, `rgba(255,238,180,${0.7 + k * 0.25})`);
+          gr.addColorStop(0.5, `rgba(240,120,32,${0.55 + k * 0.3})`);
+          gr.addColorStop(1, "rgba(120,30,10,0)");
+          ctx.fillStyle = gr;
+          ctx.beginPath(); ctx.arc(v.x, v.y, rr, 0, 6.3); ctx.fill();
+        } else {
+          // smoke: a soft grey plume that says this one is finished
+          for (let i = 0; i < 3; i++) {
+            const ph = t + i * 2.1;
+            const off = (ph % 3) / 3;
+            ctx.fillStyle = `rgba(70,70,74,${0.34 * (1 - off)})`;
+            ctx.beginPath();
+            ctx.arc(v.x + Math.sin(ph) * 6, v.y - off * 26, 7 + off * 11, 0, 6.3);
+            ctx.fill();
+          }
+        }
       }
     }
     function updateBlasts(dt) {
@@ -17183,6 +17292,7 @@ export default function IronLionLayer004() {
       }
       if (!g.title) updateThrown(dt);
       if (!g.title) updateBlasts(dt);
+      if (!g.title) updateCarDamage(dt);
       if (!g.title) updateBullets(dt);
       /* Drive it home and it gets fixed. The den is a garage with a lift in it and a crew who
          do nothing else -- charging for repairs somewhere else while that sat unused was the
@@ -17390,6 +17500,7 @@ export default function IronLionLayer004() {
       if (g.inside && g.insideT > 0.5) drawShopFolk();
       drawComp();
       drawThrown();
+      drawCarDamage();
       drawBlasts();
       /* The drive-by car has a gun out of it. It fired, took lives and left, and the only sign
          was a muzzle flash inside the bodywork -- from above you could not tell a drive-by from
