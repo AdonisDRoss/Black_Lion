@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 299 — SOLID DECK";
+const BUILD_TAG = "LAYER 300 — ABOVE EVERYTHING";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -7737,7 +7737,11 @@ export default function IronLionLayer004() {
         if (t.wait <= 0) t.at = null;
         return;
       }
-      const { stop, ahead } = elNearestStop(t.d);
+      /* The stop mark is where the FRONT of the engine finishes, so the passenger cars used to
+         come to rest behind the platform. Pulling up by two car lengths puts the doors beside
+         it, which is where a train actually stands. */
+      const PULL_UP = (EL_CAR_LEN + EL_GAP) * 2;
+      const { stop, ahead } = elNearestStop(t.d - PULL_UP);
       // brake into the platform rather than stopping dead on it
       const brakeIn = 420;
       if (ahead < brakeIn) {
@@ -7749,7 +7753,7 @@ export default function IronLionLayer004() {
       if (ahead <= step + 2) {
         /* Ten seconds standing. Long enough to run up the stairs when you hear it pull in,
            and long enough that leaving is a decision rather than a reflex. */
-        t.d = stop.d; t.spd = 0; t.wait = 10; t.at = stop;
+        t.d = stop.d + PULL_UP; t.spd = 0; t.wait = 10; t.at = stop;
         g.pickupFlash = { nm: "all_aboard", t: 2.4 };
       } else {
         t.d += step;
@@ -7789,14 +7793,21 @@ export default function IronLionLayer004() {
       }
       return null;
     }
-    function canBoard() {
-      if (g.mode !== "foot" || g.inside || g.onTrain || !g.train) return false;
-      for (let k = 0; k < EL_CARS; k++) {
+    /* A door on EACH SIDE of every car. A train you can only board from one flank means half
+       the platform is decoration, and the station has a platform on both sides of the line. */
+    function boardDoor() {
+      if (g.mode !== "foot" || g.inside || g.onTrain || !g.train) return null;
+      for (let k = 1; k < EL_CARS; k++) {           // car 0 is the engine: no passenger door
         const c = trainCarPos(k);
-        if (Math.hypot(g.p.x - c.x, g.p.y - c.y) < 110) return true;
+        for (const side of [-1, 1]) {
+          const dx = c.x + Math.cos(c.ang + Math.PI / 2) * 26 * side;
+          const dy = c.y + Math.sin(c.ang + Math.PI / 2) * 26 * side;
+          if (Math.hypot(g.p.x - dx, g.p.y - dy) < 84) return { car: k, side };
+        }
       }
-      return false;
+      return null;
     }
+    function canBoard() { return !!boardDoor(); }
     function updateRaid(dt) {
       g.raidCd = (g.raidCd == null ? 70 : g.raidCd) - dt;
       if (!g.raid && g.raidCd <= 0 && !g.inside) {
@@ -12548,6 +12559,14 @@ export default function IronLionLayer004() {
                      : m.x + (flip ? -w * 0.30 : w * 0.30);
       const hy = top ? m.y + Math.sin(ang) * w * 0.24 + ry * w * 0.26
                      : m.y - h * 0.5;
+      /* An arm from the shoulder out to the hand. Without it the weapon is a shape hovering
+         beside a man -- the arm is what makes it read as held, and from above it is the only
+         part of the gesture the camera can see. */
+      const shx = m.x + rx * w * 0.22, shy = m.y + ry * w * 0.22;
+      ctx.strokeStyle = "rgba(38,30,24,0.9)";
+      ctx.lineWidth = Math.max(2.5, w * 0.085);
+      ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(shx, shy); ctx.lineTo(hx, hy); ctx.stroke();
       ctx.save();
       ctx.translate(hx, hy);
       ctx.rotate(ang + Math.PI);   // source art's muzzle points left (180deg); this aims it along ang
@@ -14190,8 +14209,17 @@ export default function IronLionLayer004() {
           const sp = st.spread * (0.35 + (Math.min(bd, st.range) / st.range) * 0.9)
                    * (moving ? 1.5 : 1) * (g.lionOn ? 0.5 : 1);
           const shots = g.p.wpn === "shotgun_short" || g.p.wpn === "shotgun_long" ? 4 : 1;
+          /* From the muzzle, not from the middle of him. The weapon is held out to the right
+             now, so a bullet starting at his centre visibly comes out of his chest and crosses
+             the barrel. Same offsets drawWeapon uses. */
+          const gw2 = PED_BASE_H * 0.22 * (WPN_SCALE[g.p.wpn] || 1);
+          const rx2 = Math.cos(base + Math.PI / 2), ry2 = Math.sin(base + Math.PI / 2);
+          const muz = {
+            x: g.p.x + Math.cos(base) * (PED_BASE_H * 0.24 + gw2 * 0.9) + rx2 * PED_BASE_H * 0.26,
+            y: g.p.y + Math.sin(base) * (PED_BASE_H * 0.24 + gw2 * 0.9) + ry2 * PED_BASE_H * 0.26,
+          };
           for (let k = 0; k < shots; k++) {
-            fireBullet(g.p, base + (Math.random() - 0.5) * sp * 2,
+            fireBullet(muz, base + (Math.random() - 0.5) * sp * 2,
                        1100, (st.dmg / shots) * lionHit, st.range * 1.2, true);
           }
           g.shake = Math.max(g.shake, st.kick);
@@ -17129,12 +17157,6 @@ export default function IronLionLayer004() {
           }
         }
       }
-      drawEl();
-      drawTrain();
-      drawTransitFolk();
-      /* On the platform he is ABOVE the deck, so he is drawn again over it -- the same thing
-         drawRoof does for a rooftop. Without this he stands under the floor he is on. */
-      if (g.onPlat != null && g.mode === "foot" && !g.inside) drawHero();
       drawBullets();
       /* An arrow at the rim of the screen for the live objective. A distance alone in an open
          city tells you nothing -- 300m could be any direction, and "I need to know exactly where
@@ -17250,6 +17272,14 @@ export default function IronLionLayer004() {
         drawViaduct(view);
         // deck traffic belongs on top of the viaduct, whichever level the player is on
         drawFwyTraffic();
+        /* The L goes ABOVE the viaduct and everything on it. It was drawn earlier, before this
+           block, so expressway traffic painted straight over the platform -- which is exactly
+           what "cars are driving on the train platform" was. It is the highest structure in the
+           city and it has to be drawn last. */
+        drawEl();
+        drawTrain();
+        drawTransitFolk();
+        if (g.onPlat != null && g.mode === "foot" && !g.inside) drawHero();
         // climbing a ramp: redraw above the apron so you are not buried by it
         if (g.onRamp && inVehicle()) { if (g.mode === "car") drawCar(); else drawMoto(); }
         // on the deck you must be drawn above the slab you are standing on
@@ -17692,7 +17722,12 @@ export default function IronLionLayer004() {
          board a train that is a storey above your head. */
       if (gg.onPlat == null && !gg.roof) return false;
       if (!canBoard()) return false;            // right place, but the train is not in
-      gg.onTrain = true; gg.roof = null;
+      const door = boardDoor();
+      gg.onTrain = true; gg.roof = null; gg.onPlat = null;
+      if (door) {
+        gg.trainU = door.car * (EL_CAR_LEN + EL_GAP) + EL_CAR_LEN * 0.5;
+        gg.trainV = door.side * 14;               // steps in on the side he was standing
+      }
       gg.pickupFlash = { nm: "aboard", t: 1.6 };
       return true;
     };
