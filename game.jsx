@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 304 — E MEANS THE TRAIN";
+const BUILD_TAG = "LAYER 305 — THE TICKET WINDOW";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -4836,6 +4836,7 @@ export default function IronLionLayer004() {
       if (G.tableFn && G.tableFn()) return;
       return;
     }
+    if (g.mode === "foot" && G.clerkFn && G.clerkFn()) return;
     if (g.mode === "foot" && G.trainFn && G.trainFn()) return;
     if (g.mode === "foot" && G.downElFn && G.downElFn()) return;
     /* Not from the platform. `doorFn` tests distance to a street door and has no idea the player
@@ -15955,7 +15956,7 @@ export default function IronLionLayer004() {
         g.pickupFlash = { nm: "long_way_down", t: 2.0 };
       }
     }
-    function drawEl() {
+    function drawEl(view) {
       /* The deck is drawn over everything, which is correct -- it is above the street. But that
          means anything BENEATH it disappears, including the player and the traffic he is driving
          through. The gas canopies already solved this: go translucent when whoever is looking is
@@ -15983,11 +15984,18 @@ export default function IronLionLayer004() {
           if (vert) ctx.fillRect(x0 + o - 2, Math.min(y0, y1), 4, Math.abs(y1 - y0));
           else ctx.fillRect(Math.min(x0, x1), y0 + o - 2, Math.abs(x1 - x0), 4);
         }
+        /* Sleepers, but only the ones on screen. The loop is 132,000 units round and a sleeper
+           every 26 units is FIVE THOUSAND fillRects a frame, essentially all of them off camera.
+           Clipping to the view is the whole frame-rate problem in one change. */
         ctx.fillStyle = "rgba(18,18,20,0.55)";
         const len = vert ? Math.abs(y1 - y0) : Math.abs(x1 - x0);
-        for (let u = 0; u < len; u += 26) {
-          if (vert) ctx.fillRect(x0 - 18, Math.min(y0, y1) + u, 36, 6);
-          else ctx.fillRect(Math.min(x0, x1) + u, y0 - 18, 6, 36);
+        const base = vert ? Math.min(y0, y1) : Math.min(x0, x1);
+        const vLo = vert ? view.y0 : view.x0, vHi = vert ? view.y1 : view.x1;
+        const uFrom = Math.max(0, Math.floor((vLo - base - 40) / 26) * 26);
+        const uTo = Math.min(len, vHi - base + 40);
+        for (let u = uFrom; u < uTo; u += 26) {
+          if (vert) ctx.fillRect(x0 - 18, base + u, 36, 6);
+          else ctx.fillRect(base + u, y0 - 18, 6, 36);
         }
       };
       seg(EL_X0, EL_Y0, EL_X1, EL_Y0);
@@ -16113,6 +16121,22 @@ export default function IronLionLayer004() {
         }
       }
     }
+    /* A clerk on every platform, and everything about the railway goes through him.
+
+       Chasing a four-pixel doorway across a moving train was never going to work on a phone --
+       three layers of proximity tuning and it still put the player in the road. Talking to
+       somebody is unambiguous, it cannot be missed, and it is how you actually use a railway. */
+    function clerkAt(k) {
+      const r = platRect(k);
+      const p = r.p;
+      const a = p.ang + Math.PI / 2;
+      return { x: p.x + Math.cos(a) * 62, y: p.y + Math.sin(a) * 62 };
+    }
+    function nearClerk() {
+      if (g.mode !== "foot" || g.inside || g.onTrain || g.onPlat == null) return -1;
+      const c = clerkAt(g.onPlat);
+      return Math.hypot(g.p.x - c.x, g.p.y - c.y) < 90 ? g.onPlat : -1;
+    }
     function drawTransitFolk() {
       if (g.inside) return;
       const t = g.train;
@@ -16132,6 +16156,14 @@ export default function IronLionLayer004() {
                      y: v.y + Math.sin(a) * 34 + Math.cos(a) * 10,
                      vx: 0, vy: 0, anim: g.t * 2, jit: 1, toprow: TR_BUS };
         drawActorTop("transit", TR_BUS, bp, "hang");
+      }
+      // the clerk, on every platform, where the ticket window would be
+      for (let i = 0; i < EL_STOPS.length; i++) {
+        const c = clerkAt(i);
+        if (Math.abs(c.x - g.p.x) > 1200 || Math.abs(c.y - g.p.y) > 1200) continue;
+        drawActorTop("transit", TR_CLERK,
+          { x: c.x, y: c.y, vx: 0, vy: 0, anim: g.t * 1.2 + i, jit: 1, toprow: TR_CLERK },
+          "hang");
       }
       for (let i = 0; i < EL_STOPS.length; i++) {
         if (i % 3) continue;                      // not every platform is manned
@@ -16971,7 +17003,7 @@ export default function IronLionLayer004() {
       if (g.paused) {
         const owned = (g.cut && g.cut.panels && g.cut.panels.length) || g.title ||
           g.lockerOpen || g.travelOpen || g.raceTalk || g.leaderTalk || g.mapOpen ||
-          g.garagePick || g.mentorJob || g.truckOpen || g.table || g.tableAsk;
+          g.garagePick || g.mentorJob || g.truckOpen || g.table || g.tableAsk || g.tickets;
         g.pauseOrphan = owned ? 0 : (g.pauseOrphan || 0) + dt;
         if (g.pauseOrphan > 2) {
           g.paused = false; g.pauseOrphan = 0;
@@ -17353,7 +17385,7 @@ export default function IronLionLayer004() {
            block, so expressway traffic painted straight over the platform -- which is exactly
            what "cars are driving on the train platform" was. It is the highest structure in the
            city and it has to be drawn last. */
-        drawEl();
+        drawEl(view);
         drawTrain();
         drawTransitFolk();
         // riders go on after the cars so they are inside them, not under the floor
@@ -17446,6 +17478,7 @@ export default function IronLionLayer004() {
               held: GANG_LABEL[g.raid.held] || g.raid.held.toUpperCase(),
               dist: Math.round(Math.hypot(g.p.x - g.raid.x, g.p.y - g.raid.y) / 21),
             } : null,
+            clerk: nearClerk() >= 0,
             stairsEl: g.onPlat != null && nearStairsTight() < 0
               ? (stairFeet(g.onPlat).some((c) => Math.hypot(g.p.x - c[0], g.p.y - c[1]) < 70)
                  ? "down" : null)
@@ -17794,6 +17827,47 @@ export default function IronLionLayer004() {
     };
     /* Down is on E, and only at a stairhead. Boarding is checked first below, so standing at a
        door with the train in takes the train, not the stairs. */
+    G.clerkFn = () => {
+      const gg = G.current;
+      if (nearClerk() < 0) return false;
+      gg.tickets = { at: gg.onPlat };
+      gg.paused = true;
+      setHud((h) => ({ ...h, tickets: { at: gg.onPlat, name: EL_STOPS[gg.onPlat].name,
+        stops: EL_STOPS.map((q) => q.name) } }));
+      return true;
+    };
+    /* Board puts him INSIDE, in the middle car, wherever the train happens to be -- it is
+       brought alongside first. No geometry, no doorway to hit. */
+    G.ticketFn = (choice) => {
+      const gg = G.current;
+      const at = gg.tickets ? gg.tickets.at : 0;
+      gg.tickets = null; gg.paused = false;
+      setHud((h) => ({ ...h, tickets: null }));
+      if (choice == null) return;
+      if (choice === "board") {
+        if (!gg.train) return;
+        gg.train.d = EL_STOPS[at].d + (EL_CAR_LEN + EL_GAP) * 2;
+        gg.train.spd = 0; gg.train.wait = 6; gg.train.at = EL_STOPS[at];
+        gg.onPlat = null; gg.onTrain = true;
+        gg.trainU = 2 * (EL_CAR_LEN + EL_GAP) + EL_CAR_LEN * 0.5;
+        gg.trainV = 0;
+        gg.pickupFlash = { nm: "aboard", t: 1.6 };
+        return;
+      }
+      /* Riding to another station: he arrives on that platform and the train arrives with him,
+         standing at it -- as though he had ridden it there, which he did. */
+      const k = choice;
+      const p = elPos(EL_STOPS[k].d);
+      gg.onPlat = k;
+      const r = platRect(k);
+      gg.p.x = clamp(p.x, r.x0 + 30, r.x1 - 30);
+      gg.p.y = clamp(p.y, r.y0 + 30, r.y1 - 30);
+      if (gg.train) {
+        gg.train.d = EL_STOPS[k].d + (EL_CAR_LEN + EL_GAP) * 2;
+        gg.train.spd = 0; gg.train.wait = 12; gg.train.at = EL_STOPS[k];
+      }
+      gg.pickupFlash = { nm: "arrived", t: 1.8 };
+    };
     G.downElFn = () => {
       const gg = G.current;
       if (gg.onPlat == null) return false;
@@ -18163,7 +18237,12 @@ export default function IronLionLayer004() {
               {hud.dbgPlan ? <><br />IN {hud.dbgPlan}</> : null}
             </div>
           )}
-          {hud.stairsEl && (
+          {hud.clerk && (
+        <div style={{ marginTop: 6, fontSize: 9, letterSpacing: "0.14em", color: "#8fd0e0" }}>
+          [E] TALK TO THE CLERK
+        </div>
+      )}
+      {hud.stairsEl && (
         <div style={{ marginTop: 6, fontSize: 9, letterSpacing: "0.14em", color: "#8fd0e0" }}>
           [E] DOWN TO THE STREET
         </div>
@@ -18522,6 +18601,45 @@ export default function IronLionLayer004() {
                 cursor: "pointer" }}>
               NOT NOW
             </div>
+          </div>
+        </div>
+      )}
+      {hud.tickets && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 88, background: "rgba(6,7,9,0.93)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          fontFamily: mono, gap: 12, padding: 20 }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.24em", color: C.gold }}>
+            {hud.tickets.name}
+          </div>
+          <div style={{ fontSize: 12, color: "#e8d9b5", letterSpacing: "0.06em" }}>
+            “Where are you headed?”
+          </div>
+          <div onClick={() => G.ticketFn && G.ticketFn("board")}
+            style={{ padding: "12px 30px", border: `1px solid ${C.gold}`, color: C.gold,
+              background: "rgba(217,164,65,0.12)", fontSize: 12, letterSpacing: "0.22em",
+              cursor: "pointer" }}>
+            GET ON THE TRAIN
+          </div>
+          <div style={{ fontSize: 8, opacity: 0.5, letterSpacing: "0.16em", marginTop: 2 }}>
+            OR RIDE TO
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center",
+            maxWidth: "min(92vw, 520px)" }}>
+            {(hud.tickets.stops || []).map((nm, i) => (
+              i === hud.tickets.at ? null : (
+                <div key={nm} onClick={() => G.ticketFn && G.ticketFn(i)}
+                  style={{ padding: "8px 12px", cursor: "pointer", fontSize: 10,
+                    letterSpacing: "0.10em", border: "1px solid rgba(217,164,65,0.32)",
+                    background: "rgba(12,13,17,0.8)", color: "#cbbfa4" }}>
+                  {nm}
+                </div>
+              )
+            ))}
+          </div>
+          <div onClick={() => G.ticketFn && G.ticketFn(null)}
+            style={{ marginTop: 8, fontSize: 9, opacity: 0.55, letterSpacing: "0.16em",
+              cursor: "pointer" }}>
+            NEVER MIND
           </div>
         </div>
       )}
