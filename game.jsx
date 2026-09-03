@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 302 — PASSENGERS";
+const BUILD_TAG = "LAYER 304 — E MEANS THE TRAIN";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1569,13 +1569,20 @@ const EL_STOPS = [
   { s: 0.77, name: "WEST YARD" },
   { s: 0.895, name: "HOLLOWAY PARK" },
 ].map((q) => ({ ...q, d: q.s * EL_PERIM }));
-function elNearestStop(d) {
-  let best = EL_STOPS[0], bd = 1e9;
+/* The NEXT stop ahead -- and never the one it is standing on.
+
+   Without the deadband, a train sitting exactly on a stop got `ahead: 0` for that same stop, so
+   the instant its dwell expired it "arrived" again and reset the timer. It never left a station
+   in its life, and the doors cycling shut on that loop is why boarding kept failing. */
+function elNearestStop(d, skipCurrent) {
+  const DEAD = 60;
+  let best = null, bd = 1e9;
   for (const q of EL_STOPS) {
-    let gap = ((q.d - d) % EL_PERIM + EL_PERIM) % EL_PERIM;   // ahead only
+    let gap = ((q.d - d) % EL_PERIM + EL_PERIM) % EL_PERIM;
+    if (skipCurrent && gap < DEAD) gap += EL_PERIM;           // it is this one: look past it
     if (gap < bd) { bd = gap; best = q; }
   }
-  return { stop: best, ahead: bd };
+  return { stop: best || EL_STOPS[0], ahead: bd };
 }
 /* Anywhere the deck is overhead: the track band itself, or inside a station's rectangle. Used to
    fade it out so the street underneath stays visible and drivable. */
@@ -4831,14 +4838,17 @@ export default function IronLionLayer004() {
     }
     if (g.mode === "foot" && G.trainFn && G.trainFn()) return;
     if (g.mode === "foot" && G.downElFn && G.downElFn()) return;
-    if (g.mode === "foot" && G.doorFn) {
+    /* Not from the platform. `doorFn` tests distance to a street door and has no idea the player
+       is a storey above it, so standing on the deck over a shopfront let E walk him into a
+       building he was nowhere near -- and it is checked before the train. */
+    if (g.mode === "foot" && g.onPlat == null && G.doorFn) {
       const b = G.doorFn();
       if (b) { g.inside = b; g.floor = 0; return; }
     }
     /* After the door, for the same reason the table is: a truck parked near an entrance should
        not stop you going inside. Walking up to something never beats walking into something. */
     if (g.mode === "foot" && !g.inside && G.truckFn && G.truckFn()) return;
-    if (g.mode === "foot") {
+    if (g.mode === "foot" && g.onPlat == null) {
       mountNearest();
     } else {
       /* Three drivable things, not two: g.car, g.moto and g.civ. This read `g.moto` for
@@ -7744,7 +7754,7 @@ export default function IronLionLayer004() {
          come to rest behind the platform. Pulling up by two car lengths puts the doors beside
          it, which is where a train actually stands. */
       const PULL_UP = (EL_CAR_LEN + EL_GAP) * 2;
-      const { stop, ahead } = elNearestStop(t.d - PULL_UP);
+      const { stop, ahead } = elNearestStop(t.d - PULL_UP, true);
       // brake into the platform rather than stopping dead on it
       const brakeIn = 420;
       if (ahead < brakeIn) {
@@ -17787,6 +17797,9 @@ export default function IronLionLayer004() {
     G.downElFn = () => {
       const gg = G.current;
       if (gg.onPlat == null) return false;
+      /* Not while the train is in. Standing at a door with a train alongside, E means board --
+         dropping him into the road at that moment is the opposite of what he asked for. */
+      if (g.train && g.train.spd < 4) return false;
       let best = null, bd = 70;
       for (const c of stairFeet(gg.onPlat)) {
         const d = Math.hypot(gg.p.x - c[0], gg.p.y - c[1]);
