@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 308 — TAKE COVER";
+const BUILD_TAG = "LAYER 309 — ARRESTED";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -12473,6 +12473,7 @@ export default function IronLionLayer004() {
               m.muzzle = 0.16;
               m.drawnT = 0.85;
               sfxGunshot();
+              scatter(m.x, m.y, 420);
               /* A real round, so it can be blocked by a car, dodged in LION time, and miss.
                  Resolving it as a dice roll meant cover did nothing against them and the
                  player had no way to read a shot coming. There is no minimum range either --
@@ -13265,7 +13266,71 @@ export default function IronLionLayer004() {
       g.scanner = 2.5;
     }
 
+    /* --- police who actually police -----------------------------------------------
+
+       They drove to the scene, got out, stood on their marks and did nothing at all. Two
+       behaviours were missing and they are the two that matter.
+
+       COVER: the car is parked between them and you, and they work it -- hold behind the engine
+       block, step out to the wing to shoot, drop back. That is what a patrol car is for and it
+       makes them read as trained rather than as gang members in blue.
+
+       ARREST: if you are down to nothing and they get close, it ends. Being taken in is a
+       real outcome and cheaper for the story than dying. */
+    function copCover(u, car, dt) {
+      if (g.inside || g.mode !== "foot" || !car) return false;
+      if (!((g.heat || 0) > 0)) return false;
+      const pdx = g.p.x - car.x, pdy = g.p.y - car.y, pd = Math.hypot(pdx, pdy) || 1;
+      if (pd > 700) return false;
+      const ux = pdx / pd, uy = pdy / pd;
+      if (u.side == null) u.side = Math.random() < 0.5 ? 1 : -1;
+      u.copT = (u.copT || 0) - dt;
+      if (u.copT <= 0) {
+        u.peek = !u.peek;
+        u.copT = u.peek ? 0.9 + Math.random() * 0.5 : 1.4 + Math.random() * 1.1;
+      }
+      // behind the car, or out at its wing
+      const tx = u.peek ? car.x + (-uy) * 30 * u.side : car.x - ux * 40;
+      const ty = u.peek ? car.y + ux * 30 * u.side : car.y - uy * 40;
+      const mx = tx - u.x, my = ty - u.y, md = Math.hypot(mx, my);
+      if (md > 5) { u.vx = (mx / md) * 96; u.vy = (my / md) * 96;
+                    u.x += u.vx * dt; u.y += u.vy * dt; }
+      else { u.vx = 0; u.vy = 0; }
+      u.aimAng = Math.atan2(g.p.y - u.y, g.p.x - u.x);
+      u.fireCd = (u.fireCd || 0) - dt;
+      if (u.peek && pd < 540 && u.fireCd <= 0 && u.stun <= 0) {
+        u.fireCd = 1.0 + Math.random() * 0.9;
+        u.muzzle = 0.16; u.drawnT = 0.9;
+        sfxGunshot();
+        scatter(u.x, u.y, 420);
+        fireBullet(u, u.aimAng + (Math.random() - 0.5) * 0.2, 980, 2.6, 620, false, "police");
+      }
+      // close enough, and he has nothing left: taken in
+      if (Math.hypot(g.p.x - u.x, g.p.y - u.y) < 52
+          && (g.p.hp <= 3 || !g.p.wpn || g.p.holstered)) arrestPlayer();
+      return true;
+    }
+    function arrestPlayer() {
+      if (g.arrested) return;
+      g.arrested = 2.6;
+      g.heat = 0; g.wantedT = 0;
+      // the price: half of what he was carrying, and everything he was carrying it with
+      g.p.cash = Math.round((g.p.cash || 0) * 0.5);
+      g.p.wpn = null; g.p.ammo = 0; g.p.holstered = false;
+      g.rack = []; g.thrownStock = {};
+      g.police = null; g.policeMore = []; g.detectives = null;
+      g.p.hp = Math.max(g.p.hp, 6);
+      // out through the front door of the precinct, which is where they take you
+      const cv = CIVIC.find((c) => c.key === "precinct_rh");
+      if (cv) {
+        g.p.x = SX(cv.cell.i) + PITCH / 2;
+        g.p.y = SX(cv.cell.j) + PITCH * 0.8;
+      }
+      g.inside = null; g.roof = null; g.onPlat = null; g.onTrain = null;
+      g.mode = "foot";
+    }
     function updatePolice(dt) {
+      if ((g.arrested || 0) > 0) g.arrested -= dt;
       if (g.copTimer > 0) {
         g.copTimer -= dt;
         if (g.copTimer <= 0 && g.copScene) { dispatchPolice(g.copScene[0], g.copScene[1]); g.copScene = null; }
@@ -13297,6 +13362,7 @@ export default function IronLionLayer004() {
           for (const u of Q.units) {
             u.anim += dt * 4;
             if (u.state !== "out") { u.x = qc.x; u.y = qc.y; continue; }
+            if (copCover(u, qc, dt)) continue;
             const dx = u.hx - u.x, dy = u.hy - u.y, d = Math.hypot(dx, dy);
             if (d > 6) { u.vx = (dx / d) * 60; u.vy = (dy / d) * 60; u.x += u.vx * dt; u.y += u.vy * dt; }
             else { u.vx = 0; u.vy = 0; }
@@ -13328,6 +13394,8 @@ export default function IronLionLayer004() {
         u.say -= dt;
         u.fireCd = Math.max(0, u.fireCd - dt);
         if (u.state === "wait") { u.x = c.x; u.y = c.y; continue; }
+        // wanted and in sight: work the car rather than canvassing past him
+        if (u.hp > 0 && copCover(u, c, dt)) continue;
         // spot a hostile crew nearby and go engage instead of canvassing past it
         if (u.hp > 0 && (u.state === "canvass" || u.state === "engage")) {
           let target = null, best = 420;
@@ -14377,6 +14445,7 @@ export default function IronLionLayer004() {
           g.p.atkCd = Math.min(0.5, st.rate); g.p.fireCd = st.rate;
           g.p.ammo = (g.p.ammo || 0) - 1;
           if (!g.inside) witnessed(g.p.x, g.p.y, 1, true);   // a gunshot carries
+          scatter(g.p.x, g.p.y, 460);                       // and it clears the pavement
           /* Nearest man if there is one; otherwise the way he is moving, and failing that
              wherever he last aimed. `faceAng` does not exist on the player -- velocity is the
              only facing this character actually has. */
@@ -16022,9 +16091,11 @@ export default function IronLionLayer004() {
           t = Math.max(0, Math.min(1, t));
           const px = sx + dx * t, py = sy + dy * t;
           if (Math.hypot(o.x - px, o.y - py) > 13) return false;
-          if (isPlayer) { g.p.hp = Math.max(0, g.p.hp - b.dmg); g.shake = Math.max(g.shake, 4); return true; }
+          if (isPlayer) { g.p.hp = Math.max(0, g.p.hp - b.dmg); g.shake = Math.max(g.shake, 4);
+                          bleed(g.p.x, g.p.y, false); return true; }
           o.hp -= b.dmg;
           o.stun = Math.max(o.stun || 0, 0.25);
+          casualty(o.x, o.y, o.hp <= 0);
           if (o.hp <= 0) { dropLoot(o.x, o.y, LOOT_KING); dropWeapon(o); }
           return true;
         };
@@ -16498,6 +16569,46 @@ export default function IronLionLayer004() {
        catches, then it goes up and takes whoever is behind it with it.
 
        Three stages so the player gets a warning. Standing behind a burning car is a decision. */
+    /* --- blood, and who comes ---------------------------------------------------
+
+       A shot person left no mark and nobody arrived. Both are the same omission: nothing in the
+       world responded to a casualty, so shooting somebody had no consequence at all beyond a
+       number going down.
+
+       Blood is a pool that spreads once and stays. It is the record of what happened here. */
+    function bleed(x, y, big) {
+      (g.blood = g.blood || []).push({
+        x: x + (Math.random() - 0.5) * 6, y: y + (Math.random() - 0.5) * 6,
+        r: 0, max: (big ? 13 : 6) + Math.random() * 5, a: big ? 0.62 : 0.42,
+      });
+      if (g.blood.length > 60) g.blood.splice(0, g.blood.length - 60);
+    }
+    function drawBlood() {
+      const l = g.blood;
+      if (!l || !l.length) return;
+      for (const b of l) {
+        if (b.r < b.max) b.r += 0.35;
+        ctx.fillStyle = `rgba(96,14,14,${b.a})`;
+        ctx.beginPath(); ctx.ellipse(b.x, b.y, b.r, b.r * 0.72, 0, 0, 6.3); ctx.fill();
+      }
+    }
+    /* Somebody is down: the ambulance comes, and it comes for anyone -- not only for the
+       scripted street crimes, which was the only thing that ever called it. */
+    function casualty(x, y, dead) {
+      bleed(x, y, dead);
+      if (dead && !g.ambulance) dispatchAmbulance(x, y);
+    }
+    /* A gunshot scatters the street. People stood in the open through a firefight because
+       nothing told them one was happening. */
+    function scatter(x, y, r) {
+      for (const p of g.peds) {
+        const d = Math.hypot(p.x - x, p.y - y);
+        if (d > r) continue;
+        p.mode = "panic";
+        p.timer = Math.max(p.timer || 0, 2.6 + Math.random() * 2);
+        p.fx = p.x - x; p.fy = p.y - y;
+      }
+    }
     function updateCarDamage(dt) {
       for (let n = g.traffic.length - 1; n >= 0; n--) {
         const v = g.traffic[n];
@@ -17500,6 +17611,7 @@ export default function IronLionLayer004() {
       if (g.inside && g.insideT > 0.5) drawShopFolk();
       drawComp();
       drawThrown();
+      drawBlood();
       drawCarDamage();
       drawBlasts();
       /* The drive-by car has a gun out of it. It fired, took lives and left, and the only sign
@@ -17760,6 +17872,7 @@ export default function IronLionLayer004() {
                           + (g.train && g.train.spd > 4 ? " \u00b7 TRAIN MOVING"
                              : g.train && g.train.wait > 0 ? " \u00b7 DOORS CLOSING" : "") }
                     : (nearPlatform() ? { wait: nearPlatform().name } : null))),
+            arrested: (g.arrested || 0) > 0,
             missingCount: ((window.__ironlion && window.__ironlion.missingAll) || []).length,
             missingSome: ((window.__ironlion && window.__ironlion.missingAll) || [])
               .slice(0, 4).join(" "),
@@ -18867,6 +18980,20 @@ export default function IronLionLayer004() {
                 color: "rgba(232,217,181,0.7)", fontSize: 12, letterSpacing: "0.22em",
                 cursor: "pointer" }}>
               NOT NOW
+            </div>
+          </div>
+        </div>
+      )}
+      {hud.arrested && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 95, pointerEvents: "none",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(6,7,9,0.72)", fontFamily: mono }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 26, letterSpacing: "0.36em", color: "#eb4638",
+              fontWeight: 700 }}>ARRESTED</div>
+            <div style={{ fontSize: 10, letterSpacing: "0.18em", marginTop: 10,
+              color: "rgba(232,217,181,0.7)" }}>
+              BOOKED AT THE PRECINCT \u00b7 HALF YOUR CASH AND EVERY WEAPON
             </div>
           </div>
         </div>
