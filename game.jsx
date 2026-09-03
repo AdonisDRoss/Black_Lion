@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 293 — THE ENGINE";
+const BUILD_TAG = "LAYER 294 — ALL ABOARD";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1530,6 +1530,9 @@ const SX = (i) => i * PITCH;
    Nine it is. It also makes the lap short enough that riding one is a journey rather than a
    commitment. */
 const EL_INSET = 9;
+/* A station is 340 along the track by 200 across -- long enough for the front two cars to sit
+   in it and wide enough for a platform each side of the running line plus stair towers. */
+const EL_STA_LEN = 340, EL_STA_W = 200;
 const EL_X0 = SX(EL_INSET), EL_Y0 = SX(EL_INSET);
 const EL_X1 = SX(N - EL_INSET), EL_Y1 = SX(N - EL_INSET);
 const EL_W = EL_X1 - EL_X0, EL_H = EL_Y1 - EL_Y0;
@@ -7611,7 +7614,10 @@ export default function IronLionLayer004() {
       }
       const step = t.spd * dt;
       if (ahead <= step + 2) {
-        t.d = stop.d; t.spd = 0; t.wait = 6; t.at = stop;
+        /* Ten seconds standing. Long enough to run up the stairs when you hear it pull in,
+           and long enough that leaving is a decision rather than a reflex. */
+        t.d = stop.d; t.spd = 0; t.wait = 10; t.at = stop;
+        g.pickupFlash = { nm: "all_aboard", t: 2.4 };
       } else {
         t.d += step;
       }
@@ -15694,16 +15700,78 @@ export default function IronLionLayer004() {
       seg(EL_X1, EL_Y0, EL_X1, EL_Y1);
       seg(EL_X0, EL_Y1, EL_X1, EL_Y1);
       seg(EL_X0, EL_Y0, EL_X0, EL_Y1);
+      /* A station is a raised island, not a slab on the road. Side platforms either side of the
+         centre track, four stair towers down to the pavement at the corners, and the whole thing
+         standing on columns so traffic passes underneath -- which is the point of an elevated.
+
+         Nothing here is solid at street level except the stair columns; the deck is above the
+         cars, so a station must never block a road. */
       for (const q of EL_STOPS) {
         const p = elPos(q.d);
         const vert = Math.abs(p.ang) > 1;
-        ctx.fillStyle = "#3a3630";
-        if (vert) ctx.fillRect(p.x - 46, p.y - 90, 92, 180);
-        else ctx.fillRect(p.x - 90, p.y - 46, 180, 92);
-        ctx.fillStyle = "rgba(242,194,78,0.85)";
-        ctx.font = "700 11px ui-monospace, Menlo, monospace";
+        // along the track x across it
+        const AL = EL_STA_LEN / 2, AC = EL_STA_W / 2;
+        const x0 = p.x - (vert ? AC : AL), x1 = p.x + (vert ? AC : AL);
+        const y0 = p.y - (vert ? AL : AC), y1 = p.y + (vert ? AL : AC);
+
+        // the shadow it throws on the street it is standing over
+        ctx.fillStyle = "rgba(0,0,0,0.34)";
+        ctx.fillRect(x0 + 12, y0 + 14, x1 - x0, y1 - y0);
+
+        // the deck
+        ctx.fillStyle = PF("slab", "#5c5a56");
+        ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+        ctx.strokeStyle = "rgba(20,20,22,0.7)"; ctx.lineWidth = 3;
+        ctx.strokeRect(x0 + 1.5, y0 + 1.5, x1 - x0 - 3, y1 - y0 - 3);
+
+        /* Two platforms, one each side of the running line. The 54-wide track down the middle is
+           left clear -- that is where the train pulls in. */
+        ctx.fillStyle = "rgba(28,28,32,0.35)";
+        if (vert) {
+          ctx.fillRect(x0 + 6, y0 + 8, AC - 33, (y1 - y0) - 16);
+          ctx.fillRect(p.x + 27, y0 + 8, AC - 33, (y1 - y0) - 16);
+        } else {
+          ctx.fillRect(x0 + 8, y0 + 6, (x1 - x0) - 16, AC - 33);
+          ctx.fillRect(x0 + 8, p.y + 27, (x1 - x0) - 16, AC - 33);
+        }
+        // yellow edge line along the platform lip, both sides
+        ctx.fillStyle = "rgba(214,176,60,0.85)";
+        if (vert) {
+          ctx.fillRect(p.x - 30, y0 + 10, 3, (y1 - y0) - 20);
+          ctx.fillRect(p.x + 27, y0 + 10, 3, (y1 - y0) - 20);
+        } else {
+          ctx.fillRect(x0 + 10, p.y - 30, (x1 - x0) - 20, 3);
+          ctx.fillRect(x0 + 10, p.y + 27, (x1 - x0) - 20, 3);
+        }
+
+        /* Four stair towers, one per corner, running OUT to the pavement. Drawn as a flight of
+           treads so it reads as a way up rather than a ramp. */
+        const stair = (sx, sy, dx, dy) => {
+          const len = 74, wid = 30;
+          ctx.fillStyle = "rgba(0,0,0,0.32)";
+          ctx.fillRect(sx + 8 + Math.min(0, dx * len), sy + 10 + Math.min(0, dy * len),
+                       dx ? len : wid, dy ? len : wid);
+          ctx.fillStyle = "#4a4844";
+          ctx.fillRect(sx + Math.min(0, dx * len), sy + Math.min(0, dy * len),
+                       dx ? len : wid, dy ? len : wid);
+          ctx.fillStyle = "rgba(18,18,20,0.55)";
+          for (let u = 6; u < len; u += 9) {
+            if (dx) ctx.fillRect(sx + (dx > 0 ? u : -u), sy, 3, wid);
+            else ctx.fillRect(sx, sy + (dy > 0 ? u : -u), wid, 3);
+          }
+        };
+        if (vert) {
+          stair(x0 - 30, y0 + 6, -1, 0); stair(x1, y0 + 6, 1, 0);
+          stair(x0 - 30, y1 - 36, -1, 0); stair(x1, y1 - 36, 1, 0);
+        } else {
+          stair(x0 + 6, y0 - 30, 0, -1); stair(x0 + 6, y1, 0, 1);
+          stair(x1 - 36, y0 - 30, 0, -1); stair(x1 - 36, y1, 0, 1);
+        }
+
+        ctx.fillStyle = "rgba(242,194,78,0.9)";
+        ctx.font = "700 12px ui-monospace, Menlo, monospace";
         ctx.textAlign = "center";
-        ctx.fillText(q.name, p.x, p.y - 56);
+        ctx.fillText(q.name, p.x, y0 - 44);
         ctx.textAlign = "start";
       }
     }
@@ -16976,7 +17044,8 @@ export default function IronLionLayer004() {
               dist: Math.round(Math.hypot(g.p.x - g.raid.x, g.p.y - g.raid.y) / 21),
             } : null,
             train: g.onTrain
-              ? { riding: true, next: elNearestStop(g.train ? g.train.d : 0).stop.name }
+              ? { riding: true, next: elNearestStop(g.train ? g.train.d : 0).stop.name,
+                  dwell: g.train && g.train.wait > 0 ? Math.ceil(g.train.wait) : 0 }
               : (canBoard() ? { board: true }
                  : (nearPlatform() ? { wait: nearPlatform().name } : null)),
             missingCount: ((window.__ironlion && window.__ironlion.missingAll) || []).length,
@@ -17516,7 +17585,7 @@ export default function IronLionLayer004() {
     district_logged: "DISTRICT LOGGED",
     saved: "SAVED", save_failed: "COULD NOT SAVE", save_cleared: "SAVE CLEARED",
     reloading: "RELOADING",
-    aboard: "ABOARD", arrived: "THIS IS YOUR STOP",
+    aboard: "ABOARD", arrived: "THIS IS YOUR STOP", all_aboard: "ALL ABOARD",
     repairing: "THE CREW ARE ON IT",
     armed: "THE WHOLE RACK",
     spent: "THAT WAS THE LAST ONE",
@@ -17620,7 +17689,10 @@ export default function IronLionLayer004() {
           )}
           {hud.train && (
         <div style={{ marginTop: 6, fontSize: 9, letterSpacing: "0.14em", color: "#8fd0e0" }}>
-          {hud.train.riding ? "NEXT \u00b7 " + hud.train.next
+          {hud.train.riding
+            ? (hud.train.dwell > 0
+                ? "DEPARTING IN " + hud.train.dwell
+                : "NEXT \u00b7 " + hud.train.next)
             : hud.train.board ? "[E] GET ON"
             : hud.train.wait + " \u00b7 WAIT FOR THE TRAIN"}
         </div>
