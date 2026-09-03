@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 301 — DOORS OPEN";
+const BUILD_TAG = "LAYER 302 — PASSENGERS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -4830,6 +4830,7 @@ export default function IronLionLayer004() {
       return;
     }
     if (g.mode === "foot" && G.trainFn && G.trainFn()) return;
+    if (g.mode === "foot" && G.downElFn && G.downElFn()) return;
     if (g.mode === "foot" && G.doorFn) {
       const b = G.doorFn();
       if (b) { g.inside = b; g.floor = 0; return; }
@@ -15910,17 +15911,10 @@ export default function IronLionLayer004() {
     function autoStairs() {
       if (g.mode !== "foot" || g.inside || g.onTrain || g.title) return;
       if (g.stairCd > 0) { g.stairCd -= 0.016; return; }
-      if (g.onPlat != null) {
-        for (const c of stairFeet(g.onPlat)) {
-          if (Math.hypot(g.p.x - c[0], g.p.y - c[1]) < 46) {
-            g.onPlat = null;
-            g.p.x = c[0]; g.p.y = c[1];
-            g.stairCd = 0.9;                    // so he does not bounce straight back up
-            return;
-          }
-        }
-        return;
-      }
+      /* Climbing is automatic, going down is NOT. Walking near a stairhead while trying to
+         reach a train door dropped him into the street mid-attempt -- and a platform you keep
+         falling off is unusable. Up is a thing you walk into; down is a thing you decide. */
+      if (g.onPlat != null) return;
       const k = nearStairsTight();
       if (k < 0) return;
       const r = platRect(k);
@@ -16074,6 +16068,41 @@ export default function IronLionLayer004() {
     const TR_DRIVER = 0, TR_GUARD = 1, TR_CLERK = 2, TR_BUS = 3;
     /* Somebody at the controls, and somebody on the platform. An empty train and an empty
        station read as scenery; one figure each is what makes the system look staffed. */
+    /* People on the train. An empty carriage is a corridor -- the reason to ride is that the
+       city is in there with you. They live in the train's own frame like the player does, so
+       they stay put on their seats as the track turns underneath. */
+    function ensureRiders() {
+      if (g.riders) return;
+      g.riders = [];
+      const n = 5 + ((Math.random() * 5) | 0);
+      for (let i = 0; i < n; i++) {
+        const car = 1 + ((Math.random() * (EL_CARS - 1)) | 0);
+        g.riders.push({
+          car,
+          u: car * (EL_CAR_LEN + EL_GAP) + 28 + Math.random() * (EL_CAR_LEN - 56),
+          v: (Math.random() < 0.5 ? -1 : 1) * (13 + Math.random() * 5),
+          civ: undefined, anim: Math.random() * 6, jit: 0.95 + Math.random() * 0.12,
+          // one in six is a guard riding the line rather than a passenger
+          staff: Math.random() < 0.17,
+        });
+      }
+    }
+    function drawRiders() {
+      if (!g.train || g.inside) return;
+      ensureRiders();
+      for (const r of g.riders) {
+        const p = elPos(g.train.d - r.u);
+        const a = p.ang + Math.PI / 2;
+        const o = { x: p.x + Math.cos(a) * r.v, y: p.y + Math.sin(a) * r.v,
+                    vx: 0, vy: 0, anim: r.anim, jit: r.jit, toprow: TR_GUARD };
+        if (Math.abs(o.x - g.p.x) > 1200 || Math.abs(o.y - g.p.y) > 1200) continue;
+        if (r.staff) { drawActorTop("transit", TR_GUARD, o, "hang"); continue; }
+        if (r.civ === undefined && civPool.length) r.civ = pickCiv();
+        if (!r.civ || !drawCivilian(r.civ, o.x, o.y, 0, 0, r.anim * 0.16)) {
+          drawShadow(o.x, o.y + 2, 9, 5, 0.3);
+        }
+      }
+    }
     function drawTransitFolk() {
       if (g.inside) return;
       const t = g.train;
@@ -17317,6 +17346,8 @@ export default function IronLionLayer004() {
         drawEl();
         drawTrain();
         drawTransitFolk();
+        // riders go on after the cars so they are inside them, not under the floor
+        drawRiders();
         if (g.onPlat != null && g.mode === "foot" && !g.inside) drawHero();
         // climbing a ramp: redraw above the apron so you are not buried by it
         if (g.onRamp && inVehicle()) { if (g.mode === "car") drawCar(); else drawMoto(); }
@@ -17405,7 +17436,10 @@ export default function IronLionLayer004() {
               held: GANG_LABEL[g.raid.held] || g.raid.held.toUpperCase(),
               dist: Math.round(Math.hypot(g.p.x - g.raid.x, g.p.y - g.raid.y) / 21),
             } : null,
-            stairsEl: g.onPlat != null ? "down" : (nearStairs() >= 0 ? "up" : null),
+            stairsEl: g.onPlat != null && nearStairsTight() < 0
+              ? (stairFeet(g.onPlat).some((c) => Math.hypot(g.p.x - c[0], g.p.y - c[1]) < 70)
+                 ? "down" : null)
+              : null,
             onPlat: g.onPlat != null,
             train: g.onTrain
               ? { riding: true, next: elNearestStop(g.train ? g.train.d : 0).stop.name,
@@ -17746,6 +17780,22 @@ export default function IronLionLayer004() {
       gg.p.x = clamp(gg.p.x, r.x0 + 24, r.x1 - 24);
       gg.p.y = clamp(gg.p.y, r.y0 + 24, r.y1 - 24);
       gg.pickupFlash = { nm: "up_top", t: 1.4 };
+      return true;
+    };
+    /* Down is on E, and only at a stairhead. Boarding is checked first below, so standing at a
+       door with the train in takes the train, not the stairs. */
+    G.downElFn = () => {
+      const gg = G.current;
+      if (gg.onPlat == null) return false;
+      let best = null, bd = 70;
+      for (const c of stairFeet(gg.onPlat)) {
+        const d = Math.hypot(gg.p.x - c[0], gg.p.y - c[1]);
+        if (d < bd) { bd = d; best = c; }
+      }
+      if (!best) return false;
+      gg.onPlat = null;
+      gg.p.x = best[0]; gg.p.y = best[1];
+      gg.stairCd = 1.2;
       return true;
     };
     G.trainFn = () => {
@@ -18102,7 +18152,7 @@ export default function IronLionLayer004() {
           )}
           {hud.stairsEl && (
         <div style={{ marginTop: 6, fontSize: 9, letterSpacing: "0.14em", color: "#8fd0e0" }}>
-          {hud.stairsEl === "up" ? "[E] UP TO THE PLATFORM" : "[E] DOWN TO THE STREET"}
+          [E] DOWN TO THE STREET
         </div>
       )}
       {hud.train && (
