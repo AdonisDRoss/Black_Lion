@@ -1233,7 +1233,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 316 — assets/skate/ + FITTINGS";
+const BUILD_TAG = "LAYER 317 — STANCE, KERB, PARALLAX";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2382,9 +2382,13 @@ function randomPalette() {
    `dir` is the axis a ramp launches along (0 = it kicks you north/south, 1 = east/west) and
    `pop` is how much of your speed it converts to air. */
 let SKATE_CACHE = null;
+const SKATE_INSET = 170;
 function skateBox() {
-  const z = ZONES.skate;
-  return { x0: SX(z.i0), y0: SX(z.j0), x1: SX(z.i1 + 1), y1: SX(z.j1 + 1) };
+  /* Inset off the street centrelines. SX(i) is the middle of the ROAD, so the box used to
+     swallow both perimeter carriageways -- which is why traffic drove through the park and
+     the fence stood in the road. The campus starts past the kerb. */
+  const z = ZONES.skate, K = SKATE_INSET;
+  return { x0: SX(z.i0) + K, y0: SX(z.j0) + K, x1: SX(z.i1 + 1) - K, y1: SX(z.j1 + 1) - K };
 }
 function inSkate(x, y) {
   const b = skateBox();
@@ -5291,9 +5295,16 @@ export default function IronLionLayer004() {
       for (const q of skateObs()) {
         if (q.ride && onBoard) {
           // rideable: no collision, but a ramp taken at speed launches you
-          if (!flying && q.pop > 0.3 && g.board.spd > 150
-            && o.x > q.x && o.x < q.x + q.w && o.y > q.y && o.y < q.y + q.h) {
+          /* Edge-triggered. This used to fire on every frame the player overlapped a ramp,
+             so he popped again the instant he landed and again the frame after -- a hop that
+             looked random because it had nothing to do with the input. You get one launch per
+             ramp entered, and not another until you have left it. */
+          const on = o.x > q.x && o.x < q.x + q.w && o.y > q.y && o.y < q.y + q.h;
+          if (on && !flying && q.pop > 0.3 && g.board.spd > 190 && g.board.lastRamp !== q) {
+            g.board.lastRamp = q;
             ollie(q.pop * (0.55 + g.board.spd / 900));
+          } else if (!on && g.board.lastRamp === q) {
+            g.board.lastRamp = null;
           }
           continue;
         }
@@ -5693,8 +5704,41 @@ export default function IronLionLayer004() {
       });
     }
 
+    /* Kids at the park. They are ordinary civilians for now -- the youth sheet failed its own
+       tests and has not been cut -- but an empty skate park reads as broken in a way a park
+       full of the wrong people does not. They wander between the ramps rather than pathing
+       along street corners, because there are no corners in here. */
+    function spawnParkKid() {
+      const b = skateBox();
+      const px = b.x0 + 60 + Math.random() * (b.x1 - b.x0 - 120);
+      const py = b.y0 + 60 + Math.random() * (b.y1 - b.y0 - 120);
+      g.peds.push({
+        x: px, y: py, vx: 0, vy: 0, park: 1,
+        bi: clamp(Math.floor(px / PITCH), 0, N - 1),
+        bj: clamp(Math.floor(py / PITCH), 0, N - 1),
+        ck: 0, off: [0, 0], tgt: [px, py],
+        o: outfits[(Math.random() * outfits.length) | 0],
+        civ: pickCiv(),
+        jit: 0.93 + Math.random() * 0.15,
+        spd: 46 + Math.random() * 26,
+        anim: Math.random() * 6.28, mode: "walk", timer: 0,
+        idlePose: Math.random() < 0.45 ? "bag" : "talk",
+      });
+    }
+    function parkKidTarget(p) {
+      const b = skateBox();
+      p.tgt = [b.x0 + 60 + Math.random() * (b.x1 - b.x0 - 120),
+               b.y0 + 60 + Math.random() * (b.y1 - b.y0 - 120)];
+      p.mode = "walk";
+    }
+
     function updatePeds(dt, cx, cy) {
       const cap = Math.min(W, H) < 520 ? 56 : 104;
+      if (inSkate(cx, cy)) {
+        let np = 0;
+        for (const q of g.peds) if (q.park) np++;
+        if (np < 14 && Math.random() < 0.5) spawnParkKid();
+      }
       // four a frame filled 70 in under a second; at 104 it wants six or the street stays thin
       let tries = 0;
       while (g.peds.length < cap && tries++ < 6) spawnPed(cx, cy);
@@ -5740,6 +5784,7 @@ export default function IronLionLayer004() {
           const d = Math.hypot(p.fx, p.fy) || 1;
           p.vx = (p.fx / d) * 205; p.vy = (p.fy / d) * 205;
           p.x += p.vx * dt; p.y += p.vy * dt;
+          collideSkate(p, 9);
           p.anim += dt * 11;
           if (p.timer <= 0) {
             p.bi = clamp(Math.floor(p.x / PITCH), 0, N - 1);
@@ -5756,10 +5801,11 @@ export default function IronLionLayer004() {
         }
         const dx = p.tgt[0] - p.x, dy = p.tgt[1] - p.y;
         const d = Math.hypot(dx, dy);
-        if (d < 9) { retarget(p); continue; }
+        if (d < 9) { if (p.park) parkKidTarget(p); else retarget(p); continue; }
         const sp = p.mode === "cross" ? p.spd * 1.35 : p.spd;
         p.vx = (dx / d) * sp; p.vy = (dy / d) * sp;
         p.x += p.vx * dt; p.y += p.vy * dt;
+        collideSkate(p, 9);
         p.anim += dt * (sp / 22);
       }
     }
@@ -6197,7 +6243,7 @@ export default function IronLionLayer004() {
       // the rack. Same plate as the shop and the den -- one object, drawn once.
       const r = skateRack();
       const ri = imgs.current.sk_rack;
-      if (ri && ri.width) ctx.drawImage(ri, r.x - 48, r.y - 30, 96, 56);
+      if (ri && ri.width) ctx.drawImage(ri, r.x - 27, r.y - 16, 54, 32);
       else {
         ctx.fillStyle = "#3a3c40"; ctx.fillRect(r.x - 46, r.y - 8, 92, 12);
         for (let n = 0; n < 3; n++) {
@@ -6220,8 +6266,20 @@ export default function IronLionLayer004() {
       // one contact shadow on the lower-right edge is the only thing implying height
       ctx.fillStyle = "rgba(0,0,0,0.30)";
       ctx.fillRect(x + 6, y + 6, w, h);
+      /* The same parallax the buildings use, so a ramp does not read as a sticker beside a
+         block that leans. `rise` is in floors: a half-pipe is about one storey, a fence is
+         half of one, and the pool and the bowls are NEGATIVE -- they are holes, so their
+         floor slides toward the camera centre instead of away from it. */
+      const RISE = {
+        halfpipe: 1.0, quarter: 0.75, funbox: 0.4, kicker: 0.3, rail: 0.25,
+        pool: -0.8, bowl: -0.7, bowl_sq: -0.7, fence: 0.5, bench: 0.2, bin: 0.3, pile: 0.35,
+      };
+      const k = (RISE[o.k] || 0) * FLOOR_RISE;
+      const ox = clamp((cx - g.cam.x) * k, -190, 190);
+      const oy = clamp((cy - g.cam.y) * k, -190, 190);
       const im = imgs.current[SK_PLATE[o.k]];
-      if (im && im.width) { ctx.drawImage(im, x, y, w, h); return; }
+      if (im && im.width) { ctx.drawImage(im, x + ox, y + oy, w, h); return; }
+      ctx.translate(ox, oy);
       switch (o.k) {
         case "halfpipe": {
           // from above: two transitions either side of a flat, light at the lip, dark at the
@@ -6295,6 +6353,7 @@ export default function IronLionLayer004() {
         default:
           ctx.fillStyle = "#5a5650"; ctx.fillRect(x, y, w, h);
       }
+      ctx.translate(-ox, -oy);
     }
 
     function drawParkSurface(ex0, ey0, ex1, ey1) {
@@ -16257,9 +16316,26 @@ export default function IronLionLayer004() {
       else { ctx.fillStyle = "#15161a"; ctx.fillRect(-19, -6, 38, 12); }
       ctx.restore();
     }
+    /* Sideways across the deck, and back over the tail rather than dead centre. His facing
+       comes from atan2 of his velocity, which on a board points where the BOARD is going --
+       so left alone he rides like a man walking very fast. The quarter turn is applied about
+       his own centre after he is shifted back, or he swings instead of turning. */
+    function drawHeroOnBoard() {
+      const b = g.board;
+      const bx = Math.cos(b.ang) * -8, by = Math.sin(b.ang) * -8;
+      ctx.save();
+      ctx.translate(g.p.x + bx, g.p.y + by);
+      ctx.rotate(Math.PI / 2);
+      ctx.translate(-g.p.x, -g.p.y);
+      try { drawHeroBody(); } finally { ctx.restore(); }
+    }
     function drawHero() {
       const a = g.air;
-      if (!a || a.h <= 0.02) { drawBoardUnder(); drawHeroBody(); return; }
+      if (!a || a.h <= 0.02) {
+        drawBoardUnder();
+        if (g.board.on) drawHeroOnBoard(); else drawHeroBody();
+        return;
+      }
       /* Four things together, or it does not read as height:
            1. the sprite scales up          1.0 -> 1.35
            2. the shadow scales DOWN and stays on the ground he left
@@ -16273,7 +16349,10 @@ export default function IronLionLayer004() {
       ctx.scale(1 + k * 0.35, 1 + k * 0.35);
       ctx.translate(-g.p.x, -g.p.y);
       noHeroShadow = true;
-      try { drawBoardUnder(); drawHeroBody(); } finally { noHeroShadow = false; ctx.restore(); }
+      try {
+        drawBoardUnder();
+        if (g.board.on) drawHeroOnBoard(); else drawHeroBody();
+      } finally { noHeroShadow = false; ctx.restore(); }
     }
     function drawHeroBody() {
       if (drawSwimmer()) return;      // in the channel you are a head and a wake
