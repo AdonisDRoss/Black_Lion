@@ -1270,7 +1270,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 323 — THIRTY-TWO KIDS AND SIX STAFF";
+const BUILD_TAG = "LAYER 324 — CARPET, LEGS, SOLID";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -3502,7 +3502,7 @@ function makeFloor(b, f, rnd) {
               48, 46, "cafetable");
         }
         // only the venue's bar is staffed; every other bar in the city keeps its own furniture
-        if (kind === "bandvenue") P(cx - 12, cy - 15, 24, 30, "st_bar");
+        if (kind === "bandvenue") P(cx - 12, cy - 19, 24, 38, "st_bar");
         break;
       // third label collision. The club's run won; Il Corvo's m_booth/c_booth plates were dead.
       case "booth": {
@@ -3570,7 +3570,7 @@ function makeFloor(b, f, rnd) {
           }
         }
         // the mechanic lives at an open machine, so he stands in the row rather than at a wall
-        P(cx - 52, cy - 15, 24, 30, "st_mech");
+        P(cx - 52, cy - 19, 24, 38, "st_mech");
         // the cocktail table is the one you sit at, so it goes in the middle of the floor
         P(cx - 20, cy - 16, 40, 32, "ar_cocktail");
         P(cx - 30, cy + 30, 15, 15, "ar_stool");
@@ -3578,8 +3578,8 @@ function makeFloor(b, f, rnd) {
         break;
       }
       case "arfront":
-        P(q2.x0 + pad + 26, cy - 15, 24, 30, "st_change");   // beside her machine
-        P(cx + 34, q2.y1 - pad - 32, 24, 30, "st_owner");    // behind the snack counter
+        P(q2.x0 + pad + 26, cy - 19, 24, 38, "st_change");   // beside her machine
+        P(cx + 34, q2.y1 - pad - 40, 24, 38, "st_owner");    // behind the snack counter
         P(q2.x0 + pad, cy - 15, 20, 30, "ar_change");
         P(cx - 30, q2.y1 - pad - 26, 60, 26, "ar_snack");
         P(q2.x1 - pad - 30, cy - 17, 30, 34, "ar_photo");
@@ -3595,7 +3595,7 @@ function makeFloor(b, f, rnd) {
         P(cx - 11, q2.y1 - pad - 14, 22, 14, "vn_monitor");
         P(cx - 8, q2.y0 + pad + 44, 16, 24, "vn_mic_stands");
         P(q2.x1 - pad - 30, q2.y1 - pad - 20, 30, 20, "vn_stage_steps");
-        P(q2.x0 + pad + 32, q2.y1 - pad - 30, 24, 30, "st_sound");
+        P(q2.x0 + pad + 32, q2.y1 - pad - 38, 24, 38, "st_sound");
         break;
       case "pit":
         // barriers across the front of the stage, and the light bar over the floor
@@ -3605,7 +3605,7 @@ function makeFloor(b, f, rnd) {
         break;
       case "merch":
         P(cx - 22, cy - 10, 44, 20, "vn_merch");
-        P(cx - 12, q2.y1 - pad - 30, 24, 30, "st_door");     // on the door, where he belongs
+        P(cx - 12, q2.y1 - pad - 38, 24, 38, "st_door");     // on the door, where he belongs
         break;
         P(q2.x1 - pad - 15, q2.y1 - pad - 15, 15, 15, "ar_bin");
         break;
@@ -10421,6 +10421,18 @@ export default function IronLionLayer004() {
       const isDen = b.kind === "den";
       ctx.fillStyle = isDen ? PF("den_floor", "#2a2c2e") : PF("floor" + wtier, `hsl(${26 + b.tone * 20}, 12%, ${17 + b.tone * 6}%)`);
       ctx.fillRect(b.x, b.y, b.w, b.h);
+      if (b.kind === "arcade") {
+        /* The black-light carpet, tiled. It was cut and registered and then never asked for,
+           so the arcade had the same floor as a laundrette. 96 units a tile is about 4.5m,
+           which is roughly what a real one repeats at. */
+        const cp = imgs.current.ar_carpet;
+        if (cp && cp.width) {
+          const T = 96;
+          for (let ty = b.y; ty < b.y + b.h; ty += T)
+            for (let tx = b.x; tx < b.x + b.w; tx += T)
+              ctx.drawImage(cp, tx, ty, T, T);
+        }
+      }
       if (isDen) {
         const bayRoom = plan.rooms.find((r) => r.k === "bay");
         if (bayRoom) {
@@ -10552,6 +10564,19 @@ export default function IronLionLayer004() {
           continue;
         }
         // real artwork where we have it, coloured block where we do not
+        /* The staff plates are torsos, same as the kids -- the kids get procedural legs from
+           the ped path but a prop has none, so they were floating shoulders. Two legs and a
+           contact shadow drawn UNDER the plate, before it, so the torso overlaps the hips. */
+        if (p.t.startsWith("st_")) {
+          const scx = p.x + p.w / 2, sby = p.y + p.h;
+          drawShadow(scx, sby - 3, p.w * 0.40, p.w * 0.18, 0.34);
+          ctx.fillStyle = "#20222a";
+          ctx.fillRect(scx - p.w * 0.26, p.y + p.h * 0.58, p.w * 0.18, p.h * 0.40);
+          ctx.fillRect(scx + p.w * 0.08, p.y + p.h * 0.58, p.w * 0.18, p.h * 0.40);
+          ctx.fillStyle = "#15161b";   // shoes
+          ctx.fillRect(scx - p.w * 0.28, sby - p.h * 0.09, p.w * 0.22, p.h * 0.09);
+          ctx.fillRect(scx + p.w * 0.06, sby - p.h * 0.09, p.w * 0.22, p.h * 0.09);
+        }
         if (propSprite(p.t, p.x, p.y, p.w, p.h)) continue;
         // everything below is the coloured-block path, and it must always run for a prop
         // kind that has no plate -- a bed, a sofa, a dresser, a sink
@@ -10614,6 +10639,14 @@ export default function IronLionLayer004() {
       bed: 1, sofa: 1, dresser: 1, shelf: 1, bookshelf: 1, freezer: 1, produce: 1,
       cardtable: 1, wheeltable: 1, slotbank: 1, stagedeck: 1, evidence: 1, desk: 1,
       table: 1, pew: 1, lectern: 1, locker: 1, crate: 1, console: 1,
+      /* You walked straight through the staff and through every machine in the arcade. A
+         person is the most obviously solid thing in a room; a cabinet is the second. */
+      st_change: 1, st_mech: 1, st_owner: 1, st_door: 1, st_bar: 1, st_sound: 1,
+      ar_cab_ironcurtain: 1, ar_cab_thefront: 1, ar_cab_curtain2: 1, ar_cocktail: 1,
+      ar_change: 1, ar_snack: 1, ar_photo: 1,
+      vn_main_stage: 1, vn_drum_riser: 1, vn_pastack: 1, vn_amp_stack: 1,
+      vn_amp_combo: 1, vn_merch: 1, vn_cases: 1, vn_barrier: 1, vn_stage_steps: 1,
+      sk_rack: 1, sk_shelf: 1, sk_counter: 1,
     };
     function collideBuildings(o, r, isCar) {
       if (g.onFwy) return;              // nothing up here to hit but the parapets
@@ -15861,10 +15894,19 @@ export default function IronLionLayer004() {
         if (g.boss && (!g.boss.roof || g.roof === g.boss.roof)) musicPlay("boss");
         else if (policeCars().length && (g.heat || 0) > 0) musicPlay("chase");
         else {
+          /* Two bugs here. `arcade` was in ZONE_MUSIC but zoneOf never returns it, so
+             arcade.mp3 could not play -- being in a room is not a district, and it has to be
+             asked for by the building you are standing in. And the youth track only covered
+             the park; the arcade and the venue sit one cell south in hood territory, so
+             walking out of the gate changed the music. The whole block is the district. */
+          const kind = g.inside && g.inside.kind;
           const pv = inVehicle() ? activeVeh() : g.p;
-          const z = zoneOf(clamp(Math.floor(pv.x / PITCH), 0, N - 1),
-                           clamp(Math.floor(pv.y / PITCH), 0, N - 1));
-          musicPlay(ZONE_MUSIC[z] || "drive");
+          const ci = clamp(Math.floor(pv.x / PITCH), 0, N - 1);
+          const cj = clamp(Math.floor(pv.y / PITCH), 0, N - 1);
+          if (kind === "arcade") musicPlay("arcade");
+          else if (kind === "bandvenue") musicPlay("youth");
+          else if (cj === 9 && (ci === 5 || ci === 6)) musicPlay("youth");
+          else musicPlay(ZONE_MUSIC[zoneOf(ci, cj)] || "drive");
         }
       }
       if (g.traffic.filter((v) => v.bus).length < 2 && Math.random() < 0.02) spawnBus(cx, cy);
@@ -16586,8 +16628,11 @@ export default function IronLionLayer004() {
          pushing side and comes back, which is as close to one leg going down as a single
          rotated plate can get. */
       const kp = (b.kick || 0) > 0 ? Math.sin(((0.30 - b.kick) / 0.30) * Math.PI) : 0;
-      const bx = Math.cos(b.ang + Math.PI / 2) * kp * 4;
-      const by = Math.sin(b.ang + Math.PI / 2) * kp * 4;
+      /* Back 3 units along the board. Centred, he read as standing just AHEAD of the deck --
+         his own sprite's mass sits forward of its origin, so dead centre is not visually
+         centre. The lean stays perpendicular, for the push. */
+      const bx = Math.cos(b.ang + Math.PI / 2) * kp * 4 - Math.cos(b.ang) * 3;
+      const by = Math.sin(b.ang + Math.PI / 2) * kp * 4 - Math.sin(b.ang) * 3;
       ctx.save();
       ctx.translate(g.p.x + bx, g.p.y + by);
       ctx.rotate(Math.PI / 2);
