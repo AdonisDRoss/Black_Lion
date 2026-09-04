@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 309 — ARRESTED";
+const BUILD_TAG = "LAYER 311 — THE SKATE PARK";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1667,6 +1667,11 @@ const ZONES = {
   chinatown: { i0: 0, i1: 5,  j0: 11, j1: 15, super: false },
   irish:     { i0: 12, i1: 16, j0: 0, j1: 3,  super: false },
   barrio:    { i0: 13, i1: 18, j0: 9,  j1: 13, super: false },
+  /* The youth district. Deliberately ON the hood/downtown seam -- i5 is the last hood column
+     and i6 the first downtown one -- so a kid from the Kings' blocks and a kid from downtown
+     both walk to the same place. It is a super-zone for the same reason the park is: the
+     internal streets are cut and it reads as one fenced campus rather than four lots. */
+  skate:     { i0: 5, i1: 6, j0: 7, j1: 8, super: true },
 };
 /* Module scope on purpose. This is pure data with no dependencies, and it is read from
    BOTH scopes in this file -- the map draw sits in the outer one and could not see it
@@ -1870,6 +1875,8 @@ function zoneOf(i, j) {
     if (inNeon(i, j)) return "neon";
     return inTown(i, j) ? "town" : "farm";
   }
+  // ahead of hood and downtown: the campus straddles both, and whoever is checked first wins
+  if (inZ(ZONES.skate, i, j)) return "skate";
   if (inZ(ZONES.cemetery, i, j)) return "cemetery";
   if (inZ(ZONES.park, i, j)) return "park";
   if (inZ(ZONES.projects, i, j)) return "projects";
@@ -1882,7 +1889,7 @@ function zoneOf(i, j) {
   if (inZ(ZONES.downtown, i, j)) return "downtown";
   return "city";
 }
-const isSuper = (z) => z === "park" || z === "projects" || z === "terminal" || z === "cemetery" || z === "prison";
+const isSuper = (z) => z === "park" || z === "projects" || z === "terminal" || z === "cemetery" || z === "prison" || z === "skate";
 /* a street segment is removed when both flanking blocks belong to one campus */
 /* Out in the county there is no street grid -- only the avenues carry through as county
    roads, so the field blocks are four times the size of a city block. */
@@ -2340,6 +2347,70 @@ function randomPalette() {
 }
 
 /* sidewalk corner of block (i,j); k: 0 TL 1 TR 2 BR 3 BL */
+/* ================= THE SKATE PARK =================
+   Obstacles are module-scope data, built once. Each carries `ride`:
+
+     ride: true   a ramp. SOLID ON FOOT, rideable with a board under you. That asymmetry is
+                  the whole point -- the board is the key to a part of the map, not a faster
+                  walk. It also means unequipping while you are stood on one has to be
+                  refused, or you end up inside a solid.
+     ride: false  furniture. Solid to everybody, board or not.
+
+   `dir` is the axis a ramp launches along (0 = it kicks you north/south, 1 = east/west) and
+   `pop` is how much of your speed it converts to air. */
+let SKATE_CACHE = null;
+function skateBox() {
+  const z = ZONES.skate;
+  return { x0: SX(z.i0), y0: SX(z.j0), x1: SX(z.i1 + 1), y1: SX(z.j1 + 1) };
+}
+function inSkate(x, y) {
+  const b = skateBox();
+  return x > b.x0 && x < b.x1 && y > b.y0 && y < b.y1;
+}
+function skateObs() {
+  if (SKATE_CACHE) return SKATE_CACHE;
+  const b = skateBox();
+  const W = b.x1 - b.x0, H = b.y1 - b.y0;
+  const X = (f) => b.x0 + W * f, Y = (f) => b.y0 + H * f;
+  const o = [];
+  const R = (x, y, w, h, k, dir, pop) => o.push({ x, y, w, h, k, dir, pop, ride: true });
+  const S = (x, y, w, h, k) => o.push({ x, y, w, h, k, ride: false });
+
+  // the half-pipe runs north-south down the west side -- the biggest thing here, as drawn
+  R(X(0.10), Y(0.16), W * 0.20, H * 0.52, "halfpipe", 1, 1.0);
+  // quarter-pipe against the north wall, kicking you south off its deck
+  R(X(0.44), Y(0.12), W * 0.26, H * 0.11, "quarter", 0, 0.85);
+  // the bowl: the drained pool, dead centre-east
+  R(X(0.60), Y(0.34), W * 0.28, H * 0.28, "bowl", -1, 0.6);
+  // funbox and two kickers on the flat
+  R(X(0.40), Y(0.52), W * 0.16, H * 0.09, "funbox", 0, 0.5);
+  R(X(0.36), Y(0.70), W * 0.09, H * 0.06, "kicker", 0, 0.7);
+  R(X(0.62), Y(0.70), W * 0.09, H * 0.06, "kicker", 0, 0.7);
+  // rails: low, long, and you grind them rather than launch
+  R(X(0.30), Y(0.40), W * 0.014, H * 0.16, "rail", 1, 0.2);
+  R(X(0.50), Y(0.76), W * 0.16, H * 0.012, "rail", 0, 0.2);
+  // municipal furniture along the south edge, where everybody sits
+  S(X(0.16), Y(0.82), W * 0.10, H * 0.022, "bench");
+  S(X(0.30), Y(0.82), W * 0.10, H * 0.022, "bench");
+  S(X(0.44), Y(0.82), W * 0.022, H * 0.022, "bin");
+  S(X(0.74), Y(0.20), W * 0.06, H * 0.05, "pile");
+
+  /* The fence. Four runs with a gap in the south one -- that gap is the way in, and it is
+     also where the rack sits, so you cannot arrive without walking past a board. */
+  const T = 22;
+  S(b.x0, b.y0, W, T, "fence"); S(b.x0, b.y1 - T, W * 0.42, T, "fence");
+  S(b.x0 + W * 0.58, b.y1 - T, W * 0.42, T, "fence");
+  S(b.x0, b.y0, T, H, "fence"); S(b.x1 - T, b.y0, T, H, "fence");
+
+  SKATE_CACHE = o;
+  return o;
+}
+// the rack is the one thing you interact with rather than collide into
+function skateRack() {
+  const b = skateBox();
+  return { x: b.x0 + (b.x1 - b.x0) * 0.50, y: b.y1 - (b.y1 - b.y0) * 0.13 };
+}
+
 function corner(i, j, k) {
   const h = SW * 0.5;
   const xL = SX(i) + halfW(i) + h, xR = SX(i + 1) - halfW(i + 1) - h;
@@ -2377,6 +2448,14 @@ function floorKind(b, f) {
   /* The Kestrel climbs: machines on the ground where anyone can walk in, cards on two, and the
      room on three you have to be let into. */
   if (b.landmark) return f === 0 ? "casino" : f === 1 ? "cardroom" : "vip";
+  /* These four were built, placed in the city, and given full authored floor plans -- and
+     floorKind had no line for any of them, so every one of them fell through to the generic
+     lobby-and-flats plan at the bottom. The plans, and every furniture case written for their
+     rooms, had never once run. A layout branch is only alive if floorKind can return its name. */
+  if (b.kind === "venue") return f === 0 ? "venue" : "offices";
+  if (b.kind === "nightclub") return f === 0 ? "nightclub" : "offices";
+  if (b.kind === "motel") return "motel";
+  if (b.kind === "ristorante") return f === 0 ? "ristorante" : "apartments";
   if (b.kind === "warehouse" || b.kind === "garage") return "warehouse";
   if (b.kind === "terminal") return "terminal";
   if (b.kind === "club") return "club";
@@ -2908,10 +2987,26 @@ function makeFloor(b, f, rnd) {
         P(q2.x0 + 32, q2.y1 - 26, 14, 14, "scanner");
         P(q2.x1 - 20, q2.y0 + 40, 14, 16, "cbradio");
         break;
-      case "floor":
-        P(q2.x0 + 20, q2.y0 + 20, 34, 26, "crate");
-        P(q2.x1 - 60, q2.y1 - 46, 44, 30, "crate");
+      /* Two different rooms are called "floor": the warehouse's, and the gaming hall's. They
+         were two switch cases with the same label. Duplicate case labels are legal JS and the
+         FIRST one wins, so the gaming hall got the warehouse's two crates and the tables were
+         dead code. Branch on the plan kind instead of relying on case order. */
+      case "floor": {
+        if (kind === "venue") {
+          // blackjack, poker and the small card tables, alternating
+          const TBL = ["cz_00", "cz_07", "cz_01"];
+          let ti = 0;
+          for (let ry = q2.y0 + 40; ry < q2.y1 - 40; ry += 96) {
+            for (let rx = q2.x0 + 46; rx < q2.x1 - 46; rx += 112) {
+              P(rx, ry, 92, 72, TBL[ti % TBL.length]); ti++;
+            }
+          }
+        } else {
+          P(q2.x0 + 20, q2.y0 + 20, 34, 26, "crate");
+          P(q2.x1 - 60, q2.y1 - 46, 44, 30, "crate");
+        }
         break;
+      }
       case "bay":
         /* A garage bay was placing nothing at all. The lift down the middle is the one prop
            that says what the room is; everything else lines the walls. */
@@ -3081,9 +3176,15 @@ function makeFloor(b, f, rnd) {
         P(cx - 26, cy - 26, 52, 52, "wheeltable");
         break;
       }
+      // same collision as "floor": the casino cage won and the gaming hall's window never drew
       case "cage":
-        facing(q2, 90, 26, "counter");
-        P(q2.x1 - pad - 26, q2.y1 - pad - 28, 26, 28, "safe");
+        if (kind === "venue") {
+          P(q2.x0 + 12, cy - 24, Math.min(120, W2 - 24), 44, "cage_win");
+          P(q2.x1 - 40, q2.y1 - 40, 28, 30, "safe");
+        } else {
+          facing(q2, 90, 26, "counter");
+          P(q2.x1 - pad - 26, q2.y1 - pad - 28, 26, 28, "safe");
+        }
         break;
       case "desk":
         // the counter you are kept at, and the bench you wait on
@@ -3305,15 +3406,22 @@ function makeFloor(b, f, rnd) {
               48, 46, "cafetable");
         }
         break;
-      case "booth":
-        /* Booths down BOTH walls with tables between, filling the room -- two booths in a
-           corner is a diner that seats four people. */
-        for (let by = q2.y0 + 16; by < q2.y1 - 40; by += 52) {
-          P(q2.x0 + 10, by, Math.min(84, W2 * 0.36), 34, "booth");
-          if (W2 > 200) P(q2.x1 - 10 - Math.min(84, W2 * 0.36), by, Math.min(84, W2 * 0.36), 34, "booth");
-          if (W2 > 260) P(cx - 26, by + 2, 52, 30, "cafetable");
+      // third label collision. The club's run won; Il Corvo's m_booth/c_booth plates were dead.
+      case "booth": {
+        if (kind === "ristorante") {
+          const bk = b && b.biz === "noodle" ? "c_booth" : "m_booth";
+          for (let ry = q2.y0 + 12; ry < q2.y1 - 46; ry += 58) P(q2.x0 + 10, ry, 56, 48, bk);
+        } else {
+          /* Booths down BOTH walls with tables between, filling the room -- two booths in a
+             corner is a diner that seats four people. */
+          for (let by = q2.y0 + 16; by < q2.y1 - 40; by += 52) {
+            P(q2.x0 + 10, by, Math.min(84, W2 * 0.36), 34, "booth");
+            if (W2 > 200) P(q2.x1 - 10 - Math.min(84, W2 * 0.36), by, Math.min(84, W2 * 0.36), 34, "booth");
+            if (W2 > 260) P(cx - 26, by + 2, 52, 30, "cafetable");
+          }
         }
         break;
+      }
       case "dance":
         P(cx - Math.min(90, W2 * 0.36), cy - Math.min(70, H2 * 0.34),
           Math.min(180, W2 * 0.72), Math.min(140, H2 * 0.68), "floorlit");
@@ -3327,21 +3435,6 @@ function makeFloor(b, f, rnd) {
         P(cx - 34, cy - 16, 68, 32, "desk");
         P(q2.x0 + 10, q2.y1 - 40, 54, 26, "sofa");
         P(q2.x1 - 32, q2.y0 + 10, 22, 28, "cab");
-        break;
-      case "floor": {
-        // real gaming tables now: blackjack, poker and the small card tables, alternating
-        const TBL = ["cz_00", "cz_07", "cz_01"];
-        let ti = 0;
-        for (let ry = q2.y0 + 40; ry < q2.y1 - 40; ry += 96) {
-          for (let rx = q2.x0 + 46; rx < q2.x1 - 46; rx += 112) {
-            P(rx, ry, 92, 72, TBL[ti % TBL.length]); ti++;
-          }
-        }
-        break;
-      }
-      case "cage":
-        P(q2.x0 + 12, cy - 24, Math.min(120, W2 - 24), 44, "cage_win");
-        P(q2.x1 - 40, q2.y1 - 40, 28, 30, "safe");
         break;
       case "room":
         P(q2.x0 + 10, q2.y0 + 12, Math.min(60, W2 - 20), 34, "bed");
@@ -3359,11 +3452,6 @@ function makeFloor(b, f, rnd) {
         for (let ry = q2.y0 + 30; ry < q2.y1 - 30; ry += 74) {
           for (let rx = q2.x0 + 32; rx < q2.x1 - 32; rx += 84) P(rx, ry, 64, 56, "m_table");
         }
-        break;
-      }
-      case "booth": {
-        const bk = b && b.biz === "noodle" ? "c_booth" : "m_booth";
-        for (let ry = q2.y0 + 12; ry < q2.y1 - 46; ry += 58) P(q2.x0 + 10, ry, 56, 48, bk);
         break;
       }
       case "backroom":
@@ -3620,7 +3708,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     out.push(b);
     return out;
   }
-  if (zone === "park" || zone === "cemetery") return out;
+  if (zone === "park" || zone === "cemetery" || zone === "skate") return out;
 
   /* A fixed civic building takes its whole cell and nothing else is generated there. Checked
      before the zone branches so it does not matter what the surrounding district would have
@@ -4231,6 +4319,8 @@ export default function IronLionLayer004() {
       industrial: "industrial", irish: "irish", barrio: "barrio", projects: "hood",
       farm: "county", cemetery: "county", prison: "old", town: "county",
       park: "uptown", water: "county",
+      // no youth track written yet, so it borrows the hood's rather than going silent
+      skate: "hood",
     };
     const MUS = { buf: {}, cur: null, src: null, gain: null, want: null, tried: {}, vol: 0.5 };
 
@@ -4780,6 +4870,12 @@ export default function IronLionLayer004() {
       // earned-unlock rule; the discovery logic underneath is untouched.
       bootDen: true, title: true, titleT: 0, travelAll: true,
       paused: false, cut: null, onRamp: null, rampH: 0, missions: [], lion: 100, lionOn: false, lionCd: 0, onFwy: false, deckCd: 0, seen: { hood: 1 }, travelOpen: false, travelSel: 0, refueling: false, ambulance: null, kingsTurfHeat: 100,
+      /* The board is not a vehicle. `mode` stays "foot" the whole time you are on it -- you
+         are still your own sprite, still shootable, still able to walk through a door -- so
+         combat, police and arrest all carry on untouched. It is a movement modifier, and
+         `board.on` is the only thing that changes how stepFoot integrates. */
+      board: { has: false, on: false, held: 0, wasPush: false, spd: 0, ang: 0 },
+      air: { h: 0, t: 0, dur: 0, sx: 0, sy: 0 },
     };
   }
 
@@ -4885,6 +4981,8 @@ export default function IronLionLayer004() {
     if (!g.inside && g.mode === "foot" && G.leaderFn && G.leaderFn()) return;
     if (!g.inside && g.mode === "foot" && G.fireHouseFn && G.fireHouseFn()) return;
     if (!g.inside && g.mode === "foot" && G.sewerFn && G.sewerFn()) return;
+    // the rack at the park gate: take a board, or put it back
+    if (!g.inside && g.mode === "foot" && G.boardFn && G.boardFn()) return;
     if (!g.inside && G.raceTalkFn && G.raceTalkFn()) return;
     /* The mentor is inside the den, so this has to come BEFORE the door/stairs branch or E
        walks you out of the room instead of talking to him. `talkMentor` has existed since the
@@ -5135,7 +5233,121 @@ export default function IronLionLayer004() {
 
     const g = G.current;
 
+    /* Skate-park collision. The whole design sits in the `ride` flag:
+
+       on foot      every obstacle is solid, ramps included. That is what stops the park
+                    being a shortcut you can walk and makes the board worth carrying.
+       on a board   ramps are passable, and crossing one with speed pops you into the air.
+       in the air   nothing here touches you at all -- you pass over the coping.
+
+       Buildings and the rest of the world collide as normal in both cases; this only ever
+       adds obstacles, it never removes any. */
+    function collideSkate(o, r) {
+      if (!inSkate(o.x, o.y)) return;
+      const onBoard = g.board.on && o === g.p;
+      const flying = g.air.h > 0.02 && o === g.p;
+      for (const q of skateObs()) {
+        if (q.ride && onBoard) {
+          // rideable: no collision, but a ramp taken at speed launches you
+          if (!flying && q.pop > 0.3 && g.board.spd > 150
+            && o.x > q.x && o.x < q.x + q.w && o.y > q.y && o.y < q.y + q.h) {
+            ollie(q.pop * (0.55 + g.board.spd / 900));
+          }
+          continue;
+        }
+        if (q.ride && flying) continue;
+        const nx = clamp(o.x, q.x, q.x + q.w), ny = clamp(o.y, q.y, q.y + q.h);
+        const dx = o.x - nx, dy = o.y - ny, d = Math.hypot(dx, dy);
+        if (d < r && d > 0.001) {
+          o.x = nx + (dx / d) * r; o.y = ny + (dy / d) * r;
+          if (onBoard) g.board.spd *= 0.35;
+        } else if (d <= 0.001) {
+          // dead centre of a box: shove out along the shallower axis
+          const l = Math.abs(o.x - q.x), rr = Math.abs(q.x + q.w - o.x);
+          const t = Math.abs(o.y - q.y), bo = Math.abs(q.y + q.h - o.y);
+          const m = Math.min(l, rr, t, bo);
+          if (m === l) o.x = q.x - r; else if (m === rr) o.x = q.x + q.w + r;
+          else if (m === t) o.y = q.y - r; else o.y = q.y + q.h + r;
+        }
+      }
+    }
+
+    /* The ollie, exactly as the youth-district note specified it: the sprite scales UP, the
+       shadow scales DOWN and stays where he took off, the gap between them opens, and while
+       he is up nothing collides with him. Do all four and a flat sprite is unmistakably in
+       the air; do only the first and it is a balloon. */
+    function ollie(power) {
+      const a = g.air;
+      if (a.h > 0.02) return false;
+      a.t = 0; a.dur = 0.42 + power * 0.34; a.sx = g.p.x; a.sy = g.p.y; a.h = 0.001;
+      return true;
+    }
+    function stepAir(dt) {
+      const a = g.air;
+      if (a.h <= 0) return;
+      a.t += dt;
+      if (a.t >= a.dur) { a.h = 0; a.t = 0; return; }
+      a.h = Math.sin((a.t / a.dur) * Math.PI);
+    }
+
+    function stepBoard(dt) {
+      const inp = input.current, k = inp.keys, b = g.board;
+      let ix = inp.x + (k["a"] || k["arrowleft"] ? -1 : 0) + (k["d"] || k["arrowright"] ? 1 : 0);
+      let iy = inp.y + (k["w"] || k["arrowup"] ? -1 : 0) + (k["s"] || k["arrowdown"] ? 1 : 0);
+      const len = Math.hypot(ix, iy);
+
+      /* One control does both, because that is how the motion works: a TAP is a kick, HOLDING
+         is dragging your foot. A board has no reverse, which is why REV is not the stop. */
+      const pushOn = !!(inp.run || k["shift"]);
+      if (pushOn && !b.wasPush && g.air.h <= 0.02) {
+        // each kick is worth less the faster you are already going, so speed tops out
+        b.spd = Math.min(430, b.spd + 150 * (1 - b.spd / 560));
+        g.pushFlash = 0.2;
+      }
+      if (pushOn) b.held += dt; else b.held = 0;
+      b.wasPush = pushOn;
+      const braking = pushOn && b.held > 0.26 && g.air.h <= 0.02;
+
+      const jumpOn = !!(inp.ollie || k[" "]);
+      if (jumpOn && !b.wasOllie) ollie(0.4 + Math.min(0.6, b.spd / 500));
+      b.wasOllie = jumpOn;
+
+      if (len > 0.05) {
+        const want = Math.atan2(iy, ix);
+        let d = want - b.ang;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        // tight when slow, lazy when fast, and you barely steer once your wheels are off
+        const rate = (g.air.h > 0.02 ? 1.2 : 3.6) * (1 - Math.min(0.55, b.spd / 900));
+        b.ang += clamp(d, -rate * dt, rate * dt);
+      }
+      b.spd = Math.max(0, b.spd - (braking ? 460 : 34) * dt);
+
+      stepAir(dt);
+      g.p.vx = Math.cos(b.ang) * b.spd;
+      g.p.vy = Math.sin(b.ang) * b.spd;
+      g.p.x += g.p.vx * dt; g.p.y += g.p.vy * dt;
+      g.p.moving = b.spd;
+      if (b.spd > 14) {
+        g.p.anim += dt * 5;
+        if (Math.abs(g.p.vx) > Math.abs(g.p.vy)) g.p.dir = g.p.vx > 0 ? "right" : "left";
+        else g.p.dir = g.p.vy > 0 ? "down" : "up";
+      }
+      g.p.running = false;
+      // in the air he clears everything; on the ground the world is as solid as ever
+      if (g.air.h <= 0.02) {
+        collideCircle(g.p, 13);
+        collideBuildings(g.p, 13, false);
+        collideActors(g.p, 13);
+      }
+      collideSkate(g.p, 13);
+      g.p.x = clamp(g.p.x, WORLD_MIN + 20, WORLD_MAX - 20);
+      g.p.y = clamp(g.p.y, WORLD_MIN + 20, WORLD_MAX - 20);
+    }
+
     function stepFoot(dt) {
+      if (g.board.on) { stepBoard(dt); return; }
+      stepAir(dt);
       const inp = input.current, k = inp.keys;
       let ix = inp.x + (k["a"] || k["arrowleft"] ? -1 : 0) + (k["d"] || k["arrowright"] ? 1 : 0);
       let iy = inp.y + (k["w"] || k["arrowup"] ? -1 : 0) + (k["s"] || k["arrowdown"] ? 1 : 0);
@@ -5164,6 +5376,7 @@ export default function IronLionLayer004() {
       collideCircle(g.p, 13);
       collideBuildings(g.p, 13, false);
       collideActors(g.p, 13);
+      collideSkate(g.p, 13);
       g.p.x = clamp(g.p.x, WORLD_MIN + 20, WORLD_MAX - 20);
       g.p.y = clamp(g.p.y, WORLD_MIN + 20, WORLD_MAX - 20);
       g.p.running = running;
@@ -5914,6 +6127,111 @@ export default function IronLionLayer004() {
         ctx.beginPath(); ctx.arc(tx, ty, 15, 0, 6.3); ctx.fill();
         ctx.fillStyle = "#283c28";
         ctx.beginPath(); ctx.arc(tx - 3, ty - 4, 9, 0, 6.3); ctx.fill();
+      }
+    }
+
+    /* Drawn directly rather than pushed through the prop pipeline. The casino floor already
+       had to be rescued this way, and until the pipeline is fixed anything that must appear
+       is safer drawing itself. When the plates land, each `case` below becomes one drawImage. */
+    function drawSkateSurface(ex0, ey0, ex1, ey1) {
+      ctx.fillStyle = "#4a4844";
+      ctx.fillRect(ex0, ey0, ex1 - ex0, ey1 - ey0);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(ex0, ey0, ex1 - ex0, ey1 - ey0); ctx.clip();
+      const b = skateBox();
+      // slab joints, so a large flat area does not read as a void
+      ctx.strokeStyle = "rgba(0,0,0,0.16)"; ctx.lineWidth = 3;
+      for (let x = b.x0; x <= b.x1; x += 220) {
+        ctx.beginPath(); ctx.moveTo(x, b.y0); ctx.lineTo(x, b.y1); ctx.stroke();
+      }
+      for (let y = b.y0; y <= b.y1; y += 220) {
+        ctx.beginPath(); ctx.moveTo(b.x0, y); ctx.lineTo(b.x1, y); ctx.stroke();
+      }
+      for (const o of skateObs()) drawSkateObs(o);
+      // the rack: a low steel frame with three decks in it
+      const r = skateRack();
+      ctx.fillStyle = "#3a3c40"; ctx.fillRect(r.x - 46, r.y - 8, 92, 12);
+      for (let n = 0; n < 3; n++) {
+        ctx.fillStyle = ["#7a3b32", "#2f5560", "#6a5a2e"][n];
+        ctx.fillRect(r.x - 38 + n * 30, r.y - 30, 12, 34);
+      }
+      ctx.restore();
+    }
+    function drawSkateObs(o) {
+      const x = o.x, y = o.y, w = o.w, h = o.h, cx = x + w / 2, cy = y + h / 2;
+      // one contact shadow on the lower-right edge is the only thing implying height
+      ctx.fillStyle = "rgba(0,0,0,0.30)";
+      ctx.fillRect(x + 6, y + 6, w, h);
+      switch (o.k) {
+        case "halfpipe": {
+          // from above: two transitions either side of a flat, light at the lip, dark at the
+          // bottom. The shading across the face IS the ramp -- there is no profile to draw.
+          ctx.fillStyle = "#6b6157"; ctx.fillRect(x, y, w, h);
+          const gr = ctx.createLinearGradient(x, 0, x + w, 0);
+          gr.addColorStop(0, "#9a9083"); gr.addColorStop(0.5, "#4b463f");
+          gr.addColorStop(1, "#9a9083");
+          ctx.fillStyle = gr; ctx.fillRect(x, y, w, h);
+          // worn pale down the middle, where everyone rides
+          ctx.fillStyle = "rgba(220,214,200,0.10)";
+          ctx.fillRect(cx - w * 0.10, y, w * 0.20, h);
+          // steel coping along each lip
+          ctx.strokeStyle = "#cfd4d8"; ctx.lineWidth = 5;
+          ctx.beginPath(); ctx.moveTo(x + 2, y); ctx.lineTo(x + 2, y + h);
+          ctx.moveTo(x + w - 2, y); ctx.lineTo(x + w - 2, y + h); ctx.stroke();
+          break;
+        }
+        case "quarter": {
+          const gr = ctx.createLinearGradient(0, y, 0, y + h);
+          gr.addColorStop(0, "#4b463f"); gr.addColorStop(1, "#9a9083");
+          ctx.fillStyle = gr; ctx.fillRect(x, y, w, h);
+          ctx.strokeStyle = "#cfd4d8"; ctx.lineWidth = 5;
+          ctx.beginPath(); ctx.moveTo(x, y + 3); ctx.lineTo(x + w, y + 3); ctx.stroke();
+          break;
+        }
+        case "bowl": {
+          const rr = Math.min(w, h) / 2;
+          const gr = ctx.createRadialGradient(cx, cy, rr * 0.15, cx, cy, rr);
+          gr.addColorStop(0, "#3c3a36"); gr.addColorStop(1, "#8d887c");
+          ctx.fillStyle = gr;
+          ctx.beginPath(); ctx.ellipse(cx, cy, rr, rr, 0, 0, 6.3); ctx.fill();
+          ctx.strokeStyle = "#b3ada0"; ctx.lineWidth = 9; ctx.stroke();
+          break;
+        }
+        case "funbox":
+          ctx.fillStyle = "#7d7161"; ctx.fillRect(x, y, w, h);
+          ctx.fillStyle = "rgba(255,255,255,0.08)"; ctx.fillRect(x, y, w, h * 0.3);
+          ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 3; ctx.strokeRect(x, y, w, h);
+          break;
+        case "kicker": {
+          ctx.fillStyle = "#8a7c68";
+          ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(x + w, y + h);
+          ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+          break;
+        }
+        case "rail":
+          ctx.fillStyle = "#b9bec4"; ctx.fillRect(x, y, Math.max(4, w), Math.max(4, h));
+          break;
+        case "bench":
+          ctx.fillStyle = "#3f4a3a"; ctx.fillRect(x, y, w, h);
+          ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(x, y + h * 0.45, w, 2);
+          break;
+        case "bin":
+          ctx.fillStyle = "#4a4f4a";
+          ctx.beginPath(); ctx.ellipse(cx, cy, w / 2, h / 2, 0, 0, 6.3); ctx.fill();
+          break;
+        case "pile":
+          ctx.fillStyle = "#3b3630"; ctx.fillRect(x, y, w, h);
+          ctx.fillStyle = "#6a5a3e"; ctx.fillRect(x + 4, y + 4, w - 8, h * 0.35);
+          break;
+        case "fence":
+          // chain-link read from above: a thin line with post caps
+          ctx.fillStyle = "rgba(150,155,160,0.5)"; ctx.fillRect(x, y, w, h);
+          ctx.fillStyle = "#8d9298";
+          if (w > h) for (let px = x; px < x + w; px += 90) ctx.fillRect(px, y - 2, 7, h + 4);
+          else for (let py = y; py < y + h; py += 90) ctx.fillRect(x - 2, py, w + 4, 7);
+          break;
+        default:
+          ctx.fillStyle = "#5a5650"; ctx.fillRect(x, y, w, h);
       }
     }
 
@@ -6929,6 +7247,8 @@ export default function IronLionLayer004() {
         saved: g.saved || 0, lost: g.lost || 0, pulled: g.pulled || 0,
         suspicion: g.suspicion || 0, heat: g.heat || 0,
         kingsTurfHeat: g.kingsTurfHeat || 0,
+        // whether he is carrying a board, so it does not vanish on reload
+        board: !!g.board.has,
         garage: (g.garage || []).map((e) => ({ k: e.k, name: e.name, len: e.len })),
         missions: (g.missions || []).map((m) => ({ id: m.id, done: m.done, stage: m.stage })),
         war: g.war || 0, warOver: g.warOver || null,
@@ -6966,6 +7286,10 @@ export default function IronLionLayer004() {
       g.saved = o.saved || 0; g.lost = o.lost || 0; g.pulled = o.pulled || 0;
       g.suspicion = o.suspicion || 0; g.heat = o.heat || 0;
       g.kingsTurfHeat = o.kingsTurfHeat || 0;
+      /* Carrying it is saved; RIDING it is not. Loading straight onto a moving board with no
+         idea where you are is worse than starting on your feet next to it. */
+      g.board.has = !!o.board; g.board.on = false; g.board.spd = 0;
+      g.air.h = 0; g.air.t = 0;
       g.garage = (o.garage || []).slice();
       g.war = o.war || 0; g.warOver = o.warOver || null;
       g.warSaved = o.warSaved || 0; g.warLost = o.warLost || 0;
@@ -9532,6 +9856,8 @@ export default function IronLionLayer004() {
       bunk: "#54473a", wardrobe: "#463a2c", locker: "#3b4350", rack: "#4a463f",
       bench: "#5a5346", stool: "#4a3a2a", lamp: "#6a6150", rug: "#4a3630",
       m_table: "#6a5a48", m_booth: "#6a2f2a", m_bar: "#5a4a3c",
+      // the gaming hall: these had no colour, so a missing plate was an anonymous grey block
+      cz_00: "#2f5b46", cz_01: "#2f5b46", cz_07: "#3a4f68", cage_win: "#5a5044",
       c_round: "#7a6a52", c_booth: "#6a2f2a", c_table: "#7a6a52",
       pump: "#c9c3b2", island: "#5d5b55", tyres: "#22242a", tools: "#5c5850",
     };
@@ -11520,6 +11846,8 @@ export default function IronLionLayer004() {
       { z: "neon",      name: "EMBER FLATS",    i: 28, j: 23 },
       // the Kestrel is the reason anyone goes out there, so it gets its own line
       { z: "neon",      name: "THE KESTREL",    i: 28, j: 23, landmark: true },
+      // the youth district. Arrives at the gate in the south fence, next to the rack.
+      { z: "skate",     name: "THE SKATE PARK",  i: 5,  j: 8, skate: true },
       /* The elevated. Downtown is the busiest stop and the one worth arriving at, and the
          terminal is how you reach it without driving the whole way round to test the train. */
       { z: "downtown",  name: "DOWNTOWN \u2014 THE L", elStop: 0 },
@@ -11584,6 +11912,10 @@ export default function IronLionLayer004() {
       /* A landmark drops you at its own door rather than the corner of the block -- travelling
          to THE KESTREL and arriving in a car park two streets away is the same as not having
          the entry. The stair foot is south of the building, which is where the door now is. */
+      if (t.skate) {
+        const r = skateRack();
+        c = [r.x, r.y + 90];
+      }
       if (t.landmark) {
         const b = visibleBuildings({ x0: SX(t.i), x1: SX(t.i + 1),
                                      y0: SX(t.j), y1: SX(t.j + 1) }).find((q) => q.landmark);
@@ -15649,12 +15981,13 @@ export default function IronLionLayer004() {
           }
         }
         const lw = c.lx1 - c.lx0, lh = c.ly1 - c.ly0;
-        if (c.zone === "park" || c.zone === "projects" || c.zone === "terminal" || c.zone === "cemetery") {
+        if (c.zone === "park" || c.zone === "projects" || c.zone === "terminal" || c.zone === "cemetery" || c.zone === "skate") {
           const ex0 = c.x0 - (vCut(i, j) ? halfW(i) * 2 : 0);
           const ex1 = c.x1 + (vCut(i + 1, j) ? halfW(i + 1) * 2 : 0);
           const ey0 = c.y0 - (hCut(i, j) ? halfW(j) * 2 : 0);
           const ey1 = c.y1 + (hCut(i, j + 1) ? halfW(j + 1) * 2 : 0);
-          if (c.zone === "park") drawParkSurface(ex0, ey0, ex1, ey1);
+          if (c.zone === "skate") drawSkateSurface(ex0, ey0, ex1, ey1);
+          else if (c.zone === "park") drawParkSurface(ex0, ey0, ex1, ey1);
           else if (c.zone === "cemetery") drawCemetery(ex0, ey0, ex1, ey1, i, j);
           else if (c.zone === "terminal") drawTerminalSurface(ex0, ey0, ex1, ey1);
           else drawProjectsSurface(ex0, ey0, ex1, ey1);
@@ -15834,7 +16167,12 @@ export default function IronLionLayer004() {
       ctx.globalAlpha = 1;
     }
 
+    /* Set for the length of one drawHeroBody call and cleared straight after. While he is in
+       the air the airborne path draws his shadow itself -- shrinking, and left behind on the
+       ground where he took off -- so the body's own must not also fire. */
+    let noHeroShadow = false;
     function drawShadow(x, y, rx, ry, a) {
+      if (noHeroShadow) return;
       ctx.fillStyle = `rgba(0,0,0,${a})`;
       ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 6.3); ctx.fill();
     }
@@ -15842,6 +16180,24 @@ export default function IronLionLayer004() {
     const DIR_ASSET = { up: "down", down: "up", left: "left", right: "right" };
 
     function drawHero() {
+      const a = g.air;
+      if (!a || a.h <= 0.02) { drawHeroBody(); return; }
+      /* Four things together, or it does not read as height:
+           1. the sprite scales up          1.0 -> 1.35
+           2. the shadow scales DOWN and stays on the ground he left
+           3. the gap between them opens, always the same way (down-right, matching the key)
+           4. nothing collides with him -- handled in stepBoard, not here */
+      const k = a.h;
+      drawShadow(a.sx, a.sy + 3, 13 * (1 - k * 0.5), 6 * (1 - k * 0.5), 0.4 * (1 - k * 0.45));
+      const gap = k * 7;
+      ctx.save();
+      ctx.translate(g.p.x + gap, g.p.y + gap);
+      ctx.scale(1 + k * 0.35, 1 + k * 0.35);
+      ctx.translate(-g.p.x, -g.p.y);
+      noHeroShadow = true;
+      try { drawHeroBody(); } finally { noHeroShadow = false; ctx.restore(); }
+    }
+    function drawHeroBody() {
       if (drawSwimmer()) return;      // in the channel you are a head and a wake
       const p = g.p;
       const moving = p.moving > 16;
@@ -17839,6 +18195,7 @@ export default function IronLionLayer004() {
             tick: (hudTick = (hudTick + 1) % 1000), hudCrash: null, mus: musicState(),
             dmg: inVehicle() && activeVeh() ? Math.round((activeVeh().dmg || 0) * 100) : null,
             shop: !!nearBodyShop(), inShop: !!g.inShop,
+            board: !!g.board.on, hasBoard: !!g.board.has, atRack: atRack(),
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
             lion: Math.round(g.lion), lionOn: !!g.lionOn, plain: !!g.plain,
@@ -18331,6 +18688,47 @@ export default function IronLionLayer004() {
     G.tableBetFn = guard(tableBet);
     G.tablePlayFn = guard(tablePlay);
     G.tableActFn = guard(tableAct);
+    function onRamp() {
+      if (!inSkate(g.p.x, g.p.y)) return false;
+      return skateObs().some((q) => q.ride
+        && g.p.x > q.x - 13 && g.p.x < q.x + q.w + 13
+        && g.p.y > q.y - 13 && g.p.y < q.y + q.h + 13);
+    }
+    function boardOn() {
+      const b = g.board;
+      b.on = true; b.spd = 0; b.held = 0; b.wasPush = false; b.wasOllie = false;
+      b.ang = (g.p.vx || g.p.vy) ? Math.atan2(g.p.vy, g.p.vx) : 0;
+    }
+    function boardOff() {
+      /* A ramp is solid on foot, so stepping off while stood on one would leave him inside a
+         solid with no way out. Refuse it and say why rather than strand him. */
+      if (onRamp()) { g.pickupFlash = { nm: "not_on_the_ramp", t: 1.6 }; return false; }
+      g.board.on = false; g.board.spd = 0;
+      g.air.h = 0; g.air.t = 0;
+      g.p.vx = 0; g.p.vy = 0;
+      return true;
+    }
+    function atRack() {
+      const r = skateRack();
+      return Math.hypot(g.p.x - r.x, g.p.y - r.y) < 95;
+    }
+    G.boardFn = () => {
+      if (!atRack()) return false;
+      if (g.board.has) {
+        if (!boardOff()) return true;                 // refused; the message is already up
+        g.board.has = false;
+        g.pickupFlash = { nm: "board_racked", t: 1.6 };
+      } else {
+        g.board.has = true; boardOn();
+        g.pickupFlash = { nm: "board_taken", t: 1.6 };
+      }
+      return true;
+    };
+    G.boardToggleFn = () => {
+      if (!g.board.has) return;
+      if (g.board.on) boardOff(); else boardOn();
+    };
+
     G.truckFn = () => {
       const gg = G.current;
       const t = nearTruck();
@@ -19931,9 +20329,15 @@ export default function IronLionLayer004() {
           </>
         ) : (
           <>
-            {btn("RUN", "sprint",
+            {btn(hud.board ? "PUSH" : "RUN",
+              hud.board ? "tap kick · hold brake" : "sprint",
               () => { input.current.run = true; },
               () => { input.current.run = false; })}
+            {hud.board && btn("OLLIE", "hop",
+              () => { input.current.ollie = true; },
+              () => { input.current.ollie = false; })}
+            {hud.hasBoard && btn("BRD", hud.board ? "step off" : "step on",
+              () => { G.boardToggleFn && G.boardToggleFn(); }, null, hud.board)}
             {hud.train && hud.train.riding
               && btn("SKIP", "next stop", () => G.trainSkipFn && G.trainSkipFn())}
             {btn("STR",
