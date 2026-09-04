@@ -896,7 +896,28 @@ const SK = {
   sk_shelf:      "assets/skate/sk_shelf.png",
   sk_counter:    "assets/skate/sk_counter.png",
   sk_deck:       "assets/skate/sk_deck.png",
+  dk_flames:     "assets/skate/dk_flames.png",
+  dk_skull:      "assets/skate/dk_skull.png",
+  dk_check:      "assets/skate/dk_check.png",
+  dk_alien:      "assets/skate/dk_alien.png",
+  dk_speed:      "assets/skate/dk_speed.png",
+  dk_tiger:      "assets/skate/dk_tiger.png",
+  dk_sunburst:   "assets/skate/dk_sunburst.png",
+  dk_hazard:     "assets/skate/dk_hazard.png",
 };
+/* The kids. Twelve cells as twelve separate plates rather than one sheet, because they
+   arrived as one figure per cell and slicing a sheet at runtime buys nothing here. */
+const YT = {};
+for (const who of ["skater", "arcade", "band", "girl"])
+  for (const b of ["a", "b", "c"])
+    YT["yt_" + who + "_" + b] = "assets/youth/yt_" + who + "_" + b + ".png";
+const VN = {};
+for (const k of ["main_stage", "drum_riser", "stage_steps", "amp_stack", "amp_combo",
+                 "mic_stands", "pastack", "lights", "merch", "barrier", "cases", "monitor"])
+  VN["vn_" + k] = "assets/venue/vn_" + k + ".png";
+const AR2 = {};
+for (const k of ["change", "snack", "photo", "carpet", "stool", "bin"])
+  AR2["ar_" + k] = "assets/arcade/ar_" + k + ".png";
 const HV = {
   hv_00: "assets/hv_00.webp",
   hv_01: "assets/hv_01.webp",
@@ -1233,7 +1254,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 317 — STANCE, KERB, PARALLAX";
+const BUILD_TAG = "LAYER 320 — THE KIDS ARRIVE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2397,39 +2418,34 @@ function inSkate(x, y) {
 function skateObs() {
   if (SKATE_CACHE) return SKATE_CACHE;
   const b = skateBox();
-  const W = b.x1 - b.x0, H = b.y1 - b.y0;
-  const X = (f) => b.x0 + W * f, Y = (f) => b.y0 + H * f;
+  /* Sizes are ABSOLUTE units now, not fractions of the campus. At 1500 units to 71 metres a
+     unit is 4.7cm, so these are real objects: a half-pipe 11m x 20m, a pool 15m x 8m, a bin
+     0.7m across. As fractions of a 126m campus everything came out two to four times too big
+     -- the pile of bags was seven metres wide, which is why it filled the screen. */
+  const X = (u) => b.x0 + u, Y = (u) => b.y0 + u;
   const o = [];
   const R = (x, y, w, h, k, dir, pop) => o.push({ x, y, w, h, k, dir, pop, ride: true });
   const S = (x, y, w, h, k) => o.push({ x, y, w, h, k, ride: false });
 
-  // the half-pipe runs north-south down the west side -- the biggest thing here, as drawn
-  R(X(0.10), Y(0.16), W * 0.20, H * 0.52, "halfpipe", 1, 1.0);
-  // quarter-pipe against the north wall, kicking you south off its deck
-  R(X(0.44), Y(0.12), W * 0.26, H * 0.11, "quarter", 0, 0.85);
-  /* The drained pool takes the prime spot centre-east. Its plate is 1398x758, so the footprint
-     is 1.85:1 to match -- a square box here would have stretched the best piece of art in the
-     batch, and it is the piece people will look at. */
-  R(X(0.55), Y(0.34), W * 0.37, H * 0.20, "pool", 0, 0.7);
-  // the two smaller dishes, moved out of its way rather than competing with it
-  R(X(0.76), Y(0.66), W * 0.16, H * 0.16, "bowl", -1, 0.5);
-  R(X(0.34), Y(0.25), W * 0.14, H * 0.14, "bowl_sq", -1, 0.45);
-  // funbox and two kickers on the flat
-  R(X(0.38), Y(0.54), W * 0.14, H * 0.09, "funbox", 0, 0.5);
-  R(X(0.36), Y(0.70), W * 0.09, H * 0.06, "kicker", 0, 0.7);
-  R(X(0.62), Y(0.70), W * 0.09, H * 0.06, "kicker", 0, 0.7);
-  // rails: low, long, and you grind them rather than launch
-  R(X(0.30), Y(0.40), W * 0.014, H * 0.16, "rail", 1, 0.2);
-  R(X(0.50), Y(0.76), W * 0.16, H * 0.012, "rail", 0, 0.2);
-  // municipal furniture along the south edge, where everybody sits
-  S(X(0.16), Y(0.82), W * 0.10, H * 0.022, "bench");
-  S(X(0.30), Y(0.82), W * 0.10, H * 0.022, "bench");
-  S(X(0.44), Y(0.82), W * 0.022, H * 0.022, "bin");
-  S(X(0.74), Y(0.20), W * 0.06, H * 0.05, "pile");
+  R(X(340), Y(620), 232, 422, "halfpipe", 1, 1.0);   // 11m x 20m, down the west side
+  R(X(760), Y(430), 190, 95, "quarter", 0, 0.85);    // 9m x 4.5m against the north
+  R(X(1180), Y(900), 317, 169, "pool", 0, 0.7);      // 15m x 8m, the drained pool
+  R(X(1700), Y(1420), 190, 190, "bowl", -1, 0.55);   // 9m round
+  R(X(800), Y(1500), 148, 148, "bowl_sq", -1, 0.5);  // 7m square-cornered
+  R(X(1250), Y(1320), 106, 51, "funbox", 0, 0.5);    // 5m x 2.4m
+  R(X(1040), Y(1720), 47, 34, "kicker", 0, 0.7);
+  R(X(1560), Y(1780), 47, 34, "kicker", 0, 0.7);
+  R(X(700), Y(1150), 6, 127, "rail", 1, 0.2);        // 6m rails, one each way
+  R(X(1420), Y(1180), 127, 6, "rail", 0, 0.2);
+
+  S(X(560), Y(2200), 42, 13, "bench");
+  S(X(700), Y(2200), 42, 13, "bench");
+  S(X(830), Y(2198), 15, 15, "bin");
+  S(X(1620), Y(560), 47, 30, "pile");
 
   /* The fence. Four runs with a gap in the south one -- that gap is the way in, and it is
      also where the rack sits, so you cannot arrive without walking past a board. */
-  const T = 22;
+  const W = b.x1 - b.x0, H = b.y1 - b.y0, T = 22;
   S(b.x0, b.y0, W, T, "fence"); S(b.x0, b.y1 - T, W * 0.42, T, "fence");
   S(b.x0 + W * 0.58, b.y1 - T, W * 0.42, T, "fence");
   S(b.x0, b.y0, T, H, "fence"); S(b.x1 - T, b.y0, T, H, "fence");
@@ -4351,6 +4367,12 @@ export default function IronLionLayer004() {
       boss:       { data: null, url: "assets/boss.mp3" },
       old:        { data: null, url: "assets/old.mp3" },
       irish:      { data: null, url: "assets/irish.mp3" },
+      /* The youth district finally has its own track instead of borrowing the hood's.
+         arcade/cab1/cab2 are cued by the room and the machine, not by the district. */
+      youth:      { data: null, url: "assets/youth.mp3" },
+      arcade:     { data: null, url: "assets/arcade.mp3" },
+      cab1:       { data: null, url: "assets/cab1.mp3" },
+      cab2:       { data: null, url: "assets/cab2.mp3" },
       barrio:     { data: null, url: "assets/barrio.mp3" },
     };
     /* Which track a district gets. Anything unlisted falls through to `drive`, which has played
@@ -4364,8 +4386,7 @@ export default function IronLionLayer004() {
       industrial: "industrial", irish: "irish", barrio: "barrio", projects: "hood",
       farm: "county", cemetery: "county", prison: "old", town: "county",
       park: "uptown", water: "county",
-      // no youth track written yet, so it borrows the hood's rather than going silent
-      skate: "hood",
+      skate: "youth",
     };
     const MUS = { buf: {}, cur: null, src: null, gain: null, want: null, tried: {}, vol: 0.5 };
 
@@ -4820,7 +4841,7 @@ export default function IronLionLayer004() {
     // The county truck sheet is drawn nose-left; every other plate is nose-up. Rotate those
     // at load so the draw code never has to know which sheet a vehicle came from.
     const ROTATE_CW = ["br_00", "br_01", "br_02", "br_03", "br_04"];
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...VN, ...AR2 };
     const keys = Object.keys(all);
     let left = keys.length;
     /* Assets are files now, not base64. Two consequences the loader has to handle:
@@ -5355,6 +5376,7 @@ export default function IronLionLayer004() {
       if (pushOn && !b.wasPush && g.air.h <= 0.02) {
         // each kick is worth less the faster you are already going, so speed tops out
         b.spd = Math.min(430, b.spd + 150 * (1 - b.spd / 560));
+        b.kick = 0.30;
         g.pushFlash = 0.2;
       }
       if (pushOn) b.held += dt; else b.held = 0;
@@ -5381,8 +5403,11 @@ export default function IronLionLayer004() {
       g.p.vy = Math.sin(b.ang) * b.spd;
       g.p.x += g.p.vx * dt; g.p.y += g.p.vy * dt;
       g.p.moving = b.spd;
-      if (b.spd > 14) {
-        g.p.anim += dt * 5;
+      /* Only the kick animates. The walk cycle ran the whole time he was rolling, so both legs
+         pumped while he coasted -- you push once and then you stand on it. */
+      b.kick = Math.max(0, (b.kick || 0) - dt);
+      if (b.kick > 0) {
+        g.p.anim += dt * 7;
         if (Math.abs(g.p.vx) > Math.abs(g.p.vy)) g.p.dir = g.p.vx > 0 ? "right" : "left";
         else g.p.dir = g.p.vy > 0 ? "down" : "up";
       }
@@ -5714,6 +5739,16 @@ export default function IronLionLayer004() {
       const py = b.y0 + 60 + Math.random() * (b.y1 - b.y0 - 120);
       g.peds.push({
         x: px, y: py, vx: 0, vy: 0, park: 1,
+        // half of them are on boards. The rest sit on the benches and watch, which is
+        // accurate and also means the ramps do not look like a queue.
+        skate: Math.random() < 0.55 ? 1 : 0,
+        /* Their own plate and their own board graphic, picked once and kept, so the same kid
+           is the same kid every time you look at him and the racks are not eight copies of
+           one design. */
+        yt: "yt_" + ["skater", "arcade", "band", "girl"][(Math.random() * 4) | 0]
+            + "_" + ["a", "b", "c"][(Math.random() * 3) | 0],
+        dk: DECKS[(Math.random() * DECKS.length) | 0],
+        sair: 0, sairT: 0, sairDur: 0, spin: 0, spinTo: 0, bang: Math.random() * 6.28,
         bi: clamp(Math.floor(px / PITCH), 0, N - 1),
         bj: clamp(Math.floor(py / PITCH), 0, N - 1),
         ck: 0, off: [0, 0], tgt: [px, py],
@@ -5722,14 +5757,53 @@ export default function IronLionLayer004() {
         jit: 0.93 + Math.random() * 0.15,
         spd: 46 + Math.random() * 26,
         anim: Math.random() * 6.28, mode: "walk", timer: 0,
+        rampCd: 0,
         idlePose: Math.random() < 0.45 ? "bag" : "talk",
       });
+      const k = g.peds[g.peds.length - 1];
+      if (k.skate) k.spd = 96 + Math.random() * 54;
     }
     function parkKidTarget(p) {
       const b = skateBox();
-      p.tgt = [b.x0 + 60 + Math.random() * (b.x1 - b.x0 - 120),
-               b.y0 + 60 + Math.random() * (b.y1 - b.y0 - 120)];
+      if (p.skate) {
+        /* A skater aims at a ramp, not at a random patch of concrete -- so they run laps
+           between the pool, the bowls and the half-pipe, which is what a park looks like
+           from above. The kickers and rails are in the pool too, so the small stuff gets used. */
+        const rides = skateObs().filter((q) => q.ride);
+        const q = rides[(Math.random() * rides.length) | 0];
+        p.tgt = [q.x + q.w * (0.2 + Math.random() * 0.6),
+                 q.y + q.h * (0.2 + Math.random() * 0.6)];
+      } else {
+        p.tgt = [b.x0 + 60 + Math.random() * (b.x1 - b.x0 - 120),
+                 b.y0 + 60 + Math.random() * (b.y1 - b.y0 - 120)];
+      }
       p.mode = "walk";
+    }
+
+    /* Skater kids hop and spin off whatever they cross. Same four-part read as the player's
+       ollie -- grow, shadow shrinks and stays, gap opens, nothing collides -- with a rotation
+       laid over it, because from above a spin is the only trick that reads at all. */
+    function updateParkSkater(p, dt) {
+      p.bang = Math.atan2(p.vy, p.vx) || p.bang;
+      if (p.sair > 0) {
+        p.sairT += dt;
+        if (p.sairT >= p.sairDur) { p.sair = 0; p.sairT = 0; p.spin = 0; }
+        else {
+          p.sair = Math.sin((p.sairT / p.sairDur) * Math.PI);
+          p.spin = p.spinTo * (p.sairT / p.sairDur);
+        }
+        return;
+      }
+      if (p.rampCd > 0) { p.rampCd -= dt; return; }
+      for (const q of skateObs()) {
+        if (!q.ride || q.pop < 0.3) continue;
+        if (p.x < q.x || p.x > q.x + q.w || p.y < q.y || p.y > q.y + q.h) continue;
+        p.sair = 0.001; p.sairT = 0; p.sairDur = 0.5 + q.pop * 0.45;
+        // a half spin or a full one, either way round
+        p.spinTo = (Math.random() < 0.5 ? -1 : 1) * Math.PI * (Math.random() < 0.5 ? 1 : 2);
+        p.rampCd = 0.6;
+        break;
+      }
     }
 
     function updatePeds(dt, cx, cy) {
@@ -5805,7 +5879,9 @@ export default function IronLionLayer004() {
         const sp = p.mode === "cross" ? p.spd * 1.35 : p.spd;
         p.vx = (dx / d) * sp; p.vy = (dy / d) * sp;
         p.x += p.vx * dt; p.y += p.vy * dt;
-        collideSkate(p, 9);
+        if (p.skate) updateParkSkater(p, dt);
+        // in the air a skater clears the ramp he is over; on the ground everyone is stopped by it
+        if (!(p.skate && p.sair > 0.02)) collideSkate(p, 9);
         p.anim += dt * (sp / 22);
       }
     }
@@ -5820,6 +5896,57 @@ export default function IronLionLayer004() {
     }
 
     function drawPed(p) {
+      if (p.skate) { drawPedSkating(p); return; }
+      if (p.yt && drawYouth(p)) return;
+      drawPedBody(p);
+    }
+    const DECKS = ["dk_flames", "dk_skull", "dk_check", "dk_alien",
+                   "dk_speed", "dk_tiger", "dk_sunburst", "dk_hazard"];
+    /* The youth plates are single figures facing DOWN their cell, like lion_top and unlike
+       civtop -- so they carry their own facing constant rather than borrowing either. */
+    const YOUTH_FACE = Math.PI / 2;
+    function drawYouth(p) {
+      const im = imgs.current[p.yt];
+      if (!im || !im.width) return false;
+      /* Drawn at 0.82. Measured, these came out 75-112% as wide as they are tall against
+         57-90% on the gang sheets, so at parity they read a size bigger than everyone else
+         in the street. Scaling them down is cheaper than another generation round. */
+      const h = 30 * (p.jit || 1) * 0.82, w = h * (im.width / im.height);
+      const sp = Math.hypot(p.vx || 0, p.vy || 0);
+      const ang = sp > 10 ? Math.atan2(p.vy, p.vx) + YOUTH_FACE : (p.bang || 0) + YOUTH_FACE;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(ang);
+      ctx.drawImage(im, -w / 2, -h / 2, w, h);
+      ctx.restore();
+      return true;
+    }
+    function drawPedSkating(p) {
+      const a = p.sair || 0;
+      ctx.save();
+      if (a > 0.02) {
+        drawShadow(p.x, p.y + 3, 11 * (1 - a * 0.5), 5 * (1 - a * 0.5), 0.36 * (1 - a * 0.45));
+        const gap = a * 6;
+        ctx.translate(p.x + gap, p.y + gap);
+        ctx.scale(1 + a * 0.3, 1 + a * 0.3);
+        ctx.translate(-p.x, -p.y);
+      }
+      // the deck
+      const im = imgs.current[p.dk] || imgs.current.sk_deck;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.bang + (p.spin || 0));
+      if (im && im.width) ctx.drawImage(im, -17, -7, 34, 14);
+      else { ctx.fillStyle = "#15161a"; ctx.fillRect(-17, -5, 34, 10); }
+      ctx.restore();
+      // and the kid on it: sideways across the deck, back over the tail, turning with the spin
+      const bx = Math.cos(p.bang) * -7, by = Math.sin(p.bang) * -7;
+      ctx.translate(p.x + bx, p.y + by);
+      ctx.rotate(Math.PI / 2 + (p.spin || 0));
+      ctx.translate(-p.x, -p.y);
+      try { if (!(p.yt && drawYouth(p))) drawPedBody(p); } finally { ctx.restore(); }
+    }
+    function drawPedBody(p) {
       // a ped carrying a baked civilian canvas uses the rotating path; the old outfit
       // system stays as the fallback until every ped has been converted
       /* Peds spawned before the pool was baked have no look yet. Assign one on first draw
@@ -16322,7 +16449,15 @@ export default function IronLionLayer004() {
        his own centre after he is shifted back, or he swings instead of turning. */
     function drawHeroOnBoard() {
       const b = g.board;
-      const bx = Math.cos(b.ang) * -8, by = Math.sin(b.ang) * -8;
+      /* Centred on the deck. He used to sit 8 units back over the tail, which meant the board
+         turning swung him around it instead of turning underneath him -- his feet moved and
+         the board did not. Centre is the pivot for both.
+         The only offset left is the push: while the kick is live he leans a few units to the
+         pushing side and comes back, which is as close to one leg going down as a single
+         rotated plate can get. */
+      const kp = (b.kick || 0) > 0 ? Math.sin(((0.30 - b.kick) / 0.30) * Math.PI) : 0;
+      const bx = Math.cos(b.ang + Math.PI / 2) * kp * 4;
+      const by = Math.sin(b.ang + Math.PI / 2) * kp * 4;
       ctx.save();
       ctx.translate(g.p.x + bx, g.p.y + by);
       ctx.rotate(Math.PI / 2);
@@ -19673,8 +19808,24 @@ export default function IronLionLayer004() {
             background: (imgs.current.tb_felt && imgs.current.tb_felt.width
               ? `linear-gradient(rgba(6,7,9,0.86), rgba(6,7,9,0.92)), url(${imgs.current.tb_felt.src}) repeat`
               : "rgba(6,7,9,0.95)"),
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            fontFamily: mono, padding: 16, gap: 10 }}>
+            /* Was a centred column with no scroll. On a 390px landscape viewport the panel
+               overflowed past BOTH ends and clipped -- LEAVE went under the browser chrome and
+               WALK AWAY under the toolbar, so a table you could not leave. Start at the top,
+               scroll, and keep clear of the notch. */
+            display: "flex", flexDirection: "column", alignItems: "center",
+            justifyContent: "flex-start", overflowY: "auto", WebkitOverflowScrolling: "touch",
+            fontFamily: mono, gap: 10,
+            padding: "calc(env(safe-area-inset-top, 0px) + 54px) 16px calc(env(safe-area-inset-bottom, 0px) + 28px)" }}>
+            {/* Pinned, not laid out. Whatever else the panel does, this one cannot be pushed
+                anywhere -- it is the only guaranteed way off the table. */}
+            <div onClick={() => G.tableCloseFn && G.tableCloseFn()}
+              style={{ position: "fixed", zIndex: 92, cursor: "pointer",
+                top: "calc(env(safe-area-inset-top, 0px) + 10px)", right: 12,
+                padding: "10px 18px", border: `1px solid ${C.gold}`,
+                background: "rgba(12,13,17,0.92)", color: C.gold,
+                fontSize: 11, letterSpacing: "0.20em" }}>
+              WALK AWAY
+            </div>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <div style={{ fontSize: 10, letterSpacing: "0.26em", color: C.gold }}>
                 {T.name} · {T.kind.toUpperCase()}
