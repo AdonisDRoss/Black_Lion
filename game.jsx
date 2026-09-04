@@ -1210,7 +1210,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 311 — THE SKATE PARK";
+const BUILD_TAG = "LAYER 314 — A RACK IN THE DEN";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -3017,10 +3017,13 @@ function makeFloor(b, f, rnd) {
           P(q2.x1 - pad - 96, q2.y1 - pad - 46, 88, 40, "lift");
           runX(q2, q2.y0 + pad, 4, 22, 18, "drum");
           runX(q2, q2.y1 - pad - 16, 3, 30, 16, "bench");
+          // a board rack in his own bay, on the wall opposite the lift and clear of both runs
+          P(q2.x0 + pad, cy - 15, 56, 30, "sk_rack");
         } else {
           P(q2.x1 - pad - 46, q2.y1 - pad - 96, 40, 88, "lift");
           runY(q2, q2.x0 + pad, 4, 18, 22, "drum");
           runY(q2, q2.x1 - pad - 16, 3, 16, 30, "bench");
+          P(cx - 15, q2.y0 + pad, 30, 56, "sk_rack");
         }
         break;
       case "__bay_old":
@@ -3308,6 +3311,13 @@ function makeFloor(b, f, rnd) {
           P(cx - 28, cy - 4, 56, 34, "workbench");
           P(q2.x1 - pad - 32, q2.y1 - pad - 30, 32, 30, "tyres");
           facing(q2, 52, 32, "counter");
+        } else if (A === "skate") {
+          // decks up the wall, a rack in the middle you can take one off, counter by the door
+          if (wide) runX(q2, q2.y0 + pad, nAcross, 34, 30, "wallrack", pad);
+          else runY(q2, q2.x0 + pad, nAcross, 30, 34, "wallrack", pad);
+          P(cx - 30, cy - 4, 60, 30, "sk_rack");
+          P(q2.x0 + pad, q2.y1 - pad - 30, 34, 30, "bins");
+          facing(q2, 52, 32, "counter");
         } else if (A === "service") {
           if (wide) {
             runX(q2, q2.y0 + pad, nAcross, 28, 38, "washer", pad);
@@ -3540,9 +3550,11 @@ const BIZ = {
     ["soul",    "sign_marquee",    ["BIG MAMA'S KITCHEN", "THE RIB JOINT", "SUNDAY'S SOUL FOOD"]],
     ["record",  "sign_hanging",    ["WAX & GROOVE", "SPIN CITY RECORDS", "THE RECORD BIN"]],
     ["church",  "sign_wood",       ["MOUNT ZION MISSION", "FIRST DELIVERANCE"]],
+    ["skate",   "sign_hanging",    ["DECK & WHEEL", "GRIND CITY SKATES", "SIDEWALK SURF"]],
   ],
   downtown: [
     ["deli",    "sign_hanging",    ["THE BRASS RAIL DELI", "LUNCH COUNTER", "CORNER DELI"]],
+    ["skate",   "sign_lightbox",   ["THE BOARD ROOM", "HOLLOWAY SKATE SUPPLY"]],
     ["office",  "sign_lightbox",   ["HALLORAN & SONS", "MERIDIAN TITLE CO", "BRANDT ACCOUNTING"]],
     ["bank",    "sign_wood",       ["RAVEN HOOK SAVINGS", "FIRST MERCHANTS BANK", "STATE TRUST"]],
     ["news",    "sign_arrow",      ["NEWSSTAND", "SMOKES & PAPERS", "THE KIOSK"]],
@@ -3652,6 +3664,7 @@ const BIZ_ARCH = {
   value:   ["pawn","bank","jewel","check","wire","furs","cigar","music","record","video","gallery"],
   civic:   ["church","funeral","union","assoc","office","rec"],
   pharm:   ["drug","florist"],
+  skate:   ["skate"],
   // hotel and motel already generate their own corridor-of-rooms layout; wedding is a chapel,
   // which is the civic set with a lectern
   civic2:  ["wedding"],
@@ -4988,6 +5001,7 @@ export default function IronLionLayer004() {
        walks you out of the room instead of talking to him. `talkMentor` has existed since the
        mentor did and nothing ever called it -- the HUD has been offering "[E] HE HAS SOMETHING
        FOR YOU" to a key that did something else. */
+    if (g.mode === "foot" && g.inside && G.boardFn && G.boardFn()) return;
     if (g.mode === "foot" && g.inside && G.compFn && G.compFn()) return;
     if (g.mode === "foot" && g.inside && G.mentorFn && G.mentorFn()) return;
     if (g.mode === "foot" && g.inside && g.inside.kind === "den" && G.lockerFn && G.lockerFn()) {
@@ -5334,13 +5348,13 @@ export default function IronLionLayer004() {
         else g.p.dir = g.p.vy > 0 ? "down" : "up";
       }
       g.p.running = false;
-      // in the air he clears everything; on the ground the world is as solid as ever
-      if (g.air.h <= 0.02) {
-        collideCircle(g.p, 13);
-        collideBuildings(g.p, 13, false);
-        collideActors(g.p, 13);
-      }
-      collideSkate(g.p, 13);
+      /* In the air he clears the COPING, not the city. Skipping every collider here meant an
+         ollie into a wall put him inside the building with nothing left to push him out --
+         collideSkate opens up ramps while airborne and leaves everything else solid, so the
+         exception belongs there and not in a blanket guard around the lot. */
+      collideCircle(g.p, 13);
+      collideBuildings(g.p, 13, false);
+      collideActors(g.p, 13);
       g.p.x = clamp(g.p.x, WORLD_MIN + 20, WORLD_MAX - 20);
       g.p.y = clamp(g.p.y, WORLD_MIN + 20, WORLD_MAX - 20);
     }
@@ -5376,7 +5390,6 @@ export default function IronLionLayer004() {
       collideCircle(g.p, 13);
       collideBuildings(g.p, 13, false);
       collideActors(g.p, 13);
-      collideSkate(g.p, 13);
       g.p.x = clamp(g.p.x, WORLD_MIN + 20, WORLD_MAX - 20);
       g.p.y = clamp(g.p.y, WORLD_MIN + 20, WORLD_MAX - 20);
       g.p.running = running;
@@ -5484,6 +5497,11 @@ export default function IronLionLayer004() {
          updateRoof read that as walking off the edge, so the roof "vanished" a second after
          he landed on it. */
       if ((g.roof || g.sewer) && o === g.p) return;
+      /* The skate park. collideSkate decides for itself what `o` is allowed through -- ramps
+         open up only for the player with a board under him -- so a car gets the fence and the
+         half-pipe as solid walls without any special case here. The airborne exception lives
+         inside collideSkate and covers ramps only. */
+      collideSkate(o, r);
       const ci = clamp(Math.floor(o.x / PITCH), 0, N - 1), cj = clamp(Math.floor(o.y / PITCH), 0, N - 1);
       // the prison fence, solid from every direction
       if (o.x > SX(PRISON.i0) - 600 && o.x < SX(PRISON.i1 + 1) + 600
@@ -9858,6 +9876,7 @@ export default function IronLionLayer004() {
       m_table: "#6a5a48", m_booth: "#6a2f2a", m_bar: "#5a4a3c",
       // the gaming hall: these had no colour, so a missing plate was an anonymous grey block
       cz_00: "#2f5b46", cz_01: "#2f5b46", cz_07: "#3a4f68", cage_win: "#5a5044",
+      sk_rack: "#6a5a3e",
       c_round: "#7a6a52", c_booth: "#6a2f2a", c_table: "#7a6a52",
       pump: "#c9c3b2", island: "#5d5b55", tyres: "#22242a", tools: "#5c5850",
     };
@@ -18708,7 +18727,17 @@ export default function IronLionLayer004() {
       g.p.vx = 0; g.p.vy = 0;
       return true;
     }
+    /* Indoors this now finds the actual `sk_rack` prop and measures to it, rather than counting
+       the whole shop floor as I had it. The den forced the change: E in there is already the
+       locker, the garage and the console, and a whole-floor rule would have swallowed all three.
+       Measuring to the prop also means any room that gets a rack works with no extra wiring. */
     function atRack() {
+      if (g.inside) {
+        const pl = buildingPlans(g.inside)[g.floor];
+        if (!pl) return false;
+        return pl.props.some((q) => q.t === "sk_rack"
+          && Math.hypot(g.p.x - (q.x + q.w / 2), g.p.y - (q.y + q.h / 2)) < 78);
+      }
       const r = skateRack();
       return Math.hypot(g.p.x - r.x, g.p.y - r.y) < 95;
     }
