@@ -874,6 +874,29 @@ const VH = {
   wf_03: "assets/wf_03.webp",
   wf_04: "assets/wf_04.webp",
 };
+/* The skate park plates. The loader asks for these paths literally, so they carry the
+   skate/ subfolder the zip shipped them in -- moving twelve files by hand on a phone to
+   satisfy a convention is a worse trade than one line each here. Only files that really
+   exist are listed: a name registered with no file behind it adds to the HOSTED ASSETS
+   NOT FOUND count, which is the one number worth trusting when art does not appear. */
+const SK = {
+  sk_halfpipe:   "assets/skate/sk_halfpipe.png",
+  sk_quarter:    "assets/skate/sk_quarter.png",
+  sk_rail:       "assets/skate/sk_rail.png",
+  sk_funbox:     "assets/skate/sk_funbox.png",
+  sk_kicker:     "assets/skate/sk_kicker.png",
+  sk_bowl:       "assets/skate/sk_bowl.png",
+  sk_bowl_square:"assets/skate/sk_bowl_square.png",
+  sk_pile:       "assets/skate/sk_pile.png",
+  sk_fence:      "assets/skate/sk_fence.png",
+  sk_bench:      "assets/skate/sk_bench.png",
+  sk_bin:        "assets/skate/sk_bin.png",
+  sk_pool:       "assets/skate/sk_pool.png",
+  sk_rack:       "assets/skate/sk_rack.png",
+  sk_shelf:      "assets/skate/sk_shelf.png",
+  sk_counter:    "assets/skate/sk_counter.png",
+  sk_deck:       "assets/skate/sk_deck.png",
+};
 const HV = {
   hv_00: "assets/hv_00.webp",
   hv_01: "assets/hv_01.webp",
@@ -1210,7 +1233,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 314 — A RACK IN THE DEN";
+const BUILD_TAG = "LAYER 316 — assets/skate/ + FITTINGS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2380,10 +2403,15 @@ function skateObs() {
   R(X(0.10), Y(0.16), W * 0.20, H * 0.52, "halfpipe", 1, 1.0);
   // quarter-pipe against the north wall, kicking you south off its deck
   R(X(0.44), Y(0.12), W * 0.26, H * 0.11, "quarter", 0, 0.85);
-  // the bowl: the drained pool, dead centre-east
-  R(X(0.60), Y(0.34), W * 0.28, H * 0.28, "bowl", -1, 0.6);
+  /* The drained pool takes the prime spot centre-east. Its plate is 1398x758, so the footprint
+     is 1.85:1 to match -- a square box here would have stretched the best piece of art in the
+     batch, and it is the piece people will look at. */
+  R(X(0.55), Y(0.34), W * 0.37, H * 0.20, "pool", 0, 0.7);
+  // the two smaller dishes, moved out of its way rather than competing with it
+  R(X(0.76), Y(0.66), W * 0.16, H * 0.16, "bowl", -1, 0.5);
+  R(X(0.34), Y(0.25), W * 0.14, H * 0.14, "bowl_sq", -1, 0.45);
   // funbox and two kickers on the flat
-  R(X(0.40), Y(0.52), W * 0.16, H * 0.09, "funbox", 0, 0.5);
+  R(X(0.38), Y(0.54), W * 0.14, H * 0.09, "funbox", 0, 0.5);
   R(X(0.36), Y(0.70), W * 0.09, H * 0.06, "kicker", 0, 0.7);
   R(X(0.62), Y(0.70), W * 0.09, H * 0.06, "kicker", 0, 0.7);
   // rails: low, long, and you grind them rather than launch
@@ -3313,11 +3341,11 @@ function makeFloor(b, f, rnd) {
           facing(q2, 52, 32, "counter");
         } else if (A === "skate") {
           // decks up the wall, a rack in the middle you can take one off, counter by the door
-          if (wide) runX(q2, q2.y0 + pad, nAcross, 34, 30, "wallrack", pad);
-          else runY(q2, q2.x0 + pad, nAcross, 30, 34, "wallrack", pad);
+          if (wide) runX(q2, q2.y0 + pad, nAcross, 34, 30, "sk_shelf", pad);
+          else runY(q2, q2.x0 + pad, nAcross, 30, 34, "sk_shelf", pad);
           P(cx - 30, cy - 4, 60, 30, "sk_rack");
           P(q2.x0 + pad, q2.y1 - pad - 30, 34, 30, "bins");
-          facing(q2, 52, 32, "counter");
+          facing(q2, 52, 32, "sk_counter");
         } else if (A === "service") {
           if (wide) {
             runX(q2, q2.y0 + pad, nAcross, 28, 38, "washer", pad);
@@ -4788,7 +4816,7 @@ export default function IronLionLayer004() {
     // The county truck sheet is drawn nose-left; every other plate is nose-up. Rotate those
     // at load so the draw code never has to know which sheet a vehicle came from.
     const ROTATE_CW = ["br_00", "br_01", "br_02", "br_03", "br_04"];
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK };
     const keys = Object.keys(all);
     let left = keys.length;
     /* Assets are files now, not base64. Two consequences the loader has to handle:
@@ -6166,20 +6194,34 @@ export default function IronLionLayer004() {
         ctx.beginPath(); ctx.moveTo(b.x0, y); ctx.lineTo(b.x1, y); ctx.stroke();
       }
       for (const o of skateObs()) drawSkateObs(o);
-      // the rack: a low steel frame with three decks in it
+      // the rack. Same plate as the shop and the den -- one object, drawn once.
       const r = skateRack();
-      ctx.fillStyle = "#3a3c40"; ctx.fillRect(r.x - 46, r.y - 8, 92, 12);
-      for (let n = 0; n < 3; n++) {
-        ctx.fillStyle = ["#7a3b32", "#2f5560", "#6a5a2e"][n];
-        ctx.fillRect(r.x - 38 + n * 30, r.y - 30, 12, 34);
+      const ri = imgs.current.sk_rack;
+      if (ri && ri.width) ctx.drawImage(ri, r.x - 48, r.y - 30, 96, 56);
+      else {
+        ctx.fillStyle = "#3a3c40"; ctx.fillRect(r.x - 46, r.y - 8, 92, 12);
+        for (let n = 0; n < 3; n++) {
+          ctx.fillStyle = ["#7a3b32", "#2f5560", "#6a5a2e"][n];
+          ctx.fillRect(r.x - 38 + n * 30, r.y - 30, 12, 34);
+        }
       }
       ctx.restore();
     }
+    /* kind -> hosted plate. Anything not listed, or listed but not yet uploaded, falls through
+       to the shape drawn below, so the park is playable either way. */
+    const SK_PLATE = {
+      halfpipe: "sk_halfpipe", quarter: "sk_quarter", rail: "sk_rail", funbox: "sk_funbox",
+      kicker: "sk_kicker", bowl: "sk_bowl", bowl_sq: "sk_bowl_square",
+      pool: "sk_pool", pile: "sk_pile",
+      fence: "sk_fence", bench: "sk_bench", bin: "sk_bin",
+    };
     function drawSkateObs(o) {
       const x = o.x, y = o.y, w = o.w, h = o.h, cx = x + w / 2, cy = y + h / 2;
       // one contact shadow on the lower-right edge is the only thing implying height
       ctx.fillStyle = "rgba(0,0,0,0.30)";
       ctx.fillRect(x + 6, y + 6, w, h);
+      const im = imgs.current[SK_PLATE[o.k]];
+      if (im && im.width) { ctx.drawImage(im, x, y, w, h); return; }
       switch (o.k) {
         case "halfpipe": {
           // from above: two transitions either side of a flat, light at the lip, dark at the
@@ -6206,6 +6248,8 @@ export default function IronLionLayer004() {
           ctx.beginPath(); ctx.moveTo(x, y + 3); ctx.lineTo(x + w, y + 3); ctx.stroke();
           break;
         }
+        case "pool":
+        case "bowl_sq":
         case "bowl": {
           const rr = Math.min(w, h) / 2;
           const gr = ctx.createRadialGradient(cx, cy, rr * 0.15, cx, cy, rr);
@@ -9624,6 +9668,8 @@ export default function IronLionLayer004() {
          card table and the wheel table are the same material as the game you sit down to. */
       slotbank: "tb_cabinet", cardtable: "tb_felt", wheeltable: "tb_wheel",
       cz_00: "cz_00", cz_01: "cz_01", cz_07: "cz_07", cage_win: "cz_02",
+      // the skate shop and the den. Until these landed the rack drew as its PROP_COL brown.
+      sk_rack: "sk_rack", sk_shelf: "sk_shelf", sk_counter: "sk_counter",
       counter: "gp_10", shelf: "gp_11", freezer: "gp_20", produce: "gp_21",
       magazines: "gp_22", payphone: "gp_23", bin: "gp_24", crate: "gp_25",
       table: "gp_16", booth: "gp_17", bar: "gp_18", tap: "gp_19",
@@ -9876,7 +9922,7 @@ export default function IronLionLayer004() {
       m_table: "#6a5a48", m_booth: "#6a2f2a", m_bar: "#5a4a3c",
       // the gaming hall: these had no colour, so a missing plate was an anonymous grey block
       cz_00: "#2f5b46", cz_01: "#2f5b46", cz_07: "#3a4f68", cage_win: "#5a5044",
-      sk_rack: "#6a5a3e",
+      sk_rack: "#6a5a3e", sk_shelf: "#7a6a4a", sk_counter: "#5c6670",
       c_round: "#7a6a52", c_booth: "#6a2f2a", c_table: "#7a6a52",
       pump: "#c9c3b2", island: "#5d5b55", tyres: "#22242a", tools: "#5c5850",
     };
@@ -16198,9 +16244,22 @@ export default function IronLionLayer004() {
 
     const DIR_ASSET = { up: "down", down: "up", left: "left", right: "right" };
 
+    /* The deck he is stood on. Rotated to the board's heading rather than the sprite's facing
+       -- they are not the same thing once he is carving, and the board is what the momentum
+       belongs to. Drawn under him, inside the airborne transform so it lifts with him. */
+    function drawBoardUnder() {
+      if (!g.board.on) return;
+      const im = imgs.current.sk_deck;
+      ctx.save();
+      ctx.translate(g.p.x, g.p.y);
+      ctx.rotate(g.board.ang);
+      if (im && im.width) ctx.drawImage(im, -19, -7, 38, 14);
+      else { ctx.fillStyle = "#15161a"; ctx.fillRect(-19, -6, 38, 12); }
+      ctx.restore();
+    }
     function drawHero() {
       const a = g.air;
-      if (!a || a.h <= 0.02) { drawHeroBody(); return; }
+      if (!a || a.h <= 0.02) { drawBoardUnder(); drawHeroBody(); return; }
       /* Four things together, or it does not read as height:
            1. the sprite scales up          1.0 -> 1.35
            2. the shadow scales DOWN and stays on the ground he left
@@ -16214,7 +16273,7 @@ export default function IronLionLayer004() {
       ctx.scale(1 + k * 0.35, 1 + k * 0.35);
       ctx.translate(-g.p.x, -g.p.y);
       noHeroShadow = true;
-      try { drawHeroBody(); } finally { noHeroShadow = false; ctx.restore(); }
+      try { drawBoardUnder(); drawHeroBody(); } finally { noHeroShadow = false; ctx.restore(); }
     }
     function drawHeroBody() {
       if (drawSwimmer()) return;      // in the channel you are a head and a wake
