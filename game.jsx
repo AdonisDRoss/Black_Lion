@@ -1270,7 +1270,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 324 — CARPET, LEGS, SOLID";
+const BUILD_TAG = "LAYER 325 — THE IRON CURTAIN AND THE FRONT";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5053,6 +5053,7 @@ export default function IronLionLayer004() {
          combat, police and arrest all carry on untouched. It is a movement modifier, and
          `board.on` is the only thing that changes how stepFoot integrates. */
       board: { has: false, on: false, held: 0, wasPush: false, spd: 0, ang: 0 },
+      cab: null,
       air: { h: 0, t: 0, dur: 0, sx: 0, sy: 0 },
     };
   }
@@ -5166,6 +5167,8 @@ export default function IronLionLayer004() {
        walks you out of the room instead of talking to him. `talkMentor` has existed since the
        mentor did and nothing ever called it -- the HUD has been offering "[E] HE HAS SOMETHING
        FOR YOU" to a key that did something else. */
+    if (g.cab) { G.cabFn && G.cabFn(); return; }         // E is the way out, always
+    if (g.mode === "foot" && g.inside && G.cabFn && G.cabFn()) return;
     if (g.mode === "foot" && g.inside && G.boardFn && G.boardFn()) return;
     if (g.mode === "foot" && g.inside && G.compFn && G.compFn()) return;
     if (g.mode === "foot" && g.inside && G.mentorFn && G.mentorFn()) return;
@@ -5875,6 +5878,16 @@ export default function IronLionLayer004() {
       const k = g.peds[g.peds.length - 1];
       if (k.skate) k.spd = 96 + Math.random() * 54;
     }
+    const KID_LINES = [
+      "RAD!", "GNARLY", "TOTALLY TUBULAR", "NO WAY", "WAY", "BOGUS", "EAT IT",
+      "CHECK IT OUT", "AWESOME", "GAG ME", "TAKE A CHILL PILL", "PSYCH!",
+      "THAT'S BAD", "GRODY", "AS IF", "WHAT'S YOUR DAMAGE", "MONDO",
+    ];
+    const SKATE_LINES = ["SICK AIR!", "STOKED", "BAIL!", "SHRED IT", "NAILED IT", "WIPEOUT"];
+    function kidSay(p, pool) {
+      p.line = pool[(Math.random() * pool.length) | 0];
+      p.say = 1.8 + Math.random() * 0.9;
+    }
     function parkKidTarget(p) {
       const b = skateBox();
       if (p.skate) {
@@ -5992,6 +6005,15 @@ export default function IronLionLayer004() {
         p.vx = (dx / d) * sp; p.vy = (dy / d) * sp;
         p.x += p.vx * dt; p.y += p.vy * dt;
         if (p.skate) updateParkSkater(p, dt);
+        if (p.park) {
+          p.say = Math.max(0, (p.say || 0) - dt);
+          p.barkCd = (p.barkCd == null ? 3 + Math.random() * 9 : p.barkCd) - dt;
+          if (p.barkCd <= 0) {
+            // a skater who has just landed something says something about it
+            kidSay(p, p.skate && p.sair > 0.3 ? SKATE_LINES : KID_LINES);
+            p.barkCd = 7 + Math.random() * 13;
+          }
+        }
         // in the air a skater clears the ramp he is over; on the ground everyone is stopped by it
         if (!(p.skate && p.sair > 0.02)) collideSkate(p, 9);
         p.anim += dt * (sp / 22);
@@ -6017,18 +6039,33 @@ export default function IronLionLayer004() {
     /* The youth plates are single figures facing DOWN their cell, like lion_top and unlike
        civtop -- so they carry their own facing constant rather than borrowing either. */
     const YOUTH_FACE = Math.PI / 2;
-    function drawYouth(p) {
+    /* Kids are torso plates, same as the staff, so they need legs drawn or they float. And
+       this used to translate from world coords itself, which meant that when drawPedSkating
+       wrapped it in a sideways stance the wrap was thrown away -- the kid was re-centred on
+       top of his own board facing his direction of travel, so he read as gliding on his feet
+       with the deck hidden underneath him. It takes the stance as arguments now. */
+    function drawYouth(p, angOverride, backOff) {
       const im = imgs.current[p.yt];
       if (!im || !im.width) return false;
       /* Drawn at 0.82. Measured, these came out 75-112% as wide as they are tall against
-         57-90% on the gang sheets, so at parity they read a size bigger than everyone else
-         in the street. Scaling them down is cheaper than another generation round. */
+         57-90% on the gang sheets, so at parity they read a size bigger than everyone else. */
       const h = 30 * (p.jit || 1) * 0.82, w = h * (im.width / im.height);
       const sp = Math.hypot(p.vx || 0, p.vy || 0);
-      const ang = sp > 10 ? Math.atan2(p.vy, p.vx) + YOUTH_FACE : (p.bang || 0) + YOUTH_FACE;
+      const face = (p.bang != null && angOverride == null && sp <= 10) ? p.bang : Math.atan2(p.vy, p.vx);
+      const ang = angOverride != null ? angOverride : face + YOUTH_FACE;
+      const off = backOff || 0;
+      const bang = p.bang != null ? p.bang : face;
       ctx.save();
-      ctx.translate(p.x, p.y);
+      ctx.translate(p.x + Math.cos(bang) * off, p.y + Math.sin(bang) * off);
       ctx.rotate(ang);
+      // legs first, so the torso plate overlaps the hips -- the staff are drawn the same way
+      const stride = sp > 10 ? Math.sin((p.anim || 0) * 1.1) * h * 0.09 : 0;
+      ctx.fillStyle = "#20222a";
+      ctx.fillRect(-w * 0.25, h * 0.26 + stride, w * 0.17, h * 0.40);
+      ctx.fillRect(w * 0.08, h * 0.26 - stride, w * 0.17, h * 0.40);
+      ctx.fillStyle = "#15161b";
+      ctx.fillRect(-w * 0.27, h * 0.60 + stride, w * 0.21, h * 0.11);
+      ctx.fillRect(w * 0.06, h * 0.60 - stride, w * 0.21, h * 0.11);
       ctx.drawImage(im, -w / 2, -h / 2, w, h);
       ctx.restore();
       return true;
@@ -6052,11 +6089,14 @@ export default function IronLionLayer004() {
       else { ctx.fillStyle = "#15161a"; ctx.fillRect(-17, -5, 34, 10); }
       ctx.restore();
       // and the kid on it: sideways across the deck, back over the tail, turning with the spin
-      const bx = Math.cos(p.bang) * -7, by = Math.sin(p.bang) * -7;
-      ctx.translate(p.x + bx, p.y + by);
-      ctx.rotate(Math.PI / 2 + (p.spin || 0));
-      ctx.translate(-p.x, -p.y);
-      try { if (!(p.yt && drawYouth(p))) drawPedBody(p); } finally { ctx.restore(); }
+      if (!(p.yt && drawYouth(p, p.bang + Math.PI / 2 + (p.spin || 0), -3))) {
+        const bx = Math.cos(p.bang) * -7, by = Math.sin(p.bang) * -7;
+        ctx.translate(p.x + bx, p.y + by);
+        ctx.rotate(Math.PI / 2 + (p.spin || 0));
+        ctx.translate(-p.x, -p.y);
+        drawPedBody(p);
+      }
+      ctx.restore();
     }
     function drawPedBody(p) {
       // a ped carrying a baked civilian canvas uses the rotating path; the old outfit
@@ -10411,6 +10451,211 @@ export default function IronLionLayer004() {
         ctx.beginPath(); ctx.arc(cx, cy, 6, 0, 6.3); ctx.fill();
       }
       ctx.globalAlpha = 1;
+    }
+
+    /* ================= THE CABINETS =================
+       Both run in the main loop and draw straight onto the world canvas, rather than as a
+       React overlay -- that reuses the frame, the input and the HUD instead of building a
+       second render path, and it is why the card table's exit ended up unreachable.
+
+       Screen space is a fixed 200x160 scaled to fit, so the games are written once at arcade
+       resolution and do not care what the phone is.                                       */
+    const CAB_W = 200, CAB_H = 160;
+    function openCab(which) {
+      const g2 = G.current;
+      g2.cab = which === "front"
+        ? { g: "front", t: 0, over: 0, score: 0, turn: 0, fireHeld: 0,
+            ang: 45, pow: 55, wind: (Math.random() * 2 - 1) * 12, shell: null,
+            ground: Array.from({ length: CAB_W }, (_, i) =>
+              CAB_H - 26 - Math.sin(i / 26) * 9 - Math.sin(i / 11 + 2) * 4),
+            me: { x: 24, hp: 3 }, foe: { x: CAB_W - 24, hp: 3, aim: 40 + Math.random() * 20 } }
+        : { g: "curtain", t: 0, over: 0, score: 0, gun: CAB_W / 2, shots: [], hit: 0,
+            wave: 1, dir: 1, drop: 0, rows: null, foeShots: [] };
+      if (g2.cab.g === "curtain") resetCurtain(g2.cab);
+      g2.paused = true;
+      musicPlay(which === "front" ? "cab2" : "cab1");
+    }
+    function resetCurtain(c) {
+      c.rows = [];
+      for (let r = 0; r < 4; r++) for (let i = 0; i < 8; i++)
+        c.rows.push({ x: 22 + i * 20, y: 18 + r * 15, alive: 1, r });
+      c.ox = 0; c.oy = 0; c.dir = 1;
+    }
+    function closeCab() {
+      const g2 = G.current;
+      g2.cab = null; g2.paused = false;
+      MUS.tick = 0;                 // let the district take its track straight back
+    }
+    function stepCab(dt) {
+      const c = g.cab, inp = input.current, k = inp.keys;
+      c.t += dt;
+      const ix = inp.x + (k["a"] || k["arrowleft"] ? -1 : 0) + (k["d"] || k["arrowright"] ? 1 : 0);
+      const iy = inp.y + (k["w"] || k["arrowup"] ? -1 : 0) + (k["s"] || k["arrowdown"] ? 1 : 0);
+      const fire = !!(inp.fire || inp.run || k[" "]);
+      const edge = fire && !c.fireWas; c.fireWas = fire;
+      if (c.over > 0) {
+        c.over -= dt;
+        if (c.over <= 0) {
+          // a dead game goes back to attract rather than dumping you into the room
+          if (c.g === "curtain") { c.score = 0; c.wave = 1; resetCurtain(c); }
+          else { c.me.hp = 3; c.foe.hp = 3; c.shell = null; c.turn = 0; }
+        }
+        return;
+      }
+      if (c.g === "curtain") stepCurtain(c, dt, ix, edge);
+      else stepFront(c, dt, ix, iy, edge);
+    }
+    function stepCurtain(c, dt, ix, fire) {
+      c.gun = clamp(c.gun + ix * 118 * dt, 10, CAB_W - 10);
+      if (fire && c.shots.length < 3) c.shots.push({ x: c.gun, y: CAB_H - 20 });
+      for (let i = c.shots.length - 1; i >= 0; i--) {
+        const b = c.shots[i]; b.y -= 150 * dt;
+        if (b.y < 6) { c.shots.splice(i, 1); continue; }
+        for (const e of c.rows) {
+          if (!e.alive) continue;
+          if (Math.abs(b.x - (e.x + c.ox)) < 8 && Math.abs(b.y - (e.y + c.oy)) < 6) {
+            e.alive = 0; c.shots.splice(i, 1); c.score += 10 * (4 - e.r); break;
+          }
+        }
+      }
+      const live = c.rows.filter((e) => e.alive);
+      if (!live.length) { c.wave++; resetCurtain(c); c.score += 100; return; }
+      // the wall speeds up as it thins. That acceleration is the whole game.
+      const spd = (14 + c.wave * 4) * (1 + (32 - live.length) / 34);
+      c.ox += c.dir * spd * dt;
+      const lx = Math.min(...live.map((e) => e.x)) + c.ox;
+      const rx = Math.max(...live.map((e) => e.x)) + c.ox;
+      /* Simulated: at 7 a perfect player with an aimbot still lost on wave 1 -- the wall hit
+         the floor in 15 seconds, so the game could not be won at all. 3.2 makes a clean wave
+         possible without making it safe. */
+      if (rx > CAB_W - 12 || lx < 12) { c.dir *= -1; c.oy += 3.2; }
+      if (Math.random() < dt * (0.6 + c.wave * 0.25) && c.foeShots.length < 4) {
+        const e = live[(Math.random() * live.length) | 0];
+        c.foeShots.push({ x: e.x + c.ox, y: e.y + c.oy });
+      }
+      for (let i = c.foeShots.length - 1; i >= 0; i--) {
+        const b = c.foeShots[i]; b.y += 74 * dt;
+        if (b.y > CAB_H) { c.foeShots.splice(i, 1); continue; }
+        if (Math.abs(b.x - c.gun) < 8 && b.y > CAB_H - 24) {
+          c.foeShots.splice(i, 1); c.hit++;
+          if (c.hit >= 3) { c.over = 2.5; c.hit = 0; }
+        }
+      }
+      if (Math.max(...live.map((e) => e.y)) + c.oy > CAB_H - 30) { c.over = 2.5; c.hit = 0; }
+    }
+    function stepFront(c, dt, ix, iy, fire) {
+      if (c.shell) {
+        const sh = c.shell;
+        sh.vx += c.wind * dt; sh.vy += 150 * dt;
+        sh.x += sh.vx * dt; sh.y += sh.vy * dt;
+        if (sh.x < -20 || sh.x > CAB_W + 20 || sh.y > CAB_H + 40) { c.shell = null; c.turn ^= 1; return; }
+        const gi = Math.round(clamp(sh.x, 0, CAB_W - 1));
+        if (sh.y >= c.ground[gi]) {
+          // the ground takes the hit, so the board changes shape as you play
+          for (let i = -9; i <= 9; i++) {
+            const j = gi + i; if (j < 0 || j >= CAB_W) continue;
+            c.ground[j] = Math.min(CAB_H - 2, c.ground[j] + (9 - Math.abs(i)) * 0.8);
+          }
+          const tgt = sh.mine ? c.foe : c.me;
+          if (Math.abs(sh.x - tgt.x) < 11) {
+            tgt.hp--;
+            if (sh.mine) c.score += 100;
+            if (tgt.hp <= 0) { c.over = 2.5; if (sh.mine) c.score += 250; }
+          }
+          c.blast = { x: sh.x, y: sh.y, t: 0.35 };
+          c.shell = null; c.turn ^= 1;
+        }
+        return;
+      }
+      if (c.blast) { c.blast.t -= dt; if (c.blast.t <= 0) c.blast = null; }
+      if (c.turn === 1) {
+        // the enemy walks its aim in rather than ranging instantly, so you get shots back
+        c.foeCd = (c.foeCd == null ? 0.8 : c.foeCd) - dt;
+        if (c.foeCd <= 0) {
+          c.foeCd = null;
+          const a = (180 - c.foe.aim) * Math.PI / 180, p2 = 56;
+          c.shell = { x: c.foe.x, y: c.ground[Math.round(c.foe.x)] - 6, mine: 0,
+            vx: Math.cos(a) * p2 * 1.5, vy: -Math.sin(a) * p2 * 1.5 };
+          c.foe.aim += (Math.random() * 2 - 1) * 4;
+        }
+        return;
+      }
+      c.ang = clamp(c.ang - iy * 34 * dt, 5, 85);
+      c.pow = clamp(c.pow + ix * 34 * dt, 15, 100);
+      if (fire) {
+        const a = c.ang * Math.PI / 180;
+        c.shell = { x: c.me.x, y: c.ground[Math.round(c.me.x)] - 6, mine: 1,
+          vx: Math.cos(a) * c.pow * 1.5, vy: -Math.sin(a) * c.pow * 1.5 };
+      }
+    }
+    function drawCab() {
+      const c = g.cab; if (!c) return;
+      const sc = Math.min(W / (CAB_W + 24), H / (CAB_H + 48));
+      ctx.fillStyle = "rgba(4,4,7,0.94)"; ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.translate(W / 2 - (CAB_W * sc) / 2, H / 2 - (CAB_H * sc) / 2);
+      ctx.scale(sc, sc);
+      ctx.fillStyle = "#07110c"; ctx.fillRect(0, 0, CAB_W, CAB_H);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, 0, CAB_W, CAB_H); ctx.clip();
+      if (c.g === "curtain") {
+        // a wall of them, one gun, and they never stop coming
+        for (const e of c.rows) {
+          if (!e.alive) continue;
+          ctx.fillStyle = ["#e04848", "#e0a848", "#8fd070", "#70b0e0"][e.r];
+          ctx.fillRect(e.x + c.ox - 7, e.y + c.oy - 5, 14, 10);
+          ctx.fillStyle = "#07110c";
+          ctx.fillRect(e.x + c.ox - 4, e.y + c.oy - 2, 3, 3);
+          ctx.fillRect(e.x + c.ox + 1, e.y + c.oy - 2, 3, 3);
+        }
+        ctx.fillStyle = "#d8d4c0";
+        ctx.fillRect(c.gun - 9, CAB_H - 16, 18, 7);
+        ctx.fillRect(c.gun - 2, CAB_H - 22, 4, 6);
+        ctx.fillStyle = "#f2e06a";
+        for (const b of c.shots) ctx.fillRect(b.x - 1, b.y - 4, 2, 8);
+        ctx.fillStyle = "#e06a6a";
+        for (const b of c.foeShots) ctx.fillRect(b.x - 1, b.y - 3, 2, 7);
+        ctx.fillStyle = "#8fd070"; ctx.font = "9px monospace";
+        ctx.fillText("SCORE " + c.score, 6, 11);
+        ctx.fillText("WAVE " + c.wave, CAB_W - 52, 11);
+        ctx.fillText("HULL " + (3 - c.hit), CAB_W - 52, CAB_H - 5);
+      } else {
+        ctx.fillStyle = "#243a2a";
+        for (let i = 0; i < CAB_W; i++) ctx.fillRect(i, c.ground[i], 1, CAB_H - c.ground[i]);
+        for (const [t, col] of [[c.me, "#7fb0e0"], [c.foe, "#e07a6a"]]) {
+          if (t.hp <= 0) continue;
+          const gy = c.ground[Math.round(t.x)];
+          ctx.fillStyle = col;
+          ctx.fillRect(t.x - 8, gy - 7, 16, 7);
+          ctx.fillRect(t.x - 3, gy - 11, 6, 4);
+        }
+        if (c.shell) { ctx.fillStyle = "#f2e06a"; ctx.fillRect(c.shell.x - 1.5, c.shell.y - 1.5, 3, 3); }
+        if (c.blast) {
+          ctx.fillStyle = `rgba(242,180,70,${c.blast.t * 2})`;
+          ctx.beginPath(); ctx.arc(c.blast.x, c.blast.y, 12 * c.blast.t * 3, 0, 6.3); ctx.fill();
+        }
+        ctx.fillStyle = "#8fd070"; ctx.font = "9px monospace";
+        ctx.fillText("ANG " + Math.round(c.ang) + "  PWR " + Math.round(c.pow), 6, 11);
+        ctx.fillText("WIND " + (c.wind > 0 ? ">" : "<") + Math.abs(Math.round(c.wind)), 6, 21);
+        ctx.fillText("SCORE " + c.score, CAB_W - 62, 11);
+        ctx.fillText(c.turn ? "ENEMY FIRING" : "YOUR SHOT", CAB_W - 76, CAB_H - 5);
+      }
+      if (c.over > 0) {
+        ctx.fillStyle = "rgba(0,0,0,0.72)"; ctx.fillRect(0, CAB_H / 2 - 16, CAB_W, 32);
+        ctx.fillStyle = "#e04848"; ctx.font = "bold 14px monospace";
+        ctx.fillText("GAME OVER", CAB_W / 2 - 40, CAB_H / 2 + 5);
+      }
+      ctx.restore();
+      ctx.strokeStyle = "#2a3a30"; ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, CAB_W - 2, CAB_H - 2);
+      ctx.fillStyle = "#c8b070"; ctx.font = "bold 11px monospace";
+      const title = c.g === "curtain" ? "THE IRON CURTAIN" : "THE FRONT";
+      ctx.fillText(title, CAB_W / 2 - title.length * 3.3, -8);
+      ctx.fillStyle = "#7a7a70"; ctx.font = "8px monospace";
+      const help = c.g === "curtain" ? "STICK MOVE  ·  STR FIRE  ·  E QUIT"
+                                     : "STICK AIM/POWER  ·  STR FIRE  ·  E QUIT";
+      ctx.fillText(help, CAB_W / 2 - help.length * 2.2, CAB_H + 16);
+      ctx.restore();
     }
 
     function drawInterior(b, floor, alpha) {
@@ -18198,13 +18443,15 @@ export default function IronLionLayer004() {
       if (g.paused) {
         const owned = (g.cut && g.cut.panels && g.cut.panels.length) || g.title ||
           g.lockerOpen || g.travelOpen || g.raceTalk || g.leaderTalk || g.mapOpen ||
-          g.garagePick || g.mentorJob || g.truckOpen || g.table || g.tableAsk || g.tickets;
+          g.garagePick || g.mentorJob || g.truckOpen || g.table || g.tableAsk || g.tickets ||
+          g.cab;
         g.pauseOrphan = owned ? 0 : (g.pauseOrphan || 0) + dt;
         if (g.pauseOrphan > 2) {
           g.paused = false; g.pauseOrphan = 0;
           g.pickupFlash = { nm: "unstuck", t: 1.4 };
         }
       } else g.pauseOrphan = 0;
+      if (g.cab) { stepCab(Math.min(dt, 0.05)); return; }
       if (g.paused) return;
       g.t += dt;
 
@@ -18612,6 +18859,7 @@ export default function IronLionLayer004() {
       }
       ctx.restore();
 
+      if (g.cab) { drawCab(); return; }
       // night wash + lights
       if (g.night > 0.02) {
         ctx.fillStyle = `rgba(6,8,20,${0.62 * g.night})`;
@@ -18663,6 +18911,7 @@ export default function IronLionLayer004() {
             dmg: inVehicle() && activeVeh() ? Math.round((activeVeh().dmg || 0) * 100) : null,
             shop: !!nearBodyShop(), inShop: !!g.inShop,
             board: !!g.board.on, hasBoard: !!g.board.has, atRack: atRack(),
+            cab: g.cab ? g.cab.g : null,
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
             lion: Math.round(g.lion), lionOn: !!g.lionOn, plain: !!g.plain,
@@ -19199,6 +19448,24 @@ export default function IronLionLayer004() {
         g.board.has = true; boardOn();
         g.pickupFlash = { nm: "board_taken", t: 1.6 };
       }
+      return true;
+    };
+    /* Which cabinet you are stood at. Measured to the prop, like the skate rack -- the two
+       machines are 26 wide and side by side, so the radius has to be tight or you cannot
+       choose which one you meant. */
+    G.cabFn = () => {
+      if (!g.inside || g.inside.kind !== "arcade") return false;
+      if (g.cab) { closeCab(); return true; }
+      const pl = buildingPlans(g.inside)[g.floor];
+      if (!pl) return false;
+      let best = null, bd = 34;
+      for (const q of pl.props) {
+        if (q.t !== "ar_cab_ironcurtain" && q.t !== "ar_cab_thefront" && q.t !== "ar_cab_curtain2") continue;
+        const d = Math.hypot(g.p.x - (q.x + q.w / 2), g.p.y - (q.y + q.h / 2));
+        if (d < bd) { bd = d; best = q; }
+      }
+      if (!best) return false;
+      openCab(best.t === "ar_cab_thefront" ? "front" : "curtain");
       return true;
     };
     G.boardToggleFn = () => {
@@ -20822,7 +21089,10 @@ export default function IronLionLayer004() {
           </>
         ) : (
           <>
-            {btn(hud.board ? "PUSH" : "RUN",
+            {hud.cab && btn("FIRE", "shoot",
+              () => { input.current.fire = true; },
+              () => { input.current.fire = false; })}
+            {!hud.cab && btn(hud.board ? "PUSH" : "RUN",
               hud.board ? "tap kick · hold brake" : "sprint",
               () => { input.current.run = true; },
               () => { input.current.run = false; })}
