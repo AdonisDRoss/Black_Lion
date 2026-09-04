@@ -911,12 +911,28 @@ const YT = {};
 for (const who of ["skater", "arcade", "band", "girl"])
   for (const b of ["a", "b", "c"])
     YT["yt_" + who + "_" + b] = "assets/youth/yt_" + who + "_" + b + ".png";
+/* Four more kids at three builds, plus two extra colourways of the original four. The kids
+   pick a plate at spawn, so this is variety for no code: 12 became 32. */
+for (const who of ["bmx", "walkman", "bro", "little"])
+  for (const b of ["a", "b", "c"])
+    YT["yt_" + who + "_" + b] = "assets/youth/yt_" + who + "_" + b + ".png";
+for (const who of ["skater", "arcade", "band", "girl"])
+  for (const r of ["r2", "r3"])
+    YT["yt_" + who + "_" + r] = "assets/youth/yt_" + who + "_" + r + ".png";
+// the six who work there. One pose each -- they stand at a post, they do not wander.
+const ST = {};
+for (const k of ["change", "mech", "owner", "door", "bar", "sound"])
+  ST["st_" + k] = "assets/staff/st_" + k + ".png";
 const VN = {};
 for (const k of ["main_stage", "drum_riser", "stage_steps", "amp_stack", "amp_combo",
                  "mic_stands", "pastack", "lights", "merch", "barrier", "cases", "monitor"])
   VN["vn_" + k] = "assets/venue/vn_" + k + ".png";
 const AR2 = {};
-for (const k of ["change", "snack", "photo", "carpet", "stool", "bin"])
+for (const k of ["change", "snack", "photo", "carpet", "stool", "bin",
+                 "cab_ironcurtain", "cab_curtain2", "cab_thefront"])
+  AR2["ar_" + k] = "assets/arcade/ar_" + k + ".png";
+// already cut and sitting in assets/arcade/ from the first batch
+for (const k of ["upright", "cocktail", "pinball", "stage", "drums", "amp", "mic", "pa"])
   AR2["ar_" + k] = "assets/arcade/ar_" + k + ".png";
 const HV = {
   hv_00: "assets/hv_00.webp",
@@ -1254,7 +1270,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 320 — THE KIDS ARRIVE";
+const BUILD_TAG = "LAYER 323 — THIRTY-TWO KIDS AND SIX STAFF";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1393,6 +1409,13 @@ const CIVIC = [
     name: "EMBER FLATS TOWN HALL", floors: 2, pip: "#cfe0f0" },
   { key: "sechq_ef", kind: "sechq", cell: { i: 29, j: 22 },
     name: "KESTREL HOUSE \u2014 SECURITY", floors: 2, pip: "#e8a63a" },
+  /* The youth district's other two rooms. Directly across the street from the park's south
+     gate, so you come off the ramps and straight into them, and the whole district is one
+     block instead of scattered. Fixed rather than rolled: there is one arcade in this city. */
+  { key: "arcade_rh", kind: "arcade", cell: { i: 5, j: 9 },
+    name: "GALAXY LANES ARCADE", floors: 1, pip: "#ff5ad0" },
+  { key: "venue_rh", kind: "bandvenue", cell: { i: 6, j: 9 },
+    name: "THE LAST CALL", floors: 1, pip: "#e05fd0" },
 ];
 const civicAt = (i, j) => CIVIC.find((c) => c.cell.i === i && c.cell.j === j) || null;
 const inTown = (i, j) => i >= TOWN.i0 && i <= TOWN.i1 && j >= TOWN.j0 && j <= TOWN.j1;
@@ -2500,6 +2523,8 @@ function floorKind(b, f) {
      floorKind had no line for any of them, so every one of them fell through to the generic
      lobby-and-flats plan at the bottom. The plans, and every furniture case written for their
      rooms, had never once run. A layout branch is only alive if floorKind can return its name. */
+  if (b.kind === "arcade") return "arcade";
+  if (b.kind === "bandvenue") return "bandvenue";
   if (b.kind === "venue") return f === 0 ? "venue" : "offices";
   if (b.kind === "nightclub") return f === 0 ? "nightclub" : "offices";
   if (b.kind === "motel") return "motel";
@@ -2581,7 +2606,20 @@ function makeFloor(b, f, rnd) {
       hub = put(0, 0, GX - 1, foyer - 1, "vestibule");
       put(0, foyer, Math.max(0, Math.round(GX * 0.68)), GY - 1, "throne");
       put(Math.round(GX * 0.68) + 1, foyer, GX - 1, GY - 1, "vip");
-    } else if (kind === "warehouse") {
+    } else if (kind === "arcade") {
+    /* One long room. A bank of machines down each side, the change machine and the snack
+       counter by the door, and the middle left clear so you can walk the row. */
+    const front = Math.round(GY * 0.78);
+    hub = put(0, 0, GX - 1, front - 1, "cabrow");
+    put(0, front, GX - 1, GY - 1, "arfront");
+  } else if (kind === "bandvenue") {
+    // stage at the back, floor in the middle, bar and merch at the door
+    const back = Math.round(GY * 0.34);
+    put(0, 0, GX - 1, back - 1, "vnstage");
+    hub = put(0, back, GX - 1, Math.round(GY * 0.80), "pit");
+    put(0, Math.round(GY * 0.80) + 1, Math.round(GX * 0.55), GY - 1, "bar");
+    put(Math.round(GX * 0.55) + 1, Math.round(GY * 0.80) + 1, GX - 1, GY - 1, "merch");
+  } else if (kind === "warehouse") {
       // one big open floor -- nobody's occupying these yet, so there's no reason to over-build them
       hub = put(0, 0, GX - 1, GY - 1, "floor");
     } else if (kind === "den") {
@@ -3463,6 +3501,8 @@ function makeFloor(b, f, rnd) {
             P(q2.x0 + pad + (W2 - pad * 2) * ((i2 + 0.5) / nt) - 24, q2.y1 - pad - 46,
               48, 46, "cafetable");
         }
+        // only the venue's bar is staffed; every other bar in the city keeps its own furniture
+        if (kind === "bandvenue") P(cx - 12, cy - 15, 24, 30, "st_bar");
         break;
       // third label collision. The club's run won; Il Corvo's m_booth/c_booth plates were dead.
       case "booth": {
@@ -3512,6 +3552,63 @@ function makeFloor(b, f, rnd) {
         }
         break;
       }
+      /* Everything below is measured against the player: he is 26 units long and 22 wide, so
+         a cabinet at 26x34 stands about his height, a stool at 15 comes to his knee, and the
+         PA stack at 26x40 is the one thing on the floor taller than he is. */
+      case "cabrow": {
+        const CABS = ["ar_cab_ironcurtain", "ar_cab_thefront", "ar_cab_curtain2"];
+        let ci = 0;
+        if (wide) {
+          for (let rx = q2.x0 + 26; rx < q2.x1 - 26; rx += 34) {
+            P(rx, q2.y0 + pad, 26, 34, CABS[ci % 3]); ci++;
+            P(rx, q2.y1 - pad - 34, 26, 34, CABS[(ci + 1) % 3]);
+          }
+        } else {
+          for (let ry = q2.y0 + 26; ry < q2.y1 - 26; ry += 34) {
+            P(q2.x0 + pad, ry, 26, 34, CABS[ci % 3]); ci++;
+            P(q2.x1 - pad - 26, ry, 26, 34, CABS[(ci + 1) % 3]);
+          }
+        }
+        // the mechanic lives at an open machine, so he stands in the row rather than at a wall
+        P(cx - 52, cy - 15, 24, 30, "st_mech");
+        // the cocktail table is the one you sit at, so it goes in the middle of the floor
+        P(cx - 20, cy - 16, 40, 32, "ar_cocktail");
+        P(cx - 30, cy + 30, 15, 15, "ar_stool");
+        P(cx + 16, cy + 30, 15, 15, "ar_stool");
+        break;
+      }
+      case "arfront":
+        P(q2.x0 + pad + 26, cy - 15, 24, 30, "st_change");   // beside her machine
+        P(cx + 34, q2.y1 - pad - 32, 24, 30, "st_owner");    // behind the snack counter
+        P(q2.x0 + pad, cy - 15, 20, 30, "ar_change");
+        P(cx - 30, q2.y1 - pad - 26, 60, 26, "ar_snack");
+        P(q2.x1 - pad - 30, cy - 17, 30, 34, "ar_photo");
+        P(q2.x1 - pad - 15, q2.y1 - pad - 15, 15, 15, "ar_bin");
+        break;
+      case "vnstage":
+        P(cx - 44, q2.y0 + pad, 88, 56, "vn_main_stage");
+        P(cx - 20, q2.y0 + pad + 8, 40, 40, "vn_drum_riser");
+        P(q2.x0 + pad, q2.y0 + pad, 26, 40, "vn_pastack");
+        P(q2.x1 - pad - 26, q2.y0 + pad, 26, 40, "vn_pastack");
+        P(cx - 46, q2.y0 + pad + 60, 24, 18, "vn_amp_stack");
+        P(cx + 22, q2.y0 + pad + 60, 24, 18, "vn_amp_combo");
+        P(cx - 11, q2.y1 - pad - 14, 22, 14, "vn_monitor");
+        P(cx - 8, q2.y0 + pad + 44, 16, 24, "vn_mic_stands");
+        P(q2.x1 - pad - 30, q2.y1 - pad - 20, 30, 20, "vn_stage_steps");
+        P(q2.x0 + pad + 32, q2.y1 - pad - 30, 24, 30, "st_sound");
+        break;
+      case "pit":
+        // barriers across the front of the stage, and the light bar over the floor
+        for (let rx = q2.x0 + pad; rx < q2.x1 - 44; rx += 46) P(rx, q2.y0 + pad, 44, 8, "vn_barrier");
+        P(cx - 25, cy - 6, 50, 12, "vn_lights");
+        P(q2.x0 + pad, q2.y1 - pad - 22, 30, 22, "vn_cases");
+        break;
+      case "merch":
+        P(cx - 22, cy - 10, 44, 20, "vn_merch");
+        P(cx - 12, q2.y1 - pad - 30, 24, 30, "st_door");     // on the door, where he belongs
+        break;
+        P(q2.x1 - pad - 15, q2.y1 - pad - 15, 15, 15, "ar_bin");
+        break;
       case "backroom":
         // the card table the family actually uses, the safe, coats, pictures on the wall
         P(cx - 40, cy - 34, 80, 68, "m_cards");
@@ -4387,6 +4484,7 @@ export default function IronLionLayer004() {
       farm: "county", cemetery: "county", prison: "old", town: "county",
       park: "uptown", water: "county",
       skate: "youth",
+      arcade: "arcade",
     };
     const MUS = { buf: {}, cur: null, src: null, gain: null, want: null, tried: {}, vol: 0.5 };
 
@@ -4841,7 +4939,13 @@ export default function IronLionLayer004() {
     // The county truck sheet is drawn nose-left; every other plate is nose-up. Rotate those
     // at load so the draw code never has to know which sheet a vehicle came from.
     const ROTATE_CW = ["br_00", "br_01", "br_02", "br_03", "br_04"];
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...VN, ...AR2 };
+    /* Cars whose plate was drawn nose-DOWN. Every draw site rotates by ang + PI/2 and assumes
+       nose-up, so these reversed on the road -- the boot led and the bonnet trailed. Baked
+       once at load like ROTATE_CW rather than special-cased at each of the eight draw sites,
+       so traffic, parked cars, the crime car and the one you are driving all agree.
+       If another model turns up backwards, it is one string here. */
+    const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b"];
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...VN, ...AR2 };
     const keys = Object.keys(all);
     let left = keys.length;
     /* Assets are files now, not base64. Two consequences the loader has to handle:
@@ -4856,7 +4960,15 @@ export default function IronLionLayer004() {
     keys.forEach((k) => {
       const im = new Image();
       im.onload = () => {
-        if (ROTATE_CW.indexOf(k) >= 0) {
+        if (ROTATE_180.indexOf(k) >= 0) {
+          const cv = document.createElement("canvas");
+          cv.width = im.width; cv.height = im.height;
+          const c2 = cv.getContext("2d");
+          c2.translate(cv.width / 2, cv.height / 2);
+          c2.rotate(Math.PI);
+          c2.drawImage(im, -im.width / 2, -im.height / 2);
+          imgs.current[k] = cv;
+        } else if (ROTATE_CW.indexOf(k) >= 0) {
           // bake the rotation into a canvas once, rather than rotating every draw call
           const cv = document.createElement("canvas");
           cv.width = im.height; cv.height = im.width;
@@ -9856,6 +9968,20 @@ export default function IronLionLayer004() {
       cz_00: "cz_00", cz_01: "cz_01", cz_07: "cz_07", cage_win: "cz_02",
       // the skate shop and the den. Until these landed the rack drew as its PROP_COL brown.
       sk_rack: "sk_rack", sk_shelf: "sk_shelf", sk_counter: "sk_counter",
+      /* The arcade and the venue. Named the same as the plate, so one entry each. */
+      ar_cab_ironcurtain: "ar_cab_ironcurtain", ar_cab_thefront: "ar_cab_thefront",
+      ar_cab_curtain2: "ar_cab_curtain2", ar_cocktail: "ar_cocktail",
+      ar_change: "ar_change", ar_snack: "ar_snack", ar_photo: "ar_photo",
+      ar_stool: "ar_stool", ar_bin: "ar_bin",
+      vn_main_stage: "vn_main_stage", vn_drum_riser: "vn_drum_riser",
+      vn_stage_steps: "vn_stage_steps", vn_amp_stack: "vn_amp_stack",
+      vn_amp_combo: "vn_amp_combo", vn_mic_stands: "vn_mic_stands",
+      vn_pastack: "vn_pastack", vn_lights: "vn_lights", vn_merch: "vn_merch",
+      vn_barrier: "vn_barrier", vn_cases: "vn_cases", vn_monitor: "vn_monitor",
+      /* The staff are props. They stand at a post and never move, so routing them through the
+         prop pipeline costs nothing and cannot desync from the room they belong to. */
+      st_change: "st_change", st_mech: "st_mech", st_owner: "st_owner",
+      st_door: "st_door", st_bar: "st_bar", st_sound: "st_sound",
       counter: "gp_10", shelf: "gp_11", freezer: "gp_20", produce: "gp_21",
       magazines: "gp_22", payphone: "gp_23", bin: "gp_24", crate: "gp_25",
       table: "gp_16", booth: "gp_17", bar: "gp_18", tap: "gp_19",
@@ -10109,6 +10235,8 @@ export default function IronLionLayer004() {
       // the gaming hall: these had no colour, so a missing plate was an anonymous grey block
       cz_00: "#2f5b46", cz_01: "#2f5b46", cz_07: "#3a4f68", cage_win: "#5a5044",
       sk_rack: "#6a5a3e", sk_shelf: "#7a6a4a", sk_counter: "#5c6670",
+      st_change: "#6b5570", st_mech: "#4f6274", st_owner: "#6d6142",
+      st_door: "#2f3138", st_bar: "#3a3a40", st_sound: "#465a6a",
       c_round: "#7a6a52", c_booth: "#6a2f2a", c_table: "#7a6a52",
       pump: "#c9c3b2", island: "#5d5b55", tyres: "#22242a", tools: "#5c5850",
     };
@@ -12099,6 +12227,8 @@ export default function IronLionLayer004() {
       { z: "neon",      name: "THE KESTREL",    i: 28, j: 23, landmark: true },
       // the youth district. Arrives at the gate in the south fence, next to the rack.
       { z: "skate",     name: "THE SKATE PARK",  i: 5,  j: 8, skate: true },
+      { z: "skate",     name: "GALAXY LANES",     i: 5,  j: 9, landmark: true },
+      { z: "skate",     name: "THE LAST CALL",    i: 6,  j: 9, landmark: true },
       /* The elevated. Downtown is the busiest stop and the one worth arriving at, and the
          terminal is how you reach it without driving the whole way round to test the train. */
       { z: "downtown",  name: "DOWNTOWN \u2014 THE L", elStop: 0 },
