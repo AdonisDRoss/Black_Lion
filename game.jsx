@@ -949,6 +949,7 @@ const BD = {};
 for (const n of [1, 2, 3])
   for (const r of ["drums", "guitar", "bass"])
     BD["bd_" + n + "_" + r] = "assets/band/bd_" + n + "_" + r + ".png";
+YT.yt_rio = "assets/youth/yt_rio.png";
 const ST = {};
 for (const k of ["change", "mech", "owner", "door", "bar", "sound"])
   ST["st_" + k] = "assets/staff/st_" + k + ".png";
@@ -1312,7 +1313,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 335 — RIO";
+const BUILD_TAG = "LAYER 337 — RIO AND SHO";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1437,6 +1438,12 @@ function riverCentre(x) {
    river draws itself", and the river only paints its own band, so the whole lake rendered as
    bare cement. Anything that can disagree eventually will. */
 const lakeEastShore = (y) => SX(28) + Math.sin(y / 2900) * 520 + Math.sin(y / 1250 + 0.7) * 160;
+/* The WEST shore. This one costs a column of city, and that is the trade: the water test used
+   to live inside isRural(), so only farmland could ever be wet -- which is why the lake could
+   not reach the built-up edges and why driving west still hit concrete. The test moved to the
+   top of zoneOf and the shore sits in column 0, which is generic filler rather than a named
+   district. Nothing with a name is under it; that is checked. */
+const lakeWestShore = (y) => SX(1) - 330 + Math.sin(y / 3100) * 470 + Math.sin(y / 1450 + 1.9) * 150;
 const lakeSouthShore = (x) => SX(28) + 520 + Math.sin(x / 3300) * 480 + Math.sin(x / 1400 + 2.1) * 150;
 const inEmberRows = (y) => y > SX(21) && y < SX(26);
 function lakeDepth(x, y) {
@@ -1454,7 +1461,8 @@ function lakeDepth(x, y) {
      is 1900 units half-width at row 27, so there was no dry land between them and the beach
      drew into open water. The river already is the southern boundary -- it does not need a
      lake behind it. */
-  const d = emberRows ? -1 : x - eastShore;
+  const dw = lakeWestShore(y) - x;
+  const d = Math.max(emberRows ? -1 : x - eastShore, dw);
   if (d <= 0) return 0;
   return clamp(d / 900, 0, 1);                     // shallow at the beach, deep further out
 }
@@ -2016,6 +2024,10 @@ const WOLVES_TURF = { i0: 18, i1: 21, j0: 3, j1: 7 };
 const inZ = (z, i, j) => i >= z.i0 && i <= z.i1 && j >= z.j0 && j <= z.j1;
 function zoneOf(i, j) {
   if (i < 0 || j < 0 || i >= N || j >= N) return "edge";
+  /* Asked FIRST now. It used to be buried inside the rural branch, so a district always beat
+     water and the lake could only ever appear on farmland. A city block that is under a lake
+     is not a city block. */
+  if (waterDepth(SX(i) + PITCH / 2, SX(j) + PITCH / 2) > 0.12) return "water";
   if (inZ(ZONES.terminal, i, j)) return "terminal";
   if (isRural(i, j)) {
     // a cell whose centre is in the channel is water, not farmland
@@ -5174,10 +5186,9 @@ export default function IronLionLayer004() {
          random kid off the ramps. He is why the kit is what it is: no gun, a board, a tazer
          and smoke. Rename him in one place. */
       who: "lion",
-      bench: null,
+      bench: {},
       smoke: [],
-      kidYt: "yt_bro_b",            // older than the park kids, and reads it
-      kidName: "RIO",
+
       air: { h: 0, t: 0, dur: 0, sx: 0, sy: 0 },
     };
   }
@@ -9424,6 +9435,16 @@ export default function IronLionLayer004() {
       const sy0 = Math.floor(view.y0 / step) * step - step;
       const bEnd = BEACH_END();
       for (let y = sy0; y < view.y1 + step; y += step) {
+        // the west bank first: seawall, then water out to the world edge
+        const wsh = lakeWestShore(y);
+        if (wsh > view.x0 - 900) {
+          ctx.fillStyle = "#43464a";
+          ctx.fillRect(wsh, y, 46, step + 1);
+          ctx.fillStyle = PF("water", "#1b2f3a");
+          ctx.fillRect(WORLD_MIN - 200, y, wsh - (WORLD_MIN - 200), step + 1);
+          ctx.fillStyle = "rgba(150,190,196,0.22)";
+          ctx.fillRect(wsh - 90, y, 90, step + 1);
+        }
         if (inEmberRows(y)) continue;
         const sh = lakeEastShore(y);
         if (sh > view.x1 + 900) continue;
@@ -15173,7 +15194,7 @@ export default function IronLionLayer004() {
     function applyItem(nm) {
       if (nm.slice(0, 4) === "wpn_") {
         const k = nm.slice(4);
-        if (g.who === "kid" && !KID_OK[k]) {
+        if (g.who !== "lion" && !KID_OK[k]) {
           g.pickupFlash = { nm: "kid_wont_carry_that", t: 1.6 };
           return;
         }
@@ -20074,7 +20095,7 @@ export default function IronLionLayer004() {
     function atRack() {
       /* The Lion does not skate. The board went to the kid when the two of them became two
          characters rather than one, and a rack he cannot take from says so without dialogue. */
-      if (g.who !== "kid") return false;
+      if (g.who !== "rio") return false;
       if (g.inside) {
         const pl = buildingPlans(g.inside)[g.floor];
         if (!pl) return false;
@@ -20172,17 +20193,24 @@ export default function IronLionLayer004() {
       }
       g.p.tazeCd = Math.max(0, (g.p.tazeCd || 0) - dt);
       if (g.shock) { g.shock.t -= dt; if (g.shock.t <= 0) g.shock = null; }
-      g.p.hidden = g.who === "kid" && inSmoke(g.p.x, g.p.y);
+      g.p.hidden = g.who === "rio" && inSmoke(g.p.x, g.p.y);
     }
     /* Whoever you are not is stood in the den bay waiting. Drawing him is what makes the swap
        legible -- otherwise the other character is an abstraction and the base is an empty room. */
     function drawBenched() {
       if (!g.inside || g.inside.kind !== "den" || g.floor !== 0) return;
-      const sp = otherSpot(); if (!sp) return;
+      for (const sp of otherSpots()) drawOneBenched(sp);
+    }
+    function drawOneBenched(sp) {
       drawShadow(sp.x, sp.y + 3, 12, 5, 0.36);
-      if (g.who === "lion") {
-        // the kid, on his board, waiting to be asked
-        const im = imgs.current[g.kidYt];
+      if (sp.r.actor) {
+        // an actor sheet, not a single plate: the same path the mentor is drawn with elsewhere
+        const u = { x: sp.x, y: sp.y, vx: 0, vy: 1, anim: 0 };
+        if (!drawActorTop(sp.r.actor, 0, u, null)) {
+          ctx.fillStyle = "#2f4a3a"; ctx.fillRect(sp.x - 9, sp.y - 14, 18, 28);
+        }
+      } else if (sp.r.id !== "lion") {
+        const im = imgs.current[sp.r.yt];
         if (im && im.width) {
           const h = 26, w = h * (im.width / im.height);
           const dk = imgs.current.sk_deck;
@@ -20204,9 +20232,7 @@ export default function IronLionLayer004() {
       }
       // the prompt, so you know it is a conversation and not scenery
       if (Math.hypot(g.p.x - sp.x, g.p.y - sp.y) < 64)
-        bubble(sp.x, sp.y - 18, g.who === "lion"
-          ? "[E] " + (g.kidName || "RIO") + " \u2014 TAKE OVER"
-          : "[E] BACK TO THE LION");
+        bubble(sp.x, sp.y - 18, "[E] PLAY AS " + sp.r.name);
     }
     function drawSmoke() {
       for (const s2 of g.smoke) {
@@ -20244,6 +20270,68 @@ export default function IronLionLayer004() {
       ctx.beginPath(); ctx.arc(sh.tx, sh.ty, 7 * a + 2, 0, 6.3); ctx.fill();
     }
 
+    /* THE ROSTER. Three men, one of you at a time. This is a list rather than a lion/kid
+       boolean because the boolean could only ever describe two people, and the moment there
+       is a third the whole thing has to be rewritten -- so it is a list now and adding a
+       fourth is one entry.
+
+       `kit` is what he starts with the first time you take him out. After that whatever he
+       was carrying is on the bench with him and comes back when you pick him up again. */
+    const ROSTER = [
+      { id: "lion", name: "THE LION", yt: null,
+        kit: { wpn: null, ammo: 0, holstered: false, board: false, hp: 100 } },
+      { id: "rio", name: "RIO", yt: "yt_rio",
+        kit: { wpn: null, ammo: 0, holstered: false, board: true, hp: 100 } },
+      /* Sho draws from the mentor sheet -- he already exists in this world with a look, and
+         inventing a second plate for him would have put two different men on screen under one
+         name. `actor` takes precedence over `yt` in the bench draw. */
+      { id: "sho", name: "SHO", yt: null, actor: "mentor",
+        kit: { wpn: "bat", ammo: 0, holstered: false, board: false, hp: 100 } },
+    ];
+    const rosterOf = (id) => ROSTER.find((r) => r.id === id) || ROSTER[0];
+    // everyone you are NOT, in roster order, so the line-up does not reshuffle as you swap
+    const benched = () => ROSTER.filter((r) => r.id !== g.who);
+
+    /* Along the SOUTH wall of the bay, away from the lift and the cars. Spread across the
+       width so two men are not standing in each other, and each one is talkable on his own. */
+    function otherSpots() {
+      const b = denOf();
+      if (!b) return [];
+      const pl = buildingPlans(b)[0];
+      const bay = pl.rooms.find((r) => r.k === "bay");
+      if (!bay) return [];
+      const list = benched();
+      const W2 = bay.x1 - bay.x0;
+      const out = list.map((r, n) => {
+        const sp = { r, x: bay.x0 + W2 * (0.24 + n * 0.30), y: bay.y1 - 34 };
+        for (const q of pl.props) {
+          if (sp.x > q.x - 14 && sp.x < q.x + q.w + 14 && sp.y > q.y - 14 && sp.y < q.y + q.h + 14) {
+            sp.x = q.x - 28; break;
+          }
+        }
+        return sp;
+      });
+      /* Prise them apart, THEN clear props again. Doing it the other way round -- which is
+         what the first version did -- pushed one man off a prop and the spacing pass shoved
+         him straight back onto another. Two passes in this order, and a short search for the
+         nearest free spot, gets both right in every den size. */
+      for (let a = 1; a < out.length; a++) {
+        if (Math.abs(out[a].x - out[a - 1].x) < 76) out[a].x = out[a - 1].x + 76;
+      }
+      const blocked = (x, y) => pl.props.some((q) =>
+        x > q.x - 14 && x < q.x + q.w + 14 && y > q.y - 14 && y < q.y + q.h + 14);
+      for (const sp of out) {
+        sp.x = clamp(sp.x, bay.x0 + 30, bay.x1 - 30);
+        if (!blocked(sp.x, sp.y)) continue;
+        for (let step = 18; step <= 200; step += 18) {
+          const l = clamp(sp.x - step, bay.x0 + 30, bay.x1 - 30);
+          const r2 = clamp(sp.x + step, bay.x0 + 30, bay.x1 - 30);
+          if (!blocked(r2, sp.y)) { sp.x = r2; break; }
+          if (!blocked(l, sp.y)) { sp.x = l; break; }
+        }
+      }
+      return out;
+    }
     function otherSpot() {
       /* Stood in the open, not against the machinery. Bay-centre-plus-54 put him half inside
          the lift on most den sizes, so walking up to him meant standing in a solid and E went
@@ -20279,24 +20367,25 @@ export default function IronLionLayer004() {
     }
     G.swapFn = () => {
       if (!g.inside || g.inside.kind !== "den" || g.floor !== 0) return false;
-      const sp = otherSpot();
-      if (!sp) return false;
-      if (Math.hypot(g.p.x - sp.x, g.p.y - sp.y) > 64) return false;
-      const mine = packKit();
-      const theirs = g.bench || (g.who === "lion"
-        // first swap: the kid turns up with his board and nothing else
-        ? { wpn: null, ammo: 0, holstered: false, board: true, hp: 100 }
-        : { wpn: null, ammo: 0, holstered: false, board: false, hp: 100 });
-      g.bench = mine;
-      g.who = g.who === "lion" ? "kid" : "lion";
-      wearKit(theirs);
-      if (g.who === "kid") { g.lionOn = false; g.plain = true; }
-      g.pickupFlash = { nm: g.who === "kid" ? "playing_as_" + (g.kidName || "RIO").toLowerCase()
-                                            : "playing_as_the_lion", t: 1.8 };
+      // whoever you are actually stood in front of, not "the other one"
+      let best = null, bd = 64;
+      for (const sp of otherSpots()) {
+        const d = Math.hypot(g.p.x - sp.x, g.p.y - sp.y);
+        if (d < bd) { bd = d; best = sp; }
+      }
+      if (!best) return false;
+      g.bench = g.bench || {};
+      g.bench[g.who] = packKit();
+      const to = best.r;
+      g.who = to.id;
+      wearKit(g.bench[to.id] || to.kit);
+      if (to.id !== "lion") { g.lionOn = false; g.plain = true; }
+      g.pickupFlash = { nm: "playing_as_" + to.id, t: 1.8 };
       return true;
     };
-    G.tazeFn = () => { if (g.who === "kid" && !g.inside) fireTazer(); };
-    G.smokeFn = () => { if (g.who === "kid") dropSmoke(); };
+    // Rio's kit. Sho carries a bat and takes people apart with his hands.
+    G.tazeFn = () => { if (g.who === "rio" && !g.inside) fireTazer(); };
+    G.smokeFn = () => { if (g.who === "rio") dropSmoke(); };
     G.boardToggleFn = () => {
       if (!g.board.has) return;
       if (g.board.on) boardOff(); else boardOn();
@@ -21918,9 +22007,9 @@ export default function IronLionLayer004() {
           </>
         ) : (
           <>
-            {!hud.cab && hud.who === "kid" && btn("TAZE", "stun",
+            {!hud.cab && hud.who === "rio" && btn("TAZE", "stun",
               () => { G.tazeFn && G.tazeFn(); }, null)}
-            {!hud.cab && hud.who === "kid" && btn("SMOKE", (hud.smokeStock || 0) + " left",
+            {!hud.cab && hud.who === "rio" && btn("SMOKE", (hud.smokeStock || 0) + " left",
               () => { G.smokeFn && G.smokeFn(); }, null, hud.hidden)}
             {hud.cab && btn("FIRE", "shoot",
               () => { input.current.fire = true; },
