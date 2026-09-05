@@ -966,6 +966,7 @@ YT.yt_sho_hero = "assets/youth/yt_sho_hero.png";
 YT.yt_mentor = "assets/youth/yt_mentor.png";
 YT.yt_kenny = "assets/youth/yt_kenny.png";
 YT.yt_kenny_hero = "assets/youth/yt_kenny_hero.png";
+YT.wp_katana = "assets/youth/wp_katana.png";
 const ST = {};
 for (const k of ["change", "mech", "owner", "door", "bar", "sound"])
   ST["st_" + k] = "assets/staff/st_" + k + ".png";
@@ -1333,7 +1334,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 350 — SWINGS YOU CAN SEE";
+const BUILD_TAG = "LAYER 352 — JAB, UPPERCUT, CUT";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -6487,6 +6488,7 @@ export default function IronLionLayer004() {
             p.barkCd = 6;
           }
         }
+        if (p.zap > 0) p.zap -= dt;
         if (p.stunT > 0) {
           p.stunT -= dt;
           if (p.knock > 0) { p.knock -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.86; p.vy *= 0.86; }
@@ -6565,12 +6567,63 @@ export default function IronLionLayer004() {
       /* What he is holding. The ally plates are torsos with no weapon layer, so an armed man
          read as an unarmed one -- a held shape in his right hand, sized off the plate. Crude,
          but "he is carrying something" is the part that has to be legible at 40 pixels. */
-      if (p.wpn && p.swing > 0) {
-        const blade = p.wpn === "katana" || p.wpn === "machete";
-        const long = blade || p.wpn === "bat" || p.wpn === "pipe" || p.wpn === "crowbar";
-        ctx.fillStyle = p.wpn === "tazer" ? "#c8a13a" : blade ? "#cfd6dc" : long ? "#7a6242" : "#3a3d42";
-        if (long) ctx.fillRect(w * 0.20, -h * (blade ? 0.30 : 0.02), w * (blade ? 0.06 : 0.10), h * (blade ? 0.86 : 0.62));
-        else ctx.fillRect(w * 0.20, h * 0.16, w * 0.13, h * 0.18);
+      /* The swing. The plate's arms are painted on and cannot move, so the striking arm is
+         drawn OVER it -- a forearm from the shoulder that sweeps through about 150 degrees
+         across the attack, with whatever he is holding on the end of it. Without this an
+         attack was a weapon appearing and disappearing on a statue. */
+      /* Three different moves, drawn three different ways. One sweep for everything meant a
+         jab, an uppercut and a sword cut all looked identical, which is worse than no
+         animation at all -- it tells you the game does not know the difference either.
+
+           jab       the arm SHOOTS OUT and comes back. No arc. Length is the animation.
+           uppercut  a short arm coming up from the hip and across the body, and he leans in.
+           swing     a long arc over the shoulder, all the way through. */
+      if (p.swing > 0) {
+        const k = clamp(1 - p.swing / (p.swingDur || 0.26), 0, 1);
+        const punch = Math.sin(k * Math.PI);          // out and back in one motion
+        const sx = w * 0.30, sy = -h * 0.06;          // right shoulder
+        ctx.save();
+        if (p.move === "jab") {
+          ctx.translate(sx - w * 0.06, sy);
+          ctx.fillStyle = "#c9a17a";
+          const reach = h * (0.16 + punch * 0.44);
+          ctx.fillRect(-w * 0.06, 0, w * 0.12, reach);
+          ctx.fillStyle = "#2f3238";
+          ctx.fillRect(-w * 0.09, reach, w * 0.18, h * 0.13);
+        } else if (p.move === "upper") {
+          // from the hip, up across the chest, and the whole body goes with it
+          ctx.translate(w * 0.10, h * 0.22);
+          ctx.rotate(-0.5 - k * 2.0);
+          ctx.fillStyle = "#c9a17a";
+          ctx.fillRect(-w * 0.07, 0, w * 0.14, h * 0.40);
+          ctx.fillStyle = "#2f3238";
+          ctx.fillRect(-w * 0.10, h * 0.40, w * 0.20, h * 0.15);
+        } else {
+          const sweep = -1.5 + k * 3.0;
+          ctx.translate(sx, sy);
+          ctx.rotate(sweep);
+          const len = h * 0.32;
+          ctx.fillStyle = "#c9a17a";
+          ctx.fillRect(-w * 0.05, 0, w * 0.10, len);
+          const blade = p.wpn === "katana" || p.wpn === "machete";
+          const im2 = blade ? imgs.current.wp_katana : null;
+          if (im2 && im2.width) {
+            // the plate, scaled off the figure so it is a sword and not a lamp post
+            const bh = h * 1.05, bw = bh * (im2.width / im2.height);
+            ctx.save(); ctx.translate(0, len); ctx.rotate(Math.PI);
+            ctx.drawImage(im2, -bw / 2, -bh, bw, bh);
+            ctx.restore();
+          } else if (p.wpn) {
+            const long = blade || p.wpn === "bat" || p.wpn === "pipe" || p.wpn === "crowbar";
+            ctx.fillStyle = p.wpn === "tazer" ? "#c8a13a" : long ? "#7a6242" : "#3a3d42";
+            if (long) ctx.fillRect(-w * 0.05, len, w * 0.10, h * 0.56);
+            else ctx.fillRect(-w * 0.06, len, w * 0.13, h * 0.18);
+          } else {
+            ctx.fillStyle = "#2f3238";
+            ctx.fillRect(-w * 0.07, len, w * 0.14, h * 0.11);
+          }
+        }
+        ctx.restore();
       }
       ctx.restore();
       return true;
@@ -14233,6 +14286,7 @@ export default function IronLionLayer004() {
             m.x += (sx2 / sd) * (22 - sd) * 0.5;
             m.y += (sy2 / sd) * (22 - sd) * 0.5;
           }
+          if (m.zap > 0) m.zap -= dt;
           if (m.stun > 0) { m.x += m.vx * dt; m.y += m.vy * dt; m.vx *= 0.86; m.vy *= 0.86; continue; }
           // one hit from going down: he runs whatever the rest of them are doing
           if (m.hp <= 1 && cr.state === "hostile" && !m.wpn) {
@@ -14380,19 +14434,23 @@ export default function IronLionLayer004() {
        spread accuracy penalty, 0 is a marksman
        kick  screen shake */
     const WPN_STAT = {
-      pistol_auto:   { rate: 0.34, range: 380, dmg: 2.0, spread: 0.10, kick: 2 },
-      revolver:      { rate: 0.72, range: 420, dmg: 3.6, spread: 0.06, kick: 5 },
-      smg_uzi:       { rate: 0.11, range: 320, dmg: 1.3, spread: 0.26, kick: 2 },
-      smg_hk:        { rate: 0.14, range: 380, dmg: 1.6, spread: 0.18, kick: 2 },
-      shotgun_short: { rate: 0.95, range: 210, dmg: 6.0, spread: 0.30, kick: 8 },
-      shotgun_long:  { rate: 0.80, range: 300, dmg: 5.0, spread: 0.22, kick: 7 },
+      /* Retuned against a 4hp gang member: a pistol drops him in two, a revolver or either
+         shotgun in one. A fight that took five pistol rounds to settle read as shooting at
+         someone rather than shooting them. `knock` is how hard the hit throws him -- only the
+         shotguns have it, because a shotgun that does not move a man is just a loud pistol. */
+      pistol_auto:   { rate: 0.34, range: 380, dmg: 2.4, spread: 0.10, kick: 2 },
+      revolver:      { rate: 0.72, range: 420, dmg: 4.2, spread: 0.06, kick: 5 },
+      smg_uzi:       { rate: 0.11, range: 320, dmg: 1.5, spread: 0.26, kick: 2 },
+      smg_hk:        { rate: 0.14, range: 380, dmg: 1.8, spread: 0.18, kick: 2 },
+      shotgun_short: { rate: 0.95, range: 210, dmg: 7.0, spread: 0.30, kick: 8, knock: 340 },
+      shotgun_long:  { rate: 0.80, range: 300, dmg: 6.0, spread: 0.22, kick: 7, knock: 300 },
       rifle_bolt:    { rate: 1.50, range: 900, dmg: 7.5, spread: 0.03, kick: 9 },
       rifle_auto:    { rate: 0.22, range: 620, dmg: 2.6, spread: 0.14, kick: 3 },
     };
     const WPN_SCALE = {
       pistol_auto: 1.0, revolver: 1.05, smg_uzi: 1.15, smg_hk: 1.3,
       shotgun_short: 1.35, shotgun_long: 1.85, rifle_bolt: 2.0, rifle_auto: 1.85,
-      bat: 1.5, knife: 0.85, grenade: 0.7, molotov: 0.75,
+      bat: 1.5, knife: 0.85, grenade: 0.7, molotov: 0.75, katana: 1.7, machete: 1.5,
     };
     // these are swung, not fired: no muzzle, no ammo, no drawn-weapon aim behaviour
     const WPN_MELEE = { bat: 1, knife: 1 };
@@ -14418,7 +14476,9 @@ export default function IronLionLayer004() {
     };
     // the Don's men are the older wing and armed like it
     const WPN_KIT_OLD = [["revolver", 4], ["shotgun_short", 2], ["smg_hk", 1]];
-    const COP_KIT = [["revolver", 6], ["pistol_auto", 3], ["shotgun_short", 1]];
+    /* Pistols and long shotguns, per your call -- the short one stays for the tactical units
+       who already carry it. Weighted so most of what you meet on a corner is a sidearm. */
+    const COP_KIT = [["pistol_auto", 6], ["revolver", 4], ["shotgun_long", 2], ["shotgun_short", 1]];
     function pickWeighted(list) {
       let tot = 0;
       for (const e of list) tot += e[1];
@@ -15371,6 +15431,8 @@ export default function IronLionLayer004() {
     // bats and the tazer, nothing else. He is fifteen.
     // guns are the Lion's alone. The others get what you can swing.
     const KID_OK = { bat: 1, pipe: 1, crowbar: 1, tazer: 1, katana: 1, machete: 1 };
+    // a blade is not a stick. Melee damage scales off what is in his hand.
+    const MELEE_MUL = { katana: 2.4, machete: 2.0, bat: 1.4, pipe: 1.3, crowbar: 1.5 };
     function applyItem(nm) {
       if (nm.slice(0, 4) === "wpn_") {
         const k = nm.slice(4);
@@ -16296,7 +16358,8 @@ export default function IronLionLayer004() {
           if (m.hp <= 0) continue;
           const dx = m.x - g.p.x, dy = m.y - g.p.y, d = Math.hypot(dx, dy);
           if (d > 56 || (dx / d) * f[0] + (dy / d) * f[1] < 0.1) continue;
-          m.hp -= lionHit; m.stun = 0.42 * lionHit;
+          const mm = MELEE_MUL[g.p.holstered ? null : g.p.wpn] || 1;
+          m.hp -= lionHit * mm; m.stun = 0.42 * lionHit * mm;
           /* A beating in front of a patrol car is a crime whoever is on the receiving end. The
              Lion putting gang members down is still assault to a man in uniform, and that
              tension is most of what the mask is for. */
@@ -16939,8 +17002,25 @@ export default function IronLionLayer004() {
       /* Wanted decays. Without this `heat` latched on forever and the chase music never stopped
          -- a pursuit has to be something you can get out of. */
       if ((g.wantedT || 0) > 0) {
-        g.wantedT -= dt;
+        /* You only shed it by NOT being seen. A timer that runs down while a patrol car is
+           looking at you is not an escape, it is a wait -- so seen police hold the clock, and
+           sixty clear seconds is what it takes to lose them. */
+        const seen = copsWatching(g.p.x, g.p.y);
+        if (!seen) g.wantedT -= dt;
+        else g.wantedT = Math.max(g.wantedT, 6);
         if (g.wantedT <= 0) { g.heat = 0; g.wantedT = 0; }
+      }
+      /* The costume IS the offence. A masked man walking down a street in front of a patrol
+         car is a thing the RHPD acts on -- it is the whole cost of putting it on, and it was
+         costing nothing. Only the Lion; nobody is looking for Rio. */
+      if (!g.inside && !g.plain && g.who === "lion" && g.mode === "foot") {
+        g.maskSeenCd = Math.max(0, (g.maskSeenCd || 0) - dt);
+        if (g.maskSeenCd <= 0 && copsWatching(g.p.x, g.p.y)) {
+          g.maskSeenCd = 2.5;
+          g.heat = Math.max(g.heat || 0, 2);
+          g.wantedT = Math.max(g.wantedT || 0, 60);
+          escalatePolice(g.p.x, g.p.y, 1);
+        }
       }
       /* Decided once a second, not every frame. The crossfade is half a second, and re-deciding
          at 60Hz along a district boundary makes it stutter between two tracks as you drive the
@@ -17785,7 +17865,9 @@ export default function IronLionLayer004() {
                       yt: plate, bang: g.board.ang, tall: r.id === "sho" ? 1.42 : 1,
                       wpn: g.p.holstered ? null : g.p.wpn,
                       // a bat carried at rest looked like a plank glued to his hip
-                      swing: Math.max(g.p.atk || 0, g.p.punT || 0) };
+                      swing: Math.max(g.p.atk || 0, g.p.punT || 0),
+                      swingDur: (g.p.punT || 0) > 0 ? (g.p.punDur || 0.18) : 0.26,
+                      move: (g.p.punT || 0) > 0 ? (g.p.punMove || "jab") : "swing" };
           if (g.board.on) {
             /* The deck is drawn at his position, so the RIDER is what moves. His feet sit a
                little over half his height down his own local axis, and rotate(bang) sends that
@@ -18044,7 +18126,7 @@ export default function IronLionLayer004() {
        These travel. 1100 units a second is fast enough to feel like a bullet and slow enough
        that at LION's time scale you can see it coming and step out of the line -- which is the
        whole reason the ability exists. */
-    function fireBullet(from, ang, spd, dmg, range, byPlayer, gang) {
+    function fireBullet(from, ang, spd, dmg, range, byPlayer, gang, knock) {
       (g.bullets = g.bullets || []).push({
         x: from.x, y: from.y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
         dmg, left: range, byPlayer: !!byPlayer, gang: gang || null, t: 0,
@@ -18073,6 +18155,12 @@ export default function IronLionLayer004() {
                           bleed(g.p.x, g.p.y, false); return true; }
           o.hp -= b.dmg;
           o.stun = Math.max(o.stun || 0, 0.25);
+          // a shotgun takes them off their feet; everything else just hurts
+          if (b.knock) {
+            const kl = Math.hypot(dx, dy) || 1;
+            o.vx = (dx / kl) * b.knock; o.vy = (dy / kl) * b.knock;
+            o.stun = Math.max(o.stun, 0.7);
+          }
           casualty(o.x, o.y, o.hp <= 0);
           if (o.hp <= 0) { dropLoot(o.x, o.y, LOOT_KING); dropWeapon(o); }
           return true;
@@ -19745,6 +19833,7 @@ export default function IronLionLayer004() {
       if (!g.inside) for (const u of policeUnits()) drawList.push([u.y, 5, u, 0]);
       if (g.detectives && !g.inside) for (const u of g.detectives.units) drawList.push([u.y, 6, u, 0]);
       for (const cr of g.crews) if (cr.indoor ? (cr.indoor === g.inside && cr.indoorFloor === g.floor) : !g.inside) for (const m of cr.members) {
+        if (m.hp > 0) g.barList = (g.barList || []).concat([m]);
         if (m.x < view.x0 || m.x > view.x1 || m.y < view.y0 || m.y > view.y1) continue;
         /* When you ARE Sho, the man in the den who is Sho stops being drawn -- otherwise he
            stands there watching himself walk off, which is the second copy. */
@@ -19816,6 +19905,14 @@ export default function IronLionLayer004() {
       }
       if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); }
       drawSmoke(); drawShock(); drawStars(); drawFx();
+      /* Anyone in the fight, not only gang crews -- police, and any civilian who has been hit.
+         A bar over one man and nothing over the next reads as a bug rather than a rule. */
+      for (const p2 of (Array.isArray(g.peds) ? g.peds : []))
+        if (p2 && p2.hp != null && p2.hp < (p2.maxHp || 4)) (g.barList = g.barList || []).push(p2);
+      for (const c2 of (g.police ? [g.police] : []).concat(g.policeMore || []))
+        for (const o2 of (c2 && c2.crew ? c2.crew : [])) if (o2 && o2.hp > 0) (g.barList = g.barList || []).push(o2);
+      for (const m of (g.barList || [])) { drawHealthBar(m); drawZap(m); }
+      g.barList = null;
       if (!g.inside) { drawLampPosts(view); drawPolesAndWires(view); }
       if (!g.inside) {
         for (const p of g.peds) if (p.say > 0 && p.line) bubble(p.x, p.y, p.line);
@@ -20484,6 +20581,9 @@ export default function IronLionLayer004() {
             ours and the ped loop honours it. */
         best.stunT = 3.4; best.vx = 0; best.vy = 0;
         best.say = 1.4; best.line = "AAGH!";
+        if (best.hp != null) best.hp -= 2;
+        best.zap = 0.9;                       // he crackles for a second, so the hit reads
+        pushFx("ring", best.x, best.y, 0);
       }
       return true;
     }
@@ -20597,6 +20697,39 @@ export default function IronLionLayer004() {
       for (let i = list.length - 1; i >= 0; i--) {
         list[i].t -= dt;
         if (list[i].t <= 0) list.splice(i, 1);
+      }
+    }
+    /* A bar over anyone hurt but still standing. Without it a fight is guesswork -- you cannot
+       tell a man who has taken three from one who has taken none, so you keep hitting a corpse
+       and ignore the one about to shoot you. Hidden at full health so a quiet street stays
+       quiet. */
+    function drawHealthBar(o) {
+      const max = o.maxHp || 4;
+      const hp = clamp(o.hp, 0, max);
+      if (hp >= max || hp <= 0) return;
+      const w = 22, x = o.x - w / 2, y = o.y - 24;
+      ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(x - 1, y - 1, w + 2, 5);
+      ctx.fillStyle = hp / max > 0.5 ? "#8fd070" : hp / max > 0.25 ? "#e0b040" : "#e04848";
+      ctx.fillRect(x, y, w * (hp / max), 3);
+    }
+    /* Anybody carrying a live charge gets a crackle over him for a second -- three short
+       jagged strokes, reseeded every frame. The tazer stunned people invisibly before, so it
+       looked like they had simply decided to stand still. */
+    function drawZap(o) {
+      if (!(o.zap > 0) || !Number.isFinite(o.x)) return;
+      const a = clamp(o.zap / 0.9, 0, 1);
+      ctx.strokeStyle = `rgba(150,215,255,${a})`;
+      ctx.lineWidth = 1.6;
+      for (let n = 0; n < 3; n++) {
+        ctx.beginPath();
+        let px = o.x - 8 + n * 8, py = o.y - 14;
+        ctx.moveTo(px, py);
+        for (let q = 0; q < 3; q++) {
+          px += Math.sin(g.t * 70 + n * 3 + q) * 5;
+          py += 8;
+          ctx.lineTo(px, py);
+        }
+        ctx.stroke();
       }
     }
     function drawFx() {
@@ -20854,9 +20987,13 @@ export default function IronLionLayer004() {
          is indistinguishable from a move that is broken, which is how this one wasted two
          rounds. */
       if (g.board.on) { g.pickupFlash = { nm: "cant_jump_on_a_board", t: 1.1 }; return false; }
+      /* He can always jump. If there is a building close enough it becomes a roof jump; if
+         there is not he still leaves the ground, which is the difference between a move that
+         sometimes works and a move that sometimes does something better. */
       const b = buildingUnderFoot();
-      if (!b) { g.pickupFlash = { nm: "no_building_close_enough", t: 1.2 }; return false; }
-      g.p.jumpT = 0.62; g.p.jumpDur = 0.62; g.p.jumpTo = b;
+      g.p.jumpT = b ? 0.62 : 0.4;
+      g.p.jumpDur = g.p.jumpT;
+      g.p.jumpTo = b || null;
       return true;
     }
     function stepShoJump(dt) {
@@ -20908,6 +21045,8 @@ export default function IronLionLayer004() {
           if (!Number.isFinite(t.x)) continue;
           if (Math.hypot(t.x - s2.x, t.y - s2.y) > 16) continue;
           t.stunT = 2.6; t.vx = 0; t.vy = 0; t.say = 1.2; t.line = "AH!";
+          if (t.hp != null) t.hp -= 1.5;
+          pushFx("arc", s2.x, s2.y, Math.atan2(s2.vy, s2.vx));
           list.splice(i, 1);
           break;
         }
@@ -20965,8 +21104,14 @@ export default function IronLionLayer004() {
       g.p.chain = (now - (g.p.punLast || -9) < 0.75) ? ((g.p.chain || 0) + 1) % 4 : 0;
       g.p.punLast = now;
       const finisher = g.p.chain === 3;
+      // the gloves run off him. A finisher with nothing left is a normal punch.
+      const cost = finisher ? 22 : 6;
+      const powered = g.p.stamina >= cost;
+      g.p.stamina = Math.max(0, g.p.stamina - (powered ? cost : 0));
       g.p.punCd = finisher ? 0.62 : 0.26;
       g.p.punT = finisher ? 0.34 : 0.18;
+      g.p.punDur = g.p.punT;
+      g.p.punMove = finisher ? "upper" : "jab";
       let ang = Math.atan2(g.p.vy || 0, g.p.vx || 1);
       if (!Number.isFinite(ang)) ang = 0;
       const reach = finisher ? 52 : 40;
@@ -20980,16 +21125,17 @@ export default function IronLionLayer004() {
         while (da < -Math.PI) da += Math.PI * 2;
         if (Math.abs(da) > 1.1) continue;
         const a2 = Math.atan2(t.y - g.p.y, t.x - g.p.x);
-        t.stunT = finisher ? 5.0 : 2.2;
-        t.knock = finisher ? 0.5 : 0.2;
-        const push = finisher ? 420 : 120;
+        t.stunT = (finisher && powered) ? 5.0 : 2.2;
+        t.knock = (finisher && powered) ? 0.5 : 0.2;
+        const push = (finisher && powered) ? 420 : 120;
+        if (t.hp != null) t.hp -= (finisher && powered) ? 3 : 1;
         t.vx = Math.cos(a2) * push; t.vy = Math.sin(a2) * push;
         t.say = 1.2; t.line = finisher ? "!!!" : "UGH";
         hit++;
       }
       pushFx("ring", g.p.x + Math.cos(ang) * 26, g.p.y + Math.sin(ang) * 26, ang);
       g.shake = Math.max(g.shake, finisher ? 11 : 4);
-      g.pickupFlash = { nm: finisher ? "uppercut" : "punch_" + (g.p.chain + 1), t: 0.7 };
+      g.pickupFlash = { nm: !powered ? "too_tired" : finisher ? "uppercut" : "punch_" + (g.p.chain + 1), t: 0.7 };
       return true;
     }
     function stepKenny(dt) {
