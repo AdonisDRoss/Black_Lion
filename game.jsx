@@ -954,11 +954,12 @@ for (const k of ["change", "mech", "owner", "door", "bar", "sound"])
   ST["st_" + k] = "assets/staff/st_" + k + ".png";
 const VN = {};
 for (const k of ["main_stage", "drum_riser", "stage_steps", "amp_stack", "amp_combo",
-                 "mic_stands", "pastack", "lights", "merch", "barrier", "cases", "monitor"])
+                 "mic_stands", "pastack", "lights", "merch", "barrier", "cases", "monitor",
+                 "drumkit"])
   VN["vn_" + k] = "assets/venue/vn_" + k + ".png";
 const AR2 = {};
 for (const k of ["change", "snack", "photo", "carpet", "stool", "bin",
-                 "cab_ironcurtain", "cab_curtain2", "cab_thefront"])
+                 "cab_ironcurtain", "cab_curtain2", "cab_thefront", "cab_brawler"])
   AR2["ar_" + k] = "assets/arcade/ar_" + k + ".png";
 // already cut and sitting in assets/arcade/ from the first batch
 for (const k of ["upright", "cocktail", "pinball", "stage", "drums", "amp", "mic", "pa"])
@@ -1299,7 +1300,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 328 — THE BAND, AND CARS THAT DIFFER";
+const BUILD_TAG = "LAYER 329 — THE RUG, THE KIT, THE BRAWLER";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -3584,17 +3585,17 @@ function makeFloor(b, f, rnd) {
          a cabinet at 26x34 stands about his height, a stool at 15 comes to his knee, and the
          PA stack at 26x40 is the one thing on the floor taller than he is. */
       case "cabrow": {
-        const CABS = ["ar_cab_ironcurtain", "ar_cab_thefront", "ar_cab_curtain2"];
+        const CABS = ["ar_cab_ironcurtain", "ar_cab_thefront", "ar_cab_brawler", "ar_cab_curtain2"];
         let ci = 0;
         if (wide) {
           for (let rx = q2.x0 + 26; rx < q2.x1 - 26; rx += 34) {
-            P(rx, q2.y0 + pad, 26, 34, CABS[ci % 3]); ci++;
-            P(rx, q2.y1 - pad - 34, 26, 34, CABS[(ci + 1) % 3]);
+            P(rx, q2.y0 + pad, 26, 34, CABS[ci % CABS.length]); ci++;
+            P(rx, q2.y1 - pad - 34, 26, 34, CABS[(ci + 1) % CABS.length]);
           }
         } else {
           for (let ry = q2.y0 + 26; ry < q2.y1 - 26; ry += 34) {
-            P(q2.x0 + pad, ry, 26, 34, CABS[ci % 3]); ci++;
-            P(q2.x1 - pad - 26, ry, 26, 34, CABS[(ci + 1) % 3]);
+            P(q2.x0 + pad, ry, 26, 34, CABS[ci % CABS.length]); ci++;
+            P(q2.x1 - pad - 26, ry, 26, 34, CABS[(ci + 1) % CABS.length]);
           }
         }
         // the mechanic lives at an open machine, so he stands in the row rather than at a wall
@@ -3623,7 +3624,9 @@ function makeFloor(b, f, rnd) {
            pieces -- it left a 17-unit gap between each one. */
         for (let n = 0; n < 4; n++)
           P(q2.x0 + pad + n * sw, sy, sw / SHRINK, sh2 / SHRINK, "vn_main_stage");
-        P(cx - 20, sy + 14, 40, 40, "vn_drum_riser");
+        P(cx - 20, sy + 12, 40, 40, "vn_drum_riser");
+        // the kit itself, on the riser. 1.62:1 to match the plate rather than squash it.
+        P(cx - 26, sy + 18, 52, 32, "vn_drumkit");
         P(q2.x0 + pad + 4, sy + 8, 26, 40, "vn_pastack");
         P(q2.x1 - pad - 30, sy + 8, 26, 40, "vn_pastack");
         P(cx - 62, sy + 34, 24, 18, "vn_amp_stack");
@@ -5904,7 +5907,7 @@ export default function IronLionLayer004() {
        at the back, which is what the floor of a small room actually looks like. */
     function updateGig(dt) {
       const on = g.inside && g.inside.kind === "bandvenue" && g.night > 0.15;
-      if (!on) { if (g.gig) g.gig = null; return; }
+      if (!on) { if (g.gig) g.gig = null; if (!g.inside) g.gigBand = null; return; }
       const b = g.inside;
       if (!g.gig) {
         g.gig = { crowd: [], t: 0 };
@@ -6051,6 +6054,9 @@ export default function IronLionLayer004() {
       "THAT'S BAD", "GRODY", "AS IF", "WHAT'S YOUR DAMAGE", "MONDO",
     ];
     const SKATE_LINES = ["SICK AIR!", "STOKED", "BAIL!", "SHRED IT", "NAILED IT", "WIPEOUT"];
+    // what you get for walking through somebody's run
+    const BAIL_LINES = ["HEY! WATCH IT", "NICE ONE, JERK", "BOGUS!", "YOU BLIND?",
+                        "THANKS A LOT", "GET BENT", "MY BOARD!"];
     function kidSay(p, pool) {
       p.line = pool[(Math.random() * pool.length) | 0];
       p.say = 1.8 + Math.random() * 0.9;
@@ -6208,6 +6214,23 @@ export default function IronLionLayer004() {
         const sp = p.mode === "cross" ? p.spd * 1.35 : p.spd;
         p.vx = (dx / d) * sp; p.vy = (dy / d) * sp;
         p.x += p.vx * dt; p.y += p.vy * dt;
+        /* Walk into a skater and he comes off it. He is down for a moment, tells you what he
+           thinks, then picks the board up and carries on -- the board is what makes him a
+           skater, so taking it away for two seconds is the whole reaction. */
+        if (p.skate || p.bailT > 0) {
+          const pv = inVehicle() ? activeVeh() : g.p;
+          if (p.bailT > 0) {
+            p.bailT -= dt;
+            p.vx *= 0.86; p.vy *= 0.86;
+            if (p.bailT <= 0) { p.skate = 1; p.spd = 96 + Math.random() * 54; }
+          } else if (Math.hypot(pv.x - p.x, pv.y - p.y) < 20) {
+            p.skate = 0; p.bailT = 1.9; p.sair = 0; p.spin = 0;
+            p.bailAng = Math.atan2(p.y - pv.y, p.x - pv.x);
+            p.vx = Math.cos(p.bailAng) * 120; p.vy = Math.sin(p.bailAng) * 120;
+            kidSay(p, BAIL_LINES);
+            p.barkCd = 6;
+          }
+        }
         if (p.skate) updateParkSkater(p, dt);
         if (p.park) {
           p.say = Math.max(0, (p.say || 0) - dt);
@@ -6234,6 +6257,7 @@ export default function IronLionLayer004() {
     }
 
     function drawPed(p) {
+      if (p.bailT > 0) { drawPedDown(p); return; }
       if (p.skate) { drawPedSkating(p); return; }
       if (p.yt && drawYouth(p)) return;
       drawPedBody(p);
@@ -6277,6 +6301,19 @@ export default function IronLionLayer004() {
       ctx.restore();
       return true;
     }
+    function drawPedDown(p) {
+      const t = clamp(p.bailT / 1.9, 0, 1);
+      const im = imgs.current[p.dk] || imgs.current.sk_deck;
+      ctx.save();
+      ctx.translate(p.x + Math.cos(p.bailAng || 0) * 16, p.y + Math.sin(p.bailAng || 0) * 16);
+      ctx.rotate((p.bailAng || 0) + 1.2);
+      if (im && im.width) ctx.drawImage(im, -17, -7, 34, 14);
+      ctx.restore();
+      drawShadow(p.x, p.y + 3, 11, 5, 0.34);
+      // flat on his back for the first half, getting up for the second
+      if (!(p.yt && drawYouth(p, (p.bailAng || 0) + Math.PI / 2, 0))) drawPedBody(p);
+      if (t > 0.55) { /* still down */ }
+    }
     function drawPedSkating(p) {
       const a = p.sair || 0;
       ctx.save();
@@ -6300,7 +6337,7 @@ export default function IronLionLayer004() {
       /* Sideways. With YOUTH_FACE at -PI/2 a figure pointed along its heading is
          rotate(bang - PI/2), so bang + PI/2 was that plus a half turn -- facing backwards down
          the board. Perpendicular, which is how anybody stands on one, is rotate(bang). */
-      if (!(p.yt && drawYouth(p, p.bang + (p.spin || 0), -3))) {
+      if (!(p.yt && drawYouth(p, p.bang + (p.spin || 0), 0))) {
         const bx = Math.cos(p.bang) * -7, by = Math.sin(p.bang) * -7;
         ctx.translate(p.x + bx, p.y + by);
         ctx.rotate(Math.PI / 2 + (p.spin || 0));
@@ -10221,7 +10258,8 @@ export default function IronLionLayer004() {
       sk_rack: "sk_rack", sk_shelf: "sk_shelf", sk_counter: "sk_counter",
       /* The arcade and the venue. Named the same as the plate, so one entry each. */
       ar_cab_ironcurtain: "ar_cab_ironcurtain", ar_cab_thefront: "ar_cab_thefront",
-      ar_cab_curtain2: "ar_cab_curtain2", ar_cocktail: "ar_cocktail",
+      ar_cab_curtain2: "ar_cab_curtain2", ar_cab_brawler: "ar_cab_brawler",
+      ar_cocktail: "ar_cocktail", vn_drumkit: "vn_drumkit",
       ar_change: "ar_change", ar_snack: "ar_snack", ar_photo: "ar_photo",
       ar_stool: "ar_stool", ar_bin: "ar_bin",
       vn_main_stage: "vn_main_stage", vn_drum_riser: "vn_drum_riser",
@@ -10882,12 +10920,21 @@ export default function IronLionLayer004() {
         /* The black-light carpet, tiled. It was cut and registered and then never asked for,
            so the arcade had the same floor as a laundrette. 96 units a tile is about 4.5m,
            which is roughly what a real one repeats at. */
+        /* A rug down the middle rather than wall-to-wall. At full coverage the neon geometry
+           fights every sprite in the room and there is nowhere for the eye to rest -- as a
+           centre run it does the same job and the machines still sit on plain floor. */
         const cp = imgs.current.ar_carpet;
         if (cp && cp.width) {
           const T = 96;
-          for (let ty = b.y; ty < b.y + b.h; ty += T)
-            for (let tx = b.x; tx < b.x + b.w; tx += T)
-              ctx.drawImage(cp, tx, ty, T, T);
+          const rx0 = b.x + b.w * 0.22, rx1 = b.x + b.w * 0.78;
+          const ry0 = b.y + b.h * 0.26, ry1 = b.y + b.h * 0.74;
+          ctx.save();
+          ctx.beginPath(); ctx.rect(rx0, ry0, rx1 - rx0, ry1 - ry0); ctx.clip();
+          for (let ty = ry0; ty < ry1; ty += T)
+            for (let tx = rx0; tx < rx1; tx += T) ctx.drawImage(cp, tx, ty, T, T);
+          ctx.restore();
+          ctx.strokeStyle = "rgba(0,0,0,0.45)"; ctx.lineWidth = 3;
+          ctx.strokeRect(rx0, ry0, rx1 - rx0, ry1 - ry0);
         }
       }
       if (isDen) {
@@ -11099,7 +11146,8 @@ export default function IronLionLayer004() {
       /* You walked straight through the staff and through every machine in the arcade. A
          person is the most obviously solid thing in a room; a cabinet is the second. */
       st_change: 1, st_mech: 1, st_owner: 1, st_door: 1, st_bar: 1, st_sound: 1,
-      ar_cab_ironcurtain: 1, ar_cab_thefront: 1, ar_cab_curtain2: 1, ar_cocktail: 1,
+      ar_cab_ironcurtain: 1, ar_cab_thefront: 1, ar_cab_curtain2: 1, ar_cab_brawler: 1,
+      ar_cocktail: 1, vn_drumkit: 1,
       ar_change: 1, ar_snack: 1, ar_photo: 1,
       vn_main_stage: 1, vn_drum_riser: 1, vn_pastack: 1, vn_amp_stack: 1,
       vn_amp_combo: 1, vn_merch: 1, vn_cases: 1, vn_barrier: 1, vn_stage_steps: 1,
@@ -16362,13 +16410,12 @@ export default function IronLionLayer004() {
           const cj = clamp(Math.floor(pv.y / PITCH), 0, N - 1);
           if (kind === "arcade") musicPlay("arcade");
           else if (kind === "bandvenue") {
-            /* After dark it is a gig, not a room. One band is picked when the night turns and
-               kept until it turns back, so the track does not reshuffle every time the music
-               tick re-decides. */
-            if (g.night > 0.15) {
-              if (!g.gigBand) g.gigBand = "band" + (1 + ((Math.random() * 3) | 0));
-              musicPlay(g.gigBand);
-            } else { g.gigBand = null; musicPlay("youth"); }
+            /* Always a band, day or night -- it is a music venue, and gating the audio on
+               darkness meant walking in during the afternoon was silent, which read as broken.
+               The CROWD is still a night thing; the soundcheck is not. The track is picked
+               once and kept, so it does not reshuffle every time the tick re-decides. */
+            if (!g.gigBand) g.gigBand = "band" + (1 + ((Math.random() * 3) | 0));
+            musicPlay(g.gigBand);
           }
           else if (cj === 9 && (ci === 5 || ci === 6)) musicPlay("youth");
           else musicPlay(ZONE_MUSIC[zoneOf(ci, cj)] || "drive");
@@ -18852,7 +18899,9 @@ export default function IronLionLayer004() {
         }
       }
       g.night = lerp(g.night, g.nightTarget, clamp(dt * 1.6, 0, 1));
-      g.shake = Math.max(0, g.shake - dt * 26);
+      /* Was 26, which left a heavy hit wobbling for four or five seconds. A crash is an
+         impact, not weather -- 64 puts even the worst of them under a second and a half. */
+      g.shake = Math.max(0, g.shake - dt * 64);
       for (let i = g.skids.length - 1; i >= 0; i--) {
         g.skids[i].life -= dt * 0.035;
         if (g.skids[i].life <= 0) g.skids.splice(i, 1);
@@ -19705,7 +19754,7 @@ export default function IronLionLayer004() {
       if (!pl) return false;
       let best = null, bd = 34;
       for (const q of pl.props) {
-        if (q.t !== "ar_cab_ironcurtain" && q.t !== "ar_cab_thefront" && q.t !== "ar_cab_curtain2") continue;
+        if (!q.t.startsWith("ar_cab_")) continue;
         const d = Math.hypot(g.p.x - (q.x + q.w / 2), g.p.y - (q.y + q.h / 2));
         if (d < bd) { bd = d; best = q; }
       }
