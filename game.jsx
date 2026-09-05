@@ -1356,7 +1356,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 353 — THE CHARGE JUMPS";
+const BUILD_TAG = "LAYER 354 — THE ABILITIES HIT PEOPLE NOW";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5768,10 +5768,24 @@ export default function IronLionLayer004() {
        move in the game that closes distance and lands damage in the same beat, which is why
        it belongs to the man with no weapon -- his answer to a gun is to already be there. */
     const KICK_RANGE = 210;
+    /* Everyone an ability can hit. Every one of these searched `g.peds` only -- which is
+       CIVILIANS. Gang members live in `g.crews[].members` and police in their own crews, so the
+       tazer, the stars, the fly kick, the board spin and Kenny's fists have all been landing
+       exclusively on bystanders. That is the whole reason none of it seemed to work. */
+    function combatTargets() {
+      const out = Array.isArray(g.peds) ? g.peds.slice() : [];
+      for (const cr of (g.crews || [])) {
+        if (cr.indoor ? (cr.indoor !== g.inside || cr.indoorFloor !== g.floor) : g.inside) continue;
+        for (const m of (cr.members || [])) if (m && m.hp > 0) out.push(m);
+      }
+      for (const c2 of (g.police ? [g.police] : []).concat(g.policeMore || []))
+        for (const o2 of (c2 && c2.crew ? c2.crew : [])) if (o2 && o2.hp > 0) out.push(o2);
+      return out;
+    }
     function kickTarget() {
       const ang = Math.atan2(g.p.vy || 0, g.p.vx || 1);
       let best = null, bd = KICK_RANGE;
-      const list = Array.isArray(g.peds) ? g.peds : [];
+      const list = combatTargets();
       for (const t of list) {
         if (!t || t.stunT > 0) continue;
         if (!Number.isFinite(t.x) || !Number.isFinite(t.y)) continue;
@@ -19533,7 +19547,7 @@ export default function IronLionLayer004() {
       else stepCar(dt, activeVeh());
       if (!g.title) placeNamedCars();
       updatePeds(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
-      if (!g.title) { updateGig(dt); updateArcadeKids(dt); updateSmoke(dt); }
+      if (!g.title) { updateGig(dt); updateArcadeKids(dt); updateSmoke(dt); reapSho(); }
       if (!g.title) updateCrime(dt);
       if (!g.title) updateShop(dt);
       if (!g.title) updateComp(dt);
@@ -19997,9 +20011,14 @@ export default function IronLionLayer004() {
             (Math.hypot(g.p.x - g.car.x, g.p.y - g.car.y) < 170 || Math.hypot(g.p.x - g.moto.x, g.p.y - g.moto.y) < 150);
           setHud({
             mode: g.mode, mph, place: crossStreet(e.x, e.y), dCarDbg, dMotoDbg,
-            vehName: inVehicle() && activeVeh() && activeVeh().m
-              ? vehName(activeVeh().m.k)
-              : g.mode === "moto" ? vehName((g.moto && g.moto.k) || "moto") : null,
+            /* The player's car holds its model on `skin`; only traffic uses `m`. Reading `m`
+               alone meant your own car always fell through to the default name. */
+            vehName: (() => {
+              const v = inVehicle() ? activeVeh() : null;
+              const k = v && ((v.m && v.m.k) || (v.skin && v.skin.k) || v.k);
+              if (k) return vehName(k);
+              return g.mode === "moto" ? vehName((g.moto && g.moto.k) || "moto") : null;
+            })(),
             tick: (hudTick = (hudTick + 1) % 1000), hudCrash: null, mus: musicState(),
             dmg: inVehicle() && activeVeh() ? Math.round((activeVeh().dmg || 0) * 100) : null,
             shop: !!nearBodyShop(), inShop: !!g.inShop,
@@ -20583,7 +20602,7 @@ export default function IronLionLayer004() {
          and crews is not a flat array of members -- the map threw inside the frame, every
          frame, which is what locked the game up. One list, guarded. */
       let best = null, bd = TAZER_RANGE;
-      for (const list of [Array.isArray(g.peds) ? g.peds : []]) {
+      for (const list of [combatTargets()]) {
         for (const t of list) {
           if (!t) continue;
           if (t.stunT > 0) continue;
@@ -20618,7 +20637,7 @@ export default function IronLionLayer004() {
           chainHit.push(node);
           pushFx("ring", node.x, node.y, 0);
           let next = null, nd = 96 - link * 22;
-          for (const t of (Array.isArray(g.peds) ? g.peds : [])) {
+          for (const t of combatTargets()) {
             if (!t || !Number.isFinite(t.x) || chainHit.indexOf(t) >= 0) continue;
             const d2 = Math.hypot(t.x - node.x, t.y - node.y);
             if (d2 < nd) { nd = d2; next = t; }
@@ -20866,6 +20885,26 @@ export default function IronLionLayer004() {
 
     /* Along the SOUTH wall of the bay, away from the lift and the cars. Spread across the
        width so two men are not standing in each other, and each one is talkable on his own. */
+    /* Belt and braces. The swap-time splice missed whenever the crew had wandered out of range
+       at that exact moment, so this runs every frame: while you ARE Sho, any den crew member
+       standing in the den comes out of the list. He goes back when you stop being him. */
+    function reapSho() {
+      if (g.who === "sho") {
+        if (!g.inside || g.inside.kind !== "den") return;
+        for (const cr of (g.crews || [])) {
+          if (cr.indoor !== g.inside) continue;
+          if (!cr.members || !cr.members.length) continue;
+          const m = cr.members.pop();
+          g.shoStash = (g.shoStash || []).concat([{ cr, m }]);
+          break;                       // one a frame is plenty and cannot empty a crew at once
+        }
+      } else if (g.shoStash && g.shoStash.length) {
+        for (const h of g.shoStash) {
+          if (h.cr.members.indexOf(h.m) < 0) { h.m.x = g.p.x; h.m.y = g.p.y; h.cr.members.push(h.m); }
+        }
+        g.shoStash = null;
+      }
+    }
     function nearestCrewTo(x, y) {
       let best = null, bd = 90;
       for (const cr of (g.crews || [])) {
@@ -21126,7 +21165,7 @@ export default function IronLionLayer004() {
         s2.t -= dt; s2.spin += dt * 26;
         s2.x += s2.vx * dt; s2.y += s2.vy * dt;
         if (s2.t <= 0 || !Number.isFinite(s2.x)) { list.splice(i, 1); continue; }
-        for (const t of (Array.isArray(g.peds) ? g.peds : [])) {
+        for (const t of combatTargets()) {
           if (!t || t.stunT > 0) continue;
           if (!Number.isFinite(t.x)) continue;
           if (Math.hypot(t.x - s2.x, t.y - s2.y) > 16) continue;
@@ -21167,7 +21206,7 @@ export default function IronLionLayer004() {
       g.p.spinT -= dt;
       g.p.spinA = (g.p.spinA || 0) + dt * 22;
       g.board.spd *= 0.90;
-      for (const t of (Array.isArray(g.peds) ? g.peds : [])) {
+      for (const t of combatTargets()) {
         if (!t || t.stunT > 0 || !Number.isFinite(t.x)) continue;
         if (g.p.spinHit.indexOf(t) >= 0) continue;
         if (Math.hypot(t.x - g.p.x, t.y - g.p.y) > 44) continue;
@@ -21202,7 +21241,7 @@ export default function IronLionLayer004() {
       if (!Number.isFinite(ang)) ang = 0;
       const reach = finisher ? 52 : 40;
       let hit = 0;
-      for (const t of (Array.isArray(g.peds) ? g.peds : [])) {
+      for (const t of combatTargets()) {
         if (!t || !Number.isFinite(t.x)) continue;
         const d = Math.hypot(t.x - g.p.x, t.y - g.p.y);
         if (d > reach) continue;
