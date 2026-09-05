@@ -953,6 +953,7 @@ YT.yt_rio = "assets/youth/yt_rio.png";
 YT.yt_rio_hero = "assets/youth/yt_rio_hero.png";
 YT.yt_sho = "assets/youth/yt_sho.png";
 YT.yt_sho_hero = "assets/youth/yt_sho_hero.png";
+YT.yt_mentor = "assets/youth/yt_mentor.png";
 const ST = {};
 for (const k of ["change", "mech", "owner", "door", "bar", "sound"])
   ST["st_" + k] = "assets/staff/st_" + k + ".png";
@@ -1318,7 +1319,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 340 — SHO MOVES";
+const BUILD_TAG = "LAYER 342 — THE MENTOR HAS A FACE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -6480,7 +6481,7 @@ export default function IronLionLayer004() {
       if (!im || !im.width) return false;
       /* Drawn at 0.82. Measured, these came out 75-112% as wide as they are tall against
          57-90% on the gang sheets, so at parity they read a size bigger than everyone else. */
-      const h = 30 * (p.jit || 1) * 0.82, w = h * (im.width / im.height);
+      const h = 30 * (p.jit || 1) * 0.82 * (p.tall || 1), w = h * (im.width / im.height);
       const sp = Math.hypot(p.vx || 0, p.vy || 0);
       const face = (p.bang != null && angOverride == null && sp <= 10) ? p.bang : Math.atan2(p.vy, p.vx);
       const ang = angOverride != null ? angOverride : face + YOUTH_FACE;
@@ -14615,6 +14616,20 @@ export default function IronLionLayer004() {
       wolves: 0, mob_young: 1, mob_old: 2, chi: 3, irish: 4, barrio: 5, brack: 6,
     };
     function drawActorTop(kind, row, u, state) {
+      /* The mentor is a single torso plate now, not a sheet. The redraw came back on an 8x4
+         grid at 128px cells against the old sheet's 12x3 at 46px, so dropping it in as a sheet
+         would have put wrong frames on wrong steps. Intercepting HERE instead means every
+         place that already draws a mentor -- missions, the den, cutscenes -- picks up the new
+         art with no other change, and he gets the same procedural legs as the Lion and the
+         kids rather than a floating torso. */
+      if (kind === "mentor" && imgs.current.yt_mentor) {
+        const sp2 = Math.hypot(u.vx || 0, u.vy || 0);
+        return drawYouth({
+          x: u.x, y: u.y, vx: u.vx, vy: u.vy, anim: u.anim, jit: 1,
+          yt: "yt_mentor", tall: 1.12,          // he is a big man, and older than all of them
+          bang: sp2 > 10 ? Math.atan2(u.vy, u.vx) : (u.bang || 0),
+        });
+      }
       const cfg = ACTORTOP[kind];
       const im = cfg && imgs.current[cfg.sheet];
       if (!im || !im.width || !im.height) return false;
@@ -16158,8 +16173,10 @@ export default function IronLionLayer004() {
         }
       }
       g.p.atkCd = 0.44; g.p.atk = 0.26;
-      // a strike thrown at someone already reeling becomes a grapple instead
-      if (!g.plain) {
+      /* A strike thrown at someone already reeling becomes a grapple. This used to require
+         `!g.plain` -- the Lion's mask -- and swapping to an ally sets `plain`, so neither Rio
+         nor Sho could ever take anyone down. The mask is the LION's condition, not the move's. */
+      if (!g.plain || g.who !== "lion") {
         for (const cr of g.crews) {
           for (const m of cr.members) {
             if (m.hp <= 0 || m.stun <= 0.15) continue;
@@ -17632,8 +17649,8 @@ export default function IronLionLayer004() {
         const plate = heroPlate(r);
         if (plate && imgs.current[plate]) {
           drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
-          const u = { x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy,
-                      anim: g.p.anim, jit: 1, yt: plate, bang: g.board.ang };
+          const u = { x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1,
+                      yt: plate, bang: g.board.ang, tall: r.id === "sho" ? 1.26 : 1 };
           if (g.board.on) { if (drawYouth(u, g.board.ang, 0)) return; }
           else if (drawYouth(u)) return;
         } else if (r.actor) {
@@ -20336,8 +20353,11 @@ export default function IronLionLayer004() {
       } else if (sp.r.id !== "lion") {
         const im = imgs.current[heroPlate(sp.r)];
         if (im && im.width) {
-          const h = 26, w = h * (im.width / im.height);
-          const dk = imgs.current.sk_deck;
+          /* Sho stands a head taller than Rio -- he is nearer the Lion's build, and at this
+             size height is most of what separates two men in dark jackets. */
+          const h = sp.r.id === "sho" ? 33 : 26, w = h * (im.width / im.height);
+          // and only a man who is carrying a board is drawn stood on one
+          const dk = (sp.r.kit && sp.r.kit.board) ? imgs.current.sk_deck : null;
           if (dk && dk.width) ctx.drawImage(dk, sp.x - 17, sp.y + 8, 34, 14);
           ctx.save(); ctx.translate(sp.x, sp.y); ctx.rotate(-Math.PI / 2 + Math.PI / 2);
           ctx.fillStyle = "#20222a";
