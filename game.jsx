@@ -950,6 +950,8 @@ for (const n of [1, 2, 3])
   for (const r of ["drums", "guitar", "bass"])
     BD["bd_" + n + "_" + r] = "assets/band/bd_" + n + "_" + r + ".png";
 YT.yt_rio = "assets/youth/yt_rio.png";
+YT.yt_rio_hero = "assets/youth/yt_rio_hero.png";
+YT.yt_sho = "assets/youth/yt_sho.png";
 const ST = {};
 for (const k of ["change", "mech", "owner", "door", "bar", "sound"])
   ST["st_" + k] = "assets/staff/st_" + k + ".png";
@@ -958,6 +960,8 @@ for (const k of ["main_stage", "drum_riser", "stage_steps", "amp_stack", "amp_co
                  "mic_stands", "pastack", "lights", "merch", "barrier", "cases", "monitor",
                  "drumkit"])
   VN["vn_" + k] = "assets/venue/vn_" + k + ".png";
+// the same file, baked upside down at load, so the kit faces upstage
+VN.vn_drumkit_flip = "assets/venue/vn_drumkit.png";
 const AR2 = {};
 for (const k of ["change", "snack", "photo", "carpet", "stool", "bin",
                  "cab_ironcurtain", "cab_curtain2", "cab_thefront", "cab_brawler"])
@@ -1313,7 +1317,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 337 — RIO AND SHO";
+const BUILD_TAG = "LAYER 338 — TALK FIRST, DRIVE SECOND";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -3690,7 +3694,9 @@ function makeFloor(b, f, rnd) {
           P(q2.x0 + pad + n * sw, sy, sw / SHRINK, sh2 / SHRINK, "vn_main_stage");
         P(cx - 20, sy + 12, 40, 40, "vn_drum_riser");
         // the kit itself, on the riser. 1.62:1 to match the plate rather than squash it.
-        P(cx - 26, sy + 18, 52, 32, "vn_drumkit");
+        /* Turned round. The kit was drawn facing the room, which put the drummer in front of
+           his own snare looking at the audience -- he sits BEHIND it facing the band. */
+        P(cx - 26, sy + 6, 52, 32, "vn_drumkit_flip");
         P(q2.x0 + pad + 4, sy + 8, 26, 40, "vn_pastack");
         P(q2.x1 - pad - 30, sy + 8, 26, 40, "vn_pastack");
         P(cx - 62, sy + 34, 24, 18, "vn_amp_stack");
@@ -5067,7 +5073,8 @@ export default function IronLionLayer004() {
        once at load like ROTATE_CW rather than special-cased at each of the eight draw sites,
        so traffic, parked cars, the crime car and the one you are driving all agree.
        If another model turns up backwards, it is one string here. */
-    const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b"];
+    const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
+                        "vn_drumkit_flip"];
     const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2 };
     const keys = Object.keys(all);
     let left = keys.length;
@@ -5289,6 +5296,11 @@ export default function IronLionLayer004() {
         return;
       }
     }
+    /* The swap is asked BEFORE mountNearest. The den bay is full of vehicles and the car you
+       are stood beside was always closer than the man you were talking to, so E entered the
+       car every time -- the roster prompt was on screen and unreachable. A person you are
+       facing outranks a door handle. */
+    if (g.mode === "foot" && g.inside && G.swapFn && G.swapFn()) return;
     if (g.mode === "foot" && g.inside) {
       if (mountNearest()) return;
     }
@@ -5303,7 +5315,6 @@ export default function IronLionLayer004() {
        mentor did and nothing ever called it -- the HUD has been offering "[E] HE HAS SOMETHING
        FOR YOU" to a key that did something else. */
     if (g.cab) { G.cabFn && G.cabFn(); return; }         // E is the way out, always
-    if (g.mode === "foot" && g.inside && G.swapFn && G.swapFn()) return;
     if (g.mode === "foot" && g.inside && G.cabFn && G.cabFn()) return;
     if (g.mode === "foot" && g.inside && G.boardFn && G.boardFn()) return;
     if (g.mode === "foot" && g.inside && G.compFn && G.compFn()) return;
@@ -10471,6 +10482,7 @@ export default function IronLionLayer004() {
       vn_amp_combo: "vn_amp_combo", vn_mic_stands: "vn_mic_stands",
       vn_pastack: "vn_pastack", vn_lights: "vn_lights", vn_merch: "vn_merch",
       vn_barrier: "vn_barrier", vn_cases: "vn_cases", vn_monitor: "vn_monitor",
+      vn_drumkit_flip: "vn_drumkit_flip",
       /* The staff are props. They stand at a post and never move, so routing them through the
          prop pipeline costs nothing and cannot desync from the room they belong to. */
       st_change: "st_change", st_mech: "st_mech", st_owner: "st_owner",
@@ -19574,6 +19586,7 @@ export default function IronLionLayer004() {
             dmg: inVehicle() && activeVeh() ? Math.round((activeVeh().dmg || 0) * 100) : null,
             shop: !!nearBodyShop(), inShop: !!g.inShop,
             who: g.who, smokeStock: g.p.smokeStock || 0, hidden: !!g.p.hidden,
+            hero: !!g.rioHero,
             board: !!g.board.on, hasBoard: !!g.board.has, atRack: atRack(),
             cab: g.cab ? g.cab.g : null,
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
@@ -20201,6 +20214,11 @@ export default function IronLionLayer004() {
       if (!g.inside || g.inside.kind !== "den" || g.floor !== 0) return;
       for (const sp of otherSpots()) drawOneBenched(sp);
     }
+    // MASK suits the Lion up; for Rio it is the same button and the same idea, his own coat
+    G.heroFn = () => { if (g.who === "rio") g.rioHero = !g.rioHero; };
+    function heroPlate(r) {
+      return (r.id === "rio" && g.rioHero && r.hero) ? r.hero : r.yt;
+    }
     function drawOneBenched(sp) {
       drawShadow(sp.x, sp.y + 3, 12, 5, 0.36);
       if (sp.r.actor) {
@@ -20210,7 +20228,7 @@ export default function IronLionLayer004() {
           ctx.fillStyle = "#2f4a3a"; ctx.fillRect(sp.x - 9, sp.y - 14, 18, 28);
         }
       } else if (sp.r.id !== "lion") {
-        const im = imgs.current[sp.r.yt];
+        const im = imgs.current[heroPlate(sp.r)];
         if (im && im.width) {
           const h = 26, w = h * (im.width / im.height);
           const dk = imgs.current.sk_deck;
@@ -20280,12 +20298,13 @@ export default function IronLionLayer004() {
     const ROSTER = [
       { id: "lion", name: "THE LION", yt: null,
         kit: { wpn: null, ammo: 0, holstered: false, board: false, hp: 100 } },
-      { id: "rio", name: "RIO", yt: "yt_rio",
+      { id: "rio", name: "RIO", yt: "yt_rio", hero: "yt_rio_hero",
         kit: { wpn: null, ammo: 0, holstered: false, board: true, hp: 100 } },
-      /* Sho draws from the mentor sheet -- he already exists in this world with a look, and
-         inventing a second plate for him would have put two different men on screen under one
-         name. `actor` takes precedence over `yt` in the bench draw. */
-      { id: "sho", name: "SHO", yt: null, actor: "mentor",
+      /* Sho is NOT the mentor -- I had that wrong. He is the man in the grey hooded coat, and
+         I could not read his sprite key off a screenshot, so he is on his own plate for now.
+         If you know the sheet he already uses, set `actor` here to that ACTORTOP key and
+         delete the `yt` line; the bench draw prefers `actor` when it is present. */
+      { id: "sho", name: "SHO", yt: "yt_sho", actor: null,
         kit: { wpn: "bat", ammo: 0, holstered: false, board: false, hp: 100 } },
     ];
     const rosterOf = (id) => ROSTER.find((r) => r.id === id) || ROSTER[0];
@@ -20303,7 +20322,7 @@ export default function IronLionLayer004() {
       const list = benched();
       const W2 = bay.x1 - bay.x0;
       const out = list.map((r, n) => {
-        const sp = { r, x: bay.x0 + W2 * (0.24 + n * 0.30), y: bay.y1 - 34 };
+        const sp = { r, x: bay.x0 + W2 * (0.24 + n * 0.30), y: bay.y1 - 22 };
         for (const q of pl.props) {
           if (sp.x > q.x - 14 && sp.x < q.x + q.w + 14 && sp.y > q.y - 14 && sp.y < q.y + q.h + 14) {
             sp.x = q.x - 28; break;
@@ -21964,8 +21983,12 @@ export default function IronLionLayer004() {
         {btn("LION", hud.lionOn ? "ON" : hud.lion > 4 ? "slow time" : "empty",
           () => { input.current.lion = !input.current.lion; }, null, hud.lionOn,
           (hud.mode !== "foot") ? 56 : null)}
-        {btn(hud.plain ? "MASK" : "OFF", hud.plain ? "suit up" : "plain clothes",
-          () => { const gg = G.current; if (!gg.inside || gg.inside.kind === "den") gg.plain = !gg.plain; },
+        {btn(hud.who === "rio" ? (hud.hero ? "OFF" : "SUIT") : (hud.plain ? "MASK" : "OFF"),
+          hud.who === "rio" ? (hud.hero ? "street clothes" : "suit up")
+                            : (hud.plain ? "suit up" : "plain clothes"),
+          () => { const gg = G.current;
+                  if (gg.who === "rio") { G.heroFn && G.heroFn(); return; }
+                  if (!gg.inside || gg.inside.kind === "den") gg.plain = !gg.plain; },
           null, hud.plain,
           (hud.mode !== "foot") ? 56 : null)}
         {hud.mode === "foot" && btn(
