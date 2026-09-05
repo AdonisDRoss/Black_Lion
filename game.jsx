@@ -1356,7 +1356,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 355 — HEADLIGHTS AND BOOST";
+const BUILD_TAG = "LAYER 356 — RIO CANNOT DRIVE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5929,7 +5929,12 @@ export default function IronLionLayer004() {
       // into a flick. Ease the input toward the stick instead of tracking it raw.
       const ease = isMoto ? 11 : 14;
       c.steerS = (c.steerS || 0) + (steerRaw - (c.steerS || 0)) * Math.min(1, dt * ease);
-      const steer = c.steerS;
+      /* Rio is fifteen and has never driven anything. Steering is reversed for him and only
+         him -- he can move a car, badly, which is funnier and more useful than not letting him
+         in at all. It reverses the STEERING and not the throttle; a car he cannot make go
+         forward is just a locked door. */
+      const flip = (g.who === "rio" && c === (inVehicle() ? activeVeh() : null)) ? -1 : 1;
+      const steer = c.steerS * flip;
       const hand = inp.brake || k[" "];
       const fx = Math.cos(c.ang), fy = Math.sin(c.ang);
       const rx = -fy, ry = fx;
@@ -17931,7 +17936,7 @@ export default function IronLionLayer004() {
           drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
           const u = { x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1,
                       yt: plate, bang: g.board.ang,
-                      tall: r.id === "sho" ? 1.42 : r.id === "kenny" ? 1.46 : 1,
+                      tall: r.id === "sho" ? 1.42 : r.id === "kenny" ? 1.24 : 1,
                       wpn: g.p.holstered ? null : g.p.wpn,
                       // a bat carried at rest looked like a plank glued to his hip
                       swing: Math.max(g.p.atk || 0, g.p.punT || 0),
@@ -19169,7 +19174,7 @@ export default function IronLionLayer004() {
         const plate = heroPlate(r);
         drawYouth({ x: c.x, y: c.y, vx: Math.cos(c.ang), vy: Math.sin(c.ang),
                     anim: 0, jit: 1, yt: plate,
-                    tall: r.id === "sho" ? 1.42 : r.id === "kenny" ? 1.46 : 1 });
+                    tall: r.id === "sho" ? 1.42 : r.id === "kenny" ? 1.24 : 1 });
         motoLight(c);
         return;
       }
@@ -19951,7 +19956,11 @@ export default function IronLionLayer004() {
         /* Blunt on purpose. Tracking which crew member is Sho by reference failed twice --
            stale after a swap, missing if the search had not run. While you ARE him, nobody
            from the den crew is drawn standing in the bay. One of them is you. */
-        if (g.who === "sho" && g.inside && g.inside.kind === "den" && cr.indoor === g.inside) continue;
+        /* Four attempts at hiding one man by reference, and he kept coming back from a path I
+           had not found. So while you are Sho, standing in the den, NOTHING from a crew is
+           drawn in that room. The bench figures come from drawBenched and are unaffected; the
+           only body left on this floor is the one you are steering. */
+        if (g.who === "sho" && g.inside && g.inside.kind === "den") continue;
         m.gang = cr.gang;      // the only place the crew is in scope; the draw needs the faction
         m.wing = cr.wing;      // ...and the Family's wing, which decides how he is dressed
         drawList.push([m.y, 3, m, cr.state]);
@@ -20792,7 +20801,7 @@ export default function IronLionLayer004() {
         if (im && im.width) {
           /* Sho stands a head taller than Rio -- he is nearer the Lion's build, and at this
              size height is most of what separates two men in dark jackets. */
-          const h = sp.r.id === "sho" ? 38 : sp.r.id === "kenny" ? 40 : 28,
+          const h = sp.r.id === "sho" ? 38 : sp.r.id === "kenny" ? 34 : 28,
                 w = h * (im.width / im.height);
           // and only a man who is carrying a board is drawn stood on one
           const dk = (sp.r.kit && sp.r.kit.board) ? imgs.current.sk_deck : null;
