@@ -1333,7 +1333,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 349 — THE JUMP WAS OVERWRITTEN";
+const BUILD_TAG = "LAYER 350 — SWINGS YOU CAN SEE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5823,6 +5823,7 @@ export default function IronLionLayer004() {
       stepStars(dt);
       stepBoardSpin(dt);
       stepKenny(dt);
+      stepFx(dt);
       if (g.board.on) { stepBoard(dt); return; }
       stepAir(dt);
       const inp = input.current, k = inp.keys;
@@ -6564,10 +6565,11 @@ export default function IronLionLayer004() {
       /* What he is holding. The ally plates are torsos with no weapon layer, so an armed man
          read as an unarmed one -- a held shape in his right hand, sized off the plate. Crude,
          but "he is carrying something" is the part that has to be legible at 40 pixels. */
-      if (p.wpn) {
-        const long = p.wpn === "bat" || p.wpn === "pipe" || p.wpn === "crowbar";
-        ctx.fillStyle = p.wpn === "tazer" ? "#c8a13a" : long ? "#7a6242" : "#3a3d42";
-        if (long) ctx.fillRect(w * 0.20, -h * 0.02, w * 0.10, h * 0.62);
+      if (p.wpn && p.swing > 0) {
+        const blade = p.wpn === "katana" || p.wpn === "machete";
+        const long = blade || p.wpn === "bat" || p.wpn === "pipe" || p.wpn === "crowbar";
+        ctx.fillStyle = p.wpn === "tazer" ? "#c8a13a" : blade ? "#cfd6dc" : long ? "#7a6242" : "#3a3d42";
+        if (long) ctx.fillRect(w * 0.20, -h * (blade ? 0.30 : 0.02), w * (blade ? 0.06 : 0.10), h * (blade ? 0.86 : 0.62));
         else ctx.fillRect(w * 0.20, h * 0.16, w * 0.13, h * 0.18);
       }
       ctx.restore();
@@ -14221,6 +14223,16 @@ export default function IronLionLayer004() {
               g.shake = Math.max(g.shake, targetIsPlayer ? 3 : 1);
             }
           }
+          /* Soft separation. Bearings stop them converging; this stops the two that end up
+             adjacent from occupying the same pixel. */
+          for (const o of cr.members) {
+            if (o === m || o.hp <= 0) continue;
+            const sx2 = m.x - o.x, sy2 = m.y - o.y;
+            const sd = Math.hypot(sx2, sy2);
+            if (sd > 22 || sd < 0.001) continue;
+            m.x += (sx2 / sd) * (22 - sd) * 0.5;
+            m.y += (sy2 / sd) * (22 - sd) * 0.5;
+          }
           if (m.stun > 0) { m.x += m.vx * dt; m.y += m.vy * dt; m.vx *= 0.86; m.vy *= 0.86; continue; }
           // one hit from going down: he runs whatever the rest of them are doing
           if (m.hp <= 1 && cr.state === "hostile" && !m.wpn) {
@@ -14245,7 +14257,16 @@ export default function IronLionLayer004() {
             continue;
           }
           if (cr.state === "hostile") {
-            const dx = tx - m.x, dy = ty - m.y, dd = Math.hypot(dx, dy) || 1;
+            /* Every man in the crew ran at the same point, so they arrived as one body and
+               stood inside each other -- one target, and no way to be flanked. Each keeps a
+               bearing of his own around you and closes on THAT, so four men come from four
+               sides. The slot is picked once and kept, or they orbit. */
+            if (m.slot == null) {
+              const n2 = cr.members.length || 1;
+              m.slot = (cr.members.indexOf(m) / n2) * Math.PI * 2 + Math.random() * 0.5;
+            }
+            const px = tx + Math.cos(m.slot) * 34, py = ty + Math.sin(m.slot) * 34;
+            const dx = px - m.x, dy = py - m.y, dd = Math.hypot(dx, dy) || 1;
             /* A man with a gun does not run into arm's reach. Everyone closed to 40 units
                whatever they were holding, which is why a shotgun and a bat behaved identically
                and every fight was a footrace.
@@ -14270,9 +14291,10 @@ export default function IronLionLayer004() {
               m.vx = 0; m.vy = 0;
               if (m.atk <= 0) {
                 m.atk = 1.2;
+                const hx2 = tx - m.x, hy2 = ty - m.y, hd2 = Math.hypot(hx2, hy2) || 1;
                 if (targetIsPlayer) {
                   g.p.hp = Math.max(0, g.p.hp - 6);
-                  g.p.vx += (dx / dd) * 80; g.p.vy += (dy / dd) * 80;
+                  g.p.vx += (hx2 / hd2) * 80; g.p.vy += (hy2 / hd2) * 80;
                   g.shake = Math.max(g.shake, 6); g.hurt = 0.35;
                 } else if (targetMember) {
                   targetMember.hp -= 1; targetMember.stun = 0.3;
@@ -15347,7 +15369,8 @@ export default function IronLionLayer004() {
       return Math.abs(x - SX(i)) > halfW(i) * 0.55 || Math.abs(y - SX(j)) > halfW(j) * 0.55;
     }
     // bats and the tazer, nothing else. He is fifteen.
-    const KID_OK = { bat: 1, pipe: 1, crowbar: 1, tazer: 1 };
+    // guns are the Lion's alone. The others get what you can swing.
+    const KID_OK = { bat: 1, pipe: 1, crowbar: 1, tazer: 1, katana: 1, machete: 1 };
     function applyItem(nm) {
       if (nm.slice(0, 4) === "wpn_") {
         const k = nm.slice(4);
@@ -16244,6 +16267,11 @@ export default function IronLionLayer004() {
         }
       }
       g.p.atkCd = 0.44; g.p.atk = 0.26;
+      if (g.who !== "lion") {
+        let fa = Math.atan2(g.p.vy || 0, g.p.vx || 1);
+        if (!Number.isFinite(fa)) fa = 0;
+        pushFx("arc", g.p.x, g.p.y, fa);
+      }
       /* A strike thrown at someone already reeling becomes a grapple. This used to require
          `!g.plain` -- the Lion's mask -- and swapping to an ally sets `plain`, so neither Rio
          nor Sho could ever take anyone down. The mask is the LION's condition, not the move's. */
@@ -17755,7 +17783,9 @@ export default function IronLionLayer004() {
           drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
           const u = { x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1,
                       yt: plate, bang: g.board.ang, tall: r.id === "sho" ? 1.42 : 1,
-                      wpn: g.p.holstered ? null : g.p.wpn };
+                      wpn: g.p.holstered ? null : g.p.wpn,
+                      // a bat carried at rest looked like a plank glued to his hip
+                      swing: Math.max(g.p.atk || 0, g.p.punT || 0) };
           if (g.board.on) {
             /* The deck is drawn at his position, so the RIDER is what moves. His feet sit a
                little over half his height down his own local axis, and rotate(bang) sends that
@@ -17763,9 +17793,11 @@ export default function IronLionLayer004() {
                board and keeps them there through every turn. Sideways is rotate(bang) itself,
                which is perpendicular to the direction of travel. */
             const fh = 30 * 0.82 * (u.tall || 1) * 0.55;
-            u.x = g.p.x + Math.sin(g.board.ang) * fh;
-            u.y = g.p.y - Math.cos(g.board.ang) * fh;
-            if (drawYouth(u, g.board.ang + (g.p.spinT > 0 ? g.p.spinA : 0), 0)) return;
+            u.x = g.p.x - Math.sin(g.board.ang) * fh;
+            u.y = g.p.y + Math.cos(g.board.ang) * fh;
+            // +PI: rotate(bang) alone had him facing the tail. Sideways is a half turn either
+            // way; this is the half that puts his chest over the nose.
+            if (drawYouth(u, g.board.ang + Math.PI + (g.p.spinT > 0 ? g.p.spinA : 0), 0)) return;
           }
           else if (drawYouth(u)) return;
         } else if (r.actor) {
@@ -19783,7 +19815,7 @@ export default function IronLionLayer004() {
         if (g.onFwy && !g.onRamp && inVehicle()) { if (g.mode === "car") drawCar(); else drawMoto(); }
       }
       if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); }
-      drawSmoke(); drawShock(); drawStars();
+      drawSmoke(); drawShock(); drawStars(); drawFx();
       if (!g.inside) { drawLampPosts(view); drawPolesAndWires(view); }
       if (!g.inside) {
         for (const p of g.peds) if (p.say > 0 && p.line) bubble(p.x, p.y, p.line);
@@ -20552,6 +20584,40 @@ export default function IronLionLayer004() {
     }
     /* The shock. A jagged line, redrawn every frame from a different seed, plus a flash at
        each end -- a straight beam reads as a laser and this has to read as electricity. */
+    /* Attack FX. An arc for anything swung and an expanding ring for Kenny's gloves. Both are
+       drawn in world space at the moment of the hit -- an attack you cannot see land reads as
+       an attack that did not happen, which is what every ally melee looked like. */
+    function pushFx(kind, x, y, ang) {
+      g.fx = g.fx || [];
+      g.fx.push({ kind, x, y, ang, t: kind === "ring" ? 0.30 : 0.20 });
+      if (g.fx.length > 24) g.fx.shift();
+    }
+    function stepFx(dt) {
+      const list = g.fx || [];
+      for (let i = list.length - 1; i >= 0; i--) {
+        list[i].t -= dt;
+        if (list[i].t <= 0) list.splice(i, 1);
+      }
+    }
+    function drawFx() {
+      for (const f of (g.fx || [])) {
+        if (!Number.isFinite(f.x)) continue;
+        if (f.kind === "ring") {
+          // concussive: a hard white ring going out, gold behind it
+          const k = 1 - f.t / 0.30;
+          ctx.strokeStyle = `rgba(255,236,180,${(1 - k) * 0.9})`;
+          ctx.lineWidth = 5 * (1 - k) + 1;
+          ctx.beginPath(); ctx.arc(f.x, f.y, 8 + k * 46, 0, 6.3); ctx.stroke();
+        } else {
+          const k = 1 - f.t / 0.20;
+          ctx.strokeStyle = `rgba(240,240,232,${(1 - k) * 0.75})`;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(f.x, f.y, 30, f.ang - 1.1 + k * 1.6, f.ang + 0.5 + k * 1.6);
+          ctx.stroke();
+        }
+      }
+    }
     function drawShock() {
       const sh = g.shock; if (!sh) return;
       if (![sh.x, sh.y, sh.tx, sh.ty].every(Number.isFinite)) { g.shock = null; return; }
@@ -20595,7 +20661,7 @@ export default function IronLionLayer004() {
       { id: "kenny", name: "KENNY", yt: "yt_kenny", hero: "yt_kenny_hero",
         kit: { wpn: null, ammo: 0, holstered: false, board: false, hp: 130 } },
       { id: "sho", name: "SHO", yt: "yt_sho", hero: "yt_sho_hero", actor: null,
-        kit: { wpn: "bat", ammo: 0, holstered: false, board: false, hp: 100, stars: 50 } },
+        kit: { wpn: "katana", ammo: 0, holstered: false, board: false, hp: 100, stars: 50 } },
     ];
     const rosterOf = (id) => ROSTER.find((r) => r.id === id) || ROSTER[0];
     // everyone you are NOT, in roster order, so the line-up does not reshuffle as you swap
@@ -20921,6 +20987,7 @@ export default function IronLionLayer004() {
         t.say = 1.2; t.line = finisher ? "!!!" : "UGH";
         hit++;
       }
+      pushFx("ring", g.p.x + Math.cos(ang) * 26, g.p.y + Math.sin(ang) * 26, ang);
       g.shake = Math.max(g.shake, finisher ? 11 : 4);
       g.pickupFlash = { nm: finisher ? "uppercut" : "punch_" + (g.p.chain + 1), t: 0.7 };
       return true;
