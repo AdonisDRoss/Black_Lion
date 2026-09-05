@@ -952,6 +952,7 @@ for (const n of [1, 2, 3])
 YT.yt_rio = "assets/youth/yt_rio.png";
 YT.yt_rio_hero = "assets/youth/yt_rio_hero.png";
 YT.yt_sho = "assets/youth/yt_sho.png";
+YT.yt_sho_hero = "assets/youth/yt_sho_hero.png";
 const ST = {};
 for (const k of ["change", "mech", "owner", "door", "bar", "sound"])
   ST["st_" + k] = "assets/staff/st_" + k + ".png";
@@ -1317,7 +1318,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 339 — YOU ARE WHO YOU PICKED";
+const BUILD_TAG = "LAYER 340 — SHO MOVES";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5183,7 +5184,6 @@ export default function IronLionLayer004() {
          combat, police and arrest all carry on untouched. It is a movement modifier, and
          `board.on` is the only thing that changes how stepFoot integrates. */
       board: { has: false, on: false, held: 0, wasPush: false, spd: 0, ang: 0 },
-      smokeStock: 3,
       cab: null,
       /* Two playable people, one at a time. `who` says which you are; `bench` holds the other
          one's kit while he waits at the den. They are not two skins: the Lion carries what he
@@ -5725,8 +5725,63 @@ export default function IronLionLayer004() {
       }
     }
 
+    const shoSpeed = () => (g.who === "sho" ? 1.62 : 1);
+    /* THE FLYING KICK. Lock on to whoever he is looking at and go through them. It is the one
+       move in the game that closes distance and lands damage in the same beat, which is why
+       it belongs to the man with no weapon -- his answer to a gun is to already be there. */
+    const KICK_RANGE = 210;
+    function kickTarget() {
+      const ang = Math.atan2(g.p.vy || 0, g.p.vx || 1);
+      let best = null, bd = KICK_RANGE;
+      const list = Array.isArray(g.peds) ? g.peds : [];
+      for (const t of list) {
+        if (!t || t.down > 0) continue;
+        const d = Math.hypot(t.x - g.p.x, t.y - g.p.y);
+        if (d > bd || d < 26) continue;
+        let da = Math.atan2(t.y - g.p.y, t.x - g.p.x) - ang;
+        while (da > Math.PI) da -= Math.PI * 2;
+        while (da < -Math.PI) da += Math.PI * 2;
+        if (Math.abs(da) > 1.0) continue;       // roughly in front, so it is aimed
+        bd = d; best = t;
+      }
+      return best;
+    }
+    function flyKick() {
+      if (g.who !== "sho" || (g.p.kickCd || 0) > 0 || (g.p.kick || 0) > 0) return false;
+      const t = kickTarget();
+      const ang = t ? Math.atan2(t.y - g.p.y, t.x - g.p.x)
+                    : Math.atan2(g.p.vy || 0, g.p.vx || 1);
+      g.p.kick = 0.42; g.p.kickCd = 0.9; g.p.kickAng = ang; g.p.kickHit = 0;
+      g.p.kickTgt = t || null;
+      return true;
+    }
+    function stepFlyKick(dt) {
+      g.p.kickCd = Math.max(0, (g.p.kickCd || 0) - dt);
+      if (!(g.p.kick > 0)) return;
+      g.p.kick -= dt;
+      const f = clamp(g.p.kick / 0.42, 0, 1);
+      // fast off the ground, slowing into the landing
+      const sp = 520 * f;
+      g.p.x += Math.cos(g.p.kickAng) * sp * dt;
+      g.p.y += Math.sin(g.p.kickAng) * sp * dt;
+      g.p.vx = Math.cos(g.p.kickAng) * sp;
+      g.p.vy = Math.sin(g.p.kickAng) * sp;
+      if (!g.p.kickHit) {
+        const t = g.p.kickTgt;
+        if (t && Math.hypot(t.x - g.p.x, t.y - g.p.y) < 34) {
+          g.p.kickHit = 1;
+          t.down = 4.2; t.stun = 4.2; t.mode = "panic";
+          t.vx = Math.cos(g.p.kickAng) * 260; t.vy = Math.sin(g.p.kickAng) * 260;
+          if (t.hp != null) t.hp = Math.max(0, t.hp - 34);
+          g.shake = Math.max(g.shake, 7);
+          g.hitFxAt = { x: t.x, y: t.y, t: 0.2 };
+        }
+      }
+      if (g.p.kick <= 0) { g.p.kick = 0; g.p.vx = 0; g.p.vy = 0; }
+    }
     function stepFoot(dt) {
       trafficVsPlayer(dt);
+      stepFlyKick(dt);
       if (g.board.on) { stepBoard(dt); return; }
       stepAir(dt);
       const inp = input.current, k = inp.keys;
@@ -5739,10 +5794,14 @@ export default function IronLionLayer004() {
       // swimming is slower than walking and running does not help much
       const dep = g.depth || 0;
       const swimMul = dep > 0.16 ? (running ? 0.62 : 0.68) : dep > 0 ? 0.78 : 1;
-      const spd = (running ? 214 : 116) * lionBoost() * swimMul;
-      // 11 emptied the bar in nine seconds, which made sprinting a thing you did once
-      if (running) g.p.stamina = Math.max(0, g.p.stamina - dt * 5.5);
+      /* 214 sprinting is a jog next to traffic. Sho at 1.62 tops about 347, which is a slow
+         car -- he can run a block down with one and that is the point of him. */
+      const spd = (running ? 214 : 116) * lionBoost() * swimMul * shoSpeed();
+      /* Sho's legs are his whole kit. He runs at car speed and barely tires -- that is the
+         reason to take him rather than the man with the gadgets or the man with the gun. */
+      if (running) g.p.stamina = Math.max(0, g.p.stamina - dt * (g.who === "sho" ? 1.6 : 5.5));
       else g.p.stamina = Math.min(g.p.maxStamina, g.p.stamina + dt * (g.p.moving > 14 ? 4 : 9));
+      if (g.p.kick > 0) { collideSkate(g.p, 13); return; }   // the kick is driving
       const tvx = ix * spd, tvy = iy * spd;
       const acl = len > 0.05 ? 14 : 11;
       g.p.vx = lerp(g.p.vx, tvx, clamp(acl * dt, 0, 1));
@@ -17561,6 +17620,13 @@ export default function IronLionLayer004() {
          was not, so the swap was cosmetic in reverse -- the roster said Rio and the man on
          screen was still Darius. The ally plates are torsos like the kids', so they go through
          the same path with the same procedural legs. */
+      if (g.p.kick > 0) {
+        // same four-part read as the ollie: bigger, shadow smaller and left behind, gap opens
+        const f = Math.sin((1 - clamp(g.p.kick / 0.42, 0, 1)) * Math.PI);
+        drawShadow(g.p.x - Math.cos(g.p.kickAng) * f * 14,
+                   g.p.y - Math.sin(g.p.kickAng) * f * 14 + 3,
+                   12 * (1 - f * 0.4), 5 * (1 - f * 0.4), 0.34);
+      }
       if (g.who !== "lion") {
         const r = rosterOf(g.who);
         const plate = heroPlate(r);
@@ -17575,6 +17641,20 @@ export default function IronLionLayer004() {
           drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
           if (drawActorTop(r.actor, 0, u, null)) return;
         }
+        /* Stand-in, and it RETURNS. Without this an ally whose art has not arrived fell
+           through to the Lion's draw -- which is why switching to Sho left Darius on screen
+           and made the swap look broken rather than unfinished. */
+        drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
+        const ang = Math.atan2(g.p.vy || 0, g.p.vx || 1);
+        ctx.save();
+        ctx.translate(g.p.x, g.p.y);
+        ctx.rotate(ang + Math.PI / 2);
+        ctx.fillStyle = r.id === "sho" ? "#2f3a30" : "#8a4a2a";
+        ctx.fillRect(-9, -13, 18, 26);
+        ctx.fillStyle = "#c9a17a";
+        ctx.fillRect(-5, -17, 10, 8);
+        ctx.restore();
+        return;
       }
       if (drawSwimmer()) return;      // in the channel you are a head and a wake
       const p = g.p;
@@ -19607,7 +19687,7 @@ export default function IronLionLayer004() {
             dmg: inVehicle() && activeVeh() ? Math.round((activeVeh().dmg || 0) * 100) : null,
             shop: !!nearBodyShop(), inShop: !!g.inShop,
             who: g.who, smokeStock: g.p.smokeStock || 0, hidden: !!g.p.hidden,
-            hero: !!g.rioHero,
+            hero: !!(g.hero && g.hero[g.who]),
             board: !!g.board.on, hasBoard: !!g.board.has, atRack: atRack(),
             cab: g.cab ? g.cab.g : null,
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
@@ -20182,9 +20262,13 @@ export default function IronLionLayer004() {
       if ((g.p.tazeCd || 0) > 0) return false;
       g.p.tazeCd = 1.5;
       const ang = Math.atan2(g.p.vy || 0, g.p.vx || 1);
+      /* Only the ped list. This used to spread `g.crews.map(c => c.members)` into the search,
+         and crews is not a flat array of members -- the map threw inside the frame, every
+         frame, which is what locked the game up. One list, guarded. */
       let best = null, bd = TAZER_RANGE;
-      for (const list of [g.peds, ...(g.crews || []).map((c) => c.members)]) {
-        for (const t of list || []) {
+      for (const list of [Array.isArray(g.peds) ? g.peds : []]) {
+        for (const t of list) {
+          if (!t) continue;
           if (t.down > 0) continue;
           const d = Math.hypot(t.x - g.p.x, t.y - g.p.y);
           if (d > bd) continue;
@@ -20236,9 +20320,10 @@ export default function IronLionLayer004() {
       for (const sp of otherSpots()) drawOneBenched(sp);
     }
     // MASK suits the Lion up; for Rio it is the same button and the same idea, his own coat
-    G.heroFn = () => { if (g.who === "rio") g.rioHero = !g.rioHero; };
+    // both allies suit up; the flag is per-man so one does not wear the other's decision
+    G.heroFn = () => { if (g.who !== "lion") { g.hero = g.hero || {}; g.hero[g.who] = !g.hero[g.who]; } };
     function heroPlate(r) {
-      return (r.id === "rio" && g.rioHero && r.hero) ? r.hero : r.yt;
+      return (r.hero && g.hero && g.hero[r.id]) ? r.hero : r.yt;
     }
     function drawOneBenched(sp) {
       drawShadow(sp.x, sp.y + 3, 12, 5, 0.36);
@@ -20262,10 +20347,11 @@ export default function IronLionLayer004() {
           ctx.restore();
         } else { ctx.fillStyle = "#5a7a9a"; ctx.fillRect(sp.x - 8, sp.y - 13, 16, 26); }
       } else {
-        // the Lion, out of the mask, waiting for his city back
-        const im = imgs.current.lion_top;
+        /* Darius, not the Lion. He is stood in his own garage waiting to be asked -- he is not
+           in the mask, so row 0 of darius_top rather than the costume sheet. */
+        const im = imgs.current.darius_top;
         if (im && im.width) {
-          const cell = im.height, d = 30;
+          const cell = im.height / 2, d = 30;
           ctx.drawImage(im, 0, 0, cell, cell, sp.x - d / 2, sp.y - d / 2, d, d);
         } else { ctx.fillStyle = "#8a6a3a"; ctx.fillRect(sp.x - 9, sp.y - 14, 18, 28); }
       }
@@ -20320,12 +20406,13 @@ export default function IronLionLayer004() {
       { id: "lion", name: "THE LION", yt: null,
         kit: { wpn: null, ammo: 0, holstered: false, board: false, hp: 100 } },
       { id: "rio", name: "RIO", yt: "yt_rio", hero: "yt_rio_hero",
-        kit: { wpn: null, ammo: 0, holstered: false, board: true, hp: 100 } },
+        kit: { wpn: null, ammo: 0, holstered: false, board: true, hp: 100, smoke: 6 } },
       /* Sho is NOT the mentor -- I had that wrong. He is the man in the grey hooded coat, and
          I could not read his sprite key off a screenshot, so he is on his own plate for now.
          If you know the sheet he already uses, set `actor` here to that ACTORTOP key and
          delete the `yt` line; the bench draw prefers `actor` when it is present. */
-      { id: "sho", name: "SHO", yt: "yt_sho", actor: null,
+      /* Two looks, same as Rio: street clothes and the hood. SUIT swaps them. */
+      { id: "sho", name: "SHO", yt: "yt_sho", hero: "yt_sho_hero", actor: null,
         kit: { wpn: "bat", ammo: 0, holstered: false, board: false, hp: 100 } },
     ];
     const rosterOf = (id) => ROSTER.find((r) => r.id === id) || ROSTER[0];
@@ -20396,12 +20483,16 @@ export default function IronLionLayer004() {
     }
     function packKit() {
       return { wpn: g.p.wpn, ammo: g.p.ammo, holstered: g.p.holstered,
-               board: g.board.has, hp: g.p.hp, skill: g.p.skill };
+               board: g.board.has, hp: g.p.hp, skill: g.p.skill,
+               smoke: g.p.smokeStock || 0 };
     }
     function wearKit(k) {
       g.p.wpn = k.wpn || null; g.p.ammo = k.ammo || 0;
       g.p.holstered = !!k.holstered;
       g.board.has = !!k.board; g.board.on = false; g.board.spd = 0;
+      /* The count lived on `g` and dropSmoke read `g.p` -- so the stock was always undefined
+         and the button always said no. It belongs to the man, not the world. */
+      g.p.smokeStock = k.smoke || 0;
       if (k.hp != null) g.p.hp = k.hp;
       if (k.skill != null) g.p.skill = k.skill;
     }
@@ -20428,6 +20519,7 @@ export default function IronLionLayer004() {
       return true;
     };
     // Rio's kit. Sho carries a bat and takes people apart with his hands.
+    G.kickFn = () => { if (g.who === "sho") flyKick(); };
     G.tazeFn = () => { if (g.who === "rio" && !g.inside) fireTazer(); };
     G.smokeFn = () => { if (g.who === "rio") dropSmoke(); };
     G.boardToggleFn = () => {
@@ -22010,11 +22102,11 @@ export default function IronLionLayer004() {
         {hud.who === "lion" && btn("LION", hud.lionOn ? "ON" : hud.lion > 4 ? "slow time" : "empty",
           () => { input.current.lion = !input.current.lion; }, null, hud.lionOn,
           (hud.mode !== "foot") ? 56 : null)}
-        {btn(hud.who === "rio" ? (hud.hero ? "OFF" : "SUIT") : (hud.plain ? "MASK" : "OFF"),
-          hud.who === "rio" ? (hud.hero ? "street clothes" : "suit up")
-                            : (hud.plain ? "suit up" : "plain clothes"),
+        {btn(hud.who !== "lion" ? (hud.hero ? "OFF" : "SUIT") : (hud.plain ? "MASK" : "OFF"),
+          hud.who !== "lion" ? (hud.hero ? "street clothes" : "suit up")
+                             : (hud.plain ? "suit up" : "plain clothes"),
           () => { const gg = G.current;
-                  if (gg.who === "rio") { G.heroFn && G.heroFn(); return; }
+                  if (gg.who !== "lion") { G.heroFn && G.heroFn(); return; }
                   if (!gg.inside || gg.inside.kind === "den") gg.plain = !gg.plain; },
           null, hud.plain,
           (hud.mode !== "foot") ? 56 : null)}
@@ -22057,6 +22149,8 @@ export default function IronLionLayer004() {
           </>
         ) : (
           <>
+            {!hud.cab && hud.who === "sho" && btn("KICK", "fly kick",
+              () => { G.kickFn && G.kickFn(); }, null)}
             {!hud.cab && hud.who === "rio" && btn("TAZE", "stun",
               () => { G.tazeFn && G.tazeFn(); }, null)}
             {!hud.cab && hud.who === "rio" && btn("SMOKE", (hud.smokeStock || 0) + " left",
