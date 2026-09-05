@@ -972,6 +972,7 @@ const FIGHTERS = [
   ["fg_liwei",  "LI WEI",        "HKG",    "#b03048"],
 ];
 for (const f of FIGHTERS) AR2[f[0]] = "assets/arcade/" + f[0] + ".png";
+AR2.wp_tazer = "assets/arcade/wp_tazer.png";
 // already cut and sitting in assets/arcade/ from the first batch
 for (const k of ["upright", "cocktail", "pinball", "stage", "drums", "amp", "mic", "pa"])
   AR2["ar_" + k] = "assets/arcade/ar_" + k + ".png";
@@ -1311,7 +1312,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 330 — HOOK CITY BRAWLER";
+const BUILD_TAG = "LAYER 331 — MIRRORED, AND THE MUSIC RETRIES";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -4554,17 +4555,24 @@ export default function IronLionLayer004() {
     async function musicLoad(key) {
       const ctx = audio.current;
       const def = MUSIC[key];
+      /* `tried` used to be set BEFORE the fetch and never cleared, so one failed or raced
+         request killed that track for the whole session with nothing on screen to say so --
+         which is exactly what the band tracks were doing. It is an in-flight lock now, and a
+         failure backs off and lets a later tick try again. Five goes, then give up. */
       if (!ctx || !def || MUS.tried[key]) return;
-      MUS.tried[key] = true;                       // one attempt per key, success or not
       const src = def.data || def.url;
       if (!src) return;
+      MUS.tried[key] = true;
       try {
         const res = await fetch(src);
-        if (!res.ok) return;
+        if (!res.ok) throw new Error("http " + res.status);
         const arr = await res.arrayBuffer();
         MUS.buf[key] = await ctx.decodeAudioData(arr);
+        MUS.fail = MUS.fail || {}; delete MUS.fail[key];
       } catch (err) {
-        // a missing or unhosted track is expected, not an error worth surfacing
+        MUS.fail = MUS.fail || {};
+        MUS.fail[key] = (MUS.fail[key] || 0) + 1;
+        if (MUS.fail[key] < 5) setTimeout(() => { MUS.tried[key] = false; }, 1500);
       }
     }
 
@@ -6380,10 +6388,16 @@ export default function IronLionLayer004() {
         ctx.scale(1 + a * 0.52, 1 + a * 0.52);
         ctx.translate(-p.x, -p.y);
       }
-      // the deck
+      /* The deck goes under his FEET and a little AHEAD of him. The plate is a torso with the
+         legs drawn below it, so the feet sit about 0.55 of the figure's height down its own
+         local axis -- and in a sideways stance that axis runs across the board. Without the
+         offset the deck draws over his chest; without the 5 forward he rides the tail. */
+      const fh = 30 * (p.jit || 1) * 0.82 * 0.55;
+      const fdx = -Math.sin(p.bang) * fh + Math.cos(p.bang) * 5;
+      const fdy = Math.cos(p.bang) * fh + Math.sin(p.bang) * 5;
       const im = imgs.current[p.dk] || imgs.current.sk_deck;
       ctx.save();
-      ctx.translate(p.x, p.y);
+      ctx.translate(p.x + fdx, p.y + fdy);
       ctx.rotate(p.bang + (p.spin || 0));
       if (im && im.width) ctx.drawImage(im, -17, -7, 34, 14);
       else { ctx.fillStyle = "#15161a"; ctx.fillRect(-17, -5, 34, 10); }
@@ -11009,7 +11023,9 @@ export default function IronLionLayer004() {
             drawShadow(px, py + 2, w2 * 0.35, 4, 0.3);
             ctx.save();
             ctx.translate(px, py);
-            ctx.scale(f.face * (flip ? -1 : 1) * (flip ? -1 : 1) * (f.face < 0 ? 1 : 1), 1);
+            /* Every plate is drawn facing RIGHT, so mirroring is ONE test. It was a stack of
+               three scale() calls that cancelled out, which is why player two faced away and
+               why swapping sides never corrected it. */
             if (f.face < 0) ctx.scale(-1, 1);
             if (f.st === "hurt") ctx.rotate(f.face * 0.12);
             if (im && im.width) ctx.drawImage(im, -w2 / 2, -h2, w2, h2);
