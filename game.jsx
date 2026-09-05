@@ -954,6 +954,8 @@ YT.yt_rio_hero = "assets/youth/yt_rio_hero.png";
 YT.yt_sho = "assets/youth/yt_sho.png";
 YT.yt_sho_hero = "assets/youth/yt_sho_hero.png";
 YT.yt_mentor = "assets/youth/yt_mentor.png";
+YT.yt_kenny = "assets/youth/yt_kenny.png";
+YT.yt_kenny_hero = "assets/youth/yt_kenny_hero.png";
 const ST = {};
 for (const k of ["change", "mech", "owner", "door", "bar", "sound"])
   ST["st_" + k] = "assets/staff/st_" + k + ".png";
@@ -1319,7 +1321,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 347 — DOORS AND ROOFTOPS";
+const BUILD_TAG = "LAYER 348 — KENNY IN THE DEN";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5808,6 +5810,7 @@ export default function IronLionLayer004() {
       stepShoJump(dt);
       stepStars(dt);
       stepBoardSpin(dt);
+      stepKenny(dt);
       if (g.board.on) { stepBoard(dt); return; }
       stepAir(dt);
       const inp = input.current, k = inp.keys;
@@ -5822,7 +5825,8 @@ export default function IronLionLayer004() {
       const swimMul = dep > 0.16 ? (running ? 0.62 : 0.68) : dep > 0 ? 0.78 : 1;
       /* 214 sprinting is a jog next to traffic. Sho at 1.62 tops about 347, which is a slow
          car -- he can run a block down with one and that is the point of him. */
-      const spd = (running ? 214 : 116) * lionBoost() * swimMul * shoSpeed();
+      const kSlow = g.who === "kenny" ? 0.78 : 1;
+      const spd = (running ? 214 : 116) * lionBoost() * swimMul * shoSpeed() * kSlow;
       /* Sho's legs are his whole kit. He runs at car speed and barely tires -- that is the
          reason to take him rather than the man with the gadgets or the man with the gun. */
       if (running) g.p.stamina = Math.max(0, g.p.stamina - dt * (g.who === "sho" ? 1.6 : 5.5));
@@ -19681,7 +19685,7 @@ export default function IronLionLayer004() {
         if (m.x < view.x0 || m.x > view.x1 || m.y < view.y0 || m.y > view.y1) continue;
         /* When you ARE Sho, the man in the den who is Sho stops being drawn -- otherwise he
            stands there watching himself walk off, which is the second copy. */
-        if (g.who === "sho" && m === g.shoNpc) continue;
+        if (g.who === "sho" && (m === g.shoNpc || m === g.shoNpc2)) continue;
         m.gang = cr.gang;      // the only place the crew is in scope; the draw needs the faction
         m.wing = cr.wing;      // ...and the Family's wing, which decides how he is dressed
         drawList.push([m.y, 3, m, cr.state]);
@@ -19811,7 +19815,7 @@ export default function IronLionLayer004() {
             dmg: inVehicle() && activeVeh() ? Math.round((activeVeh().dmg || 0) * 100) : null,
             shop: !!nearBodyShop(), inShop: !!g.inShop,
             who: g.who, smokeStock: g.p.smokeStock || 0, hidden: !!g.p.hidden,
-            hero: !!(g.hero && g.hero[g.who]), stars: g.p.stars || 0,
+            hero: !!(g.hero && g.hero[g.who]), stars: g.p.stars || 0, chain: g.p.chain || 0,
             board: !!g.board.on, hasBoard: !!g.board.has, atRack: atRack(),
             cab: g.cab ? g.cab.g : null,
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
@@ -20554,6 +20558,8 @@ export default function IronLionLayer004() {
          If you know the sheet he already uses, set `actor` here to that ACTORTOP key and
          delete the `yt` line; the bench draw prefers `actor` when it is present. */
       /* Two looks, same as Rio: street clothes and the hood. SUIT swaps them. */
+      { id: "kenny", name: "KENNY", yt: "yt_kenny", hero: "yt_kenny_hero",
+        kit: { wpn: null, ammo: 0, holstered: false, board: false, hp: 130 } },
       { id: "sho", name: "SHO", yt: "yt_sho", hero: "yt_sho_hero", actor: null,
         kit: { wpn: "bat", ammo: 0, holstered: false, board: false, hp: 100, stars: 50 } },
     ];
@@ -20563,6 +20569,18 @@ export default function IronLionLayer004() {
 
     /* Along the SOUTH wall of the bay, away from the lift and the cars. Spread across the
        width so two men are not standing in each other, and each one is talkable on his own. */
+    function nearestCrewTo(x, y) {
+      let best = null, bd = 90;
+      for (const cr of (g.crews || [])) {
+        if (cr.indoor !== g.inside) continue;
+        for (const m of (cr.members || [])) {
+          if (!m || m.hp <= 0 || !Number.isFinite(m.x)) continue;
+          const d = Math.hypot(m.x - x, m.y - y);
+          if (d < bd) { bd = d; best = m; }
+        }
+      }
+      return best;
+    }
     function otherSpots() {
       const b = denOf();
       if (!b) return [];
@@ -20589,7 +20607,8 @@ export default function IronLionLayer004() {
              do not it hangs on empty floor. One Sho either way, which matters more than having
              a figure to look at. */
           const m = denCrew[0];
-          if (m) g.shoNpc = m;                 // remembered, so the draw can hide him
+          // remember both: the one found now, and whichever we locked on at swap time
+          if (m) { g.shoNpc2 = g.shoNpc; g.shoNpc = m; }
           return { r, existing: true,
                    x: m ? m.x : bay.x0 + W2 * 0.62, y: m ? m.y : bay.y1 - 22 };
         }
@@ -20677,6 +20696,11 @@ export default function IronLionLayer004() {
       g.bench = g.bench || {};
       g.bench[g.who] = packKit();
       const to = best.r;
+      /* Capture the crew member at swap time. `g.shoNpc` was only being set while the bench was
+         being DRAWN, so if you swapped on a frame where the search had not run -- or the crew
+         had wandered out of the bay and back -- the reference was stale or missing and the real
+         Sho carried on standing there next to himself. Whoever you are talking to IS him. */
+      if (best.existing) g.shoNpc = nearestCrewTo(best.x, best.y);
       g.who = to.id;
       wearKit(g.bench[to.id] || to.kit);
       if (to.id !== "lion") { g.lionOn = false; g.plain = true; g.roof = null; }
@@ -20721,10 +20745,17 @@ export default function IronLionLayer004() {
       return best;
     }
     function shoJump() {
-      if (g.who !== "sho" || (g.p.jumpT || 0) > 0 || g.inside || inVehicle()) return false;
+      if (g.who !== "sho") return false;
+      if (g.inside) { g.pickupFlash = { nm: "not_indoors", t: 1.1 }; return false; }
+      if (inVehicle()) return false;
+      if ((g.p.jumpT || 0) > 0) return false;
       if (g.roof) { g.p.jumpT = 0.5; g.p.jumpDur = 0.5; g.p.jumpTo = null; return true; }
+      /* Every refusal now says which one it was. A move that does nothing and explains nothing
+         is indistinguishable from a move that is broken, which is how this one wasted two
+         rounds. */
+      if (g.board.on) { g.pickupFlash = { nm: "cant_jump_on_a_board", t: 1.1 }; return false; }
       const b = buildingUnderFoot();
-      if (!b) { g.pickupFlash = { nm: "nothing_to_jump_to", t: 1.1 }; return false; }
+      if (!b) { g.pickupFlash = { nm: "no_building_close_enough", t: 1.2 }; return false; }
       g.p.jumpT = 0.62; g.p.jumpDur = 0.62; g.p.jumpTo = b;
       return true;
     }
@@ -20824,6 +20855,48 @@ export default function IronLionLayer004() {
       }
       if (g.p.spinT <= 0) { g.p.spinT = 0; g.p.spinA = 0; }
     }
+    /* Kenny. Three punches into an uppercut if you keep the timing -- the string is the whole
+       character, because he is too slow to chase anybody and too old to take a beating. What he
+       has is that the last one throws you across the street. */
+    function kennyPunch() {
+      if (g.who !== "kenny" || (g.p.punCd || 0) > 0) return false;
+      const now = g.t;
+      // inside the window the chain continues; outside it he starts again
+      g.p.chain = (now - (g.p.punLast || -9) < 0.75) ? ((g.p.chain || 0) + 1) % 4 : 0;
+      g.p.punLast = now;
+      const finisher = g.p.chain === 3;
+      g.p.punCd = finisher ? 0.62 : 0.26;
+      g.p.punT = finisher ? 0.34 : 0.18;
+      let ang = Math.atan2(g.p.vy || 0, g.p.vx || 1);
+      if (!Number.isFinite(ang)) ang = 0;
+      const reach = finisher ? 52 : 40;
+      let hit = 0;
+      for (const t of (Array.isArray(g.peds) ? g.peds : [])) {
+        if (!t || !Number.isFinite(t.x)) continue;
+        const d = Math.hypot(t.x - g.p.x, t.y - g.p.y);
+        if (d > reach) continue;
+        let da = Math.atan2(t.y - g.p.y, t.x - g.p.x) - ang;
+        while (da > Math.PI) da -= Math.PI * 2;
+        while (da < -Math.PI) da += Math.PI * 2;
+        if (Math.abs(da) > 1.1) continue;
+        const a2 = Math.atan2(t.y - g.p.y, t.x - g.p.x);
+        t.stunT = finisher ? 5.0 : 2.2;
+        t.knock = finisher ? 0.5 : 0.2;
+        const push = finisher ? 420 : 120;
+        t.vx = Math.cos(a2) * push; t.vy = Math.sin(a2) * push;
+        t.say = 1.2; t.line = finisher ? "!!!" : "UGH";
+        hit++;
+      }
+      g.shake = Math.max(g.shake, finisher ? 11 : 4);
+      g.pickupFlash = { nm: finisher ? "uppercut" : "punch_" + (g.p.chain + 1), t: 0.7 };
+      return true;
+    }
+    function stepKenny(dt) {
+      g.p.punCd = Math.max(0, (g.p.punCd || 0) - dt);
+      g.p.punT = Math.max(0, (g.p.punT || 0) - dt);
+      if (g.t - (g.p.punLast || -9) > 0.75) g.p.chain = 0;
+    }
+    G.punchFn = () => { if (g.who === "kenny") safely("punch", kennyPunch); };
     G.spinFn = () => { if (g.who === "rio") safely("spin", boardSpin); };
     G.starFn = () => { if (g.who === "sho") safely("star", throwStar); };
     G.jumpFn = () => { if (g.who === "sho") safely("jump", shoJump); };
@@ -22462,6 +22535,8 @@ export default function IronLionLayer004() {
           </>
         ) : (
           <>
+            {!hud.cab && hud.who === "kenny" && btn("HIT", (hud.chain || 0) === 3 ? "uppercut" : "combo " + ((hud.chain || 0) + 1),
+              () => { G.punchFn && G.punchFn(); }, null)}
             {!hud.cab && hud.who === "sho" && btn("STAR", (hud.stars || 0) + " left",
               () => { G.starFn && G.starFn(); }, null)}
             {!hud.cab && hud.who === "sho" && btn("KICK", "fly kick",
