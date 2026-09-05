@@ -1312,7 +1312,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 333 — THE LAKE";
+const BUILD_TAG = "LAYER 334 — THE WATER IS WET";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1432,6 +1432,13 @@ function riverCentre(x) {
    county road is where a man goes when he is leaving for good. */
 /* Computed inside the function, not hoisted into consts -- SX is declared further down the
    module and reading it up here is a temporal dead zone the node harness caught immediately. */
+/* Exported as functions so the DRAW and the DEPTH cannot drift apart. When they were inline
+   the lake existed physically and was invisible -- the cell loop skips water because "the
+   river draws itself", and the river only paints its own band, so the whole lake rendered as
+   bare cement. Anything that can disagree eventually will. */
+const lakeEastShore = (y) => SX(28) + Math.sin(y / 2900) * 520 + Math.sin(y / 1250 + 0.7) * 160;
+const lakeSouthShore = (x) => SX(28) + 520 + Math.sin(x / 3300) * 480 + Math.sin(x / 1400 + 2.1) * 150;
+const inEmberRows = (y) => y > SX(21) && y < SX(26);
 function lakeDepth(x, y) {
   /* EAST and SOUTH, because that is where the map has land to give. zoneOf answers the named
      districts BEFORE it asks about water, so a lake can only appear on ground no district has
@@ -1441,12 +1448,13 @@ function lakeDepth(x, y) {
 
      The strip above Ember Flats is left dry on purpose. The town sits on the east edge and a
      lake through it would have drowned the Kestrel. */
-  const eastShore = SX(28) + Math.sin(y / 2900) * 520 + Math.sin(y / 1250 + 0.7) * 160;
-  const southShore = SX(28) + 520 + Math.sin(x / 3300) * 480 + Math.sin(x / 1400 + 2.1) * 150;
+  const eastShore = lakeEastShore(y);
   const emberRows = y > SX(21) && y < SX(26);      // hands off the highway town
-  const de = emberRows ? -1 : x - eastShore;
-  const ds = y - southShore;
-  const d = Math.max(de, ds);
+  /* East only. The south lobe was dropped: it sat directly on top of the river, whose channel
+     is 1900 units half-width at row 27, so there was no dry land between them and the beach
+     drew into open water. The river already is the southern boundary -- it does not need a
+     lake behind it. */
+  const d = emberRows ? -1 : x - eastShore;
   if (d <= 0) return 0;
   return clamp(d / 900, 0, 1);                     // shallow at the beach, deep further out
 }
@@ -9397,6 +9405,64 @@ export default function IronLionLayer004() {
       prop("wd_20", r.x - 34, r.y + r.h * 0.62, 40);           // bucket
     }
 
+    /* The lake. Drawn in slices from the shoreline out, same trick the river uses so the wavy
+       edge comes for free rather than being a polygon anybody has to maintain.
+       The SOUTH shore is a beach -- sand, then wet sand, then shallows. The EAST shore is
+       hard edge and carries the pier. One of each, so the water reads as two different places
+       rather than one shape wrapped round a corner. */
+    /* One coast, two halves. NORTH of BEACH_END it is sand -- dry, wet, shallows, and a
+       waterline that moves so it is not a painted stripe. SOUTH of it the bank is rip-rap and
+       carries the pier. Two different places rather than one shape wrapped round a corner. */
+    const BEACH_END = () => SX(10);
+    function drawLake(view) {
+      const step = 90;
+      const sy0 = Math.floor(view.y0 / step) * step - step;
+      const bEnd = BEACH_END();
+      for (let y = sy0; y < view.y1 + step; y += step) {
+        if (inEmberRows(y)) continue;
+        const sh = lakeEastShore(y);
+        if (sh > view.x1 + 900) continue;
+        if (y < bEnd) {
+          ctx.fillStyle = "#b9a982";                       // dry sand
+          ctx.fillRect(sh - 200, y, 200, step + 1);
+          ctx.fillStyle = "#8e8262";                       // wet sand
+          ctx.fillRect(sh - 38, y, 38, step + 1);
+        } else {
+          ctx.fillStyle = "#3c3f42";                       // rip-rap
+          ctx.fillRect(sh - 40, y, 40, step + 1);
+        }
+        ctx.fillStyle = PF("water", "#1b2f3a");
+        ctx.fillRect(sh, y, WORLD_MAX - sh + 200, step + 1);
+        ctx.fillStyle = "rgba(150,190,196,0.24)";          // shallows
+        ctx.fillRect(sh, y, y < bEnd ? 130 : 90, step + 1);
+        if (y < bEnd) {
+          const w = Math.sin(y / 260 + g.t * 0.7) * 9;
+          ctx.fillStyle = "rgba(226,238,240,0.35)";
+          ctx.fillRect(sh + w, y, 5, step + 1);
+        }
+      }
+      drawPier(view);
+    }
+    /* The pier. One structure, on the east shore, at a fixed spot so it is an address rather
+       than scenery that moves when the noise function is retuned. */
+    const PIER_Y = () => SX(16) + 400;
+    function drawPier(view) {
+      const py = PIER_Y();
+      if (py < view.y0 - 600 || py > view.y1 + 600) return;
+      const x0 = lakeEastShore(py) - 60, len = 1150;
+      ctx.fillStyle = "rgba(0,0,0,0.30)";
+      ctx.fillRect(x0 + 8, py - 42, len, 96);
+      ctx.fillStyle = "#6b5c46";
+      ctx.fillRect(x0, py - 50, len, 100);
+      ctx.fillStyle = "rgba(0,0,0,0.22)";
+      for (let x = x0; x < x0 + len; x += 34) ctx.fillRect(x, py - 50, 3, 100);
+      ctx.fillStyle = "#4a4034";                            // piles
+      for (let x = x0 + 40; x < x0 + len; x += 120) {
+        ctx.fillRect(x, py - 58, 12, 12); ctx.fillRect(x, py + 46, 12, 12);
+      }
+      ctx.fillStyle = "#8a8f92";                            // rail down the seaward end
+      ctx.fillRect(x0 + len - 8, py - 50, 8, 100);
+    }
     function drawRiver(view) {
       const y0 = riverCentre(view.x0) - RIVER_HW - 200;
       const y1 = riverCentre(view.x1) + RIVER_HW + 200;
@@ -19226,7 +19292,7 @@ export default function IronLionLayer004() {
         return;
       }
       drawGround(view);
-      if (!g.inside) drawRiver(view);      // over the ground, under everything that floats on it
+      if (!g.inside) { drawLake(view); drawRiver(view); }   // over the ground, under everything that floats on it
       if (!g.inside && view.x1 > SX(PRISON.i0) - 900 && view.x0 < SX(PRISON.i1 + 1) + 900
         && view.y1 > SX(PRISON.j0) - 900 && view.y0 < SX(PRISON.j1 + 1) + 900) drawPrison();
       drawSkids();
@@ -20132,7 +20198,7 @@ export default function IronLionLayer004() {
         } else { ctx.fillStyle = "#8a6a3a"; ctx.fillRect(sp.x - 9, sp.y - 14, 18, 28); }
       }
       // the prompt, so you know it is a conversation and not scenery
-      if (Math.hypot(g.p.x - sp.x, g.p.y - sp.y) < 46)
+      if (Math.hypot(g.p.x - sp.x, g.p.y - sp.y) < 64)
         bubble(sp.x, sp.y - 18, g.who === "lion" ? "[E] TAKE THE BOARD" : "[E] SUIT UP");
     }
     function drawSmoke() {
@@ -20172,12 +20238,18 @@ export default function IronLionLayer004() {
     }
 
     function otherSpot() {
+      /* Stood in the open, not against the machinery. Bay-centre-plus-54 put him half inside
+         the lift on most den sizes, so walking up to him meant standing in a solid and E went
+         to whatever else was there. The board rack is the one thing in the bay we KNOW is
+         clear -- it is generated with an overlap check -- so he waits beside it. */
       const b = denOf();
       if (!b) return null;
       const pl = buildingPlans(b)[0];
+      const rack = pl.props.find((q) => q.t === "sk_rack");
+      if (rack) return { x: rack.x + rack.w / 2 + 46, y: rack.y + rack.h / 2 };
       const bay = pl.rooms.find((r) => r.k === "bay");
       if (!bay) return null;
-      return { x: (bay.x0 + bay.x1) / 2 + 54, y: (bay.y0 + bay.y1) / 2 };
+      return { x: (bay.x0 + bay.x1) / 2, y: (bay.y0 + bay.y1) / 2 + 46 };
     }
     function packKit() {
       return { wpn: g.p.wpn, ammo: g.p.ammo, holstered: g.p.holstered,
@@ -20194,7 +20266,7 @@ export default function IronLionLayer004() {
       if (!g.inside || g.inside.kind !== "den" || g.floor !== 0) return false;
       const sp = otherSpot();
       if (!sp) return false;
-      if (Math.hypot(g.p.x - sp.x, g.p.y - sp.y) > 46) return false;
+      if (Math.hypot(g.p.x - sp.x, g.p.y - sp.y) > 64) return false;
       const mine = packKit();
       const theirs = g.bench || (g.who === "lion"
         // first swap: the kid turns up with his board and nothing else
