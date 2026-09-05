@@ -176,6 +176,8 @@ const CARSTAT = {
   sho_car:      { s: 1.30, a: 1.22, g: 0.88 },
   // Kenny's truck: slow, heavy, and it does not care what it hits
   kenny_truck:  { s: 0.84, a: 0.80, g: 0.78 },
+  // company police: quicker than a patrol car and worse in a corner, which is the joke
+  ef_car:       { s: 1.06, a: 1.02, g: 0.92 },
 };
 const carStat = (c) => (c && c.m && CARSTAT[c.m.k]) || { s: 1, a: 1, g: 1 };
 /* Makes and models. Five marques, because a city with one manufacturer is a catalogue and a
@@ -192,7 +194,7 @@ const CARNAME = {
   cruiser: "MARROW PATROLLER",
   coupe_green: "IRON MONTE", coupe_dgreen: "IRON MONTE",
   pickup: "OSSIAN HAULER", bus: "RAVEN HOOK TRANSIT",
-  sho_car: "SHO STOPPER", kenny_truck: "KO JEEP",
+  sho_car: "SHO STOPPER", kenny_truck: "KO JEEP", ef_car: "HOLLOWAY SENTINEL",
 };
 const MOTONAME = {
   moto: "KESTREL 500", moto_black: "KESTREL 500 NOIR", moto_red: "KESTREL 750",
@@ -205,6 +207,7 @@ const vehName = (k) => CARNAME[k] || MOTONAME[k]
 const NAMED_CARS = [
   { k: "sho_car", len: 118, w: 48 },
   { k: "kenny_truck", len: 104, w: 56 },
+  { k: "ef_car", len: 116, w: 52 },
 ];
 const CARM = [{"k": "comp_hatch", "len": 88, "w": 49}, {"k": "comp_hatch2", "len": 88, "w": 49}, {"k": "taxi", "len": 106, "w": 51.3}, {"k": "sedan_tan", "len": 104, "w": 55.4}, {"k": "sedan_grey", "len": 104, "w": 52.8}, {"k": "sedan_dred", "len": 104, "w": 45.3}, {"k": "sedan_maroon", "len": 106, "w": 52.1}, {"k": "coupe_green", "len": 102, "w": 39.5}, {"k": "coupe_dgreen", "len": 102, "w": 38.7}, {"k": "sedan_blue", "len": 106, "w": 50.4}, {"k": "sedan_red", "len": 106, "w": 50.4}, {"k": "pickup", "len": 114, "w": 58.8}, {"k": "sedan_orange", "len": 105, "w": 50.8}, {"k": "wagon_teal", "len": 107, "w": 53.5}, {"k": "sedan_brown", "len": 105, "w": 47.4}, {"k": "cruiser", "len": 108, "w": 45.3}, {"k": "bus", "len": 244, "w": 66, "bus": true}];
 const KA = {
@@ -1017,6 +1020,13 @@ for (const f of FIGHTERS) AR2[f[0]] = "assets/arcade/" + f[0] + ".png";
 AR2.wp_tazer = "assets/arcade/wp_tazer.png";
 AR2.sho_car = "assets/sho_car.png";
 AR2.kenny_truck = "assets/kenny_truck.png";
+AR2.ef_car = "assets/civic/ef_car.png";
+const CVX = {};
+for (const k of ["ef_guard", "ef_guard_b", "ef_captain", "mt_barrier",
+                 "civ_dome", "civ_mansion", "civ_motel"])
+  CVX["cv2_" + k] = "assets/civic/" + k + ".png";
+YT.yt_tko = "assets/youth/yt_tko.png";
+YT.yt_tko_hero = "assets/youth/yt_tko_hero.png";
 // already cut and sitting in assets/arcade/ from the first batch
 for (const k of ["upright", "cocktail", "pinball", "stage", "drums", "amp", "mic", "pa"])
   AR2["ar_" + k] = "assets/arcade/ar_" + k + ".png";
@@ -1356,7 +1366,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 356 — RIO CANNOT DRIVE";
+const BUILD_TAG = "LAYER 358 — CITY HALL, THE HOUSE, THE MOTEL";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1549,6 +1559,16 @@ const CIVIC = [
     name: "GALAXY LANES ARCADE", floors: 1, pip: "#ff5ad0" },
   { key: "venue_rh", kind: "bandvenue", cell: { i: 6, j: 9 },
     name: "THE LAST CALL", floors: 1, pip: "#e05fd0" },
+  /* CIVIC entries rather than loose plates. A building placed this way gets the whole existing
+     apparatus for free -- collision, floors, the parallax lean, a door, a map pip -- which is
+     what "solid, in proportion, and 3D like the others" actually means. A plate drawn on the
+     ground would have none of it and people would walk straight over it. */
+  { key: "cityhall_dome", kind: "cityhall", cell: { i: 10, j: 8 },
+    name: "RAVEN HOOK CITY HALL", floors: 3, pip: "#cfe0f0", civRoof: "cv2_civ_dome" },
+  { key: "vance_house", kind: "mansion", cell: { i: 6, j: 16 },
+    name: "THE VANCE RESIDENCE", floors: 2, pip: "#d0c090", civRoof: "cv2_civ_mansion" },
+  { key: "flats_motel", kind: "motel", cell: { i: 25, j: 21 },
+    name: "THE STARLITE MOTEL", floors: 1, pip: "#cf8f5a", civRoof: "cv2_civ_motel" },
 ];
 const civicAt = (i, j) => CIVIC.find((c) => c.cell.i === i && c.cell.j === j) || null;
 const inTown = (i, j) => i >= TOWN.i0 && i <= TOWN.i1 && j >= TOWN.j0 && j <= TOWN.j1;
@@ -4034,7 +4054,10 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     const bw = LW * 0.68, bh = LH * 0.52;
     const b = mkB(lx0 + (LW - bw) / 2, ly0 + (LH - bh) / 2, bw, bh, civ.floors,
                   civ.kind, rnd, key);
-    b.tone = 0.62; b.civic = civ.key; b.name = civ.name;
+    /* `roof` on a building is already the array of roof clutter, so the plate is carried on
+       its own field -- naming it `roof` would have quietly replaced the clutter with a string
+       and broken every building that draws it. */
+    b.tone = 0.62; b.civic = civ.key; b.name = civ.name; b.civRoof = civ.civRoof || null;
     b.signKey = "sign_lightbox";
     if (civ.kind === "cityhall") b.landmarkStair = true;
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
@@ -5114,7 +5137,7 @@ export default function IronLionLayer004() {
        If another model turns up backwards, it is one string here. */
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "vn_drumkit_flip"];
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2 };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX };
     const keys = Object.keys(all);
     let left = keys.length;
     /* Assets are files now, not base64. Two consequences the loader has to handle:
@@ -11530,6 +11553,12 @@ export default function IronLionLayer004() {
       const isDen = b.kind === "den";
       ctx.fillStyle = isDen ? PF("den_floor", "#2a2c2e") : PF("floor" + wtier, `hsl(${26 + b.tone * 20}, 12%, ${17 + b.tone * 6}%)`);
       ctx.fillRect(b.x, b.y, b.w, b.h);
+      /* A civic roof plate, if this building has one. Drawn to the footprint so it is in
+         proportion with everything else rather than whatever size the art happened to be. */
+      if (b.civRoof && imgs.current[b.civRoof]) {
+        const rp = imgs.current[b.civRoof];
+        ctx.drawImage(rp, b.x, b.y, b.w, b.h);
+      }
       if (b.kind === "arcade") {
         /* The black-light carpet, tiled. It was cut and registered and then never asked for,
            so the arcade had the same floor as a laundrette. 96 units a tile is about 4.5m,
@@ -17031,6 +17060,70 @@ export default function IronLionLayer004() {
       g.traffic.push(v);
     }
 
+    /* DRIVE-BYS. A hostile crew that has a car and cannot reach you on foot gets in it, comes
+       past, and puts an arm out of the window. It reuses everything that already exists --
+       their car, their weapons, fireBullet -- so a drive-by is not a new system, it is a crew
+       deciding to do its shooting from a moving vehicle.
+
+       The gun hand is drawn OUT of the window on the side you are on, which is the whole read:
+       a car going past is traffic, a car going past with a barrel out of it is not. */
+    const DRIVEBY_GUN = ["smg_uzi", "pistol_auto", "shotgun_short"];
+    function updateDriveBys(dt) {
+      if (g.inside) return;
+      for (const cr of (g.crews || [])) {
+        if (cr.indoor || cr.state !== "hostile" || !cr.car) continue;
+        const car = cr.car;
+        if (car.dead && !car.driveBy) {
+          const d = Math.hypot(g.p.x - car.x, g.p.y - car.y);
+          // far enough that walking is hopeless, near enough that they can see you
+          if (d < 420 || d > 1500) continue;
+          if (Math.random() > dt * 0.35) continue;
+          car.driveBy = { t: 9, cd: 0, wpn: DRIVEBY_GUN[(Math.random() * 3) | 0] };
+          car.dead = 0; car.brake = 0; car.fleeing = 0;
+          g.scanner = Math.max(g.scanner || 0, 2.2);
+        }
+        const db = car.driveBy;
+        if (!db) continue;
+        db.t -= dt; db.cd -= dt;
+        // aim the car at you and keep it rolling
+        const ang = Math.atan2(g.p.y - car.y, g.p.x - car.x);
+        car.ang = car.ang + Math.max(-2.2 * dt, Math.min(2.2 * dt, ((ang - car.ang + Math.PI * 3) % (Math.PI * 2)) - Math.PI));
+        car.spd = Math.min(280, (car.spd || 0) + 180 * dt);
+        car.x += Math.cos(car.ang) * car.spd * dt;
+        car.y += Math.sin(car.ang) * car.spd * dt;
+        const d2 = Math.hypot(g.p.x - car.x, g.p.y - car.y);
+        if (db.cd <= 0 && d2 < 420) {
+          db.cd = 0.16;
+          const W = WPN[db.wpn] || { spd: 900, dmg: 2, range: 380, spread: 0.2 };
+          const a2 = ang + (Math.random() - 0.5) * (W.spread || 0.2) * 2;
+          fireBullet(car, a2, W.spd || 900, W.dmg || 2, W.range || 380, false, cr.gang, W.knock);
+          car.muzzle = 0.06;
+          g.scanner = Math.max(g.scanner || 0, 1.4);
+        }
+        if (db.t <= 0 || !Number.isFinite(car.x)) { car.driveBy = null; car.dead = 1; car.spd = 0; }
+      }
+    }
+    function drawDriveByArms() {
+      for (const cr of (g.crews || [])) {
+        const car = cr && cr.car;
+        if (!car || !car.driveBy || !Number.isFinite(car.x)) continue;
+        // which side you are on decides which window the arm comes out of
+        const rel = Math.atan2(g.p.y - car.y, g.p.x - car.x) - car.ang;
+        const side = Math.sin(rel) > 0 ? 1 : -1;
+        ctx.save();
+        ctx.translate(car.x, car.y);
+        ctx.rotate(car.ang);
+        ctx.fillStyle = "#c9a17a";
+        ctx.fillRect(-2, side * 12, 16, 5);          // the arm, out of the window
+        ctx.fillStyle = "#2f3238";
+        ctx.fillRect(12, side * 12 - 1, 13, 6);      // and the gun on the end of it
+        if ((car.muzzle || 0) > 0) {
+          ctx.fillStyle = "rgba(255,224,140,0.95)";
+          ctx.beginPath(); ctx.arc(27, side * 12 + 2, 5, 0, 6.3); ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
     function updateTraffic(dt, cx, cy) {
       /* 26 moving cars across a two-thousand-unit view is a quiet Sunday, not a city. The cost
          is per-car AI, so the ceiling is a phone question -- small screens see a smaller world
@@ -19626,7 +19719,7 @@ export default function IronLionLayer004() {
       else stepCar(dt, activeVeh());
       if (!g.title) placeNamedCars();
       updatePeds(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
-      if (!g.title) { updateGig(dt); updateArcadeKids(dt); updateSmoke(dt); reapSho(); }
+      if (!g.title) { updateGig(dt); updateArcadeKids(dt); updateSmoke(dt); reapSho(); updateDriveBys(dt); }
       if (!g.title) updateCrime(dt);
       if (!g.title) updateShop(dt);
       if (!g.title) updateComp(dt);
@@ -20024,7 +20117,7 @@ export default function IronLionLayer004() {
         if (g.onFwy && !g.onRamp && inVehicle()) { if (g.mode === "car") drawCar(); else drawMoto(); }
       }
       if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); }
-      drawSmoke(); drawShock(); drawArcs(); drawStars(); drawFx();
+      drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
       /* Anyone in the fight, not only gang crews -- police, and any civilian who has been hit.
          A bar over one man and nothing over the next reads as a bug rather than a rule. */
       for (const p2 of (Array.isArray(g.peds) ? g.peds : []))
