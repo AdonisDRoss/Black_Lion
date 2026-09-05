@@ -1319,7 +1319,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 343 — NO NaN, ONE SHO";
+const BUILD_TAG = "LAYER 344 — THE TAZER ACTUALLY STOPS THEM";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5736,7 +5736,7 @@ export default function IronLionLayer004() {
       let best = null, bd = KICK_RANGE;
       const list = Array.isArray(g.peds) ? g.peds : [];
       for (const t of list) {
-        if (!t || t.down > 0) continue;
+        if (!t || t.stunT > 0) continue;
         if (!Number.isFinite(t.x) || !Number.isFinite(t.y)) continue;
         const d = Math.hypot(t.x - g.p.x, t.y - g.p.y);
         if (d > bd || d < 26) continue;
@@ -5762,6 +5762,7 @@ export default function IronLionLayer004() {
     function stepFlyKick(dt) {
       g.p.kickCd = Math.max(0, (g.p.kickCd || 0) - dt);
       if (!(g.p.kick > 0)) return;
+      if (!Number.isFinite(g.p.kickAng)) { g.p.kick = 0; return; }
       g.p.kick -= dt;
       const f = clamp(g.p.kick / 0.42, 0, 1);
       // fast off the ground, slowing into the landing
@@ -5774,9 +5775,9 @@ export default function IronLionLayer004() {
         const t = g.p.kickTgt;
         if (t && Math.hypot(t.x - g.p.x, t.y - g.p.y) < 34) {
           g.p.kickHit = 1;
-          t.down = 4.2; t.stun = 4.2; t.mode = "panic";
+          t.stunT = 4.2; t.knock = 0.4;
           t.vx = Math.cos(g.p.kickAng) * 260; t.vy = Math.sin(g.p.kickAng) * 260;
-          if (t.hp != null) t.hp = Math.max(0, t.hp - 34);
+          t.say = 1.4; t.line = "OOF!";
           g.shake = Math.max(g.shake, 7);
           g.hitFxAt = { x: t.x, y: t.y, t: 0.2 };
         }
@@ -5804,6 +5805,7 @@ export default function IronLionLayer004() {
     function stepFoot(dt) {
       trafficVsPlayer(dt);
       stepFlyKick(dt);
+      stepShoJump(dt);
       if (g.board.on) { stepBoard(dt); return; }
       stepAir(dt);
       const inp = input.current, k = inp.keys;
@@ -6280,6 +6282,18 @@ export default function IronLionLayer004() {
     // what you get for walking through somebody's run
     const BAIL_LINES = ["HEY! WATCH IT", "NICE ONE, JERK", "BOGUS!", "YOU BLIND?",
                         "THANKS A LOT", "GET BENT", "MY BOARD!"];
+    /* The Lion is a masked man people run from. Rio is a kid on a board and Sho is a big man
+       in a coat -- neither of them is a legend, and a crowd that scatters from all three the
+       same way makes the swap meaningless. */
+    const REACT = {
+      lion: ["IT'S HIM", "THE LION!", "RUN!"],
+      rio:  ["OUTTA THE WAY", "HEY, KID!", "SLOW DOWN!"],
+      sho:  ["EASY, BIG MAN", "NOT MY PROBLEM", "WALK ON"],
+    };
+    function reactLine() {
+      const pool = REACT[g.who] || REACT.lion;
+      return pool[(Math.random() * pool.length) | 0];
+    }
     function kidSay(p, pool) {
       p.line = pool[(Math.random() * pool.length) | 0];
       p.say = 1.8 + Math.random() * 0.9;
@@ -6453,6 +6467,14 @@ export default function IronLionLayer004() {
             kidSay(p, BAIL_LINES);
             p.barkCd = 6;
           }
+        }
+        if (p.stunT > 0) {
+          p.stunT -= dt;
+          if (p.knock > 0) { p.knock -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.86; p.vy *= 0.86; }
+          else { p.vx = 0; p.vy = 0; }
+          p.say = Math.max(0, (p.say || 0) - dt);
+          if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) { p.stunT = 0; p.vx = 0; p.vy = 0; }
+          continue;
         }
         if (p.skate) updateParkSkater(p, dt);
         if (p.park) {
@@ -17659,6 +17681,10 @@ export default function IronLionLayer004() {
          was not, so the swap was cosmetic in reverse -- the roster said Rio and the man on
          screen was still Darius. The ally plates are torsos like the kids', so they go through
          the same path with the same procedural legs. */
+      if (g.p.jumpT > 0) {
+        const f = Math.sin((1 - clamp(g.p.jumpT / 0.62, 0, 1)) * Math.PI);
+        drawShadow(g.p.x, g.p.y + 3, 12 * (1 - f * 0.45), 5 * (1 - f * 0.45), 0.34 * (1 - f * 0.4));
+      }
       if (g.p.kick > 0) {
         // same four-part read as the ollie: bigger, shadow smaller and left behind, gap opens
         const f = Math.sin((1 - clamp(g.p.kick / 0.42, 0, 1)) * Math.PI);
@@ -17673,7 +17699,14 @@ export default function IronLionLayer004() {
           drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
           const u = { x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1,
                       yt: plate, bang: g.board.ang, tall: r.id === "sho" ? 1.26 : 1 };
-          if (g.board.on) { if (drawYouth(u, g.board.ang, 0)) return; }
+          if (g.board.on) {
+            /* Same offset the NPC skaters use: down to the feet along his local axis, which in
+               a sideways stance runs across the board, and a little forward of centre. */
+            const fh = 30 * 0.82 * (u.tall || 1) * 0.55;
+            u.x = g.p.x - Math.sin(g.board.ang) * fh * -1 + Math.cos(g.board.ang) * 0;
+            u.y = g.p.y - Math.cos(g.board.ang) * fh * -1;
+            if (drawYouth(u, g.board.ang, 0)) return;
+          }
           else if (drawYouth(u)) return;
         } else if (r.actor) {
           const u = { x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim };
@@ -18457,8 +18490,13 @@ export default function IronLionLayer004() {
       for (const p of g.peds) {
         const d = Math.hypot(p.x - x, p.y - y);
         if (d > r) continue;
-        p.mode = "panic";
-        p.timer = Math.max(p.timer || 0, 2.6 + Math.random() * 2);
+        /* Only the Lion empties a street. The other two get looked at and complained about. */
+        if (g.who === "lion") {
+          p.mode = "panic";
+          p.timer = Math.max(p.timer || 0, 2.6 + Math.random() * 2);
+        } else if (Math.random() < 0.35 && !(p.say > 0)) {
+          p.line = reactLine(); p.say = 1.7;
+        }
         p.fx = p.x - x; p.fy = p.y - y;
       }
     }
@@ -20308,7 +20346,7 @@ export default function IronLionLayer004() {
       for (const list of [Array.isArray(g.peds) ? g.peds : []]) {
         for (const t of list) {
           if (!t) continue;
-          if (t.down > 0) continue;
+          if (t.stunT > 0) continue;
           if (!Number.isFinite(t.x) || !Number.isFinite(t.y)) continue;
           const d = Math.hypot(t.x - g.p.x, t.y - g.p.y);
           if (d > bd) continue;
@@ -20324,9 +20362,11 @@ export default function IronLionLayer004() {
       g.shock = { x: g.p.x, y: g.p.y, tx: best ? best.x : g.p.x + Math.cos(ang) * TAZER_RANGE,
                   ty: best ? best.y : g.p.y + Math.sin(ang) * TAZER_RANGE, t: 0.32 };
       if (best) {
-        best.down = 3.4; best.stun = 3.4; best.mode = "panic";
-        best.vx = 0; best.vy = 0;
-        if (best.hp != null) best.hp = Math.max(1, best.hp - 1);
+        /* `down` and `stun` were fields I invented on a ped -- nothing in updatePeds knew
+            about them, so the tazer neither stopped anybody nor read as a hit. `stunT` is
+            ours and the ped loop honours it. */
+        best.stunT = 3.4; best.vx = 0; best.vy = 0;
+        best.say = 1.4; best.line = "AAGH!";
       }
       return true;
     }
@@ -20400,7 +20440,10 @@ export default function IronLionLayer004() {
            in the mask, so row 0 of darius_top rather than the costume sheet. */
         const im = imgs.current.darius_top;
         if (im && im.width) {
-          const cell = im.height / 2, d = 30;
+          /* darius_top is 552x92 -- twelve 46px columns over two rows. `im.height / 2` happens
+             to equal 46 here, but it is the wrong reason and it shrank him the moment the
+             sheet changed. Take the real cell. */
+          const cell = 46, d = 34;
           ctx.drawImage(im, 0, 0, cell, cell, sp.x - d / 2, sp.y - d / 2, d, d);
         } else { ctx.fillStyle = "#8a6a3a"; ctx.fillRect(sp.x - 9, sp.y - 14, 18, 28); }
       }
@@ -20587,8 +20630,38 @@ export default function IronLionLayer004() {
       return true;
     };
     // Rio's kit. Sho carries a bat and takes people apart with his hands.
-    G.kickFn = () => { if (g.who === "sho") flyKick(); };
-    G.tazeFn = () => { if (g.who === "rio" && !g.inside) fireTazer(); };
+    /* Wrapped. A throw inside an ability used to happen every frame the state persisted, which
+       is what stopped the game rather than just dropping the move. If one of these ever fails
+       it fails once, says so, and the world carries on. */
+    const safely = (nm, fn) => {
+      try { fn(); } catch (err) {
+        g.pickupFlash = { nm: nm + "_failed", t: 1.6 };
+        g.shock = null; g.p.kick = 0;
+      }
+    };
+    /* Sho does not carry a grapple. He gets onto a roof the way he does everything else --
+       straight up, off his own legs. Same airborne read as the ollie and the fly kick, and it
+       lands him on the roof plane the hook would have pulled him to. */
+    function shoJump() {
+      if (g.who !== "sho" || (g.p.jumpT || 0) > 0 || g.inside) return false;
+      g.p.jumpT = 0.62;
+      g.p.jumpFrom = g.roof ? 1 : 0;
+      return true;
+    }
+    function stepShoJump(dt) {
+      if (!(g.p.jumpT > 0)) return;
+      g.p.jumpT -= dt;
+      if (g.p.jumpT <= 0) {
+        g.p.jumpT = 0;
+        // at the top of the arc he is either up on the roofs or back down on the street
+        if (G.roofToggleFn) G.roofToggleFn();
+        else g.roof = g.roof ? null : (g.roofWant || g.roof);
+      }
+    }
+    G.jumpFn = () => { if (g.who === "sho") safely("jump", shoJump); };
+    G.hookOrJumpFn = () => (g.who === "sho" ? (G.jumpFn(), true) : false);
+    G.kickFn = () => { if (g.who === "sho") safely("kick", flyKick); };
+    G.tazeFn = () => { if (g.who === "rio" && !g.inside) safely("taze", fireTazer); };
     G.smokeFn = () => { if (g.who === "rio") dropSmoke(); };
     G.boardToggleFn = () => {
       if (!g.board.has) return;
@@ -22179,10 +22252,14 @@ export default function IronLionLayer004() {
           null, hud.plain,
           (hud.mode !== "foot") ? 56 : null)}
         {hud.mode === "foot" && btn(
-          hud.roof ? (hud.canJump ? "JUMP" : hud.canHook ? "HOOK" : "DROP") : "HOOK",
-          hud.roof ? (hud.canJump ? "next roof" : hud.canHook ? "swing across" : "get down") : "rooftops",
+          hud.who === "sho" ? "JUMP"
+            : hud.roof ? (hud.canJump ? "JUMP" : hud.canHook ? "HOOK" : "DROP") : "HOOK",
+          hud.who === "sho" ? (hud.roof ? "get down" : "to the roof")
+            : hud.roof ? (hud.canJump ? "next roof" : hud.canHook ? "swing across" : "get down") : "rooftops",
           () => {
             const gg = G.current;
+            // Sho has no grapple; the same control is his legs
+            if (gg.who === "sho") { G.jumpFn && G.jumpFn(); return; }
             if (gg.roof) {
               // a roof within a stride is a jump; otherwise reach for the next one, and only
               // climb down when there is nothing to go to
