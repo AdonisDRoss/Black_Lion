@@ -1270,7 +1270,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 325 — THE IRON CURTAIN AND THE FRONT";
+const BUILD_TAG = "LAYER 326 — UNFROZEN, ONE ROOM, WALK IN";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2614,11 +2614,10 @@ function makeFloor(b, f, rnd) {
     put(0, front, GX - 1, GY - 1, "arfront");
   } else if (kind === "bandvenue") {
     // stage at the back, floor in the middle, bar and merch at the door
-    const back = Math.round(GY * 0.34);
-    put(0, 0, GX - 1, back - 1, "vnstage");
-    hub = put(0, back, GX - 1, Math.round(GY * 0.80), "pit");
-    put(0, Math.round(GY * 0.80) + 1, Math.round(GX * 0.55), GY - 1, "bar");
-    put(Math.round(GX * 0.55) + 1, Math.round(GY * 0.80) + 1, GX - 1, GY - 1, "merch");
+    /* One big room. It was a stage, a pit, a bar and a merch corner with walls between them,
+       which is four small rooms rather than a venue -- you could not see the band from the
+       bar. The furniture still zones it; the walls were the problem. */
+    hub = put(0, 0, GX - 1, GY - 1, "vnstage");
   } else if (kind === "warehouse") {
       // one big open floor -- nobody's occupying these yet, so there's no reason to over-build them
       hub = put(0, 0, GX - 1, GY - 1, "floor");
@@ -3585,8 +3584,11 @@ function makeFloor(b, f, rnd) {
         P(q2.x1 - pad - 30, cy - 17, 30, 34, "ar_photo");
         P(q2.x1 - pad - 15, q2.y1 - pad - 15, 15, 15, "ar_bin");
         break;
-      case "vnstage":
-        P(cx - 44, q2.y0 + pad, 88, 56, "vn_main_stage");
+      case "vnstage": {
+        // four panels across the back, so the stage is a wall rather than one plate
+        const sw = Math.min(64, (W2 - pad * 2) / 4);
+        for (let n = 0; n < 4; n++)
+          P(q2.x0 + pad + n * sw, q2.y0 + pad, sw, 56, "vn_main_stage");
         P(cx - 20, q2.y0 + pad + 8, 40, 40, "vn_drum_riser");
         P(q2.x0 + pad, q2.y0 + pad, 26, 40, "vn_pastack");
         P(q2.x1 - pad - 26, q2.y0 + pad, 26, 40, "vn_pastack");
@@ -3594,9 +3596,19 @@ function makeFloor(b, f, rnd) {
         P(cx + 22, q2.y0 + pad + 60, 24, 18, "vn_amp_combo");
         P(cx - 11, q2.y1 - pad - 14, 22, 14, "vn_monitor");
         P(cx - 8, q2.y0 + pad + 44, 16, 24, "vn_mic_stands");
-        P(q2.x1 - pad - 30, q2.y1 - pad - 20, 30, 20, "vn_stage_steps");
-        P(q2.x0 + pad + 32, q2.y1 - pad - 38, 24, 38, "st_sound");
+        P(q2.x1 - pad - 30, q2.y0 + pad + 58, 30, 20, "vn_stage_steps");
+        P(q2.x0 + pad + 32, q2.y0 + pad + 62, 24, 38, "st_sound");
+        // barriers across the front of the stage, the light bar over the floor
+        for (let rx = q2.x0 + pad; rx < q2.x1 - 44; rx += 46) P(rx, q2.y0 + pad + 84, 44, 8, "vn_barrier");
+        P(cx - 25, cy + 6, 50, 12, "vn_lights");
+        P(q2.x0 + pad, q2.y1 - pad - 22, 30, 22, "vn_cases");
+        // the bar and the merch table along the back wall, in the same room
+        P(q2.x0 + pad, q2.y1 - pad - 32, 60, 26, "bartop");
+        P(q2.x0 + pad + 70, q2.y1 - pad - 34, 24, 38, "st_bar");
+        P(q2.x1 - pad - 44, q2.y1 - pad - 20, 44, 20, "vn_merch");
+        P(q2.x1 - pad - 76, q2.y1 - pad - 38, 24, 38, "st_door");
         break;
+      }
       case "pit":
         // barriers across the front of the stage, and the light bar over the floor
         for (let rx = q2.x0 + pad; rx < q2.x1 - 44; rx += 46) P(rx, q2.y0 + pad, 44, 8, "vn_barrier");
@@ -4470,6 +4482,9 @@ export default function IronLionLayer004() {
       arcade:     { data: null, url: "assets/arcade.mp3" },
       cab1:       { data: null, url: "assets/cab1.mp3" },
       cab2:       { data: null, url: "assets/cab2.mp3" },
+      band1:      { data: null, url: "assets/band1.mp3" },
+      band2:      { data: null, url: "assets/band2.mp3" },
+      band3:      { data: null, url: "assets/band3.mp3" },
       barrio:     { data: null, url: "assets/barrio.mp3" },
     };
     /* Which track a district gets. Anything unlisted falls through to `drive`, which has played
@@ -5222,6 +5237,7 @@ export default function IronLionLayer004() {
       const b = G.doorFn();
       if (b) { g.inside = b; g.floor = 0; return; }
     }
+    // (E still works; autoDoor below means you rarely need it)
     /* After the door, for the same reason the table is: a truck parked near an entrance should
        not stop you going inside. Walking up to something never beats walking into something. */
     if (g.mode === "foot" && !g.inside && G.truckFn && G.truckFn()) return;
@@ -5848,6 +5864,94 @@ export default function IronLionLayer004() {
        tests and has not been cut -- but an empty skate park reads as broken in a way a park
        full of the wrong people does not. They wander between the ramps rather than pathing
        along street corners, because there are no corners in here. */
+    /* The gig crowd. Interiors do not carry peds, so these are their own list -- drawn only
+       when you are in the venue, and cleared when the night ends. Kids at the front, adults
+       at the back, which is what the floor of a small room actually looks like. */
+    function updateGig(dt) {
+      const on = g.inside && g.inside.kind === "bandvenue" && g.night > 0.35;
+      if (!on) { if (g.gig) g.gig = null; return; }
+      const b = g.inside;
+      if (!g.gig) {
+        g.gig = { crowd: [], t: 0 };
+        const n = 22 + ((Math.random() * 10) | 0);
+        for (let i = 0; i < n; i++) {
+          const front = i < n * 0.6;
+          const kid = front || Math.random() < 0.4;
+          g.gig.crowd.push({
+            x: b.x + b.w * (0.14 + Math.random() * 0.72),
+            y: b.y + b.h * (front ? 0.30 + Math.random() * 0.22 : 0.56 + Math.random() * 0.26),
+            yt: kid
+              ? "yt_" + ["skater", "arcade", "band", "girl", "bmx", "walkman", "bro", "little"][(Math.random() * 8) | 0]
+                  + "_" + ["a", "b", "c"][(Math.random() * 3) | 0]
+              : "st_" + ["door", "bar", "sound", "mech"][(Math.random() * 4) | 0],
+            jit: 0.94 + Math.random() * 0.14, ph: Math.random() * 6.28,
+            bob: 0.5 + Math.random() * 0.7, anim: Math.random() * 6,
+            vx: 0, vy: 0, bang: -Math.PI / 2,
+          });
+        }
+      }
+      g.gig.t += dt;
+      for (const c of g.gig.crowd) { c.anim += dt * 3 * c.bob; }
+    }
+    function drawGig() {
+      if (!g.gig) return;
+      // blue wash from the rig, and the whole room pulses on the beat
+      const pulse = 0.5 + 0.5 * Math.sin(g.gig.t * 4.2);
+      const b = g.inside;
+      ctx.fillStyle = `rgba(40,90,210,${0.10 + pulse * 0.13})`;
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.fillStyle = `rgba(230,120,60,${0.05 + (1 - pulse) * 0.10})`;
+      ctx.fillRect(b.x, b.y, b.w, b.h * 0.34);
+      for (const c of g.gig.crowd) {
+        // they jump, which from above is the ollie read: scale up, shadow shrinks, stays put
+        const j = Math.max(0, Math.sin(c.anim + c.ph));
+        drawShadow(c.x, c.y + 3, 9 * (1 - j * 0.35), 4 * (1 - j * 0.35), 0.34);
+        ctx.save();
+        ctx.translate(c.x + j * 3, c.y + j * 3);
+        ctx.scale(1 + j * 0.16, 1 + j * 0.16);
+        ctx.translate(-c.x, -c.y);
+        drawYouth(c, -Math.PI / 2, 0);
+        ctx.restore();
+      }
+    }
+
+    /* Kids at the machines. Same idea: their own list, drawn only inside the arcade, standing
+       at a cabinet rather than pathing -- which is what anybody in an arcade is doing. */
+    function updateArcadeKids(dt) {
+      const on = g.inside && g.inside.kind === "arcade";
+      if (!on) { if (g.arKids) g.arKids = null; return; }
+      if (!g.arKids) {
+        const pl = buildingPlans(g.inside)[0];
+        const cabs = (pl ? pl.props : []).filter((q) => q.t.startsWith("ar_cab_"));
+        g.arKids = [];
+        for (let i = 0; i < Math.min(9, cabs.length); i++) {
+          const q = cabs[(Math.random() * cabs.length) | 0];
+          g.arKids.push({
+            x: q.x + q.w / 2 + (Math.random() * 8 - 4), y: q.y + q.h + 15,
+            yt: "yt_" + ["skater", "arcade", "band", "girl", "bmx", "walkman", "bro", "little"][(Math.random() * 8) | 0]
+                + "_" + ["a", "b", "c"][(Math.random() * 3) | 0],
+            jit: 0.94 + Math.random() * 0.14, vx: 0, vy: 0, bang: -Math.PI / 2,
+            anim: Math.random() * 6, say: 0, barkCd: 2 + Math.random() * 10, lean: Math.random() * 6.28,
+          });
+        }
+      }
+      for (const k of g.arKids) {
+        k.lean += dt * 3;
+        k.say = Math.max(0, k.say - dt);
+        k.barkCd -= dt;
+        if (k.barkCd <= 0) { kidSay(k, KID_LINES); k.barkCd = 8 + Math.random() * 14; }
+      }
+    }
+    function drawArcadeKids() {
+      if (!g.arKids) return;
+      for (const k of g.arKids) {
+        drawShadow(k.x, k.y + 3, 9, 4, 0.34);
+        // they face the machine and rock at it, which is the whole animation anybody needs
+        drawYouth(k, -Math.PI / 2 + Math.sin(k.lean) * 0.10, 0);
+      }
+      for (const k of g.arKids) if (k.say > 0 && k.line) bubble(k.x, k.y, k.line);
+    }
+
     function spawnParkKid() {
       const b = skateBox();
       const px = b.x0 + 60 + Math.random() * (b.x1 - b.x0 - 120);
@@ -6038,7 +6142,10 @@ export default function IronLionLayer004() {
                    "dk_speed", "dk_tiger", "dk_sunburst", "dk_hazard"];
     /* The youth plates are single figures facing DOWN their cell, like lion_top and unlike
        civtop -- so they carry their own facing constant rather than borrowing either. */
-    const YOUTH_FACE = Math.PI / 2;
+    /* The plates face DOWN their cell, i.e. local +y. ctx.rotate(t) sends local +y to
+       (-sin t, cos t), so to point that at a heading `a` you need t = a - PI/2. It was +,
+       which is a half-turn out -- every kid who was not on a board walked backwards. */
+    const YOUTH_FACE = -Math.PI / 2;
     /* Kids are torso plates, same as the staff, so they need legs drawn or they float. And
        this used to translate from world coords itself, which meant that when drawPedSkating
        wrapped it in a sideways stance the wrap was thrown away -- the kid was re-centred on
@@ -10591,7 +10698,7 @@ export default function IronLionLayer004() {
     function drawCab() {
       const c = g.cab; if (!c) return;
       const sc = Math.min(W / (CAB_W + 24), H / (CAB_H + 48));
-      ctx.fillStyle = "rgba(4,4,7,0.94)"; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#040407"; ctx.fillRect(0, 0, W, H);
       ctx.save();
       ctx.translate(W / 2 - (CAB_W * sc) / 2, H / 2 - (CAB_H * sc) / 2);
       ctx.scale(sc, sc);
@@ -16149,7 +16256,15 @@ export default function IronLionLayer004() {
           const ci = clamp(Math.floor(pv.x / PITCH), 0, N - 1);
           const cj = clamp(Math.floor(pv.y / PITCH), 0, N - 1);
           if (kind === "arcade") musicPlay("arcade");
-          else if (kind === "bandvenue") musicPlay("youth");
+          else if (kind === "bandvenue") {
+            /* After dark it is a gig, not a room. One band is picked when the night turns and
+               kept until it turns back, so the track does not reshuffle every time the music
+               tick re-decides. */
+            if (g.night > 0.35) {
+              if (!g.gigBand) g.gigBand = "band" + (1 + ((Math.random() * 3) | 0));
+              musicPlay(g.gigBand);
+            } else { g.gigBand = null; musicPlay("youth"); }
+          }
           else if (cj === 9 && (ci === 5 || ci === 6)) musicPlay("youth");
           else musicPlay(ZONE_MUSIC[zoneOf(ci, cj)] || "drive");
         }
@@ -18451,17 +18566,29 @@ export default function IronLionLayer004() {
           g.pickupFlash = { nm: "unstuck", t: 1.4 };
         }
       } else g.pauseOrphan = 0;
-      if (g.cab) { stepCab(Math.min(dt, 0.05)); return; }
+      if (g.cab) { stepCab(Math.min(dt, 0.05)); drawCab(); return; }
       if (g.paused) return;
       g.t += dt;
 
       // Attract mode. The whole city keeps running -- traffic, crews, the day cycle -- and
       // the camera flies a slow circuit over it. No new art and no second render path: the
       // title screen IS the game, with the player skipped and the camera driven instead.
+      /* Walk in, walk out. Pressing E at every shop door was a tax on a game where the whole
+         point is moving through the city. The cooldown is what makes it work: without it you
+         re-enter on the frame after leaving, because you are still stood in the doorway. */
+      if (!g.title && g.mode === "foot" && g.onPlat == null && !g.cab && !g.paused) {
+        g.doorCd = Math.max(0, (g.doorCd || 0) - dt);
+        if (g.doorCd <= 0 && G.doorFn) {
+          const db = G.doorFn();
+          if (db && !g.inside) { g.inside = db; g.floor = 0; g.doorCd = 0.9; }
+          else if (db && g.inside === db && g.floor === 0) { g.inside = null; g.doorCd = 0.9; }
+        }
+      }
       if (g.title) titleCam(dt);
       else if (g.mode === "foot") stepFoot(dt);
       else stepCar(dt, activeVeh());
       updatePeds(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
+      if (!g.title) { updateGig(dt); updateArcadeKids(dt); }
       if (!g.title) updateCrime(dt);
       if (!g.title) updateShop(dt);
       if (!g.title) updateComp(dt);
@@ -18845,6 +18972,7 @@ export default function IronLionLayer004() {
         // on the deck you must be drawn above the slab you are standing on
         if (g.onFwy && !g.onRamp && inVehicle()) { if (g.mode === "car") drawCar(); else drawMoto(); }
       }
+      if (g.inside) { drawGig(); drawArcadeKids(); }
       if (!g.inside) { drawLampPosts(view); drawPolesAndWires(view); }
       if (!g.inside) {
         for (const p of g.peds) if (p.say > 0 && p.line) bubble(p.x, p.y, p.line);
@@ -18859,7 +18987,6 @@ export default function IronLionLayer004() {
       }
       ctx.restore();
 
-      if (g.cab) { drawCab(); return; }
       // night wash + lights
       if (g.night > 0.02) {
         ctx.fillStyle = `rgba(6,8,20,${0.62 * g.night})`;
