@@ -1312,7 +1312,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 334 — THE WATER IS WET";
+const BUILD_TAG = "LAYER 335 — RIO";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5170,10 +5170,14 @@ export default function IronLionLayer004() {
          one's kit while he waits at the den. They are not two skins: the Lion carries what he
          takes off people, and the kid cannot hold a gun at all -- so the swap changes what you
          are able to do, not just what you look like. */
+      /* The second playable character is the Lion's sidekick -- one man with a name, not a
+         random kid off the ramps. He is why the kit is what it is: no gun, a board, a tazer
+         and smoke. Rename him in one place. */
       who: "lion",
       bench: null,
       smoke: [],
-      kidYt: "yt_skater_b",
+      kidYt: "yt_bro_b",            // older than the park kids, and reads it
+      kidName: "RIO",
       air: { h: 0, t: 0, dur: 0, sx: 0, sy: 0 },
     };
   }
@@ -5714,7 +5718,8 @@ export default function IronLionLayer004() {
       const dep = g.depth || 0;
       const swimMul = dep > 0.16 ? (running ? 0.62 : 0.68) : dep > 0 ? 0.78 : 1;
       const spd = (running ? 214 : 116) * lionBoost() * swimMul;
-      if (running) g.p.stamina = Math.max(0, g.p.stamina - dt * 11);
+      // 11 emptied the bar in nine seconds, which made sprinting a thing you did once
+      if (running) g.p.stamina = Math.max(0, g.p.stamina - dt * 5.5);
       else g.p.stamina = Math.min(g.p.maxStamina, g.p.stamina + dt * (g.p.moving > 14 ? 4 : 9));
       const tvx = ix * spd, tvy = iy * spd;
       const acl = len > 0.05 ? 14 : 11;
@@ -7630,7 +7635,7 @@ export default function IronLionLayer004() {
       g.swim = Math.min(1, (g.swim || 0) + dt * 3);
       // out of your depth you tire; stamina is the clock on how far you can cross
       // a swimmer should be able to cross with effort, not drown two lengths from the bank
-      if (dep > 0.3) g.p.stamina = Math.max(0, g.p.stamina - dt * (0.9 + dep * 1.1));
+      if (dep > 0.3) g.p.stamina = Math.max(0, g.p.stamina - dt * (0.55 + dep * 0.7));
       if (g.p.stamina <= 0 && dep > 0.5) g.p.hp = Math.max(0, g.p.hp - dt * 3);
     }
 
@@ -20199,7 +20204,9 @@ export default function IronLionLayer004() {
       }
       // the prompt, so you know it is a conversation and not scenery
       if (Math.hypot(g.p.x - sp.x, g.p.y - sp.y) < 64)
-        bubble(sp.x, sp.y - 18, g.who === "lion" ? "[E] TAKE THE BOARD" : "[E] SUIT UP");
+        bubble(sp.x, sp.y - 18, g.who === "lion"
+          ? "[E] " + (g.kidName || "RIO") + " \u2014 TAKE OVER"
+          : "[E] BACK TO THE LION");
     }
     function drawSmoke() {
       for (const s2 of g.smoke) {
@@ -20245,11 +20252,19 @@ export default function IronLionLayer004() {
       const b = denOf();
       if (!b) return null;
       const pl = buildingPlans(b)[0];
-      const rack = pl.props.find((q) => q.t === "sk_rack");
-      if (rack) return { x: rack.x + rack.w / 2 + 46, y: rack.y + rack.h / 2 };
       const bay = pl.rooms.find((r) => r.k === "bay");
       if (!bay) return null;
-      return { x: (bay.x0 + bay.x1) / 2, y: (bay.y0 + bay.y1) / 2 + 46 };
+      /* Down at the mouth of the bay, out of the working half of the room. Beside the rack he
+         was in among the drums and the lift with the car between him and the door -- you had
+         to squeeze past a vehicle to talk to him. Down here he is the first thing you meet. */
+      const sp = { x: bay.x0 + (bay.x1 - bay.x0) * 0.34, y: bay.y1 - 34 };
+      // and if the plan put something there anyway, step him off it rather than into it
+      for (const q of pl.props) {
+        if (sp.x > q.x - 14 && sp.x < q.x + q.w + 14 && sp.y > q.y - 14 && sp.y < q.y + q.h + 14) {
+          sp.x = q.x - 26; break;
+        }
+      }
+      return sp;
     }
     function packKit() {
       return { wpn: g.p.wpn, ammo: g.p.ammo, holstered: g.p.holstered,
@@ -20276,7 +20291,8 @@ export default function IronLionLayer004() {
       g.who = g.who === "lion" ? "kid" : "lion";
       wearKit(theirs);
       if (g.who === "kid") { g.lionOn = false; g.plain = true; }
-      g.pickupFlash = { nm: g.who === "kid" ? "you_are_the_kid" : "you_are_the_lion", t: 1.8 };
+      g.pickupFlash = { nm: g.who === "kid" ? "playing_as_" + (g.kidName || "RIO").toLowerCase()
+                                            : "playing_as_the_lion", t: 1.8 };
       return true;
     };
     G.tazeFn = () => { if (g.who === "kid" && !g.inside) fireTazer(); };
