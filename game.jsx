@@ -1312,7 +1312,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 331 — MIRRORED, AND THE MUSIC RETRIES";
+const BUILD_TAG = "LAYER 333 — THE LAKE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1419,11 +1419,43 @@ function riverCentre(x) {
   // a lazy meander so the bank is not a ruled line
   return SX(RIVER_J) + Math.sin(x / 5200) * RIVER_WOBBLE + Math.sin(x / 1900 + 1.3) * (RIVER_WOBBLE * 0.28);
 }
+/* THE LAKE. The city used to stop because the grid stopped -- a road that ends in nothing is
+   the one thing on the map that reads as unfinished rather than as a place. Water is the only
+   boundary that needs no explanation, so the north and west edges are shoreline now.
+
+   It is folded into waterDepth deliberately. The river already exists and everything in the
+   build respects it -- zoneOf answers "water", genBuildings skips it, the streets stop at it,
+   the surface draws it. Adding a second water system would have meant teaching all of that
+   about a second thing; making the lake BE water taught it nothing and it works everywhere.
+
+   The east edge stays dry on purpose: a city you cannot drive out of is not a city, and that
+   county road is where a man goes when he is leaving for good. */
+/* Computed inside the function, not hoisted into consts -- SX is declared further down the
+   module and reading it up here is a temporal dead zone the node harness caught immediately. */
+function lakeDepth(x, y) {
+  /* EAST and SOUTH, because that is where the map has land to give. zoneOf answers the named
+     districts BEFORE it asks about water, so a lake can only appear on ground no district has
+     claimed -- and every cell on the north and west edges belongs to uptown, the Irish blocks
+     or the hood. Putting water there would not have made a shoreline, it would have deleted
+     city. The county is the empty side, so the county is where the water goes.
+
+     The strip above Ember Flats is left dry on purpose. The town sits on the east edge and a
+     lake through it would have drowned the Kestrel. */
+  const eastShore = SX(28) + Math.sin(y / 2900) * 520 + Math.sin(y / 1250 + 0.7) * 160;
+  const southShore = SX(28) + 520 + Math.sin(x / 3300) * 480 + Math.sin(x / 1400 + 2.1) * 150;
+  const emberRows = y > SX(21) && y < SX(26);      // hands off the highway town
+  const de = emberRows ? -1 : x - eastShore;
+  const ds = y - southShore;
+  const d = Math.max(de, ds);
+  if (d <= 0) return 0;
+  return clamp(d / 900, 0, 1);                     // shallow at the beach, deep further out
+}
 function waterDepth(x, y) {
+  const lake = lakeDepth(x, y);
   const d = Math.abs(y - riverCentre(x));
-  if (d >= RIVER_HW) return 0;
+  const river = d >= RIVER_HW ? 0 : clamp(1 - d / RIVER_HW, 0, 1);
   // 0 at the shoreline, 1 in the channel -- shallows read differently and matter for wading
-  return clamp(1 - d / RIVER_HW, 0, 1);
+  return Math.max(lake, river);
 }
 const inWater = (x, y) => waterDepth(x, y) > 0;
 // Hazelbrook: one crossroads town out in the county, off the Yards Spur
@@ -5124,7 +5156,16 @@ export default function IronLionLayer004() {
          combat, police and arrest all carry on untouched. It is a movement modifier, and
          `board.on` is the only thing that changes how stepFoot integrates. */
       board: { has: false, on: false, held: 0, wasPush: false, spd: 0, ang: 0 },
+      smokeStock: 3,
       cab: null,
+      /* Two playable people, one at a time. `who` says which you are; `bench` holds the other
+         one's kit while he waits at the den. They are not two skins: the Lion carries what he
+         takes off people, and the kid cannot hold a gun at all -- so the swap changes what you
+         are able to do, not just what you look like. */
+      who: "lion",
+      bench: null,
+      smoke: [],
+      kidYt: "yt_skater_b",
       air: { h: 0, t: 0, dur: 0, sx: 0, sy: 0 },
     };
   }
@@ -5239,6 +5280,7 @@ export default function IronLionLayer004() {
        mentor did and nothing ever called it -- the HUD has been offering "[E] HE HAS SOMETHING
        FOR YOU" to a key that did something else. */
     if (g.cab) { G.cabFn && G.cabFn(); return; }         // E is the way out, always
+    if (g.mode === "foot" && g.inside && G.swapFn && G.swapFn()) return;
     if (g.mode === "foot" && g.inside && G.cabFn && G.cabFn()) return;
     if (g.mode === "foot" && g.inside && G.boardFn && G.boardFn()) return;
     if (g.mode === "foot" && g.inside && G.compFn && G.compFn()) return;
@@ -5623,6 +5665,7 @@ export default function IronLionLayer004() {
       const p = g.p;
       p.stumble = Math.max(0, (p.stumble || 0) - dt);
       p.hitCd = Math.max(0, (p.hitCd || 0) - dt);
+      if (p.hidden) return;                    // inside the cloud a car cannot find him either
       for (const v of g.traffic) {
         const dx = p.x - v.x, dy = p.y - v.y;
         const d = Math.hypot(dx, dy);
@@ -15054,9 +15097,15 @@ export default function IronLionLayer004() {
       const i = clamp(Math.round(x / PITCH), 0, N), j = clamp(Math.round(y / PITCH), 0, N);
       return Math.abs(x - SX(i)) > halfW(i) * 0.55 || Math.abs(y - SX(j)) > halfW(j) * 0.55;
     }
+    // bats and the tazer, nothing else. He is fifteen.
+    const KID_OK = { bat: 1, pipe: 1, crowbar: 1, tazer: 1 };
     function applyItem(nm) {
       if (nm.slice(0, 4) === "wpn_") {
         const k = nm.slice(4);
+        if (g.who === "kid" && !KID_OK[k]) {
+          g.pickupFlash = { nm: "kid_wont_carry_that", t: 1.6 };
+          return;
+        }
         g.p.wpn = k;
         g.p.ammo = WPN_AMMO[k] || 5;
         /* Anything he picks up goes on the rack at the den. He still does not carry a gun by
@@ -16600,9 +16649,14 @@ export default function IronLionLayer004() {
          at 60Hz along a district boundary makes it stutter between two tracks as you drive the
          line. `musicPlay` already ignores a request for the track that is playing, so this is
          just a throttle on changing our mind. */
+      /* Driving across town changed the track every second or two, because a one-second
+         throttle is no throttle at all at 40mph -- you cross a district line, the music
+         starts a two-and-a-half second crossfade, and you are already in the next district
+         before it finishes. So: decide less often, and require the NEW answer to hold for a
+         few seconds before acting on it. A track you only clip the corner of never plays. */
       MUS.tick = (MUS.tick == null ? 0 : MUS.tick) - dt;
       if (MUS.tick <= 0) {
-        MUS.tick = 1;
+        MUS.tick = 1.5;
         // a chase and the boss both override the district; nothing else does
         if (g.boss && (!g.boss.roof || g.roof === g.boss.roof)) musicPlay("boss");
         /* Not inside the venue. A chase happening in the street is not audible over a band
@@ -16620,6 +16674,15 @@ export default function IronLionLayer004() {
           const pv = inVehicle() ? activeVeh() : g.p;
           const ci = clamp(Math.floor(pv.x / PITCH), 0, N - 1);
           const cj = clamp(Math.floor(pv.y / PITCH), 0, N - 1);
+        const commit = (key) => {
+          if (key === MUS.cur) { MUS.want = null; MUS.wantT = 0; return; }
+          if (MUS.want !== key) { MUS.want = key; MUS.wantT = 0; return; }
+          MUS.wantT = (MUS.wantT || 0) + 1.5;
+          // indoors it is instant: you either walked through a door or you did not
+          const need = (g.inside || inVehicle() === false) ? 0 : 3;
+          if (MUS.wantT >= need) { musicPlay(key); MUS.want = null; MUS.wantT = 0; }
+        };
+        {
           if (kind === "arcade") musicPlay("arcade");
           else if (kind === "bandvenue") {
             /* Always a band, day or night -- it is a music venue, and gating the audio on
@@ -16630,7 +16693,8 @@ export default function IronLionLayer004() {
             musicPlay(g.gigBand);
           }
           else if (cj === 9 && (ci === 5 || ci === 6)) musicPlay("youth");
-          else musicPlay(ZONE_MUSIC[zoneOf(ci, cj)] || "drive");
+          else commit(ZONE_MUSIC[zoneOf(ci, cj)] || "drive");
+        }
         }
       }
       if (g.traffic.filter((v) => v.bus).length < 2 && Math.random() < 0.02) spawnBus(cx, cy);
@@ -18965,7 +19029,7 @@ export default function IronLionLayer004() {
       else if (g.mode === "foot") stepFoot(dt);
       else stepCar(dt, activeVeh());
       updatePeds(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
-      if (!g.title) { updateGig(dt); updateArcadeKids(dt); }
+      if (!g.title) { updateGig(dt); updateArcadeKids(dt); updateSmoke(dt); }
       if (!g.title) updateCrime(dt);
       if (!g.title) updateShop(dt);
       if (!g.title) updateComp(dt);
@@ -19351,7 +19415,8 @@ export default function IronLionLayer004() {
         // on the deck you must be drawn above the slab you are standing on
         if (g.onFwy && !g.onRamp && inVehicle()) { if (g.mode === "car") drawCar(); else drawMoto(); }
       }
-      if (g.inside) { drawGig(); drawArcadeKids(); }
+      if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); }
+      drawSmoke(); drawShock();
       if (!g.inside) { drawLampPosts(view); drawPolesAndWires(view); }
       if (!g.inside) {
         for (const p of g.peds) if (p.say > 0 && p.line) bubble(p.x, p.y, p.line);
@@ -19416,6 +19481,7 @@ export default function IronLionLayer004() {
             tick: (hudTick = (hudTick + 1) % 1000), hudCrash: null, mus: musicState(),
             dmg: inVehicle() && activeVeh() ? Math.round((activeVeh().dmg || 0) * 100) : null,
             shop: !!nearBodyShop(), inShop: !!g.inShop,
+            who: g.who, smokeStock: g.p.smokeStock || 0, hidden: !!g.p.hidden,
             board: !!g.board.on, hasBoard: !!g.board.has, atRack: atRack(),
             cab: g.cab ? g.cab.g : null,
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
@@ -19935,6 +20001,9 @@ export default function IronLionLayer004() {
        locker, the garage and the console, and a whole-floor rule would have swallowed all three.
        Measuring to the prop also means any room that gets a rack works with no extra wiring. */
     function atRack() {
+      /* The Lion does not skate. The board went to the kid when the two of them became two
+         characters rather than one, and a rack he cannot take from says so without dialogue. */
+      if (g.who !== "kid") return false;
       if (g.inside) {
         const pl = buildingPlans(g.inside)[g.floor];
         if (!pl) return false;
@@ -19975,6 +20044,171 @@ export default function IronLionLayer004() {
             : best.t === "ar_cab_brawler" ? "brawl" : "curtain");
       return true;
     };
+    /* Swapping. The other one is stood in the den bay, and you talk to him. Everything he was
+       carrying goes on the bench with him and comes back when you swap again -- so the kid
+       cannot inherit a shotgun by being handed the body, and the Lion does not get the board. */
+    /* THE TAZER. Medium range -- further than a bat, nowhere near a gun -- and it does not
+       kill. It drops a man for a few seconds, which is the whole point of giving it to a
+       fifteen year old: he can get himself out of trouble without becoming the thing the
+       Lion spent six missions refusing to be. */
+    const TAZER_RANGE = 128;
+    function fireTazer() {
+      if ((g.p.tazeCd || 0) > 0) return false;
+      g.p.tazeCd = 1.5;
+      const ang = Math.atan2(g.p.vy || 0, g.p.vx || 1);
+      let best = null, bd = TAZER_RANGE;
+      for (const list of [g.peds, ...(g.crews || []).map((c) => c.members)]) {
+        for (const t of list || []) {
+          if (t.down > 0) continue;
+          const d = Math.hypot(t.x - g.p.x, t.y - g.p.y);
+          if (d > bd) continue;
+          // only what is roughly in front of him, so it is aimed and not a bomb
+          const a2 = Math.atan2(t.y - g.p.y, t.x - g.p.x);
+          let da = a2 - ang;
+          while (da > Math.PI) da -= Math.PI * 2;
+          while (da < -Math.PI) da += Math.PI * 2;
+          if (Math.abs(da) > 0.9) continue;
+          bd = d; best = t;
+        }
+      }
+      g.shock = { x: g.p.x, y: g.p.y, tx: best ? best.x : g.p.x + Math.cos(ang) * TAZER_RANGE,
+                  ty: best ? best.y : g.p.y + Math.sin(ang) * TAZER_RANGE, t: 0.32 };
+      if (best) {
+        best.down = 3.4; best.stun = 3.4; best.mode = "panic";
+        best.vx = 0; best.vy = 0;
+        if (best.hp != null) best.hp = Math.max(1, best.hp - 1);
+      }
+      return true;
+    }
+    /* THE SMOKE BOMB. While he is inside the cloud nothing can touch him and nothing can see
+       him. It is not a weapon, it is an exit -- which is the right verb for this character. */
+    function dropSmoke() {
+      if ((g.p.smokeStock || 0) <= 0) { g.pickupFlash = { nm: "no_smoke", t: 1.1 }; return false; }
+      g.p.smokeStock--;
+      g.smoke.push({ x: g.p.x, y: g.p.y, r: 10, t: 7.5 });
+      return true;
+    }
+    function inSmoke(x, y) {
+      for (const s2 of g.smoke) if (Math.hypot(x - s2.x, y - s2.y) < s2.r) return true;
+      return false;
+    }
+    function updateSmoke(dt) {
+      for (let i = g.smoke.length - 1; i >= 0; i--) {
+        const s2 = g.smoke[i];
+        s2.t -= dt;
+        s2.r = Math.min(78, s2.r + 92 * dt);
+        if (s2.t <= 0) g.smoke.splice(i, 1);
+      }
+      g.p.tazeCd = Math.max(0, (g.p.tazeCd || 0) - dt);
+      if (g.shock) { g.shock.t -= dt; if (g.shock.t <= 0) g.shock = null; }
+      g.p.hidden = g.who === "kid" && inSmoke(g.p.x, g.p.y);
+    }
+    /* Whoever you are not is stood in the den bay waiting. Drawing him is what makes the swap
+       legible -- otherwise the other character is an abstraction and the base is an empty room. */
+    function drawBenched() {
+      if (!g.inside || g.inside.kind !== "den" || g.floor !== 0) return;
+      const sp = otherSpot(); if (!sp) return;
+      drawShadow(sp.x, sp.y + 3, 12, 5, 0.36);
+      if (g.who === "lion") {
+        // the kid, on his board, waiting to be asked
+        const im = imgs.current[g.kidYt];
+        if (im && im.width) {
+          const h = 26, w = h * (im.width / im.height);
+          const dk = imgs.current.sk_deck;
+          if (dk && dk.width) ctx.drawImage(dk, sp.x - 17, sp.y + 8, 34, 14);
+          ctx.save(); ctx.translate(sp.x, sp.y); ctx.rotate(-Math.PI / 2 + Math.PI / 2);
+          ctx.fillStyle = "#20222a";
+          ctx.fillRect(-w * 0.25, h * 0.26, w * 0.17, h * 0.40);
+          ctx.fillRect(w * 0.08, h * 0.26, w * 0.17, h * 0.40);
+          ctx.drawImage(im, -w / 2, -h / 2, w, h);
+          ctx.restore();
+        } else { ctx.fillStyle = "#5a7a9a"; ctx.fillRect(sp.x - 8, sp.y - 13, 16, 26); }
+      } else {
+        // the Lion, out of the mask, waiting for his city back
+        const im = imgs.current.lion_top;
+        if (im && im.width) {
+          const cell = im.height, d = 30;
+          ctx.drawImage(im, 0, 0, cell, cell, sp.x - d / 2, sp.y - d / 2, d, d);
+        } else { ctx.fillStyle = "#8a6a3a"; ctx.fillRect(sp.x - 9, sp.y - 14, 18, 28); }
+      }
+      // the prompt, so you know it is a conversation and not scenery
+      if (Math.hypot(g.p.x - sp.x, g.p.y - sp.y) < 46)
+        bubble(sp.x, sp.y - 18, g.who === "lion" ? "[E] TAKE THE BOARD" : "[E] SUIT UP");
+    }
+    function drawSmoke() {
+      for (const s2 of g.smoke) {
+        const a = clamp(s2.t / 7.5, 0, 1);
+        for (let n = 0; n < 3; n++) {
+          ctx.fillStyle = `rgba(196,198,204,${0.10 * a})`;
+          ctx.beginPath();
+          ctx.ellipse(s2.x + Math.sin(g.t * 0.7 + n) * 6, s2.y + Math.cos(g.t * 0.6 + n) * 6,
+            s2.r * (1 - n * 0.16), s2.r * (0.86 - n * 0.14), 0, 0, 6.3);
+          ctx.fill();
+        }
+      }
+    }
+    /* The shock. A jagged line, redrawn every frame from a different seed, plus a flash at
+       each end -- a straight beam reads as a laser and this has to read as electricity. */
+    function drawShock() {
+      const sh = g.shock; if (!sh) return;
+      const a = clamp(sh.t / 0.32, 0, 1);
+      const dx = sh.tx - sh.x, dy = sh.ty - sh.y, L = Math.hypot(dx, dy) || 1;
+      const nx = -dy / L, ny = dx / L;
+      for (let pass = 0; pass < 2; pass++) {
+        ctx.strokeStyle = pass ? `rgba(255,255,255,${a})` : `rgba(120,200,255,${a * 0.9})`;
+        ctx.lineWidth = pass ? 1.6 : 4;
+        ctx.beginPath();
+        ctx.moveTo(sh.x, sh.y);
+        const steps = 7;
+        for (let i = 1; i <= steps; i++) {
+          const f = i / steps;
+          const j = i === steps ? 0 : (Math.sin(i * 12.9 + g.t * 60 + pass) * 9);
+          ctx.lineTo(sh.x + dx * f + nx * j, sh.y + dy * f + ny * j);
+        }
+        ctx.stroke();
+      }
+      ctx.fillStyle = `rgba(200,235,255,${a})`;
+      ctx.beginPath(); ctx.arc(sh.tx, sh.ty, 7 * a + 2, 0, 6.3); ctx.fill();
+    }
+
+    function otherSpot() {
+      const b = denOf();
+      if (!b) return null;
+      const pl = buildingPlans(b)[0];
+      const bay = pl.rooms.find((r) => r.k === "bay");
+      if (!bay) return null;
+      return { x: (bay.x0 + bay.x1) / 2 + 54, y: (bay.y0 + bay.y1) / 2 };
+    }
+    function packKit() {
+      return { wpn: g.p.wpn, ammo: g.p.ammo, holstered: g.p.holstered,
+               board: g.board.has, hp: g.p.hp, skill: g.p.skill };
+    }
+    function wearKit(k) {
+      g.p.wpn = k.wpn || null; g.p.ammo = k.ammo || 0;
+      g.p.holstered = !!k.holstered;
+      g.board.has = !!k.board; g.board.on = false; g.board.spd = 0;
+      if (k.hp != null) g.p.hp = k.hp;
+      if (k.skill != null) g.p.skill = k.skill;
+    }
+    G.swapFn = () => {
+      if (!g.inside || g.inside.kind !== "den" || g.floor !== 0) return false;
+      const sp = otherSpot();
+      if (!sp) return false;
+      if (Math.hypot(g.p.x - sp.x, g.p.y - sp.y) > 46) return false;
+      const mine = packKit();
+      const theirs = g.bench || (g.who === "lion"
+        // first swap: the kid turns up with his board and nothing else
+        ? { wpn: null, ammo: 0, holstered: false, board: true, hp: 100 }
+        : { wpn: null, ammo: 0, holstered: false, board: false, hp: 100 });
+      g.bench = mine;
+      g.who = g.who === "lion" ? "kid" : "lion";
+      wearKit(theirs);
+      if (g.who === "kid") { g.lionOn = false; g.plain = true; }
+      g.pickupFlash = { nm: g.who === "kid" ? "you_are_the_kid" : "you_are_the_lion", t: 1.8 };
+      return true;
+    };
+    G.tazeFn = () => { if (g.who === "kid" && !g.inside) fireTazer(); };
+    G.smokeFn = () => { if (g.who === "kid") dropSmoke(); };
     G.boardToggleFn = () => {
       if (!g.board.has) return;
       if (g.board.on) boardOff(); else boardOn();
@@ -21596,6 +21830,10 @@ export default function IronLionLayer004() {
           </>
         ) : (
           <>
+            {!hud.cab && hud.who === "kid" && btn("TAZE", "stun",
+              () => { G.tazeFn && G.tazeFn(); }, null)}
+            {!hud.cab && hud.who === "kid" && btn("SMOKE", (hud.smokeStock || 0) + " left",
+              () => { G.smokeFn && G.smokeFn(); }, null, hud.hidden)}
             {hud.cab && btn("FIRE", "shoot",
               () => { input.current.fire = true; },
               () => { input.current.fire = false; })}
