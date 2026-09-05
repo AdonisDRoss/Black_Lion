@@ -178,7 +178,16 @@ const CARSTAT = {
   kenny_truck:  { s: 0.84, a: 0.80, g: 0.78 },
   // company police: quicker than a patrol car and worse in a corner, which is the joke
   ef_car:       { s: 1.06, a: 1.02, g: 0.92 },
+  hp_car:       { s: 1.02, a: 0.98, g: 1.00 },
+  hp_truck:     { s: 0.86, a: 0.86, g: 1.06 },   // chains and a plough: slow, and it grips
 };
+/* Toughness and thirst. The three named cars are meant to survive a chase, so they take
+   roughly half the damage of a stolen sedan -- and they pay for it at the pump, at double the
+   rate, which is the only lever that makes a fuel gauge mean anything. */
+const CARTOUGH = { sho_car: 0.5, kenny_truck: 0.42, ef_car: 0.75 };
+const CARTHIRST = { sho_car: 2.0, kenny_truck: 2.0, ef_car: 1.3 };
+const carTough = (c) => (c && c.m && CARTOUGH[c.m.k]) || 1;
+const carThirst = (c) => (c && c.m && CARTHIRST[c.m.k]) || 1;
 const carStat = (c) => (c && c.m && CARSTAT[c.m.k]) || { s: 1, a: 1, g: 1 };
 /* Makes and models. Five marques, because a city with one manufacturer is a catalogue and a
    car you can name is a car you remember stealing. VANTRY is cheap, HOLLOWAY is what the city
@@ -195,6 +204,7 @@ const CARNAME = {
   coupe_green: "IRON MONTE", coupe_dgreen: "IRON MONTE",
   pickup: "OSSIAN HAULER", bus: "RAVEN HOOK TRANSIT",
   sho_car: "SHO STOPPER", kenny_truck: "KO JEEP", ef_car: "HOLLOWAY SENTINEL",
+  hp_car: "MARROW PATROLLER", hp_truck: "OSSIAN PLOUGH",
 };
 const MOTONAME = {
   moto: "KESTREL 500", moto_black: "KESTREL 500 NOIR", moto_red: "KESTREL 750",
@@ -208,6 +218,8 @@ const NAMED_CARS = [
   { k: "sho_car", len: 118, w: 48 },
   { k: "kenny_truck", len: 104, w: 56 },
   { k: "ef_car", len: 116, w: 52 },
+  { k: "hp_car", len: 118, w: 52 },
+  { k: "hp_truck", len: 112, w: 58 },
 ];
 const CARM = [{"k": "comp_hatch", "len": 88, "w": 49}, {"k": "comp_hatch2", "len": 88, "w": 49}, {"k": "taxi", "len": 106, "w": 51.3}, {"k": "sedan_tan", "len": 104, "w": 55.4}, {"k": "sedan_grey", "len": 104, "w": 52.8}, {"k": "sedan_dred", "len": 104, "w": 45.3}, {"k": "sedan_maroon", "len": 106, "w": 52.1}, {"k": "coupe_green", "len": 102, "w": 39.5}, {"k": "coupe_dgreen", "len": 102, "w": 38.7}, {"k": "sedan_blue", "len": 106, "w": 50.4}, {"k": "sedan_red", "len": 106, "w": 50.4}, {"k": "pickup", "len": 114, "w": 58.8}, {"k": "sedan_orange", "len": 105, "w": 50.8}, {"k": "wagon_teal", "len": 107, "w": 53.5}, {"k": "sedan_brown", "len": 105, "w": 47.4}, {"k": "cruiser", "len": 108, "w": 45.3}, {"k": "bus", "len": 244, "w": 66, "bus": true}];
 const KA = {
@@ -1027,6 +1039,10 @@ for (const k of ["ef_guard", "ef_guard_b", "ef_captain", "mt_barrier",
   CVX["cv2_" + k] = "assets/civic/" + k + ".png";
 YT.yt_tko = "assets/youth/yt_tko.png";
 YT.yt_tko_hero = "assets/youth/yt_tko_hero.png";
+const HP = {};
+for (const k of ["hp_deputy", "hp_deputy_b", "hp_sheriff", "hp_moto", "hp_car", "hp_truck",
+                 "mt_grass", "mt_scree", "mt_cliff", "mt_roof", "mt_floor"])
+  HP[k] = "assets/pass/" + k + ".png";
 // already cut and sitting in assets/arcade/ from the first batch
 for (const k of ["upright", "cocktail", "pinball", "stage", "drums", "amp", "mic", "pa"])
   AR2["ar_" + k] = "assets/arcade/ar_" + k + ".png";
@@ -1366,7 +1382,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 359 — HOLLOW PASS AND THE FLATS PATROL";
+const BUILD_TAG = "LAYER 362 — THE PASS HAS LAW";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2688,6 +2704,8 @@ function floorKind(b, f) {
      floorKind had no line for any of them, so every one of them fell through to the generic
      lobby-and-flats plan at the bottom. The plans, and every furniture case written for their
      rooms, had never once run. A layout branch is only alive if floorKind can return its name. */
+  if (b.kind === "motel") return "motelfloor";
+  if (b.kind === "mansion") return "mansionfloor";
   if (b.kind === "arcade") return "arcade";
   if (b.kind === "bandvenue") return "bandvenue";
   if (b.kind === "venue") return f === 0 ? "venue" : "offices";
@@ -2771,7 +2789,18 @@ function makeFloor(b, f, rnd) {
       hub = put(0, 0, GX - 1, foyer - 1, "vestibule");
       put(0, foyer, Math.max(0, Math.round(GX * 0.68)), GY - 1, "throne");
       put(Math.round(GX * 0.68) + 1, foyer, GX - 1, GY - 1, "vip");
-    } else if (kind === "arcade") {
+    } else if (kind === "motelfloor") {
+    /* Twelve identical doors off one corridor. The point of the building is that every room
+       looks the same, so somebody could be in any of them. */
+    const front = Math.round(GY * 0.30);
+    hub = put(0, 0, GX - 1, front - 1, "lobby");
+    put(0, front, GX - 1, GY - 1, "rooms");
+  } else if (kind === "mansionfloor") {
+    const hall = Math.round(GX * 0.42);
+    hub = put(0, 0, hall - 1, GY - 1, "hall");
+    put(hall, 0, GX - 1, Math.round(GY * 0.5), "study");
+    put(hall, Math.round(GY * 0.5) + 1, GX - 1, GY - 1, "throne");
+  } else if (kind === "arcade") {
     /* One long room. A bank of machines down each side, the change machine and the snack
        counter by the door, and the middle left clear so you can walk the row. */
     const front = Math.round(GY * 0.78);
@@ -3741,6 +3770,23 @@ function makeFloor(b, f, rnd) {
         P(cx + 16, cy + 30, 15, 15, "ar_stool");
         break;
       }
+      case "rooms": {
+        // a bed, a table and a lamp, twelve times over
+        const n2 = Math.max(3, Math.floor(W2 / 96));
+        for (let q = 0; q < n2; q++) {
+          const rx = q2.x0 + pad + q * ((W2 - pad * 2) / n2);
+          P(rx, q2.y0 + pad, 42, 58, "bed");
+          P(rx + 46, q2.y0 + pad + 8, 22, 22, "table");
+          P(rx, q2.y1 - pad - 22, 30, 22, "dresser");
+        }
+        break;
+      }
+      case "study":
+        P(cx - 34, cy - 20, 68, 40, "desk");
+        P(q2.x0 + pad, q2.y0 + pad, 30, 60, "bookshelf");
+        P(q2.x1 - pad - 30, q2.y0 + pad, 30, 60, "bookshelf");
+        P(q2.x1 - pad - 26, q2.y1 - pad - 28, 26, 28, "safe");
+        break;
       case "arfront":
         P(q2.x0 + pad + 26, cy - 19, 24, 38, "st_change");   // beside her machine
         P(cx + 34, q2.y1 - pad - 40, 24, 38, "st_owner");    // behind the snack counter
@@ -5162,7 +5208,7 @@ export default function IronLionLayer004() {
        If another model turns up backwards, it is one string here. */
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "vn_drumkit_flip"];
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP };
     const keys = Object.keys(all);
     let left = keys.length;
     /* Assets are files now, not base64. Two consequences the loader has to handle:
@@ -5831,6 +5877,7 @@ export default function IronLionLayer004() {
       for (const c2 of (g.police ? [g.police] : []).concat(g.policeMore || []))
         for (const o2 of (c2 && c2.crew ? c2.crew : [])) if (o2 && o2.hp > 0) out.push(o2);
       for (const u of (g.guards || [])) if (u && u.hp > 0) out.push(u);
+      for (const u of (g.deps || [])) if (u && u.hp > 0) out.push(u);
       return out;
     }
     function kickTarget() {
@@ -6008,7 +6055,8 @@ export default function IronLionLayer004() {
       const grassMul = !offRoad ? 1 : (c.m && c.m.k === "kenny_truck") ? 0.96 : 0.62;
       const boost = (g.turboT > 0 && c === (inVehicle() ? activeVeh() : null)) ? 1.15 : 1;
       const MAX = topSpeed * rough * (empty ? 0.16 : 1) * wreckMul * CS.s * grassMul * boost;
-      c.fuel = Math.max(0, c.fuel - dt * (0.14 + Math.abs(throttle) * 0.30));
+      // the named cars drink at double, which is the price of surviving a chase in one
+      c.fuel = Math.max(0, c.fuel - dt * (0.14 + Math.abs(throttle) * 0.30) * carThirst(c));
 
       const accel = (isMoto ? 495 : isCiv ? 360 : 440) * wreckMul * lionBoost() * CS.a;
       if (throttle > 0.05) fwd += accel * rough * throttle * dt * (empty ? 0.3 : 1);
@@ -6103,7 +6151,17 @@ export default function IronLionLayer004() {
             if (dot < 0) {
               o.vx -= dot * (dx3 / d3) * 1.3; o.vy -= dot * (dy3 / d3) * 1.3;
               o.vx *= 0.55; o.vy *= 0.55;
-              if (isCar) { g.shake = Math.max(g.shake, 8); applyDamage(o, Math.abs(dot), nx3, ny3, 108, 52); }
+              if (isCar) {
+              g.shake = Math.max(g.shake, 8); applyDamage(o, Math.abs(dot), nx3, ny3, 108, 52);
+              /* Ram a police car and the police want you. It reads as obvious and it was not
+                 happening at all -- you could push a patrol car through a wall for free. */
+              if (o.patrol && Math.abs(dot) > 90) {
+                g.wantedAs = g.who === "lion" ? (g.plain ? "darius" : "lion") : g.who;
+                g.heat = Math.max(g.heat || 0, 2);
+                g.wantedT = 90;
+                g.scanner = Math.max(g.scanner || 0, 2.2);
+              }
+            }
             }
           }
         }
@@ -6377,6 +6435,76 @@ export default function IronLionLayer004() {
       return x > SX(NEON.i0) && x < SX(NEON.i1 + 1)
           && y > SX(NEON.j0) && y < SX(NEON.j1 + 1);
     }
+    /* HOLLOW PASS SHERIFF. Same machinery as the Ember Flats guards -- their own list, bounded
+       to their own patch, drawn through the torso-plus-legs path. Two differences that matter:
+       they carry bolt rifles and six-guns rather than city weapons, and they need heat 2 before
+       they take an interest. Up there a man doing eighty is a bigger deal than a man in a mask. */
+    const HP_PLATES = ["hp_deputy", "hp_deputy_b"];
+    function inThePass(x, y) {
+      const Z = ZONES.mountain;
+      return x > SX(Z.i0) && x < SX(Z.i1 + 1) && y > SX(Z.j0) && y < SX(Z.j1 + 1);
+    }
+    function spawnDeputy(cx, cy) {
+      const a = Math.random() * 6.28, d = 380 + Math.random() * 420;
+      const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d;
+      if (!inThePass(x, y)) return;
+      const boss = Math.random() < 0.2;
+      g.deps = g.deps || [];
+      g.deps.push({
+        x, y, vx: 0, vy: 0, hp: 7, maxHp: 7, pass: 1,
+        yt: boss ? "hp_sheriff" : HP_PLATES[(Math.random() * 2) | 0],
+        jit: 1, anim: Math.random() * 6, tall: boss ? 1.18 : 1.08,
+        wpn: boss ? "sixgun" : (Math.random() < 0.55 ? "rifle_bolt" : "sixgun"),
+        spd: 54 + Math.random() * 18, fireCd: 0, swing: 0, tgt: [x, y],
+      });
+    }
+    function updateDeputies(dt, cx, cy) {
+      g.deps = g.deps || [];
+      if (g.inside) return;
+      if (inThePass(cx, cy) && g.deps.length < 7 && Math.random() < dt * 1.8) spawnDeputy(cx, cy);
+      const hostile = (g.heat || 0) >= 2;
+      for (let i = g.deps.length - 1; i >= 0; i--) {
+        const u = g.deps[i];
+        if (u.hp <= 0 || !Number.isFinite(u.x) || !inThePass(u.x, u.y)) { g.deps.splice(i, 1); continue; }
+        if (Math.hypot(u.x - cx, u.y - cy) > 2400) { g.deps.splice(i, 1); continue; }
+        u.swing = Math.max(0, u.swing - dt);
+        u.fireCd = Math.max(0, u.fireCd - dt);
+        u.stunT = Math.max(0, (u.stunT || 0) - dt);
+        if (u.stunT > 0) { u.vx = 0; u.vy = 0; continue; }
+        const d = Math.hypot(g.p.x - u.x, g.p.y - u.y);
+        const W = WPN[u.wpn] || { spd: 900, dmg: 4, range: 420, spread: 0.06, rate: 0.9 };
+        if (hostile && d < (W.range || 420)) {
+          const a = Math.atan2(g.p.y - u.y, g.p.x - u.x);
+          // a rifleman keeps his distance; the six-gun closes
+          const hold = u.wpn === "rifle_bolt" ? 380 : 200;
+          const want = d < hold - 60 ? -1 : d > hold + 60 ? 1 : 0;
+          u.vx = Math.cos(a) * u.spd * want; u.vy = Math.sin(a) * u.spd * want;
+          if (u.fireCd <= 0) {
+            u.fireCd = W.rate || 0.9;
+            u.swing = 0.16;
+            fireBullet(u, a + (Math.random() - 0.5) * (W.spread || 0.06) * 2,
+              W.spd || 900, W.dmg || 4, W.range || 420, false, "pass", W.knock);
+          }
+        } else {
+          if (Math.hypot(u.tgt[0] - u.x, u.tgt[1] - u.y) < 40) {
+            const Z = ZONES.mountain;
+            u.tgt = [SX(Z.i0) + Math.random() * (SX(Z.i1 + 1) - SX(Z.i0)),
+                     SX(Z.j0) + Math.random() * (SX(Z.j1 + 1) - SX(Z.j0))];
+          }
+          const a = Math.atan2(u.tgt[1] - u.y, u.tgt[0] - u.x);
+          u.vx = Math.cos(a) * u.spd * 0.55; u.vy = Math.sin(a) * u.spd * 0.55;
+        }
+        u.x += u.vx * dt; u.y += u.vy * dt;
+        u.anim += dt * (Math.hypot(u.vx, u.vy) / 16);
+      }
+    }
+    function drawDeputies() {
+      for (const u of (g.deps || [])) {
+        if (!Number.isFinite(u.x)) continue;
+        drawShadow(u.x, u.y + 3, 12, 5, 0.36);
+        drawYouth(u); drawHealthBar(u); drawZap(u);
+      }
+    }
     function spawnGuard(cx, cy) {
       const a = Math.random() * 6.28, d = 420 + Math.random() * 420;
       const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d;
@@ -6395,7 +6523,8 @@ export default function IronLionLayer004() {
       if (g.inside) { g.guards = g.guards || []; return; }
       g.guards = g.guards || [];
       if (inEmberFlats(cx, cy) && g.guards.length < 10 && Math.random() < dt * 2.2) spawnGuard(cx, cy);
-      const hostile = (g.heat || 0) > 0 || (!g.plain && g.who === "lion");
+      // company police, not vigilantes. They react to heat and to nothing else.
+      const hostile = (g.heat || 0) > 0;
       for (let i = g.guards.length - 1; i >= 0; i--) {
         const u = g.guards[i];
         if (u.hp <= 0 || !Number.isFinite(u.x)) { g.guards.splice(i, 1); continue; }
@@ -9519,6 +9648,7 @@ export default function IronLionLayer004() {
       if (g.inside) return;
       g.patrolCd = (g.patrolCd == null ? 6 : g.patrolCd) - dt;
       if (g.patrolCd <= 0) { spawnPatrol(cx, cy); g.patrolCd = 9 + Math.random() * 14; }
+      if (!((g.heat || 0) > 0)) for (const v of g.traffic) if (v.patrol) v.chasing = 0;
       const list = g.traffic;
       for (let n = list.length - 1; n >= 0; n--) {
         const v = list[n];
@@ -9526,9 +9656,12 @@ export default function IronLionLayer004() {
         v.life -= dt;
         // a lazy wander rather than road-following: they are scenery with a faction, and the
         // road AI cannot be told to stay in one quarter
-        v.turn += (Math.random() - 0.5) * dt * 2.2;
-        v.turn = clamp(v.turn, -0.9, 0.9);
-        v.ang += v.turn * dt;
+        if (v.block) { v.spd = 0; continue; }
+        if (!v.chasing) {
+          v.turn += (Math.random() - 0.5) * dt * 2.2;
+          v.turn = clamp(v.turn, -0.9, 0.9);
+          v.ang += v.turn * dt;
+        }
         v.x += Math.cos(v.ang) * v.spd * dt;
         v.y += Math.sin(v.ang) * v.spd * dt;
         if (v.life <= 0 || Math.abs(v.x - cx) > 2600 || Math.abs(v.y - cy) > 2600) {
@@ -11699,6 +11832,13 @@ export default function IronLionLayer004() {
       ctx.fillRect(b.x, b.y, b.w, b.h);
       /* A civic roof plate, if this building has one. Drawn to the footprint so it is in
          proportion with everything else rather than whatever size the art happened to be. */
+      /* Cabins. The pass gets its own roof and floor rather than the city's tar and lino --
+         one building flag, and the two textures do the rest. */
+      if (b.snow) {
+        const fl = imgs.current.mt_floor;
+        if (fl && fl.width) for (let ty = b.y; ty < b.y + b.h; ty += 96)
+          for (let tx = b.x; tx < b.x + b.w; tx += 96) ctx.drawImage(fl, tx, ty, 96, 96);
+      }
       if (b.civRoof && imgs.current[b.civRoof]) {
         const rp = imgs.current[b.civRoof];
         ctx.drawImage(rp, b.x, b.y, b.w, b.h);
@@ -13553,6 +13693,9 @@ export default function IronLionLayer004() {
       // the youth district. Arrives at the gate in the south fence, next to the rack.
       { z: "skate",     name: "THE SKATE PARK",  i: 5,  j: 8, skate: true },
       { z: "mountain",  name: "HOLLOW PASS",     i: 25, j: 2, landmark: true },
+      { z: "downtown",  name: "CITY HALL",       i: 10, j: 8, landmark: true },
+      { z: "city",      name: "THE VANCE HOUSE", i: 6,  j: 16, landmark: true },
+      { z: "county",    name: "THE STARLITE",    i: 25, j: 21, landmark: true },
       { z: "skate",     name: "GALAXY LANES",     i: 5,  j: 9, landmark: true },
       { z: "skate",     name: "THE LAST CALL",    i: 6,  j: 9, landmark: true },
       /* The elevated. Downtown is the busiest stop and the one worth arriving at, and the
@@ -14687,6 +14830,10 @@ export default function IronLionLayer004() {
          shotguns have it, because a shotgun that does not move a man is just a loud pistol. */
       pistol_auto:   { rate: 0.34, range: 380, dmg: 2.4, spread: 0.10, kick: 2 },
       revolver:      { rate: 0.72, range: 420, dmg: 4.2, spread: 0.06, kick: 5 },
+      /* County law. A bolt gun is slow, accurate and it ends the argument at a distance no city
+         weapon reaches -- which is the whole difference between the pass and Raven Hook. */
+      rifle_bolt:    { rate: 1.45, range: 620, dmg: 6.5, spread: 0.03, kick: 9 },
+      sixgun:        { rate: 0.80, range: 400, dmg: 4.0, spread: 0.07, kick: 5 },
       smg_uzi:       { rate: 0.11, range: 320, dmg: 1.5, spread: 0.26, kick: 2 },
       smg_hk:        { rate: 0.14, range: 380, dmg: 1.8, spread: 0.18, kick: 2 },
       shotgun_short: { rate: 0.95, range: 210, dmg: 7.0, spread: 0.30, kick: 8, knock: 340 },
@@ -15247,6 +15394,73 @@ export default function IronLionLayer004() {
        `g.policeMore`. `policeUnits()` and `policeCars()` are what anything wanting "all of them"
        must use -- there are a dozen call sites and quietly missing one means a cop who cannot be
        shot, or shot at. */
+    /* PURSUIT. Everything before this treated a police car as scenery with a siren -- they
+       drove about and shot at gangs, and a wanted player in a car was under no pressure at all
+       because nothing was chasing him. Three parts:
+
+         chase      cars drive AT you rather than wandering, faster the higher the heat
+         ram        close in, and they will put a wing into you
+         roadblock  at heat 2+, two cars set down across the road ahead and wait
+
+       All of it stops the moment they lose the description -- the identity rule from the last
+       layer owns this too, so changing clothes out of sight ends a car chase as well. */
+    function pursuitSpeed() { return 250 + Math.min(3, g.heat || 0) * 55; }
+    function updatePursuit(dt) {
+      if (!((g.heat || 0) > 0) || g.inside) { g.blocks = null; return; }
+      const tgt = inVehicle() ? activeVeh() : g.p;
+      if (!tgt || !Number.isFinite(tgt.x)) return;
+      for (const v of g.traffic) {
+        if (!v.patrol || v.block) continue;
+        const dx = tgt.x - v.x, dy = tgt.y - v.y, d = Math.hypot(dx, dy) || 1;
+        if (d > 2200) continue;
+        v.chasing = 1;
+        const want = Math.atan2(dy, dx);
+        let da = want - v.ang;
+        while (da > Math.PI) da -= Math.PI * 2;
+        while (da < -Math.PI) da += Math.PI * 2;
+        v.ang += clamp(da, -2.6 * dt, 2.6 * dt);
+        v.turn = 0;
+        v.spd = Math.min(pursuitSpeed(), (v.spd || 0) + 260 * dt);
+        // close enough to put a wing in
+        if (d < 70 && inVehicle()) {
+          const veh = activeVeh();
+          veh.vx = (veh.vx || 0) + (dx / d) * 120;
+          veh.vy = (veh.vy || 0) + (dy / d) * 120;
+          applyDamage(veh, 240, v.x, v.y, 108, 52);
+          g.shake = Math.max(g.shake, 8);
+        }
+      }
+      /* Roadblocks. Placed AHEAD of where you are going, not where you are -- a block behind
+         you is scenery. They are parked patrol cars, so they collide, they can be rammed, and
+         they can be shot, with nothing new written for any of it. */
+      g.blockCd = Math.max(0, (g.blockCd || 0) - dt);
+      if ((g.heat || 0) >= 2 && inVehicle() && g.blockCd <= 0) {
+        const veh = activeVeh();
+        const sp = Math.hypot(veh.vx || 0, veh.vy || 0);
+        if (sp > 120) {
+          g.blockCd = 14;
+          const a = Math.atan2(veh.vy, veh.vx);
+          const bx = veh.x + Math.cos(a) * 1250, by = veh.y + Math.sin(a) * 1250;
+          for (let q = -1; q <= 1; q += 2) {
+            g.traffic.push({
+              x: bx + Math.cos(a + Math.PI / 2) * q * 46,
+              y: by + Math.sin(a + Math.PI / 2) * q * 46,
+              ang: a + Math.PI / 2, m: { k: "cruiser", len: 108, w: 50 },
+              spd: 0, cruise: 0, brake: 1, dead: 1, patrol: 1, block: 1, life: 26,
+              axis: "h", si: 0, k: 0, dir: 1, fireCd: 0.8, turn: 0, siren: 1,
+            });
+          }
+          g.pickupFlash = { nm: "roadblock_ahead", t: 2.0 };
+          g.scanner = Math.max(g.scanner || 0, 2.4);
+        }
+      }
+      for (let n = g.traffic.length - 1; n >= 0; n--) {
+        const v = g.traffic[n];
+        if (!v.block) continue;
+        v.life -= dt;
+        if (v.life <= 0) g.traffic.splice(n, 1);
+      }
+    }
     function policeCars() {
       const out = [];
       if (g.police) out.push(g.police.car);
@@ -15318,8 +15532,13 @@ export default function IronLionLayer004() {
     function witnessed(x, y, level, always) {
       if (g.inside && !always) return;
       if (!always && !copsWatching(x, y)) return;
+      /* Who they saw. The Lion in the mask and Darius in plain clothes are two different men
+         as far as the RHPD is concerned, and so are Rio, Sho and Kenny. Do a thing as one of
+         them, get out of sight, come back as another, and the description no longer fits.
+         That is what the mask is FOR, and it has never actually done it until now. */
+      g.wantedAs = g.who === "lion" ? (g.plain ? "darius" : "lion") : g.who;
       g.heat = Math.max(g.heat || 0, level >= 2 ? 3 : level >= 1 ? 2 : 1);
-      g.wantedT = 26 + level * 12;                // how long they stay interested
+      g.wantedT = 90;                             // ninety clear seconds to lose them
       escalatePolice(x, y, level);
     }
     function escalatePolice(x, y, level) {
@@ -17312,27 +17531,28 @@ export default function IronLionLayer004() {
       autoStairs();
       /* Wanted decays. Without this `heat` latched on forever and the chase music never stopped
          -- a pursuit has to be something you can get out of. */
+      /* The identity check. If you are no longer the man they are hunting, the hunt is over --
+         but only if they did not watch you change. `copsWatching` is the whole condition. */
+      const nowAs = g.who === "lion" ? (g.plain ? "darius" : "lion") : g.who;
+      if ((g.wantedT || 0) > 0 && g.wantedAs && nowAs !== g.wantedAs) {
+        if (!copsWatching(g.p.x, g.p.y)) {
+          g.heat = 0; g.wantedT = 0; g.wantedAs = null;
+          g.pickupFlash = { nm: "they_are_looking_for_someone_else", t: 2.2 };
+        }
+      }
       if ((g.wantedT || 0) > 0) {
         /* You only shed it by NOT being seen. A timer that runs down while a patrol car is
            looking at you is not an escape, it is a wait -- so seen police hold the clock, and
            sixty clear seconds is what it takes to lose them. */
         const seen = copsWatching(g.p.x, g.p.y);
+        // ninety clear seconds, and being watched holds the clock rather than running it
         if (!seen) g.wantedT -= dt;
-        else g.wantedT = Math.max(g.wantedT, 6);
+        else g.wantedT = Math.max(g.wantedT, 12);
         if (g.wantedT <= 0) { g.heat = 0; g.wantedT = 0; }
       }
-      /* The costume IS the offence. A masked man walking down a street in front of a patrol
-         car is a thing the RHPD acts on -- it is the whole cost of putting it on, and it was
-         costing nothing. Only the Lion; nobody is looking for Rio. */
-      if (!g.inside && !g.plain && g.who === "lion" && g.mode === "foot") {
-        g.maskSeenCd = Math.max(0, (g.maskSeenCd || 0) - dt);
-        if (g.maskSeenCd <= 0 && copsWatching(g.p.x, g.p.y)) {
-          g.maskSeenCd = 2.5;
-          g.heat = Math.max(g.heat || 0, 2);
-          g.wantedT = Math.max(g.wantedT || 0, 60);
-          escalatePolice(g.p.x, g.p.y, 1);
-        }
-      }
+      /* Walking around in the mask is no longer an offence on its own -- it made every trip
+         across town a chase and gave the costume a cost it had not earned. Heat comes from
+         doing something, and what the police are looking for is WHO DID IT. */
       /* Decided once a second, not every frame. The crossfade is half a second, and re-deciding
          at 60Hz along a district boundary makes it stutter between two tracks as you drive the
          line. `musicPlay` already ignores a request for the track that is playing, so this is
@@ -18282,7 +18502,9 @@ export default function IronLionLayer004() {
     /* tough < 1 means the shell shrugs it off. The Grand National is Iron Lion's own car --
        heavy, reinforced, and it should win the exchange against anything on the street.
        Anything without the field set behaves exactly as before. */
-    const toughOf = (v) => (v && v.tough != null ? v.tough : 1);
+    /* `tough` is a MULTIPLIER on damage taken, so a lower number is a stronger car. The named
+       three inherit theirs from CARTOUGH unless the vehicle carries its own. */
+    const toughOf = (v) => (v && v.tough != null ? v.tough : carTough(v));
     function applyDamage(v, force, wx, wy, L, w) {
       // a trailer is a box on wheels: it takes no crush, and there is no engine to fold
       if (v && v.isTrailer) return;
@@ -19868,6 +20090,8 @@ export default function IronLionLayer004() {
       if (!g.title) {
         updateGig(dt); updateArcadeKids(dt); updateSmoke(dt); reapSho(); updateDriveBys(dt);
         updateGuards(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
+        updatePursuit(dt);
+        updateDeputies(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       }
       if (!g.title) updateCrime(dt);
       if (!g.title) updateShop(dt);
@@ -20266,7 +20490,7 @@ export default function IronLionLayer004() {
         if (g.onFwy && !g.onRamp && inVehicle()) { if (g.mode === "car") drawCar(); else drawMoto(); }
       }
       if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); }
-      drawGuards();
+      drawGuards(); drawDeputies();
       drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
       /* Anyone in the fight, not only gang crews -- police, and any civilian who has been hit.
          A bar over one man and nothing over the next reads as a bug rather than a rule. */
