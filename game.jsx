@@ -1319,7 +1319,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 344 — THE TAZER ACTUALLY STOPS THEM";
+const BUILD_TAG = "LAYER 345 — SHO GOES UP";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5806,6 +5806,7 @@ export default function IronLionLayer004() {
       trafficVsPlayer(dt);
       stepFlyKick(dt);
       stepShoJump(dt);
+      stepStars(dt);
       if (g.board.on) { stepBoard(dt); return; }
       stepAir(dt);
       const inp = input.current, k = inp.keys;
@@ -6543,6 +6544,15 @@ export default function IronLionLayer004() {
       ctx.fillRect(-w * 0.27, h * 0.60 + stride, w * 0.21, h * 0.11);
       ctx.fillRect(w * 0.06, h * 0.60 - stride, w * 0.21, h * 0.11);
       ctx.drawImage(im, -w / 2, -h / 2, w, h);
+      /* What he is holding. The ally plates are torsos with no weapon layer, so an armed man
+         read as an unarmed one -- a held shape in his right hand, sized off the plate. Crude,
+         but "he is carrying something" is the part that has to be legible at 40 pixels. */
+      if (p.wpn) {
+        const long = p.wpn === "bat" || p.wpn === "pipe" || p.wpn === "crowbar";
+        ctx.fillStyle = p.wpn === "tazer" ? "#c8a13a" : long ? "#7a6242" : "#3a3d42";
+        if (long) ctx.fillRect(w * 0.20, -h * 0.02, w * 0.10, h * 0.62);
+        else ctx.fillRect(w * 0.20, h * 0.16, w * 0.13, h * 0.18);
+      }
       ctx.restore();
       return true;
     }
@@ -17698,7 +17708,8 @@ export default function IronLionLayer004() {
         if (plate && imgs.current[plate]) {
           drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
           const u = { x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1,
-                      yt: plate, bang: g.board.ang, tall: r.id === "sho" ? 1.26 : 1 };
+                      yt: plate, bang: g.board.ang, tall: r.id === "sho" ? 1.42 : 1,
+                      wpn: g.p.holstered ? null : g.p.wpn };
           if (g.board.on) {
             /* Same offset the NPC skaters use: down to the feet along his local axis, which in
                a sideways stance runs across the board, and a little forward of centre. */
@@ -19698,7 +19709,7 @@ export default function IronLionLayer004() {
         if (g.onFwy && !g.onRamp && inVehicle()) { if (g.mode === "car") drawCar(); else drawMoto(); }
       }
       if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); }
-      drawSmoke(); drawShock();
+      drawSmoke(); drawShock(); drawStars();
       if (!g.inside) { drawLampPosts(view); drawPolesAndWires(view); }
       if (!g.inside) {
         for (const p of g.peds) if (p.say > 0 && p.line) bubble(p.x, p.y, p.line);
@@ -19764,7 +19775,7 @@ export default function IronLionLayer004() {
             dmg: inVehicle() && activeVeh() ? Math.round((activeVeh().dmg || 0) * 100) : null,
             shop: !!nearBodyShop(), inShop: !!g.inShop,
             who: g.who, smokeStock: g.p.smokeStock || 0, hidden: !!g.p.hidden,
-            hero: !!(g.hero && g.hero[g.who]),
+            hero: !!(g.hero && g.hero[g.who]), stars: g.p.stars || 0,
             board: !!g.board.on, hasBoard: !!g.board.has, atRack: atRack(),
             cab: g.cab ? g.cab.g : null,
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
@@ -20424,7 +20435,7 @@ export default function IronLionLayer004() {
         if (im && im.width) {
           /* Sho stands a head taller than Rio -- he is nearer the Lion's build, and at this
              size height is most of what separates two men in dark jackets. */
-          const h = sp.r.id === "sho" ? 33 : 26, w = h * (im.width / im.height);
+          const h = sp.r.id === "sho" ? 38 : 28, w = h * (im.width / im.height);
           // and only a man who is carrying a board is drawn stood on one
           const dk = (sp.r.kit && sp.r.kit.board) ? imgs.current.sk_deck : null;
           if (dk && dk.width) ctx.drawImage(dk, sp.x - 17, sp.y + 8, 34, 14);
@@ -20443,7 +20454,9 @@ export default function IronLionLayer004() {
           /* darius_top is 552x92 -- twelve 46px columns over two rows. `im.height / 2` happens
              to equal 46 here, but it is the wrong reason and it shrank him the moment the
              sheet changed. Take the real cell. */
-          const cell = 46, d = 34;
+          /* 34 read as a child. Darius is a full figure in one cell, so he needs the whole
+             cell height rather than a number that matched an ally's torso. */
+          const cell = 46, d = 46;
           ctx.drawImage(im, 0, 0, cell, cell, sp.x - d / 2, sp.y - d / 2, d, d);
         } else { ctx.fillStyle = "#8a6a3a"; ctx.fillRect(sp.x - 9, sp.y - 14, 18, 28); }
       }
@@ -20506,7 +20519,7 @@ export default function IronLionLayer004() {
          delete the `yt` line; the bench draw prefers `actor` when it is present. */
       /* Two looks, same as Rio: street clothes and the hood. SUIT swaps them. */
       { id: "sho", name: "SHO", yt: "yt_sho", hero: "yt_sho_hero", actor: null,
-        kit: { wpn: "bat", ammo: 0, holstered: false, board: false, hp: 100 } },
+        kit: { wpn: "bat", ammo: 0, holstered: false, board: false, hp: 100, stars: 12 } },
     ];
     const rosterOf = (id) => ROSTER.find((r) => r.id === id) || ROSTER[0];
     // everyone you are NOT, in roster order, so the line-up does not reshuffle as you swap
@@ -20534,10 +20547,14 @@ export default function IronLionLayer004() {
         }
       }
       const out = list.map((r, n) => {
-        if (r.id === "sho" && denCrew.length) {
-          // stand where he already is, and let his own sprite do the drawing
+        if (r.id === "sho") {
+          /* Never drawn by us. He is already in this room as a crew member, and a bench copy
+             put two of the same man in the den. If we find him the prompt hangs on him; if we
+             do not it hangs on empty floor. One Sho either way, which matters more than having
+             a figure to look at. */
           const m = denCrew[0];
-          return { r, x: m.x, y: m.y, existing: true };
+          return { r, existing: true,
+                   x: m ? m.x : bay.x0 + W2 * 0.62, y: m ? m.y : bay.y1 - 22 };
         }
         const sp = { r, x: bay.x0 + W2 * (0.24 + n * 0.30), y: bay.y1 - 22 };
         for (const q of pl.props) {
@@ -20595,7 +20612,7 @@ export default function IronLionLayer004() {
     function packKit() {
       return { wpn: g.p.wpn, ammo: g.p.ammo, holstered: g.p.holstered,
                board: g.board.has, hp: g.p.hp, skill: g.p.skill,
-               smoke: g.p.smokeStock || 0 };
+               smoke: g.p.smokeStock || 0, stars: g.p.stars || 0 };
     }
     function wearKit(k) {
       g.p.wpn = k.wpn || null; g.p.ammo = k.ammo || 0;
@@ -20604,6 +20621,7 @@ export default function IronLionLayer004() {
       /* The count lived on `g` and dropSmoke read `g.p` -- so the stock was always undefined
          and the button always said no. It belongs to the man, not the world. */
       g.p.smokeStock = k.smoke || 0;
+      g.p.stars = k.stars || 0;
       if (k.hp != null) g.p.hp = k.hp;
       if (k.skill != null) g.p.skill = k.skill;
     }
@@ -20642,22 +20660,97 @@ export default function IronLionLayer004() {
     /* Sho does not carry a grapple. He gets onto a roof the way he does everything else --
        straight up, off his own legs. Same airborne read as the ollie and the fly kick, and it
        lands him on the roof plane the hook would have pulled him to. */
+    /* Straight up onto the building he is stood against, and straight down off the one he is
+       on. The old version toggled a flag that nothing acted on, so he "jumped" and stayed
+       exactly where he was. This uses the same roofRect the grapple lands on, so he ends up on
+       the roof plane properly rather than beside it. */
+    function buildingUnderFoot() {
+      let best = null, bd = 1e9;
+      for (const b of (g.blds || [])) {
+        const cx2 = b.x + b.w / 2, cy2 = b.y + b.h / 2;
+        const d = Math.hypot(g.p.x - cx2, g.p.y - cy2);
+        if (d > 260 || d > bd) continue;
+        bd = d; best = b;
+      }
+      return best;
+    }
     function shoJump() {
-      if (g.who !== "sho" || (g.p.jumpT || 0) > 0 || g.inside) return false;
-      g.p.jumpT = 0.62;
-      g.p.jumpFrom = g.roof ? 1 : 0;
+      if (g.who !== "sho" || (g.p.jumpT || 0) > 0 || g.inside || inVehicle()) return false;
+      if (g.roof) { g.p.jumpT = 0.5; g.p.jumpTo = null; return true; }
+      const b = buildingUnderFoot();
+      if (!b) { g.pickupFlash = { nm: "nothing_to_jump_to", t: 1.1 }; return false; }
+      g.p.jumpT = 0.62; g.p.jumpTo = b;
       return true;
     }
     function stepShoJump(dt) {
       if (!(g.p.jumpT > 0)) return;
       g.p.jumpT -= dt;
-      if (g.p.jumpT <= 0) {
-        g.p.jumpT = 0;
-        // at the top of the arc he is either up on the roofs or back down on the street
-        if (G.roofToggleFn) G.roofToggleFn();
-        else g.roof = g.roof ? null : (g.roofWant || g.roof);
+      g.p.vx = 0; g.p.vy = 0;
+      if (g.p.jumpT > 0) return;
+      g.p.jumpT = 0;
+      const b = g.p.jumpTo;
+      if (b) {
+        const r = roofRect(b);
+        g.roof = b;
+        g.p.x = clamp(g.p.x, r.x0 + 14, r.x1 - 14);
+        g.p.y = clamp(g.p.y, r.y0 + 14, r.y1 - 14);
+        g.pickupFlash = { nm: "up_top", t: 1.2 };
+      } else {
+        // coming down. He lands it -- half what a fall costs, because he meant to.
+        const fl = (g.roof && g.roof.floors) || 2;
+        g.roof = null;
+        g.p.hp = Math.max(1, g.p.hp - fl * 3);
+        g.shake = Math.max(g.shake, 9);
+        g.pickupFlash = { nm: "down_the_front", t: 1.2 };
+      }
+      g.p.jumpTo = null;
+    }
+    /* Stars. Thrown, silent, and they do not kill -- the same rule as Rio's tazer, because
+       neither of these two is allowed to be the thing the Lion refuses to become. */
+    function throwStar() {
+      if (g.who !== "sho" || (g.p.starCd || 0) > 0) return false;
+      if ((g.p.stars || 0) <= 0) { g.pickupFlash = { nm: "no_stars", t: 1.1 }; return false; }
+      g.p.stars--; g.p.starCd = 0.34;
+      let ang = Math.atan2(g.p.vy || 0, g.p.vx || 1);
+      if (!Number.isFinite(ang)) ang = 0;
+      g.stars = g.stars || [];
+      g.stars.push({ x: g.p.x, y: g.p.y, vx: Math.cos(ang) * 620, vy: Math.sin(ang) * 620,
+                     t: 0.9, spin: 0 });
+      return true;
+    }
+    function stepStars(dt) {
+      g.p.starCd = Math.max(0, (g.p.starCd || 0) - dt);
+      const list = g.stars || [];
+      for (let i = list.length - 1; i >= 0; i--) {
+        const s2 = list[i];
+        s2.t -= dt; s2.spin += dt * 26;
+        s2.x += s2.vx * dt; s2.y += s2.vy * dt;
+        if (s2.t <= 0 || !Number.isFinite(s2.x)) { list.splice(i, 1); continue; }
+        for (const t of (Array.isArray(g.peds) ? g.peds : [])) {
+          if (!t || t.stunT > 0) continue;
+          if (!Number.isFinite(t.x)) continue;
+          if (Math.hypot(t.x - s2.x, t.y - s2.y) > 16) continue;
+          t.stunT = 2.6; t.vx = 0; t.vy = 0; t.say = 1.2; t.line = "AH!";
+          list.splice(i, 1);
+          break;
+        }
       }
     }
+    function drawStars() {
+      for (const s2 of (g.stars || [])) {
+        ctx.save();
+        ctx.translate(s2.x, s2.y);
+        ctx.rotate(s2.spin);
+        ctx.fillStyle = "#cfd6dc";
+        for (let a = 0; a < 4; a++) {
+          ctx.rotate(Math.PI / 2);
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-3, -3); ctx.lineTo(0, -9);
+          ctx.lineTo(3, -3); ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+    G.starFn = () => { if (g.who === "sho") safely("star", throwStar); };
     G.jumpFn = () => { if (g.who === "sho") safely("jump", shoJump); };
     G.hookOrJumpFn = () => (g.who === "sho" ? (G.jumpFn(), true) : false);
     G.kickFn = () => { if (g.who === "sho") safely("kick", flyKick); };
@@ -22294,6 +22387,8 @@ export default function IronLionLayer004() {
           </>
         ) : (
           <>
+            {!hud.cab && hud.who === "sho" && btn("STAR", (hud.stars || 0) + " left",
+              () => { G.starFn && G.starFn(); }, null)}
             {!hud.cab && hud.who === "sho" && btn("KICK", "fly kick",
               () => { G.kickFn && G.kickFn(); }, null)}
             {!hud.cab && hud.who === "rio" && btn("TAZE", "stun",
