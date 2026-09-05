@@ -1356,7 +1356,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 354 — THE ABILITIES HIT PEOPLE NOW";
+const BUILD_TAG = "LAYER 355 — HEADLIGHTS AND BOOST";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5697,6 +5697,8 @@ export default function IronLionLayer004() {
         const rate = (g.air.h > 0.02 ? 1.2 : 3.6) * (1 - Math.min(0.55, b.spd / 900));
         b.ang += clamp(d, -rate * dt, rate * dt);
       }
+      // a board on grass is a board in a field. It stops.
+      if (!onRoad(g.p.x, g.p.y)) b.spd = Math.min(b.spd, 150);
       b.spd = Math.max(0, b.spd - (braking ? 460 : 34) * dt);
 
       stepAir(dt);
@@ -5854,12 +5856,15 @@ export default function IronLionLayer004() {
       g.pickupFlash = { nm: "recovered", t: 0.8 };
     }
     function stepFoot(dt) {
+      // and every frame, in case anything else hands one over
+      if (g.who !== "lion" && isGun(g.p.wpn)) { g.p.wpn = null; g.p.ammo = 0; }
       trafficVsPlayer(dt);
       stepFlyKick(dt);
       stepShoJump(dt);
       stepStars(dt);
       stepBoardSpin(dt);
       stepKenny(dt);
+      stepTurbo(dt);
       stepFx(dt);
       if (g.board.on) { stepBoard(dt); return; }
       stepAir(dt);
@@ -5943,7 +5948,12 @@ export default function IronLionLayer004() {
       const dmg = c.dmg || 0;
       const wreckMul = 1 - dmg * 0.42;
       const CS = isMoto ? { s: 1, a: 1, g: 1 } : carStat(c);
-      const MAX = topSpeed * rough * (empty ? 0.16 : 1) * wreckMul * CS.s;
+      /* Off the tarmac you lose most of your speed -- except the Jeep, which is the only thing
+         in the fleet built for it. That is the whole reason to take Kenny's truck. */
+      const offRoad = !onRoad(c.x, c.y);
+      const grassMul = !offRoad ? 1 : (c.m && c.m.k === "kenny_truck") ? 0.96 : 0.62;
+      const boost = (g.turboT > 0 && c === (inVehicle() ? activeVeh() : null)) ? 1.15 : 1;
+      const MAX = topSpeed * rough * (empty ? 0.16 : 1) * wreckMul * CS.s * grassMul * boost;
       c.fuel = Math.max(0, c.fuel - dt * (0.14 + Math.abs(throttle) * 0.30));
 
       const accel = (isMoto ? 495 : isCiv ? 360 : 440) * wreckMul * lionBoost() * CS.a;
@@ -6525,6 +6535,28 @@ export default function IronLionLayer004() {
           }
         }
         if (p.zap > 0) p.zap -= dt;
+        if (p.berserkT > 0 && p.berserk === 1 && p.stunT <= 0) {
+          // blind and swinging. He goes for the nearest body, and he does not check whose.
+          let near = null, nd = 220;
+          for (const q of combatTargets()) {
+            if (q === p || !q || !Number.isFinite(q.x)) continue;
+            const d2 = Math.hypot(q.x - p.x, q.y - p.y);
+            if (d2 < nd) { nd = d2; near = q; }
+          }
+          if (near) {
+            const a = Math.atan2(near.y - p.y, near.x - p.x);
+            p.vx = Math.cos(a) * 110; p.vy = Math.sin(a) * 110;
+            p.x += p.vx * dt; p.y += p.vy * dt;
+            if (nd < 26 && (p.swingCd || 0) <= 0) {
+              p.swingCd = 0.8;
+              if (near.hp != null) near.hp -= 1;
+              near.stunT = Math.max(near.stunT || 0, 0.4);
+            }
+          }
+          p.swingCd = Math.max(0, (p.swingCd || 0) - dt);
+          p.anim += dt * 9;
+          continue;
+        }
         if (p.stunT > 0) {
           p.stunT -= dt;
           if (p.knock > 0) { p.knock -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.86; p.vy *= 0.86; }
@@ -19097,11 +19129,53 @@ export default function IronLionLayer004() {
       drawDamageFx(c, L);
     }
 
+    /* A headlight, on every bike, for whoever is riding it. It was drawing a rear lamp under
+       braking and nothing at the front at all -- so at night a motorcycle was a shape with no
+       indication of which way it was pointed. */
+    function motoLight(c) {
+      if (!(g.night > 0.12)) return;
+      const fx2 = c.x + Math.cos(c.ang) * MOTO_M.len * 0.46;
+      const fy2 = c.y + Math.sin(c.ang) * MOTO_M.len * 0.46;
+      ctx.save();
+      ctx.translate(fx2, fy2);
+      ctx.rotate(c.ang);
+      const gr = ctx.createLinearGradient(0, 0, 300, 0);
+      gr.addColorStop(0, `rgba(255,246,210,${0.20 * g.night})`);
+      gr.addColorStop(1, "rgba(255,246,210,0)");
+      ctx.fillStyle = gr;
+      ctx.beginPath();
+      ctx.moveTo(0, 0); ctx.lineTo(300, -84); ctx.lineTo(300, 84); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = `rgba(255,250,225,${0.75 * g.night + 0.2})`;
+      ctx.beginPath(); ctx.arc(fx2, fy2, 3.4, 0, 6.3); ctx.fill();
+    }
+    /* Whoever is actually on it. `rd_lion_ride` is a combined Darius-and-bike plate, so every
+       ally rode as the Lion -- an ally gets the bare bike with his own torso drawn over it. */
     function drawMoto() {
       const c = g.moto;
       const mounted = g.mode === "moto";
+      if (mounted && g.who !== "lion") {
+        const L = MOTO_M.len;
+        const im = firstImg("rd_lion_bike", "motorcycle");
+        if (im && im.width) {
+          const w = L * (im.width / im.height);
+          ctx.save();
+          ctx.translate(c.x, c.y); ctx.rotate(c.ang + Math.PI / 2);
+          drawShadow(1, 4, w * 0.42, L * 0.4, 0.32);
+          ctx.drawImage(im, -w / 2, -L / 2, w, L);
+          ctx.restore();
+        }
+        const r = rosterOf(g.who);
+        const plate = heroPlate(r);
+        drawYouth({ x: c.x, y: c.y, vx: Math.cos(c.ang), vy: Math.sin(c.ang),
+                    anim: 0, jit: 1, yt: plate,
+                    tall: r.id === "sho" ? 1.42 : r.id === "kenny" ? 1.46 : 1 });
+        motoLight(c);
+        return;
+      }
       // mounted -> rider-and-bike plate for the current heading; parked -> the bare bike
       if (mounted && drawRider("rd_lion_ride", c.x, c.y, c.ang, MOTO_M.len * 1.3)) {
+        motoLight(c);
         const inp = input.current, k = inp.keys;
         if (inp.brake || k[" "] || inp.reverse || k["s"] || k["arrowdown"]) {
           // tail lamp sits behind the heading, which is direction-independent unlike the
@@ -20024,6 +20098,10 @@ export default function IronLionLayer004() {
             shop: !!nearBodyShop(), inShop: !!g.inShop,
             who: g.who, smokeStock: g.p.smokeStock || 0, hidden: !!g.p.hidden,
             hero: !!(g.hero && g.hero[g.who]), stars: g.p.stars || 0, chain: g.p.chain || 0,
+            turbo: (() => { const v = inVehicle() ? activeVeh() : null;
+                            const k = v && ((v.m && v.m.k) || (v.skin && v.skin.k) || v.k);
+                            return k === "sho_car"; })(),
+            turboCd: g.turboCd || 0, turboOn: g.turboT || 0,
             board: !!g.board.on, hasBoard: !!g.board.has, atRack: atRack(),
             cab: g.cab ? g.cab.g : null,
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
@@ -20670,6 +20748,18 @@ export default function IronLionLayer004() {
       g.p.tazeCd = Math.max(0, (g.p.tazeCd || 0) - dt);
       if (g.shock) { g.shock.t -= dt; if (g.shock.t <= 0) g.shock = null; }
       g.p.hidden = g.who === "rio" && inSmoke(g.p.x, g.p.y);
+      /* Rio can see through it. Nobody else can -- a man in that cloud claws at his face and
+         then either swings at whatever is nearest or runs. Forty seconds, which is long enough
+         that clearing a room with one bomb is a real tactic rather than a stall. */
+      for (const t of combatTargets()) {
+        if (!t || !Number.isFinite(t.x)) continue;
+        if (t.berserkT > 0) { t.berserkT -= dt; if (t.berserkT <= 0) { t.berserk = 0; t.mode = "walk"; } continue; }
+        if (!inSmoke(t.x, t.y)) continue;
+        t.berserkT = 40; t.berserk = Math.random() < 0.5 ? 1 : 2;
+        t.say = 2.2; t.line = "MY EYES!";
+        t.stunT = Math.max(t.stunT || 0, 0.5);
+        if (t.berserk === 2) { t.mode = "panic"; t.timer = 40; }
+      }
     }
     /* Whoever you are not is stood in the den bay waiting. Drawing him is what makes the swap
        legible -- otherwise the other character is an abstraction and the base is an empty room. */
@@ -20868,7 +20958,7 @@ export default function IronLionLayer004() {
       { id: "lion", name: "THE LION", yt: null,
         kit: { wpn: null, ammo: 0, holstered: false, board: false, hp: 100 } },
       { id: "rio", name: "RIO", yt: "yt_rio", hero: "yt_rio_hero",
-        kit: { wpn: null, ammo: 0, holstered: false, board: true, hp: 100, smoke: 6 } },
+        kit: { wpn: null, ammo: 0, holstered: false, board: true, hp: 100, smoke: 50 } },
       /* Sho is NOT the mentor -- I had that wrong. He is the man in the grey hooded coat, and
          I could not read his sprite key off a screenshot, so he is on his own plate for now.
          If you know the sheet he already uses, set `actor` here to that ACTORTOP key and
@@ -21006,8 +21096,13 @@ export default function IronLionLayer004() {
                board: g.board.has, hp: g.p.hp, skill: g.p.skill,
                smoke: g.p.smokeStock || 0, stars: g.p.stars || 0 };
     }
+    const isGun = (w) => !!w && !KID_OK[w];
     function wearKit(k) {
-      g.p.wpn = k.wpn || null; g.p.ammo = k.ammo || 0;
+      /* Enforced on the way IN as well as on pickup. A gun could still reach an ally through
+         the bench, a mission grant or the map screen -- the rule has to live where the weapon
+         is put in his hand, not only where he finds one. */
+      g.p.wpn = (k.wpn && (g.who === "lion" || !isGun(k.wpn))) ? k.wpn : null;
+      g.p.ammo = g.p.wpn ? (k.ammo || 0) : 0;
       g.p.holstered = !!k.holstered;
       g.board.has = !!k.board; g.board.on = false; g.board.spd = 0;
       /* The count lived on `g` and dropSmoke read `g.p` -- so the stock was always undefined
@@ -21269,6 +21364,23 @@ export default function IronLionLayer004() {
       if (g.t - (g.p.punLast || -9) > 0.75) g.p.chain = 0;
     }
     G.punchFn = () => { if (g.who === "kenny") safely("punch", kennyPunch); };
+    /* The Sho Stopper's boost. Fifteen percent over its already-highest top speed for three
+       seconds, then twelve seconds of nothing -- short enough to be a decision, long enough
+       that you cannot hold a chase together with it. Only in his own car. */
+    function turboBoost() {
+      const v = inVehicle() ? activeVeh() : null;
+      const k = v && ((v.m && v.m.k) || (v.skin && v.skin.k) || v.k);
+      if (k !== "sho_car") { g.pickupFlash = { nm: "no_boost_in_this_car", t: 1.1 }; return false; }
+      if ((g.turboCd || 0) > 0) return false;
+      g.turboT = 3.0; g.turboCd = 15;
+      g.shake = Math.max(g.shake, 6);
+      return true;
+    }
+    function stepTurbo(dt) {
+      g.turboCd = Math.max(0, (g.turboCd || 0) - dt);
+      g.turboT = Math.max(0, (g.turboT || 0) - dt);
+    }
+    G.turboFn = () => safely("turbo", turboBoost);
     G.spinFn = () => { if (g.who === "rio") safely("spin", boardSpin); };
     G.starFn = () => { if (g.who === "sho") safely("star", throwStar); };
     /* Named shoJumpFn, NOT jumpFn. `G.jumpFn = roofJump` is assigned a few hundred lines
@@ -22912,6 +23024,8 @@ export default function IronLionLayer004() {
           </>
         ) : (
           <>
+            {!hud.cab && hud.turbo && btn("BOOST", (hud.turboCd || 0) > 0 ? Math.ceil(hud.turboCd) + "s" : "ready",
+              () => { G.turboFn && G.turboFn(); }, null, (hud.turboOn || 0) > 0)}
             {!hud.cab && hud.who === "kenny" && btn("HIT", (hud.chain || 0) === 3 ? "uppercut" : "combo " + ((hud.chain || 0) + 1),
               () => { G.punchFn && G.punchFn(); }, null)}
             {!hud.cab && hud.who === "sho" && btn("STAR", (hud.stars || 0) + " left",
