@@ -1319,7 +1319,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 346 — ONE SHO, AND HE LEAVES THE GROUND";
+const BUILD_TAG = "LAYER 347 — DOORS AND ROOFTOPS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -19326,11 +19326,29 @@ export default function IronLionLayer004() {
          point is moving through the city. The cooldown is what makes it work: without it you
          re-enter on the frame after leaving, because you are still stood in the doorway. */
       if (!g.title && g.mode === "foot" && g.onPlat == null && !g.cab && !g.paused) {
+        /* Two bugs lived here. The cooldown expired while you were still standing in the
+           doorway, so the same trigger that let you in immediately put you back out; and
+           `doorFn` fires on approach, so brushing past a shopfront pulled you inside.
+           Now: you have to be genuinely ON the door, you get pushed a step clear of it on the
+           way in so the trigger is not still under you, and the lock is long enough to walk. */
         g.doorCd = Math.max(0, (g.doorCd || 0) - dt);
         if (g.doorCd <= 0 && G.doorFn) {
           const db = G.doorFn();
-          if (db && !g.inside) { g.inside = db; g.floor = 0; g.doorCd = 0.9; }
-          else if (db && g.inside === db && g.floor === 0) { g.inside = null; g.doorCd = 0.9; }
+          const moving = Math.hypot(g.p.vx || 0, g.p.vy || 0) > 26;
+          if (db && !g.inside && moving) {
+            g.inside = db; g.floor = 0; g.doorCd = 1.6;
+            // step him in off the threshold, toward the middle of the building
+            const cx2 = db.x + db.w / 2, cy2 = db.y + db.h / 2;
+            const a = Math.atan2(cy2 - g.p.y, cx2 - g.p.x);
+            g.p.x += Math.cos(a) * 30; g.p.y += Math.sin(a) * 30;
+            g.p.vx = 0; g.p.vy = 0;
+          } else if (db && g.inside === db && g.floor === 0 && moving) {
+            g.inside = null; g.doorCd = 1.6;
+            const cx2 = db.x + db.w / 2, cy2 = db.y + db.h / 2;
+            const a = Math.atan2(g.p.y - cy2, g.p.x - cx2);
+            g.p.x += Math.cos(a) * 34; g.p.y += Math.sin(a) * 34;
+            g.p.vx = 0; g.p.vy = 0;
+          }
         }
       }
       if (g.title) titleCam(dt);
@@ -20537,7 +20555,7 @@ export default function IronLionLayer004() {
          delete the `yt` line; the bench draw prefers `actor` when it is present. */
       /* Two looks, same as Rio: street clothes and the hood. SUIT swaps them. */
       { id: "sho", name: "SHO", yt: "yt_sho", hero: "yt_sho_hero", actor: null,
-        kit: { wpn: "bat", ammo: 0, holstered: false, board: false, hp: 100, stars: 12 } },
+        kit: { wpn: "bat", ammo: 0, holstered: false, board: false, hp: 100, stars: 50 } },
     ];
     const rosterOf = (id) => ROSTER.find((r) => r.id === id) || ROSTER[0];
     // everyone you are NOT, in roster order, so the line-up does not reshuffle as you swap
@@ -20683,13 +20701,22 @@ export default function IronLionLayer004() {
        on. The old version toggled a flag that nothing acted on, so he "jumped" and stayed
        exactly where he was. This uses the same roofRect the grapple lands on, so he ends up on
        the roof plane properly rather than beside it. */
+    /* `g.blds` does not exist -- buildings live per cell as `c.blds`, which is why the jump
+       never found one and silently did nothing. Same nine-cell walk the grapple uses. */
     function buildingUnderFoot() {
-      let best = null, bd = 1e9;
-      for (const b of (g.blds || [])) {
-        const cx2 = b.x + b.w / 2, cy2 = b.y + b.h / 2;
-        const d = Math.hypot(g.p.x - cx2, g.p.y - cy2);
-        if (d > 260 || d > bd) continue;
-        bd = d; best = b;
+      const ci = clamp(Math.floor(g.p.x / PITCH), 0, N - 1);
+      const cj = clamp(Math.floor(g.p.y / PITCH), 0, N - 1);
+      let best = null, bd = 300;
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+        const c = getCell(ci + di, cj + dj);
+        if (!c || !c.blds) continue;
+        for (const b of c.blds) {
+          if (b === g.roof) continue;
+          const bx = b.x + b.w / 2, by = b.y + b.h / 2;
+          const d = Math.hypot(g.p.x - bx, g.p.y - by);
+          if (d > bd) continue;
+          bd = d; best = b;
+        }
       }
       return best;
     }
