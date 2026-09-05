@@ -1366,7 +1366,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 358 — CITY HALL, THE HOUSE, THE MOTEL";
+const BUILD_TAG = "LAYER 359 — HOLLOW PASS AND THE FLATS PATROL";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1892,6 +1892,10 @@ const ZONES = {
      both walk to the same place. It is a super-zone for the same reason the park is: the
      internal streets are cut and it reads as one fenced campus rather than four lots. */
   skate:     { i0: 5, i1: 6, j0: 7, j1: 8, super: true },
+  /* Hollow Pass. Far north-east, up past the farmland, and deliberately the ONLY border you
+     could ever cross -- the lake and the river say you cannot leave, a closed road says you
+     cannot leave yet. It is a super-zone so the street grid stops and it reads as one place. */
+  mountain:  { i0: 24, i1: 27, j0: 0, j1: 2, super: true },
 };
 /* Module scope on purpose. This is pure data with no dependencies, and it is read from
    BOTH scopes in this file -- the map draw sits in the outer one and could not see it
@@ -2087,6 +2091,9 @@ const WOLVES_TURF = { i0: 18, i1: 21, j0: 3, j1: 7 };
 const inZ = (z, i, j) => i >= z.i0 && i <= z.i1 && j >= z.j0 && j <= z.j1;
 function zoneOf(i, j) {
   if (i < 0 || j < 0 || i >= N || j >= N) return "edge";
+  /* Asked before isRural(), which returns early for every farm cell -- the pass sits ON
+     farmland, so a check below that line could never be reached. */
+  if (inZ(ZONES.mountain, i, j)) return "mountain";
   /* Asked FIRST now. It used to be buried inside the rural branch, so a district always beat
      water and the lake could only ever appear on farmland. A city block that is under a lake
      is not a city block. */
@@ -2100,6 +2107,7 @@ function zoneOf(i, j) {
     return inTown(i, j) ? "town" : "farm";
   }
   // ahead of hood and downtown: the campus straddles both, and whoever is checked first wins
+  if (inZ(ZONES.mountain, i, j)) return "mountain";
   if (inZ(ZONES.skate, i, j)) return "skate";
   if (inZ(ZONES.cemetery, i, j)) return "cemetery";
   if (inZ(ZONES.park, i, j)) return "park";
@@ -2113,7 +2121,7 @@ function zoneOf(i, j) {
   if (inZ(ZONES.downtown, i, j)) return "downtown";
   return "city";
 }
-const isSuper = (z) => z === "park" || z === "projects" || z === "terminal" || z === "cemetery" || z === "prison" || z === "skate";
+const isSuper = (z) => z === "park" || z === "projects" || z === "terminal" || z === "cemetery" || z === "prison" || z === "skate" || z === "mountain";
 /* a street segment is removed when both flanking blocks belong to one campus */
 /* Out in the county there is no street grid -- only the avenues carry through as county
    roads, so the field blocks are four times the size of a city block. */
@@ -4045,6 +4053,23 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     return out;
   }
   if (zone === "park" || zone === "cemetery" || zone === "skate") return out;
+  if (zone === "mountain") {
+    /* A dozen buildings along one road. Small enough that the town reads as a place somebody
+       drove to rather than a district, which is the whole point of it. */
+    const n = 4 + Math.floor(rnd() * 3);
+    for (let q = 0; q < n; q++) {
+      const side = q % 2 ? 1 : -1;
+      const bw = 260 + rnd() * 140, bh = 220 + rnd() * 120;
+      const bx = lx0 + LW * 0.5 + side * (280 + rnd() * 160) - bw / 2;
+      const by = ly0 + LH * (0.16 + q * 0.14);
+      const b = mkB(bx, by, bw, bh, 1, rnd() < 0.3 ? "store" : "house", rnd, key + q);
+      b.retail = rnd() < 0.4;
+      if (b.retail) assignBiz(b, "town", key + q);
+      b.snow = 1;
+      out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+    }
+    return out;
+  }
 
   /* A fixed civic building takes its whole cell and nothing else is generated there. Checked
      before the zone branches so it does not matter what the surrounding district would have
@@ -4667,7 +4692,7 @@ export default function IronLionLayer004() {
       industrial: "industrial", irish: "irish", barrio: "barrio", projects: "hood",
       farm: "county", cemetery: "county", prison: "old", town: "county",
       park: "uptown", water: "county",
-      skate: "youth",
+      skate: "youth", mountain: "county",
       arcade: "arcade",
     };
     const MUS = { buf: {}, cur: null, src: null, gain: null, want: null, tried: {}, vol: 0.5 };
@@ -5805,6 +5830,7 @@ export default function IronLionLayer004() {
       }
       for (const c2 of (g.police ? [g.police] : []).concat(g.policeMore || []))
         for (const o2 of (c2 && c2.crew ? c2.crew : [])) if (o2 && o2.hp > 0) out.push(o2);
+      for (const u of (g.guards || [])) if (u && u.hp > 0) out.push(u);
       return out;
     }
     function kickTarget() {
@@ -6337,6 +6363,85 @@ export default function IronLionLayer004() {
       for (const k of g.arKids) if (k.say > 0 && k.line) bubble(k.x, k.y, k.line);
     }
 
+    /* EMBER FLATS SECURITY. Company police -- they work for the Kestrel, not the city, and
+       they only ever appear inside Ember Flats. Outside it they do not exist, which is the
+       point: the town has its own law and the city's writ stops at the county line.
+
+       They are drawn through the same torso-plus-procedural-legs path as the kids and the
+       allies, so they walk, they carry, and the weapon appears in the hand when they use it. */
+    const EF_PLATES = ["cv2_ef_guard", "cv2_ef_guard_b"];
+    const EF_GUNS = ["pistol_auto", "smg_uzi"];
+    /* Ember Flats is the standalone NEON box, not a ZONES entry -- there is no ZONES.neon, so
+       the first version of this threw on the frame the player crossed the county line. */
+    function inEmberFlats(x, y) {
+      return x > SX(NEON.i0) && x < SX(NEON.i1 + 1)
+          && y > SX(NEON.j0) && y < SX(NEON.j1 + 1);
+    }
+    function spawnGuard(cx, cy) {
+      const a = Math.random() * 6.28, d = 420 + Math.random() * 420;
+      const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d;
+      if (!inEmberFlats(x, y)) return;
+      const cap = Math.random() < 0.18;
+      g.guards = g.guards || [];
+      g.guards.push({
+        x, y, vx: 0, vy: 0, hp: 6, maxHp: 6,
+        yt: cap ? "cv2_ef_captain" : EF_PLATES[(Math.random() * 2) | 0],
+        cap, jit: 1, anim: Math.random() * 6, tall: cap ? 1.16 : 1.06,
+        wpn: cap ? "revolver" : EF_GUNS[(Math.random() * 2) | 0],
+        spd: 62 + Math.random() * 22, fireCd: 0, swing: 0, tgt: [x, y],
+      });
+    }
+    function updateGuards(dt, cx, cy) {
+      if (g.inside) { g.guards = g.guards || []; return; }
+      g.guards = g.guards || [];
+      if (inEmberFlats(cx, cy) && g.guards.length < 10 && Math.random() < dt * 2.2) spawnGuard(cx, cy);
+      const hostile = (g.heat || 0) > 0 || (!g.plain && g.who === "lion");
+      for (let i = g.guards.length - 1; i >= 0; i--) {
+        const u = g.guards[i];
+        if (u.hp <= 0 || !Number.isFinite(u.x)) { g.guards.splice(i, 1); continue; }
+        if (Math.hypot(u.x - cx, u.y - cy) > 2400 || !inEmberFlats(u.x, u.y)) {
+          // they never leave the Flats, and they do not follow you out of it
+          g.guards.splice(i, 1); continue;
+        }
+        u.swing = Math.max(0, u.swing - dt);
+        u.fireCd = Math.max(0, u.fireCd - dt);
+        u.stunT = Math.max(0, (u.stunT || 0) - dt);
+        if (u.stunT > 0) { u.vx = 0; u.vy = 0; continue; }
+        const d = Math.hypot(g.p.x - u.x, g.p.y - u.y);
+        if (hostile && d < 420) {
+          // hold a standoff and shoot, the way the rest of the armed men in this city do
+          const a = Math.atan2(g.p.y - u.y, g.p.x - u.x);
+          const want = d < 190 ? -1 : d > 300 ? 1 : 0;
+          u.vx = Math.cos(a) * u.spd * want; u.vy = Math.sin(a) * u.spd * want;
+          if (u.fireCd <= 0 && d < 380) {
+            const W = WPN[u.wpn] || { spd: 900, dmg: 2, range: 380, spread: 0.14, rate: 0.5 };
+            u.fireCd = W.rate || 0.5;
+            u.swing = 0.14;
+            fireBullet(u, a + (Math.random() - 0.5) * (W.spread || 0.14) * 2,
+              W.spd || 900, W.dmg || 2, W.range || 380, false, "sec", W.knock);
+          }
+        } else {
+          // patrol: wander the Flats and nowhere else
+          if (Math.hypot(u.tgt[0] - u.x, u.tgt[1] - u.y) < 40) {
+            u.tgt = [SX(NEON.i0) + Math.random() * (SX(NEON.i1 + 1) - SX(NEON.i0)),
+                     SX(NEON.j0) + Math.random() * (SX(NEON.j1 + 1) - SX(NEON.j0))];
+          }
+          const a = Math.atan2(u.tgt[1] - u.y, u.tgt[0] - u.x);
+          u.vx = Math.cos(a) * u.spd * 0.6; u.vy = Math.sin(a) * u.spd * 0.6;
+        }
+        u.x += u.vx * dt; u.y += u.vy * dt;
+        u.anim += dt * (Math.hypot(u.vx, u.vy) / 16);
+      }
+    }
+    function drawGuards() {
+      for (const u of (g.guards || [])) {
+        if (!Number.isFinite(u.x)) continue;
+        drawShadow(u.x, u.y + 3, 12, 5, 0.36);
+        drawYouth(u);
+        drawHealthBar(u);
+        drawZap(u);
+      }
+    }
     function spawnParkKid() {
       const b = skateBox();
       const px = b.x0 + 60 + Math.random() * (b.x1 - b.x0 - 120);
@@ -7181,6 +7286,45 @@ export default function IronLionLayer004() {
     /* Drawn directly rather than pushed through the prop pipeline. The casino floor already
        had to be rescued this way, and until the pipeline is fixed anything that must appear
        is safer drawing itself. When the plates land, each `case` below becomes one drawImage. */
+    /* Hollow Pass: snow, one road up the middle, and the closure at the top of it. Drawn
+       directly, same as the skate park, because a place this small does not need a tile set. */
+    function drawMountain(ex0, ey0, ex1, ey1, ci, cj) {
+      ctx.fillStyle = "#cdd4da";
+      ctx.fillRect(ex0, ey0, ex1 - ex0, ey1 - ey0);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(ex0, ey0, ex1 - ex0, ey1 - ey0); ctx.clip();
+      const Z = ZONES.mountain;
+      const rx = SX(Z.i0) + (SX(Z.i1 + 1) - SX(Z.i0)) * 0.5;
+      // the road, wandering as it climbs
+      for (let y = SX(Z.j0) - 200; y < SX(Z.j1 + 1) + 200; y += 60) {
+        const w = Math.sin(y / 2400) * 220;
+        ctx.fillStyle = "#3d4146";
+        ctx.fillRect(rx + w - 150, y, 300, 61);
+        ctx.fillStyle = "rgba(230,236,240,0.55)";
+        ctx.fillRect(rx + w - 4, y + 16, 8, 28);
+        ctx.fillStyle = "#e6ecf0";                       // ploughed banks
+        ctx.fillRect(rx + w - 176, y, 26, 61);
+        ctx.fillRect(rx + w + 150, y, 26, 61);
+      }
+      // trees either side
+      for (let n = 0; n < 90; n++) {
+        const tx = SX(Z.i0) + ((n * 977) % (SX(Z.i1 + 1) - SX(Z.i0)));
+        const ty = SX(Z.j0) + ((n * 1583) % (SX(Z.j1 + 1) - SX(Z.j0)));
+        if (Math.abs(tx - (rx + Math.sin(ty / 2400) * 220)) < 260) continue;
+        ctx.fillStyle = "#22301f";
+        ctx.beginPath(); ctx.moveTo(tx, ty - 26); ctx.lineTo(tx + 15, ty + 14);
+        ctx.lineTo(tx - 15, ty + 14); ctx.closePath(); ctx.fill();
+      }
+      // the closure, at the top of the pass
+      const by = SX(Z.j0) + 240, bx = rx + Math.sin(by / 2400) * 220;
+      const im = imgs.current.cv2_mt_barrier;
+      if (im && im.width) ctx.drawImage(im, bx - 190, by - 90, 380, 180);
+      else {
+        ctx.fillStyle = "#c0392b"; ctx.fillRect(bx - 160, by - 8, 320, 16);
+        ctx.fillStyle = "#e8e8e8"; ctx.fillRect(bx - 40, by - 30, 80, 40);
+      }
+      ctx.restore();
+    }
     function drawSkateSurface(ex0, ey0, ex1, ey1) {
       ctx.fillStyle = "#4a4844";
       ctx.fillRect(ex0, ey0, ex1 - ex0, ey1 - ey0);
@@ -13408,6 +13552,7 @@ export default function IronLionLayer004() {
       { z: "neon",      name: "THE KESTREL",    i: 28, j: 23, landmark: true },
       // the youth district. Arrives at the gate in the south fence, next to the rack.
       { z: "skate",     name: "THE SKATE PARK",  i: 5,  j: 8, skate: true },
+      { z: "mountain",  name: "HOLLOW PASS",     i: 25, j: 2, landmark: true },
       { z: "skate",     name: "GALAXY LANES",     i: 5,  j: 9, landmark: true },
       { z: "skate",     name: "THE LAST CALL",    i: 6,  j: 9, landmark: true },
       /* The elevated. Downtown is the busiest stop and the one worth arriving at, and the
@@ -17740,7 +17885,8 @@ export default function IronLionLayer004() {
           const ex1 = c.x1 + (vCut(i + 1, j) ? halfW(i + 1) * 2 : 0);
           const ey0 = c.y0 - (hCut(i, j) ? halfW(j) * 2 : 0);
           const ey1 = c.y1 + (hCut(i, j + 1) ? halfW(j + 1) * 2 : 0);
-          if (c.zone === "skate") drawSkateSurface(ex0, ey0, ex1, ey1);
+          if (c.zone === "mountain") drawMountain(ex0, ey0, ex1, ey1, i, j);
+          else if (c.zone === "skate") drawSkateSurface(ex0, ey0, ex1, ey1);
           else if (c.zone === "park") drawParkSurface(ex0, ey0, ex1, ey1);
           else if (c.zone === "cemetery") drawCemetery(ex0, ey0, ex1, ey1, i, j);
           else if (c.zone === "terminal") drawTerminalSurface(ex0, ey0, ex1, ey1);
@@ -19719,7 +19865,10 @@ export default function IronLionLayer004() {
       else stepCar(dt, activeVeh());
       if (!g.title) placeNamedCars();
       updatePeds(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
-      if (!g.title) { updateGig(dt); updateArcadeKids(dt); updateSmoke(dt); reapSho(); updateDriveBys(dt); }
+      if (!g.title) {
+        updateGig(dt); updateArcadeKids(dt); updateSmoke(dt); reapSho(); updateDriveBys(dt);
+        updateGuards(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
+      }
       if (!g.title) updateCrime(dt);
       if (!g.title) updateShop(dt);
       if (!g.title) updateComp(dt);
@@ -20117,6 +20266,7 @@ export default function IronLionLayer004() {
         if (g.onFwy && !g.onRamp && inVehicle()) { if (g.mode === "car") drawCar(); else drawMoto(); }
       }
       if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); }
+      drawGuards();
       drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
       /* Anyone in the fight, not only gang crews -- police, and any civilian who has been hit.
          A bar over one man and nothing over the next reads as a bug rather than a rule. */
