@@ -1270,7 +1270,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 326 — UNFROZEN, ONE ROOM, WALK IN";
+const BUILD_TAG = "LAYER 327 — FIRE BUTTON, ONE STAGE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -3585,17 +3585,22 @@ function makeFloor(b, f, rnd) {
         P(q2.x1 - pad - 15, q2.y1 - pad - 15, 15, 15, "ar_bin");
         break;
       case "vnstage": {
-        // four panels across the back, so the stage is a wall rather than one plate
-        const sw = Math.min(64, (W2 - pad * 2) / 4);
+        /* The four panels butt together into ONE deck across the back, and everything the band
+           stands on or plays through goes ON it rather than in front of it. The deck is laid
+           first so the gear draws over it. */
+        const sw = (W2 - pad * 2) / 4, sy = q2.y0 + pad, sh2 = 64;
+        /* Divided by SHRINK so the panels actually butt. P() takes 12% off every prop, which
+           is right for a table you want to walk past and wrong for a floor made of four
+           pieces -- it left a 17-unit gap between each one. */
         for (let n = 0; n < 4; n++)
-          P(q2.x0 + pad + n * sw, q2.y0 + pad, sw, 56, "vn_main_stage");
-        P(cx - 20, q2.y0 + pad + 8, 40, 40, "vn_drum_riser");
-        P(q2.x0 + pad, q2.y0 + pad, 26, 40, "vn_pastack");
-        P(q2.x1 - pad - 26, q2.y0 + pad, 26, 40, "vn_pastack");
-        P(cx - 46, q2.y0 + pad + 60, 24, 18, "vn_amp_stack");
-        P(cx + 22, q2.y0 + pad + 60, 24, 18, "vn_amp_combo");
-        P(cx - 11, q2.y1 - pad - 14, 22, 14, "vn_monitor");
-        P(cx - 8, q2.y0 + pad + 44, 16, 24, "vn_mic_stands");
+          P(q2.x0 + pad + n * sw, sy, sw / SHRINK, sh2 / SHRINK, "vn_main_stage");
+        P(cx - 20, sy + 14, 40, 40, "vn_drum_riser");
+        P(q2.x0 + pad + 4, sy + 8, 26, 40, "vn_pastack");
+        P(q2.x1 - pad - 30, sy + 8, 26, 40, "vn_pastack");
+        P(cx - 62, sy + 34, 24, 18, "vn_amp_stack");
+        P(cx + 38, sy + 34, 24, 18, "vn_amp_combo");
+        P(cx - 11, sy + sh2 - 22, 22, 14, "vn_monitor");
+        P(cx - 8, sy + sh2 - 30, 16, 24, "vn_mic_stands");
         P(q2.x1 - pad - 30, q2.y0 + pad + 58, 30, 20, "vn_stage_steps");
         P(q2.x0 + pad + 32, q2.y0 + pad + 62, 24, 38, "st_sound");
         // barriers across the front of the stage, the light bar over the floor
@@ -5892,6 +5897,23 @@ export default function IronLionLayer004() {
       }
       g.gig.t += dt;
       for (const c of g.gig.crowd) { c.anim += dt * 3 * c.bob; }
+      /* The band, on the deck, facing the room. Which three plates get used is decided by
+         which track is playing, so band2.mp3 is always the same band on the stage. */
+      if (!g.gig.band) {
+        const n = +(g.gigBand || "band1").slice(4) || 1;
+        const b2 = g.inside;
+        const sy = b2.y + b2.h * 0.10;
+        g.gig.band = [
+          { x: b2.x + b2.w * 0.50, y: sy + 6, role: "drums" },
+          { x: b2.x + b2.w * 0.34, y: sy + 26, role: "guitar" },
+          { x: b2.x + b2.w * 0.66, y: sy + 26, role: "bass" },
+        ].map((m, i) => ({
+          ...m, n,
+          yt: "bd_" + n + "_" + m.role,
+          jit: 1, vx: 0, vy: 0, bang: Math.PI / 2, anim: Math.random() * 6, ph: i * 2.1,
+        }));
+      }
+      for (const m of g.gig.band) m.anim += dt * 5;
     }
     function drawGig() {
       if (!g.gig) return;
@@ -5902,6 +5924,16 @@ export default function IronLionLayer004() {
       ctx.fillRect(b.x, b.y, b.w, b.h);
       ctx.fillStyle = `rgba(230,120,60,${0.05 + (1 - pulse) * 0.10})`;
       ctx.fillRect(b.x, b.y, b.w, b.h * 0.34);
+      for (const m of g.gig.band || []) {
+        // facing the crowd, which is the opposite of the way the crowd is facing
+        const sw = Math.abs(Math.sin(m.anim * 0.6 + m.ph)) * 2;
+        drawShadow(m.x, m.y + 3, 9, 4, 0.3);
+        if (!drawYouth({ ...m, y: m.y - sw }, 0, 0)) {
+          // no band plates yet: a coloured stand-in, so the stage is never empty
+          ctx.fillStyle = ["#c85a4a", "#4a8ac8", "#c8a24a"][m.ph | 0] || "#b06a4a";
+          ctx.fillRect(m.x - 7, m.y - 11 - sw, 14, 22);
+        }
+      }
       for (const c of g.gig.crowd) {
         // they jump, which from above is the ollie read: scale up, shadow shrinks, stays put
         const j = Math.max(0, Math.sin(c.anim + c.ph));
@@ -5910,7 +5942,8 @@ export default function IronLionLayer004() {
         ctx.translate(c.x + j * 3, c.y + j * 3);
         ctx.scale(1 + j * 0.16, 1 + j * 0.16);
         ctx.translate(-c.x, -c.y);
-        drawYouth(c, -Math.PI / 2, 0);
+        // north, at the band. rotate(t) sends local +y to (-sin t, cos t), so -PI is up.
+        drawYouth(c, -Math.PI, 0);
         ctx.restore();
       }
     }
@@ -5992,8 +6025,30 @@ export default function IronLionLayer004() {
       p.line = pool[(Math.random() * pool.length) | 0];
       p.say = 1.8 + Math.random() * 0.9;
     }
+    function spawnStreetSkater(cx, cy) {
+      const a = Math.random() * 6.28, d = 520 + Math.random() * 300;
+      const px = cx + Math.cos(a) * d, py = cy + Math.sin(a) * d;
+      g.peds.push({
+        x: px, y: py, vx: 0, vy: 0, park: 1, street: 1, skate: 1,
+        bi: clamp(Math.floor(px / PITCH), 0, N - 1),
+        bj: clamp(Math.floor(py / PITCH), 0, N - 1),
+        ck: 0, off: [0, 0], tgt: [px, py],
+        o: outfits[(Math.random() * outfits.length) | 0], civ: pickCiv(),
+        yt: "yt_" + ["skater", "band", "bmx", "bro", "walkman"][(Math.random() * 5) | 0]
+            + "_" + ["a", "b", "c"][(Math.random() * 3) | 0],
+        dk: DECKS[(Math.random() * DECKS.length) | 0],
+        sair: 0, sairT: 0, sairDur: 0, spin: 0, spinTo: 0, bang: a,
+        jit: 0.93 + Math.random() * 0.15, spd: 104 + Math.random() * 46,
+        anim: Math.random() * 6.28, mode: "walk", timer: 0, rampCd: 0,
+        idlePose: "bag",
+      });
+    }
     function parkKidTarget(p) {
       const b = skateBox();
+      if (p.street) {
+        // roll on down the block; retarget() is the normal street-corner walk
+        retarget(p); p.mode = "walk"; return;
+      }
       if (p.skate) {
         /* A skater aims at a ramp, not at a random patch of concrete -- so they run laps
            between the pool, the bowls and the half-pipe, which is what a park looks like
@@ -6024,10 +6079,18 @@ export default function IronLionLayer004() {
         return;
       }
       if (p.rampCd > 0) { p.rampCd -= dt; return; }
+      // they also just pop one now and then on the flat, the way anybody rolling around does
+      p.flatCd = (p.flatCd == null ? 2 + Math.random() * 6 : p.flatCd) - dt;
+      if (p.flatCd <= 0) {
+        p.flatCd = 4 + Math.random() * 9;
+        p.sair = 0.001; p.sairT = 0; p.sairDur = 0.5;
+        p.spinTo = (Math.random() < 0.5 ? -1 : 1) * Math.PI * (Math.random() < 0.6 ? 1 : 2);
+        return;
+      }
       for (const q of skateObs()) {
         if (!q.ride || q.pop < 0.3) continue;
         if (p.x < q.x || p.x > q.x + q.w || p.y < q.y || p.y > q.y + q.h) continue;
-        p.sair = 0.001; p.sairT = 0; p.sairDur = 0.5 + q.pop * 0.45;
+        p.sair = 0.001; p.sairT = 0; p.sairDur = 0.62 + q.pop * 0.5;
         // a half spin or a full one, either way round
         p.spinTo = (Math.random() < 0.5 ? -1 : 1) * Math.PI * (Math.random() < 0.5 ? 1 : 2);
         p.rampCd = 0.6;
@@ -6041,6 +6104,13 @@ export default function IronLionLayer004() {
         let np = 0;
         for (const q of g.peds) if (q.park) np++;
         if (np < 14 && Math.random() < 0.5) spawnParkKid();
+      } else if (Math.random() < 0.02) {
+        /* Kids on boards elsewhere in the city. The park is where they go; it is not where
+           they live, and a skater rolling down an ordinary street is what sells the district
+           as part of the city rather than a fenced exhibit. */
+        let np = 0;
+        for (const q of g.peds) if (q.street) np++;
+        if (np < 4) spawnStreetSkater(cx, cy);
       }
       // four a frame filled 70 in under a second; at 104 it wants six or the street stays thin
       let tries = 0;
@@ -6182,9 +6252,10 @@ export default function IronLionLayer004() {
       ctx.save();
       if (a > 0.02) {
         drawShadow(p.x, p.y + 3, 11 * (1 - a * 0.5), 5 * (1 - a * 0.5), 0.36 * (1 - a * 0.45));
-        const gap = a * 6;
+        // was 0.3 and it read as a wobble. A hop has to be obvious or it looks like a glitch.
+        const gap = a * 10;
         ctx.translate(p.x + gap, p.y + gap);
-        ctx.scale(1 + a * 0.3, 1 + a * 0.3);
+        ctx.scale(1 + a * 0.52, 1 + a * 0.52);
         ctx.translate(-p.x, -p.y);
       }
       // the deck
@@ -10590,7 +10661,8 @@ export default function IronLionLayer004() {
     }
     function closeCab() {
       const g2 = G.current;
-      g2.cab = null; g2.paused = false;
+      g2.cab = null; g2.paused = false; g2.cabHud = 0;
+      setHud((h) => ({ ...h, cab: null }));
       MUS.tick = 0;                 // let the district take its track straight back
     }
     function stepCab(dt) {
@@ -18566,7 +18638,20 @@ export default function IronLionLayer004() {
           g.pickupFlash = { nm: "unstuck", t: 1.4 };
         }
       } else g.pauseOrphan = 0;
-      if (g.cab) { stepCab(Math.min(dt, 0.05)); drawCab(); return; }
+      if (g.cab) {
+        stepCab(Math.min(dt, 0.05));
+        drawCab();
+        /* The HUD is assembled hundreds of lines below this return, so `hud.cab` was never
+           true and the FIRE button never rendered -- the game was playable only on a
+           keyboard. Pushed here instead, throttled, because React does not need 60Hz. */
+        g.cabHud = (g.cabHud || 0) - dt;
+        if (g.cabHud <= 0) {
+          g.cabHud = 0.25;
+          setHud((h) => ({ ...h, cab: g.cab ? g.cab.g : null,
+            cabScore: g.cab ? g.cab.score : 0, tick: (hudTick = (hudTick + 1) % 1000) }));
+        }
+        return;
+      }
       if (g.paused) return;
       g.t += dt;
 
@@ -21219,6 +21304,8 @@ export default function IronLionLayer004() {
             {hud.cab && btn("FIRE", "shoot",
               () => { input.current.fire = true; },
               () => { input.current.fire = false; })}
+            {hud.cab && btn("QUIT", "leave machine",
+              () => { G.cabFn && G.cabFn(); }, null)}
             {!hud.cab && btn(hud.board ? "PUSH" : "RUN",
               hud.board ? "tap kick · hold brake" : "sprint",
               () => { input.current.run = true; },
