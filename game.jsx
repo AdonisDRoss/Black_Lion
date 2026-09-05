@@ -1319,7 +1319,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 342 — THE MENTOR HAS A FACE";
+const BUILD_TAG = "LAYER 343 — NO NaN, ONE SHO";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5737,6 +5737,7 @@ export default function IronLionLayer004() {
       const list = Array.isArray(g.peds) ? g.peds : [];
       for (const t of list) {
         if (!t || t.down > 0) continue;
+        if (!Number.isFinite(t.x) || !Number.isFinite(t.y)) continue;
         const d = Math.hypot(t.x - g.p.x, t.y - g.p.y);
         if (d > bd || d < 26) continue;
         let da = Math.atan2(t.y - g.p.y, t.x - g.p.x) - ang;
@@ -5750,8 +5751,10 @@ export default function IronLionLayer004() {
     function flyKick() {
       if (g.who !== "sho" || (g.p.kickCd || 0) > 0 || (g.p.kick || 0) > 0) return false;
       const t = kickTarget();
-      const ang = t ? Math.atan2(t.y - g.p.y, t.x - g.p.x)
-                    : Math.atan2(g.p.vy || 0, g.p.vx || 1);
+      let ang = t ? Math.atan2(t.y - g.p.y, t.x - g.p.x)
+                  : Math.atan2(g.p.vy || 0, g.p.vx || 1);
+      // a target with a bad coordinate would hand us NaN and drive him off the map
+      if (!Number.isFinite(ang)) ang = 0;
       g.p.kick = 0.42; g.p.kickCd = 0.9; g.p.kickAng = ang; g.p.kickHit = 0;
       g.p.kickTgt = t || null;
       return true;
@@ -5780,6 +5783,24 @@ export default function IronLionLayer004() {
       }
       if (g.p.kick <= 0) { g.p.kick = 0; g.p.vx = 0; g.p.vy = 0; }
     }
+    /* A single non-finite number in the player's position poisons everything downstream --
+       the camera, every canvas call, and the street lookup, which is why the HUD read
+       "undefined Ave & NaNth St" the instant the kick or the tazer went off. Rather than hunt
+       every arithmetic path that could produce one, the position is checked once a frame and
+       rolled back to the last good value. Cheap, and it cannot be defeated by the next new
+       ability that gets added. */
+    function guardPos() {
+      const p = g.p;
+      const ok = Number.isFinite(p.x) && Number.isFinite(p.y)
+              && Number.isFinite(p.vx) && Number.isFinite(p.vy);
+      if (ok) { p.goodX = p.x; p.goodY = p.y; return; }
+      p.x = Number.isFinite(p.goodX) ? p.goodX : SX(DEN_CELL.i) + PITCH / 2;
+      p.y = Number.isFinite(p.goodY) ? p.goodY : SX(DEN_CELL.j) + PITCH / 2;
+      p.vx = 0; p.vy = 0;
+      p.kick = 0; p.stumble = 0;
+      g.shock = null;
+      g.pickupFlash = { nm: "recovered", t: 0.8 };
+    }
     function stepFoot(dt) {
       trafficVsPlayer(dt);
       stepFlyKick(dt);
@@ -5802,7 +5823,7 @@ export default function IronLionLayer004() {
          reason to take him rather than the man with the gadgets or the man with the gun. */
       if (running) g.p.stamina = Math.max(0, g.p.stamina - dt * (g.who === "sho" ? 1.6 : 5.5));
       else g.p.stamina = Math.min(g.p.maxStamina, g.p.stamina + dt * (g.p.moving > 14 ? 4 : 9));
-      if (g.p.kick > 0) { collideSkate(g.p, 13); return; }   // the kick is driving
+      if (g.p.kick > 0) { collideSkate(g.p, 13); guardPos(); return; }   // the kick is driving
       const tvx = ix * spd, tvy = iy * spd;
       const acl = len > 0.05 ? 14 : 11;
       g.p.vx = lerp(g.p.vx, tvx, clamp(acl * dt, 0, 1));
@@ -5826,6 +5847,7 @@ export default function IronLionLayer004() {
       g.p.x = clamp(g.p.x, WORLD_MIN + 20, WORLD_MAX - 20);
       g.p.y = clamp(g.p.y, WORLD_MIN + 20, WORLD_MAX - 20);
       g.p.running = running;
+      guardPos();
     }
 
     function activeVeh() {
@@ -20287,6 +20309,7 @@ export default function IronLionLayer004() {
         for (const t of list) {
           if (!t) continue;
           if (t.down > 0) continue;
+          if (!Number.isFinite(t.x) || !Number.isFinite(t.y)) continue;
           const d = Math.hypot(t.x - g.p.x, t.y - g.p.y);
           if (d > bd) continue;
           // only what is roughly in front of him, so it is aimed and not a bomb
@@ -20343,6 +20366,12 @@ export default function IronLionLayer004() {
       return (r.hero && g.hero && g.hero[r.id]) ? r.hero : r.yt;
     }
     function drawOneBenched(sp) {
+      if (sp.existing) {
+        // the crew draw already put him on screen; only the prompt is ours
+        if (Math.hypot(g.p.x - sp.x, g.p.y - sp.y) < 64)
+          bubble(sp.x, sp.y - 18, "[E] PLAY AS " + sp.r.name);
+        return;
+      }
       drawShadow(sp.x, sp.y + 3, 12, 5, 0.36);
       if (sp.r.actor) {
         // an actor sheet, not a single plate: the same path the mentor is drawn with elsewhere
@@ -20395,6 +20424,7 @@ export default function IronLionLayer004() {
        each end -- a straight beam reads as a laser and this has to read as electricity. */
     function drawShock() {
       const sh = g.shock; if (!sh) return;
+      if (![sh.x, sh.y, sh.tx, sh.ty].every(Number.isFinite)) { g.shock = null; return; }
       const a = clamp(sh.t / 0.32, 0, 1);
       const dx = sh.tx - sh.x, dy = sh.ty - sh.y, L = Math.hypot(dx, dy) || 1;
       const nx = -dy / L, ny = dx / L;
@@ -20449,7 +20479,23 @@ export default function IronLionLayer004() {
       if (!bay) return [];
       const list = benched();
       const W2 = bay.x1 - bay.x0;
+      /* Sho already exists in the den as a crew member, so drawing a bench copy of him put two
+         of the same man in the room. If one of them is in the bay, that man IS the talk target
+         and we draw nothing extra -- one Sho, and it is the one you pointed at. */
+      const denCrew = [];
+      for (const cr of (g.crews || [])) {
+        if (cr.indoor !== b || (cr.indoorFloor || 0) !== 0) continue;
+        for (const m of (cr.members || [])) {
+          if (!m || m.hp <= 0) continue;
+          if (m.x > bay.x0 && m.x < bay.x1 && m.y > bay.y0 && m.y < bay.y1) denCrew.push(m);
+        }
+      }
       const out = list.map((r, n) => {
+        if (r.id === "sho" && denCrew.length) {
+          // stand where he already is, and let his own sprite do the drawing
+          const m = denCrew[0];
+          return { r, x: m.x, y: m.y, existing: true };
+        }
         const sp = { r, x: bay.x0 + W2 * (0.24 + n * 0.30), y: bay.y1 - 22 };
         for (const q of pl.props) {
           if (sp.x > q.x - 14 && sp.x < q.x + q.w + 14 && sp.y > q.y - 14 && sp.y < q.y + q.h + 14) {
@@ -20463,11 +20509,13 @@ export default function IronLionLayer004() {
          him straight back onto another. Two passes in this order, and a short search for the
          nearest free spot, gets both right in every den size. */
       for (let a = 1; a < out.length; a++) {
+        if (out[a].existing || out[a - 1].existing) continue;
         if (Math.abs(out[a].x - out[a - 1].x) < 76) out[a].x = out[a - 1].x + 76;
       }
       const blocked = (x, y) => pl.props.some((q) =>
         x > q.x - 14 && x < q.x + q.w + 14 && y > q.y - 14 && y < q.y + q.h + 14);
       for (const sp of out) {
+        if (sp.existing) continue;                 // he is a real actor, not a placed marker
         sp.x = clamp(sp.x, bay.x0 + 30, bay.x1 - 30);
         if (!blocked(sp.x, sp.y)) continue;
         for (let step = 18; step <= 200; step += 18) {
