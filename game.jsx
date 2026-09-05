@@ -961,6 +961,17 @@ const AR2 = {};
 for (const k of ["change", "snack", "photo", "carpet", "stool", "bin",
                  "cab_ironcurtain", "cab_curtain2", "cab_thefront", "cab_brawler"])
   AR2["ar_" + k] = "assets/arcade/ar_" + k + ".png";
+const FIGHTERS = [
+  ["fg_kenny",  "KENNY \u201cKO\u201d KHAN", "USA",  "#d8b048"],
+  ["fg_viktor", "VIKTOR MOROZ",  "USSR",   "#d04440"],
+  ["fg_isabel", "ISABEL REYES",  "MEX",    "#9fc0e0"],
+  ["fg_jiro",   "JIRO TANAKA",   "JPN",    "#e8e8e0"],
+  ["fg_connor", "CONNOR BYRNE",  "IRE",    "#6aa060"],
+  ["fg_amara",  "AMARA OKAFOR",  "NGA",    "#e08840"],
+  ["fg_hans",   "HANS RITTER",   "FRG",    "#8a8a90"],
+  ["fg_liwei",  "LI WEI",        "HKG",    "#b03048"],
+];
+for (const f of FIGHTERS) AR2[f[0]] = "assets/arcade/" + f[0] + ".png";
 // already cut and sitting in assets/arcade/ from the first batch
 for (const k of ["upright", "cocktail", "pinball", "stage", "drums", "amp", "mic", "pa"])
   AR2["ar_" + k] = "assets/arcade/ar_" + k + ".png";
@@ -1300,7 +1311,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 329 — THE RUG, THE KIT, THE BRAWLER";
+const BUILD_TAG = "LAYER 330 — HOOK CITY BRAWLER";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5591,7 +5602,46 @@ export default function IronLionLayer004() {
       g.p.y = clamp(g.p.y, WORLD_MIN + 20, WORLD_MAX - 20);
     }
 
+    /* Traffic and the man on foot. Two rules, and the split is speed:
+
+         a car that is MOVING hits you -- knockback along its heading, damage scaled to how
+         fast it was going, and a stumble you cannot steer out of;
+         a car that is STOPPED is scenery you walk around, not a wall you get stuck on.
+
+       Before this, traffic did neither: you passed through a speeding sedan without noticing
+       and then caught on a parked one. */
+    function trafficVsPlayer(dt) {
+      if (g.inside || g.mode !== "foot") return;
+      const p = g.p;
+      p.stumble = Math.max(0, (p.stumble || 0) - dt);
+      p.hitCd = Math.max(0, (p.hitCd || 0) - dt);
+      for (const v of g.traffic) {
+        const dx = p.x - v.x, dy = p.y - v.y;
+        const d = Math.hypot(dx, dy);
+        const r = (v.m && v.m.len ? v.m.len : 100) * 0.42;
+        if (d > r) continue;
+        const spd = Math.hypot(v.vx || 0, v.vy || 0);
+        if (spd < 40) {
+          // parked. Ease him out rather than trapping him against it.
+          if (d > 0.001) { p.x = v.x + (dx / d) * r; p.y = v.y + (dy / d) * r; }
+          continue;
+        }
+        if (p.hitCd > 0) continue;
+        p.hitCd = 0.9;
+        const kx = (v.vx || 0) / (spd || 1), ky = (v.vy || 0) / (spd || 1);
+        const force = clamp(spd / 3.2, 40, 260);
+        p.vx = kx * force; p.vy = ky * force;
+        p.x += kx * 14; p.y += ky * 14;
+        p.stumble = 0.75;
+        p.hp = Math.max(0, (p.hp == null ? 100 : p.hp) - clamp(spd / 26, 3, 22));
+        g.shake = Math.max(g.shake, 9);
+        g.pickupFlash = { nm: "hit_by_car", t: 1.2 };
+        if (g.board.on) { g.board.on = false; g.board.spd = 0; }
+      }
+    }
+
     function stepFoot(dt) {
+      trafficVsPlayer(dt);
       if (g.board.on) { stepBoard(dt); return; }
       stepAir(dt);
       const inp = input.current, k = inp.keys;
@@ -5618,6 +5668,11 @@ export default function IronLionLayer004() {
         g.p.anim += dt * (running ? 9 : 6);
         if (Math.abs(g.p.vx) > Math.abs(g.p.vy)) g.p.dir = g.p.vx > 0 ? "right" : "left";
         else g.p.dir = g.p.vy > 0 ? "down" : "up";
+      }
+      if (g.p.stumble > 0) {
+        // carried by the impact for three quarters of a second, then he has the wheel back
+        g.p.x += g.p.vx * dt; g.p.y += g.p.vy * dt;
+        g.p.vx *= 0.90; g.p.vy *= 0.90;
       }
       collideCircle(g.p, 13);
       collideBuildings(g.p, 13, false);
@@ -10712,6 +10767,10 @@ export default function IronLionLayer004() {
     const CAB_W = 200, CAB_H = 160;
     function openCab(which) {
       const g2 = G.current;
+      if (which === "brawl") {
+        g2.cab = { g: "brawl", t: 0, over: 0, score: 0, sel: 0, pick: null, selCd: 0 };
+        g2.paused = true; musicPlay("cab2"); return;
+      }
       g2.cab = which === "front"
         ? { g: "front", t: 0, over: 0, score: 0, turn: 0, fireHeld: 0,
             ang: 45, pow: 55, wind: (Math.random() * 2 - 1) * 12, shell: null,
@@ -10723,6 +10782,75 @@ export default function IronLionLayer004() {
       if (g2.cab.g === "curtain") resetCurtain(g2.cab);
       g2.paused = true;
       musicPlay(which === "front" ? "cab2" : "cab1");
+    }
+    /* HOOK CITY BRAWLER. One button, because the HUD has room for one: TAP is a punch, DOWN
+       and tap is a kick, and holding BACK is a block. That is the 1986 control scheme and it
+       is the only one that fits a phone. */
+    function resetBrawl(c) {
+      c.me = { x: 56, hp: 100, st: "idle", t: 0, face: 1, block: 0 };
+      c.foe = { x: CAB_W - 56, hp: 100, st: "idle", t: 0, face: -1, block: 0, cd: 0.8 };
+      c.msg = null; c.msgT = 0;
+    }
+    function stepBrawl(c, dt, ix, iy, fire) {
+      if (c.pick == null) {
+        // fighter select
+        c.selCd = Math.max(0, (c.selCd || 0) - dt);
+        if (Math.abs(ix) > 0.5 && c.selCd <= 0) {
+          c.sel = (c.sel + (ix > 0 ? 1 : -1) + 8) % 8; c.selCd = 0.22;
+        }
+        if (fire) {
+          c.pick = c.sel;
+          c.foePick = (c.sel + 1 + ((Math.random() * 7) | 0)) % 8;
+          resetBrawl(c);
+        }
+        return;
+      }
+      const me = c.me, foe = c.foe;
+      const gap = foe.x - me.x;
+      me.face = gap >= 0 ? 1 : -1; foe.face = -me.face;
+      const reach = 30;
+      const tick = (f) => { f.t -= dt; if (f.t <= 0 && f.st !== "idle") f.st = "idle"; };
+      tick(me); tick(foe);
+      // holding away from him is a guard
+      me.block = (ix * me.face < -0.4) ? 1 : 0;
+      if (me.st === "idle") {
+        if (fire) {
+          me.st = iy > 0.4 ? "kick" : "punch";
+          me.t = me.st === "kick" ? 0.34 : 0.22;
+          me.hitDone = 0;
+        } else if (!me.block) me.x = clamp(me.x + ix * 62 * dt, 20, CAB_W - 20);
+      }
+      const land = (a, b, dmg) => {
+        if (a.hitDone || a.t > (a.st === "kick" ? 0.17 : 0.11)) return;
+        a.hitDone = 1;
+        if (Math.abs(b.x - a.x) > reach) return;
+        const d = b.block ? dmg * 0.22 : dmg;
+        b.hp = Math.max(0, b.hp - d);
+        b.x = clamp(b.x + a.face * (b.block ? 5 : 13), 20, CAB_W - 20);
+        c.hitFx = { x: (a.x + b.x) / 2, t: 0.18, blocked: b.block };
+        if (!b.block) { b.st = "hurt"; b.t = 0.24; }
+      };
+      if (me.st === "punch" || me.st === "kick") land(me, foe, me.st === "kick" ? 11 : 7);
+      // he presses harder the worse it gets for him
+      foe.cd -= dt * (1 + (100 - foe.hp) / 90);
+      foe.block = 0;
+      if (foe.st === "idle") {
+        if (Math.abs(gap) > reach - 4) foe.x = clamp(foe.x - Math.sign(gap) * 46 * dt, 20, CAB_W - 20);
+        else if (foe.cd <= 0) {
+          foe.cd = 0.55 + Math.random() * 0.7;
+          if (Math.random() < 0.24) { foe.block = 1; foe.st = "guard"; foe.t = 0.4; }
+          else { foe.st = Math.random() < 0.4 ? "kick" : "punch";
+                 foe.t = foe.st === "kick" ? 0.34 : 0.22; foe.hitDone = 0; }
+        }
+      }
+      if (foe.st === "guard") foe.block = 1;
+      if (foe.st === "punch" || foe.st === "kick") land(foe, me, foe.st === "kick" ? 10 : 6);
+      if (c.hitFx) { c.hitFx.t -= dt; if (c.hitFx.t <= 0) c.hitFx = null; }
+      if (foe.hp <= 0 || me.hp <= 0) {
+        c.score += foe.hp <= 0 ? 500 : 0;
+        c.msg = foe.hp <= 0 ? "K.O." : "YOU LOSE";
+        c.over = 2.5;
+      }
     }
     function resetCurtain(c) {
       c.rows = [];
@@ -10748,11 +10876,13 @@ export default function IronLionLayer004() {
         if (c.over <= 0) {
           // a dead game goes back to attract rather than dumping you into the room
           if (c.g === "curtain") { c.score = 0; c.wave = 1; resetCurtain(c); }
+          else if (c.g === "brawl") { c.pick = null; c.msg = null; }
           else { c.me.hp = 3; c.foe.hp = 3; c.shell = null; c.turn = 0; }
         }
         return;
       }
       if (c.g === "curtain") stepCurtain(c, dt, ix, edge);
+      else if (c.g === "brawl") stepBrawl(c, dt, ix, iy, edge);
       else stepFront(c, dt, ix, iy, edge);
     }
     function stepCurtain(c, dt, ix, fire) {
@@ -10848,7 +10978,67 @@ export default function IronLionLayer004() {
       ctx.fillStyle = "#07110c"; ctx.fillRect(0, 0, CAB_W, CAB_H);
       ctx.save();
       ctx.beginPath(); ctx.rect(0, 0, CAB_W, CAB_H); ctx.clip();
-      if (c.g === "curtain") {
+      if (c.g === "brawl") {
+        if (c.pick == null) {
+          ctx.fillStyle = "#c8b070"; ctx.font = "bold 11px monospace";
+          ctx.fillText("SELECT YOUR FIGHTER", 30, 16);
+          for (let i = 0; i < 8; i++) {
+            const bx = 12 + (i % 4) * 46, by = 26 + ((i / 4) | 0) * 58;
+            ctx.fillStyle = i === c.sel ? "#3a4a3a" : "#101a14";
+            ctx.fillRect(bx, by, 42, 52);
+            const im = imgs.current[FIGHTERS[i][0]];
+            if (im && im.width) {
+              const h2 = 44, w2 = h2 * (im.width / im.height);
+              ctx.drawImage(im, bx + 21 - w2 / 2, by + 4, w2, h2);
+            } else { ctx.fillStyle = FIGHTERS[i][3]; ctx.fillRect(bx + 14, by + 10, 14, 34); }
+            ctx.strokeStyle = i === c.sel ? "#f2c24e" : "#2a3a30";
+            ctx.lineWidth = i === c.sel ? 2 : 1;
+            ctx.strokeRect(bx, by, 42, 52);
+          }
+          ctx.fillStyle = "#8fd070"; ctx.font = "8px monospace";
+          const nm = FIGHTERS[c.sel][1] + "  \u00b7  " + FIGHTERS[c.sel][2];
+          ctx.fillText(nm, CAB_W / 2 - nm.length * 2.2, CAB_H - 8);
+        } else {
+          ctx.fillStyle = "#101820"; ctx.fillRect(0, 0, CAB_W, CAB_H - 34);
+          ctx.fillStyle = "#20303c"; ctx.fillRect(0, CAB_H - 34, CAB_W, 34);
+          for (const [f, pick, flip] of [[c.me, c.pick, 0], [c.foe, c.foePick, 1]]) {
+            const im = imgs.current[FIGHTERS[pick][0]];
+            const lunge = (f.st === "punch" || f.st === "kick") ? 6 : 0;
+            const h2 = 62, w2 = im && im.width ? h2 * (im.width / im.height) : 24;
+            const px = f.x + f.face * lunge, py = CAB_H - 30;
+            drawShadow(px, py + 2, w2 * 0.35, 4, 0.3);
+            ctx.save();
+            ctx.translate(px, py);
+            ctx.scale(f.face * (flip ? -1 : 1) * (flip ? -1 : 1) * (f.face < 0 ? 1 : 1), 1);
+            if (f.face < 0) ctx.scale(-1, 1);
+            if (f.st === "hurt") ctx.rotate(f.face * 0.12);
+            if (im && im.width) ctx.drawImage(im, -w2 / 2, -h2, w2, h2);
+            else { ctx.fillStyle = FIGHTERS[pick][3]; ctx.fillRect(-8, -h2, 16, h2); }
+            if (f.block) { ctx.fillStyle = "rgba(150,200,255,0.35)"; ctx.fillRect(-w2 / 2, -h2, w2, h2); }
+            ctx.restore();
+          }
+          if (c.hitFx) {
+            ctx.fillStyle = c.hitFx.blocked ? "rgba(150,200,255,0.9)" : "rgba(242,220,90,0.95)";
+            const r2 = 10 * (c.hitFx.t / 0.18);
+            ctx.beginPath(); ctx.arc(c.hitFx.x, CAB_H - 62, r2 + 3, 0, 6.3); ctx.fill();
+          }
+          for (const [f, x0, dir] of [[c.me, 6, 1], [c.foe, CAB_W - 6, -1]]) {
+            ctx.fillStyle = "#2a2a2a"; ctx.fillRect(Math.min(x0, x0 + dir * 84), 6, 84, 8);
+            ctx.fillStyle = f.hp > 35 ? "#8fd070" : "#e04848";
+            const w3 = 84 * (f.hp / 100);
+            ctx.fillRect(dir > 0 ? x0 : x0 - w3, 6, w3, 8);
+          }
+          ctx.fillStyle = "#c8b070"; ctx.font = "8px monospace";
+          ctx.fillText(FIGHTERS[c.pick][2], 6, 24);
+          ctx.fillText(FIGHTERS[c.foePick][2], CAB_W - 26, 24);
+          if (c.msg) {
+            ctx.fillStyle = "#f2c24e"; ctx.font = "bold 16px monospace";
+            ctx.fillText(c.msg, CAB_W / 2 - c.msg.length * 5, CAB_H / 2);
+          }
+          ctx.fillStyle = "#6a7a70"; ctx.font = "7px monospace";
+          ctx.fillText("TAP PUNCH  DOWN+TAP KICK  BACK BLOCK", 12, CAB_H - 4);
+        }
+      } else if (c.g === "curtain") {
         // a wall of them, one gun, and they never stop coming
         for (const e of c.rows) {
           if (!e.alive) continue;
@@ -10899,11 +11089,13 @@ export default function IronLionLayer004() {
       ctx.strokeStyle = "#2a3a30"; ctx.lineWidth = 2;
       ctx.strokeRect(1, 1, CAB_W - 2, CAB_H - 2);
       ctx.fillStyle = "#c8b070"; ctx.font = "bold 11px monospace";
-      const title = c.g === "curtain" ? "THE IRON CURTAIN" : "THE FRONT";
+      const title = c.g === "curtain" ? "THE IRON CURTAIN"
+                  : c.g === "brawl" ? "HOOK CITY BRAWLER" : "THE FRONT";
       ctx.fillText(title, CAB_W / 2 - title.length * 3.3, -8);
       ctx.fillStyle = "#7a7a70"; ctx.font = "8px monospace";
-      const help = c.g === "curtain" ? "STICK MOVE  ·  STR FIRE  ·  E QUIT"
-                                     : "STICK AIM/POWER  ·  STR FIRE  ·  E QUIT";
+      const help = c.g === "curtain" ? "STICK MOVE  ·  FIRE SHOOT  ·  E QUIT"
+                 : c.g === "brawl" ? "STICK MOVE  ·  FIRE STRIKE  ·  E QUIT"
+                 : "STICK AIM/POWER  ·  FIRE SHOOT  ·  E QUIT";
       ctx.fillText(help, CAB_W / 2 - help.length * 2.2, CAB_H + 16);
       ctx.restore();
     }
@@ -16397,7 +16589,11 @@ export default function IronLionLayer004() {
         MUS.tick = 1;
         // a chase and the boss both override the district; nothing else does
         if (g.boss && (!g.boss.roof || g.roof === g.boss.roof)) musicPlay("boss");
-        else if (policeCars().length && (g.heat || 0) > 0) musicPlay("chase");
+        /* Not inside the venue. A chase happening in the street is not audible over a band
+           twelve feet away, and having the gig cut out because a squad car went past the door
+           was the single most jarring thing in the district. */
+        else if (policeCars().length && (g.heat || 0) > 0 &&
+                 !(g.inside && g.inside.kind === "bandvenue")) musicPlay("chase");
         else {
           /* Two bugs here. `arcade` was in ZONE_MUSIC but zoneOf never returns it, so
              arcade.mp3 could not play -- being in a room is not a district, and it has to be
@@ -19759,7 +19955,8 @@ export default function IronLionLayer004() {
         if (d < bd) { bd = d; best = q; }
       }
       if (!best) return false;
-      openCab(best.t === "ar_cab_thefront" ? "front" : "curtain");
+      openCab(best.t === "ar_cab_thefront" ? "front"
+            : best.t === "ar_cab_brawler" ? "brawl" : "curtain");
       return true;
     };
     G.boardToggleFn = () => {
