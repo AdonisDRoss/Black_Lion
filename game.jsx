@@ -1317,7 +1317,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 338 — TALK FIRST, DRIVE SECOND";
+const BUILD_TAG = "LAYER 339 — YOU ARE WHO YOU PICKED";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -17557,6 +17557,25 @@ export default function IronLionLayer004() {
       } finally { noHeroShadow = false; ctx.restore(); }
     }
     function drawHeroBody() {
+      /* If you are not the Lion, you are not drawn as him. `who` was changing and the sprite
+         was not, so the swap was cosmetic in reverse -- the roster said Rio and the man on
+         screen was still Darius. The ally plates are torsos like the kids', so they go through
+         the same path with the same procedural legs. */
+      if (g.who !== "lion") {
+        const r = rosterOf(g.who);
+        const plate = heroPlate(r);
+        if (plate && imgs.current[plate]) {
+          drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
+          const u = { x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy,
+                      anim: g.p.anim, jit: 1, yt: plate, bang: g.board.ang };
+          if (g.board.on) { if (drawYouth(u, g.board.ang, 0)) return; }
+          else if (drawYouth(u)) return;
+        } else if (r.actor) {
+          const u = { x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim };
+          drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
+          if (drawActorTop(r.actor, 0, u, null)) return;
+        }
+      }
       if (drawSwimmer()) return;      // in the channel you are a head and a wake
       const p = g.p;
       const moving = p.moving > 16;
@@ -19042,7 +19061,9 @@ export default function IronLionLayer004() {
       g.qWasDown = qDown;
       const want = !!input.current.lion;
       // the ability belongs to the suit; out of it he is just a man
-      if (g.plain) { g.lionOn = false; input.current.lion = false; }
+      /* Gated at the source, not just on the button. The key binding sets the same flag, so
+         hiding the control would have left slow time available to anyone who pressed Q. */
+      if (g.plain || !lionPowersOn()) { g.lionOn = false; input.current.lion = false; }
       if (want && !g.plain && g.lion > 2 && !g.inside) {
         if (!g.lionOn) g.lionOn = true;
         g.lion = Math.max(0, g.lion - LION_DRAIN * rdt);
@@ -20384,6 +20405,9 @@ export default function IronLionLayer004() {
       if (k.hp != null) g.p.hp = k.hp;
       if (k.skill != null) g.p.skill = k.skill;
     }
+    /* Hard gate, not just a hidden button -- the key binding and any other path in has to hit
+       the same wall or the power is still there for anyone who finds it. */
+    function lionPowersOn() { return g.who === "lion"; }
     G.swapFn = () => {
       if (!g.inside || g.inside.kind !== "den" || g.floor !== 0) return false;
       // whoever you are actually stood in front of, not "the other one"
@@ -20398,7 +20422,8 @@ export default function IronLionLayer004() {
       const to = best.r;
       g.who = to.id;
       wearKit(g.bench[to.id] || to.kit);
-      if (to.id !== "lion") { g.lionOn = false; g.plain = true; }
+      if (to.id !== "lion") { g.lionOn = false; g.plain = true; g.roof = null; }
+      input.current.lion = false;
       g.pickupFlash = { nm: "playing_as_" + to.id, t: 1.8 };
       return true;
     };
@@ -21980,7 +22005,9 @@ export default function IronLionLayer004() {
       <div style={{ position: "absolute", right: 18, bottom: 22, display: "flex", flexWrap: "wrap-reverse",
         justifyContent: "flex-end", gap: 8, alignItems: "flex-end", maxWidth: "calc(100vw - 200px)",
         pointerEvents: "none", display: hud.title ? "none" : "flex" }}>
-        {btn("LION", hud.lionOn ? "ON" : hud.lion > 4 ? "slow time" : "empty",
+        {/* The Lion's, and only his. Rio has smoke and Sho has his hands; handing either of
+             them slow time would make the swap a costume change. */}
+        {hud.who === "lion" && btn("LION", hud.lionOn ? "ON" : hud.lion > 4 ? "slow time" : "empty",
           () => { input.current.lion = !input.current.lion; }, null, hud.lionOn,
           (hud.mode !== "foot") ? 56 : null)}
         {btn(hud.who === "rio" ? (hud.hero ? "OFF" : "SUIT") : (hud.plain ? "MASK" : "OFF"),
