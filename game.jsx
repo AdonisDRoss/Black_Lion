@@ -178,6 +178,28 @@ const CARSTAT = {
   kenny_truck:  { s: 0.84, a: 0.80, g: 0.78 },
 };
 const carStat = (c) => (c && c.m && CARSTAT[c.m.k]) || { s: 1, a: 1, g: 1 };
+/* Makes and models. Five marques, because a city with one manufacturer is a catalogue and a
+   car you can name is a car you remember stealing. VANTRY is cheap, HOLLOWAY is what the city
+   buys in bulk, MARROW is the one with a performance line, OSSIAN builds trucks, KESTREL makes
+   the bikes. The three hero cars keep the names you gave them. */
+const CARNAME = {
+  comp_hatch: "VANTRY SPRITE", comp_hatch2: "VANTRY SPRITE GL",
+  taxi: "HOLLOWAY CHECKER", sedan_tan: "HOLLOWAY REGENT",
+  sedan_grey: "HOLLOWAY REGENT", sedan_orange: "HOLLOWAY REGENT",
+  sedan_brown: "HOLLOWAY REGENT", wagon_teal: "HOLLOWAY ESTATE",
+  sedan_dred: "MARROW CONSUL", sedan_blue: "MARROW CONSUL",
+  sedan_maroon: "MARROW CONSUL LX", sedan_red: "MARROW CONSUL SS",
+  cruiser: "MARROW PATROLLER",
+  coupe_green: "IRON MONTE", coupe_dgreen: "IRON MONTE",
+  pickup: "OSSIAN HAULER", bus: "RAVEN HOOK TRANSIT",
+  sho_car: "SHO STOPPER", kenny_truck: "KO JEEP",
+};
+const MOTONAME = {
+  moto: "KESTREL 500", moto_black: "KESTREL 500 NOIR", moto_red: "KESTREL 750",
+  chopper: "WOLF IRON", scooter: "VANTRY PONY",
+};
+const vehName = (k) => CARNAME[k] || MOTONAME[k]
+  || (k || "CAR").toUpperCase().replace(/_/g, " ");
 /* Two named vehicles. They sit in CARM so every system that already knows how to draw, damage,
    park and steal a car handles them with no special case. */
 const NAMED_CARS = [
@@ -1334,7 +1356,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 352 — JAB, UPPERCUT, CUT";
+const BUILD_TAG = "LAYER 353 — THE CHARGE JUMPS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -17862,7 +17884,8 @@ export default function IronLionLayer004() {
         if (plate && imgs.current[plate]) {
           drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
           const u = { x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1,
-                      yt: plate, bang: g.board.ang, tall: r.id === "sho" ? 1.42 : 1,
+                      yt: plate, bang: g.board.ang,
+                      tall: r.id === "sho" ? 1.42 : r.id === "kenny" ? 1.46 : 1,
                       wpn: g.p.holstered ? null : g.p.wpn,
                       // a bat carried at rest looked like a plank glued to his hip
                       swing: Math.max(g.p.atk || 0, g.p.punT || 0),
@@ -19904,7 +19927,7 @@ export default function IronLionLayer004() {
         if (g.onFwy && !g.onRamp && inVehicle()) { if (g.mode === "car") drawCar(); else drawMoto(); }
       }
       if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); }
-      drawSmoke(); drawShock(); drawStars(); drawFx();
+      drawSmoke(); drawShock(); drawArcs(); drawStars(); drawFx();
       /* Anyone in the fight, not only gang crews -- police, and any civilian who has been hit.
          A bar over one man and nothing over the next reads as a bug rather than a rule. */
       for (const p2 of (Array.isArray(g.peds) ? g.peds : []))
@@ -19974,6 +19997,9 @@ export default function IronLionLayer004() {
             (Math.hypot(g.p.x - g.car.x, g.p.y - g.car.y) < 170 || Math.hypot(g.p.x - g.moto.x, g.p.y - g.moto.y) < 150);
           setHud({
             mode: g.mode, mph, place: crossStreet(e.x, e.y), dCarDbg, dMotoDbg,
+            vehName: inVehicle() && activeVeh() && activeVeh().m
+              ? vehName(activeVeh().m.k)
+              : g.mode === "moto" ? vehName((g.moto && g.moto.k) || "moto") : null,
             tick: (hudTick = (hudTick + 1) % 1000), hudCrash: null, mus: musicState(),
             dmg: inVehicle() && activeVeh() ? Math.round((activeVeh().dmg || 0) * 100) : null,
             shop: !!nearBodyShop(), inShop: !!g.inShop,
@@ -20579,11 +20605,27 @@ export default function IronLionLayer004() {
         /* `down` and `stun` were fields I invented on a ped -- nothing in updatePeds knew
             about them, so the tazer neither stopped anybody nor read as a hit. `stunT` is
             ours and the ped loop honours it. */
-        best.stunT = 3.4; best.vx = 0; best.vy = 0;
-        best.say = 1.4; best.line = "AAGH!";
-        if (best.hp != null) best.hp -= 2;
-        best.zap = 0.9;                       // he crackles for a second, so the hit reads
-        pushFx("ring", best.x, best.y, 0);
+        /* It jumps. One man is a stun gun; a charge that walks through a group is a reason to
+           carry it -- and it is still not lethal, which is the line Rio does not cross.
+           Three links max, each shorter than the last, and nobody is hit twice. */
+        const chainHit = [];
+        let node = best;
+        for (let link = 0; link < 3 && node; link++) {
+          node.stunT = 2.0; node.vx = 0; node.vy = 0;
+          node.zap = 1.0;
+          node.say = 1.2; node.line = link ? "NGH!" : "AAGH!";
+          if (node.hp != null) node.hp -= 2;
+          chainHit.push(node);
+          pushFx("ring", node.x, node.y, 0);
+          let next = null, nd = 96 - link * 22;
+          for (const t of (Array.isArray(g.peds) ? g.peds : [])) {
+            if (!t || !Number.isFinite(t.x) || chainHit.indexOf(t) >= 0) continue;
+            const d2 = Math.hypot(t.x - node.x, t.y - node.y);
+            if (d2 < nd) { nd = d2; next = t; }
+          }
+          if (next) g.arcs = (g.arcs || []).concat([{ ax: node.x, ay: node.y, bx: next.x, by: next.y, t: 0.3 }]);
+          node = next;
+        }
       }
       return true;
     }
@@ -20641,7 +20683,8 @@ export default function IronLionLayer004() {
         if (im && im.width) {
           /* Sho stands a head taller than Rio -- he is nearer the Lion's build, and at this
              size height is most of what separates two men in dark jackets. */
-          const h = sp.r.id === "sho" ? 38 : 28, w = h * (im.width / im.height);
+          const h = sp.r.id === "sho" ? 38 : sp.r.id === "kenny" ? 40 : 28,
+                w = h * (im.width / im.height);
           // and only a man who is carrying a board is drawn stood on one
           const dk = (sp.r.kit && sp.r.kit.board) ? imgs.current.sk_deck : null;
           if (dk && dk.width) ctx.drawImage(dk, sp.x - 17, sp.y + 8, 34, 14);
@@ -20749,6 +20792,27 @@ export default function IronLionLayer004() {
           ctx.arc(f.x, f.y, 30, f.ang - 1.1 + k * 1.6, f.ang + 0.5 + k * 1.6);
           ctx.stroke();
         }
+      }
+    }
+    // the links between the men it jumped between, drawn like the beam itself
+    function drawArcs(dt) {
+      const list = g.arcs || [];
+      for (let i = list.length - 1; i >= 0; i--) {
+        const a = list[i];
+        a.t -= 1 / 60;
+        if (a.t <= 0) { list.splice(i, 1); continue; }
+        if (![a.ax, a.ay, a.bx, a.by].every(Number.isFinite)) { list.splice(i, 1); continue; }
+        const dx = a.bx - a.ax, dy = a.by - a.ay, L = Math.hypot(dx, dy) || 1;
+        const nx = -dy / L, ny = dx / L;
+        ctx.strokeStyle = `rgba(150,215,255,${clamp(a.t / 0.3, 0, 1)})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(a.ax, a.ay);
+        for (let k = 1; k <= 5; k++) {
+          const f = k / 5;
+          const j = k === 5 ? 0 : Math.sin(k * 9.1 + g.t * 55) * 7;
+          ctx.lineTo(a.ax + dx * f + nx * j, a.ay + dy * f + ny * j);
+        }
+        ctx.stroke();
       }
     }
     function drawShock() {
@@ -20933,7 +20997,29 @@ export default function IronLionLayer004() {
          being DRAWN, so if you swapped on a frame where the search had not run -- or the crew
          had wandered out of the bay and back -- the reference was stale or missing and the real
          Sho carried on standing there next to himself. Whoever you are talking to IS him. */
-      if (best.existing) g.shoNpc = nearestCrewTo(best.x, best.y);
+      /* Skipping him in the draw was not enough -- he is reachable from more than one path and
+         one of them kept putting him on screen. So he is REMOVED from the crew for as long as
+         you are him, and put back where he was when you swap away. Nothing can draw a man who
+         is not in the list. */
+      if (best.existing) {
+        const m2 = nearestCrewTo(best.x, best.y);
+        if (m2) {
+          for (const cr of (g.crews || [])) {
+            const ix = (cr.members || []).indexOf(m2);
+            if (ix < 0) continue;
+            cr.members.splice(ix, 1);
+            g.shoHidden = { cr, m: m2 };
+            break;
+          }
+        }
+      }
+      // and whoever you were, if he was hidden, comes back
+      if (g.shoHidden && to.id !== "sho") {
+        const h = g.shoHidden;
+        h.m.x = g.p.x; h.m.y = g.p.y;
+        if (h.cr.members.indexOf(h.m) < 0) h.cr.members.push(h.m);
+        g.shoHidden = null;
+      }
       g.who = to.id;
       wearKit(g.bench[to.id] || to.kit);
       if (to.id !== "lion") { g.lionOn = false; g.plain = true; g.roof = null; }
@@ -21431,9 +21517,11 @@ export default function IronLionLayer004() {
         <div style={{ marginTop: 10, fontSize: 12, background: "rgba(10,11,14,0.7)", border: "1px solid rgba(217,164,65,0.3)", padding: "6px 9px" }}>
           <div style={{ letterSpacing: "0.06em" }}>{hud.place}</div>
           <div style={{ fontSize: 10, opacity: 0.7, marginTop: 3 }}>
-            {hud.mode === "car" ? `${hud.mph} MPH · GRAND NATIONAL`
-              : hud.mode === "civ" ? `${hud.mph} MPH · THE BEIGE CAR`
-              : hud.mode === "moto" ? `${hud.mph} MPH · MOTORCYCLE` : "ON FOOT"}
+            {/* "GRAND NATIONAL" was hardcoded, so every car in the city reported the same
+                 name whatever you had just stolen. */}
+            {hud.mode === "car" ? `${hud.mph} MPH · ${hud.vehName || "CAR"}`
+              : hud.mode === "civ" ? `${hud.mph} MPH · ${hud.vehName || "SEDAN"}`
+              : hud.mode === "moto" ? `${hud.mph} MPH · ${hud.vehName || "MOTORCYCLE"}` : "ON FOOT"}
             {typeof hud.peds === "number" ? ` · ${hud.peds} CIVILIANS` : ""}
           </div>
           {/* always on, in every mode -- gating this to foot meant it vanished at exactly the
