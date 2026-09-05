@@ -1319,7 +1319,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 345 — SHO GOES UP";
+const BUILD_TAG = "LAYER 346 — ONE SHO, AND HE LEAVES THE GROUND";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5807,6 +5807,7 @@ export default function IronLionLayer004() {
       stepFlyKick(dt);
       stepShoJump(dt);
       stepStars(dt);
+      stepBoardSpin(dt);
       if (g.board.on) { stepBoard(dt); return; }
       stepAir(dt);
       const inp = input.current, k = inp.keys;
@@ -17686,15 +17687,26 @@ export default function IronLionLayer004() {
         if (g.board.on) drawHeroOnBoard(); else drawHeroBody();
       } finally { noHeroShadow = false; ctx.restore(); }
     }
+    /* An ollie, not a fade -- he grows, the shadow shrinks and stays on the ground he left,
+       and a gap opens between them. Wrapped AROUND the whole body draw rather than opened
+       inline: the body has half a dozen early returns, and a transform opened inside it leaks
+       out of every one of them and unbalances the canvas for the rest of the frame. */
     function drawHeroBody() {
+      if (!(g.p.jumpT > 0)) { drawHeroBodyGrounded(); return; }
+      const dur = g.p.jumpDur || 0.62;
+      const f = Math.sin((1 - clamp(g.p.jumpT / dur, 0, 1)) * Math.PI);
+      drawShadow(g.p.x, g.p.y + 3, 12 * (1 - f * 0.55), 5 * (1 - f * 0.55), 0.34 * (1 - f * 0.5));
+      ctx.save();
+      ctx.translate(g.p.x + f * 9, g.p.y + f * 9);
+      ctx.scale(1 + f * 0.55, 1 + f * 0.55);
+      ctx.translate(-g.p.x, -g.p.y);
+      try { drawHeroBodyGrounded(); } finally { ctx.restore(); }
+    }
+    function drawHeroBodyGrounded() {
       /* If you are not the Lion, you are not drawn as him. `who` was changing and the sprite
          was not, so the swap was cosmetic in reverse -- the roster said Rio and the man on
          screen was still Darius. The ally plates are torsos like the kids', so they go through
          the same path with the same procedural legs. */
-      if (g.p.jumpT > 0) {
-        const f = Math.sin((1 - clamp(g.p.jumpT / 0.62, 0, 1)) * Math.PI);
-        drawShadow(g.p.x, g.p.y + 3, 12 * (1 - f * 0.45), 5 * (1 - f * 0.45), 0.34 * (1 - f * 0.4));
-      }
       if (g.p.kick > 0) {
         // same four-part read as the ollie: bigger, shadow smaller and left behind, gap opens
         const f = Math.sin((1 - clamp(g.p.kick / 0.42, 0, 1)) * Math.PI);
@@ -17711,12 +17723,15 @@ export default function IronLionLayer004() {
                       yt: plate, bang: g.board.ang, tall: r.id === "sho" ? 1.42 : 1,
                       wpn: g.p.holstered ? null : g.p.wpn };
           if (g.board.on) {
-            /* Same offset the NPC skaters use: down to the feet along his local axis, which in
-               a sideways stance runs across the board, and a little forward of centre. */
+            /* The deck is drawn at his position, so the RIDER is what moves. His feet sit a
+               little over half his height down his own local axis, and rotate(bang) sends that
+               axis to (-sin, cos) -- so shifting him back along it puts the feet exactly on the
+               board and keeps them there through every turn. Sideways is rotate(bang) itself,
+               which is perpendicular to the direction of travel. */
             const fh = 30 * 0.82 * (u.tall || 1) * 0.55;
-            u.x = g.p.x - Math.sin(g.board.ang) * fh * -1 + Math.cos(g.board.ang) * 0;
-            u.y = g.p.y - Math.cos(g.board.ang) * fh * -1;
-            if (drawYouth(u, g.board.ang, 0)) return;
+            u.x = g.p.x + Math.sin(g.board.ang) * fh;
+            u.y = g.p.y - Math.cos(g.board.ang) * fh;
+            if (drawYouth(u, g.board.ang + (g.p.spinT > 0 ? g.p.spinA : 0), 0)) return;
           }
           else if (drawYouth(u)) return;
         } else if (r.actor) {
@@ -19646,6 +19661,9 @@ export default function IronLionLayer004() {
       if (g.detectives && !g.inside) for (const u of g.detectives.units) drawList.push([u.y, 6, u, 0]);
       for (const cr of g.crews) if (cr.indoor ? (cr.indoor === g.inside && cr.indoorFloor === g.floor) : !g.inside) for (const m of cr.members) {
         if (m.x < view.x0 || m.x > view.x1 || m.y < view.y0 || m.y > view.y1) continue;
+        /* When you ARE Sho, the man in the den who is Sho stops being drawn -- otherwise he
+           stands there watching himself walk off, which is the second copy. */
+        if (g.who === "sho" && m === g.shoNpc) continue;
         m.gang = cr.gang;      // the only place the crew is in scope; the draw needs the faction
         m.wing = cr.wing;      // ...and the Family's wing, which decides how he is dressed
         drawList.push([m.y, 3, m, cr.state]);
@@ -20553,6 +20571,7 @@ export default function IronLionLayer004() {
              do not it hangs on empty floor. One Sho either way, which matters more than having
              a figure to look at. */
           const m = denCrew[0];
+          if (m) g.shoNpc = m;                 // remembered, so the draw can hide him
           return { r, existing: true,
                    x: m ? m.x : bay.x0 + W2 * 0.62, y: m ? m.y : bay.y1 - 22 };
         }
@@ -20676,10 +20695,10 @@ export default function IronLionLayer004() {
     }
     function shoJump() {
       if (g.who !== "sho" || (g.p.jumpT || 0) > 0 || g.inside || inVehicle()) return false;
-      if (g.roof) { g.p.jumpT = 0.5; g.p.jumpTo = null; return true; }
+      if (g.roof) { g.p.jumpT = 0.5; g.p.jumpDur = 0.5; g.p.jumpTo = null; return true; }
       const b = buildingUnderFoot();
       if (!b) { g.pickupFlash = { nm: "nothing_to_jump_to", t: 1.1 }; return false; }
-      g.p.jumpT = 0.62; g.p.jumpTo = b;
+      g.p.jumpT = 0.62; g.p.jumpDur = 0.62; g.p.jumpTo = b;
       return true;
     }
     function stepShoJump(dt) {
@@ -20750,6 +20769,35 @@ export default function IronLionLayer004() {
         ctx.restore();
       }
     }
+    /* Rio's spin. Only on the board, because it IS the board -- he whips the deck round and
+       takes the legs out of anyone standing close. His answer to being surrounded, and it
+       costs him all his speed, so it is a choice rather than a button you hold. */
+    function boardSpin() {
+      if (g.who !== "rio" || !g.board.on || (g.p.spinT || 0) > 0) return false;
+      if ((g.p.spinCd || 0) > 0) return false;
+      g.p.spinT = 0.55; g.p.spinCd = 1.4; g.p.spinA = 0; g.p.spinHit = [];
+      return true;
+    }
+    function stepBoardSpin(dt) {
+      g.p.spinCd = Math.max(0, (g.p.spinCd || 0) - dt);
+      if (!(g.p.spinT > 0)) return;
+      g.p.spinT -= dt;
+      g.p.spinA = (g.p.spinA || 0) + dt * 22;
+      g.board.spd *= 0.90;
+      for (const t of (Array.isArray(g.peds) ? g.peds : [])) {
+        if (!t || t.stunT > 0 || !Number.isFinite(t.x)) continue;
+        if (g.p.spinHit.indexOf(t) >= 0) continue;
+        if (Math.hypot(t.x - g.p.x, t.y - g.p.y) > 44) continue;
+        g.p.spinHit.push(t);
+        const a = Math.atan2(t.y - g.p.y, t.x - g.p.x);
+        t.stunT = 3.0; t.knock = 0.35;
+        t.vx = Math.cos(a) * 210; t.vy = Math.sin(a) * 210;
+        t.say = 1.2; t.line = "WHOA!";
+        g.shake = Math.max(g.shake, 5);
+      }
+      if (g.p.spinT <= 0) { g.p.spinT = 0; g.p.spinA = 0; }
+    }
+    G.spinFn = () => { if (g.who === "rio") safely("spin", boardSpin); };
     G.starFn = () => { if (g.who === "sho") safely("star", throwStar); };
     G.jumpFn = () => { if (g.who === "sho") safely("jump", shoJump); };
     G.hookOrJumpFn = () => (g.who === "sho" ? (G.jumpFn(), true) : false);
@@ -22391,6 +22439,8 @@ export default function IronLionLayer004() {
               () => { G.starFn && G.starFn(); }, null)}
             {!hud.cab && hud.who === "sho" && btn("KICK", "fly kick",
               () => { G.kickFn && G.kickFn(); }, null)}
+            {!hud.cab && hud.who === "rio" && hud.board && btn("SPIN", "sweep",
+              () => { G.spinFn && G.spinFn(); }, null)}
             {!hud.cab && hud.who === "rio" && btn("TAZE", "stun",
               () => { G.tazeFn && G.tazeFn(); }, null)}
             {!hud.cab && hud.who === "rio" && btn("SMOKE", (hud.smokeStock || 0) + " left",
