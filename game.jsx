@@ -1382,7 +1382,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 362 — THE PASS HAS LAW";
+const BUILD_TAG = "LAYER 363 — THE CONCUSSIVE BLOW";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -3809,7 +3809,8 @@ function makeFloor(b, f, rnd) {
         // the kit itself, on the riser. 1.62:1 to match the plate rather than squash it.
         /* Turned round. The kit was drawn facing the room, which put the drummer in front of
            his own snare looking at the audience -- he sits BEHIND it facing the band. */
-        P(cx - 26, sy + 6, 52, 32, "vn_drumkit_flip");
+        // facing south, at the crowd, so the kit is the plate as drawn rather than the flip
+        P(cx - 26, sy + 6, 52, 32, "vn_drumkit");
         P(q2.x0 + pad + 4, sy + 8, 26, 40, "vn_pastack");
         P(q2.x1 - pad - 30, sy + 8, 26, 40, "vn_pastack");
         P(cx - 62, sy + 34, 24, 18, "vn_amp_stack");
@@ -5206,8 +5207,13 @@ export default function IronLionLayer004() {
        once at load like ROTATE_CW rather than special-cased at each of the eight draw sites,
        so traffic, parked cars, the crime car and the one you are driving all agree.
        If another model turns up backwards, it is one string here. */
+    /* Measured, not guessed. I decoded every embedded car plate and compared the centroid of
+       its dark glass against the centroid of the body: on a nose-up car the glasshouse sits at
+       or above centre, and `pickup` came back at +24 -- its cabin is in the BOTTOM half, so the
+       plate is nose-down. Every other embedded model reads consistent. comp_hatch and
+       comp_hatch2 are hosted files and cannot be measured from here. */
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
-                        "vn_drumkit_flip"];
+                        "pickup", "vn_drumkit_flip"];
     const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP };
     const keys = Object.keys(all);
     let left = keys.length;
@@ -5961,6 +5967,7 @@ export default function IronLionLayer004() {
       stepBoardSpin(dt);
       stepKenny(dt);
       stepTurbo(dt);
+      stepBlast(dt);
       stepFx(dt);
       if (g.board.on) { stepBoard(dt); return; }
       stepAir(dt);
@@ -20490,7 +20497,7 @@ export default function IronLionLayer004() {
         if (g.onFwy && !g.onRamp && inVehicle()) { if (g.mode === "car") drawCar(); else drawMoto(); }
       }
       if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); }
-      drawGuards(); drawDeputies();
+      drawGuards(); drawDeputies(); drawBlast();
       drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
       /* Anyone in the fight, not only gang crews -- police, and any civilian who has been hit.
          A bar over one man and nothing over the next reads as a bug rather than a rule. */
@@ -20577,7 +20584,7 @@ export default function IronLionLayer004() {
             turbo: (() => { const v = inVehicle() ? activeVeh() : null;
                             const k = v && ((v.m && v.m.k) || (v.skin && v.skin.k) || v.k);
                             return k === "sho_car"; })(),
-            turboCd: g.turboCd || 0, turboOn: g.turboT || 0,
+            turboCd: g.turboCd || 0, turboOn: g.turboT || 0, blowCd: g.p.blowCd || 0,
             board: !!g.board.on, hasBoard: !!g.board.has, atRack: atRack(),
             cab: g.cab ? g.cab.g : null,
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
@@ -21839,6 +21846,62 @@ export default function IronLionLayer004() {
       g.p.punT = Math.max(0, (g.p.punT || 0) - dt);
       if (g.t - (g.p.punLast || -9) > 0.75) g.p.chain = 0;
     }
+    /* THE CONCUSSIVE BLOW. Kenny's problem is that everything in this city can shoot him from
+       across a street and he has to walk. This is his answer: he throws the air itself. A cone
+       out to 260 units, heavy knockback, three seconds down -- and it does NOT touch the other
+       heroes, because a man who cannot tell his own people from a target is not a hero.
+       Expensive in stamina so it cannot replace walking up to someone. */
+    function concussiveBlow() {
+      if (g.who !== "kenny" || (g.p.blowCd || 0) > 0) return false;
+      if (g.p.stamina < 34) { g.pickupFlash = { nm: "not_enough_left", t: 1.1 }; return false; }
+      g.p.stamina -= 34;
+      g.p.blowCd = 4.5;
+      g.p.punT = 0.34; g.p.punDur = 0.34; g.p.punMove = "upper";
+      let ang = Math.atan2(g.p.vy || 0, g.p.vx || 1);
+      if (!Number.isFinite(ang)) ang = 0;
+      g.blast = { x: g.p.x, y: g.p.y, ang, t: 0.45 };
+      for (const t of combatTargets()) {
+        if (!t || !Number.isFinite(t.x)) continue;
+        if (t.ally) continue;                        // never his own
+        const d = Math.hypot(t.x - g.p.x, t.y - g.p.y);
+        if (d > 260) continue;
+        let da = Math.atan2(t.y - g.p.y, t.x - g.p.x) - ang;
+        while (da > Math.PI) da -= Math.PI * 2;
+        while (da < -Math.PI) da += Math.PI * 2;
+        if (Math.abs(da) > 0.7) continue;            // a cone, not a bomb
+        const a2 = Math.atan2(t.y - g.p.y, t.x - g.p.x);
+        t.stunT = 3.0; t.knock = 0.45;
+        t.vx = Math.cos(a2) * 380; t.vy = Math.sin(a2) * 380;
+        if (t.hp != null) t.hp -= 2;
+        t.say = 1.3; t.line = "!!";
+      }
+      g.shake = Math.max(g.shake, 12);
+      return true;
+    }
+    function stepBlast(dt) {
+      g.p.blowCd = Math.max(0, (g.p.blowCd || 0) - dt);
+      if (g.blast) { g.blast.t -= dt; if (g.blast.t <= 0) g.blast = null; }
+    }
+    /* Drawn as rings of compressed air travelling out along the cone -- three arcs, widening
+       and fading, so it reads as a shockwave rather than a muzzle flash. */
+    function drawBlast() {
+      const bl = g.blast; if (!bl || !Number.isFinite(bl.x)) return;
+      const k = 1 - bl.t / 0.45;
+      ctx.save();
+      ctx.translate(bl.x, bl.y);
+      ctx.rotate(bl.ang);
+      for (let n = 0; n < 3; n++) {
+        const f = clamp(k - n * 0.16, 0, 1);
+        if (f <= 0) continue;
+        ctx.strokeStyle = `rgba(255,232,170,${(1 - f) * 0.85})`;
+        ctx.lineWidth = 6 * (1 - f) + 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, 24 + f * 240, -0.7, 0.7);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    G.blowFn = () => { if (g.who === "kenny") safely("blow", concussiveBlow); };
     G.punchFn = () => { if (g.who === "kenny") safely("punch", kennyPunch); };
     /* The Sho Stopper's boost. Fifteen percent over its already-highest top speed for three
        seconds, then twelve seconds of nothing -- short enough to be a decision, long enough
@@ -23502,6 +23565,8 @@ export default function IronLionLayer004() {
           <>
             {!hud.cab && hud.turbo && btn("BOOST", (hud.turboCd || 0) > 0 ? Math.ceil(hud.turboCd) + "s" : "ready",
               () => { G.turboFn && G.turboFn(); }, null, (hud.turboOn || 0) > 0)}
+            {!hud.cab && hud.who === "kenny" && btn("BLOW", (hud.blowCd || 0) > 0 ? Math.ceil(hud.blowCd) + "s" : "shockwave",
+              () => { G.blowFn && G.blowFn(); }, null)}
             {!hud.cab && hud.who === "kenny" && btn("HIT", (hud.chain || 0) === 3 ? "uppercut" : "combo " + ((hud.chain || 0) + 1),
               () => { G.punchFn && G.punchFn(); }, null)}
             {!hud.cab && hud.who === "sho" && btn("STAR", (hud.stars || 0) + " left",
