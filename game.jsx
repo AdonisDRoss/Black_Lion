@@ -180,11 +180,16 @@ const CARSTAT = {
   ef_car:       { s: 1.06, a: 1.02, g: 0.92 },
   hp_car:       { s: 1.02, a: 0.98, g: 1.00 },
   hp_truck:     { s: 0.86, a: 0.86, g: 1.06 },   // chains and a plough: slow, and it grips
+  vh_kuru_bike: { s: 1.34, a: 1.30, g: 1.10 },   // fastest thing on the map, and no protection
+  vh_mvp_atv:   { s: 0.98, a: 1.12, g: 1.14 },   // goes anywhere, including where roads are not
+  vh_mons_rod:  { s: 1.22, a: 1.18, g: 0.82 },   // all engine, no chassis
+  vh_drive_van: { s: 0.80, a: 0.74, g: 0.80 },   // he is not running from anybody
 };
 /* Toughness and thirst. The three named cars are meant to survive a chase, so they take
    roughly half the damage of a stolen sedan -- and they pay for it at the pump, at double the
    rate, which is the only lever that makes a fuel gauge mean anything. */
-const CARTOUGH = { sho_car: 0.5, kenny_truck: 0.42, ef_car: 0.75 };
+const CARTOUGH = { sho_car: 0.5, kenny_truck: 0.42, ef_car: 0.75,
+  vh_kuru_bike: 1.6, vh_mvp_atv: 0.7, vh_mons_rod: 0.9, vh_drive_van: 0.34 };
 const CARTHIRST = { sho_car: 2.0, kenny_truck: 2.0, ef_car: 1.3 };
 const carTough = (c) => (c && c.m && CARTOUGH[c.m.k]) || 1;
 const carThirst = (c) => (c && c.m && CARTHIRST[c.m.k]) || 1;
@@ -205,6 +210,8 @@ const CARNAME = {
   pickup: "OSSIAN HAULER", bus: "RAVEN HOOK TRANSIT",
   sho_car: "SHO STOPPER", kenny_truck: "KO JEEP", ef_car: "HOLLOWAY SENTINEL",
   hp_car: "MARROW PATROLLER", hp_truck: "OSSIAN PLOUGH",
+  vh_kuru_bike: "KURU'S RACER", vh_mvp_atv: "MVP'S QUAD",
+  vh_mons_rod: "THE MONSTRUO ROD", vh_drive_van: "MASTERDRIVE VAN",
 };
 const MOTONAME = {
   moto: "KESTREL 500", moto_black: "KESTREL 500 NOIR", moto_red: "KESTREL 750",
@@ -220,6 +227,10 @@ const NAMED_CARS = [
   { k: "ef_car", len: 116, w: 52 },
   { k: "hp_car", len: 118, w: 52 },
   { k: "hp_truck", len: 112, w: 58 },
+  { k: "vh_kuru_bike", len: 96, w: 34 },
+  { k: "vh_mvp_atv", len: 92, w: 62 },
+  { k: "vh_mons_rod", len: 112, w: 58 },
+  { k: "vh_drive_van", len: 122, w: 66 },
 ];
 const CARM = [{"k": "comp_hatch", "len": 88, "w": 49}, {"k": "comp_hatch2", "len": 88, "w": 49}, {"k": "taxi", "len": 106, "w": 51.3}, {"k": "sedan_tan", "len": 104, "w": 55.4}, {"k": "sedan_grey", "len": 104, "w": 52.8}, {"k": "sedan_dred", "len": 104, "w": 45.3}, {"k": "sedan_maroon", "len": 106, "w": 52.1}, {"k": "coupe_green", "len": 102, "w": 39.5}, {"k": "coupe_dgreen", "len": 102, "w": 38.7}, {"k": "sedan_blue", "len": 106, "w": 50.4}, {"k": "sedan_red", "len": 106, "w": 50.4}, {"k": "pickup", "len": 114, "w": 58.8}, {"k": "sedan_orange", "len": 105, "w": 50.8}, {"k": "wagon_teal", "len": 107, "w": 53.5}, {"k": "sedan_brown", "len": 105, "w": 47.4}, {"k": "cruiser", "len": 108, "w": 45.3}, {"k": "bus", "len": 244, "w": 66, "bus": true}];
 const KA = {
@@ -1039,6 +1050,83 @@ for (const k of ["ef_guard", "ef_guard_b", "ef_captain", "mt_barrier",
   CVX["cv2_" + k] = "assets/civic/" + k + ".png";
 YT.yt_tko = "assets/youth/yt_tko.png";
 YT.yt_tko_hero = "assets/youth/yt_tko_hero.png";
+/* THE ROGUES. Four of them, two looks each -- out of costume and in it, the same pair every
+   hero carries. They go through the identical torso-plus-procedural-legs path, so limbs,
+   the swinging arm and the held weapon all work on them with nothing written per villain.
+   Ages are 1986. */
+const VILLAINS = [
+  { id: "voz", name: "LA VOZ", age: 38, yt: "vil_voz", hero: "vil_voz_hero", hp: 14,
+    alone: true, speaksFor: "monstruo",
+    note: "Says what El Monstruo wants. Nobody can prove she ever asks him." },
+  { id: "mvp", name: "MVP", age: 29, yt: "vil_mvp", hero: "vil_mvp_hero", hp: 22, alone: true,
+    note: "Never made it past a practice squad. Still wears the pads." },
+  { id: "kuru", name: "KURU", age: 26, yt: "vil_kuru", hero: "vil_kuru_hero", hp: 16,
+    note: "Blade, silence, and no interest in explaining himself." },
+  { id: "drive", name: "MASTERDRIVE", age: 67, yt: "vil_drive", hero: "vil_drive_hero", hp: 30,
+    note: "An old engineer in a rig he built. Slowest and hardest thing in the city." },
+  { id: "monstruo", name: "EL MONSTRUO", age: 41, yt: "vil_monstruo", hero: "vil_monstruo_hero", hp: 20,
+    note: "Never speaks. Nobody has decided whether that is the act." },
+];
+/* One vehicle each, except MVP whose ATV is the only thing he owns. All four checked nose-up
+   before wiring -- read off the plate, not assumed, because six vehicles in this project have
+   arrived pointing the wrong way. */
+const VIL_CARS = [
+  { k: "vh_kuru_bike", len: 96, w: 34, who: "kuru" },
+  { k: "vh_mvp_atv", len: 92, w: 62, who: "mvp" },
+  { k: "vh_mons_rod", len: 112, w: 58, who: "monstruo" },
+  { k: "vh_drive_van", len: 122, w: 66, who: "drive" },
+];
+/* HENCHMEN. Each rogue draws from one pool; MVP has none, because a man whose career ended
+   when he killed somebody on a field does not have people. They are gang types, so a fight
+   with a rogue is a fight with his outfit rather than with one man. */
+const HENCH = {
+  kuru: { pool: "ninja", n: 8, hp: 9, wpn: "longsword",
+          note: "Chinese gang. Their top assassin, and they lend him men." },
+  drive: { pool: "cyber", n: 4, hp: 14, wpn: "laser",
+           note: "Machines he built. Sacked for selling the designs abroad; he kept the tools." },
+  monstruo: { pool: "mime", n: 8, hp: 8, wpn: "tommy",
+              note: "Nobody knows where he found them. Nobody has asked twice." },
+};
+const HENCH_POOL = {
+  ninja: ["hx_ninja_1", "hx_ninja_2", "hx_ninja_3", "hx_ninja_4",
+          "hx_ninja_5", "hx_ninja_6", "hx_ninja_7", "hx_ninja_8"],
+  cyber: ["hx_csu_1", "hx_csu_2", "hx_a9_1", "hx_a9_2"],
+  mime:  ["hx_mime_1", "hx_mime_2", "hx_mime_3", "hx_mime_4",
+          "hx_mime_5", "hx_mime_6", "hx_mime_7", "hx_mime_8"],
+};
+const VIL = {};
+for (const pool of Object.values(HENCH_POOL))
+  for (const k of pool) VIL[k] = "assets/villains/" + k + ".png";
+for (const v of VIL_CARS) VIL[v.k] = "assets/villains/" + v.k + ".png";
+for (const v of VILLAINS) {
+  VIL[v.yt] = "assets/villains/" + v.yt + ".png";
+  VIL[v.hero] = "assets/villains/" + v.hero + ".png";
+}
+for (const k of ["wp_tommy", "wp_laser", "wp_katana2", "wp_longsword"])
+  VIL[k] = "assets/villains/" + k + ".png";
+/* Sixteen racers: a car, a driver plate and a name each. Paired so the man matches the machine
+   -- the goth drives the black sedan, the parent drives the cruiser. */
+const RACERS = [
+  ["CORVA","dr_goth","rc_blacksedan"], ["SPIKE VASHER","dr_punk","rc_speeddemon"],
+  ["NIKKI RIOT","dr_newwaver","rc_redcoupe"], ["MR. ABBOTT","dr_business","rc_greybrick"],
+  ["BRANDI KOVACS","dr_mall","rc_turbohatch"], ["GARY LUND","dr_parent","rc_musclecruiser"],
+  ["AXLE MUNROE","dr_rocker","rc_roadrebel"], ["TONI BLASE","dr_fitness","rc_driftking"],
+  ["BIG RAY OKOYE","dr_laborer","rc_streetwarrior"], ["PIXEL DEAN","dr_gamer","rc_prototypex"],
+  ["JOEY TRAN","dr_teen","rc_bluerotary"], ["VEX","dr_newwave","rc_bwdrifter"],
+  ["WALLACE PIKE","dr_preppy","rc_streetracer"], ["DEE SUMMERS","dr_preppy2","rc_yellowhatch"],
+  ["CHAD HOLLOWAY","dr_yuppie","rc_roadrebel"], ["MARCO SILVA","dr_gamer","rc_speeddemon"],
+];
+const RACE_A = {};
+for (const r of RACERS) { RACE_A[r[1]] = "assets/race/" + r[1] + ".png";
+                          RACE_A[r[2]] = "assets/race/" + r[2] + ".png"; }
+for (const k of ["pr_coat","pr_suit","rc_start","rc_finish","heli_news","heli_police",
+                 "fan_punk","fan_goth","fan_yuppie","fan_break","fan_rocker","fan_pop",
+                 "fan_mall","fan_preppy"])
+  RACE_A[k] = "assets/race/" + k + ".png";
+const ROOF_A = {};
+for (const k of ["rf_chimney","rf_chimney_wide","rf_vent","rf_ac","rf_ac_big","rf_duct",
+                 "rf_hatch","rf_tank"])
+  ROOF_A[k] = "assets/roof/" + k + ".png";
 const HP = {};
 for (const k of ["hp_deputy", "hp_deputy_b", "hp_sheriff", "hp_moto", "hp_car", "hp_truck",
                  "mt_grass", "mt_scree", "mt_cliff", "mt_roof", "mt_floor"])
@@ -1382,7 +1470,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 363 — THE CONCUSSIVE BLOW";
+const BUILD_TAG = "LAYER 370 — THREE RIVALS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1580,11 +1668,11 @@ const CIVIC = [
      what "solid, in proportion, and 3D like the others" actually means. A plate drawn on the
      ground would have none of it and people would walk straight over it. */
   { key: "cityhall_dome", kind: "cityhall", cell: { i: 10, j: 8 },
-    name: "RAVEN HOOK CITY HALL", floors: 3, pip: "#cfe0f0", civRoof: "cv2_civ_dome" },
+    name: "RAVEN HOOK CITY HALL", floors: 3, pip: "#cfe0f0", shape: "capitol" },
   { key: "vance_house", kind: "mansion", cell: { i: 6, j: 16 },
-    name: "THE VANCE RESIDENCE", floors: 2, pip: "#d0c090", civRoof: "cv2_civ_mansion" },
+    name: "THE VANCE RESIDENCE", floors: 2, pip: "#d0c090", shape: "mansion" },
   { key: "flats_motel", kind: "motel", cell: { i: 25, j: 21 },
-    name: "THE STARLITE MOTEL", floors: 1, pip: "#cf8f5a", civRoof: "cv2_civ_motel" },
+    name: "THE STARLITE MOTEL", floors: 1, pip: "#cf8f5a", shape: "motel" },
 ];
 const civicAt = (i, j) => CIVIC.find((c) => c.cell.i === i && c.cell.j === j) || null;
 const inTown = (i, j) => i >= TOWN.i0 && i <= TOWN.i1 && j >= TOWN.j0 && j <= TOWN.j1;
@@ -2793,7 +2881,8 @@ function makeFloor(b, f, rnd) {
     /* Twelve identical doors off one corridor. The point of the building is that every room
        looks the same, so somebody could be in any of them. */
     const front = Math.round(GY * 0.30);
-    hub = put(0, 0, GX - 1, front - 1, "lobby");
+    hub = put(0, 0, Math.round(GX * 0.34), front - 1, "mtoffice");
+    put(Math.round(GX * 0.34) + 1, 0, GX - 1, front - 1, "lobby");
     put(0, front, GX - 1, GY - 1, "rooms");
   } else if (kind === "mansionfloor") {
     const hall = Math.round(GX * 0.42);
@@ -3771,16 +3860,30 @@ function makeFloor(b, f, rnd) {
         break;
       }
       case "rooms": {
-        // a bed, a table and a lamp, twelve times over
-        const n2 = Math.max(3, Math.floor(W2 / 96));
+        /* Ten rooms, and every one of them is a bed, a table and a bathroom -- the sink and
+           the toilet against the back wall, which is what makes it read as a room somebody
+           could be in rather than a corridor with furniture. */
+        const n2 = 10;
+        const step = (W2 - pad * 2) / n2;
         for (let q = 0; q < n2; q++) {
-          const rx = q2.x0 + pad + q * ((W2 - pad * 2) / n2);
-          P(rx, q2.y0 + pad, 42, 58, "bed");
-          P(rx + 46, q2.y0 + pad + 8, 22, 22, "table");
-          P(rx, q2.y1 - pad - 22, 30, 22, "dresser");
+          const rx = q2.x0 + pad + q * step;
+          P(rx + 2, q2.y0 + pad, Math.min(40, step - 12), 54, "bed");
+          P(rx + 2, q2.y0 + pad + 60, 20, 18, "table");
+          // the bathroom, against the back wall
+          P(rx + 2, q2.y1 - pad - 30, 16, 14, "sink");
+          P(rx + 22, q2.y1 - pad - 30, 14, 16, "toilet");
         }
         break;
       }
+      case "mtoffice":
+        P(cx - 30, q2.y0 + pad, 60, 26, "counter");
+        P(cx - 26, q2.y0 + pad + 34, 52, 30, "desk");
+        P(q2.x1 - pad - 16, q2.y0 + pad, 16, 14, "sink");
+        P(q2.x1 - pad - 16, q2.y0 + pad + 20, 14, 16, "toilet");
+        // the room out the back that the man behind the counter actually lives in
+        P(q2.x0 + pad, q2.y1 - pad - 54, 40, 54, "bed");
+        P(q2.x0 + pad + 46, q2.y1 - pad - 24, 26, 24, "dresser");
+        break;
       case "study":
         P(cx - 34, cy - 20, 68, 40, "desk");
         P(q2.x0 + pad, q2.y0 + pad, 30, 60, "bookshelf");
@@ -4129,7 +4232,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     /* `roof` on a building is already the array of roof clutter, so the plate is carried on
        its own field -- naming it `roof` would have quietly replaced the clutter with a string
        and broken every building that draws it. */
-    b.tone = 0.62; b.civic = civ.key; b.name = civ.name; b.civRoof = civ.civRoof || null;
+    b.tone = 0.62; b.civic = civ.key; b.name = civ.name; b.shape = civ.shape || null;
     b.signKey = "sign_lightbox";
     if (civ.kind === "cityhall") b.landmarkStair = true;
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
@@ -5214,7 +5317,7 @@ export default function IronLionLayer004() {
        comp_hatch2 are hosted files and cannot be measured from here. */
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A };
     const keys = Object.keys(all);
     let left = keys.length;
     /* Assets are files now, not base64. Two consequences the loader has to handle:
@@ -6059,7 +6162,8 @@ export default function IronLionLayer004() {
       /* Off the tarmac you lose most of your speed -- except the Jeep, which is the only thing
          in the fleet built for it. That is the whole reason to take Kenny's truck. */
       const offRoad = !onRoad(c.x, c.y);
-      const grassMul = !offRoad ? 1 : (c.m && c.m.k === "kenny_truck") ? 0.96 : 0.62;
+      const OFFROAD_OK = { kenny_truck: 0.96, hp_truck: 0.94, vh_mvp_atv: 1.0 };
+      const grassMul = !offRoad ? 1 : (OFFROAD_OK[c.m && c.m.k] || 0.62);
       const boost = (g.turboT > 0 && c === (inVehicle() ? activeVeh() : null)) ? 1.15 : 1;
       const MAX = topSpeed * rough * (empty ? 0.16 : 1) * wreckMul * CS.s * grassMul * boost;
       // the named cars drink at double, which is the price of surviving a chase in one
@@ -6942,8 +7046,10 @@ export default function IronLionLayer004() {
           const len = h * 0.32;
           ctx.fillStyle = "#c9a17a";
           ctx.fillRect(-w * 0.05, 0, w * 0.10, len);
-          const blade = p.wpn === "katana" || p.wpn === "machete";
-          const im2 = blade ? imgs.current.wp_katana : null;
+          const BLADE_ART = { katana: "wp_katana", katana2: "wp_katana2",
+                              longsword: "wp_longsword" };
+          const blade = !!BLADE_ART[p.wpn] || p.wpn === "machete";
+          const im2 = imgs.current[BLADE_ART[p.wpn]] || null;
           if (im2 && im2.width) {
             // the plate, scaled off the figure so it is a sword and not a lamp post
             const bh = h * 1.05, bw = bh * (im2.width / im2.height);
@@ -11846,9 +11952,76 @@ export default function IronLionLayer004() {
         if (fl && fl.width) for (let ty = b.y; ty < b.y + b.h; ty += 96)
           for (let tx = b.x; tx < b.x + b.w; tx += 96) ctx.drawImage(fl, tx, ty, 96, 96);
       }
-      if (b.civRoof && imgs.current[b.civRoof]) {
-        const rp = imgs.current[b.civRoof];
-        ctx.drawImage(rp, b.x, b.y, b.w, b.h);
+      /* The three civic roofs, drawn rather than plated. A painted top-down photograph never
+         sat right next to procedurally lit buildings -- wrong light, wrong scale, and it could
+         not take the night wash. Shapes take all of it for free and cost nothing to load. */
+      if (b.shape === "capitol") {
+        const cx2 = b.x + b.w / 2, cy2 = b.y + b.h / 2;
+        const mw = b.w * 0.52, mh = b.h * 0.62;
+        ctx.fillStyle = "#e8e6df";                                  // the white block
+        ctx.fillRect(cx2 - mw / 2, cy2 - mh / 2, mw, mh);
+        const ww = b.w * 0.21, wh = mh * 0.66;                      // a wing either side
+        ctx.fillRect(cx2 - mw / 2 - ww, cy2 - wh / 2, ww, wh);
+        ctx.fillRect(cx2 + mw / 2, cy2 - wh / 2, ww, wh);
+        ctx.strokeStyle = "rgba(0,0,0,0.22)"; ctx.lineWidth = 2;
+        ctx.strokeRect(cx2 - mw / 2, cy2 - mh / 2, mw, mh);
+        ctx.strokeRect(cx2 - mw / 2 - ww, cy2 - wh / 2, ww, wh);
+        ctx.strokeRect(cx2 + mw / 2, cy2 - wh / 2, ww, wh);
+        // steps down the south face
+        ctx.fillStyle = "#d6d3c9";
+        for (let q = 0; q < 5; q++)
+          ctx.fillRect(cx2 - mw * 0.30 + q * 2, cy2 + mh / 2 + q * 5, mw * 0.60 - q * 4, 5);
+        // and the dome: a gold half sphere, lit from the upper left like everything else
+        const R = Math.min(mw, mh) * 0.34;
+        const gr = ctx.createRadialGradient(cx2 - R * 0.35, cy2 - R * 0.4, R * 0.1, cx2, cy2, R);
+        gr.addColorStop(0, "#f6dd8a"); gr.addColorStop(0.6, "#d9ad3c"); gr.addColorStop(1, "#8a6a1c");
+        ctx.fillStyle = gr;
+        ctx.beginPath(); ctx.arc(cx2, cy2, R, 0, 6.3); ctx.fill();
+        ctx.fillStyle = "#f2e2a0";
+        ctx.beginPath(); ctx.arc(cx2, cy2 - R * 0.05, R * 0.13, 0, 6.3); ctx.fill();
+      } else if (b.shape === "mansion") {
+        const cx2 = b.x + b.w / 2;
+        const mw = b.w * 0.60, mh = b.h * 0.46;
+        const my = b.y + b.h * 0.20;
+        ctx.fillStyle = "#4a5058";                                  // slate
+        ctx.fillRect(cx2 - mw / 2, my, mw, mh);
+        ctx.fillStyle = "#3c4149";                                  // ridge
+        ctx.fillRect(cx2 - mw / 2, my + mh * 0.46, mw, 6);
+        ctx.fillStyle = "#6b5a4a";                                  // chimneys
+        for (const q of [-0.34, -0.12, 0.12, 0.34])
+          ctx.fillRect(cx2 + mw * q - 7, my + mh * 0.16, 14, 16);
+        ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 2;
+        ctx.strokeRect(cx2 - mw / 2, my, mw, mh);
+        // the steps up to the door, which is the thing you actually walk at
+        ctx.fillStyle = "#cfc7b6";
+        for (let q = 0; q < 6; q++)
+          ctx.fillRect(cx2 - 46 + q * 3, my + mh + q * 6, 92 - q * 6, 6);
+        ctx.fillStyle = "#8d7f6a";                                  // the drive
+        ctx.beginPath(); ctx.ellipse(cx2, my + mh + 92, b.w * 0.30, b.h * 0.14, 0, 0, 6.3); ctx.fill();
+        ctx.fillStyle = "#5f7f8c";                                  // fountain
+        ctx.beginPath(); ctx.arc(cx2, my + mh + 92, 14, 0, 6.3); ctx.fill();
+      } else if (b.shape === "motel") {
+        /* An L of ten rooms and an office, each with its own door on the outside -- which is
+           the whole point of a motel and the reason this had to be drawn rather than painted. */
+        const armW = b.w * 0.26, armH = b.h * 0.80;
+        const topH = b.h * 0.24, topW = b.w * 0.86;
+        ctx.fillStyle = "#b9b2a2";
+        ctx.fillRect(b.x + b.w * 0.06, b.y + b.h * 0.06, armW, armH);         // the long arm
+        ctx.fillRect(b.x + b.w * 0.06, b.y + b.h * 0.06, topW, topH);         // the short arm
+        ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 2;
+        ctx.strokeRect(b.x + b.w * 0.06, b.y + b.h * 0.06, armW, armH);
+        ctx.strokeRect(b.x + b.w * 0.06, b.y + b.h * 0.06, topW, topH);
+        ctx.fillStyle = "#6d5f4c";                                            // ten doors
+        for (let q = 0; q < 6; q++)
+          ctx.fillRect(b.x + b.w * 0.06 + armW - 9, b.y + b.h * 0.32 + q * (armH * 0.10), 9, 20);
+        for (let q = 0; q < 4; q++)
+          ctx.fillRect(b.x + b.w * 0.20 + q * (topW * 0.17), b.y + b.h * 0.06 + topH - 9, 20, 9);
+        ctx.fillStyle = "#8a7f6a";                                            // the office
+        ctx.fillRect(b.x + b.w * 0.06, b.y + b.h * 0.06, armW, topH);
+        ctx.fillStyle = "#3f6d80";                                            // the empty pool
+        ctx.fillRect(b.x + b.w * 0.46, b.y + b.h * 0.48, b.w * 0.30, b.h * 0.28);
+        ctx.strokeStyle = "#cfc7b6"; ctx.lineWidth = 3;
+        ctx.strokeRect(b.x + b.w * 0.46, b.y + b.h * 0.48, b.w * 0.30, b.h * 0.28);
       }
       if (b.kind === "arcade") {
         /* The black-light carpet, tiled. It was cut and registered and then never asked for,
@@ -13836,7 +14009,22 @@ export default function IronLionLayer004() {
         kind, state: "called", x: st[0], y: st[1], cps, at: 0,
         t: 0, best: 0, life: 150, wash: 0,
         place: crossStreet(st[0], st[1]),
-        rivals: 2 + ((Math.random() * 2) | 0),
+        /* `rivals` used to be a COUNT -- a number nobody raced against. Three of the sixteen
+           are drawn now, each with a name, a driver and the car that suits him, and they run
+           the same checkpoints you do. Never the same three twice in a row. */
+        rivals: (() => {
+          const pool = RACERS.filter((r) => r[0] !== g.lastRival);
+          const pick = [];
+          for (let q = 0; q < 3 && pool.length; q++)
+            pick.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]);
+          g.lastRival = pick.length ? pick[0][0] : null;
+          return pick.map((f, i) => ({
+            name: f[0], plate: f[1], car: f[2], at: 0, done: 0,
+            x: st[0] + (i - 1) * 52, y: st[1] + 46, ang: -Math.PI / 2, spd: 0,
+            // each one drives a little differently, so the field is not a single block
+            top: 280 + (f[0].length % 6) * 16,
+          }));
+        })(),
         spectators: [],
       };
       // spectator cars at the start line, and again at the finish
@@ -13920,6 +14108,25 @@ export default function IronLionLayer004() {
           if (R.at >= R.cps.length) { raceWin(); return; }
           g.pickupFlash = { nm: `checkpoint_${R.at}`, t: 1.0 };
         }
+        /* The three of them. They follow the same gates, badly, and if all three cross the
+           last one before you do then you lost the race rather than merely finishing it. */
+        let ahead = 0;
+        for (const rv of R.rivals) {
+          if (rv.done) { ahead++; continue; }
+          const c = R.cps[rv.at];
+          if (!c) { rv.done = 1; ahead++; continue; }
+          const a = Math.atan2(c.y - rv.y, c.x - rv.x);
+          let da = a - rv.ang;
+          while (da > Math.PI) da -= Math.PI * 2;
+          while (da < -Math.PI) da += Math.PI * 2;
+          rv.ang += clamp(da, -2.3 * dt, 2.3 * dt);
+          rv.spd = Math.min(rv.top, rv.spd + 200 * dt);
+          rv.x += Math.cos(rv.ang) * rv.spd * dt;
+          rv.y += Math.sin(rv.ang) * rv.spd * dt;
+          if (Math.hypot(rv.x - c.x, rv.y - c.y) < 210) rv.at++;
+          if (rv.at >= R.cps.length) rv.done = 1;
+        }
+        if (ahead >= 3) { raceFail("BEATEN"); return; }
         if (R.t > 40 + R.cps.length * 26) raceFail("TOO SLOW");
         return;
       }
@@ -14020,6 +14227,19 @@ export default function IronLionLayer004() {
         ctx.textAlign = "start";
         ctx.restore();
       };
+      // the rivals, in the cars that suit their drivers
+      for (const rv of (R.rivals || [])) {
+        if (rv.done || !Number.isFinite(rv.x)) continue;
+        const im = imgs.current[rv.car];
+        if (!im || !im.width) continue;
+        const L = 112, w = L * (im.width / im.height);
+        ctx.save();
+        ctx.translate(rv.x, rv.y);
+        ctx.rotate(rv.ang + Math.PI / 2);
+        drawShadow(1, 4, w * 0.42, L * 0.42, 0.3);
+        ctx.drawImage(im, -w / 2, -L / 2, w, L);
+        ctx.restore();
+      }
       paint(R.x, R.y, "#6cf06c");
       // the organiser: a man with a clipboard who is not going anywhere
       const org = raceOrganiser();
@@ -14840,6 +15060,10 @@ export default function IronLionLayer004() {
       /* County law. A bolt gun is slow, accurate and it ends the argument at a distance no city
          weapon reaches -- which is the whole difference between the pass and Raven Hook. */
       rifle_bolt:    { rate: 1.45, range: 620, dmg: 6.5, spread: 0.03, kick: 9 },
+      /* The rogues' hardware. The tommy gun sprays and cannot hold a line; the laser is
+         accurate, slow and hits harder than anything the police carry. */
+      tommy:         { rate: 0.10, range: 300, dmg: 1.4, spread: 0.30, kick: 3 },
+      laser:         { rate: 0.85, range: 520, dmg: 5.5, spread: 0.02, kick: 4 },
       sixgun:        { rate: 0.80, range: 400, dmg: 4.0, spread: 0.07, kick: 5 },
       smg_uzi:       { rate: 0.11, range: 320, dmg: 1.5, spread: 0.26, kick: 2 },
       smg_hk:        { rate: 0.14, range: 380, dmg: 1.8, spread: 0.18, kick: 2 },
@@ -14852,6 +15076,7 @@ export default function IronLionLayer004() {
       pistol_auto: 1.0, revolver: 1.05, smg_uzi: 1.15, smg_hk: 1.3,
       shotgun_short: 1.35, shotgun_long: 1.85, rifle_bolt: 2.0, rifle_auto: 1.85,
       bat: 1.5, knife: 0.85, grenade: 0.7, molotov: 0.75, katana: 1.7, machete: 1.5,
+      katana2: 1.8, longsword: 1.6, tommy: 1.2, laser: 1.4,
     };
     // these are swung, not fired: no muzzle, no ammo, no drawn-weapon aim behaviour
     const WPN_MELEE = { bat: 1, knife: 1 };
@@ -15903,9 +16128,13 @@ export default function IronLionLayer004() {
     }
     // bats and the tazer, nothing else. He is fifteen.
     // guns are the Lion's alone. The others get what you can swing.
-    const KID_OK = { bat: 1, pipe: 1, crowbar: 1, tazer: 1, katana: 1, machete: 1 };
+    const KID_OK = { bat: 1, pipe: 1, crowbar: 1, tazer: 1, katana: 1, katana2: 1,
+                     longsword: 1, machete: 1 };
     // a blade is not a stick. Melee damage scales off what is in his hand.
-    const MELEE_MUL = { katana: 2.4, machete: 2.0, bat: 1.4, pipe: 1.3, crowbar: 1.5 };
+    /* Kuru's own blade is the katana and nobody else's -- his men carry straight swords, which
+       is the whole visual difference between the assassin and the crew he was lent. */
+    const MELEE_MUL = { katana: 2.4, katana2: 2.8, longsword: 2.1,
+                        machete: 2.0, bat: 1.4, pipe: 1.3, crowbar: 1.5 };
     function applyItem(nm) {
       if (nm.slice(0, 4) === "wpn_") {
         const k = nm.slice(4);
@@ -16802,6 +17031,19 @@ export default function IronLionLayer004() {
         }
       }
       g.p.atkCd = 0.44; g.p.atk = 0.26;
+      /* The gang melee loop below cannot see the guard and deputy lists either, so the swing
+         reaches into them here or a man in a grey vest is immune to being punched. */
+      {
+        const mm2 = MELEE_MUL[g.p.holstered ? null : g.p.wpn] || 1;
+        for (const u of [].concat(g.guards || [], g.deps || [])) {
+          if (!u || u.hp <= 0 || !Number.isFinite(u.x)) continue;
+          if (Math.hypot(u.x - g.p.x, u.y - g.p.y) > 46) continue;
+          u.hp -= 1.4 * mm2;
+          u.stunT = Math.max(u.stunT || 0, 0.5);
+          const a3 = Math.atan2(u.y - g.p.y, u.x - g.p.x);
+          u.vx = Math.cos(a3) * 90; u.vy = Math.sin(a3) * 90;
+        }
+      }
       if (g.who !== "lion") {
         let fa = Math.atan2(g.p.vy || 0, g.p.vx || 1);
         if (!Number.isFinite(fa)) fa = 0;
@@ -18511,7 +18753,11 @@ export default function IronLionLayer004() {
        Anything without the field set behaves exactly as before. */
     /* `tough` is a MULTIPLIER on damage taken, so a lower number is a stronger car. The named
        three inherit theirs from CARTOUGH unless the vehicle carries its own. */
-    const toughOf = (v) => (v && v.tough != null ? v.tough : carTough(v));
+    // during a race every car on the course is nearly indestructible, or the first corner ends it
+    /* During a race every car on the course takes 5% damage. The race system already existed;
+       this is the 95% reduction added to it rather than a second system. */
+    const toughOf = (v) => (G.current.race ? 0.05
+                          : v && v.tough != null ? v.tough : carTough(v));
     function applyDamage(v, force, wx, wy, L, w) {
       // a trailer is a box on wheels: it takes no crush, and there is no engine to fold
       if (v && v.isTrailer) return;
@@ -18630,6 +18876,11 @@ export default function IronLionLayer004() {
       if (g.shop && g.shop.rob) for (const t of g.shop.rob.thugs) hit(t);
       for (const u of policeUnits()) hit(u);
       if (g.comp && g.comp.out) hit(g.comp);
+      /* Ember Flats security and the Hollow Pass deputies were reachable by the abilities but
+         not by a bullet -- they live in their own lists and only combatTargets() knew about
+         them. Every law type takes a round now. */
+      for (const u of (g.guards || [])) hit(u);
+      for (const u of (g.deps || [])) hit(u);
       hit(g.p, true);
       /* It did damage and shook the screen and drew NOTHING -- no flash, no flame, no mark on
          the ground. A grenade that only rattles the camera reads as a bug, which is exactly how
@@ -20034,6 +20285,8 @@ export default function IronLionLayer004() {
           g.lockerOpen || g.travelOpen || g.raceTalk || g.leaderTalk || g.mapOpen ||
           g.garagePick || g.mentorJob || g.truckOpen || g.table || g.tableAsk || g.tickets ||
           g.cab;
+      // a race owns the event queue: no crime, no gang call, no ambient mission interrupts it
+      if (g.race) { g.crime = null; g.warAct = null; g.mentorJob = null; }
         g.pauseOrphan = owned ? 0 : (g.pauseOrphan || 0) + dt;
         if (g.pauseOrphan > 2) {
           g.paused = false; g.pauseOrphan = 0;
