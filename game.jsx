@@ -1470,7 +1470,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 370 — THREE RIVALS";
+const BUILD_TAG = "LAYER 371 — AIR SUPPORT";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14135,14 +14135,26 @@ export default function IronLionLayer004() {
       if (R.wash <= 0) g.race = null;
     }
 
+    /* Whatever the police were doing about the race stops when the race does. Racing raises
+       suspicion while you run, and without this it kept climbing after the flag -- you finished
+       and then got arrested for a thing that had ended. */
+    function raceStandDown() {
+      g.suspicion = Math.min(g.suspicion || 0, 25);
+      if ((g.heat || 0) <= 1) { g.heat = 0; g.wantedT = 0; g.wantedAs = null; }
+      for (const v of g.traffic) if (v.patrol) v.chasing = 0;
+      for (const h of (g.choppers || [])) h.leaving = 1;
+      g.chaseT = 0;
+    }
     function raceFail(why) {
       const R = g.race;
       R.state = "done"; R.wash = 40; R.result = why;
+      raceStandDown();
       g.pickupFlash = { nm: R.stake ? `lost_$${R.stake}` : "race_lost", t: 2.2 };
     }
     function raceWin() {
       const R = g.race;
       R.state = "done"; R.wash = 40; R.result = "WON";
+      raceStandDown();
       // the purse, plus the bet back at 2.5 to 1 -- the odds are why anyone races for money
       g.p.cash += R.kind.pay + Math.round((R.stake || 0) * 2.5);
       g.raceWins = (g.raceWins || 0) + 1;
@@ -15686,13 +15698,138 @@ export default function IronLionLayer004() {
           g.scanner = Math.max(g.scanner || 0, 2.4);
         }
       }
+      /* The men on the block. They get out and shoot over the bonnet while you are coming at
+         them, and once you are past they get back in and join the chase -- a roadblock you have
+         already beaten should not stand there for the rest of the pursuit. */
+      const tgt2 = inVehicle() ? activeVeh() : g.p;
       for (let n = g.traffic.length - 1; n >= 0; n--) {
         const v = g.traffic[n];
         if (!v.block) continue;
         v.life -= dt;
-        if (v.life <= 0) g.traffic.splice(n, 1);
+        if (v.life <= 0) { g.traffic.splice(n, 1); continue; }
+        const dx2 = tgt2.x - v.x, dy2 = tgt2.y - v.y;
+        const d2 = Math.hypot(dx2, dy2) || 1;
+        if (!v.crewOut && d2 < 900) {
+          // out of the car, one either side, using it as cover
+          v.crewOut = [0, 1].map((q) => ({
+            x: v.x + Math.cos(v.ang + Math.PI / 2) * (q ? 26 : -26),
+            y: v.y + Math.sin(v.ang + Math.PI / 2) * (q ? 26 : -26),
+            hp: 5, maxHp: 5, fireCd: 0.5, swing: 0, anim: 0, jit: 1,
+            yt: null, wpn: q ? "shotgun_long" : "pistol_auto",
+          }));
+          g.guards = g.guards || [];
+          for (const m of v.crewOut) g.guards.push(m);
+        }
+        // once you are past and pulling away, they remount and come after you
+        const passed = v.passed || (d2 > 420 && v.wasClose);
+        if (d2 < 300) v.wasClose = 1;
+        if (passed && !v.rejoined) {
+          v.rejoined = 1; v.passed = 1;
+          v.block = 0; v.chasing = 1; v.dead = 0; v.brake = 0;
+          if (v.crewOut) for (const m of v.crewOut) {
+            const gi = (g.guards || []).indexOf(m);
+            if (gi >= 0) g.guards.splice(gi, 1);
+          }
+          v.crewOut = null;
+        }
       }
     }
+    /* CHOPPERS. A long chase brings something you cannot outrun on the ground. The news bird
+       at two minutes -- it only watches, and it is the warning. The police bird at three, and
+       that one holds the wanted clock open on its own.
+
+       You break it by getting under something. A chopper cannot see through an overpass or a
+       roof, which is the one piece of cover in this city that does not work against cars. */
+    function chaseChoppers(dt) {
+      if (!((g.heat || 0) > 0) || g.inside) {
+        // chase over: they peel off, climb out and go
+        for (const h of (g.choppers || [])) h.leaving = 1;
+      } else {
+        g.chaseT = (g.chaseT || 0) + dt;
+        g.choppers = g.choppers || [];
+        const have = (k) => g.choppers.some((h) => h.kind === k && !h.leaving);
+        const pv = inVehicle() ? activeVeh() : g.p;
+        if (g.chaseT > 120 && !have("news"))
+          g.choppers.push({ kind: "news", x: pv.x - 900, y: pv.y - 900, ang: 0, alt: 1 });
+        if (g.chaseT > 180 && !have("police")) {
+          g.choppers.push({ kind: "police", x: pv.x + 900, y: pv.y - 900, ang: 0, alt: 1 });
+          g.pickupFlash = { nm: "air_unit_overhead", t: 2.6 };
+        }
+      }
+      if (!((g.heat || 0) > 0)) g.chaseT = 0;
+      const pv2 = inVehicle() ? activeVeh() : g.p;
+      for (let i = (g.choppers || []).length - 1; i >= 0; i--) {
+        const h = g.choppers[i];
+        if (h.leaving) {
+          h.alt = Math.min(1.6, (h.alt || 1) + dt * 0.4);
+          h.x += Math.cos(h.ang) * 340 * dt; h.y += Math.sin(h.ang) * 340 * dt;
+          if (h.alt >= 1.55) g.choppers.splice(i, 1);
+          continue;
+        }
+        // it flies at you and it does not care about walls
+        const a = Math.atan2(pv2.y - h.y, pv2.x - h.x);
+        let da = a - h.ang;
+        while (da > Math.PI) da -= Math.PI * 2;
+        while (da < -Math.PI) da += Math.PI * 2;
+        h.ang += clamp(da, -1.5 * dt, 1.5 * dt);
+        const d = Math.hypot(pv2.x - h.x, pv2.y - h.y);
+        const spd = d > 260 ? 260 : 90;
+        h.x += Math.cos(h.ang) * spd * dt; h.y += Math.sin(h.ang) * spd * dt;
+        /* Spotting. Under a roof or an overpass you are invisible to it -- that is the whole
+           counterplay, and it is the one kind of cover a car chase cannot use. */
+        h.sees = h.kind === "police" && d < 620 && !underCover(pv2.x, pv2.y);
+        if (h.sees) g.wantedT = Math.max(g.wantedT || 0, 20);
+      }
+    }
+    function underCover(x, y) {
+      if (g.roof) return false;                       // on top of a roof you are the most visible
+      if (g.inside || g.sewer) return true;
+      const ci = clamp(Math.floor(x / PITCH), 0, N - 1);
+      const cj = clamp(Math.floor(y / PITCH), 0, N - 1);
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+        const c = getCell(ci + di, cj + dj);
+        if (!c || !c.blds) continue;
+        for (const b of c.blds)
+          if (x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return true;
+      }
+      return !!(g.onFwy && g.fwyUnder);
+    }
+    function drawChoppers() {
+      for (const h of (g.choppers || [])) {
+        if (!Number.isFinite(h.x)) continue;
+        const im = imgs.current[h.kind === "police" ? "heli_police" : "heli_news"];
+        const alt = clamp(h.alt == null ? 1 : h.alt, 0, 2);
+        drawShadow(h.x + alt * 30, h.y + alt * 30, 26 * (1 - alt * 0.25), 12 * (1 - alt * 0.25), 0.28);
+        ctx.save();
+        ctx.translate(h.x, h.y);
+        ctx.scale(1 + alt * 0.16, 1 + alt * 0.16);
+        ctx.rotate(h.ang + Math.PI / 2);
+        if (im && im.width) {
+          const L = 104, w = L * (im.width / im.height);
+          ctx.drawImage(im, -w / 2, -L / 2, w, L);
+        }
+        /* The rotor is code, not a sheet: two bars crossed and spun off g.t, plus a faint disc.
+           One plate animates instead of needing eight frames. */
+        const spin = g.t * 24;
+        ctx.strokeStyle = "rgba(38,42,48,0.9)"; ctx.lineWidth = 4;
+        for (let b2 = 0; b2 < 2; b2++) {
+          const a2 = spin + b2 * Math.PI / 2;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a2) * -78, Math.sin(a2) * -78);
+          ctx.lineTo(Math.cos(a2) * 78, Math.sin(a2) * 78);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "rgba(205,212,220,0.09)";
+        ctx.beginPath(); ctx.arc(0, 0, 78, 0, 6.3); ctx.fill();
+        ctx.restore();
+        // the searchlight, when it has you
+        if (h.sees) {
+          ctx.fillStyle = "rgba(255,250,210,0.13)";
+          ctx.beginPath(); ctx.arc(pvOf().x, pvOf().y, 150, 0, 6.3); ctx.fill();
+        }
+      }
+    }
+    const pvOf = () => (inVehicle() ? activeVeh() : g.p);
     function policeCars() {
       const out = [];
       if (g.police) out.push(g.police.car);
@@ -20351,6 +20488,7 @@ export default function IronLionLayer004() {
         updateGig(dt); updateArcadeKids(dt); updateSmoke(dt); reapSho(); updateDriveBys(dt);
         updateGuards(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
         updatePursuit(dt);
+        chaseChoppers(dt);
         updateDeputies(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       }
       if (!g.title) updateCrime(dt);
@@ -20752,6 +20890,7 @@ export default function IronLionLayer004() {
       if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); }
       drawGuards(); drawDeputies(); drawBlast();
       drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
+      drawChoppers();
       /* Anyone in the fight, not only gang crews -- police, and any civilian who has been hit.
          A bar over one man and nothing over the next reads as a bug rather than a rule. */
       for (const p2 of (Array.isArray(g.peds) ? g.peds : []))
