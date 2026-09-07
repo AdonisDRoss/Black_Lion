@@ -1495,7 +1495,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 386 — THE DEN YARD";
+const BUILD_TAG = "LAYER 396 — THROUGH THE WALL";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5449,6 +5449,15 @@ function buildingPlans(b) {
   return b.plans;
 }
 
+/* A hole in a wall is a door that nobody built. Same maths, same standoff, so everything that
+   already knows how to find a door works on a breach with no new code. */
+function breachPoint(b) {
+  const s = b.breach.side, p = b.breach.pos;
+  if (s === 0) return [b.x + b.w * p, b.y - 6];
+  if (s === 2) return [b.x + b.w * p, b.y + b.h + 6];
+  if (s === 3) return [b.x - 6, b.y + b.h * p];
+  return [b.x + b.w + 6, b.y + b.h * p];
+}
 function doorPoint(b) {
   const s = b.door.side, p = b.door.pos;
   if (s === 0) return [b.x + b.w * p, b.y - 6];
@@ -6218,6 +6227,184 @@ export default function IronLionLayer004() {
       ib_dartboard:      "IMG_3401_24",
       ib_fireplace:      "IMG_3401_25",
       ib_payphone:       "IMG_3401_33",
+
+
+      /* IMG_3403 -- the cafe half of the sheet. The bottom half (cuts 17-38) is the small-town
+         pizza shop, which belongs to the Italian restaurant that is not built yet, so none of
+         it is wired. */
+      cf_table_round:  "IMG_3403_01",
+      cf_stool:        "IMG_3403_02",
+      cf_counter_long: "IMG_3403_03",
+      cf_register:     "IMG_3403_04",
+      cf_pie_case:     "IMG_3403_05",
+      cf_menu:         "IMG_3403_06",
+      cf_counter_u:    "IMG_3403_09",
+      cf_napkins:      "IMG_3403_10",
+      cf_chair:        "IMG_3403_12",
+      cf_booth:        "IMG_3403_13",
+
+      /* IMG_3405 -- the gun shop. Nine of twelve. Deliberately NOT mapped:
+           gn_rack_wall  -- cut 10 is the wall rack but it came off with heavy magenta bleed
+           gn_rack_long  -- there is no standing rack on the sheet, only cased rifles
+           gn_safe       -- there is no safe on the sheet at all
+         Those three keep drawing as colour blocks, which is the honest outcome. */
+      gn_counter_glass: "IMG_3405_41",
+      gn_pistol_case:   "IMG_3405_65",
+      gn_counter_wood:  "IMG_3405_50",
+      gn_ammo_shelf:    "IMG_3405_48",
+      gn_register:      "IMG_3405_37",
+      gn_crate_bulk:    "IMG_3405_06",
+      gn_ammo_boxes:    "IMG_3405_25",
+      gn_cleaning_kit:  "IMG_3405_51",
+      gn_targets:       "IMG_3405_69",
+
+
+      /* IMG_3389 -- the mansion sheet, RESCUED. It first cut as seven blobs because thin grid
+         lines weld every cell together; raising the key threshold to 140 and eroding twice
+         before labelling breaks those joins, then each piece is dilated back to its real edge.
+         31 pieces out of a sheet of about seventy, so this is a partial rescue and the rest of
+         the lux set still wants a proper PNG at native size. Only the ten I can identify
+         without guessing are wired. */
+      lx_rug:               "IMG_3389_02",
+      lx_table_round:       "IMG_3389_03",
+      lx_chandelier:        "IMG_3389_05",
+      lx_mirror_gilt:       "IMG_3389_07",
+      lx_clock_grandfather: "IMG_3389_09",
+      lx_armchair:          "IMG_3389_14",
+      lx_tub_claw:          "IMG_3389_19",
+      lx_vanity:            "IMG_3389_22",
+      lx_toilet:            "IMG_3389_24",
+      lx_globe:             "IMG_3389_30",
+
+
+      /* IMG_3402 -- "UPSCALE BAR SUPPLY '85". Worth saying what this sheet actually is: it is
+         a SHOP full of bar equipment, not a bar. Most of it is stock -- crates, price tags,
+         shipping boxes, forty individual glasses -- and only five cells are things that stand
+         in a working bar. The other five upscale keys (counter_main, stools, pool_table,
+         keg_station, jukebox) are on IMG_3400, which is the bar interior sheet. */
+      ub_register:        "IMG_3402_08",
+      ub_backbar_shelves: "IMG_3402_12",
+      ub_liquor_grid:     "IMG_3402_16",
+      ub_display_case:    "IMG_3402_18",
+      ub_wine_rack:       "IMG_3402_19",
+
+
+      /* IMG_3400 -- the bar INTERIOR sheet, which is where the five keys 3402 could not
+         supply actually live. Skipped: bar_counter_corner, refrigerated_cooler, cleaning
+         supplies, menu stand and floor mat, none of which BAR_KIT asks for. */
+      ub_counter_main: "IMG_3400_01",
+      ub_keg_station:  "IMG_3400_06",
+      ub_jukebox:      "IMG_3400_09",
+      ub_stools:       "IMG_3400_10",
+      ub_pool_table:   "IMG_3400_12",
+
+
+      /* IMG_3392 -- the Starlite. Seven of eight. mo_closet_rail is NOT here: the only closet
+         rail was on IMG_3391, the sheet whose black grid lines welded all eight cells into a
+         single blob, so it has no usable cut and stays a colour block. */
+      mo_bed_floral:       "IMG_3392_02",
+      mo_vanity:           "IMG_3392_06",
+      mo_nightstand_phone: "IMG_3392_09",
+      mo_desk_directory:   "IMG_3392_10",
+      mo_dresser_tv:       "IMG_3392_11",
+      mo_luggage_rack:     "IMG_3392_12",
+      mo_bathroom_unit:    "IMG_3392_16",
+
+
+      /* IMG_3385 -- Benny's Burgers is the RED half (rows 1-2), Taco Crazy the orange/teal
+         half (rows 3-4). Both menu boards are here after all, which closes the gap I flagged
+         when the chains went in. Skipped: the loose tables with chairs (03, 16), the two
+         cabinets (06, 18) and the assembly rails (11, 21), none of which FF_KIT asks for. */
+      bb_booth_large:  "IMG_3385_01",
+      bb_booth_small:  "IMG_3385_02",
+      bb_menu_board:   "IMG_3385_04",
+      bb_counter:      "IMG_3385_07",
+      bb_fryer:        "IMG_3385_08",
+      bb_grill:        "IMG_3385_09",
+      bb_prep:         "IMG_3385_10",
+      bb_warmer:       "IMG_3385_12",
+      bb_soda_machine: "IMG_3385_13",
+      tc_booth_large:  "IMG_3385_14",
+      tc_booth_small:  "IMG_3385_15",
+      tc_menu_board:   "IMG_3385_17",
+      tc_steam_table:  "IMG_3385_19",
+      tc_counter:      "IMG_3385_20",
+      tc_soda_machine: "IMG_3385_22",
+      tc_fryer:        "IMG_3385_24",
+      tc_prep:         "IMG_3385_25",
+      tc_shelf:        "IMG_3385_26",
+
+
+      /* ---- the re-render batch. Clean key, well separated, no grid, no labels. Every one of
+         these cut first time, which is what the house rules were for. ---- */
+
+      // IMG_3437 -- the three gun-shop keys the first sheet had no artwork for
+      gn_rack_wall:  "IMG_3437_01",
+      gn_rack_long:  "IMG_3437_02",
+      gn_safe:       "IMG_3437_03",
+
+      /* IMG_3436 -- one frame per chain, as asked. Matched by uniform, not by position:
+         Benny's is the red-and-white stripe, Chicken Chew'ys the yellow plaid, Pizza Plus the
+         red with yellow trim, Taco Crazy the orange polo and brown cap. */
+      st_tc: "IMG_3436_01",
+      st_bb: "IMG_3436_02",
+      st_pp: "IMG_3436_03",
+      st_cc: "IMG_3436_04",
+
+      // IMG_3435 -- the armoured car, nose-UP this time, so no rotation is baked
+      bk_truck:      "IMG_3435_01",
+      bk_truck_open: "IMG_3435_02",
+
+      // IMG_3439 -- the last motel key
+      mo_closet_rail: "IMG_3439_01",
+
+      // IMG_3434 -- the bank, one object per cell. Completes the set.
+      bk_teller_off:           "IMG_3434_01",
+      bk_teller_on:            "IMG_3434_02",
+      bk_teller_customer_view: "IMG_3434_03",
+      bk_cash_trolley:         "IMG_3434_04",
+      bk_teller_props:         "IMG_3434_05",
+      bk_alarm_button:         "IMG_3434_06",
+      bk_camera_wall:          "IMG_3434_07",
+      bk_sign_next:            "IMG_3434_08",
+      bk_sign_closed:          "IMG_3434_09",
+
+      // IMG_3433 -- the mansion kitchen and bathrooms
+      lx_counter_marble: "IMG_3433_01",
+      lx_fridge_steel:   "IMG_3433_02",
+      lx_shower:         "IMG_3433_03",
+      lx_range_gas:      "IMG_3433_04",
+      lx_sink_marble:    "IMG_3433_05",
+      lx_dining_long:    "IMG_3433_06",
+      lx_vanity_double:  "IMG_3433_07",
+
+      // IMG_3432 -- pawn shop and jewellers. The whole folder, all sixteen.
+      ps_shelf:           "IMG_3432_01",
+      ps_display_case:    "IMG_3432_02",
+      ps_camera_lot:      "IMG_3432_04",
+      ps_sign:            "IMG_3432_05",
+      ps_counter:         "IMG_3432_06",
+      ps_safe_large:      "IMG_3432_07",
+      ps_guitar_rack:     "IMG_3432_08",
+      ps_stool:           "IMG_3432_09",
+      ps_toolbox:         "IMG_3432_10",
+      jw_display_high:    "IMG_3432_11",
+      jw_safe:            "IMG_3432_12",
+      jw_workdesk:        "IMG_3432_13",
+      jw_security_camera: "IMG_3432_14",
+      jw_counter:         "IMG_3432_15",
+      jw_velvet_tray:     "IMG_3432_16",
+      jw_stool:           "IMG_3432_17",
+
+
+      /* IMG_3389 again. Re-cleaned with the punch-out method that fixed the glass counters --
+         magenta removed from the alpha WITHOUT refilling holes -- which took the worst bleed
+         on that sheet from 35% to 0.00% and made five more pieces usable. */
+      lx_console_table: "IMG_3389_10",
+      lx_sideboard:     "IMG_3389_15",
+      lx_bed_four:      "IMG_3389_17",
+      lx_chair_exec:    "IMG_3389_26",
+      lx_bookcase:      "IMG_3389_27",
 
       // the three race cuts and the Sovereign set are already correctly named and foldered,
       // so they are deliberately NOT here -- pointing them at cuts/ would be a second copy.
@@ -12007,6 +12194,27 @@ export default function IronLionLayer004() {
       }
       ctx.strokeStyle = "rgba(0,0,0,0.55)"; ctx.lineWidth = 3;
       ctx.strokeRect(b.x, b.y, b.w, b.h);
+      /* The hole. Drawn AFTER the outline so it cuts the outline, which is what makes it read
+         as missing wall rather than a stain on it -- dark gap, ragged edge, rubble spilling
+         out onto the pavement. */
+      if (b.breach) {
+        const W2 = 54, s2 = b.breach.side, pp = b.breach.pos;
+        let hx, hy, hw, hh;
+        if (s2 === 0)      { hw = W2; hh = 10; hx = b.x + b.w * pp - W2 / 2; hy = b.y - 4; }
+        else if (s2 === 2) { hw = W2; hh = 10; hx = b.x + b.w * pp - W2 / 2; hy = b.y + b.h - 6; }
+        else if (s2 === 3) { hw = 10; hh = W2; hx = b.x - 4; hy = b.y + b.h * pp - W2 / 2; }
+        else               { hw = 10; hh = W2; hx = b.x + b.w - 6; hy = b.y + b.h * pp - W2 / 2; }
+        ctx.fillStyle = "#141216";
+        ctx.fillRect(hx, hy, hw, hh);
+        ctx.fillStyle = "rgba(120,112,104,0.9)";
+        for (let r2 = 0; r2 < 9; r2++) {
+          const t2 = hash(Math.round(b.x), Math.round(b.y), 40 + r2);
+          const t3 = hash(Math.round(b.x), Math.round(b.y), 60 + r2);
+          const cxr = hx + hw / 2 + (t2 - 0.5) * (hw > hh ? W2 * 1.5 : 34);
+          const cyr = hy + hh / 2 + (t3 - 0.5) * (hh > hw ? W2 * 1.5 : 34);
+          ctx.fillRect(cxr, cyr, 3 + t2 * 5, 3 + t3 * 4);
+        }
+      }
       ctx.fillStyle = "rgba(255,255,255,0.05)";
       ctx.fillRect(b.x + 4, b.y + 4, b.w - 8, 5);
       for (const r of b.roof) {
@@ -13372,8 +13580,18 @@ export default function IronLionLayer004() {
         const i = ci + di, j = cj + dj;
         if (i < 0 || j < 0 || i >= N || j >= N) continue;
         for (const b of getCell(i, j).blds) {
-          const dp = doorPoint(b);
-          if (Math.hypot(g.p.x - dp[0], g.p.y - dp[1]) < 46) return b;
+          /* b.door is null on every perimeter wall -- the prison ring and the wall round the
+             Vance house -- and doorPoint reads b.door.side unguarded. Walking near either of
+             them threw. It has been latent since the mansion wall went in. */
+          if (b.door) {
+            const dp = doorPoint(b);
+            if (Math.hypot(g.p.x - dp[0], g.p.y - dp[1]) < 46) return b;
+          }
+          // and a breach is a way in exactly like a door is
+          if (b.breach) {
+            const bp = breachPoint(b);
+            if (Math.hypot(g.p.x - bp[0], g.p.y - bp[1]) < 52) return b;
+          }
         }
       }
       return null;
@@ -18821,7 +19039,9 @@ export default function IronLionLayer004() {
        Lion's back yard, permanently, before you had met any of them. The villains' vehicles
        still get placed, just nowhere near here. */
     const DEN_PARK = ["sho_car", "kenny_truck", "luna"];
-    const LUNA_M = { k: "luna", len: 96, w: 34 };
+    /* Every bike in the game is 50 x 19 (MOTO_M). Luna was 96 x 34, which is why she came out
+       the size of a car -- the plate is high-resolution and the length is what scales it. */
+    const LUNA_M = { k: "luna", len: 50, w: 19 };
     function placeNamedCars() {
       if (g.namedParked) return;
       const b = denOf(); if (!b) return;
@@ -23579,6 +23799,40 @@ export default function IronLionLayer004() {
       const cr = warCrew(gang, x, y, Math.max(1, R.crew + 1), R.wing);
       const boss = cr.members[0];
       boss.hp = R.hp; boss.boss = 1; boss.rid = j.rid;
+      /* `loud` was defined on all five rogues and referenced NOWHERE -- dead data since the
+         gallery went in. It is the difference between walking into a job in progress and
+         walking into one already screaming: a loud job is heat on arrival and police coming,
+         a quiet one is nobody outside knowing yet, which is the only reason Kuru's and
+         La Voz's approaches read differently from the other three. */
+      if (R.loud) g.heat = Math.max(g.heat || 0, 2);
+      /* MASTERDRIVE COMES THROUGH A WALL, and now he actually does. The site building gets a
+         permanent `breach` on whichever side he did not come in by, which nearbyDoor treats as
+         a second way in and out. It is not repaired afterwards: the city keeps the hole, so a
+         bank he has already hit is a bank with two entrances for good. That is the point of
+         giving each rogue an approach -- it should leave the map different. */
+      if (j.rid === "drive") {
+        const site = (getCell(j.st.i, j.st.j).blds || []).find((q) => q.door && !q.perimeter);
+        if (site && !site.breach) {
+          const dside = site.door.side;
+          site.breach = { side: (dside + 2) % 4, pos: 0.30 + Math.random() * 0.40 };
+          g.pickupFlash = { nm: "wall_came_down", t: 2.4 };
+        }
+      }
+      /* Spread. Monstruo's eight fill the ROOM -- that is his whole approach and clustering
+         them on the door made him read as just another crew with more men. Everyone else
+         stacks near their boss. */
+      const spread = j.rid === "monstruo" ? 190 : 62;
+      cr.members.forEach((mm, mi) => {
+        if (!mi) return;
+        const ang = (mi / Math.max(1, cr.members.length - 1)) * 6.283;
+        mm.x = x + Math.cos(ang) * spread * (0.55 + 0.45 * ((mi * 7) % 5) / 5);
+        mm.y = y + Math.sin(ang) * spread * (0.55 + 0.45 * ((mi * 3) % 5) / 5);
+      });
+      /* La Voz does not bring muscle, she brings somebody who already works there. One of
+         hers is unarmed and stands still -- the inside man, who is the approach. */
+      if (j.rid === "voz" && cr.members[1]) {
+        cr.members[1].wpn = null; cr.members[1].inside = 1; cr.members[1].spd = 0;
+      }
       j.crew = cr; j.boss = boss; j.maxhp = R.hp; j.phase = "fight"; j.t = 0;
       const line = (ROGUE_LINE[j.rid] || {})[g.who] || "";
       g.jobBanner = R.name;
@@ -23592,9 +23846,28 @@ export default function IronLionLayer004() {
       g.jobNote = R.escapeLine;
       g.pickupFlash = { nm: "job_escape", t: 4.5 };
       g.fx = g.fx || [];
-      if (R.escape === "roof" || R.escape === "crowd") g.fx.push({ kind: "puff", x: b.x, y: b.y, t: 0 });
-      else if (R.escape === "van") g.fx.push({ kind: "ring", x: b.x, y: b.y, t: 0 });
-      else if (R.escape === "atv") { b.vx = 260; b.vy = -120; }
+      /* Five rogues, five exits. These shared effects before -- roof and crowd both got the
+         same puff -- so "each one gets away differently" was true of the writing and not of
+         anything you could see. */
+      if (R.escape === "roof") {
+        // straight up and gone. He is over the parapet before you reach the stairs.
+        g.fx.push({ kind: "puff", x: b.x, y: b.y, t: 0 });
+        b.vx = 0; b.vy = -300;
+      } else if (R.escape === "crowd") {
+        // he does not move. The mimes close over him and he is one of forty again.
+        g.fx.push({ kind: "puff", x: b.x, y: b.y, t: 0 });
+        for (const mm of (j.crew.members || [])) {
+          if (mm === b) continue;
+          const dx = b.x - mm.x, dy = b.y - mm.y, d2 = Math.hypot(dx, dy) || 1;
+          mm.x += (dx / d2) * 70; mm.y += (dy / d2) * 70;
+        }
+      } else if (R.escape === "van") {
+        g.fx.push({ kind: "ring", x: b.x, y: b.y, t: 0 });
+        b.vx = -210; b.vy = 0;          // backs out through its own hole
+      } else if (R.escape === "atv") {
+        g.fx.push({ kind: "ring", x: b.x, y: b.y, t: 0 });
+        b.vx = 300; b.vy = -140;        // over the counter and away, fast and straight
+      }
       // "walk" gets nothing at all, on purpose: she simply is not there any more
     }
     function stepJob(dt) {
@@ -23650,7 +23923,12 @@ export default function IronLionLayer004() {
       for (const cr of (g.crews || []))
         for (const m of (cr.members || []))
           if (m && m.hp > 0 && Number.isFinite(m.x) && Math.hypot(m.x - x, m.y - y) < r) out.push(m);
-      for (const c of (g.cops || []))
+      /* `g.police` is an OBJECT -- { car, units } -- not an array. The original said `g.cops`,
+         which does not exist anywhere, so it fell to [] and never found an officer. Iterating
+         g.police directly would be WORSE: for...of on a plain object throws, taking the whole
+         ability down instead of quietly missing. It is .units. */
+      const pol = (g.police && g.police.units) || [];
+      for (const c of pol)
         if (c && c.hp > 0 && Number.isFinite(c.x) && Math.hypot(c.x - x, c.y - y) < r) out.push(c);
       return out;
     }
@@ -23662,7 +23940,9 @@ export default function IronLionLayer004() {
       if (!g.p.wire) return;
       if ((g.wireCd || 0) > 0) return;
       const near = hostilesNear(g.p.x, g.p.y, WIRE_R);
-      if (!near.length) return;
+      /* Silence here is the reason this read as broken. A press with nobody in range did
+         nothing and said nothing, which is identical from the outside to a dead button. */
+      if (!near.length) { g.pickupFlash = { nm: "wire_no_target", t: 1.2 }; return; }
       let best = near[0], bd = 1e9;
       for (const m of near) {
         const d = Math.hypot(m.x - g.p.x, m.y - g.p.y);
@@ -23679,7 +23959,7 @@ export default function IronLionLayer004() {
        a little damage, and the ring is drawn purple so it reads as hers and not as Kenny's
        gold shockwave. Six charges and no reload. */
     function sonicPulse() {
-      if (!(g.p.sonic > 0)) return;
+      if (!(g.p.sonic > 0)) { g.pickupFlash = { nm: "sonic_empty", t: 1.2 }; return; }
       if ((g.sonicCd || 0) > 0) return;
       g.p.sonic -= 1; g.sonicCd = 1.4;
       g.fx = g.fx || [];
@@ -23714,6 +23994,8 @@ export default function IronLionLayer004() {
     /* One job live at boot, rogue and site both random, so it is testable the moment the page
        loads rather than after a wait nobody wants to sit through. */
     if (!g.job) { try { callJob(); } catch (e) { /* never let this stop the game starting */ } }
+    // safely() is the same wrapper Kenny's blow and punch use: it reports a throw instead of
+    // swallowing it, which is what you want the first time a new ability misbehaves.
     G.wireFn = () => { if (g.who === "eclipse") safely("wire", wireStrike); };
     G.sonicFn = () => { if (g.who === "eclipse") safely("sonic", sonicPulse); };
     G.gogglesFn = () => { if (g.who === "eclipse") safely("goggles", gogglesToggle); };
