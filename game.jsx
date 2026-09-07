@@ -212,7 +212,21 @@ const CAR_SPECIAL = {
   luna:         { id: "smoke", label: "SMOKE", note: "lose them",   cd: 9.0 },
   vh_ecl_van:   { id: "slick", label: "SLICK", note: "oil",         cd: 8.0 },
 };
-const carSpecial = (c) => (c && c.m && CAR_SPECIAL[c.m.k]) || (c && c.skin && CAR_SPECIAL[c.skin.k]) || null;
+const LION_GUNS   = { id: "guns",   label: "GUNS",   note: "front pair", cd: 0.9 };
+const LION_ROCKET = { id: "rocket", label: "ROCKET", note: "front tube", cd: 3.4 };
+/* The Lion's own car and his own bike carry NO model key -- they are the default physics
+   bodies, so `v.m` and `v.skin` are both empty and every lookup here returned null. That is
+   why the IRON MONTE was called "CAR" and had no button on it. Who is driving decides. */
+const carSpecialFor = (c, who, mode) => {
+  const k = (c && c.m && c.m.k) || (c && c.skin && c.skin.k) || null;
+  if (k && CAR_SPECIAL[k]) return CAR_SPECIAL[k];
+  if (who === "lion" && !k) return mode === "moto" ? LION_ROCKET : LION_GUNS;
+  return null;
+};
+/* NOT a module-scope wrapper that reaches for G: `G` is a useRef declared inside the
+   component and is not in scope out here, so `G.current.who` would be a ReferenceError the
+   first time a special fired. Both call sites are inside the component and both have `g`
+   right there, so they pass who and mode in. */
 /* A car you destroyed should still be there when you drive back past. Two burnt-out shells,
    picked per vehicle off its own coordinates so the same wreck is the same wreck, and left
    for two and a half minutes -- long enough that a street you fought in looks like a street
@@ -1522,7 +1536,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 414 — SPIN, FLASH, RACE";
+const BUILD_TAG = "LAYER 415 — IRON MONTE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -9644,6 +9658,7 @@ export default function IronLionLayer004() {
         }
       }
       drawSlicks();
+      drawRockets();
       drawMuzzles();
       drawJobArrow();
       drawBomb();
@@ -23075,6 +23090,8 @@ export default function IronLionLayer004() {
               const v = inVehicle() ? activeVeh() : null;
               const k = v && ((v.m && v.m.k) || (v.skin && v.skin.k) || v.k);
               if (k) return vehName(k);
+              // his own two, which have no key on them and were both reading as "CAR"
+              if (g.who === "lion") return g.mode === "moto" ? "THE HOOK" : "IRON MONTE";
               return g.mode === "moto" ? vehName((g.moto && g.moto.k) || "moto") : null;
             })(),
             tick: (hudTick = (hudTick + 1) % 1000), hudCrash: null, mus: musicState(),
@@ -23132,7 +23149,7 @@ export default function IronLionLayer004() {
               .slice(0, 4).join(" "),
             missingPath: (window.__ironlion && window.__ironlion.missingPath) || null,
             spec: (() => { const v = inVehicle() ? activeVeh() : null;
-                           const sp = v && carSpecial(v);
+                           const sp = v && carSpecialFor(v, g.who, g.mode);
                            return sp ? { label: sp.label, note: sp.note } : null; })(),
             specCd: g.specCd || 0,
             pull: Math.min(1, (g.pullT || 0) / 1.6),
@@ -23939,7 +23956,10 @@ export default function IronLionLayer004() {
       if (!tgt || !Number.isFinite(tgt.x)) return;
       const dx = tgt.x - g.p.x, dy = tgt.y - g.p.y;
       const d = Math.hypot(dx, dy) || 1;
-      if (d < 240) return;                      // stop nagging once you are on top of it
+      /* It leads ALL the way. Cutting it at 240 meant it vanished exactly when the site was
+         somewhere in front of you and you still could not tell which door. 70 is close enough
+         to be standing on it. */
+      if (d < 70) return;
       const a = Math.atan2(dy, dx);
       const R = 150;
       const ax = g.p.x + Math.cos(a) * R, ay = g.p.y + Math.sin(a) * R;
@@ -24682,6 +24702,7 @@ export default function IronLionLayer004() {
       stepVan(dt);
       stepPursuit(dt);
       stepSlicks(dt);
+      stepRockets(dt);
       stepSpinOuts(dt);
       stepWrecks(dt);
       stepCarChase(dt);
@@ -24980,7 +25001,7 @@ export default function IronLionLayer004() {
     function carSpecialFire() {
       const v = inVehicle() ? activeVeh() : null;
       if (!v) return false;
-      const sp = carSpecial(v);
+      const sp = carSpecialFor(v, g.who, g.mode);
       if (!sp) { g.pickupFlash = { nm: "no_special", t: 1.2 }; return false; }
       if ((g.specCd || 0) > 0) return false;
       g.specCd = sp.cd;
@@ -25019,6 +25040,14 @@ export default function IronLionLayer004() {
         g.shake = Math.max(g.shake || 0, 4);
         // firing a mounted gun in the street is not a quiet thing to do
         if (typeof witnessed === "function") witnessed();
+      } else if (sp.id === "rocket") {
+        /* Off the front of the bike, and it is drawn, because a rocket you cannot see is a
+           button that does nothing. It travels, it hits the first car in its way, and that
+           car is finished -- not damaged, finished. */
+        g.rockets = g.rockets || [];
+        g.rockets.push({ x: v.x + cs * 40, y: v.y + sn * 40,
+                         vx: cs * 620, vy: sn * 620, t: 1.6, ang: a });
+        g.shake = Math.max(g.shake || 0, 5);
       } else if (sp.id === "slick") {
         // a patch of oil behind you. It is a hazard on the road, not a weapon you aim.
         g.slicks = g.slicks || [];
@@ -25064,6 +25093,51 @@ export default function IronLionLayer004() {
       if (!v || v.wreck) return;
       v.spinT = Math.max(v.spinT || 0, secs);
       v.spinDir = (v.spinDir || (Math.random() < 0.5 ? -1 : 1));
+    }
+    /* The rocket. Its own short list, stepped and drawn here rather than pushed into any
+       existing one -- checked first that nothing else owns `g.rockets`. */
+    function stepRockets(dt) {
+      const L = g.rockets || [];
+      for (let i = L.length - 1; i >= 0; i--) {
+        const r = L[i];
+        r.t -= dt; r.x += r.vx * dt; r.y += r.vy * dt;
+        if (r.t <= 0 || !Number.isFinite(r.x)) { L.splice(i, 1); continue; }
+        let hit = null;
+        for (const v of (g.traffic || [])) {
+          if (!v || v.wreck || !Number.isFinite(v.x)) continue;
+          if (Math.hypot(v.x - r.x, v.y - r.y) < 44) { hit = v; break; }
+        }
+        if (!hit) continue;
+        applyDamage(hit, 2400, hit.x, hit.y, 1, 1);
+        makeWreck(hit);
+        g.fx = g.fx || [];
+        g.fx.push({ kind: "ring", x: r.x, y: r.y, t: 0.30 });
+        g.shake = Math.max(g.shake || 0, 14);
+        // everything close enough to be standing next to it
+        for (const t of combatTargets()) {
+          if (!t || !Number.isFinite(t.x)) continue;
+          if (Math.hypot(t.x - r.x, t.y - r.y) > 90) continue;
+          t.hp -= 40; t.stunT = Math.max(t.stunT || 0, 2.0);
+          if (t.hp < 0) t.hp = 0;
+        }
+        L.splice(i, 1);
+      }
+    }
+    function drawRockets() {
+      for (const r of (g.rockets || [])) {
+        if (!Number.isFinite(r.x)) continue;
+        ctx.save();
+        ctx.translate(r.x, r.y); ctx.rotate(r.ang);
+        ctx.fillStyle = "#c9c6cc";
+        ctx.fillRect(-9, -3, 18, 6);                       // the body
+        ctx.fillStyle = "#8a3a2a";
+        ctx.beginPath(); ctx.moveTo(9, -3); ctx.lineTo(15, 0); ctx.lineTo(9, 3);
+        ctx.closePath(); ctx.fill();                        // the head
+        ctx.fillStyle = "rgba(255,186,90,0.85)";
+        ctx.beginPath(); ctx.moveTo(-9, -3); ctx.lineTo(-24 - Math.random() * 10, 0);
+        ctx.lineTo(-9, 3); ctx.closePath(); ctx.fill();     // the flame
+        ctx.restore();
+      }
     }
     function stepSlicks(dt) {
       g.specCd = Math.max(0, (g.specCd || 0) - dt);
