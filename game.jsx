@@ -188,10 +188,37 @@ const CARSTAT = {
 /* Toughness and thirst. The three named cars are meant to survive a chase, so they take
    roughly half the damage of a stolen sedan -- and they pay for it at the pump, at double the
    rate, which is the only lever that makes a fuel gauge mean anything. */
-const CARTOUGH = { sho_car: 0.5, kenny_truck: 0.42, ef_car: 0.75,
+/* LOWER IS TOUGHER -- toughOf multiplies the damage taken and divides the threshold below
+   which nothing marks the shell at all. Worth stating because it reads backwards.
+   The IRON MONTE was NOT IN THIS TABLE, so the Lion's own car defaulted to 1.0 and took
+   damage exactly like a stolen taxi. All three hero cars are hardened here; they are the
+   cars you are supposed to keep. */
+const CARTOUGH = { coupe_green: 0.28, coupe_dgreen: 0.28,        // IRON MONTE
+  sho_car: 0.30, kenny_truck: 0.26, ef_car: 0.75,                // SHO STOPPER, KO JEEP
+  luna: 0.55, vh_ecl_van: 0.45,                                  // hers
   vh_kuru_bike: 1.6, vh_mvp_atv: 0.7, vh_mons_rod: 0.9, vh_drive_van: 0.34 };
 const CARTHIRST = { sho_car: 2.0, kenny_truck: 2.0, ef_car: 1.3 };
 const carTough = (c) => (c && c.m && CARTOUGH[c.m.k]) || 1;
+/* ---------- WHAT EACH HERO CAR DOES ----------
+   One special per car, and the special says who owns it. The Lion's is a gun and a slick
+   because he is the only one who may hold a gun at all; Sho's is speed; Kenny's is the front
+   of the truck; hers is smoke, because she is not trying to win the chase, she is trying to
+   not be in it. */
+const CAR_SPECIAL = {
+  coupe_green:  { id: "guns",  label: "GUNS",  note: "front pair",  cd: 0.9 },
+  coupe_dgreen: { id: "guns",  label: "GUNS",  note: "front pair",  cd: 0.9 },
+  sho_car:      { id: "boost", label: "BOOST", note: "overtake",    cd: 7.0 },
+  kenny_truck:  { id: "ram",   label: "RAM",   note: "bull bar",    cd: 5.0 },
+  luna:         { id: "smoke", label: "SMOKE", note: "lose them",   cd: 9.0 },
+  vh_ecl_van:   { id: "slick", label: "SLICK", note: "oil",         cd: 8.0 },
+};
+const carSpecial = (c) => (c && c.m && CAR_SPECIAL[c.m.k]) || (c && c.skin && CAR_SPECIAL[c.skin.k]) || null;
+/* A car you destroyed should still be there when you drive back past. Two burnt-out shells,
+   picked per vehicle off its own coordinates so the same wreck is the same wreck, and left
+   for two and a half minutes -- long enough that a street you fought in looks like a street
+   you fought in, short enough that the city does not silt up with them. */
+const WRECK_M = [{ k: "wreck_shell", len: 118, w: 50 }, { k: "wreck_frame", len: 122, w: 52 }];
+const WRECK_LIFE = 150;
 const carThirst = (c) => (c && c.m && CARTHIRST[c.m.k]) || 1;
 const carStat = (c) => (c && c.m && CARSTAT[c.m.k]) || { s: 1, a: 1, g: 1 };
 /* Makes and models. Five marques, because a city with one manufacturer is a catalogue and a
@@ -1495,7 +1522,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 408 — THE DEVICE";
+const BUILD_TAG = "LAYER 412 — WRECKS AND THE DOOR";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2343,6 +2370,8 @@ for (const k of ["vh_sov_limo", "vh_sov_sedan", "vh_cross_muscle", "vh_sov_suv",
 SOV_ART.luna = "assets/sov/vh_ecl_bike.png";
 SOV_ART.vh_ecl_van = "assets/sov/vh_ecl_van.png";   // no plate yet; falls back to a drawn box
 SOV_ART.asy_orderly = "assets/sov/asy_orderly.png";  // Cormorant Island staff
+SOV_ART.wreck_frame = "assets/sov/wreck_frame.png";  // burnt-out, stripped to the chassis
+SOV_ART.wreck_shell = "assets/sov/wreck_shell.png";  // burnt-out, body still on it
 /* Elias Reed. Two faces like everyone else who has two, his kit, and the van he brings it in.
    Hospital gear is deliberately NOT registered yet -- there is no hospital, and registering
    plates for a building that does not exist is exactly how eight roof sprites ended up
@@ -17484,6 +17513,142 @@ export default function IronLionLayer004() {
        gunshot round a corner is fine; a cop ignoring a beating at fifty feet is not. */
     const SEE_NEAR = 460;
     function isCop(o) { return !!o && policeUnits().indexOf(o) >= 0; }
+    /* A vehicle that is finished does NOT vanish. It becomes a wreck: the burnt shell takes
+       over its sprite, it stops being drivable, stops being a chase car, and sits in the road
+       until WRECK_LIFE runs out. `trFree` keeps mountNearest from offering it -- a burnt-out
+       chassis is not a getaway. */
+    function makeWreck(v) {
+      if (!v || v.wreck) return;
+      v.wreck = 1; v.wreckT = WRECK_LIFE;
+      v.m = WRECK_M[(Math.abs(Math.round(v.x) + Math.round(v.y)) % WRECK_M.length)];
+      v.skin = v.m;
+      v.spd = 0; v.cruise = 0; v.brake = 1;
+      v.dead = 1; v.parked = 1; v.trFree = 1;
+      v.chasing = 0; v.patrol = 0; v.block = 0;
+      v.crush = null; v.dents = [];
+    }
+    function stepWrecks(dt) {
+      for (let n = (g.traffic || []).length - 1; n >= 0; n--) {
+        const v = g.traffic[n];
+        if (!v) continue;
+        // anything crushed past 96% is finished, however it got there
+        if (!v.wreck && (v.dmg || 0) >= 0.96) { makeWreck(v); continue; }
+        if (!v.wreck) continue;
+        v.wreckT -= dt;
+        if (v.wreckT <= 0) g.traffic.splice(n, 1);
+      }
+    }
+
+    /* ---------- WHO IS AFTER YOU ----------
+       Two pursuits, kept separate, because they are not the same thing. The police answer a
+       CRIME and give up on a clock; a gang answers YOU and does not. Each carries the name of
+       whoever is running it, so the HUD can say "VESCARI" rather than "wanted".
+       LINE OF SIGHT is the whole rule: the clock only runs while nobody who wants you can see
+       you. Break the sightline and it starts; be seen and it resets to the full count. */
+    const LOSE_AFTER = 45;
+    function pursuerNear(r) {
+      /* Anyone actively hunting, within r. Police first, then any crew that is chasing --
+         `chasing` is the flag the AI already sets, so this asks the world rather than
+         inventing a second notion of who is angry. */
+      const P = (g.police && g.police.units) || [];
+      for (const u of P) if (u && u.hp > 0 && Number.isFinite(u.x)
+        && Math.hypot(u.x - g.p.x, u.y - g.p.y) < r) return { kind: "cop", who: "RHPD" };
+      for (const v of (g.traffic || [])) if (v.patrol && v.chasing
+        && Math.hypot(v.x - g.p.x, v.y - g.p.y) < r) return { kind: "cop", who: "RHPD" };
+      for (const cr of (g.crews || [])) {
+        /* `hostile` is the state the crew AI actually sets -- I first wrote `cr.hunting`,
+           which exists nowhere, exactly the same mistake as `g.cops`. Checked before shipping
+           this time: cr.state is only ever "hang", "flee" or "hostile". */
+        if (!cr || cr.state !== "hostile") continue;
+        for (const m of (cr.members || [])) {
+          if (!m || m.hp <= 0 || !Number.isFinite(m.x)) continue;
+          if (Math.hypot(m.x - g.p.x, m.y - g.p.y) < r)
+            return { kind: "gang", who: GANG_LABEL[cr.gang] || (cr.gang || "").toUpperCase() };
+        }
+      }
+      return null;
+    }
+    /* ---------- BEING CHASED IN A CAR ----------
+       Two behaviours, because sitting in a car used to be a place nothing could reach you.
+       ON FOOT they come to the window. If you are stopped or crawling and one of them gets to
+       the door, he hauls you out -- so a car is cover only while it is MOVING, which is the
+       right rule for a chase.
+       IN A CAR they stop driving at you and start driving THROUGH you: the steering target is
+       set a car's length beyond you rather than at you, which is the difference between a
+       vehicle following and a vehicle ramming. */
+    const PULL_SECS = 1.6;
+    function stepCarChase(dt) {
+      if (!inVehicle()) { g.pullT = 0; return; }
+      const v = activeVeh();
+      if (!v) { g.pullT = 0; return; }
+      const spd = Math.hypot(v.vx || 0, v.vy || 0);
+      let grabber = null;
+      for (const cr of (g.crews || [])) {
+        if (!cr || cr.state !== "hostile") continue;
+        for (const m of (cr.members || [])) {
+          if (!m || m.hp <= 0 || !Number.isFinite(m.x)) continue;
+          if (Math.hypot(m.x - v.x, m.y - v.y) < 62) { grabber = m; break; }
+        }
+        if (grabber) break;
+      }
+      if (!grabber) {
+        const P = (g.police && g.police.units) || [];
+        for (const u of P) if (u && u.hp > 0 && Number.isFinite(u.x)
+          && Math.hypot(u.x - v.x, u.y - v.y) < 62) { grabber = u; break; }
+      }
+      /* Under 40 units a second is stopped, near enough. Move and they cannot hold on. */
+      if (grabber && spd < 40) {
+        g.pullT = (g.pullT || 0) + dt;
+        if (g.pullT > PULL_SECS) {
+          g.pullT = 0;
+          const a = (v.ang || 0) + Math.PI / 2;
+          g.p.x = v.x + Math.cos(a) * 40; g.p.y = v.y + Math.sin(a) * 40;
+          g.mode = "foot";
+          g.p.stunT = Math.max(g.p.stunT || 0, 0.6);
+          g.pickupFlash = { nm: "pulled_out", t: 2.4 };
+        }
+      } else g.pullT = Math.max(0, (g.pullT || 0) - dt * 2);
+
+      // and the cars that are chasing aim past you, not at you
+      for (const t of (g.traffic || [])) {
+        if (!t || t.wreck || !t.chasing || !Number.isFinite(t.x)) continue;
+        const d = Math.hypot(v.x - t.x, v.y - t.y);
+        if (d > 620 || d < 1) continue;
+        t.ramX = v.x + (v.vx || 0) * 0.35;      // lead him, and go through the spot
+        t.ramY = v.y + (v.vy || 0) * 0.35;
+        if (d < 90) {
+          // contact: the ram is theirs as much as yours
+          applyDamage(v, 210, v.x, v.y, 1, 1);
+          t.spd = (t.spd || 0) * 0.7;
+        }
+      }
+    }
+    function stepPursuit(dt) {
+      const SEE = 620;
+      const seen = pursuerNear(SEE);
+      if (seen) {
+        if (seen.kind === "cop") { g.copFrom = seen.who; g.copLost = LOSE_AFTER; }
+        else { g.gangFrom = seen.who; g.gangHeat = Math.max(g.gangHeat || 0, 1); g.gangLost = LOSE_AFTER; }
+      }
+      /* Ninety seconds of wanted time was already the police rule; this is the SIGHTLINE rule
+         on top of it. Forty-five clear seconds and they have lost you, whatever the clock says. */
+      if ((g.heat || 0) > 0) {
+        g.copLost = Math.max(0, (g.copLost == null ? LOSE_AFTER : g.copLost) - dt);
+        if (g.copLost <= 0) {
+          g.heat = 0; g.wantedT = 0; g.wantedAs = null; g.copFrom = null;
+          for (const v of (g.traffic || [])) if (v.patrol) v.chasing = 0;
+          g.pickupFlash = { nm: "lost_them", t: 2.2 };
+        }
+      } else g.copFrom = null;
+      if ((g.gangHeat || 0) > 0) {
+        g.gangLost = Math.max(0, (g.gangLost == null ? LOSE_AFTER : g.gangLost) - dt);
+        if (g.gangLost <= 0) {
+          g.gangHeat = 0; g.gangFrom = null;
+          for (const cr of (g.crews || [])) if (cr.state === "hostile") cr.state = "hang";
+          g.pickupFlash = { nm: "shook_them", t: 2.2 };
+        }
+      } else g.gangFrom = null;
+    }
     function copsWatching(x, y) {
       if (g.inside) return false;                 // indoors is not the street
       for (const u of policeUnits()) {
@@ -19451,11 +19616,18 @@ export default function IronLionLayer004() {
           g.pickupFlash = { nm: "van_here", t: 1.8 };
           return;
         }
-        const dx = g.p.x - v.x, dy = g.p.y - v.y, d = Math.hypot(dx, dy) || 1;
-        if (d > 110) {
-          const sp = Math.min(300, 120 + (d - 110) * 1.6) * dt;
+        /* AHEAD, not behind. He pulls in front of her and holds the gap, which is what a
+           driver bringing you a van actually does -- you ride up to its back doors, you do not
+           chase it. The station point is her position pushed forward along her heading. */
+        const hd = Math.atan2(g.moto.vy || 0, g.moto.vx || 0);
+        const hv = Math.hypot(g.moto.vx || 0, g.moto.vy || 0);
+        const fa = hv > 20 ? hd : (g.moto.ang || 0);
+        const tx = g.p.x + Math.cos(fa) * 150, ty = g.p.y + Math.sin(fa) * 150;
+        const dx = tx - v.x, dy = ty - v.y, d = Math.hypot(dx, dy) || 1;
+        if (d > 26) {
+          const sp = Math.min(340, 140 + d * 1.5) * dt;
           v.x += (dx / d) * sp; v.y += (dy / d) * sp;
-          v.ang = Math.atan2(dy, dx);
+          v.ang = fa;
         }
         return;
       }
@@ -22799,7 +22971,8 @@ export default function IronLionLayer004() {
             shop: !!nearBodyShop(), inShop: !!g.inShop,
             who: g.who, smokeStock: g.p.smokeStock || 0, hidden: !!g.p.hidden,
             // Maxine's two counters. Without these her buttons read "0 left" and "off" forever.
-            sonic: g.p.sonic || 0, sonicCd: g.sonicCd || 0, jam: (g.jamT || 0) > 0,
+            sonic: g.p.sonic || 0, sonicCd: g.sonicCd || 0, wireCd: g.wireCd || 0,
+            jam: (g.jamT || 0) > 0,
             van: (g.van && g.van.phase) || "gone", vanBike: !!(g.van && g.van.bike),
             vanDriving: g.mode === "car" && !!(g.car && g.car.skin && g.car.skin.k === "vh_ecl_van"),
             hero: !!(g.hero && g.hero[g.who]), stars: g.p.stars || 0, chain: g.p.chain || 0,
@@ -22847,6 +23020,15 @@ export default function IronLionLayer004() {
             missingSome: ((window.__ironlion && window.__ironlion.missingAll) || [])
               .slice(0, 4).join(" "),
             missingPath: (window.__ironlion && window.__ironlion.missingPath) || null,
+            spec: (() => { const v = inVehicle() ? activeVeh() : null;
+                           const sp = v && carSpecial(v);
+                           return sp ? { label: sp.label, note: sp.note } : null; })(),
+            specCd: g.specCd || 0,
+            pull: Math.min(1, (g.pullT || 0) / 1.6),
+            copHeat: g.heat || 0, copFrom: g.copFrom || null,
+            copLost: Math.max(0, g.copLost || 0),
+            gangHeat: g.gangHeat || 0, gangFrom: g.gangFrom || null,
+            gangLost: Math.max(0, g.gangLost || 0),
             planKind: g.inside
               ? ((buildingPlans(g.inside)[g.floor] || {}).kind || "?") : null,
             dbgPlan: g.inside
@@ -24304,6 +24486,10 @@ export default function IronLionLayer004() {
       g.turboT = Math.max(0, (g.turboT || 0) - dt);
       stepEclipse(dt);          // her timers ride the same per-frame call
       stepVan(dt);
+      stepPursuit(dt);
+      stepSlicks(dt);
+      stepWrecks(dt);
+      stepCarChase(dt);
       stepJob(dt);
     }
 
@@ -24536,6 +24722,86 @@ export default function IronLionLayer004() {
        being refused by callJob's own guard -- the point of the button is "now". */
     G.jobFn = () => { g.job = null; callJob(); return true; };      // test button: reroll a job now
     G.turboFn = () => safely("turbo", turboBoost);
+
+    /* ---------- THE SPECIALS ----------
+       One button, and what it does is decided by what you are sitting in. Every one of these
+       goes through the systems that already exist -- the bullet list, the fire system, the
+       smoke that Rio drops -- rather than inventing a parallel set for vehicles. */
+    function carSpecialFire() {
+      const v = inVehicle() ? activeVeh() : null;
+      if (!v) return false;
+      const sp = carSpecial(v);
+      if (!sp) { g.pickupFlash = { nm: "no_special", t: 1.2 }; return false; }
+      if ((g.specCd || 0) > 0) return false;
+      g.specCd = sp.cd;
+      const a = v.ang || 0, cs = Math.cos(a), sn = Math.sin(a);
+      if (sp.id === "guns") {
+        /* HITSCAN. To correct something I wrote a moment ago in this same file: `g.bullets`
+           DOES exist and IS stepped -- I checked and was wrong to say otherwise. The reason
+           these are hitscan anyway is that a car gun firing at 1150 units a second past a
+           target moving with you is the tunnelling problem Sho's stars had, and a cone test
+           cannot miss between frames. A pair either side of the nose, firing where the car
+           points: anything in a narrow cone in front takes it, and so does the car ahead. */
+        const RANGE = 520, HALF = 46;
+        for (const t of combatTargets()) {
+          if (!t || !Number.isFinite(t.x)) continue;
+          const rx = t.x - v.x, ry = t.y - v.y;
+          const along = rx * cs + ry * sn;
+          if (along < 0 || along > RANGE) continue;
+          if (Math.abs(rx * sn - ry * cs) > HALF) continue;
+          t.hp -= 16; t.stunT = Math.max(t.stunT || 0, 0.5);
+          t.muzzle = 0.1;
+          if (t.hp < 0) t.hp = 0;
+        }
+        for (const tv of (g.traffic || [])) {
+          if (!tv || tv === v || !Number.isFinite(tv.x)) continue;
+          const rx = tv.x - v.x, ry = tv.y - v.y;
+          const along = rx * cs + ry * sn;
+          if (along < 0 || along > RANGE) continue;
+          if (Math.abs(rx * sn - ry * cs) > HALF + 14) continue;
+          applyDamage(tv, 260, tv.x, tv.y, 1, 1);
+        }
+        v.muzzle = 0.12;                 // the flash the rest of the game uses
+        g.shake = Math.max(g.shake || 0, 4);
+        // firing a mounted gun in the street is not a quiet thing to do
+        if (typeof witnessed === "function") witnessed();
+      } else if (sp.id === "slick") {
+        // a patch of oil behind you. It is a hazard on the road, not a weapon you aim.
+        g.slicks = g.slicks || [];
+        g.slicks.push({ x: v.x - cs * 60, y: v.y - sn * 60, r: 62, t: 26 });
+        g.pickupFlash = { nm: "slick_down", t: 1.4 };
+      } else if (sp.id === "ram") {
+        g.ramT = 2.2;                       // two seconds of the bull bar meaning something
+        g.pickupFlash = { nm: "bull_bar", t: 1.6 };
+      } else if (sp.id === "smoke") {
+        g.slicks = g.slicks || [];
+        g.slicks.push({ x: v.x - cs * 50, y: v.y - sn * 50, r: 90, t: 14, smoke: 1 });
+        g.pickupFlash = { nm: "smoke_out", t: 1.6 };
+      } else if (sp.id === "boost") {
+        return turboBoost();
+      }
+      return true;
+    }
+    /* Anything that drives over a slick loses the back end. Police cars and gang cars both --
+       it is oil, it does not know who you are. Smoke does not spin them, it blinds them, so
+       they simply stop chasing for as long as they are inside it. */
+    function stepSlicks(dt) {
+      g.specCd = Math.max(0, (g.specCd || 0) - dt);
+      g.ramT = Math.max(0, (g.ramT || 0) - dt);
+      const L = g.slicks || [];
+      for (let i = L.length - 1; i >= 0; i--) {
+        const s2 = L[i];
+        s2.t -= dt;
+        if (s2.t <= 0) { L.splice(i, 1); continue; }
+        for (const v of (g.traffic || [])) {
+          if (!v || !Number.isFinite(v.x)) continue;
+          if (Math.hypot(v.x - s2.x, v.y - s2.y) > s2.r) continue;
+          if (s2.smoke) { v.chasing = 0; v.blind = Math.max(v.blind || 0, 1.6); }
+          else { v.spin = Math.max(v.spin || 0, 1.5); v.spd = (v.spd || 0) * 0.94; }
+        }
+      }
+    }
+    G.specFn = () => safely("special", carSpecialFire);
     G.spinFn = () => { if (g.who === "rio") safely("spin", boardSpin); };
     G.starFn = () => { if (g.who === "sho") safely("star", throwStar); };
     /* Named shoJumpFn, NOT jumpFn. `G.jumpFn = roofJump` is assigned a few hundred lines
@@ -24571,20 +24837,28 @@ export default function IronLionLayer004() {
     function wireStrike() {
       if (!g.p.wire) return;
       if ((g.wireCd || 0) > 0) return;
-      const near = hostilesNear(g.p.x, g.p.y, WIRE_R);
-      /* Silence here is the reason this read as broken. A press with nobody in range did
-         nothing and said nothing, which is identical from the outside to a dead button. */
-      if (!near.length) { g.pickupFlash = { nm: "wire_no_target", t: 1.2 }; return; }
-      let best = near[0], bd = 1e9;
-      for (const m of near) {
-        const d = Math.hypot(m.x - g.p.x, m.y - g.p.y);
-        if (d < bd) { bd = d; best = m; }
+      /* ALWAYS FIRES, like her strike. It used to find no target and return in silence, which
+         is a dead button as far as anyone holding the phone is concerned. It goes where she is
+         facing, always draws, and whoever it catches is THROWN -- the wire is a whip with a
+         weight on the end, so the man leaves his feet and travels. */
+      const DIRW = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+      const dw = DIRW[g.p.dir] || [0, 1];
+      g.wireCd = 2.2;
+      const tx = g.p.x + dw[0] * WIRE_R, ty = g.p.y + dw[1] * WIRE_R;
+      g.wireFx = { x0: g.p.x, y0: g.p.y, x1: tx, y1: ty, t: 0 };
+      let hit = 0;
+      for (const m of hostilesNear(g.p.x, g.p.y, WIRE_R + 40)) {
+        const rx = m.x - g.p.x, ry = m.y - g.p.y;
+        const along = rx * dw[0] + ry * dw[1];
+        if (along < 0 || along > WIRE_R) continue;
+        if (Math.abs(rx * dw[1] - ry * dw[0]) > 54) continue;
+        m.hp -= 26; m.stunT = Math.max(m.stunT || 0, 2.6);
+        // thrown: down the line and off his feet, not nudged
+        m.vx = dw[0] * 420; m.vy = dw[1] * 420; m.knock = 1.0; m.fly = Math.max(m.fly || 0, 0.5);
+        if (m.hp <= 0) m.hp = 0;
+        hit++;
       }
-      g.wireCd = 1.1;
-      // the line, drawn by the same whip path; t runs 0->1 and then it is gone
-      g.wireFx = { x0: g.p.x, y0: g.p.y, x1: best.x, y1: best.y, t: 0 };
-      best.hp -= 26; best.stunT = Math.max(best.stunT || 0, 2.6); best.knock = 0.5;
-      if (best.hp <= 0) best.hp = 0;
+      if (!hit) g.pickupFlash = { nm: "wire_caught_nothing", t: 1.0 };
     }
     const SONIC_R = 210;
     /* SONIC DISRUPTOR. A pulse, not a shot: everything inside the radius is stunned and takes
@@ -24951,6 +25225,29 @@ export default function IronLionLayer004() {
       {hud.raid && (
         <div style={{ marginTop: 6, fontSize: 9, letterSpacing: "0.12em", color: "#ff9a5a" }}>
           {hud.raid.from} IN {hud.raid.held} TURF \u00b7 {hud.raid.dist}m
+        </div>
+      )}
+      {hud.pull > 0 && (
+        <div style={{ marginTop: 4, fontSize: 10, letterSpacing: "0.16em", color: "#ff6a5a" }}>
+          THEY HAVE THE DOOR · {"\u2588".repeat(Math.max(1, Math.round(hud.pull * 6)))} DRIVE
+        </div>
+      )}
+      {(hud.copHeat > 0 || hud.gangHeat > 0) && (
+        <div style={{ marginTop: 4, fontSize: 9, letterSpacing: "0.12em", lineHeight: 1.7 }}>
+          {hud.copHeat > 0 && (
+            <div style={{ color: "#7ab6ff" }}>
+              {(hud.copFrom || "RHPD")} · {"\u2588".repeat(Math.min(5, hud.copHeat))}
+              {"\u2591".repeat(Math.max(0, 5 - Math.min(5, hud.copHeat)))}
+              {"  LOSE IN " + Math.ceil(hud.copLost) + "s"}
+            </div>
+          )}
+          {hud.gangHeat > 0 && (
+            <div style={{ color: "#ff8a5a" }}>
+              {(hud.gangFrom || "GANG")} · {"\u2588".repeat(Math.min(5, hud.gangHeat))}
+              {"\u2591".repeat(Math.max(0, 5 - Math.min(5, hud.gangHeat)))}
+              {"  LOSE IN " + Math.ceil(hud.gangLost) + "s"}
+            </div>
+          )}
         </div>
       )}
       {hud.missingCount > 0 && (
@@ -26280,6 +26577,23 @@ export default function IronLionLayer004() {
             {btn("GAS", "accelerate",
               () => { input.current.gas = true; },
               () => { input.current.gas = false; }, true, 56)}
+            {/* Her van controls lived ONLY in the on-foot half of this ternary, so from the
+                saddle or the driver's seat they were not on the screen at all -- which is why
+                the van could not be called from the bike. Same two buttons, both branches. */}
+            {hud.spec && btn(hud.spec.label,
+              (hud.specCd || 0) > 0 ? Math.ceil(hud.specCd) + "s" : hud.spec.note,
+              () => { G.specFn && G.specFn(); }, null, (hud.specCd || 0) <= 0, 56)}
+            {hud.who === "eclipse" && btn("VAN",
+              hud.van === "gone" ? "call it" : hud.van === "coming" ? "on its way"
+                : hud.van === "following" ? "ahead of you"
+                : hud.van === "parked" ? "send away" : "leaving",
+              () => { G.vanFn && G.vanFn(); }, null, hud.van === "following", 56)}
+            {hud.who === "eclipse"
+              && (hud.van === "parked" || hud.van === "following" || hud.vanDriving)
+              && btn(hud.vanDriving ? "EJECT" : "LOAD",
+                hud.vanDriving ? (hud.vanBike ? "out the back" : "no bike") 
+                  : hud.vanBike ? "ride out" : "bike in",
+                () => { G.dockFn && G.dockFn(); }, null, hud.vanBike, 56)}
           </>
         ) : (
           <>
@@ -26312,7 +26626,8 @@ export default function IronLionLayer004() {
               hud.vanDriving ? (hud.vanBike ? "out the back" : "no bike aboard")
                 : hud.vanBike ? "ride out" : "bike in",
               () => { G.dockFn && G.dockFn(); }, null, hud.vanBike)}
-            {!hud.cab && hud.who === "eclipse" && btn("WIRE", "silent, long",
+            {!hud.cab && hud.who === "eclipse" && btn("WIRE",
+              (hud.wireCd || 0) > 0 ? Math.ceil(hud.wireCd) + "s" : "silent, long",
               () => { G.wireFn && G.wireFn(); }, null)}
             {!hud.cab && hud.who === "eclipse" && btn("SONIC",
               hud.sonicCd > 0 ? "charging" : "scream",
