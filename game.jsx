@@ -1495,7 +1495,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 406 — THE CELLS";
+const BUILD_TAG = "LAYER 407 — EVERYONE BLEEDS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2342,6 +2342,7 @@ for (const k of ["vh_sov_limo", "vh_sov_sedan", "vh_cross_muscle", "vh_sov_suv",
    a lavender headlight and no picture. */
 SOV_ART.luna = "assets/sov/vh_ecl_bike.png";
 SOV_ART.vh_ecl_van = "assets/sov/vh_ecl_van.png";   // no plate yet; falls back to a drawn box
+SOV_ART.asy_orderly = "assets/sov/asy_orderly.png";  // Cormorant Island staff
 /* Elias Reed. Two faces like everyone else who has two, his kit, and the van he brings it in.
    Hospital gear is deliberately NOT registered yet -- there is no hospital, and registering
    plates for a building that does not exist is exactly how eight roof sprites ended up
@@ -7274,14 +7275,23 @@ export default function IronLionLayer004() {
         if (cr.indoor ? (cr.indoor !== g.inside || cr.indoorFloor !== g.floor) : g.inside) continue;
         for (const m of (cr.members || [])) if (m && m.hp > 0) out.push(m);
       }
+      /* `.crew` DOES NOT EXIST on the police object -- its list is `.units`, which is what
+         every other reference in this file uses. This loop has always iterated undefined and
+         produced nothing, so NO weapon routed through combatTargets -- stars, the fly kick,
+         the shockwave -- has ever been able to hit a police officer. `.crew` stays as a
+         fallback in case some other caller really does build one. */
       for (const c2 of (g.police ? [g.police] : []).concat(g.policeMore || []))
-        for (const o2 of (c2 && c2.crew ? c2.crew : [])) if (o2 && o2.hp > 0) out.push(o2);
+        for (const o2 of ((c2 && (c2.units || c2.crew)) || [])) if (o2 && o2.hp > 0) out.push(o2);
       for (const u of (g.guards || [])) if (u && u.hp > 0) out.push(u);
       for (const u of (g.deps || [])) if (u && u.hp > 0) out.push(u);
       return out;
     }
     function kickTarget() {
-      const ang = Math.atan2(g.p.vy || 0, g.p.vx || 1);
+      // the same fault as the stars: standing still aimed the kick due east
+      const DIRK = { up: -Math.PI / 2, down: Math.PI / 2, left: Math.PI, right: 0 };
+      let ang = DIRK[g.p.dir];
+      if (!Number.isFinite(ang)) ang = 0;
+      if (Math.hypot(g.p.vx || 0, g.p.vy || 0) > 30) ang = Math.atan2(g.p.vy, g.p.vx);
       let best = null, bd = KICK_RANGE;
       const list = combatTargets();
       for (const t of list) {
@@ -24026,8 +24036,14 @@ export default function IronLionLayer004() {
       if (g.who !== "sho" || (g.p.starCd || 0) > 0) return false;
       if ((g.p.stars || 0) <= 0) { g.pickupFlash = { nm: "no_stars", t: 1.1 }; return false; }
       g.p.stars--; g.p.starCd = 0.34;
-      let ang = Math.atan2(g.p.vy || 0, g.p.vx || 1);
+      /* Aim where he is FACING, not where he is moving. `atan2(vy || 0, vx || 1)` collapses to
+         0 the instant he stands still, so a stationary Sho threw every star due east whichever
+         way he was pointing. That is "the stars don't work". Velocity only overrides while he
+         is actually running. */
+      const DIRA = { up: -Math.PI / 2, down: Math.PI / 2, left: Math.PI, right: 0 };
+      let ang = DIRA[g.p.dir];
       if (!Number.isFinite(ang)) ang = 0;
+      if (Math.hypot(g.p.vx || 0, g.p.vy || 0) > 30) ang = Math.atan2(g.p.vy, g.p.vx);
       g.stars = g.stars || [];
       g.stars.push({ x: g.p.x, y: g.p.y, vx: Math.cos(ang) * 620, vy: Math.sin(ang) * 620,
                      t: 0.9, spin: 0 });
@@ -24042,9 +24058,13 @@ export default function IronLionLayer004() {
         s2.x += s2.vx * dt; s2.y += s2.vy * dt;
         if (s2.t <= 0 || !Number.isFinite(s2.x)) { list.splice(i, 1); continue; }
         for (const t of combatTargets()) {
-          if (!t || t.stunT > 0) continue;
+          /* A star passed straight through anybody already stunned, so a second star never
+             landed and a stunned man could not be finished. Radius widened as well: 16 units
+             against a projectile moving 620 a second is ten pixels of travel per frame, so
+             most throws tunnelled clean through the target between frames. */
+          if (!t) continue;
           if (!Number.isFinite(t.x)) continue;
-          if (Math.hypot(t.x - s2.x, t.y - s2.y) > 16) continue;
+          if (Math.hypot(t.x - s2.x, t.y - s2.y) > 26) continue;
           t.stunT = 2.6; t.vx = 0; t.vy = 0; t.say = 1.2; t.line = "AH!";
           if (t.hp != null) t.hp -= 1.5;
           pushFx("arc", s2.x, s2.y, Math.atan2(s2.vy, s2.vx));
@@ -24402,7 +24422,9 @@ export default function IronLionLayer004() {
       }
       if (j.phase === "done" && j.t > 90) callJob();   // the loop: he is out again
     }
-    G.jobFn = () => { g.job = null; callJob(); };      // test button: reroll a job now
+    /* From the map. `g.job = null` first, so it overrides a job already running rather than
+       being refused by callJob's own guard -- the point of the button is "now". */
+    G.jobFn = () => { g.job = null; callJob(); return true; };      // test button: reroll a job now
     G.turboFn = () => safely("turbo", turboBoost);
     G.spinFn = () => { if (g.who === "rio") safely("spin", boardSpin); };
     G.starFn = () => { if (g.who === "sho") safely("star", throwStar); };
@@ -25950,6 +25972,16 @@ export default function IronLionLayer004() {
             maxWidth: "34vw", maxHeight: "94vh", overflowY: "auto" }}>
           <div style={{ fontSize: 11, letterSpacing: "0.24em", color: C.gold }}>
             RAVEN HOOK · 1986
+          </div>
+          {/* Call a job from the map instead of waiting out the cooldown. It closes the map on
+              its way, because the point of the button is to go now. */}
+          <div onClick={(e) => { e.stopPropagation();
+                                 if (G.jobFn) G.jobFn();
+                                 setMapOpen(false); }}
+            style={{ cursor: "pointer", margin: "6px 0 10px 0", padding: "7px 12px",
+              border: `1px solid ${C.gold}`, color: C.gold, fontSize: 10,
+              letterSpacing: "0.16em", background: "rgba(232,196,106,0.08)" }}>
+            PUT A ROGUE ON THE BOARD
           </div>
           <div style={{ fontSize: 9, letterSpacing: "0.14em", opacity: 0.6, marginBottom: 8 }}>
             {hud.place}
