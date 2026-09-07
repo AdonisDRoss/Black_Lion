@@ -1495,7 +1495,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 403 — ON YOUR TAIL";
+const BUILD_TAG = "LAYER 404 — OUT THE BACK";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -6171,8 +6171,10 @@ export default function IronLionLayer004() {
        the bedroom plates -- declaring a second one in the same scope is a SyntaxError and the
        whole file refuses to load, so they go on the end of this one. */
     const ROTATE_CW = ["br_00", "br_01", "br_02", "br_03", "br_04",
-                       "vh_sov_limo", "vh_sov_sedan", "vh_cross_muscle", "vh_sov_suv",
-                       "vh_ecl_bike"];
+                       "vh_sov_limo", "vh_sov_sedan", "vh_sov_suv", "vh_ecl_bike"];
+    /* vh_cross_muscle is NOT in that list any more: it now ships already nose-up, and baking
+       a second quarter turn would lay it on its side. Same for vh_ecl_van, which was never
+       in it. Rotate at CUT time or at LOAD time, never both. */
     /* Cars whose plate was drawn nose-DOWN. Every draw site rotates by ang + PI/2 and assumes
        nose-up, so these reversed on the road -- the boot led and the bonnet trailed. Baked
        once at load like ROTATE_CW rather than special-cased at each of the eight draw sites,
@@ -19188,7 +19190,38 @@ export default function IronLionLayer004() {
     /* Luna in and out of the back. Docking takes her OUT OF THE WORLD rather than parking her
        beside the van -- a bike left standing next to a van you then drive off in is a bike you
        have abandoned in the street. */
+    /* She is behind the wheel of it. mountNearest retargets the CAR body and leaves the traffic
+       entry behind, so g.van.v is no longer where she is -- the only reliable test is the skin
+       she is driving. */
+    function drivingVan() {
+      return g.mode === "car" && g.car && g.car.skin && g.car.skin.k === "vh_ecl_van";
+    }
+    /* OUT OF THE BACK, AT SPEED. She stops, Luna lands behind the doors, and the van goes on
+       without her -- which is the whole reason to have a man driving it. */
+    function vanEject() {
+      if (!drivingVan()) return false;
+      if (!g.van || !g.van.bike) { g.pickupFlash = { nm: "no_bike_aboard", t: 1.6 }; return false; }
+      const a = (g.car.ang || 0) + Math.PI;
+      g.moto.x = g.car.x + Math.cos(a) * 86; g.moto.y = g.car.y + Math.sin(a) * 86;
+      g.moto.ang = g.car.ang || 0; g.moto.vx = 0; g.moto.vy = 0; g.moto.sunk = false;
+      g.moto.skin = LUNA_M; g.moto.model = "luna";
+      g.van.bike = false;
+      // hand the van back to him, moving, from where she left it
+      const v = {
+        axis: "h", si: clamp(Math.round(g.car.y / PITCH), 0, N), dir: 1,
+        k: clamp(Math.round(g.car.x / PITCH), 0, N), m: VAN_M,
+        x: g.car.x, y: g.car.y, ang: g.car.ang || 0, spd: 0, cruise: 0, brake: 1,
+        dead: 1, parked: 1, named: 1, trFree: 1,
+      };
+      g.traffic.push(v);
+      g.van.v = v; g.van.phase = "leaving"; g.van.t = 0;
+      g.car.skin = null;
+      g.mode = "moto";
+      g.pickupFlash = { nm: "out_the_back", t: 2.0 };
+      return true;
+    }
     function vanDock() {
+      if (drivingVan()) return vanEject();
       if (!g.van || !g.van.v) return false;
       if (g.van.phase !== "parked" && g.van.phase !== "following") return false;
       const v = g.van.v;
@@ -22576,6 +22609,7 @@ export default function IronLionLayer004() {
             // Maxine's two counters. Without these her buttons read "0 left" and "off" forever.
             sonic: g.p.sonic || 0, sonicCd: g.sonicCd || 0, jam: (g.jamT || 0) > 0,
             van: (g.van && g.van.phase) || "gone", vanBike: !!(g.van && g.van.bike),
+            vanDriving: g.mode === "car" && !!(g.car && g.car.skin && g.car.skin.k === "vh_ecl_van"),
             hero: !!(g.hero && g.hero[g.who]), stars: g.p.stars || 0, chain: g.p.chain || 0,
             turbo: (() => { const v = inVehicle() ? activeVeh() : null;
                             const k = v && ((v.m && v.m.k) || (v.skin && v.skin.k) || v.k);
@@ -25924,8 +25958,10 @@ export default function IronLionLayer004() {
                 : hud.van === "parked" ? "send away" : "leaving",
               () => { G.vanFn && G.vanFn(); }, null, hud.van === "parked")}
             {!hud.cab && hud.who === "eclipse"
-              && (hud.van === "parked" || hud.van === "following") && btn("LOAD",
-              hud.vanBike ? "ride out" : "bike in",
+              && (hud.van === "parked" || hud.van === "following" || hud.vanDriving)
+              && btn(hud.vanDriving ? "EJECT" : "LOAD",
+              hud.vanDriving ? (hud.vanBike ? "out the back" : "no bike aboard")
+                : hud.vanBike ? "ride out" : "bike in",
               () => { G.dockFn && G.dockFn(); }, null, hud.vanBike)}
             {!hud.cab && hud.who === "eclipse" && btn("WIRE", "silent, long",
               () => { G.wireFn && G.wireFn(); }, null)}
