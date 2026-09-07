@@ -1522,7 +1522,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 413 — FURNISHED, AND THE GRAB";
+const BUILD_TAG = "LAYER 414 — SPIN, FLASH, RACE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -6465,7 +6465,9 @@ export default function IronLionLayer004() {
       bk_desk_mgr:          "IMG_3379_02",
       bk_chair_exec:        "IMG_3379_03",
       bk_sofa_wait:         "IMG_3379_04",
-      bk_vault_closed:      "IMG_3379_08",
+      /* bk_vault_closed is NOT mapped here on purpose. CUT_MAP is applied after registration,
+         so a line here overrides assets/bank/bk_vault_closed.png -- the file you actually
+         uploaded was being pointed away from. Dropping the line lets the real file win. */
       bk_vault_open_shaft:  "IMG_3379_09",
       bk_camera_dome:       "IMG_3379_10",
       bk_sign_floor:        "IMG_3379_11",
@@ -9641,6 +9643,9 @@ export default function IronLionLayer004() {
           ctx.beginPath(); ctx.arc(tx, ty, 4, 0, 6.3); ctx.fill();
         }
       }
+      drawSlicks();
+      drawMuzzles();
+      drawJobArrow();
       drawBomb();
       drawGrab();
       drawHeldRogues();
@@ -17714,6 +17719,13 @@ export default function IronLionLayer004() {
           // contact: the ram is theirs as much as yours
           applyDamage(v, 210, v.x, v.y, 1, 1);
           t.spd = (t.spd || 0) * 0.7;
+          /* THE BULL BAR. While RAM is up, every contact smashes the other car instead of
+             trading paint -- and it costs you nothing, which is the point of a bull bar. */
+          if ((g.ramT || 0) > 0) {
+            applyDamage(t, 900, t.x, t.y, 1, 1);
+            spinOut(t, 1.3);
+            g.shake = Math.max(g.shake || 0, 8);
+          }
         }
       }
     }
@@ -22502,6 +22514,11 @@ export default function IronLionLayer004() {
       const rdt = dt;
       updateLion(rdt);
       if (g.lionOn) dt *= LION_SCALE;
+      /* The SHO STOPPER's boost rides the Lion's own time scale rather than inventing a second
+         one. Double speed at normal time is unusable -- the corner arrives before you do --
+         so the world slows and he keeps the road. The meter drains on rdt like the Lion's,
+         so three seconds of boost is three real seconds. */
+      else if ((g.turboSlow || 0) > 0) dt *= 0.62;
       // paused: skip the whole tick. The canvas keeps whatever was last drawn, which is
       // exactly what you want sitting behind a map overlay.
       /* Nine different things set g.paused and each is supposed to clear its own. If one is
@@ -23874,6 +23891,68 @@ export default function IronLionLayer004() {
        difference between Kuru's job and MVP's -- one is a race and the other is a search. */
     /* The hostage, and the distance left to the car. Always visible: this is a race, and a
        race you cannot see the finish line of is just a man walking away. */
+    /* The oil, and the flashes off the nose of the car. None of this was drawn -- the slick
+       existed as a number in a list and the guns fired silently, so both read as buttons that
+       do nothing even when they were working. */
+    function drawSlicks() {
+      for (const s2 of (g.slicks || [])) {
+        if (!Number.isFinite(s2.x)) continue;
+        const fade = Math.min(1, s2.t / 4);
+        if (s2.smoke) {
+          ctx.fillStyle = `rgba(198,196,204,${0.34 * fade})`;
+          ctx.beginPath(); ctx.arc(s2.x, s2.y, s2.r, 0, 6.3); ctx.fill();
+          ctx.fillStyle = `rgba(226,224,232,${0.22 * fade})`;
+          ctx.beginPath(); ctx.arc(s2.x, s2.y, s2.r * 0.6, 0, 6.3); ctx.fill();
+        } else {
+          ctx.fillStyle = `rgba(14,12,16,${0.72 * fade})`;
+          ctx.beginPath(); ctx.ellipse(s2.x, s2.y, s2.r, s2.r * 0.72, 0, 0, 6.3); ctx.fill();
+          ctx.fillStyle = `rgba(120,96,180,${0.20 * fade})`;   // the sheen on it
+          ctx.beginPath(); ctx.ellipse(s2.x - s2.r * 0.2, s2.y - s2.r * 0.15,
+                                       s2.r * 0.5, s2.r * 0.3, 0, 0, 6.3); ctx.fill();
+        }
+      }
+    }
+    function drawMuzzles() {
+      const v = inVehicle() ? activeVeh() : null;
+      if (!v || !(v.muzzle > 0)) return;
+      const a = v.ang || 0, cs = Math.cos(a), sn = Math.sin(a);
+      const k = Math.min(1, v.muzzle / 0.12);
+      for (const off of [-14, 14]) {
+        const mx = v.x + cs * 48 - sn * off, my = v.y + sn * 48 + cs * off;
+        ctx.fillStyle = `rgba(255,226,150,${0.9 * k})`;
+        ctx.beginPath(); ctx.arc(mx, my, 7 * k + 2, 0, 6.3); ctx.fill();
+        ctx.strokeStyle = `rgba(255,196,90,${0.7 * k})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(mx, my);
+        ctx.lineTo(mx + cs * 46 * k, my + sn * 46 * k); ctx.stroke();
+      }
+      v.muzzle = Math.max(0, v.muzzle - 0.02);
+    }
+    /* WHERE THE JOB IS. An arrow pinned near the edge of the screen pointing at it, with the
+       distance -- there is no other way to find a crime in a city this size. */
+    function drawJobArrow() {
+      if (!g.job || !g.job.st) return;
+      if (g.job.phase === "done" || g.job.phase === "gone") return;
+      const tgt = g.job.bomb || g.job.grab
+                || (() => { const c = getCell(g.job.st.i, g.job.st.j);
+                            return { x: (c.lx0 + c.lx1) / 2, y: (c.ly0 + c.ly1) / 2 }; })();
+      if (!tgt || !Number.isFinite(tgt.x)) return;
+      const dx = tgt.x - g.p.x, dy = tgt.y - g.p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d < 240) return;                      // stop nagging once you are on top of it
+      const a = Math.atan2(dy, dx);
+      const R = 150;
+      const ax = g.p.x + Math.cos(a) * R, ay = g.p.y + Math.sin(a) * R;
+      ctx.save();
+      ctx.translate(ax, ay); ctx.rotate(a);
+      ctx.fillStyle = "rgba(232,196,106,0.92)";
+      ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(-10, -11); ctx.lineTo(-4, 0);
+      ctx.lineTo(-10, 11); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      ctx.font = "700 11px system-ui, sans-serif";
+      ctx.fillStyle = "rgba(232,196,106,0.92)";
+      ctx.fillText(Math.round(d / 10) + "m", ax - 14, ay - 18);
+    }
     function drawGrab() {
       if (!g.job || g.job.phase !== "grab" || !g.job.grab) return;
       const B = g.job.grab;
@@ -24585,17 +24664,25 @@ export default function IronLionLayer004() {
       const k = v && ((v.m && v.m.k) || (v.skin && v.skin.k) || v.k);
       if (k !== "sho_car") { g.pickupFlash = { nm: "no_boost_in_this_car", t: 1.1 }; return false; }
       if ((g.turboCd || 0) > 0) return false;
+      /* Twice the speed is unusable at normal time -- the corner arrives before you do. The
+         boost slows the world instead, so the car is doing double and Sho still has the road.
+         That is the whole character of the SHO STOPPER: fast, and he can drive it. */
       g.turboT = 3.0; g.turboCd = 15;
+      g.turboSlow = 3.0;
+      // twice the speed, applied to the body that is actually moving
+      if (v) { v.vx = (v.vx || 0) * 2.0; v.vy = (v.vy || 0) * 2.0; v.boostT = 3.0; }
       g.shake = Math.max(g.shake, 6);
       return true;
     }
     function stepTurbo(dt) {
+      g.turboSlow = Math.max(0, (g.turboSlow || 0) - dt);
       g.turboCd = Math.max(0, (g.turboCd || 0) - dt);
       g.turboT = Math.max(0, (g.turboT || 0) - dt);
       stepEclipse(dt);          // her timers ride the same per-frame call
       stepVan(dt);
       stepPursuit(dt);
       stepSlicks(dt);
+      stepSpinOuts(dt);
       stepWrecks(dt);
       stepCarChase(dt);
       stepJob(dt);
@@ -24871,7 +24958,19 @@ export default function IronLionLayer004() {
     }
     /* From the map. `g.job = null` first, so it overrides a job already running rather than
        being refused by callJob's own guard -- the point of the button is "now". */
-    G.jobFn = () => { g.job = null; callJob(); return true; };      // test button: reroll a job now
+    G.jobFn = () => { g.job = null; callJob(); return true; };
+    /* Put you at the organiser rather than starting a race under you -- the race system
+       already handles being called, staged and run, and short-circuiting into the middle of
+       that is how the last street-racing system got broken. This walks you to the door. */
+    G.raceNowFn = () => {
+      const o = raceOrganiser();
+      if (!o) { g.pickupFlash = { nm: "no_race_tonight", t: 2.0 }; return false; }
+      if (g.mode !== "foot") { g.pickupFlash = { nm: "on_foot_only", t: 1.6 }; return false; }
+      g.p.x = o.x + 40; g.p.y = o.y + 40;
+      g.roof = null; g.sewer = false;
+      g.pickupFlash = { nm: "the_organiser", t: 2.4 };
+      return true;
+    };      // test button: reroll a job now
     G.turboFn = () => safely("turbo", turboBoost);
 
     /* ---------- THE SPECIALS ----------
@@ -24910,7 +25009,11 @@ export default function IronLionLayer004() {
           const along = rx * cs + ry * sn;
           if (along < 0 || along > RANGE) continue;
           if (Math.abs(rx * sn - ry * cs) > HALF + 14) continue;
-          applyDamage(tv, 260, tv.x, tv.y, 1, 1);
+          /* 260 barely marked a shell. A pair of mounted guns should visibly wreck the car
+             in front of you over a couple of bursts, so this is the force of a hard collision
+             rather than a tap. */
+          applyDamage(tv, 560, tv.x, tv.y, 1, 1);
+          if (Math.random() < 0.34) spinOut(tv, 0.9);
         }
         v.muzzle = 0.12;                 // the flash the rest of the game uses
         g.shake = Math.max(g.shake || 0, 4);
@@ -24936,6 +25039,32 @@ export default function IronLionLayer004() {
     /* Anything that drives over a slick loses the back end. Police cars and gang cars both --
        it is oil, it does not know who you are. Smoke does not spin them, it blinds them, so
        they simply stop chasing for as long as they are inside it. */
+    /* `v.spin` is a SKATEBOARD field -- p.spin, set when Rio bails off a ramp. Nothing reads
+       it on a vehicle, so the oil slick has been setting a property into the void. A car spins
+       out by having its heading driven round while its grip is gone, so that is what this
+       does: spinT counts down, the nose swings, and the speed bleeds off. */
+    function stepSpinOuts(dt) {
+      for (const v of (g.traffic || [])) {
+        if (!v || !(v.spinT > 0)) continue;
+        v.spinT -= dt;
+        v.ang = (v.ang || 0) + (v.spinDir || 1) * dt * 6.2;
+        v.spd = (v.spd || 0) * 0.90;
+        v.cruise = 0;
+        if (v.spinT <= 0) { v.spinT = 0; v.chasing = 0; }
+      }
+      const pv = inVehicle() ? activeVeh() : null;
+      if (pv && pv.spinT > 0) {
+        pv.spinT -= dt;
+        pv.ang = (pv.ang || 0) + (pv.spinDir || 1) * dt * 5.0;
+        pv.vx = (pv.vx || 0) * 0.93; pv.vy = (pv.vy || 0) * 0.93;
+        if (pv.spinT <= 0) pv.spinT = 0;
+      }
+    }
+    function spinOut(v, secs) {
+      if (!v || v.wreck) return;
+      v.spinT = Math.max(v.spinT || 0, secs);
+      v.spinDir = (v.spinDir || (Math.random() < 0.5 ? -1 : 1));
+    }
     function stepSlicks(dt) {
       g.specCd = Math.max(0, (g.specCd || 0) - dt);
       g.ramT = Math.max(0, (g.ramT || 0) - dt);
@@ -24947,8 +25076,9 @@ export default function IronLionLayer004() {
         for (const v of (g.traffic || [])) {
           if (!v || !Number.isFinite(v.x)) continue;
           if (Math.hypot(v.x - s2.x, v.y - s2.y) > s2.r) continue;
-          if (s2.smoke) { v.chasing = 0; v.blind = Math.max(v.blind || 0, 1.6); }
-          else { v.spin = Math.max(v.spin || 0, 1.5); v.spd = (v.spd || 0) * 0.94; }
+          // both of them put a car round now, which is what you asked oil to do
+          if (s2.smoke) { v.chasing = 0; v.blind = Math.max(v.blind || 0, 1.6); spinOut(v, 1.1); }
+          else spinOut(v, 1.7);
         }
       }
     }
@@ -26540,6 +26670,14 @@ export default function IronLionLayer004() {
               border: `1px solid ${C.gold}`, color: C.gold, fontSize: 10,
               letterSpacing: "0.16em", background: "rgba(232,196,106,0.08)" }}>
             PUT A ROGUE ON THE BOARD
+          </div>
+          <div onClick={(e) => { e.stopPropagation();
+                                 if (G.raceNowFn) G.raceNowFn();
+                                 setMapOpen(false); }}
+            style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "7px 12px",
+              border: `1px solid ${C.gold}`, color: C.gold, fontSize: 10,
+              letterSpacing: "0.16em", background: "rgba(232,196,106,0.08)" }}>
+            FIND ME A STREET RACE
           </div>
           <div style={{ fontSize: 9, letterSpacing: "0.14em", opacity: 0.6, marginBottom: 8 }}>
             {hud.place}
