@@ -1536,7 +1536,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 415 — IRON MONTE";
+const BUILD_TAG = "LAYER 416 — THEY ARE INSIDE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -4002,6 +4002,25 @@ function makeFloor(b, f, rnd) {
     props.length = from;
     for (const p of kept) props.push(p);
   }
+  /* A SERVICE GAP. Every counter in this file was one solid prop spanning the full width of
+     the room its doorway opens into -- so the door existed and the counter stood in it, and
+     you could not walk into a bank, a bar, a cafe, a gun shop or a restaurant. A real counter
+     has a lift-up flap at one end; this draws the run as two pieces with that flap between
+     them, so the room is still divided and there is still a way through.
+     GAP is where the staff walk. It is deliberately NOT in the middle -- a gap in the centre
+     reads as two desks, a gap at one end reads as a counter. */
+  const counterRun = (q, kind, thick) => {
+    const W3 = q.x1 - q.x0, H3 = q.y1 - q.y0;
+    const t = thick || Math.max(16, H3 - 8);
+    const GAP = 72, EDGE = 8;
+    const run = W3 - EDGE * 2;
+    if (run <= GAP + 40) {            // too narrow to split: leave the gap and one short piece
+      P(q.x0 + EDGE + GAP, q.y0 + 4, Math.max(20, run - GAP), t, kind);
+      return;
+    }
+    const left = run - GAP;
+    P(q.x0 + EDGE, q.y0 + 4, left, t, kind);
+  };
   for (const r of rooms) {
     const q2 = rect(r), W2 = q2.x1 - q2.x0, H2 = q2.y1 - q2.y0;
     const propsFrom = props.length;
@@ -4031,7 +4050,7 @@ function makeFloor(b, f, rnd) {
       }
       case "barline": {
         const kit = BAR_KIT[(b && b.style) || "pub"] || BAR_KIT.pub;
-        P(q2.x0 + 8, q2.y0 + 4, W2 - 16, Math.max(16, H2 - 8), kit.counter);
+        counterRun(q2, kit.counter);
         break;
       }
       case "barback": {
@@ -4057,7 +4076,7 @@ function makeFloor(b, f, rnd) {
         break;
       }
       case "cafeline":
-        P(q2.x0 + 8, q2.y0 + 4, W2 - 16, Math.max(16, H2 - 8), "cf_counter_long");
+        counterRun(q2, "cf_counter_long");
         P(q2.x1 - pad - 20, q2.y0 + 2, 20, 16, "cf_register");
         P(q2.x0 + pad, q2.y0 + 2, 26, 16, "cf_pie_case");
         break;
@@ -4076,7 +4095,7 @@ function makeFloor(b, f, rnd) {
         break;
       }
       case "guncounter":
-        P(q2.x0 + 8, q2.y0 + 4, W2 - 16, Math.max(16, H2 - 8), "gn_counter_glass");
+        counterRun(q2, "gn_counter_glass");
         P(q2.x1 - pad - 20, q2.y0 + 2, 20, 16, "gn_register");
         break;
       case "gunback":
@@ -4103,7 +4122,7 @@ function makeFloor(b, f, rnd) {
       }
       case "ffcounter": {
         const kit = FF_KIT[(b && b.chain) || "bb"] || FF_KIT.bb;
-        P(q2.x0 + 8, q2.y0 + 4, W2 - 16, Math.max(16, H2 - 8), kit.counter);
+        counterRun(q2, kit.counter);
         P(cx + 26, q2.y1 - 22, 22, 20, kit.staff);
         break;
       }
@@ -4206,7 +4225,7 @@ function makeFloor(b, f, rnd) {
         P(q2.x1 - pad - 22, q2.y1 - pad - 22, 22, 22, "vend");
         break;
       case "hosdesk":
-        P(q2.x0 + 8, q2.y0 + 4, W2 - 16, Math.max(16, H2 - 8), "counter");
+        counterRun(q2, "counter");
         break;
       case "hoser":
         // curtained bays and the crash cart between them
@@ -4243,7 +4262,7 @@ function makeFloor(b, f, rnd) {
       }
       case "bkline": {
         // the counter itself, wall to wall -- the thing the whole room is arranged around
-        P(q2.x0 + 6, q2.y0 + 4, W2 - 12, Math.max(16, H2 - 8), "bk_counter_curved");
+        counterRun(q2, "bk_counter_curved");
         const tills = clamp(Math.round(W2 / 110), 2, 5);
         runX(q2, q2.y0 + 2, tills, 22, 13, "bk_till_registers", 24);
         runX(q2, q2.y1 - 20, tills, 26, 18, "bk_teller_on", 24);
@@ -24746,7 +24765,16 @@ export default function IronLionLayer004() {
       const [x, y] = jobSiteXY(j.st);
       let gang = null;
       try { gang = Object.keys(GANG_COL || {})[0] || null; } catch (e) { gang = null; }
-      const cr = warCrew(gang, x, y, Math.max(1, R.crew + 1), R.wing);
+      /* THEY HAVE TO BE INSIDE THE BANK. The crew was spawned at the CELL centre with no
+         `indoor` set, which puts them on the pavement -- and every draw and combat loop in
+         this file skips a crew with no indoor when YOU are inside. So you walked into the
+         bank being robbed and it was empty, which is exactly what was reported.
+         Tie them to the building and its ground floor, and put them in the room. */
+      const site0 = (getCell(j.st.i, j.st.j).blds || []).find((q) => q.door && !q.perimeter);
+      const sx = site0 ? site0.x + site0.w / 2 : x;
+      const sy = site0 ? site0.y + site0.h / 2 : y;
+      const cr = warCrew(gang, sx, sy, Math.max(1, R.crew + 1), R.wing);
+      if (site0) { cr.indoor = site0; cr.indoorFloor = 0; }
       const boss = cr.members[0];
       boss.hp = R.hp; boss.boss = 1; boss.rid = j.rid;
       /* `loud` was defined on all five rogues and referenced NOWHERE -- dead data since the
@@ -24775,9 +24803,15 @@ export default function IronLionLayer004() {
       cr.members.forEach((mm, mi) => {
         if (!mi) return;
         const ang = (mi / Math.max(1, cr.members.length - 1)) * 6.283;
-        mm.x = x + Math.cos(ang) * spread * (0.55 + 0.45 * ((mi * 7) % 5) / 5);
-        mm.y = y + Math.sin(ang) * spread * (0.55 + 0.45 * ((mi * 3) % 5) / 5);
+        mm.x = sx + Math.cos(ang) * spread * (0.55 + 0.45 * ((mi * 7) % 5) / 5);
+        mm.y = sy + Math.sin(ang) * spread * (0.55 + 0.45 * ((mi * 3) % 5) / 5);
+        // keep them off the walls, or half of them get filtered out of the room
+        if (site0) {
+          mm.x = clamp(mm.x, site0.x + 26, site0.x + site0.w - 26);
+          mm.y = clamp(mm.y, site0.y + 26, site0.y + site0.h - 26);
+        }
       });
+      if (site0) { boss.x = sx; boss.y = sy; }
       /* La Voz does not bring muscle, she brings somebody who already works there. One of
          hers is unarmed and stands still -- the inside man, who is the approach. */
       /* THE MONEY GOES UP. Not stolen -- burned, in the building it lived in, which is a
@@ -24828,7 +24862,7 @@ export default function IronLionLayer004() {
         return;
       }
       const line = (ROGUE_LINE[j.rid] || {})[g.who] || "";
-      g.jobBanner = R.name;
+      g.jobBanner = R.name + " \u00b7 INSIDE";
       g.jobNote = line || "(He does not say anything. He never does.)";
       g.pickupFlash = { nm: "job_boss", t: 4.5 };
     }
