@@ -1495,7 +1495,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 383 — CUTS WIRED";
+const BUILD_TAG = "LAYER 386 — THE DEN YARD";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2337,6 +2337,10 @@ for (const k of ["yt_eclipse", "yt_eclipse_hero",          // reporter / Eclipse
    no spawn pool. Every one of these arrived nose-LEFT, see ROTATE_CW below. */
 for (const k of ["vh_sov_limo", "vh_sov_sedan", "vh_cross_muscle", "vh_sov_suv", "vh_ecl_bike"])
   SOV_ART[k] = "assets/sov/" + k + ".png";
+/* LUNA. The same plate under the model key the rest of the game uses for her, because
+   MOTONAME and MOTO_LAMP are both keyed "luna" -- without this alias the bike has a name and
+   a lavender headlight and no picture. */
+SOV_ART.luna = "assets/sov/vh_ecl_bike.png";
 
 const isBankCell = (i, j) => BANK_CELLS.some((bc) => bc.i === i && bc.j === j);
 
@@ -6179,6 +6183,42 @@ export default function IronLionLayer004() {
       bk_safe_deposit_boxes:"IMG_3379_16",
       bk_money_stacks:      "IMG_3379_17",
       bk_queue_ropes:       "IMG_3379_18",
+
+      /* IMG_3386 -- Chicken Chew'ys and Pizza Plus, read off the contact sheet.
+         Cuts 01-04 are the two shop names as pictures and are skipped. Cut 14 is a smaller
+         duplicate of the Chew'ys fountain at 17, and cut 15 a second pizza oven; only one of
+         each is wired. */
+      cc_counter:        "IMG_3386_05",
+      cc_booth_large:    "IMG_3386_06",
+      cc_booth_small:    "IMG_3386_12",
+      cc_fryer:          "IMG_3386_11",
+      cc_prep_station:   "IMG_3386_13",
+      cc_soda_machine:   "IMG_3386_17",
+      cc_display_case:   "IMG_3386_18",
+      cc_trash_bin:      "IMG_3386_19",
+      pp_ordering_counter: "IMG_3386_07",
+      pp_booth_large:    "IMG_3386_09",
+      pp_booth_small:    "IMG_3386_10",
+      pp_pizza_oven:     "IMG_3386_08",
+      pp_dough_table:    "IMG_3386_16",
+      pp_soda_machine:   "IMG_3386_20",
+      pp_slice_warmer:   "IMG_3386_21",
+      pp_cooler:         "IMG_3386_22",
+
+      /* IMG_3401 -- THE SHAMROCK. All ten pub keys. Skipped: the drum kit at 03 (that is
+         venue gear, not bar gear), the menus at 14, the pub sign at 26, the ceiling light at
+         27, and the twelve floor mats and beer trays from 29 on. */
+      ib_bar_long:       "IMG_3401_01",
+      ib_backbar_bottles:"IMG_3401_10",
+      ib_stool:          "IMG_3401_04",
+      ib_booth:          "IMG_3401_11",
+      ib_table_round:    "IMG_3401_19",
+      ib_table_square:   "IMG_3401_20",
+      ib_register:       "IMG_3401_13",
+      ib_dartboard:      "IMG_3401_24",
+      ib_fireplace:      "IMG_3401_25",
+      ib_payphone:       "IMG_3401_33",
+
       // the three race cuts and the Sovereign set are already correctly named and foldered,
       // so they are deliberately NOT here -- pointing them at cuts/ would be a second copy.
     };
@@ -18775,20 +18815,35 @@ export default function IronLionLayer004() {
     /* Sho's and Kenny's cars, parked in the street outside the den. Placed once, kept forever:
        they use the same parked-vehicle shape as every other car in the world, so getting in,
        stealing, damaging and drawing all work with nothing new written for them. */
+    /* THREE vehicles behind the den and no more: the SHO STOPPER, the KO JEEP and LUNA.
+       This used to park all NINE named models in one row -- which put MasterDrive's rocket
+       van, Kuru's bike, MVP's ATV, El Monstruo's rod and both Hollow Pass trucks in the
+       Lion's back yard, permanently, before you had met any of them. The villains' vehicles
+       still get placed, just nowhere near here. */
+    const DEN_PARK = ["sho_car", "kenny_truck", "luna"];
+    const LUNA_M = { k: "luna", len: 96, w: 34 };
     function placeNamedCars() {
       if (g.namedParked) return;
       const b = denOf(); if (!b) return;
       g.namedParked = 1;
-      const y = b.y + b.h + 78;
-      NAMED_CARS.forEach((m, i) => {
-        const v = {
+      const park = (m, x, y, named) => {
+        g.traffic.push({
           axis: "h", si: clamp(Math.round(y / PITCH), 0, N), dir: 1,
-          k: clamp(Math.round((b.x + 120 + i * 150) / PITCH), 0, N), m,
-          x: b.x + 120 + i * 150, y, ang: 0,
-          spd: 0, cruise: 0, brake: 1, dead: 1, parked: 1, named: 1,
-        };
-        g.traffic.push(v);
+          k: clamp(Math.round(x / PITCH), 0, N), m, x, y, ang: 0,
+          spd: 0, cruise: 0, brake: 1, dead: 1, parked: 1, named: named ? 1 : 0,
+        });
+      };
+      // behind the den: the door is on the NORTH wall, so south of the building is the back
+      const y = b.y + b.h + 78;
+      DEN_PARK.forEach((kk, i) => {
+        const m = kk === "luna" ? LUNA_M : NAMED_CARS.find((q) => q.k === kk);
+        if (m) park(m, b.x + 140 + i * 150, y, true);
       });
+      /* Everything else that was in this row keeps existing -- losing it would mean four
+         villain vehicles that are registered, drawn and named and never appear anywhere --
+         but it goes two blocks east so the den yard is the three of them alone. */
+      const rest = NAMED_CARS.filter((m) => DEN_PARK.indexOf(m.k) < 0);
+      rest.forEach((m, i) => park(m, b.x + 2 * PITCH + i * 150, y + PITCH, true));
     }
     function spawnParked(cx, cy) {
       const vertical = Math.random() < 0.5;
@@ -22066,6 +22121,8 @@ export default function IronLionLayer004() {
             dmg: inVehicle() && activeVeh() ? Math.round((activeVeh().dmg || 0) * 100) : null,
             shop: !!nearBodyShop(), inShop: !!g.inShop,
             who: g.who, smokeStock: g.p.smokeStock || 0, hidden: !!g.p.hidden,
+            // Maxine's two counters. Without these her buttons read "0 left" and "off" forever.
+            sonic: g.p.sonic || 0, jam: (g.jamT || 0) > 0,
             hero: !!(g.hero && g.hero[g.who]), stars: g.p.stars || 0, chain: g.p.chain || 0,
             turbo: (() => { const v = inVehicle() ? activeVeh() : null;
                             const k = v && ((v.m && v.m.k) || (v.skin && v.skin.k) || v.k);
@@ -22761,7 +22818,7 @@ export default function IronLionLayer004() {
         if (im && im.width) {
           /* Sho stands a head taller than Rio -- he is nearer the Lion's build, and at this
              size height is most of what separates two men in dark jackets. */
-          const h = sp.r.id === "sho" ? 38 : sp.r.id === "kenny" ? 34 : 28,
+          const h = sp.r.id === "sho" ? 38 : sp.r.id === "kenny" ? 34 : sp.r.id === "eclipse" ? 25 : 28,
                 w = h * (im.width / im.height);
           // and only a man who is carrying a board is drawn stood on one
           const dk = (sp.r.kit && sp.r.kit.board) ? imgs.current.sk_deck : null;
@@ -22981,8 +23038,13 @@ export default function IronLionLayer004() {
            whip     -- the grapple. Reuses g.grap, so roofs already work; drawn as a whip.
            sonic    -- kills nearby cameras for a while and pulls guards toward the noise. */
       { id: "eclipse", name: "ECLIPSE", yt: "yt_eclipse", hero: "yt_eclipse_hero",
+        /* `tall` multiplies the 30px plate height in drawYouth. Her cut came off a sheet with
+           a lot of hair and a wide jacket, so at parity she read a size bigger than everyone
+           except Kenny. 0.84 puts her between Rio and Sho, which is where a woman in her
+           twenties belongs next to a 34-year-old ex-policeman and a 61-year-old heavyweight. */
+        tall: 0.84,
         kit: { wpn: null, ammo: 0, holstered: false, board: false, hp: 90, smoke: 30,
-               helmet: true, wire: true, whip: true, sonic: 6,
+               tall: 0.84, helmet: true, wire: true, whip: true, sonic: 6,
                optics: true, quiet: true } },
     ];
     const rosterOf = (id) => ROSTER.find((r) => r.id === id) || ROSTER[0];
@@ -23139,6 +23201,13 @@ export default function IronLionLayer004() {
          and the button always said no. It belongs to the man, not the world. */
       g.p.smokeStock = k.smoke || 0;
       g.p.stars = k.stars || 0;
+      /* Maxine's kit, for exactly the reason written above about the smoke: her tools live on
+         the WOMAN, not on the world. Without these four lines wireStrike, sonicPulse and the
+         goggles all check g.p.wire / g.p.sonic / g.p.helmet, find undefined, and return
+         silently -- three buttons that look armed and do nothing. */
+      g.p.wire = !!k.wire; g.p.helmet = !!k.helmet; g.p.whip = !!k.whip;
+      g.p.sonic = k.sonic || 0;
+      g.p.tall = k.tall || 1;
       if (k.hp != null) g.p.hp = k.hp;
       if (k.skill != null) g.p.skill = k.skill;
     }
@@ -25297,6 +25366,14 @@ export default function IronLionLayer004() {
               () => { G.tazeFn && G.tazeFn(); }, null)}
             {!hud.cab && hud.who === "rio" && btn("SMOKE", (hud.smokeStock || 0) + " left",
               () => { G.smokeFn && G.smokeFn(); }, null, hud.hidden)}
+            {/* Maxine. The functions and the G.* bridges existed since L381; there were simply
+                no buttons, so on a phone none of it could be reached. */}
+            {!hud.cab && hud.who === "eclipse" && btn("WIRE", "silent, long",
+              () => { G.wireFn && G.wireFn(); }, null)}
+            {!hud.cab && hud.who === "eclipse" && btn("SONIC", (hud.sonic || 0) + " left",
+              () => { G.sonicFn && G.sonicFn(); }, null)}
+            {!hud.cab && hud.who === "eclipse" && btn("OPTICS", hud.jam ? "guns dead" : "off",
+              () => { G.gogglesFn && G.gogglesFn(); }, null, hud.jam)}
             {hud.cab && btn("FIRE", "shoot",
               () => { input.current.fire = true; },
               () => { input.current.fire = false; })}
