@@ -1536,7 +1536,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 416 — THEY ARE INSIDE";
+const BUILD_TAG = "LAYER 418 — DOME AND MARBLE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2386,6 +2386,10 @@ SOV_ART.vh_ecl_van = "assets/sov/vh_ecl_van.png";   // no plate yet; falls back 
 SOV_ART.asy_orderly = "assets/sov/asy_orderly.png";  // Cormorant Island staff
 SOV_ART.wreck_frame = "assets/sov/wreck_frame.png";  // burnt-out, stripped to the chassis
 SOV_ART.wreck_shell = "assets/sov/wreck_shell.png";  // burnt-out, body still on it
+/* Marble. A repeating FLOOR tile, not a prop -- it is for the rooms that should read as money:
+   the banking halls, the mansion, city hall and the jewellers. Registered here; wired to those
+   floors once you confirm that is where you want it. */
+SOV_ART.tx_marble = "assets/tex/tx_marble.png";
 /* Elias Reed. Two faces like everyone else who has two, his kit, and the van he brings it in.
    Hospital gear is deliberately NOT registered yet -- there is no hospital, and registering
    plates for a building that does not exist is exactly how eight roof sprites ended up
@@ -4009,6 +4013,12 @@ function makeFloor(b, f, rnd) {
      them, so the room is still divided and there is still a way through.
      GAP is where the staff walk. It is deliberately NOT in the middle -- a gap in the centre
      reads as two desks, a gap at one end reads as a counter. */
+  /* MARBLE. Floors that are supposed to read as money: the banking hall and its vault, the
+     mansion, City Hall, and the jewellers. Deliberately NOT the pawn shop -- a pawn shop with
+     a marble floor is a different shop. */
+  const MARBLE_ROOMS = { bkhall: 1, bkline: 1, bkvault: 1, bkmgr: 1,
+                         hall: 1, throne: 1, study: 1,
+                         jewel: 1, lobby: 1, chamber: 1, mayor: 1 };
   const counterRun = (q, kind, thick) => {
     const W3 = q.x1 - q.x0, H3 = q.y1 - q.y0;
     const t = thick || Math.max(16, H3 - 8);
@@ -4024,6 +4034,12 @@ function makeFloor(b, f, rnd) {
   for (const r of rooms) {
     const q2 = rect(r), W2 = q2.x1 - q2.x0, H2 = q2.y1 - q2.y0;
     const propsFrom = props.length;
+    // the floor itself, before anything stands on it
+    /* The jeweller's room kind is "retail" like every other shop -- the trade lives on
+       b.arch, not on the room. Checking MARBLE_ROOMS alone returned nothing for them. */
+    if (MARBLE_ROOMS[r.k] && (kind === "bankfloor" || kind === "mansionfloor"
+        || kind === "cityhall")) r.floorTex = "tx_marble";
+    if (kind === "store" && b && b.arch === "jewel" && r.k === "retail") r.floorTex = "tx_marble";
     // K(standard, luxury) -- one call at each placement instead of a duplicated case per class
     const LUX = isLux(b), K = (std, lux) => (LUX ? lux : std);
     const wide = W2 >= H2;
@@ -4977,10 +4993,30 @@ function makeFloor(b, f, rnd) {
     if (TIDY_KINDS[kind]) tidyRoom(q2, propsFrom);
   }
 
+  /* NOTHING STANDS IN A DOORWAY. tidyRoom snaps furniture to the nearest wall, and a doorway
+     IS a wall with a hole in it -- so the tidy pass was pushing props directly into the gaps
+     and you got stuck in the opening. Every doorMark clears a box around itself; anything
+     solid still overlapping it is dropped rather than nudged, because a nudged prop just
+     lands in the next doorway along. */
+  {
+    const CLEAR = DOORW + 26;
+    for (const d of doorMarks) {
+      for (let i = props.length - 1; i >= 0; i--) {
+        const p = props[i];
+        const bx0 = d.x - (d.v ? WT + 14 : CLEAR / 2), bx1 = d.x + (d.v ? WT + 14 : CLEAR / 2);
+        const by0 = d.y - (d.v ? CLEAR / 2 : WT + 14), by1 = d.y + (d.v ? CLEAR / 2 : WT + 14);
+        if (p.x >= bx1 || p.x + p.w <= bx0 || p.y >= by1 || p.y + p.h <= by0) continue;
+        props.splice(i, 1);
+      }
+    }
+  }
   const inProps = props.filter((p) =>
     p.x >= b.x + WT && p.y >= b.y + WT &&
     p.x + p.w <= b.x + b.w - WT && p.y + p.h <= b.y + b.h - WT);
-  return { walls, rooms: rooms.map((r) => ({ ...rect(r), k: r.k })), stair: st, props: inProps, doorMarks, kind };
+  /* floorTex has to survive this map or it is set on the working room and thrown away one
+     line later -- which is exactly what happened the first time I wrote it. */
+  return { walls, rooms: rooms.map((r) => ({ ...rect(r), k: r.k, floorTex: r.floorTex || null })),
+           stair: st, props: inProps, doorMarks, kind };
 }
 
 function mkB(bx, by, bw, bh, floors, kind, rnd, key) {
@@ -12634,6 +12670,11 @@ export default function IronLionLayer004() {
       }
       ctx.fillStyle = "rgba(255,255,255,0.05)";
       ctx.fillRect(b.x + 4, b.y + 4, b.w - 8, 5);
+      /* No air-conditioning on a domed civic roof. The dome IS drawn up here, but the roof
+         clutter pass runs after it and was putting vents and packaged AC units on top of it,
+         which is why it did not read as the outside of the building. City Hall keeps its
+         dome and nothing else. */
+      if (b.shape === "cityhall") b.roof = [];
       for (const r of b.roof) {
         const rkey = ROOF_SPRITE(b, r);
         const rimg = imgs.current[rkey];
@@ -13704,6 +13745,23 @@ export default function IronLionLayer004() {
       ctx.fillStyle = "rgba(0,0,0,0.12)";
       for (let y = b.y + 12; y < b.y + b.h; y += 26) ctx.fillRect(b.x, y, b.w, 2);
       for (const r of plan.rooms) {
+        /* Marble first, tint over it. A room carrying floorTex gets the tile repeated across
+           it; if the image has not loaded the tint still runs, so nothing looks broken while
+           the file is missing. */
+        if (r.floorTex) {
+          const tim = imgs.current[r.floorTex];
+          if (tim && tim.width) {
+            const pat = ctx.createPattern(tim, "repeat");
+            if (pat) {
+              ctx.save();
+              ctx.translate(r.x0, r.y0);
+              ctx.scale(0.16, 0.16);                  // 604px tile down to about a metre
+              ctx.fillStyle = pat;
+              ctx.fillRect(0, 0, (r.x1 - r.x0) / 0.16, (r.y1 - r.y0) / 0.16);
+              ctx.restore();
+            }
+          }
+        }
         const t = ROOM_TINT[r.k];
         if (t) { ctx.fillStyle = t; ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0); }
       }
@@ -20159,6 +20217,12 @@ export default function IronLionLayer004() {
       for (let n = g.traffic.length - 1; n >= 0; n--) {
         const v = g.traffic[n];
         const away = Math.hypot(v.x - cx, v.y - cy);
+        /* NAMED CARS ARE NEVER CULLED. The IRON MONTE, the SHO STOPPER, the KO JEEP and LUNA
+           are parked with `dead: 1` so they sit still -- which put them straight into the
+           dead-vehicle cull below, and after fifty seconds a block away they were deleted.
+           `g.namedParked` was already set, so nothing ever put them back and the den yard was
+           empty when you came home. They are the cars you are supposed to keep. */
+        if (v.named) continue;
         if (away > 4800) { g.traffic.splice(n, 1); continue; }
         if (v.dead && !v.crewCar) { v.deadT = (v.deadT || 0) + dt; if (v.deadT > 50 && away > 1400) { g.traffic.splice(n, 1); continue; } }
         // an abandoned car is scenery now -- it holds position until it despawns
