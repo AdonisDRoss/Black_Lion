@@ -1074,7 +1074,7 @@ const VIL_CARS = [
   { k: "vh_kuru_bike", len: 96, w: 34, who: "kuru" },
   { k: "vh_mvp_atv", len: 92, w: 62, who: "mvp" },
   { k: "vh_mons_rod", len: 112, w: 58, who: "monstruo" },
-  { k: "vh_drive_van", len: 122, w: 66, who: "drive" },
+  { k: "vh_drive_van", len: 122, w: 66, who: "drive", rockets: 1 },
 ];
 /* HENCHMEN. Each rogue draws from one pool; MVP has none, because a man whose career ended
    when he killed somebody on a field does not have people. They are gang types, so a fight
@@ -1123,6 +1123,23 @@ for (const k of ["pr_coat","pr_suit","rc_start","rc_finish","heli_news","heli_po
                  "fan_punk","fan_goth","fan_yuppie","fan_break","fan_rocker","fan_pop",
                  "fan_mall","fan_preppy"])
   RACE_A[k] = "assets/race/" + k + ".png";
+/* The bank set. Named exactly as the plates should be exported, one item per key -- the
+   sheets ship three multi-item cells (alarm_and_security, teller_props_collection,
+   signage_topview) and those have to be sub-cut before they land here, or a single blob of
+   four objects gets drawn as one prop. Until the PNGs exist every one of these falls through
+   to its PROP_COL block, so the bank is walkable and legible today with no art at all. */
+const BK = {};
+for (const k of ["bk_counter_curved", "bk_desk_mgr", "bk_chair_exec", "bk_sofa_wait",
+                 "bk_vault_closed", "bk_vault_open_shaft", "bk_camera_dome", "bk_sign_floor",
+                 "bk_till_registers", "bk_safe_deposit_boxes", "bk_money_stacks",
+                 "bk_queue_ropes", "bk_teller_off", "bk_teller_on", "bk_teller_customer_view",
+                 "bk_cash_trolley", "bk_teller_props", "bk_alarm_button", "bk_camera_wall",
+                 "bk_sign_next", "bk_sign_closed",
+                 /* The armoured car. Registered so the plates load and can be seen; it is NOT
+                    a drivable model yet -- no CARNAME, no CARSTAT, no spawn pool. That is the
+                    rogues' job work, and half a vehicle is worse than none. Nose-UP. */
+                 "bk_truck", "bk_truck_open"])
+  BK[k] = "assets/bank/" + k + ".png";
 const ROOF_A = {};
 for (const k of ["rf_chimney","rf_chimney_wide","rf_vent","rf_ac","rf_ac_big","rf_duct",
                  "rf_hatch","rf_tank"])
@@ -1470,7 +1487,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 371 — AIR SUPPORT";
+const BUILD_TAG = "LAYER 377 — HOMES & THE STARLITE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -1669,7 +1686,10 @@ const CIVIC = [
      ground would have none of it and people would walk straight over it. */
   { key: "cityhall_dome", kind: "cityhall", cell: { i: 10, j: 8 },
     name: "RAVEN HOOK CITY HALL", floors: 3, pip: "#cfe0f0", shape: "capitol" },
-  { key: "vance_house", kind: "mansion", cell: { i: 6, j: 16 },
+  /* Moved off Cobalt. The mayor of this city does not live on an unremarkable block behind the
+     cemetery -- he lives on the best street in it, which is now Arden, and the whole district
+     was built around the fact that he does. This lot carries the house and nothing else. */
+  { key: "vance_house", kind: "mansion", cell: { i: 4, j: 19 },
     name: "THE VANCE RESIDENCE", floors: 2, pip: "#d0c090", shape: "mansion" },
   { key: "flats_motel", kind: "motel", cell: { i: 25, j: 21 },
     name: "THE STARLITE MOTEL", floors: 1, pip: "#cf8f5a", shape: "motel" },
@@ -1989,6 +2009,11 @@ const ZONES = {
   // internal streets stay cut and it reads as one walled campus, same as the park it came from.
   cemetery: { i0: 8, i1: 10, j0: 16, j1: 17, super: true },
   chinatown: { i0: 0, i1: 5,  j0: 11, j1: 15, super: false },
+  /* ARDEN. Where the money lives, and the reason it is here rather than in Uptown: Uptown is
+     old money in towers, this is a man with a lawn. Arden Ave itself runs up the middle of it
+     at i4, so the avenue you drive is the avenue the district is named for. Bounded south of
+     Chinatown, west of the park, on ground that was six columns of empty city lots. */
+  arden:     { i0: 3, i1: 5,  j0: 16, j1: 21, super: false },
   irish:     { i0: 12, i1: 16, j0: 0, j1: 3,  super: false },
   barrio:    { i0: 13, i1: 18, j0: 9,  j1: 13, super: false },
   /* The youth district. Deliberately ON the hood/downtown seam -- i5 is the last hood column
@@ -2219,6 +2244,7 @@ function zoneOf(i, j) {
   if (inZ(ZONES.hood, i, j)) return "hood";
   if (inZ(ZONES.industrial, i, j)) return "industrial";
   if (inZ(ZONES.uptown, i, j)) return "uptown";
+  if (inZ(ZONES.arden, i, j)) return "arden";
   if (inZ(ZONES.chinatown, i, j)) return "chinatown";
   if (inZ(ZONES.irish, i, j)) return "irish";
   if (inZ(ZONES.barrio, i, j)) return "barrio";
@@ -2271,6 +2297,100 @@ const GAS_CELLS = [
   { i: 18, j: 19 }, { i: 2, j: 19 },
 ];
 const isGasCell = (i, j) => GAS_CELLS.some((gc) => gc.i === i && gc.j === j);
+/* ---------- the banks ----------
+   One per parish, which is what makes a bank job a choice of WHICH bank rather than a trip
+   to the only one. Placed off the centre of each district and checked against every reserved
+   cell in the file -- civic, pumps, body shops, firehouses, the den, the club, the Wolves,
+   Il Corvo, the prison and the Kestrel -- so none of these lands on top of something. */
+const BANK_CELLS = [
+  { i: 9,  j: 7,  name: "FIRST MERCHANTS BANK" },   // downtown
+  { i: 8,  j: 1,  name: "STATE TRUST" },            // uptown
+  { i: 3,  j: 6,  name: "RAVEN HOOK SAVINGS" },     // the hood
+  { i: 2,  j: 13, name: "EAST GATE SAVINGS" },      // chinatown
+  { i: 14, j: 1,  name: "SIXTH WARD SAVINGS" },     // the sixth ward
+  { i: 15, j: 11, name: "BANCO LA PERLA" },         // la perla
+  { i: 18, j: 5,  name: "YARDS INDUSTRIAL BANK" },  // the yards
+  { i: 4,  j: 18, name: "ARDEN TRUST & DEPOSIT" },  // arden
+  { i: 6,  j: 14, name: "HOLLOWAY NATIONAL" },      // the parish with no district
+];
+const isBankCell = (i, j) => BANK_CELLS.some((bc) => bc.i === i && bc.j === j);
+
+/* ---------- the four chains ----------
+   A TABLE, not four copies of one restaurant. Every chain is the same room -- dining floor,
+   an ordering counter across it, kitchen behind -- and the only thing that differs is which
+   plates hang on the pegs. That is why there is one `ffloor` plan and one set of furniture
+   cases below rather than four of each: the day a fifth chain arrives it is a row here and
+   nothing else changes.
+   `staff` is an st_ key on purpose -- the prop draw path gives anything starting st_ a pair
+   of procedural legs and a contact shadow under the plate, so the counter staff are torsos
+   like every other character in the game and need one frame each, not a walk cycle. */
+const FF_KIT = {
+  bb: { label: "BENNY'S BURGERS", sign: "sign_marquee", tint: "#a8342c",
+        counter: "bb_counter", boothL: "bb_booth_large", boothS: "bb_booth_small",
+        menu: "bb_menu_board", soda: "bb_soda_machine", staff: "st_bb",
+        cook: ["bb_grill", "bb_fryer", "bb_warmer", "bb_prep"] },
+  cc: { label: "CHICKEN CHEW'YS", sign: "sign_lightbox", tint: "#c08a2a",
+        counter: "cc_counter", boothL: "cc_booth_large", boothS: "cc_booth_small",
+        menu: "cc_menu_board", soda: "cc_soda_machine", staff: "st_cc",
+        cook: ["cc_fryer", "cc_prep_station", "cc_display_case", "cc_trash_bin"] },
+  pp: { label: "PIZZA PLUS", sign: "sign_lightbox", tint: "#8a3a2a",
+        counter: "pp_ordering_counter", boothL: "pp_booth_large", boothS: "pp_booth_small",
+        menu: "pp_menu_board", soda: "pp_soda_machine", staff: "st_pp",
+        cook: ["pp_pizza_oven", "pp_dough_table", "pp_slice_warmer", "pp_cooler"] },
+  tc: { label: "TACO CRAZY", sign: "sign_marquee", tint: "#c06a24",
+        counter: "tc_counter", boothL: "tc_booth_large", boothS: "tc_booth_small",
+        menu: "tc_menu_board", soda: "tc_soda_machine", staff: "st_tc",
+        cook: ["tc_fryer", "tc_steam_table", "tc_prep", "tc_shelf"] },
+};
+const FF_KEYS = [];
+for (const c in FF_KIT) {
+  const k = FF_KIT[c];
+  for (const q of [k.counter, k.boothL, k.boothS, k.menu, k.soda, k.staff].concat(k.cook))
+    if (FF_KEYS.indexOf(q) < 0) FF_KEYS.push(q);
+}
+const FF = {};
+for (const k of FF_KEYS) FF[k] = "assets/food/" + k + ".png";
+
+/* Two per parish, four downtown -- one of each chain there, because downtown is the only
+   place in the city everybody passes through. Chains are matched to who actually eats in
+   that parish rather than scattered: burgers and chicken in the hood, tacos and chicken in
+   La Perla, burgers and tacos in the Yards where the shifts come off, pizza and chicken
+   Uptown. Checked against every reserved cell in the file, the banks included. */
+const FOOD_CELLS = [
+  { i: 6,  j: 4,  chain: "bb" }, { i: 8,  j: 6,  chain: "cc" },
+  { i: 10, j: 10, chain: "pp" }, { i: 12, j: 10, chain: "tc" },   // downtown, all four
+  { i: 1,  j: 3,  chain: "bb" }, { i: 5,  j: 10, chain: "cc" },   // the hood
+  { i: 1,  j: 11, chain: "pp" }, { i: 5,  j: 15, chain: "bb" },   // chinatown
+  { i: 12, j: 0,  chain: "bb" }, { i: 16, j: 3,  chain: "pp" },   // the sixth ward
+  { i: 13, j: 9,  chain: "tc" }, { i: 18, j: 13, chain: "cc" },   // la perla
+  { i: 17, j: 2,  chain: "bb" }, { i: 21, j: 8,  chain: "tc" },   // the yards
+  { i: 6,  j: 0,  chain: "pp" }, { i: 11, j: 2,  chain: "cc" },   // uptown
+  { i: 3,  j: 16, chain: "pp" }, { i: 5,  j: 21, chain: "bb" },   // arden
+  { i: 6,  j: 16, chain: "cc" }, { i: 7,  j: 20, chain: "tc" },   // the parish with no district
+];
+/* ---------- upper-class and motel art ----------
+   Deliberately a separate set from the ordinary house furniture. The rule is his and it is a
+   good one: the luxury plates are for UPPER-CLASS homes and the mansion only, and the motel
+   set is for the motel only. A hood house furnished out of the mansion sheet would flatten
+   the one distinction the Arden district was built to make. */
+const LX_KEYS = ["lx_sofa_sect", "lx_armchair", "lx_coffee", "lx_rug", "lx_tv_console", "lx_console_table",
+  "lx_chandelier", "lx_dining_long", "lx_sideboard", "lx_bed_four", "lx_nightstand",
+  "lx_dresser", "lx_vanity", "lx_wardrobe", "lx_counter_marble", "lx_range_gas",
+  "lx_fridge_steel", "lx_sink_marble", "lx_tub_claw", "lx_vanity_double", "lx_toilet",
+  "lx_shower", "lx_desk_exec", "lx_chair_exec", "lx_bookcase", "lx_globe", "lx_piano_grand",
+  "lx_fireplace", "lx_mirror_gilt", "lx_clock_grandfather", "lx_table_round"];
+const MO_KEYS = ["mo_bed_floral", "mo_nightstand_phone", "mo_desk_directory", "mo_dresser_tv",
+  "mo_vanity", "mo_bathroom_unit", "mo_closet_rail", "mo_luggage_rack"];
+const HOME_ART = {};
+for (const k of LX_KEYS) HOME_ART[k] = "assets/lux/" + k + ".png";
+for (const k of MO_KEYS) HOME_ART[k] = "assets/motel/" + k + ".png";
+/* Upper class is the mansion and the Arden houses -- `b.arden` is set on every house the
+   Arden branch builds, and on nothing else. */
+const isLux = (b) => !!(b && (b.arden || b.kind === "mansion"));
+
+const isFoodCell = (i, j) => FOOD_CELLS.some((fc) => fc.i === i && fc.j === j);
+const foodAt = (i, j) => FOOD_CELLS.find((fc) => fc.i === i && fc.j === j) || null;
+const bankAt = (i, j) => BANK_CELLS.find((bc) => bc.i === i && bc.j === j) || null;
 // Body shops. Until now the only way to undo crash damage was to park in the den bay, which
 // meant a wreck out at the edge of the map was a long limp home. These are spread the same
 // way the pumps are, and they cost money where the bay is free.
@@ -2492,7 +2612,10 @@ function getCell(i, j) {
   const landmark = (i === CORVO_CELL.i && j === CORVO_CELL.j)
     || (i === CLUB_CELL.i && j === CLUB_CELL.j)
     || (i === DEN_CELL.i && j === DEN_CELL.j)
-    || (i === WOLVES_CELL.i && j === WOLVES_CELL.j);
+    || (i === WOLVES_CELL.i && j === WOLVES_CELL.j)
+    // a bank on a plain city cell was rolling an empty lot a third of the time
+    || isBankCell(i, j)
+    || isFoodCell(i, j);
   if (gasLot) walls = null;
   else if (landmark) {
     walls = null;   // no chain-link across a landmark's approach either
@@ -2798,9 +2921,11 @@ function floorKind(b, f) {
   if (b.kind === "bandvenue") return "bandvenue";
   if (b.kind === "venue") return f === 0 ? "venue" : "offices";
   if (b.kind === "nightclub") return f === 0 ? "nightclub" : "offices";
-  if (b.kind === "motel") return "motel";
   if (b.kind === "ristorante") return f === 0 ? "ristorante" : "apartments";
   if (b.kind === "warehouse" || b.kind === "garage") return "warehouse";
+  /* Ground floor is the bank; anything above it is the offices that run it. */
+  if (b.kind === "bank") return f === 0 ? "bankfloor" : "offices";
+  if (b.kind === "fastfood") return f === 0 ? "ffloor" : "offices";
   if (b.kind === "terminal") return "terminal";
   if (b.kind === "club") return "club";
   if (b.kind === "office") return f === 0 ? "reception" : "offices";
@@ -2811,12 +2936,21 @@ function floorKind(b, f) {
 
 function makeFloor(b, f, rnd) {
   const kind = floorKind(b, f);
-  const dense = kind === "den" || kind === "kings_hq" || kind === "terminal" || kind === "club"
+  // motelfloor joins these: eleven units plus an office need a fine enough grid to hold them
+  const dense = kind === "motelfloor"
+    || kind === "den" || kind === "kings_hq" || kind === "terminal" || kind === "club"
     || kind === "apartments" || kind === "offices" || kind === "lobby" || kind === "tower_flats"
     // a cell is a small room; on the coarse grid a run of them comes out the size of offices
     || kind === "precinct" || kind === "sechq" || kind === "cityhall";
-  const GX = clamp(Math.round(b.w / (dense ? 3.2 * MU : 3.7 * MU)), 3, 14);
-  const GY = clamp(Math.round(b.h / (dense ? 3.2 * MU : 3.7 * MU)), 3, 14);
+  /* The motel needs a finer grid than anything else in the game and it is worth saying why:
+     eleven units, each of which must be a room PLUS its own bathroom, and no two bathrooms
+     may touch or the doorway tree will chain one unit into the next. That needs at least two
+     cells per unit along each arm, and at the standard 3.7-MU pitch an entire city lot only
+     yields about six. */
+  const fine = kind === "motelfloor";
+  const px = fine ? 2.4 * MU : dense ? 3.2 * MU : 3.7 * MU;
+  const GX = clamp(Math.round(b.w / px), 3, fine ? 20 : 14);
+  const GY = clamp(Math.round(b.h / px), 3, fine ? 20 : 14);
   const cw = b.w / GX, ch = b.h / GY;
   const rid = new Int16Array(GX * GY).fill(-1);
   const rooms = [];
@@ -2878,12 +3012,50 @@ function makeFloor(b, f, rnd) {
       put(0, foyer, Math.max(0, Math.round(GX * 0.68)), GY - 1, "throne");
       put(Math.round(GX * 0.68) + 1, foyer, GX - 1, GY - 1, "vip");
     } else if (kind === "motelfloor") {
-    /* Twelve identical doors off one corridor. The point of the building is that every room
-       looks the same, so somebody could be in any of them. */
-    const front = Math.round(GY * 0.30);
-    hub = put(0, 0, Math.round(GX * 0.34), front - 1, "mtoffice");
-    put(Math.round(GX * 0.34) + 1, 0, GX - 1, front - 1, "lobby");
-    put(0, front, GX - 1, GY - 1, "rooms");
+    /* THE STARLITE. An L: a short arm across the top and a long one down the west side, with
+       the office in the corner where the two meet and the lot in the crook. Eleven rooms, and
+       every one of them is a MAIN ROOM PLUS ITS OWN BATHROOM rather than one undivided block
+       -- which is what the old plan was, a single "rooms" rectangle with twelve imaginary
+       doors and no walls between any of them.
+       The walkway is the hub, and it is the only thing every room touches, so the spanning
+       tree gives each unit exactly one door onto it -- which is how an L motel works. You
+       cannot walk from room 3 into room 4; you go out onto the walkway like everybody else.
+       Baths sit on the OUTSIDE edge of each arm and the rooms open inward onto the walkway. */
+    const topD = clamp(Math.round(GY * 0.28), 3, 6);       // depth of the top arm
+    const leftW = clamp(Math.round(GX * 0.28), 3, 6);      // width of the west arm
+    const walk = topD;                                     // the covered walkway row
+    const topCols = GX - leftW, leftRows = GY - walk - 1;
+    /* Two cells minimum per unit. That is the whole reason the bath can be a single corner
+       cell: with a unit two wide, the cell beside a bath belongs to its OWN room, so no two
+       baths are ever neighbours and the tree cannot thread one unit into the next. */
+    const capTop = Math.floor(topCols / 2), capLeft = Math.floor(leftRows / 2);
+    const nLeft = clamp(11 - capTop, 1, capLeft);
+    const nTop = clamp(11 - nLeft, 1, capTop);
+    put(0, 0, leftW - 1, topD - 1, "mtoffice");
+    // the top arm. Bath is one cell in the outer corner; the room is the rest of the unit.
+    for (let u = 0; u < nTop; u++) {
+      const a0 = leftW + Math.round((u * topCols) / nTop);
+      const a1 = leftW + Math.round(((u + 1) * topCols) / nTop) - 1;
+      if (a1 <= a0) continue;
+      put(a0, 0, a1, topD - 1, "mtroom");
+      /* Overlaid on the outer strip, and deliberately NOT as far as a1: the cell it leaves
+         belongs to this unit's room, and that one cell is what keeps this bath from touching
+         the next unit's bath. Two baths that touch let the doorway tree thread unit into
+         unit, which is how you end up able to walk from room 3 into room 4. */
+      put(a0, 0, a1 - 1, 0, "mtbath");
+    }
+    hub = put(0, walk, GX - 1, walk, "mtwalk");
+    // the west arm, turned a quarter
+    for (let u = 0; u < nLeft; u++) {
+      const a0 = walk + 1 + Math.round((u * leftRows) / nLeft);
+      const a1 = walk + 1 + Math.round(((u + 1) * leftRows) / nLeft) - 1;
+      if (a1 <= a0) continue;
+      put(0, a0, leftW - 1, a1, "mtroom");
+      put(0, a0, 0, a1 - 1, "mtbath");
+    }
+    // the walkway has to run down the inside of the west arm too, or those rooms are sealed
+    put(leftW, walk + 1, leftW, GY - 1, "mtwalk2");
+    put(leftW + 1, walk + 1, GX - 1, GY - 1, "mtlot");
   } else if (kind === "mansionfloor") {
     const hall = Math.round(GX * 0.42);
     hub = put(0, 0, hall - 1, GY - 1, "hall");
@@ -3052,16 +3224,6 @@ function makeFloor(b, f, rnd) {
       put(hx, sq + 1, Math.min(GX - 1, hx + hw - 1), GY - 1, "cell");
       hx += hw;
     }
-  } else if (kind === "motel") {
-    // a row of rooms off one corridor, which is all a motel is
-    const n = Math.max(2, Math.round(GX / 3));
-    hub = put(0, 0, GX - 1, Math.max(0, Math.round(GY * 0.28)), "corridor");
-    let x2 = 0;
-    for (let k = 0; k < n; k++) {
-      const w2 = Math.floor(GX / n);
-      put(x2, Math.round(GY * 0.28) + 1, Math.min(GX - 1, x2 + w2 - 1), GY - 1, "room");
-      x2 += w2;
-    }
   } else if (kind === "ristorante") {
     /* Il Corvo. Dining room across the front behind the vestibule, kitchen and store along
        the back, and the back room off a private corridor -- the room the family actually
@@ -3076,6 +3238,31 @@ function makeFloor(b, f, rnd) {
     put(Math.round(GX * 0.34) + 1, dine, Math.max(0, Math.round(GX * 0.50)), GY - 1, "corridor");
     put(Math.round(GX * 0.50) + 1, dine, Math.max(0, Math.round(GX * 0.80)), GY - 1, "backroom");
     put(Math.round(GX * 0.80) + 1, dine, GX - 1, GY - 1, "wc");
+  } else if (kind === "ffloor") {
+    /* The same shape as the bank, and for the same reason: a counter is the line between the
+       people who may be here and the people who work here. Dining room out front and the hub,
+       ordering counter across the width, kitchen behind it, dry store in the back corner. */
+    const line = clamp(Math.round(GY * 0.58), 1, GY - 2);
+    const back = Math.min(GY - 1, line + 1);
+    hub = put(0, 0, GX - 1, line - 1, "ffdine");
+    put(0, line, GX - 1, line, "ffcounter");
+    put(0, back, Math.max(0, GX - 3), GY - 1, "ffkitchen");
+    put(Math.max(1, GX - 2), back, GX - 1, GY - 1, "ffstore");
+  } else if (kind === "bankfloor") {
+    /* A bank is one room the public may stand in, and everything else behind the counter.
+       The HALL is the hub because it is the only part you can walk into off the street. The
+       vault opens off the back office and never off the hall, so the spanning tree can only
+       reach the money through the teller line -- which means getting to it is always a
+       decision about how you get past that line, over it, round it, or through a wall.
+       That is the whole reason to build the room this way rather than as four boxes. */
+    const line = clamp(Math.round(GY * 0.46), 1, GY - 2);
+    const back = Math.min(GY - 1, line + 1);
+    const vw = Math.max(1, Math.round(GX * 0.30));
+    hub = put(0, 0, GX - 1, line - 1, "bkhall");
+    put(0, line, GX - 1, line, "bkline");
+    put(0, back, vw - 1, GY - 1, "bkvault");
+    put(vw, back, Math.max(vw, GX - 3), GY - 1, "bkback");
+    put(Math.max(vw + 1, GX - 2), back, GX - 1, GY - 1, "bkmgr");
   } else if (kind === "store") {
     const back = Math.max(1, GY - 2);
     put(0, 0, GX - 1, back - 1, "retail");
@@ -3308,28 +3495,198 @@ function makeFloor(b, f, rnd) {
     else if (sd === 3) P(q.x0 + 16, my - w / 2, h, w, t);
     else P(q.x1 - 16 - h, my - w / 2, h, w, t);
   };
+  /* Which prop kinds are ALLOWED to stand in the middle of a room. Everything else gets put
+     against a wall by tidyRoom below, because that is where furniture lives in a real room --
+     a wardrobe in the middle of a bedroom is the single fastest way to make a space read as
+     generated rather than lived in. */
+  const CENTRE_OK = {
+    table: 1, roundtable: 1, cardtable: 1, wheeltable: 1, coffee: 1, rug: 1, dt_table_rect: 1,
+    dt_table_round: 1, dt_set_rect: 1, lx_dining_long: 1, lx_rug: 1, lx_coffee: 1,
+    lx_table_round: 1, stagedeck: 1, ring: 1, pool: 1,
+  };
+  /* Only homes get tidied. The arcade, the venue, the casino and the den are hand-placed
+     layouts that already work, and shoving their cabinets against the walls would wreck them. */
+  const TIDY_KINDS = { house_g1: 1, house_g2: 1, house_u: 1, apartments: 1, tower_flats: 1,
+                       mansionfloor: 1, motelfloor: 1 };
+  function tidyRoom(q, from) {
+    const list = props.slice(from);
+    if (!list.length) return;
+    const IN = 4;
+    // 1. everything that is not a centre piece goes to its nearest wall
+    for (const p of list) {
+      if (CENTRE_OK[p.t]) continue;
+      const dl = p.x - q.x0, dr = q.x1 - (p.x + p.w);
+      const dt = p.y - q.y0, db = q.y1 - (p.y + p.h);
+      const mn = Math.min(dl, dr, dt, db);
+      if (mn === dl) p.x = q.x0 + IN;
+      else if (mn === dr) p.x = q.x1 - p.w - IN;
+      else if (mn === dt) p.y = q.y0 + IN;
+      else p.y = q.y1 - p.h - IN;
+    }
+    // 2. push overlapping pairs apart along their shallower axis, then re-clamp inside
+    for (let pass = 0; pass < 5; pass++) {
+      let moved = false;
+      for (let a = 0; a < list.length; a++) for (let c = a + 1; c < list.length; c++) {
+        const A = list[a], B = list[c];
+        if (A.x >= B.x + B.w || B.x >= A.x + A.w || A.y >= B.y + B.h || B.y >= A.y + A.h) continue;
+        const ox = Math.min(A.x + A.w, B.x + B.w) - Math.max(A.x, B.x);
+        const oy = Math.min(A.y + A.h, B.y + B.h) - Math.max(A.y, B.y);
+        if (ox <= oy) B.x += (B.x < A.x ? -ox : ox); else B.y += (B.y < A.y ? -oy : oy);
+        moved = true;
+      }
+      for (const p of list) {
+        p.x = clamp(p.x, q.x0 + 2, Math.max(q.x0 + 2, q.x1 - p.w - 2));
+        p.y = clamp(p.y, q.y0 + 2, Math.max(q.y0 + 2, q.y1 - p.h - 2));
+      }
+      if (!moved) break;
+    }
+    /* Five passes will not resolve a small bedroom that was handed more furniture than fits
+       along its walls. Rather than leave the leftovers overlapping -- which is the clipping
+       being complained about -- the ones that still clash are DROPPED. An emptier room reads
+       far better than a wardrobe growing out of a bed, and this is the only guarantee that
+       "no furniture clips" is actually true rather than mostly true. */
+    const kept = [];
+    for (const p of list) {
+      let clash = false;
+      for (const q3 of kept) {
+        if (p.x >= q3.x + q3.w || q3.x >= p.x + p.w || p.y >= q3.y + q3.h || q3.y >= p.y + p.h) continue;
+        clash = true; break;
+      }
+      if (!clash) kept.push(p);
+    }
+    props.length = from;
+    for (const p of kept) props.push(p);
+  }
   for (const r of rooms) {
     const q2 = rect(r), W2 = q2.x1 - q2.x0, H2 = q2.y1 - q2.y0;
+    const propsFrom = props.length;
+    // K(standard, luxury) -- one call at each placement instead of a duplicated case per class
+    const LUX = isLux(b), K = (std, lux) => (LUX ? lux : std);
     const wide = W2 >= H2;
     const cx = (q2.x0 + q2.x1) / 2, cy = (q2.y0 + q2.y1) / 2;
     const pad = 14;
     switch (r.k) {
+      /* The bank. Read from the edges like every other room: the counter is a LINE the full
+         width of the building, the ropes are a run and not one rope, and the middle of the
+         hall stays clear because that is where the queue and the shooting happen. */
+      /* One set of cases for all four chains. `kit` decides which plates hang on the pegs;
+         the room is identical, which is the point of a chain. */
+      case "ffdine": {
+        const kit = FF_KIT[(b && b.chain) || "bb"] || FF_KIT.bb;
+        const n = clamp(Math.round((wide ? W2 : H2) / 140), 2, 4);
+        if (wide) {
+          runX(q2, q2.y0 + pad, n, 68, 40, kit.boothL, pad);
+          runX(q2, cy + 2, n, 54, 34, kit.boothS, pad);
+        } else {
+          runY(q2, q2.x0 + pad, n, 40, 68, kit.boothL, pad);
+          runY(q2, cx + 2, n, 34, 54, kit.boothS, pad);
+        }
+        // the board hangs over the counter, so it faces the room and not the kitchen
+        P(cx - 44, q2.y1 - pad - 12, 88, 12, kit.menu);
+        P(q2.x1 - pad - 30, q2.y0 + pad, 30, 34, kit.soda);
+        break;
+      }
+      case "ffcounter": {
+        const kit = FF_KIT[(b && b.chain) || "bb"] || FF_KIT.bb;
+        P(q2.x0 + 8, q2.y0 + 4, W2 - 16, Math.max(16, H2 - 8), kit.counter);
+        P(cx + 26, q2.y1 - 22, 22, 20, kit.staff);
+        break;
+      }
+      case "ffkitchen": {
+        const kit = FF_KIT[(b && b.chain) || "bb"] || FF_KIT.bb;
+        const c4 = kit.cook;
+        P(q2.x0 + pad, q2.y0 + pad, 48, 30, c4[0]);
+        P(Math.min(q2.x1 - 54, q2.x0 + pad + 58), q2.y0 + pad, 48, 30, c4[1]);
+        P(q2.x0 + pad, q2.y1 - pad - 28, 48, 28, c4[2]);
+        P(q2.x1 - pad - 42, q2.y1 - pad - 28, 42, 28, c4[3]);
+        P(cx - 11, cy - 10, 22, 20, kit.staff);
+        break;
+      }
+      case "ffstore":
+        P(q2.x0 + pad, q2.y0 + pad, Math.max(24, W2 - 2 * pad), 26, "crate");
+        break;
+      /* The motel. Every unit is the same room on purpose -- that is the whole point of the
+         building, somebody could be in any of them -- so there is one case, not eleven. */
+      case "mtroom":
+        P(q2.x0 + pad, q2.y0 + pad, 58, 44, "mo_bed_floral");
+        P(q2.x1 - pad - 20, q2.y0 + pad, 20, 18, "mo_nightstand_phone");
+        P(q2.x1 - pad - 34, q2.y1 - pad - 20, 34, 20, "mo_dresser_tv");
+        P(q2.x0 + pad, q2.y1 - pad - 18, 30, 18, "mo_desk_directory");
+        P(cx - 9, q2.y1 - pad - 14, 18, 14, "mo_luggage_rack");
+        break;
+      case "mtbath":
+        P(q2.x0 + 4, q2.y0 + 4, Math.max(18, W2 - 8), Math.max(18, H2 - 8), "mo_bathroom_unit");
+        break;
+      case "mtoffice":
+        P(q2.x0 + pad, q2.y0 + pad, Math.min(90, W2 * 0.5), 22, "counter");
+        P(q2.x1 - pad - 26, q2.y0 + pad, 26, 20, "mo_dresser_tv");
+        P(q2.x0 + pad, q2.y1 - pad - 24, 34, 24, "mo_closet_rail");
+        break;
+      case "mtwalk": case "mtwalk2": case "mtlot": break;
+      case "bkhall": {
+        P(q2.x0 + pad, q2.y0 + pad, Math.min(120, W2 * 0.40), 26, "bk_sofa_wait");
+        runX(q2, cy - 6, clamp(Math.round(W2 / 90), 2, 5), 62, 10, "bk_queue_ropes", 20);
+        P(q2.x1 - pad - 34, q2.y0 + pad, 34, 24, "bk_sign_floor");
+        P(q2.x1 - pad - 16, q2.y1 - pad - 16, 16, 16, "bk_camera_dome");
+        break;
+      }
+      case "bkline": {
+        // the counter itself, wall to wall -- the thing the whole room is arranged around
+        P(q2.x0 + 6, q2.y0 + 4, W2 - 12, Math.max(16, H2 - 8), "bk_counter_curved");
+        const tills = clamp(Math.round(W2 / 110), 2, 5);
+        runX(q2, q2.y0 + 2, tills, 22, 13, "bk_till_registers", 24);
+        runX(q2, q2.y1 - 20, tills, 26, 18, "bk_teller_on", 24);
+        // the button is on the staff side of the counter, where a teller can reach it
+        P(q2.x0 + 10, q2.y1 - 18, 13, 13, "bk_alarm_button");
+        break;
+      }
+      case "bkback":
+        P(q2.x0 + pad, q2.y0 + pad, 42, 26, "bk_cash_trolley");
+        runY(q2, q2.x1 - pad - 24, 2, 24, 28, "bk_teller_props", 16);
+        P(cx - 20, q2.y1 - pad - 18, 40, 18, "bk_money_stacks");
+        P(q2.x0 + pad, q2.y1 - pad - 14, 14, 14, "bk_camera_wall");
+        break;
+      case "bkmgr":
+        P(cx - 32, cy - 16, 64, 30, "bk_desk_mgr");
+        P(cx - 10, cy + 20, 20, 20, "bk_chair_exec");
+        break;
+      case "bkvault":
+        // the door on the wall you come at it from, boxes down the side, the cash at the back
+        P(cx - 28, q2.y0 + 2, 56, 20, "bk_vault_closed");
+        P(q2.x0 + pad, q2.y0 + 28, Math.max(32, W2 - 2 * pad), 26, "bk_safe_deposit_boxes");
+        P(cx - 24, q2.y1 - pad - 20, 48, 20, "bk_money_stacks");
+        break;
+      case "hall":
+        if (LUX) {
+          P(q2.x0 + pad, q2.y0 + pad, 54, 40, "lx_piano_grand");
+          P(cx - 26, cy - 16, 52, 32, "lx_rug");
+          P(q2.x1 - pad - 18, q2.y0 + pad, 18, 22, "lx_mirror_gilt");
+          P(q2.x1 - pad - 22, q2.y1 - pad - 24, 22, 24, "lx_console_table");
+        }
+        break;
       case "living":
-        if (wide) { P(q2.x0 + pad, cy - 16, Math.min(96, W2 * 0.42), 32, "sofa"); P(cx + 10, cy - 12, 46, 26, "table"); }
-        else { P(cx - 16, q2.y0 + pad, 32, Math.min(96, H2 * 0.42), "sofa"); P(cx - 12, cy + 12, 26, 46, "table"); }
-        P(q2.x1 - pad - 26, q2.y0 + pad, 26, 20, "tv");
+        if (wide) { P(q2.x0 + pad, cy - 16, Math.min(96, W2 * 0.42), 32, K("sofa", "lx_sofa_sect")); P(cx + 10, cy - 12, 46, 26, K("table", "lx_coffee")); }
+        else { P(cx - 16, q2.y0 + pad, 32, Math.min(96, H2 * 0.42), K("sofa", "lx_sofa_sect")); P(cx - 12, cy + 12, 26, 46, K("table", "lx_coffee")); }
+        P(q2.x1 - pad - 26, q2.y0 + pad, 26, 20, K("tv", "lx_tv_console"));
+        if (LUX) {
+          P(q2.x0 + pad, q2.y1 - pad - 22, 30, 22, "lx_armchair");
+          P(q2.x1 - pad - 20, q2.y1 - pad - 26, 20, 26, "lx_fireplace");
+        }
         break;
       case "kitchen":
         if (b && b.kind === "ristorante") {
           P(q2.x0 + 8, q2.y0 + 8, 60, 26, b.biz === "noodle" ? "c_ducks" : "m_wine");
         }
-        P(q2.x0 + 6, q2.y0 + 6, W2 - 12, 22, "counter");
-        P(q2.x0 + 10, q2.y0 + 30, 26, 24, "stove");
-        P(q2.x1 - 36, q2.y0 + 30, 26, 30, "fridge");
+        P(q2.x0 + 6, q2.y0 + 6, W2 - 12, 22, K("counter", "lx_counter_marble"));
+        P(q2.x0 + 10, q2.y0 + 30, 26, 24, K("stove", "lx_range_gas"));
+        P(q2.x1 - 36, q2.y0 + 30, 26, 30, K("fridge", "lx_fridge_steel"));
+        if (LUX) P(cx - 14, cy + 6, 28, 20, "lx_sink_marble");
         break;
       case "bed":
-        if (wide) { P(q2.x0 + pad, cy - 26, 62, 52, "bed"); P(q2.x1 - 40, q2.y0 + pad, 28, 22, "dresser"); }
-        else { P(cx - 26, q2.y0 + pad, 52, 62, "bed"); P(q2.x0 + pad, q2.y1 - 34, 22, 28, "dresser"); }
+        if (wide) { P(q2.x0 + pad, cy - 26, 62, 52, K("bed", "lx_bed_four")); P(q2.x1 - 40, q2.y0 + pad, 28, 22, K("dresser", "lx_dresser")); }
+        else { P(cx - 26, q2.y0 + pad, 52, 62, K("bed", "lx_bed_four")); P(q2.x0 + pad, q2.y1 - 34, 22, 28, K("dresser", "lx_dresser")); }
+        if (LUX) { P(q2.x1 - pad - 18, q2.y1 - pad - 20, 18, 20, "lx_nightstand");
+                   P(q2.x0 + pad, q2.y0 + pad, 24, 20, "lx_vanity"); }
         break;
       case "bunk":
         /* Sized to the drawn plates rather than the old boxes -- a single bed is 44x68 from
@@ -3397,9 +3754,14 @@ function makeFloor(b, f, rnd) {
       case "__bay_old":
         break;
       case "throne":
-        P(cx - 40, cy - 8, 80, 34, "sofa");
-        P(cx - 20, cy + 34, 42, 18, "table");
-        P(q2.x1 - 30, q2.y0 + 10, 22, 26, "cab");
+        P(cx - 40, cy - 8, 80, 34, K("sofa", "lx_sofa_sect"));
+        P(cx - 20, cy + 34, 42, 18, K("table", "lx_coffee"));
+        P(q2.x1 - 30, q2.y0 + 10, 22, 26, K("cab", "lx_sideboard"));
+        if (LUX) {
+          P(q2.x0 + pad, q2.y0 + pad, 26, 24, "lx_armchair");
+          P(q2.x0 + pad, q2.y1 - pad - 22, 24, 22, "lx_fireplace");
+          P(q2.x1 - pad - 20, q2.y1 - pad - 20, 20, 20, "lx_clock_grandfather");
+        }
         break;
       case "bath": case "wc":
         P(q2.x0 + 8, q2.y0 + 8, 18, 20, "toilet");
@@ -3885,10 +4247,12 @@ function makeFloor(b, f, rnd) {
         P(q2.x0 + pad + 46, q2.y1 - pad - 24, 26, 24, "dresser");
         break;
       case "study":
-        P(cx - 34, cy - 20, 68, 40, "desk");
-        P(q2.x0 + pad, q2.y0 + pad, 30, 60, "bookshelf");
-        P(q2.x1 - pad - 30, q2.y0 + pad, 30, 60, "bookshelf");
+        P(cx - 34, cy - 20, 68, 40, K("desk", "lx_desk_exec"));
+        P(q2.x0 + pad, q2.y0 + pad, 30, 60, K("bookshelf", "lx_bookcase"));
+        P(q2.x1 - pad - 30, q2.y0 + pad, 30, 60, K("bookshelf", "lx_bookcase"));
         P(q2.x1 - pad - 26, q2.y1 - pad - 28, 26, 28, "safe");
+        if (LUX) { P(cx + 40, cy - 10, 20, 20, "lx_chair_exec");
+                   P(q2.x0 + pad, q2.y1 - pad - 18, 18, 18, "lx_globe"); }
         break;
       case "arfront":
         P(q2.x0 + pad + 26, cy - 19, 24, 38, "st_change");   // beside her machine
@@ -3980,6 +4344,7 @@ function makeFloor(b, f, rnd) {
       case "__lobby_old": P(q2.x0 + 10, q2.y0 + 10, 20, Math.min(90, H2 * 0.5), "mail"); P(cx - 26, q2.y1 - 30, 52, 18, "sofa"); break;
       default: break;
     }
+    if (TIDY_KINDS[kind]) tidyRoom(q2, propsFrom);
   }
 
   const inProps = props.filter((p) =>
@@ -4224,10 +4589,40 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
   /* A fixed civic building takes its whole cell and nothing else is generated there. Checked
      before the zone branches so it does not matter what the surrounding district would have
      built -- a city hall is not a thing that happens to appear in a district. */
+  /* Ahead of the district branches, same reasoning as the civic block below: a bank is not
+     something that happens to appear in a neighbourhood. Behind the civic check, so the one
+     Arden cell that carries the mayor's house is never contested. */
+  const fd = foodAt(i, j);
+  if (fd && !civicAt(i, j)) {
+    const fw = Math.min(LW * 0.60, 22 * MU), fh = Math.min(LH * 0.44, 16 * MU);
+    const b = mkB(lx0 + (LW - fw) / 2, ly0 + (LH - fh) * 0.52, fw, fh, 1, "fastfood", rnd, key);
+    const kit = FF_KIT[fd.chain] || FF_KIT.bb;
+    b.chain = fd.chain; b.name = kit.label; b.signKey = kit.sign;
+    b.tone = 0.58; b.retail = true; b.eatery = true; b.biz = "fastfood";
+    out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+    return out;
+  }
+  const bnk = bankAt(i, j);
+  if (bnk && !civicAt(i, j)) {
+    const bw = Math.min(LW * 0.72, 30 * MU), bh = Math.min(LH * 0.56, 22 * MU);
+    const b = mkB(lx0 + (LW - bw) / 2, ly0 + (LH - bh) * 0.42, bw, bh,
+                  1 + Math.floor(rnd() * 3), "bank", rnd, key);
+    b.tone = 0.66; b.name = bnk.name; b.signKey = "sign_lightbox";
+    b.retail = false; b.bank = true;
+    out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+    return out;
+  }
   const civ = civicAt(i, j);
   if (civ) {
-    const bw = LW * 0.68, bh = LH * 0.52;
-    const b = mkB(lx0 + (LW - bw) / 2, ly0 + (LH - bh) / 2, bw, bh, civ.floors,
+    /* The mayor's house is not a town hall and should not be massed like one. It sits alone on
+       its lot, set back off the avenue with grounds in front of it, behind a wall with one gate
+       -- so it reads from the street as a place you can see into and cannot walk into. */
+    const grand = civ.key === "vance_house";
+    // eleven units and an office do not fit on two thirds of a lot; the Starlite takes it all
+    const roomy = civ.kind === "motel";
+    const bw = LW * (grand ? 0.58 : roomy ? 0.94 : 0.68);
+    const bh = LH * (grand ? 0.42 : roomy ? 0.90 : 0.52);
+    const b = mkB(lx0 + (LW - bw) / 2, ly0 + (LH - bh) * (grand ? 0.30 : 0.5), bw, bh, civ.floors,
                   civ.kind, rnd, key);
     /* `roof` on a building is already the array of roof clutter, so the plate is carried on
        its own field -- naming it `roof` would have quietly replaced the clutter with a string
@@ -4235,7 +4630,70 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     b.tone = 0.62; b.civic = civ.key; b.name = civ.name; b.shape = civ.shape || null;
     b.signKey = "sign_lightbox";
     if (civ.kind === "cityhall") b.landmarkStair = true;
-    out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+    faceDoor(b, lx0, ly0, lx1, ly1, rnd);
+    if (grand) {
+      // the front is the avenue side: the mansion plate draws its steps, drive and fountain
+      // below the mass, so any other door side would put the approach round the back
+      b.door = { side: 2, pos: 0.5 };
+      b.ardenDrive = true;
+      /* A real wall, as five thin buildings with a gap at the gate -- the same way the prison
+         perimeter is built, because that one is known to collide. Scenery would not. */
+      const WT = 20, gapW = 200;
+      const wx0 = lx0 + 8, wx1 = lx1 - 8, wy0 = ly0 + 8, wy1 = ly1 - 8;
+      const wall = (wx, wy, ww, wh, k2) => {
+        const wb = mkB(wx, wy, ww, wh, 1, "wall", rnd, key + k2);
+        wb.perimeter = true; wb.tone = 0.72; wb.retail = false; wb.arch = null;
+        wb.door = null; wb.noEnter = true;
+        out.push(wb);
+      };
+      wall(wx0, wy0, wx1 - wx0, WT, 901);                                     // back
+      wall(wx0, wy0, WT, wy1 - wy0, 902);                                     // west
+      wall(wx1 - WT, wy0, WT, wy1 - wy0, 903);                                // east
+      wall(wx0, wy1 - WT, (wx1 - wx0 - gapW) / 2, WT, 904);                   // front, west of gate
+      wall(wx0 + (wx1 - wx0 + gapW) / 2, wy1 - WT,
+           (wx1 - wx0 - gapW) / 2, WT, 905);                                  // front, east of gate
+    }
+    out.push(b);
+    return out;
+  }
+
+  /* ---------- ARDEN: the houses ----------
+     One house on the north half facing the north street, one on the south half facing the
+     south one, so both frontages face a kerb and the backs meet in the middle of the block.
+     Every house on the avenue is the same footprint band at the same setback -- uniform is
+     what actually makes a rich street read as rich -- while the massing, the storey count, the
+     garage side and the tone are rolled off the lot key, so no two are the same house twice.  */
+  if (zone === "arden") {
+    // the pumps, the body shop and the firehouse keep their own lots and their own surfaces
+    if (isGasCell(i, j) || isShopCell(i, j) || isFireCell(i, j)) return out;
+    const HH = LH / 2;
+    for (let half = 0; half < 2; half++) {
+      const north = half === 0;
+      const hw = Math.min(LW * 0.50, (16 + rnd() * 4) * MU);
+      const hh = Math.min(HH * 0.48, (11 + rnd() * 2.5) * MU);
+      const hx = lx0 + (LW - hw) * (0.28 + rnd() * 0.44);
+      const set = HH * (0.26 + rnd() * 0.07);              // the same setback off both kerbs
+      const hy = north ? ly0 + set : ly1 - set - hh;
+      const b = mkB(hx, hy, hw, hh, rnd() < 0.60 ? 2 : 3, "house", rnd, key + half * 101);
+      b.door = { side: north ? 0 : 2, pos: 0.34 + rnd() * 0.32 };
+      b.tone = 0.56 + rnd() * 0.38;      // painted brick and pale stone, not grey siding
+      b.arden = true;
+      out.push(b);
+      /* The garage. A wing off one flank rather than a shed at the back, set behind the front
+         of the house so the drive runs up BESIDE the house to the kerb and not through it.
+         Built as a house, not a `garage`: a garage kind takes the metal warehouse façade and a
+         corrugated shed on a lawn is the one thing that would give the whole street away. */
+      const east = rnd() < 0.5;
+      const gw = Math.min(hw * 0.44, 7.5 * MU), gh = Math.min(hh * 0.76, 7 * MU);
+      const gx = east ? Math.min(hx + hw + 16, lx1 - gw) : Math.max(hx - gw - 16, lx0);
+      // if the lot is too narrow to hold a wing clear of the house, the house goes up alone
+      if (gx + gw > hx - 8 && gx < hx + hw + 8) continue;
+      const gy = north ? hy + hh * 0.30 : hy + hh * 0.70 - gh;
+      const gb = mkB(gx, gy, gw, gh, 1, "house", rnd, key + half * 101 + 7);
+      gb.door = { side: north ? 0 : 2, pos: 0.5 };
+      gb.tone = b.tone; gb.arden = true; gb.ardenDrive = true;
+      out.push(gb);
+    }
     return out;
   }
 
@@ -4841,7 +5299,7 @@ export default function IronLionLayer004() {
          missions -- borrowing was a placeholder, not a decision. */
       industrial: "industrial", irish: "irish", barrio: "barrio", projects: "hood",
       farm: "county", cemetery: "county", prison: "old", town: "county",
-      park: "uptown", water: "county",
+      park: "uptown", arden: "uptown", water: "county",
       skate: "youth", mountain: "county",
       arcade: "arcade",
     };
@@ -5317,7 +5775,7 @@ export default function IronLionLayer004() {
        comp_hatch2 are hosted files and cannot be measured from here. */
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART };
     const keys = Object.keys(all);
     let left = keys.length;
     /* Assets are files now, not base64. Two consequences the loader has to handle:
@@ -5787,6 +6245,9 @@ export default function IronLionLayer004() {
       if (b.kind === "warehouse" || b.kind === "garage") return "metal";
       if (b.kind === "office" || b.kind === "store") return "glass";
       if (b.kind === "tower") return "brick";
+      // stucco, not "stone": there is no stone pattern, and it would have fallen through to brick
+      if (b.kind === "bank") return "stucco";
+      if (b.kind === "fastfood") return "glass";   // a storefront, all window across the front
       if (b.kind === "house") return "siding";
       return b.tone < 0.55 ? "brick" : "stucco";
     }
@@ -10769,6 +11230,36 @@ export default function IronLionLayer004() {
       for (let q = c.x0 + 30; q < c.x0 + 30 + (c.x1 - c.x0) * 0.4; q += 34) ctx.fillRect(q, c.y0 + 16, 4, 60);
     }
 
+    /* Arden's ground. The hood yard is dirt with a concrete path stamped across it; this is the
+       same idea run the other way -- kept lawn, a mown stripe, a wide made drive to every garage
+       and a narrow paved walk to every front door. The drive width comes off the building, so a
+       garage and the mayor's carriage sweep both get the wide one and a front door does not. */
+    function drawArdenYard(c) {
+      const W = c.lx1 - c.lx0, H = c.ly1 - c.ly0;
+      ctx.fillStyle = PF("lawn", "#4c6a3f");
+      ctx.fillRect(c.lx0, c.ly0, W, H);
+      ctx.fillStyle = "rgba(255,255,255,0.028)";
+      for (let s = 0; s < 10; s += 2) ctx.fillRect(c.lx0, c.ly0 + s * (H / 10), W, H / 10);
+      for (const b of c.blds) {
+        if (!b.door) continue;                       // the perimeter wall has no approach
+        const dp = doorPoint(b);
+        const wd = b.ardenDrive ? 68 : 30;
+        ctx.fillStyle = b.ardenDrive ? "rgba(104,102,97,0.92)" : "rgba(190,184,170,0.72)";
+        if (b.door.side === 2) ctx.fillRect(dp[0] - wd / 2, b.y + b.h, wd, Math.max(0, c.ly1 - (b.y + b.h)));
+        else if (b.door.side === 0) ctx.fillRect(dp[0] - wd / 2, c.ly0, wd, Math.max(0, b.y - c.ly0));
+        else if (b.door.side === 1) ctx.fillRect(b.x + b.w, dp[1] - wd / 2, Math.max(0, c.lx1 - (b.x + b.w)), wd);
+        else ctx.fillRect(c.lx0, dp[1] - wd / 2, Math.max(0, b.x - c.lx0), wd);
+      }
+      // planting is kept to the side boundaries so a tree never lands on a roof
+      for (let s = 0; s < 6; s++) {
+        const left = s % 2 === 0;
+        const hx = left ? c.lx0 + 30 + hash(c.i, c.j, 60 + s) * 46
+                        : c.lx1 - 30 - hash(c.i, c.j, 60 + s) * 46;
+        const hy = c.ly0 + 40 + hash(c.i, c.j, 70 + s) * (H - 80);
+        const leafy = hash(c.i, c.j, 80 + s) < 0.6;
+        drawVeg(leafy ? "tree_leafy" : "hedge", hx, hy, leafy ? 78 : 86, s);
+      }
+    }
     function drawHoodYard(c) {
       ctx.fillStyle = PF("yard", "#3c4630");
       ctx.fillRect(c.lx0, c.ly0, c.lx1 - c.lx0, c.ly1 - c.ly0);
@@ -10834,21 +11325,41 @@ export default function IronLionLayer004() {
       ctx.textAlign = "start";
       ctx.globalAlpha = 1;
     }
+    /* Two sets of roof art exist and only one was ever being drawn. The embedded rf_roof_*
+       plates (RF, base64, up top) were doing all the work; the eight hosted plates that came
+       in with the race zip -- rf_ac, rf_ac_big, rf_vent, rf_duct, rf_hatch, rf_tank,
+       rf_chimney, rf_chimney_wide -- were registered in ROOF_A, loaded into imgs, and then
+       referenced by nothing. Each appeared exactly ONCE in the file: its own registration.
+
+       So the new art now carries the plant -- chimneys, AC, vents, ducting, hatches, tanks --
+       and the embedded set keeps the three things it has that the new sheet does not:
+       the clothesline, the pallets and the ladder, which are the whole reason a poor roof
+       reads as lived on rather than serviced. rf_roof_antenna stays for the same reason.
+       rf_roof_watertower is left alone below: it is a tall tower and rf_tank is a horizontal
+       cylinder lying on its side, so they are two different objects, not two versions of one. */
     function ROOF_SPRITE(b, r) {
-      if (b.kind === "house") return "rf_roof_chimney";
+      if (b.kind === "house") return b.w > 300 ? "rf_chimney_wide" : "rf_chimney";
       const poor = b.tone < 0.4 && (b.kind === "apt" || b.kind === "tower_flats" || b.kind === "tower");
       if (poor && r.t < 0.18) return "rf_roof_clothesline";
       if (poor && r.t < 0.30) return "rf_roof_pallets";
       if (poor && r.t < 0.40) return "rf_roof_ladder";
       if (b.kind === "apt" || b.kind === "tower") {
-        if (r.t < 0.45) return "rf_roof_hvac";
-        if (r.t < 0.65) return "rf_roof_vents";
-        if (r.t < 0.82) return "rf_roof_access";
+        if (r.t < 0.22) return "rf_ac_big";
+        if (r.t < 0.42) return "rf_ac";
+        if (r.t < 0.58) return "rf_vent";
+        if (r.t < 0.72) return "rf_duct";
+        if (r.t < 0.84) return "rf_hatch";
+        if (r.t < 0.92) return "rf_tank";
         return "rf_roof_antenna";
       }
-      // offices, stores, downtown -- purely utilitarian, no laundry or antennas up there
-      return r.t < 0.5 ? "rf_roof_hvac" : r.t < 0.8 ? "rf_roof_vents" : "rf_roof_access";
+      // offices, stores, downtown -- utilitarian plant, and one way back down
+      return r.t < 0.30 ? "rf_ac" : r.t < 0.50 ? "rf_ac_big" : r.t < 0.66 ? "rf_vent"
+           : r.t < 0.80 ? "rf_duct" : r.t < 0.92 ? "rf_hatch" : "rf_tank";
     }
+    /* The clutter boxes are 14-42 units across, which is right for a vent and much too small
+       for a packaged AC unit, a duct run or a tank. Scaled off the key so big plant reads big. */
+    const ROOF_SCALE = { rf_ac_big: 2.1, rf_tank: 1.9, rf_duct: 1.5, rf_ac: 1.25,
+                         rf_hatch: 1.15, rf_chimney_wide: 1.2 };
     /* The Kestrel's approach: a broad flight of steps out front with a spot on it. Drawn
        BEFORE the building so the treads run under the facade rather than over it, and the
        spotlight is drawn after everything so it lies on top of the stone. */
@@ -11005,9 +11516,10 @@ export default function IronLionLayer004() {
       ctx.fillStyle = "rgba(255,255,255,0.05)";
       ctx.fillRect(b.x + 4, b.y + 4, b.w - 8, 5);
       for (const r of b.roof) {
-        const rimg = imgs.current[ROOF_SPRITE(b, r)];
+        const rkey = ROOF_SPRITE(b, r);
+        const rimg = imgs.current[rkey];
         if (rimg && rimg.width) {
-          const rw = r.w, rh = rw * (rimg.height / rimg.width);
+          const rw = r.w * (ROOF_SCALE[rkey] || 1), rh = rw * (rimg.height / rimg.width);
           ctx.drawImage(rimg, r.x, r.y + r.h - rh, rw, rh);
         } else {
           ctx.fillStyle = r.t < 0.5 ? "rgba(72,74,78,0.9)" : "rgba(52,54,58,0.9)";
@@ -11137,6 +11649,16 @@ export default function IronLionLayer004() {
        were off by one, which is why a bed and a dining table were rendering as white shelving
        and a chest freezer. Anything not listed keeps its coloured block. */
     const PROP_ART = {
+      // named the same as the plate, so one entry each and they light up the moment the PNGs land
+      bk_counter_curved: "bk_counter_curved", bk_desk_mgr: "bk_desk_mgr",
+      bk_chair_exec: "bk_chair_exec", bk_sofa_wait: "bk_sofa_wait",
+      bk_vault_closed: "bk_vault_closed", bk_vault_open_shaft: "bk_vault_open_shaft",
+      bk_camera_dome: "bk_camera_dome", bk_camera_wall: "bk_camera_wall",
+      bk_sign_floor: "bk_sign_floor", bk_till_registers: "bk_till_registers",
+      bk_safe_deposit_boxes: "bk_safe_deposit_boxes", bk_money_stacks: "bk_money_stacks",
+      bk_queue_ropes: "bk_queue_ropes", bk_teller_on: "bk_teller_on",
+      bk_teller_off: "bk_teller_off", bk_cash_trolley: "bk_cash_trolley",
+      bk_teller_props: "bk_teller_props", bk_alarm_button: "bk_alarm_button",
       /* The casino floor. tb_cabinet is the drawn slot machine; the tables reuse the felt so a
          card table and the wheel table are the same material as the game you sit down to. */
       slotbank: "tb_cabinet", cardtable: "tb_felt", wheeltable: "tb_wheel",
@@ -11397,6 +11919,15 @@ export default function IronLionLayer004() {
     }
 
     const PROP_COL = {
+      /* So the bank is legible BEFORE any of its art exists -- steel for the vault, brass for
+         the boxes and the ropes, green for the cash, wood for the counter. */
+      bk_counter_curved: "#7a6244", bk_desk_mgr: "#5a3f2c", bk_chair_exec: "#4a3526",
+      bk_sofa_wait: "#4a5a44", bk_vault_closed: "#7d828a", bk_vault_open_shaft: "#2a2d33",
+      bk_camera_dome: "#3a3d44", bk_camera_wall: "#3a3d44", bk_sign_floor: "#9a7c3a",
+      bk_till_registers: "#9aa0a4", bk_safe_deposit_boxes: "#a8873f",
+      bk_money_stacks: "#4e6b46", bk_queue_ropes: "#8a6a34", bk_teller_on: "#3b4250",
+      bk_teller_off: "#5a4632", bk_cash_trolley: "#8d9298", bk_teller_props: "#6a6355",
+      bk_alarm_button: "#a33028",
       sofa: "#4b3a2b", table: "#5b4632", tv: "#26282c", counter: "#6a6355",
       stove: "#3a3c40", fridge: "#787b7e", bed: "#57493a", dresser: "#4d3f30",
       toilet: "#8b8e91", sink: "#8b8e91", tub: "#7c8185", shelf: "#4a463f",
@@ -12247,6 +12778,10 @@ export default function IronLionLayer004() {
       // bars stop people; the cell floor underfoot does not
       cellbar: 1,
       lift: 1, workbench: 1, bench: 1, counter: 1, bartop: 1, cab: 1, safe: 1,
+      /* The counter and the vault door are the two things in the building that have to stop
+         you, or the room means nothing. The ropes and the signs deliberately do not. */
+      bk_counter_curved: 1, bk_vault_closed: 1, bk_safe_deposit_boxes: 1, bk_desk_mgr: 1,
+      bk_sofa_wait: 1, bk_cash_trolley: 1, bk_teller_on: 1, bk_till_registers: 1,
       bed: 1, sofa: 1, dresser: 1, shelf: 1, bookshelf: 1, freezer: 1, produce: 1,
       cardtable: 1, wheeltable: 1, slotbank: 1, stagedeck: 1, evidence: 1, desk: 1,
       table: 1, pew: 1, lectern: 1, locker: 1, crate: 1, console: 1,
@@ -12260,6 +12795,21 @@ export default function IronLionLayer004() {
       vn_amp_combo: 1, vn_merch: 1, vn_cases: 1, vn_barrier: 1, vn_stage_steps: 1,
       sk_rack: 1, sk_shelf: 1, sk_counter: 1,
     };
+    /* Filled by loop rather than written out four times over. Every chain plate is named the
+       same as its key, so PROP_ART is the identity; the fallback colour is the chain tint, so
+       an unbuilt Benny's reads red and a Taco Crazy reads orange before any art exists. */
+    // the luxury and motel sets: plate named the same as the key, one wood tone as fallback
+    for (const k of LX_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#6a5947"; SOLID_PROP[k] = 1; }
+    for (const k of MO_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#7a6a52"; SOLID_PROP[k] = 1; }
+    for (const c in FF_KIT) {
+      const k = FF_KIT[c];
+      for (const q of [k.counter, k.boothL, k.boothS, k.menu, k.soda, k.staff].concat(k.cook)) {
+        PROP_ART[q] = q;
+        if (!PROP_COL[q]) PROP_COL[q] = k.tint;
+        // booths, counters and machines stop you; the menu board is on the wall
+        if (q !== k.menu) SOLID_PROP[q] = 1;
+      }
+    }
     function collideBuildings(o, r, isCar) {
       if (g.onFwy) return;              // nothing up here to hit but the parapets
       if ((g.roof || g.sewer || g.fireFloor) && o === g.p) return;  // a plane away
@@ -13874,7 +14424,8 @@ export default function IronLionLayer004() {
       { z: "skate",     name: "THE SKATE PARK",  i: 5,  j: 8, skate: true },
       { z: "mountain",  name: "HOLLOW PASS",     i: 25, j: 2, landmark: true },
       { z: "downtown",  name: "CITY HALL",       i: 10, j: 8, landmark: true },
-      { z: "city",      name: "THE VANCE HOUSE", i: 6,  j: 16, landmark: true },
+      { z: "arden",     name: "ARDEN HILL",     i: 4,  j: 17 },
+      { z: "arden",     name: "THE VANCE HOUSE", i: 4,  j: 19, landmark: true },
       { z: "county",    name: "THE STARLITE",    i: 25, j: 21, landmark: true },
       { z: "skate",     name: "GALAXY LANES",     i: 5,  j: 9, landmark: true },
       { z: "skate",     name: "THE LAST CALL",    i: 6,  j: 9, landmark: true },
@@ -15740,6 +16291,82 @@ export default function IronLionLayer004() {
 
        You break it by getting under something. A chopper cannot see through an overpass or a
        roof, which is the one piece of cover in this city that does not work against cars. */
+    /* MASTERDRIVE'S ROCKETS. The van fires them up and over, so they arrive from above rather
+       than along a line you can break with a corner -- which is why he does not need to chase
+       anybody.
+
+       The counterplay is the whole point: a shadow appears where it will land and GROWS as the
+       thing falls. Two full seconds of warning, on the ground, in world space. If you are still
+       standing in it when the shadow closes, that was a decision. No off-screen death. */
+    const ROCKET_FALL = 2.0;
+    function fireRocket(from, tx, ty) {
+      g.rockets = g.rockets || [];
+      if (g.rockets.length > 6) return;
+      g.rockets.push({
+        x: from.x, y: from.y, tx, ty, t: ROCKET_FALL, blast: 150,
+      });
+    }
+    function stepRockets(dt) {
+      const list = g.rockets || [];
+      for (let i = list.length - 1; i >= 0; i--) {
+        const r = list[i];
+        r.t -= dt;
+        if (!Number.isFinite(r.tx)) { list.splice(i, 1); continue; }
+        if (r.t > 0) continue;
+        list.splice(i, 1);
+        // it lands where the shadow was, not where you are now
+        g.blast = { x: r.tx, y: r.ty, ang: 0, t: 0.45 };
+        g.shake = Math.max(g.shake, 14);
+        pushFx("ring", r.tx, r.ty, 0);
+        const hurt = (o, dmg) => {
+          if (!o || !Number.isFinite(o.x)) return;
+          const d = Math.hypot(o.x - r.tx, o.y - r.ty);
+          if (d > r.blast) return;
+          const f = 1 - d / r.blast;
+          const a = Math.atan2(o.y - r.ty, o.x - r.tx);
+          if (o === g.p) {
+            g.p.hp = Math.max(0, g.p.hp - 34 * f);
+            g.p.vx += Math.cos(a) * 420 * f; g.p.vy += Math.sin(a) * 420 * f;
+            g.p.stumble = 0.8;
+          } else {
+            if (o.hp != null) o.hp -= 22 * f;
+            o.stunT = Math.max(o.stunT || 0, 2.5 * f);
+            o.vx = Math.cos(a) * 340 * f; o.vy = Math.sin(a) * 340 * f;
+          }
+        };
+        hurt(g.p);
+        for (const t of combatTargets()) hurt(t);
+        if (inVehicle()) {
+          const v = activeVeh();
+          if (Math.hypot(v.x - r.tx, v.y - r.ty) < r.blast)
+            applyDamage(v, 320, r.tx, r.ty, 108, 52);
+        }
+      }
+    }
+    function drawRockets() {
+      for (const r of (g.rockets || [])) {
+        if (!Number.isFinite(r.tx)) continue;
+        const k = clamp(1 - r.t / ROCKET_FALL, 0, 1);
+        // the shadow: wide and faint when it is high, tight and black when it is about to land
+        ctx.fillStyle = `rgba(0,0,0,${0.12 + k * 0.45})`;
+        ctx.beginPath();
+        ctx.ellipse(r.tx, r.ty, r.blast * (1.5 - k * 0.98), r.blast * (1.3 - k * 0.86), 0, 0, 6.3);
+        ctx.fill();
+        ctx.strokeStyle = `rgba(230,90,60,${0.35 + k * 0.5})`;
+        ctx.lineWidth = 2 + k * 3;
+        ctx.beginPath(); ctx.arc(r.tx, r.ty, r.blast * (1.5 - k * 0.98), 0, 6.3); ctx.stroke();
+        // and the thing itself, coming down out of the corner of the screen
+        const ax = r.x + (r.tx - r.x) * k, ay = r.y + (r.ty - r.y) * k - (1 - k) * 340;
+        ctx.save();
+        ctx.translate(ax, ay);
+        ctx.rotate(Math.atan2(r.ty - ay, r.tx - ax));
+        ctx.fillStyle = "#5a6250"; ctx.fillRect(-11, -3, 22, 6);
+        ctx.fillStyle = "#c8873a"; ctx.fillRect(9, -3, 5, 6);
+        ctx.fillStyle = `rgba(255,200,120,${0.5 + Math.random() * 0.3})`;
+        ctx.fillRect(-18, -2, 7, 4);
+        ctx.restore();
+      }
+    }
     function chaseChoppers(dt) {
       if (!((g.heat || 0) > 0) || g.inside) {
         // chase over: they peel off, climb out and go
@@ -17884,7 +18511,7 @@ export default function IronLionLayer004() {
       const zi = clamp(Math.floor(cx / PITCH), 0, N - 1);
       const zj = clamp(Math.floor(cy / PITCH), 0, N - 1);
       const zmul = ({ downtown: 1.55, neon: 1.4, city: 1.3, uptown: 1.2, chinatown: 1.2,
-                      hood: 1.0, irish: 1.0, barrio: 1.0,
+                      hood: 1.0, irish: 1.0, barrio: 1.0, arden: 0.55,
                       industrial: 0.65, prison: 0.4, farm: 0.3, cemetery: 0.3,
                       park: 0.5 })[zoneOf(zi, zj)] ?? 1.0;
       const cap = Math.round((Math.min(W, H) < 520 ? 24 : 42) * zmul);
@@ -18504,6 +19131,9 @@ export default function IronLionLayer004() {
         if (gasHere) { drawGasStation(c); continue; }
         if (isFireCell(i, j)) { drawFireHouse(c); continue; }
         if (isShopCell(i, j)) { drawBodyShop(c); continue; }
+        // after the pumps and the body shop, so those keep the surfaces they draw for themselves
+        // the Arden bank keeps a forecourt, not a front lawn
+        if (c.zone === "arden" && !isBankCell(i, j) && !isFoodCell(i, j)) { drawArdenYard(c); continue; }
         ctx.fillStyle = c.type === 0 ? PF("gravel", C.gravel) : c.type === 1 ? PF("lot", C.lotAsphalt) : c.type === 2 ? PF("dirt", C.dirt) : c.type === 3 ? PF("dirt", "#34322c") : PF("slab", "#3d3d3b");
         ctx.fillRect(c.lx0, c.ly0, lw, lh);
 
@@ -20489,6 +21119,7 @@ export default function IronLionLayer004() {
         updateGuards(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
         updatePursuit(dt);
         chaseChoppers(dt);
+        stepRockets(dt); vanRockets(dt);
         updateDeputies(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       }
       if (!g.title) updateCrime(dt);
@@ -20890,7 +21521,7 @@ export default function IronLionLayer004() {
       if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); }
       drawGuards(); drawDeputies(); drawBlast();
       drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
-      drawChoppers();
+      drawRockets(); drawChoppers();
       /* Anyone in the fight, not only gang crews -- police, and any civilian who has been hit.
          A bar over one man and nothing over the next reads as a bug rather than a rule. */
       for (const p2 of (Array.isArray(g.peds) ? g.peds : []))
@@ -21907,11 +22538,21 @@ export default function IronLionLayer004() {
              put two of the same man in the den. If we find him the prompt hangs on him; if we
              do not it hangs on empty floor. One Sho either way, which matters more than having
              a figure to look at. */
+          /* `existing` used to be returned whether or not a crew member was actually found,
+             and drawOneBenched returns early on `existing` after drawing only the prompt. So
+             any time the den crew had wandered out of the bay -- or reapSho had stashed the
+             last one -- NOBODY drew Sho, and the bench held a bubble over empty floor. You
+             could still walk up and press E, which is exactly the reported symptom.
+             The giveaway is downstream: the ordinary bench path already carries a
+             `sp.r.id === "sho"` height of 38, written for a draw that could never happen.
+             Now `existing` is claimed only when there IS a man to hang it on. */
           const m = denCrew[0];
-          // remember both: the one found now, and whichever we locked on at swap time
-          if (m) { g.shoNpc2 = g.shoNpc; g.shoNpc = m; }
-          return { r, existing: true,
-                   x: m ? m.x : bay.x0 + W2 * 0.62, y: m ? m.y : bay.y1 - 22 };
+          if (m) {
+            // remember both: the one found now, and whichever we locked on at swap time
+            g.shoNpc2 = g.shoNpc; g.shoNpc = m;
+            return { r, existing: true, x: m.x, y: m.y };
+          }
+          // no crew member in the bay -- fall through and draw him ourselves, like the others
         }
         const sp = { r, x: bay.x0 + W2 * (0.24 + n * 0.30), y: bay.y1 - 22 };
         for (const q of pl.props) {
@@ -22292,6 +22933,19 @@ export default function IronLionLayer004() {
         ctx.stroke();
       }
       ctx.restore();
+    }
+    /* Any live MasterDrive van lobs one every few seconds at wherever you are standing. It
+       leads you slightly, so standing still is worse than moving. */
+    function vanRockets(dt) {
+      for (const v of g.traffic) {
+        if (!v.m || v.m.k !== "vh_drive_van" || v.dead) continue;
+        v.rkCd = (v.rkCd == null ? 3 : v.rkCd) - dt;
+        if (v.rkCd > 0) continue;
+        v.rkCd = 4.5 + Math.random() * 2.5;
+        const pv = inVehicle() ? activeVeh() : g.p;
+        if (Math.hypot(pv.x - v.x, pv.y - v.y) > 1400) continue;
+        fireRocket(v, pv.x + (pv.vx || 0) * 0.8, pv.y + (pv.vy || 0) * 0.8);
+      }
     }
     G.blowFn = () => { if (g.who === "kenny") safely("blow", concussiveBlow); };
     G.punchFn = () => { if (g.who === "kenny") safely("punch", kennyPunch); };
