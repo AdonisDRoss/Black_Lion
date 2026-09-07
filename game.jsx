@@ -1495,7 +1495,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 407 — EVERYONE BLEEDS";
+const BUILD_TAG = "LAYER 408 — THE DEVICE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2619,6 +2619,36 @@ const HELD_LINE = {
   monstruo: "",
   voz:      "He has not said anything about %s. That is what frightens me.",
   arson:    "%s is still warm. Go and stand in it. You will understand.",
+};
+/* ---------- JOB TYPE TWO: THE DEVICE ----------
+   The robbery asks how you get past somebody. This asks whether you get there. There is no
+   boss health bar in it: the rogue plants and goes, and what is left is a number counting
+   down inside a building full of people. You either reach it or you do not.
+   Same table shape as everything else -- one row per rogue, because where a man puts a bomb
+   says as much about him as how he robs a bank. */
+/* FUSES RETUNED. The first numbers gave 59 to 99 seconds of slack after reaching the site
+   and defusing, which meant you could clear the entire room at leisure and then defuse in
+   peace -- a chore with a countdown printed on it. These are set so that ten seconds of
+   standing still is a real cost while his crew is still in the room, because his crew IS
+   still in the room: only the man himself leaves. More crew buys more fuse, so Monstruo's
+   forty are a longer clock and a worse ten seconds.
+   Second pass: even these were loose enough that killing the room first was free. Cut again
+   so clearing eight men and THEN defusing only just fits -- for the small crews it still
+   fits comfortably, and that is fine, because with three men in the room clearing them is
+   the sensible play and should work. */
+const ROGUE_BOMB = {
+  mvp:      { where: "In the middle of the floor, in plain view, with the pin still in it.",
+              fuse: 30, hidden: false },
+  kuru:     { where: "You will not find it by looking. Find where you would not look.",
+              fuse: 38, hidden: true },
+  drive:    { where: "Wired into the van he left in the wall. He did not even take the van.",
+              fuse: 40, hidden: false },
+  monstruo: { where: "One of the forty is carrying it. None of them will tell you which.",
+              fuse: 46, hidden: true },
+  voz:      { where: "Somebody who works here put it there. She only told them where.",
+              fuse: 36, hidden: true },
+  arson:    { where: "It is not a bomb. It is an accelerant, and it is under everything.",
+              fuse: 34, hidden: false },
 };
 const rogueIds = () => Object.keys(ROGUE_JOB);
 const isJewelCell = (i, j) => JEWEL_CELLS.some((c) => c.i === i && c.j === j);
@@ -9489,6 +9519,7 @@ export default function IronLionLayer004() {
           ctx.beginPath(); ctx.arc(tx, ty, 4, 0, 6.3); ctx.fill();
         }
       }
+      drawBomb();
       drawHeldRogues();
       drawJobBanner();
       if (g.wireFx && Number.isFinite(g.wireFx.x0) && Number.isFinite(g.wireFx.y0)
@@ -23563,6 +23594,28 @@ export default function IronLionLayer004() {
        and not an arrow -- the approach line IS the briefing. */
     /* The men you took, in the cells you took them to. Four to a floor across the two cell
        floors, in the order they were caught, so the landing fills up as you work. */
+    /* The device. A hidden one shows nothing until you are almost on it, which is the whole
+       difference between Kuru's job and MVP's -- one is a race and the other is a search. */
+    function drawBomb() {
+      if (!g.job || g.job.phase !== "fuse" || !g.job.bomb) return;
+      const B = g.job.bomb;
+      const d = Math.hypot(g.p.x - B.x, g.p.y - B.y);
+      if (B.hidden && d > 260) return;
+      const blink = 0.5 + 0.5 * Math.sin(g.t * (B.fuse < 20 ? 18 : 7));
+      ctx.fillStyle = `rgba(20,18,20,0.95)`;
+      ctx.fillRect(B.x - 13, B.y - 9, 26, 18);
+      ctx.fillStyle = `rgba(235,70,56,${0.35 + 0.65 * blink})`;
+      ctx.beginPath(); ctx.arc(B.x, B.y - 1, 5, 0, 6.3); ctx.fill();
+      ctx.font = "700 12px system-ui, sans-serif";
+      ctx.fillStyle = B.fuse < 20 ? "#ff6a5a" : "#e8c46a";
+      ctx.fillText(Math.max(0, Math.ceil(B.fuse)) + "s", B.x - 12, B.y - 16);
+      if (d < 70) {
+        // the defuse bar, drawn on the thing itself so you watch it and not the HUD
+        ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(B.x - 26, B.y + 14, 52, 6);
+        ctx.fillStyle = "#7ad07a";
+        ctx.fillRect(B.x - 26, B.y + 14, 52 * Math.min(1, B.defuse / 10), 6);
+      }
+    }
     function drawHeldRogues() {
       if (!g.inside || g.inside.kind !== "asylum") return;
       if (g.floor !== 1 && g.floor !== 2) return;
@@ -24273,11 +24326,13 @@ export default function IronLionLayer004() {
       const ids = free;
       const rid = force || ids[(Math.random() * ids.length) | 0];
       const st = JOB_SITES[(Math.random() * JOB_SITES.length) | 0];
-      g.job = { rid, st, phase: "called", t: 0, crew: null, boss: null, maxhp: 1 };
+      // a coin, unless a caller asked for one -- both types use the same sites and the same men
+      const type = (force === "bomb" || (force !== "rob" && Math.random() < 0.42)) ? "bomb" : "rob";
+      g.job = { rid, st, type, phase: "called", t: 0, crew: null, boss: null, maxhp: 1 };
       const R = ROGUE_JOB[rid];
       g.pickupFlash = { nm: "job_called", t: 4.0 };
-      g.jobBanner = R.name + " \u2014 " + st.what;
-      g.jobNote = R.approach;
+      g.jobBanner = (type === "bomb" ? "DEVICE \u00b7 " : "") + R.name + " \u2014 " + st.what;
+      g.jobNote = type === "bomb" ? (ROGUE_BOMB[rid] || {}).where || "" : R.approach;
     }
     function jobArrive() {
       const j = g.job, R = ROGUE_JOB[j.rid];
@@ -24334,6 +24389,20 @@ export default function IronLionLayer004() {
         cr.members[1].wpn = null; cr.members[1].inside = 1; cr.members[1].spd = 0;
       }
       j.crew = cr; j.boss = boss; j.maxhp = R.hp; j.phase = "fight"; j.t = 0;
+      if (j.type === "bomb") {
+        /* He does not stay. The device is the job, and a man standing next to his own bomb
+           waiting to be punched is a man who has misunderstood what a bomb is for. */
+        const B = ROGUE_BOMB[j.rid] || { fuse: 90, hidden: false };
+        j.bomb = { x, y, fuse: B.fuse, hidden: !!B.hidden, defuse: 0 };
+        const k3 = cr.members.indexOf(boss);
+        if (k3 >= 0) cr.members.splice(k3, 1);
+        j.boss = null;
+        j.phase = "fuse"; j.t = 0;
+        g.jobBanner = R.name + " HAS GONE";
+        g.jobNote = B.where;
+        g.pickupFlash = { nm: "device_armed", t: 4.0 };
+        return;
+      }
       const line = (ROGUE_LINE[j.rid] || {})[g.who] || "";
       g.jobBanner = R.name;
       g.jobNote = line || "(He does not say anything. He never does.)";
@@ -24381,6 +24450,47 @@ export default function IronLionLayer004() {
       if (j.phase === "called") {
         const [x, y] = jobSiteXY(j.st);
         if (Math.hypot(g.p.x - x, g.p.y - y) < 300) jobArrive();
+        return;
+      }
+      if (j.phase === "fuse") {
+        const B = j.bomb;
+        B.fuse -= dt;
+        const d = Math.hypot(g.p.x - B.x, g.p.y - B.y);
+        /* Defusing is standing on it, not a button. Ten seconds of being in the wrong place
+           while the rest of the room is still happening is the whole tension of the job. */
+        /* Getting hit costs you the work. Without this you stand in the fire and win by
+           ignoring it, and every one of his men in the room becomes scenery. */
+        const hurtNow = (g.p.hp || 0) < (B.lastHp == null ? (g.p.hp || 0) : B.lastHp);
+        B.lastHp = g.p.hp || 0;
+        if (hurtNow) B.defuse = Math.max(0, B.defuse - 3);
+        if (d < 70) {
+          B.defuse += dt;
+          if (B.defuse >= 10) {
+            j.phase = "done"; j.t = 0; j.bomb = null;
+            g.jobBanner = "DEVICE MADE SAFE";
+            g.jobNote = j.st.what + ". Nobody knows how close that was.";
+            g.pickupFlash = { nm: "made_safe", t: 3.4 };
+            g.stats.saved = (g.stats.saved || 0) + 1;
+          }
+          return;
+        }
+        B.defuse = Math.max(0, B.defuse - dt * 2);   // step away and you lose it fast
+        if (B.fuse <= 0) {
+          const site = (getCell(j.st.i, j.st.j).blds || []).find((q) => q.door && !q.perimeter);
+          if (site) {
+            igniteBuilding(site, true);              // permanent: this one does not come back
+            if (!g.fires) g.fires = [];
+            if (g.fires.indexOf(site) < 0) g.fires.push(site);
+          }
+          g.fx = g.fx || [];
+          g.fx.push({ kind: "ring", x: B.x, y: B.y, t: 0.30 });
+          g.shake = Math.max(g.shake || 0, 18);
+          j.phase = "done"; j.t = 0; j.bomb = null;
+          g.jobBanner = "THE DEVICE WENT OFF";
+          g.jobNote = j.st.what + ".";
+          g.pickupFlash = { nm: "too_late", t: 4.0 };
+          g.stats.lost = (g.stats.lost || 0) + 1;
+        }
         return;
       }
       if (j.phase === "fight") {
