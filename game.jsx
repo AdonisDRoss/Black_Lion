@@ -1495,7 +1495,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 401 — THE VAN";
+const BUILD_TAG = "LAYER 402 — CRACK, SCREAM, RIDE";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -6644,6 +6644,20 @@ export default function IronLionLayer004() {
       if (d < bd) { bd = d; best = v; }
     }
     if (!best) return false;
+    /* A BIKE IS NOT A CAR. Everything in g.traffic used to retarget the car body, so getting on
+       Luna made her a CAR wearing a motorcycle sprite: drawn at car scale, which is why she
+       "grew", and with no rider, because a car does not draw one. Anything the motorcycle name
+       table knows about goes onto the MOTO body instead, where the bike scale and the rider
+       already work. */
+    if (MOTONAME[(best.m && best.m.k) || ""]) {
+      g.moto.x = best.x; g.moto.y = best.y; g.moto.ang = best.ang || 0;
+      g.moto.vx = 0; g.moto.vy = 0; g.moto.sunk = false;
+      g.moto.skin = best.m; g.moto.model = best.m.k;   // model drives MOTO_LAMP, ie Luna's light
+      const bi = g.traffic.indexOf(best);
+      if (bi >= 0) g.traffic.splice(bi, 1);            // she is under you now, not still parked
+      g.mode = "moto"; g.hint = 0;
+      return true;
+    }
     // park the player's own car where it stands, then step into the other one
     g.car.x = best.x; g.car.y = best.y; g.car.ang = best.ang;
     g.car.vx = 0; g.car.vy = 0; g.car.skin = best.m;
@@ -18498,17 +18512,26 @@ export default function IronLionLayer004() {
          SEE where it went -- which is the actual difference between a working attack and one
          you cannot tell fired. */
       if (g.who === "eclipse" && !g.p.wpn) {
-        const near = hostilesNear(g.p.x, g.p.y, 190);
+        /* THE WHIP ALWAYS FIRES. It used to look for a target first and return silently when
+           there was none, which is a button that works and looks broken -- you crack a whip at
+           the air, you do not decline to. It goes where she is FACING, always draws, and hurts
+           whoever happens to be along it. */
+        const DIRV = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+        const dv = DIRV[g.p.dir] || [0, 1];
+        const REACH = 190;
+        const tx = g.p.x + dv[0] * REACH, ty = g.p.y + dv[1] * REACH;
         g.p.atkCd = 0.42; g.p.atk = 0.26;          // the swing animation, same field as everyone
-        if (!near.length) return;
-        let best = near[0], bd = 1e9;
-        for (const m of near) {
-          const d = Math.hypot(m.x - g.p.x, m.y - g.p.y);
-          if (d < bd) { bd = d; best = m; }
+        g.wireFx = { x0: g.p.x, y0: g.p.y, x1: tx, y1: ty, t: 0 };
+        // anything close to the line it just travelled, not merely the nearest man in a circle
+        for (const m of hostilesNear(g.p.x, g.p.y, REACH + 40)) {
+          const rx = m.x - g.p.x, ry = m.y - g.p.y;
+          const along = rx * dv[0] + ry * dv[1];              // how far up the lash he stands
+          if (along < 0 || along > REACH) continue;           // behind her, or past the tip
+          const off = Math.abs(rx * dv[1] - ry * dv[0]);      // and how far off the line
+          if (off > 46) continue;
+          m.hp -= 14 * lionHit; m.stunT = Math.max(m.stunT || 0, 0.9);
+          if (m.hp < 0) m.hp = 0;
         }
-        g.wireFx = { x0: g.p.x, y0: g.p.y, x1: best.x, y1: best.y, t: 0 };
-        best.hp -= 14 * lionHit; best.stunT = Math.max(best.stunT || 0, 0.9);
-        if (best.hp < 0) best.hp = 0;
         return;
       }
       // a gun in hand reaches past melee range -- find the nearest hostile within gun range first
@@ -22515,7 +22538,7 @@ export default function IronLionLayer004() {
             shop: !!nearBodyShop(), inShop: !!g.inShop,
             who: g.who, smokeStock: g.p.smokeStock || 0, hidden: !!g.p.hidden,
             // Maxine's two counters. Without these her buttons read "0 left" and "off" forever.
-            sonic: g.p.sonic || 0, jam: (g.jamT || 0) > 0,
+            sonic: g.p.sonic || 0, sonicCd: g.sonicCd || 0, jam: (g.jamT || 0) > 0,
             van: (g.van && g.van.phase) || "gone", vanBike: !!(g.van && g.van.bike),
             hero: !!(g.hero && g.hero[g.who]), stars: g.p.stars || 0, chain: g.p.chain || 0,
             turbo: (() => { const v = inVehicle() ? activeVeh() : null;
@@ -24047,21 +24070,21 @@ export default function IronLionLayer004() {
          anything you could see. */
       if (R.escape === "roof") {
         // straight up and gone. He is over the parapet before you reach the stairs.
-        g.fx.push({ kind: "puff", x: b.x, y: b.y, t: 0, ang: 0 });  // ang REQUIRED: the default branch reads it
+        g.fx.push({ kind: "puff", x: b.x, y: b.y, t: 0.20, ang: 0 });  // t counts DOWN from life; 0 is invisible
         b.vx = 0; b.vy = -300;
       } else if (R.escape === "crowd") {
         // he does not move. The mimes close over him and he is one of forty again.
-        g.fx.push({ kind: "puff", x: b.x, y: b.y, t: 0, ang: 0 });  // ang REQUIRED: the default branch reads it
+        g.fx.push({ kind: "puff", x: b.x, y: b.y, t: 0.20, ang: 0 });  // t counts DOWN from life; 0 is invisible
         for (const mm of (j.crew.members || [])) {
           if (mm === b) continue;
           const dx = b.x - mm.x, dy = b.y - mm.y, d2 = Math.hypot(dx, dy) || 1;
           mm.x += (dx / d2) * 70; mm.y += (dy / d2) * 70;
         }
       } else if (R.escape === "van") {
-        g.fx.push({ kind: "ring", x: b.x, y: b.y, t: 0 });
+        g.fx.push({ kind: "ring", x: b.x, y: b.y, t: 0.30 });
         b.vx = -210; b.vy = 0;          // backs out through its own hole
       } else if (R.escape === "atv") {
-        g.fx.push({ kind: "ring", x: b.x, y: b.y, t: 0 });
+        g.fx.push({ kind: "ring", x: b.x, y: b.y, t: 0.30 });
         b.vx = 300; b.vy = -140;        // over the counter and away, fast and straight
       }
       else if (R.escape === "watch") {
@@ -24159,11 +24182,15 @@ export default function IronLionLayer004() {
        a little damage, and the ring is drawn purple so it reads as hers and not as Kenny's
        gold shockwave. Six charges and no reload. */
     function sonicPulse() {
-      if (!(g.p.sonic > 0)) { g.pickupFlash = { nm: "sonic_empty", t: 1.2 }; return; }
+      /* No longer a magazine. A scream is a thing she can do, not a thing she carries -- six
+         charges made it a grenade. Unlimited, gated by a real cooldown instead. */
       if ((g.sonicCd || 0) > 0) return;
-      g.p.sonic -= 1; g.sonicCd = 1.4;
+      g.sonicCd = 2.6;
       g.fx = g.fx || [];
-      g.fx.push({ kind: "sonic", x: g.p.x, y: g.p.y, t: 0 });
+      /* t is a COUNTDOWN from the effect's life, not an age. Every existing push does
+         `t: kind === "ring" ? 0.30 : 0.20`. Starting at 0 makes k = 1 and alpha (1 - k) = 0 --
+         the scream was drawing every frame, perfectly, and completely invisible. */
+      g.fx.push({ kind: "sonic", x: g.p.x, y: g.p.y, t: 0.42 });
       for (const m of hostilesNear(g.p.x, g.p.y, SONIC_R)) {
         m.hp -= 9; m.stunT = Math.max(m.stunT || 0, 3.4); m.zap = 0.9;
         if (m.hp < 0) m.hp = 0;
@@ -25864,7 +25891,8 @@ export default function IronLionLayer004() {
               () => { G.dockFn && G.dockFn(); }, null, hud.vanBike)}
             {!hud.cab && hud.who === "eclipse" && btn("WIRE", "silent, long",
               () => { G.wireFn && G.wireFn(); }, null)}
-            {!hud.cab && hud.who === "eclipse" && btn("SONIC", (hud.sonic || 0) + " left",
+            {!hud.cab && hud.who === "eclipse" && btn("SONIC",
+              hud.sonicCd > 0 ? "charging" : "scream",
               () => { G.sonicFn && G.sonicFn(); }, null)}
             {!hud.cab && hud.who === "eclipse" && btn("OPTICS", hud.jam ? "guns dead" : "off",
               () => { G.gogglesFn && G.gogglesFn(); }, null, hud.jam)}
