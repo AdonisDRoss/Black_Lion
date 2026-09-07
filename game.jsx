@@ -1495,7 +1495,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 396 — THROUGH THE WALL";
+const BUILD_TAG = "LAYER 397 — ALL 160";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -6406,6 +6406,24 @@ export default function IronLionLayer004() {
       lx_chair_exec:    "IMG_3389_26",
       lx_bookcase:      "IMG_3389_27",
 
+
+      // IMG_3441 -- the two menu boards. Chicken on the left, pizza on the right.
+      cc_menu_board: "IMG_3441_01",
+      pp_menu_board: "IMG_3441_02",
+
+      /* IMG_3442 -- the mansion living rooms, and the last eleven keys in the whole set.
+         Note these are 3D renders rather than pixel art, so they will read slightly different
+         from everything around them. Usable, but worth knowing before you see it. */
+      lx_sofa_sect:   "IMG_3442_01",
+      lx_tv_console:  "IMG_3442_02",
+      lx_nightstand:  "IMG_3442_03",
+      lx_coffee:      "IMG_3442_04",
+      lx_dresser:     "IMG_3442_05",
+      lx_wardrobe:    "IMG_3442_06",
+      lx_desk_exec:   "IMG_3442_07",
+      lx_piano_grand: "IMG_3442_08",
+      lx_fireplace:   "IMG_3442_09",
+
       // the three race cuts and the Sovereign set are already correctly named and foldered,
       // so they are deliberately NOT here -- pointing them at cuts/ would be a second copy.
     };
@@ -6465,6 +6483,11 @@ export default function IronLionLayer004() {
            like the feature was never built, and has cost several rounds of looking in the wrong
            place. The HUD says the count; the console says which. */
         (g0.missingAll = g0.missingAll || []).push(k);
+        /* And the PATH of the first failure. The console has always logged this, but there is
+           no console on a phone, so "161 assets missing" told you the count and gave you no
+           way to tell a wrong FOLDER from a missing FILE. One is a five-second fix and the
+           other is an afternoon; you could not tell which you had. */
+        if (!g0.missingPath) g0.missingPath = all[k];
         if (failed <= 12) console.warn("asset missing:", all[k]);
         settle();
       };
@@ -22387,6 +22410,7 @@ export default function IronLionLayer004() {
             missingCount: ((window.__ironlion && window.__ironlion.missingAll) || []).length,
             missingSome: ((window.__ironlion && window.__ironlion.missingAll) || [])
               .slice(0, 4).join(" "),
+            missingPath: (window.__ironlion && window.__ironlion.missingPath) || null,
             planKind: g.inside
               ? ((buildingPlans(g.inside)[g.floor] || {}).kind || "?") : null,
             dbgPlan: g.inside
@@ -24320,6 +24344,11 @@ export default function IronLionLayer004() {
       {hud.missingCount > 0 && (
             <div style={{ fontSize: 9, marginTop: 3, color: "#ff9a5a", letterSpacing: "0.10em" }}>
               {hud.missingCount} ASSETS MISSING · {hud.missingSome}
+              {hud.missingPath && (
+                <div style={{ marginTop: 2, color: "#ffbe7a" }}>
+                  LOOKED IN: {hud.missingPath}
+                </div>
+              )}
             </div>
           )}
           {hud.hudCrash && (
