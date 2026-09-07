@@ -1495,7 +1495,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 402 — CRACK, SCREAM, RIDE";
+const BUILD_TAG = "LAYER 403 — ON YOUR TAIL";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2342,6 +2342,13 @@ for (const k of ["vh_sov_limo", "vh_sov_sedan", "vh_cross_muscle", "vh_sov_suv",
    a lavender headlight and no picture. */
 SOV_ART.luna = "assets/sov/vh_ecl_bike.png";
 SOV_ART.vh_ecl_van = "assets/sov/vh_ecl_van.png";   // no plate yet; falls back to a drawn box
+/* Elias Reed. Two faces like everyone else who has two, his kit, and the van he brings it in.
+   Hospital gear is deliberately NOT registered yet -- there is no hospital, and registering
+   plates for a building that does not exist is exactly how eight roof sprites ended up
+   loading and being drawn by nothing. */
+for (const k of ["vil_elias", "vil_arsonist", "wp_flamer", "wp_flamer_lit",
+                 "vh_arson_van", "vh_arson_van_open", "jn_mop", "jn_bucket"])
+  SOV_ART[k] = "assets/sov/" + k + ".png";
 
 const isBankCell = (i, j) => BANK_CELLS.some((bc) => bc.i === i && bc.j === j);
 
@@ -19182,14 +19189,23 @@ export default function IronLionLayer004() {
        beside the van -- a bike left standing next to a van you then drive off in is a bike you
        have abandoned in the street. */
     function vanDock() {
-      if (!g.van || g.van.phase !== "parked" || !g.van.v) return false;
+      if (!g.van || !g.van.v) return false;
+      if (g.van.phase !== "parked" && g.van.phase !== "following") return false;
       const v = g.van.v;
-      if (Math.hypot(g.p.x - v.x, g.p.y - v.y) > 120) return false;
+      if (Math.hypot(g.p.x - v.x, g.p.y - v.y) > 150) {
+        g.pickupFlash = { nm: "too_far_from_van", t: 1.6 }; return false;
+      }
       if (!g.van.bike) {
-        if (g.mode !== "moto") { g.pickupFlash = { nm: "need_the_bike", t: 1.6 }; return false; }
+        /* Loading used to demand she be SAT ON the bike. Riding up, stopping and getting off
+           is the natural way to do this and it refused -- so it also works on foot as long as
+           Luna is standing near the van, which is where you just left her. */
+        const onIt = g.mode === "moto";
+        const nearBike = Math.hypot(g.moto.x - v.x, g.moto.y - v.y) < 220;
+        if (!onIt && !nearBike) { g.pickupFlash = { nm: "bike_not_here", t: 1.6 }; return false; }
         g.van.bike = true;
-        g.mode = "foot";
+        if (onIt) g.mode = "foot";
         g.moto.x = -99999; g.moto.y = -99999;
+        g.van.phase = "parked"; v.trFree = 0;
         g.pickupFlash = { nm: "bike_loaded", t: 1.8 };
         return true;
       }
@@ -19209,13 +19225,33 @@ export default function IronLionLayer004() {
       if (g.van.phase === "coming") {
         const dx = g.p.x - v.x, dy = g.p.y - v.y, d = Math.hypot(dx, dy) || 1;
         if (d < 130 || g.van.t > 45) {             // the timeout so a call can never strand you
-          g.van.phase = "parked"; v.trFree = 0;    // now she may drive it
-          g.pickupFlash = { nm: "van_here", t: 2.0 };
+          /* If she is ON the bike when it catches up, he does not stop -- he falls in behind
+             and stays there. That is the whole point of a van with a driver: you call it while
+             you are moving and it is simply there when you stop. */
+          g.van.phase = (g.mode === "moto") ? "following" : "parked";
+          v.trFree = (g.van.phase === "following") ? 1 : 0;
+          g.pickupFlash = { nm: g.van.phase === "following" ? "van_on_you" : "van_here", t: 2.0 };
           return;
         }
         const sp = 210 * dt;                       // a van in a city, not a getaway car
         v.x += (dx / d) * sp; v.y += (dy / d) * sp;
         v.ang = Math.atan2(dy, dx);
+        return;
+      }
+      if (g.van.phase === "following") {
+        /* Station-keeping, not chasing: he sits about 110 behind her and only closes when the
+           gap opens. The moment she is off the bike he parks, because that is the cue to load. */
+        if (g.mode !== "moto") {
+          g.van.phase = "parked"; v.trFree = 0;
+          g.pickupFlash = { nm: "van_here", t: 1.8 };
+          return;
+        }
+        const dx = g.p.x - v.x, dy = g.p.y - v.y, d = Math.hypot(dx, dy) || 1;
+        if (d > 110) {
+          const sp = Math.min(300, 120 + (d - 110) * 1.6) * dt;
+          v.x += (dx / d) * sp; v.y += (dy / d) * sp;
+          v.ang = Math.atan2(dy, dx);
+        }
         return;
       }
       if (g.van.phase === "leaving") {
@@ -25884,9 +25920,11 @@ export default function IronLionLayer004() {
                 no buttons, so on a phone none of it could be reached. */}
             {!hud.cab && hud.who === "eclipse" && btn("VAN",
               hud.van === "gone" ? "call it" : hud.van === "coming" ? "on its way"
+                : hud.van === "following" ? "on your tail"
                 : hud.van === "parked" ? "send away" : "leaving",
               () => { G.vanFn && G.vanFn(); }, null, hud.van === "parked")}
-            {!hud.cab && hud.who === "eclipse" && hud.van === "parked" && btn("LOAD",
+            {!hud.cab && hud.who === "eclipse"
+              && (hud.van === "parked" || hud.van === "following") && btn("LOAD",
               hud.vanBike ? "ride out" : "bike in",
               () => { G.dockFn && G.dockFn(); }, null, hud.vanBike)}
             {!hud.cab && hud.who === "eclipse" && btn("WIRE", "silent, long",
