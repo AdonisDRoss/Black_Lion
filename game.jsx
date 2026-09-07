@@ -216,7 +216,15 @@ const CARNAME = {
 const MOTONAME = {
   moto: "KESTREL 500", moto_black: "KESTREL 500 NOIR", moto_red: "KESTREL 750",
   chopper: "WOLF IRON", scooter: "VANTRY PONY",
+  luna: "LUNA",              // Maxine's, and the only lavender light in the city
 };
+/* Lamp colour per model. Everything runs a warm tungsten beam because that is what a 1986
+   headlight looks like -- Luna does not, and that is the point: at night you can tell it is
+   her from three blocks away without seeing the rider. */
+const MOTO_LAMP = {
+  luna: { core: "212,178,255", beam: "196,150,255" },
+};
+const LAMP_DEFAULT = { core: "255,250,225", beam: "255,246,210" };
 const vehName = (k) => CARNAME[k] || MOTONAME[k]
   || (k || "CAR").toUpperCase().replace(/_/g, " ");
 /* Two named vehicles. They sit in CARM so every system that already knows how to draw, damage,
@@ -1487,7 +1495,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 377 — HOMES & THE STARLITE";
+const BUILD_TAG = "LAYER 383 — CUTS WIRED";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2313,6 +2321,23 @@ const BANK_CELLS = [
   { i: 4,  j: 18, name: "ARDEN TRUST & DEPOSIT" },  // arden
   { i: 6,  j: 14, name: "HOLLOWAY NATIONAL" },      // the parish with no district
 ];
+/* ---------- Eclipse and the Sovereign's circle ----------
+   Two plates each for anyone who has a second face -- the same civilian/hero pair Rio and
+   Kenny already use, which is what makes the mask a TACTIC here rather than a costume: the
+   police hunt a description, so changing out of sight ends the hunt. A reporter who works
+   her cases by daylight and goes out at night is exactly the shape that system was built for. */
+const SOV_ART = {};
+for (const k of ["yt_eclipse", "yt_eclipse_hero",          // reporter / Eclipse
+                 "sv_vance", "sv_sovereign",               // the Mayor / the silver mask
+                 "sv_margot", "sv_medusa",                 // Margot / the emerald mask
+                 "sv_cross",                               // Casper, no second plate yet
+                 "np_camop", "np_scientist", "np_scientist_rig"])
+  SOV_ART[k] = "assets/sov/" + k + ".png";
+/* Vehicles. Registered so the plates load; NOT drivable models yet -- no CARNAME, no CARSTAT,
+   no spawn pool. Every one of these arrived nose-LEFT, see ROTATE_CW below. */
+for (const k of ["vh_sov_limo", "vh_sov_sedan", "vh_cross_muscle", "vh_sov_suv", "vh_ecl_bike"])
+  SOV_ART[k] = "assets/sov/" + k + ".png";
+
 const isBankCell = (i, j) => BANK_CELLS.some((bc) => bc.i === i && bc.j === j);
 
 /* ---------- the four chains ----------
@@ -2387,6 +2412,168 @@ for (const k of MO_KEYS) HOME_ART[k] = "assets/motel/" + k + ".png";
 /* Upper class is the mansion and the Arden houses -- `b.arden` is set on every house the
    Arden branch builds, and on nothing else. */
 const isLux = (b) => !!(b && (b.arden || b.kind === "mansion"));
+
+/* ---------- bars, cafes, gun shops ----------
+   Same table-not-a-script-pile approach as the four food chains. A bar is one room shape --
+   drinkers' side, the counter, the servers' side -- and `style` decides whether that room is
+   a Sixth Ward pub or a downtown cocktail bar. Two styles, one plan. */
+const BAR_KIT = {
+  pub: { label: "PUB", sign: "sign_hanging", tint: "#4a3626",
+         counter: "ib_bar_long", back: "ib_backbar_bottles", stool: "ib_stool",
+         booth: "ib_booth", table: "ib_table_round", till: "ib_register",
+         extra: ["ib_dartboard", "ib_fireplace", "ib_payphone", "ib_table_square"] },
+  upscale: { label: "COCKTAIL BAR", sign: "sign_lightbox", tint: "#3a2c30",
+         counter: "ub_counter_main", back: "ub_backbar_shelves", stool: "ub_stools",
+         booth: "ub_display_case", table: "ub_pool_table", till: "ub_register",
+         extra: ["ub_liquor_grid", "ub_wine_rack", "ub_keg_station", "ub_jukebox"] },
+};
+const CAFE_KEYS = ["cf_counter_long", "cf_counter_u", "cf_stool", "cf_chair", "cf_table_round",
+  "cf_register", "cf_pie_case", "cf_menu", "cf_napkins", "cf_booth"];
+const GUN_KEYS = ["gn_counter_glass", "gn_counter_wood", "gn_rack_long", "gn_rack_wall",
+  "gn_pistol_case", "gn_ammo_shelf", "gn_register", "gn_crate_bulk", "gn_ammo_boxes",
+  "gn_cleaning_kit", "gn_targets", "gn_safe"];
+const BAR_KEYS = [];
+for (const st in BAR_KIT) {
+  const k = BAR_KIT[st];
+  for (const q of [k.counter, k.back, k.stool, k.booth, k.table, k.till].concat(k.extra))
+    if (BAR_KEYS.indexOf(q) < 0) BAR_KEYS.push(q);
+}
+const TRADE_ART = {};
+for (const k of BAR_KEYS) TRADE_ART[k] = "assets/bar/" + k + ".png";
+for (const k of CAFE_KEYS) TRADE_ART[k] = "assets/cafe/" + k + ".png";
+for (const k of GUN_KEYS) TRADE_ART[k] = "assets/gun/" + k + ".png";
+
+/* Two bars and a cafe in every parish. Arden's two are upscale rather than pubs -- the
+   district was built as the money and a spit-and-sawdust bar on that avenue would undo it. */
+const BAR_CELLS = [
+  { i: 6,  j: 5,  style: "upscale" }, { i: 9,  j: 8,  style: "pub" },      // downtown
+  { i: 1,  j: 4,  style: "pub" },     { i: 3,  j: 3,  style: "pub" },      // the hood
+  { i: 1,  j: 12, style: "pub" },     { i: 3,  j: 14, style: "pub" },      // chinatown
+  { i: 12, j: 1,  style: "pub" },     { i: 14, j: 3,  style: "pub" },      // the sixth ward
+  { i: 13, j: 10, style: "pub" },     { i: 15, j: 13, style: "pub" },      // la perla
+  { i: 17, j: 3,  style: "pub" },     { i: 19, j: 6,  style: "pub" },      // the yards
+  { i: 6,  j: 1,  style: "upscale" }, { i: 8,  j: 2,  style: "pub" },      // uptown
+  { i: 3,  j: 17, style: "upscale" }, { i: 4,  j: 17, style: "upscale" },  // arden
+  { i: 0,  j: 20, style: "pub" },     { i: 13, j: 18, style: "pub" },      // no district
+];
+const CAFE_CELLS = [
+  { i: 12, j: 9 }, { i: 5, j: 6 }, { i: 5, j: 14 }, { i: 16, j: 2 }, { i: 18, j: 12 },
+  { i: 21, j: 7 }, { i: 11, j: 1 }, { i: 5, j: 19 }, { i: 21, j: 21 },
+];
+/* Four in the whole city and no more. A gun shop on every corner would make the Lion's rule
+   -- that he is the only one of the four who can hold a gun -- mean nothing. */
+const GUN_CELLS = [
+  { i: 17, j: 4 },   // the yards
+  { i: 1,  j: 5 },   // the hood
+  { i: 12, j: 2 },   // the sixth ward
+  { i: 0,  j: 21 },  // out past the river
+];
+const barAt = (i, j) => BAR_CELLS.find((c) => c.i === i && c.j === j) || null;
+const isBarCell = (i, j) => BAR_CELLS.some((c) => c.i === i && c.j === j);
+const isCafeCell = (i, j) => CAFE_CELLS.some((c) => c.i === i && c.j === j);
+const isGunCell = (i, j) => GUN_CELLS.some((c) => c.i === i && c.j === j);
+const isTradeCell = (i, j) => isBarCell(i, j) || isCafeCell(i, j) || isGunCell(i, j);
+
+/* The pawn shops and the jewellers are PLACED, not rolled. The business register picks a
+   trade by hash and across the whole city that produced exactly two `value` shops and zero of
+   either of these -- so the fit-outs below would have been two rooms nothing in the world
+   ever used. Four pawn shops in the parishes that would have one, three jewellers where the
+   money is. */
+const PAWN_CELLS = [
+  { i: 1,  j: 6  },   // the hood
+  { i: 1,  j: 13 },   // chinatown
+  { i: 13, j: 11 },   // la perla
+  { i: 17, j: 5  },   // the yards
+];
+const JEWEL_CELLS = [
+  { i: 6, j: 6  },    // downtown
+  { i: 6, j: 2  },    // uptown
+  { i: 3, j: 18 },    // arden
+];
+const isPawnCell = (i, j) => PAWN_CELLS.some((c) => c.i === i && c.j === j);
+
+/* ---------- THE ROGUES' GALLERY ----------
+   FIFTEEN SITES AND FIVE VOCABULARIES, NOT SEVENTY-FIVE SCRIPTS. Every site is a building
+   that already exists and is already enterable, so a job is never a set dressed for it -- it
+   is the bank you have driven past forty times, with somebody in it tonight.
+   What changes between rogues is HOW they are doing it, HOW they leave, and what they say to
+   whichever of the five of you turned up. That is three tables, and adding a sixth rogue is
+   three rows rather than fifteen new missions. */
+const JOB_SITES = [
+  { i: 9,  j: 7,  what: "FIRST MERCHANTS BANK" },
+  { i: 8,  j: 1,  what: "STATE TRUST" },
+  { i: 3,  j: 6,  what: "RAVEN HOOK SAVINGS" },
+  { i: 2,  j: 13, what: "EAST GATE SAVINGS" },
+  { i: 14, j: 1,  what: "SIXTH WARD SAVINGS" },
+  { i: 15, j: 11, what: "BANCO LA PERLA" },
+  { i: 18, j: 5,  what: "YARDS INDUSTRIAL BANK" },
+  { i: 4,  j: 18, what: "ARDEN TRUST & DEPOSIT" },
+  { i: 6,  j: 14, what: "HOLLOWAY NATIONAL" },
+  { i: 6,  j: 6,  what: "ALDRIDGE FINE JEWELRY" },
+  { i: 6,  j: 2,  what: "ALDRIDGE FINE JEWELRY, UPTOWN" },
+  { i: 3,  j: 18, what: "ALDRIDGE FINE JEWELRY, ARDEN" },
+  { i: 1,  j: 6,  what: "THIRD ST PAWN" },
+  { i: 13, j: 11, what: "THIRD ST PAWN, LA PERLA" },
+  { i: 17, j: 5,  what: "THIRD ST PAWN, THE YARDS" },
+];
+/* One approach vocabulary each. `crew` is how many he brought, `wing` which hench pool,
+   `loud` whether the job is already screaming when you arrive. */
+const ROGUE_JOB = {
+  mvp: { name: "MVP", crew: 0, wing: null, loud: true, hp: 120,
+    approach: "Straight through the front doors, in daylight, still wearing the pads.",
+    escape: "atv",
+    escapeLine: "He goes out the way he came in, over the counter and onto the ATV." },
+  kuru: { name: "KURU", crew: 4, wing: "ninja", loud: false, hp: 95,
+    approach: "The alarm died twenty minutes ago. Nobody inside knows yet.",
+    escape: "roof",
+    escapeLine: "He is on the roof before you reach the stairs, and then he is not." },
+  drive: { name: "MASTERDRIVE", crew: 4, wing: "cyber", loud: true, hp: 165,
+    approach: "There is a van in the wall. The wall was not a door this morning.",
+    escape: "van",
+    escapeLine: "The van backs out through its own hole. Something leaves the roof rack first." },
+  monstruo: { name: "EL MONSTRUO", crew: 8, wing: "mime", loud: true, hp: 140,
+    approach: "Mimes. Forty of them, filling the room, and none of them says anything.",
+    escape: "crowd",
+    escapeLine: "The crowd closes over him. When it opens he is one of forty again." },
+  voz: { name: "LA VOZ", crew: 3, wing: "mime", loud: false, hp: 80,
+    approach: "Somebody who works here left a door unlocked. She has not touched a thing.",
+    escape: "walk",
+    escapeLine: "She walks out past the police, and one of them holds the door." },
+};
+/* What each of them says to whoever showed up. Five by five, because who you brought is the
+   only thing about you they can see. */
+const ROGUE_LINE = {
+  mvp: { lion: "The Lion. They send the old man for me.",
+         rio: "Go home, kid. This is a grown-up room.",
+         kenny: "Khan? You were on a CABINET. I played you for a quarter.",
+         sho: "Nice sword. I've got forty pounds on you.",
+         eclipse: "Press? Take the picture. I want the picture." },
+  kuru: { lion: "You are loud. You have always been loud.",
+          rio: "You are quiet, for one of them. Stay quiet.",
+          kenny: "Old man. Sit down and I will not have to.",
+          sho: "Somebody taught you. Badly.",
+          eclipse: "You move well. Better than the ones with guns." },
+  drive: { lion: "Darius. Still doing this on foot.",
+           rio: "You are fifteen. Go and be fifteen somewhere else.",
+           kenny: "Khan. I watched you fight in sixty-eight. You were robbed.",
+           sho: "Blades. In nineteen eighty-six.",
+           eclipse: "A reporter. Good. Write down that the wall was load-bearing." },
+  monstruo: { lion: "", rio: "", kenny: "", sho: "", eclipse: "" },
+  voz: { lion: "He says you were a policeman once. He says it like it explains you.",
+         rio: "He says you are somebody's son. He says that is a shame.",
+         kenny: "He says he remembers the fifth fight. He says you should have stayed down.",
+         sho: "He says you are fast. He does not say it kindly.",
+         eclipse: "He says he knows who your father was. He says ask me again another night." },
+};
+const rogueIds = () => Object.keys(ROGUE_JOB);
+const isJewelCell = (i, j) => JEWEL_CELLS.some((c) => c.i === i && c.j === j);
+
+const SHOP_KEYS = ["ps_counter", "ps_shelf", "ps_display_case", "ps_safe_large",
+  "ps_camera_lot", "ps_guitar_rack", "ps_toolbox", "ps_sign", "ps_stool",
+  "jw_counter", "jw_display_high", "jw_safe", "jw_velvet_tray", "jw_workdesk",
+  "jw_stool", "jw_security_camera"];
+const SHOP_ART = {};
+for (const k of SHOP_KEYS) SHOP_ART[k] = "assets/shop/" + k + ".png";
 
 const isFoodCell = (i, j) => FOOD_CELLS.some((fc) => fc.i === i && fc.j === j);
 const foodAt = (i, j) => FOOD_CELLS.find((fc) => fc.i === i && fc.j === j) || null;
@@ -2615,7 +2802,9 @@ function getCell(i, j) {
     || (i === WOLVES_CELL.i && j === WOLVES_CELL.j)
     // a bank on a plain city cell was rolling an empty lot a third of the time
     || isBankCell(i, j)
-    || isFoodCell(i, j);
+    || isFoodCell(i, j)
+    || isTradeCell(i, j)
+    || isPawnCell(i, j) || isJewelCell(i, j);
   if (gasLot) walls = null;
   else if (landmark) {
     walls = null;   // no chain-link across a landmark's approach either
@@ -2926,6 +3115,9 @@ function floorKind(b, f) {
   /* Ground floor is the bank; anything above it is the offices that run it. */
   if (b.kind === "bank") return f === 0 ? "bankfloor" : "offices";
   if (b.kind === "fastfood") return f === 0 ? "ffloor" : "offices";
+  if (b.kind === "bar2") return f === 0 ? "barfloor" : "offices";
+  if (b.kind === "cafe") return f === 0 ? "cafefloor" : "offices";
+  if (b.kind === "gunshop") return f === 0 ? "gunfloor" : "offices";
   if (b.kind === "terminal") return "terminal";
   if (b.kind === "club") return "club";
   if (b.kind === "office") return f === 0 ? "reception" : "offices";
@@ -2937,7 +3129,8 @@ function floorKind(b, f) {
 function makeFloor(b, f, rnd) {
   const kind = floorKind(b, f);
   // motelfloor joins these: eleven units plus an office need a fine enough grid to hold them
-  const dense = kind === "motelfloor"
+  const dense = kind === "barfloor" || kind === "cafefloor" || kind === "gunfloor"
+    || kind === "motelfloor"
     || kind === "den" || kind === "kings_hq" || kind === "terminal" || kind === "club"
     || kind === "apartments" || kind === "offices" || kind === "lobby" || kind === "tower_flats"
     // a cell is a small room; on the coarse grid a run of them comes out the size of offices
@@ -3238,6 +3431,38 @@ function makeFloor(b, f, rnd) {
     put(Math.round(GX * 0.34) + 1, dine, Math.max(0, Math.round(GX * 0.50)), GY - 1, "corridor");
     put(Math.round(GX * 0.50) + 1, dine, Math.max(0, Math.round(GX * 0.80)), GY - 1, "backroom");
     put(Math.round(GX * 0.80) + 1, dine, GX - 1, GY - 1, "wc");
+  } else if (kind === "barfloor") {
+    /* The counter is the room. Drinkers' side is the hub and the biggest space; the servers'
+       side behind it is where the bottles and the till are, and the cellar opens off THAT --
+       so the stock is behind the bar and not off the floor, same reasoning as the bank vault. */
+    /* Upper bound must never fall below the lower one. `GY - 3` inverts on a small lot --
+       clamp(1, 1, 0) returns 0 -- and the counter row then lands on top of the back-bar row,
+       putting the bar itself through the bottles, the till and the kegs. Every bar in the
+       city on a short lot had this. */
+    const line = clamp(Math.round(GY * 0.30), 1, Math.max(1, GY - 2));
+    put(0, 0, Math.max(0, GX - 3), line - 1, "barback");
+    put(Math.max(1, GX - 2), 0, GX - 1, line - 1, "barcellar");
+    put(0, line, GX - 1, line, "barline");
+    /* The WC is CARVED OUT of the room rather than laid over the corner of it. Overlaid, the
+       bar room still believes it owns that corner and furnishes into it, and tidyRoom only
+       resolves clashes within one room -- so every bar in the city had a stool inside the
+       toilet. Disjoint rectangles, and the problem cannot happen. */
+    hub = put(0, line + 1, Math.max(0, GX - 3), GY - 1, "barroom");
+    put(Math.max(1, GX - 2), line + 1, GX - 1, GY - 1, "wc");
+  } else if (kind === "cafefloor") {
+    const line = clamp(Math.round(GY * 0.68), 1, Math.max(1, GY - 2));
+    hub = put(0, 0, GX - 1, line - 1, "cafefloor");
+    put(0, line, GX - 1, line, "cafeline");
+    put(0, line + 1, Math.max(0, GX - 3), GY - 1, "cafekitchen");
+    put(Math.max(1, GX - 2), line + 1, GX - 1, GY - 1, "wc");
+  } else if (kind === "gunfloor") {
+    /* Everything that fires is BEHIND the counter. The racks on the customer side are empty
+       display; the cases and the ammo are on the far side of a glass counter, which is the
+       only arrangement that makes robbing the place a decision rather than a pickup. */
+    const line = clamp(Math.round(GY * 0.58), 1, Math.max(1, GY - 2));
+    hub = put(0, 0, GX - 1, line - 1, "gunretail");
+    put(0, line, GX - 1, line, "guncounter");
+    put(0, line + 1, GX - 1, GY - 1, "gunback");
   } else if (kind === "ffloor") {
     /* The same shape as the bank, and for the same reason: a counter is the line between the
        people who may be here and the people who work here. Dining room out front and the hub,
@@ -3503,21 +3728,40 @@ function makeFloor(b, f, rnd) {
     table: 1, roundtable: 1, cardtable: 1, wheeltable: 1, coffee: 1, rug: 1, dt_table_rect: 1,
     dt_table_round: 1, dt_set_rect: 1, lx_dining_long: 1, lx_rug: 1, lx_coffee: 1,
     lx_table_round: 1, stagedeck: 1, ring: 1, pool: 1,
+    // a pool table and a cafe table belong in the middle of the floor, not shoved at a wall
+    ub_pool_table: 1, ib_table_round: 1, ib_table_square: 1, cf_table_round: 1,
   };
   /* Only homes get tidied. The arcade, the venue, the casino and the den are hand-placed
      layouts that already work, and shoving their cabinets against the walls would wreck them. */
   const TIDY_KINDS = { house_g1: 1, house_g2: 1, house_u: 1, apartments: 1, tower_flats: 1,
-                       mansionfloor: 1, motelfloor: 1 };
+                       mansionfloor: 1, motelfloor: 1, store: 1,
+                       barfloor: 1, cafefloor: 1, gunfloor: 1, ffloor: 1, bankfloor: 1 };
   function tidyRoom(q, from) {
     const list = props.slice(from);
     if (!list.length) return;
-    const IN = 4;
+    /* IN must clear the WALL, not just the room rectangle. For any room on the building's
+       edge the room boundary IS the outer wall, and makeFloor's final filter throws away
+       every prop that is not WT clear of it -- so snapping to +4 was silently deleting the
+       furniture it had just tidied. That is what emptied the gun shops. */
+    const IN = WT + 3;
+    const LOx = b.x + WT + 1, HIx = b.x + b.w - WT - 1;
+    const LOy = b.y + WT + 1, HIy = b.y + b.h - WT - 1;
+    const fit = (p) => {
+      p.x = clamp(p.x, Math.max(q.x0 + 2, LOx), Math.max(Math.max(q.x0 + 2, LOx), Math.min(q.x1 - p.w - 2, HIx - p.w)));
+      p.y = clamp(p.y, Math.max(q.y0 + 2, LOy), Math.max(Math.max(q.y0 + 2, LOy), Math.min(q.y1 - p.h - 2, HIy - p.h)));
+    };
     // 1. everything that is not a centre piece goes to its nearest wall
     for (const p of list) {
       if (CENTRE_OK[p.t]) continue;
       const dl = p.x - q.x0, dr = q.x1 - (p.x + p.w);
       const dt = p.y - q.y0, db = q.y1 - (p.y + p.h);
       const mn = Math.min(dl, dr, dt, db);
+      /* Already against a wall: leave it exactly where it was put. Without this, a run of
+         fittings spread ALONG a wall -- a rack of long guns, a row of stools -- has each item
+         snapped to its own nearest wall, which collapses the run into a corner pile that the
+         cull below then deletes most of. Snapping is for furniture left floating in open
+         floor, which is the actual complaint; it is not for rows that were placed on purpose. */
+      if (mn <= 12) continue;
       if (mn === dl) p.x = q.x0 + IN;
       else if (mn === dr) p.x = q.x1 - p.w - IN;
       else if (mn === dt) p.y = q.y0 + IN;
@@ -3534,10 +3778,7 @@ function makeFloor(b, f, rnd) {
         if (ox <= oy) B.x += (B.x < A.x ? -ox : ox); else B.y += (B.y < A.y ? -oy : oy);
         moved = true;
       }
-      for (const p of list) {
-        p.x = clamp(p.x, q.x0 + 2, Math.max(q.x0 + 2, q.x1 - p.w - 2));
-        p.y = clamp(p.y, q.y0 + 2, Math.max(q.y0 + 2, q.y1 - p.h - 2));
-      }
+      for (const p of list) fit(p);
       if (!moved) break;
     }
     /* Five passes will not resolve a small bedroom that was handed more furniture than fits
@@ -3571,6 +3812,76 @@ function makeFloor(b, f, rnd) {
          hall stays clear because that is where the queue and the shooting happen. */
       /* One set of cases for all four chains. `kit` decides which plates hang on the pegs;
          the room is identical, which is the point of a chain. */
+      case "barroom": {
+        const kit = BAR_KIT[(b && b.style) || "pub"] || BAR_KIT.pub;
+        const n = clamp(Math.round((wide ? W2 : H2) / 120), 2, 5);
+        if (wide) runX(q2, q2.y1 - pad - 34, n, 56, 34, kit.booth, pad);
+        else runY(q2, q2.x1 - pad - 34, n, 34, 56, kit.booth, pad);
+        P(cx - 26, cy - 16, 52, 32, kit.table);
+        // stools face the counter, which is the wall this room shares with the servers' side
+        if (wide) runX(q2, q2.y0 + 4, n + 1, 18, 18, kit.stool, pad);
+        else runY(q2, q2.x0 + 4, n + 1, 18, 18, kit.stool, pad);
+        P(q2.x0 + pad, q2.y1 - pad - 20, 20, 20, kit.extra[0]);
+        P(q2.x1 - pad - 22, q2.y0 + pad, 22, 22, kit.extra[3]);
+        break;
+      }
+      case "barline": {
+        const kit = BAR_KIT[(b && b.style) || "pub"] || BAR_KIT.pub;
+        P(q2.x0 + 8, q2.y0 + 4, W2 - 16, Math.max(16, H2 - 8), kit.counter);
+        break;
+      }
+      case "barback": {
+        const kit = BAR_KIT[(b && b.style) || "pub"] || BAR_KIT.pub;
+        P(q2.x0 + 8, q2.y0 + 4, Math.max(30, W2 - 16), 22, kit.back);
+        P(q2.x1 - pad - 22, q2.y1 - pad - 18, 22, 18, kit.till);
+        P(q2.x0 + pad, q2.y1 - pad - 20, 24, 20, kit.extra[1]);
+        break;
+      }
+      case "barcellar": {
+        const kit = BAR_KIT[(b && b.style) || "pub"] || BAR_KIT.pub;
+        P(q2.x0 + 6, q2.y0 + 6, Math.max(20, W2 - 12), 24, kit.extra[2]);
+        P(q2.x0 + 6, q2.y1 - 30, Math.max(20, W2 - 12), 24, "crate");
+        break;
+      }
+      case "cafefloor": {
+        const n = clamp(Math.round((wide ? W2 : H2) / 110), 2, 5);
+        if (wide) { runX(q2, q2.y0 + pad, n, 40, 40, "cf_table_round", pad);
+                    runX(q2, q2.y1 - pad - 36, n, 46, 36, "cf_booth", pad); }
+        else { runY(q2, q2.x0 + pad, n, 40, 40, "cf_table_round", pad);
+               runY(q2, q2.x1 - pad - 36, n, 36, 46, "cf_booth", pad); }
+        P(cx - 30, cy - 10, 20, 20, "cf_chair");
+        break;
+      }
+      case "cafeline":
+        P(q2.x0 + 8, q2.y0 + 4, W2 - 16, Math.max(16, H2 - 8), "cf_counter_long");
+        P(q2.x1 - pad - 20, q2.y0 + 2, 20, 16, "cf_register");
+        P(q2.x0 + pad, q2.y0 + 2, 26, 16, "cf_pie_case");
+        break;
+      case "cafekitchen":
+        P(q2.x0 + pad, q2.y0 + pad, 42, 26, "cf_counter_u");
+        P(q2.x1 - pad - 24, q2.y0 + pad, 24, 20, "cf_napkins");
+        P(q2.x0 + pad, q2.y1 - pad - 20, 30, 20, "crate");
+        break;
+      case "gunretail": {
+        const n = clamp(Math.round((wide ? W2 : H2) / 120), 2, 4);
+        // the customer side: long guns on the wall, cases you can look into, nothing loose
+        if (wide) runX(q2, q2.y0 + pad, n, 54, 22, "gn_rack_wall", pad);
+        else runY(q2, q2.x0 + pad, n, 22, 54, "gn_rack_wall", pad);
+        P(q2.x1 - pad - 34, q2.y1 - pad - 24, 34, 24, "gn_ammo_shelf");
+        P(q2.x0 + pad, q2.y1 - pad - 20, 24, 20, "gn_targets");
+        break;
+      }
+      case "guncounter":
+        P(q2.x0 + 8, q2.y0 + 4, W2 - 16, Math.max(16, H2 - 8), "gn_counter_glass");
+        P(q2.x1 - pad - 20, q2.y0 + 2, 20, 16, "gn_register");
+        break;
+      case "gunback":
+        P(q2.x0 + pad, q2.y0 + pad, 48, 24, "gn_rack_long");
+        P(q2.x1 - pad - 30, q2.y0 + pad, 30, 24, "gn_pistol_case");
+        P(q2.x0 + pad, q2.y1 - pad - 26, 34, 26, "gn_crate_bulk");
+        P(cx - 14, q2.y1 - pad - 22, 28, 22, "gn_ammo_boxes");
+        P(q2.x1 - pad - 24, q2.y1 - pad - 24, 24, 24, "gn_safe");
+        break;
       case "ffdine": {
         const kit = FF_KIT[(b && b.chain) || "bb"] || FF_KIT.bb;
         const n = clamp(Math.round((wide ? W2 : H2) / 140), 2, 4);
@@ -3623,6 +3934,26 @@ function makeFloor(b, f, rnd) {
         P(q2.x0 + pad, q2.y1 - pad - 24, 34, 24, "mo_closet_rail");
         break;
       case "mtwalk": case "mtwalk2": case "mtlot": break;
+      /* The pawn shop. A long counter you cannot reach over, the stock behind it, and the
+         safe in the corner where he can see it from the till. */
+      case "pawn":
+        P(q2.x0 + 8, cy - 12, Math.max(40, W2 - 16), 26, "ps_counter");
+        P(q2.x0 + pad, q2.y0 + pad, Math.max(40, W2 - 2 * pad), 24, "ps_shelf");
+        P(q2.x1 - pad - 26, q2.y1 - pad - 26, 26, 26, "ps_safe_large");
+        P(q2.x0 + pad, q2.y1 - pad - 22, 30, 22, "ps_camera_lot");
+        P(cx - 12, q2.y1 - pad - 26, 18, 26, "ps_guitar_rack");
+        break;
+      /* The jewellers. Cases on three sides so the middle is where the customer stands and
+         everything of value is on the far side of glass -- which is what makes a smash-and-grab
+         a different problem here than in the pawn shop next door. */
+      case "jewel":
+        P(q2.x0 + 8, cy - 10, Math.max(40, W2 - 16), 22, "jw_counter");
+        if (wide) runX(q2, q2.y0 + pad, 3, 40, 24, "jw_display_high", pad);
+        else runY(q2, q2.x0 + pad, 3, 24, 40, "jw_display_high", pad);
+        P(q2.x1 - pad - 24, q2.y1 - pad - 26, 24, 26, "jw_safe");
+        P(q2.x0 + pad, q2.y1 - pad - 22, 28, 22, "jw_workdesk");
+        P(q2.x1 - pad - 14, q2.y0 + pad, 14, 14, "jw_security_camera");
+        break;
       case "bkhall": {
         P(q2.x0 + pad, q2.y0 + pad, Math.min(120, W2 * 0.40), 26, "bk_sofa_wait");
         runX(q2, cy - 6, clamp(Math.round(W2 / 90), 2, 5), 62, 10, "bk_queue_ropes", 20);
@@ -4507,7 +4838,12 @@ const BIZ_ARCH = {
   night:   ["club","casino","cardroom","revue","arcade"],
   hard:    ["hardware","supply","auto","scrap","feed","truck","bait","camera"],
   service: ["laundro","laundry","dry","barber","salon","tailor","shoes"],
-  value:   ["pawn","bank","jewel","check","wire","furs","cigar","music","record","video","gallery"],
+  /* pawn and jewel pulled OUT of `value`. They were sharing the generic shelves-and-counter
+     fit-out with cheque cashers and record shops, and they are the two trades where what is
+     behind the counter is the whole reason to walk in. */
+  pawn:    ["pawn"],
+  jewel:   ["jewel"],
+  value:   ["bank","check","wire","furs","cigar","music","record","video","gallery"],
   civic:   ["church","funeral","union","assoc","office","rec"],
   pharm:   ["drug","florist"],
   skate:   ["skate"],
@@ -4592,6 +4928,38 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
   /* Ahead of the district branches, same reasoning as the civic block below: a bank is not
      something that happens to appear in a neighbourhood. Behind the civic check, so the one
      Arden cell that carries the mayor's house is never contested. */
+  /* Bars, cafes and gun shops. One branch: they differ only in kind and the sign over it. */
+  if ((isPawnCell(i, j) || isJewelCell(i, j)) && !civicAt(i, j)) {
+    const jew = isJewelCell(i, j);
+    const tw = Math.min(LW * 0.52, 18 * MU), th = Math.min(LH * 0.42, 14 * MU);
+    const b = mkB(lx0 + (LW - tw) / 2, ly0 + (LH - th) * 0.50, tw, th, 1, "store", rnd, key);
+    b.retail = true; b.eatery = false;
+    b.biz = jew ? "jewel" : "pawn";
+    b.arch = jew ? "jewel" : "pawn";
+    b.signKey = jew ? "sign_wood" : "sign_pawnshop";
+    b.name = jew ? "ALDRIDGE FINE JEWELRY" : "THIRD ST PAWN";
+    b.tone = jew ? 0.6 : 0.36;
+    out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+    return out;
+  }
+  if (isTradeCell(i, j) && !civicAt(i, j)) {
+    const bar = barAt(i, j);
+    const kd = bar ? "bar2" : isCafeCell(i, j) ? "cafe" : "gunshop";
+    // the gun shop needs the depth: retail side, counter, and a back room behind it
+    const tw = Math.min(LW * (kd === "bar2" ? 0.58 : kd === "gunshop" ? 0.64 : 0.52),
+                        (kd === "gunshop" ? 23 : 20) * MU);
+    // bars need the depth for a servers' side behind the counter as well as a room in front
+    const th = Math.min(LH * (kd === "gunshop" ? 0.52 : kd === "bar2" ? 0.58 : 0.44),
+                        (kd === "gunshop" ? 18 : kd === "bar2" ? 17 : 15) * MU);
+    const b = mkB(lx0 + (LW - tw) / 2, ly0 + (LH - th) * 0.50, tw, th, 1, kd, rnd, key);
+    b.tone = kd === "cafe" ? 0.62 : 0.34;
+    b.retail = true; b.eatery = kd !== "gunshop";
+    if (bar) { b.style = bar.style; b.biz = "bar"; b.signKey = BAR_KIT[bar.style].sign; }
+    else if (kd === "cafe") { b.biz = "cafe"; b.signKey = "sign_marquee"; }
+    else { b.biz = "guns"; b.signKey = "sign_wood"; b.name = "RAVEN HOOK FIREARMS"; }
+    out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+    return out;
+  }
   const fd = foodAt(i, j);
   if (fd && !civicAt(i, j)) {
     const fw = Math.min(LW * 0.60, 22 * MU), fh = Math.min(LH * 0.44, 16 * MU);
@@ -5762,7 +6130,14 @@ export default function IronLionLayer004() {
   useEffect(() => {
     // The county truck sheet is drawn nose-left; every other plate is nose-up. Rotate those
     // at load so the draw code never has to know which sheet a vehicle came from.
-    const ROTATE_CW = ["br_00", "br_01", "br_02", "br_03", "br_04"];
+    /* A quarter turn, not a half. Every plate must end up nose-UP: ROTATE_180 bakes the ones
+       that shipped nose-DOWN, this bakes the ones that shipped on their side, nose-LEFT.
+       The five Sovereign vehicles all arrived horizontal. Note this list ALREADY EXISTED for
+       the bedroom plates -- declaring a second one in the same scope is a SyntaxError and the
+       whole file refuses to load, so they go on the end of this one. */
+    const ROTATE_CW = ["br_00", "br_01", "br_02", "br_03", "br_04",
+                       "vh_sov_limo", "vh_sov_sedan", "vh_cross_muscle", "vh_sov_suv",
+                       "vh_ecl_bike"];
     /* Cars whose plate was drawn nose-DOWN. Every draw site rotates by ang + PI/2 and assumes
        nose-up, so these reversed on the road -- the boot led and the bonnet trailed. Baked
        once at load like ROTATE_CW rather than special-cased at each of the eight draw sites,
@@ -5775,7 +6150,40 @@ export default function IronLionLayer004() {
        comp_hatch2 are hosted files and cannot be measured from here. */
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART };
+
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART };
+    /* ---------- CUT_MAP ----------
+       The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
+       with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
+       task, so instead the game is told where to look. One line per key, and it overrides
+       whatever folder path that key was registered with above.
+
+       Only entries I could read off the contact sheet are here. Anything not listed keeps its
+       original assets/<folder>/<key>.png path and simply stays a colour block until either a
+       line is added here or a properly named file is dropped in that folder. Both routes work
+       and neither blocks the other.
+
+       To add one: open assets/cuts/_CONTACT_<sheet>.png, read the number under the thumbnail,
+       and write   <key>: "IMG_xxxx_NN",   below. Nothing else changes. */
+    const CUT_MAP = {
+      // IMG_3379 -- the bank, verified against the contact sheet cut by cut
+      bk_counter_curved:    "IMG_3379_01",
+      bk_desk_mgr:          "IMG_3379_02",
+      bk_chair_exec:        "IMG_3379_03",
+      bk_sofa_wait:         "IMG_3379_04",
+      bk_vault_closed:      "IMG_3379_08",
+      bk_vault_open_shaft:  "IMG_3379_09",
+      bk_camera_dome:       "IMG_3379_10",
+      bk_sign_floor:        "IMG_3379_11",
+      bk_till_registers:    "IMG_3379_14",
+      bk_safe_deposit_boxes:"IMG_3379_16",
+      bk_money_stacks:      "IMG_3379_17",
+      bk_queue_ropes:       "IMG_3379_18",
+      // the three race cuts and the Sovereign set are already correctly named and foldered,
+      // so they are deliberately NOT here -- pointing them at cuts/ would be a second copy.
+    };
+    for (const ck in CUT_MAP) all[ck] = "assets/cuts/" + CUT_MAP[ck] + ".png";
+
     const keys = Object.keys(all);
     let left = keys.length;
     /* Assets are files now, not base64. Two consequences the loader has to handle:
@@ -6248,6 +6656,8 @@ export default function IronLionLayer004() {
       // stucco, not "stone": there is no stone pattern, and it would have fallen through to brick
       if (b.kind === "bank") return "stucco";
       if (b.kind === "fastfood") return "glass";   // a storefront, all window across the front
+      if (b.kind === "cafe") return "glass";
+      if (b.kind === "bar2" || b.kind === "gunshop") return "brick";
       if (b.kind === "house") return "siding";
       return b.tone < 0.55 ? "brick" : "stucco";
     }
@@ -7051,7 +7461,7 @@ export default function IronLionLayer004() {
           const hold = u.wpn === "rifle_bolt" ? 380 : 200;
           const want = d < hold - 60 ? -1 : d > hold + 60 ? 1 : 0;
           u.vx = Math.cos(a) * u.spd * want; u.vy = Math.sin(a) * u.spd * want;
-          if (u.fireCd <= 0) {
+          if (u.fireCd <= 0 && !gunJammed(u)) {
             u.fireCd = W.rate || 0.9;
             u.swing = 0.16;
             fireBullet(u, a + (Math.random() - 0.5) * (W.spread || 0.06) * 2,
@@ -7114,7 +7524,7 @@ export default function IronLionLayer004() {
           const a = Math.atan2(g.p.y - u.y, g.p.x - u.x);
           const want = d < 190 ? -1 : d > 300 ? 1 : 0;
           u.vx = Math.cos(a) * u.spd * want; u.vy = Math.sin(a) * u.spd * want;
-          if (u.fireCd <= 0 && d < 380) {
+          if (u.fireCd <= 0 && d < 380 && !gunJammed(u)) {
             const W = WPN[u.wpn] || { spd: 900, dmg: 2, range: 380, spread: 0.14, rate: 0.5 };
             u.fireCd = W.rate || 0.5;
             u.swing = 0.14;
@@ -8617,10 +9027,54 @@ export default function IronLionLayer004() {
         // the far end of the line lands where the roof is DRAWN, not on the footprint
         const [gox, goy] = roofOffset(q.b);
         const tx = q.x0 + (q.x1 + gox - q.x0) * q.t, ty = q.y0 + (q.y1 + goy - q.y0) * q.t;
-        ctx.strokeStyle = "rgba(226,214,186,0.75)"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(q.x0, q.y0); ctx.lineTo(tx, ty); ctx.stroke();
-        ctx.fillStyle = "#d9a441";
-        ctx.beginPath(); ctx.arc(tx, ty, 4, 0, 6.3); ctx.fill();
+        const whip = g.who === "eclipse";
+        if (whip) {
+          /* A whip is not a rope. Drawn the way the tazer crackle is -- sampled along the
+             throw and displaced sideways -- so the line BENDS out and snaps straight as it
+             bites, instead of being a taut string from frame one. The bow is perpendicular to
+             the throw, biggest in the middle, and it collapses to nothing as q.t reaches 1,
+             which is what sells the catch. */
+          const dx = tx - q.x0, dy = ty - q.y0, len = Math.hypot(dx, dy) || 1;
+          const nx = -dy / len, ny = dx / len;                  // perpendicular
+          const slack = (1 - q.t) * Math.min(52, len * 0.34);
+          ctx.strokeStyle = `rgba(196,168,232,${0.55 + 0.4 * q.t})`;
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.moveTo(q.x0, q.y0);
+          const SEG = 10;
+          for (let i2 = 1; i2 <= SEG; i2++) {
+            const u = i2 / SEG;
+            // one hump, plus a small travelling ripple so it reads as moving rather than bent
+            const bow = Math.sin(u * Math.PI) * slack
+                      + Math.sin(u * 9 + g.t * 26) * slack * 0.16;
+            ctx.lineTo(q.x0 + dx * u + nx * bow, q.y0 + dy * u + ny * bow);
+          }
+          ctx.stroke();
+          ctx.fillStyle = "#c9a8e8";
+          ctx.beginPath(); ctx.arc(tx, ty, 4.5, 0, 6.3); ctx.fill();
+        } else {
+          ctx.strokeStyle = "rgba(226,214,186,0.75)"; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(q.x0, q.y0); ctx.lineTo(tx, ty); ctx.stroke();
+          ctx.fillStyle = "#d9a441";
+          ctx.beginPath(); ctx.arc(tx, ty, 4, 0, 6.3); ctx.fill();
+        }
+      }
+      drawJobBanner();
+      if (g.wireFx) {
+        // the wire uses the whip's own curve, so the two tools read as one piece of kit
+        const q = g.wireFx, u = Math.min(1, q.t);
+        const dx = (q.x1 - q.x0) * u, dy = (q.y1 - q.y0) * u;
+        const len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
+        const slack = (1 - u) * Math.min(44, len * 0.30);
+        ctx.strokeStyle = `rgba(226,224,236,${0.9 - 0.5 * Math.max(0, q.t - 1)})`;
+        ctx.lineWidth = 1.7;
+        ctx.beginPath(); ctx.moveTo(q.x0, q.y0);
+        for (let i2 = 1; i2 <= 10; i2++) {
+          const v = i2 / 10;
+          const bow = Math.sin(v * Math.PI) * slack + Math.sin(v * 11 + g.t * 30) * slack * 0.2;
+          ctx.lineTo(q.x0 + dx * v + nx * bow, q.y0 + dy * v + ny * bow);
+        }
+        ctx.stroke();
       }
       if (g.jump) {
         // shadow stays on the ground while the man arcs above it
@@ -12800,6 +13254,13 @@ export default function IronLionLayer004() {
        an unbuilt Benny's reads red and a Taco Crazy reads orange before any art exists. */
     // the luxury and motel sets: plate named the same as the key, one wood tone as fallback
     for (const k of LX_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#6a5947"; SOLID_PROP[k] = 1; }
+    for (const k of CAFE_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#5e7a72"; SOLID_PROP[k] = 1; }
+    for (const k of SHOP_KEYS) { PROP_ART[k] = k;
+      if (!PROP_COL[k]) PROP_COL[k] = k[0] === "j" ? "#6d5a2e" : "#5a4a38"; SOLID_PROP[k] = 1; }
+    for (const k of GUN_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#4a4a3e"; SOLID_PROP[k] = 1; }
+    for (const st in BAR_KIT) { const kk = BAR_KIT[st];
+      for (const q of [kk.counter, kk.back, kk.stool, kk.booth, kk.table, kk.till].concat(kk.extra)) {
+        PROP_ART[q] = q; if (!PROP_COL[q]) PROP_COL[q] = kk.tint; SOLID_PROP[q] = 1; } }
     for (const k of MO_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#7a6a52"; SOLID_PROP[k] = 1; }
     for (const c in FF_KIT) {
       const k = FF_KIT[c];
@@ -19133,7 +19594,8 @@ export default function IronLionLayer004() {
         if (isShopCell(i, j)) { drawBodyShop(c); continue; }
         // after the pumps and the body shop, so those keep the surfaces they draw for themselves
         // the Arden bank keeps a forecourt, not a front lawn
-        if (c.zone === "arden" && !isBankCell(i, j) && !isFoodCell(i, j)) { drawArdenYard(c); continue; }
+        if (c.zone === "arden" && !isBankCell(i, j) && !isFoodCell(i, j) && !isTradeCell(i, j)
+            && !isPawnCell(i, j) && !isJewelCell(i, j)) { drawArdenYard(c); continue; }
         ctx.fillStyle = c.type === 0 ? PF("gravel", C.gravel) : c.type === 1 ? PF("lot", C.lotAsphalt) : c.type === 2 ? PF("dirt", C.dirt) : c.type === 3 ? PF("dirt", "#34322c") : PF("slab", "#3d3d3b");
         ctx.fillRect(c.lx0, c.ly0, lw, lh);
 
@@ -20630,14 +21092,15 @@ export default function IronLionLayer004() {
       ctx.save();
       ctx.translate(fx2, fy2);
       ctx.rotate(c.ang);
+      const lamp = MOTO_LAMP[c.model] || LAMP_DEFAULT;
       const gr = ctx.createLinearGradient(0, 0, 300, 0);
-      gr.addColorStop(0, `rgba(255,246,210,${0.20 * g.night})`);
-      gr.addColorStop(1, "rgba(255,246,210,0)");
+      gr.addColorStop(0, `rgba(${lamp.beam},${0.20 * g.night})`);
+      gr.addColorStop(1, `rgba(${lamp.beam},0)`);
       ctx.fillStyle = gr;
       ctx.beginPath();
       ctx.moveTo(0, 0); ctx.lineTo(300, -84); ctx.lineTo(300, 84); ctx.closePath(); ctx.fill();
       ctx.restore();
-      ctx.fillStyle = `rgba(255,250,225,${0.75 * g.night + 0.2})`;
+      ctx.fillStyle = `rgba(${lamp.core},${0.75 * g.night + 0.2})`;
       ctx.beginPath(); ctx.arc(fx2, fy2, 3.4, 0, 6.3); ctx.fill();
     }
     /* Whoever is actually on it. `rd_lion_ride` is a combined Darius-and-bike plate, so every
@@ -22390,10 +22853,41 @@ export default function IronLionLayer004() {
         ctx.stroke();
       }
     }
+    /* Two lines under the top bar: who and where, then what they are doing. Deliberately text
+       and not an arrow -- the approach line IS the briefing. */
+    function drawJobBanner() {
+      if (!g.job || !g.jobBanner) return;
+      if (g.job.phase === "done" && g.job.t > 6) return;
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.font = "600 13px system-ui, sans-serif";
+      const w = Math.max(ctx.measureText(g.jobBanner).width,
+                         ctx.measureText(g.jobNote || "").width) + 22;
+      ctx.fillStyle = "rgba(12,10,14,0.72)";
+      ctx.fillRect(10, 52, w, g.jobNote ? 40 : 24);
+      ctx.fillStyle = "#e8c46a";
+      ctx.fillText(g.jobBanner, 21, 68);
+      if (g.jobNote) {
+        ctx.font = "400 11px system-ui, sans-serif";
+        ctx.fillStyle = "rgba(226,220,206,0.85)";
+        ctx.fillText(g.jobNote, 21, 84);
+      }
+      ctx.restore();
+    }
     function drawFx() {
       for (const f of (g.fx || [])) {
         if (!Number.isFinite(f.x)) continue;
-        if (f.kind === "ring") {
+        if (f.kind === "sonic") {
+          /* Purple, and two rings rather than one so it reads as a PULSE going out instead of
+             a single blast edge. The inner one lags, which is what makes it look like sound. */
+          const k = 1 - f.t / 0.42;
+          ctx.strokeStyle = `rgba(196,150,255,${(1 - k) * 0.85})`;
+          ctx.lineWidth = 5 * (1 - k) + 1.5;
+          ctx.beginPath(); ctx.arc(f.x, f.y, 10 + k * 200, 0, 6.3); ctx.stroke();
+          ctx.strokeStyle = `rgba(228,206,255,${(1 - k) * 0.5})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(f.x, f.y, 4 + k * 132, 0, 6.3); ctx.stroke();
+        } else if (f.kind === "ring") {
           // concussive: a hard white ring going out, gold behind it
           const k = 1 - f.t / 0.30;
           ctx.strokeStyle = `rgba(255,236,180,${(1 - k) * 0.9})`;
@@ -22474,6 +22968,22 @@ export default function IronLionLayer004() {
         kit: { wpn: null, ammo: 0, holstered: false, board: false, hp: 130 } },
       { id: "sho", name: "SHO", yt: "yt_sho", hero: "yt_sho_hero", actor: null,
         kit: { wpn: "katana", ammo: 0, holstered: false, board: false, hp: 100, stars: 50 } },
+      /* ECLIPSE. The reporter is the DEFAULT plate and the suit is the second one, which is
+         the right way round for her: the press pass is the thing she uses most and the mask
+         is what she puts on when that stops working. She carries no gun -- the Lion is still
+         the only one who does -- and the smoke is the same 50 Rio gets, because the point of
+         her is getting in and out rather than winning a fight in the middle. */
+      /* MAXINE MORRIS. The reporter is the default plate; the suit is what she puts on when
+         asking questions stops working. Her kit is four tools and no gun -- the Lion keeps
+         that line. Everything here is about getting IN and OUT rather than winning the room:
+           helmet   -- low-light optics and audio damping. Sees in the dark, hears footsteps.
+           wire     -- silent, from behind, one target. Loud in front of anyone and it fails.
+           whip     -- the grapple. Reuses g.grap, so roofs already work; drawn as a whip.
+           sonic    -- kills nearby cameras for a while and pulls guards toward the noise. */
+      { id: "eclipse", name: "ECLIPSE", yt: "yt_eclipse", hero: "yt_eclipse_hero",
+        kit: { wpn: null, ammo: 0, holstered: false, board: false, hp: 90, smoke: 30,
+               helmet: true, wire: true, whip: true, sonic: 6,
+               optics: true, quiet: true } },
     ];
     const rosterOf = (id) => ROSTER.find((r) => r.id === id) || ROSTER[0];
     // everyone you are NOT, in roster order, so the line-up does not reshuffle as you swap
@@ -22554,7 +23064,11 @@ export default function IronLionLayer004() {
           }
           // no crew member in the bay -- fall through and draw him ourselves, like the others
         }
-        const sp = { r, x: bay.x0 + W2 * (0.24 + n * 0.30), y: bay.y1 - 22 };
+        /* Spread across whatever width there is, divided by however many are benched. The
+           fixed 0.30 step was fine for three and walks the fourth and fifth off the end of
+           the bay, where the clamp below piles them on top of each other. */
+        const span = 0.72 / Math.max(1, list.length - 1);
+        const sp = { r, x: bay.x0 + W2 * (0.16 + n * span), y: bay.y1 - 22 };
         for (const q of pl.props) {
           if (sp.x > q.x - 14 && sp.x < q.x + q.w + 14 && sp.y > q.y - 14 && sp.y < q.y + q.h + 14) {
             sp.x = q.x - 28; break;
@@ -22964,7 +23478,89 @@ export default function IronLionLayer004() {
     function stepTurbo(dt) {
       g.turboCd = Math.max(0, (g.turboCd || 0) - dt);
       g.turboT = Math.max(0, (g.turboT || 0) - dt);
+      stepEclipse(dt);          // her timers ride the same per-frame call
+      stepJob(dt);
     }
+
+    /* ---------- THE JOB ----------
+       The boss is a CREW MEMBER, not a new kind of thing. Every bullet, fist, star, tazer and
+       shockwave already knows how to hurt a crew member and how to notice one has died --
+       inventing a separate boss entity would mean teaching all of that again, badly. So he is
+       one man in a crew with a lot of hp, and the job only watches his health. */
+    function jobSiteXY(st) {
+      const c = getCell(st.i, st.j);
+      return [(c.lx0 + c.lx1) / 2, (c.ly0 + c.ly1) / 2];
+    }
+    function callJob(force) {
+      if (g.job && g.job.phase !== "done") return;
+      const ids = rogueIds();
+      const rid = force || ids[(Math.random() * ids.length) | 0];
+      const st = JOB_SITES[(Math.random() * JOB_SITES.length) | 0];
+      g.job = { rid, st, phase: "called", t: 0, crew: null, boss: null, maxhp: 1 };
+      const R = ROGUE_JOB[rid];
+      g.pickupFlash = { nm: "job_called", t: 4.0 };
+      g.jobBanner = R.name + " \u2014 " + st.what;
+      g.jobNote = R.approach;
+    }
+    function jobArrive() {
+      const j = g.job, R = ROGUE_JOB[j.rid];
+      const [x, y] = jobSiteXY(j.st);
+      let gang = null;
+      try { gang = Object.keys(GANG_COL || {})[0] || null; } catch (e) { gang = null; }
+      const cr = warCrew(gang, x, y, Math.max(1, R.crew + 1), R.wing);
+      const boss = cr.members[0];
+      boss.hp = R.hp; boss.boss = 1; boss.rid = j.rid;
+      j.crew = cr; j.boss = boss; j.maxhp = R.hp; j.phase = "fight"; j.t = 0;
+      const line = (ROGUE_LINE[j.rid] || {})[g.who] || "";
+      g.jobBanner = R.name;
+      g.jobNote = line || "(He does not say anything. He never does.)";
+      g.pickupFlash = { nm: "job_boss", t: 4.5 };
+    }
+    function jobEscape() {
+      const j = g.job, R = ROGUE_JOB[j.rid], b = j.boss;
+      j.phase = "escape"; j.t = 0;
+      g.jobBanner = R.name + " IS LEAVING";
+      g.jobNote = R.escapeLine;
+      g.pickupFlash = { nm: "job_escape", t: 4.5 };
+      g.fx = g.fx || [];
+      if (R.escape === "roof" || R.escape === "crowd") g.fx.push({ kind: "puff", x: b.x, y: b.y, t: 0 });
+      else if (R.escape === "van") g.fx.push({ kind: "ring", x: b.x, y: b.y, t: 0 });
+      else if (R.escape === "atv") { b.vx = 260; b.vy = -120; }
+      // "walk" gets nothing at all, on purpose: she simply is not there any more
+    }
+    function stepJob(dt) {
+      if (!g.job) return;
+      const j = g.job;
+      j.t += dt;
+      if (j.phase === "called") {
+        const [x, y] = jobSiteXY(j.st);
+        if (Math.hypot(g.p.x - x, g.p.y - y) < 300) jobArrive();
+        return;
+      }
+      if (j.phase === "fight") {
+        const b = j.boss;
+        if (!b || b.hp <= 0 || j.crew.members.indexOf(b) < 0) { j.phase = "done"; j.t = 0; return; }
+        // he never dies here. At a third left he goes, which is what makes him a rogue rather
+        // than a thug, and what lets the cooldown loop put him back with a bigger job.
+        if (b.hp <= j.maxhp * 0.34) jobEscape();
+        return;
+      }
+      if (j.phase === "escape") {
+        const b = j.boss;
+        if (b) { b.hp = 9999; b.x += (b.vx || 0) * dt; b.y += (b.vy || 0) * dt; }
+        if (j.t > 2.2) {
+          const k = j.crew.members.indexOf(b);
+          if (k >= 0) j.crew.members.splice(k, 1);
+          j.phase = "done"; j.t = 0;
+          g.jobBanner = ROGUE_JOB[j.rid].name + " GOT AWAY";
+          g.jobNote = "";
+          g.pickupFlash = { nm: "job_done", t: 3.0 };
+        }
+        return;
+      }
+      if (j.phase === "done" && j.t > 90) callJob();   // the loop: he is out again
+    }
+    G.jobFn = () => { g.job = null; callJob(); };      // test button: reroll a job now
     G.turboFn = () => safely("turbo", turboBoost);
     G.spinFn = () => { if (g.who === "rio") safely("spin", boardSpin); };
     G.starFn = () => { if (g.who === "sho") safely("star", throwStar); };
@@ -22976,6 +23572,82 @@ export default function IronLionLayer004() {
     G.kickFn = () => { if (g.who === "sho") safely("kick", flyKick); };
     G.tazeFn = () => { if (g.who === "rio" && !g.inside) safely("taze", fireTazer); };
     G.smokeFn = () => { if (g.who === "rio") dropSmoke(); };
+
+    /* ---------- MAXINE'S THREE TOOLS ----------
+       Everyone she can reach: crew members and police, the same two lists every other
+       ability walks. Written once here so wire, sonic and the jam all agree on who counts. */
+    function hostilesNear(x, y, r) {
+      const out = [];
+      for (const cr of (g.crews || []))
+        for (const m of (cr.members || []))
+          if (m && m.hp > 0 && Number.isFinite(m.x) && Math.hypot(m.x - x, m.y - y) < r) out.push(m);
+      for (const c of (g.cops || []))
+        if (c && c.hp > 0 && Number.isFinite(c.x) && Math.hypot(c.x - x, c.y - y) < r) out.push(c);
+      return out;
+    }
+    const WIRE_R = 340;
+    /* FIBER WIRE. Long reach, one target, and it uses the whip line to get there -- same
+       curved draw, so on screen the wire and the grapple are recognisably the same tool
+       doing two jobs. Silent: it does not raise heat by itself. */
+    function wireStrike() {
+      if (!g.p.wire) return;
+      if ((g.wireCd || 0) > 0) return;
+      const near = hostilesNear(g.p.x, g.p.y, WIRE_R);
+      if (!near.length) return;
+      let best = near[0], bd = 1e9;
+      for (const m of near) {
+        const d = Math.hypot(m.x - g.p.x, m.y - g.p.y);
+        if (d < bd) { bd = d; best = m; }
+      }
+      g.wireCd = 1.1;
+      // the line, drawn by the same whip path; t runs 0->1 and then it is gone
+      g.wireFx = { x0: g.p.x, y0: g.p.y, x1: best.x, y1: best.y, t: 0 };
+      best.hp -= 26; best.stunT = Math.max(best.stunT || 0, 2.6); best.knock = 0.5;
+      if (best.hp <= 0) best.hp = 0;
+    }
+    const SONIC_R = 210;
+    /* SONIC DISRUPTOR. A pulse, not a shot: everything inside the radius is stunned and takes
+       a little damage, and the ring is drawn purple so it reads as hers and not as Kenny's
+       gold shockwave. Six charges and no reload. */
+    function sonicPulse() {
+      if (!(g.p.sonic > 0)) return;
+      if ((g.sonicCd || 0) > 0) return;
+      g.p.sonic -= 1; g.sonicCd = 1.4;
+      g.fx = g.fx || [];
+      g.fx.push({ kind: "sonic", x: g.p.x, y: g.p.y, t: 0 });
+      for (const m of hostilesNear(g.p.x, g.p.y, SONIC_R)) {
+        m.hp -= 9; m.stunT = Math.max(m.stunT || 0, 3.4); m.zap = 0.9;
+        if (m.hp < 0) m.hp = 0;
+      }
+      // and it kills the cameras, which is the quiet half of what it is for
+      g.camDeadT = Math.max(g.camDeadT || 0, 8);
+    }
+    const JAM_R = 260;
+    /* THE HELMET. While it is up nobody inside the radius can pull a trigger -- the optics
+       and the filters are the flavour, the mechanic is that guns stop working near her. It
+       does NOT stop fists, which is the trade: she walks through a gunfight and loses a
+       brawl. Checked at both places an NPC decides to fire. */
+    function gogglesToggle() {
+      if (!g.p.helmet) return;
+      if ((g.jamT || 0) > 0) { g.jamT = 0; return; }
+      g.jamT = 9;
+    }
+    const gunJammed = (u) => (g.jamT || 0) > 0 && g.who === "eclipse"
+      && Number.isFinite(u.x) && Math.hypot(u.x - g.p.x, u.y - g.p.y) < JAM_R;
+
+    function stepEclipse(dt) {
+      g.wireCd = Math.max(0, (g.wireCd || 0) - dt);
+      g.sonicCd = Math.max(0, (g.sonicCd || 0) - dt);
+      g.jamT = Math.max(0, (g.jamT || 0) - dt);
+      g.camDeadT = Math.max(0, (g.camDeadT || 0) - dt);
+      if (g.wireFx) { g.wireFx.t += dt * 4.2; if (g.wireFx.t >= 1.4) g.wireFx = null; }
+    }
+    /* One job live at boot, rogue and site both random, so it is testable the moment the page
+       loads rather than after a wait nobody wants to sit through. */
+    if (!g.job) { try { callJob(); } catch (e) { /* never let this stop the game starting */ } }
+    G.wireFn = () => { if (g.who === "eclipse") safely("wire", wireStrike); };
+    G.sonicFn = () => { if (g.who === "eclipse") safely("sonic", sonicPulse); };
+    G.gogglesFn = () => { if (g.who === "eclipse") safely("goggles", gogglesToggle); };
     G.boardToggleFn = () => {
       if (!g.board.has) return;
       if (g.board.on) boardOff(); else boardOn();
