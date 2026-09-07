@@ -1495,7 +1495,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 400 — THE LASH";
+const BUILD_TAG = "LAYER 401 — THE VAN";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2341,6 +2341,7 @@ for (const k of ["vh_sov_limo", "vh_sov_sedan", "vh_cross_muscle", "vh_sov_suv",
    MOTONAME and MOTO_LAMP are both keyed "luna" -- without this alias the bike has a name and
    a lavender headlight and no picture. */
 SOV_ART.luna = "assets/sov/vh_ecl_bike.png";
+SOV_ART.vh_ecl_van = "assets/sov/vh_ecl_van.png";   // no plate yet; falls back to a drawn box
 
 const isBankCell = (i, j) => BANK_CELLS.some((bc) => bc.i === i && bc.j === j);
 
@@ -19124,6 +19125,96 @@ export default function IronLionLayer004() {
     /* Every bike in the game is 50 x 19 (MOTO_M). Luna was 96 x 34, which is why she came out
        the size of a car -- the plate is high-resolution and the length is what scales it. */
     const LUNA_M = { k: "luna", len: 50, w: 19 };
+    const VAN_M  = { k: "vh_ecl_van", len: 118, w: 52 };
+
+    /* ---------- THE VAN ----------
+       Built as an ORDINARY TRAFFIC VEHICLE, not a bespoke object. That is the whole design
+       decision: mountNearest already takes over anything in g.traffic, so driving it, its
+       collision, its damage and getting out of it all come free from code that already works.
+       What is genuinely new is four things -- calling it, him bringing it, the bike going in
+       the back, and the bike coming out. g.van holds the traffic entry and a phase, and never
+       a second physics body. */
+    function callVan() {
+      if (g.van && g.van.phase !== "gone") return;
+      // a point about a block out, so it ARRIVES from somewhere instead of appearing
+      const a = Math.random() * 6.283;
+      const vx = g.p.x + Math.cos(a) * PITCH, vy = g.p.y + Math.sin(a) * PITCH;
+      const v = {
+        axis: "h", si: clamp(Math.round(vy / PITCH), 0, N), dir: 1,
+        k: clamp(Math.round(vx / PITCH), 0, N), m: VAN_M,
+        x: vx, y: vy, ang: 0, spd: 0, cruise: 0, brake: 1,
+        dead: 1, parked: 1, named: 1,
+        trFree: 1,          // not takeable while HE is still driving it
+      };
+      g.traffic.push(v);
+      g.van = { v, phase: "coming", t: 0, bike: false };
+      g.pickupFlash = { nm: "van_called", t: 2.0 };
+    }
+    function dismissVan() {
+      if (!g.van || g.van.phase === "gone" || !g.van.v) return;
+      g.van.phase = "leaving"; g.van.t = 0; g.van.v.trFree = 1;
+      g.pickupFlash = { nm: "van_away", t: 1.8 };
+    }
+    /* Luna in and out of the back. Docking takes her OUT OF THE WORLD rather than parking her
+       beside the van -- a bike left standing next to a van you then drive off in is a bike you
+       have abandoned in the street. */
+    function vanDock() {
+      if (!g.van || g.van.phase !== "parked" || !g.van.v) return false;
+      const v = g.van.v;
+      if (Math.hypot(g.p.x - v.x, g.p.y - v.y) > 120) return false;
+      if (!g.van.bike) {
+        if (g.mode !== "moto") { g.pickupFlash = { nm: "need_the_bike", t: 1.6 }; return false; }
+        g.van.bike = true;
+        g.mode = "foot";
+        g.moto.x = -99999; g.moto.y = -99999;
+        g.pickupFlash = { nm: "bike_loaded", t: 1.8 };
+        return true;
+      }
+      const a2 = (v.ang || 0) + Math.PI;          // she rides out through the back doors
+      g.moto.x = v.x + Math.cos(a2) * 78; g.moto.y = v.y + Math.sin(a2) * 78;
+      g.moto.ang = v.ang || 0; g.moto.vx = 0; g.moto.vy = 0; g.moto.sunk = false;
+      g.van.bike = false;
+      g.mode = "moto";
+      dismissVan();                                // he takes it away again once she is out
+      g.pickupFlash = { nm: "bike_out", t: 1.8 };
+      return true;
+    }
+    function stepVan(dt) {
+      if (!g.van || g.van.phase === "gone" || !g.van.v) return;
+      const v = g.van.v;
+      g.van.t += dt;
+      if (g.van.phase === "coming") {
+        const dx = g.p.x - v.x, dy = g.p.y - v.y, d = Math.hypot(dx, dy) || 1;
+        if (d < 130 || g.van.t > 45) {             // the timeout so a call can never strand you
+          g.van.phase = "parked"; v.trFree = 0;    // now she may drive it
+          g.pickupFlash = { nm: "van_here", t: 2.0 };
+          return;
+        }
+        const sp = 210 * dt;                       // a van in a city, not a getaway car
+        v.x += (dx / d) * sp; v.y += (dy / d) * sp;
+        v.ang = Math.atan2(dy, dx);
+        return;
+      }
+      if (g.van.phase === "leaving") {
+        const a3 = v.ang || 0;
+        v.x += Math.cos(a3) * 240 * dt; v.y += Math.sin(a3) * 240 * dt;
+        if (g.van.t > 6 || Math.hypot(g.p.x - v.x, g.p.y - v.y) > PITCH * 1.6) {
+          const i2 = g.traffic.indexOf(v);
+          if (i2 >= 0) g.traffic.splice(i2, 1);
+          g.van.phase = "gone"; g.van.v = null;
+        }
+        return;
+      }
+      // parked, and she has walked a long way off: he comes and collects it
+      if (g.van.phase === "parked" && g.mode === "foot"
+          && Math.hypot(g.p.x - v.x, g.p.y - v.y) > PITCH * 2.2) dismissVan();
+    }
+    G.vanFn = () => {
+      if (g.who !== "eclipse") return;
+      if (!g.van || g.van.phase === "gone") callVan(); else dismissVan();
+    };
+    G.dockFn = () => { if (g.who === "eclipse") vanDock(); };
+
     function placeNamedCars() {
       if (g.namedParked) return;
       const b = denOf(); if (!b) return;
@@ -22425,6 +22516,7 @@ export default function IronLionLayer004() {
             who: g.who, smokeStock: g.p.smokeStock || 0, hidden: !!g.p.hidden,
             // Maxine's two counters. Without these her buttons read "0 left" and "off" forever.
             sonic: g.p.sonic || 0, jam: (g.jamT || 0) > 0,
+            van: (g.van && g.van.phase) || "gone", vanBike: !!(g.van && g.van.bike),
             hero: !!(g.hero && g.hero[g.who]), stars: g.p.stars || 0, chain: g.p.chain || 0,
             turbo: (() => { const v = inVehicle() ? activeVeh() : null;
                             const k = v && ((v.m && v.m.k) || (v.skin && v.skin.k) || v.k);
@@ -23859,6 +23951,7 @@ export default function IronLionLayer004() {
       g.turboCd = Math.max(0, (g.turboCd || 0) - dt);
       g.turboT = Math.max(0, (g.turboT || 0) - dt);
       stepEclipse(dt);          // her timers ride the same per-frame call
+      stepVan(dt);
       stepJob(dt);
     }
 
@@ -25762,6 +25855,13 @@ export default function IronLionLayer004() {
               () => { G.smokeFn && G.smokeFn(); }, null, hud.hidden)}
             {/* Maxine. The functions and the G.* bridges existed since L381; there were simply
                 no buttons, so on a phone none of it could be reached. */}
+            {!hud.cab && hud.who === "eclipse" && btn("VAN",
+              hud.van === "gone" ? "call it" : hud.van === "coming" ? "on its way"
+                : hud.van === "parked" ? "send away" : "leaving",
+              () => { G.vanFn && G.vanFn(); }, null, hud.van === "parked")}
+            {!hud.cab && hud.who === "eclipse" && hud.van === "parked" && btn("LOAD",
+              hud.vanBike ? "ride out" : "bike in",
+              () => { G.dockFn && G.dockFn(); }, null, hud.vanBike)}
             {!hud.cab && hud.who === "eclipse" && btn("WIRE", "silent, long",
               () => { G.wireFn && G.wireFn(); }, null)}
             {!hud.cab && hud.who === "eclipse" && btn("SONIC", (hud.sonic || 0) + " left",
