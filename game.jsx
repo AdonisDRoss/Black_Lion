@@ -1522,7 +1522,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 412 — WRECKS AND THE DOOR";
+const BUILD_TAG = "LAYER 413 — FURNISHED, AND THE GRAB";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2678,6 +2678,23 @@ const ROGUE_BOMB = {
               fuse: 36, hidden: true },
   arson:    { where: "It is not a bomb. It is an accelerant, and it is under everything.",
               fuse: 34, hidden: false },
+};
+/* ---------- JOB TYPE THREE: THE GRAB ----------
+   The robbery asks how you get past somebody. The device asks whether you get there. This one
+   asks whether you can catch something that is LEAVING -- the only job in the game where the
+   objective has a velocity. They walk somebody out to a car; reach them before the car does.
+   Who they take says as much as where they put a bomb.
+   SPEEDS RETUNED. The first pass had them WALKING at 66-96 against a sprint of 260, which
+   left 21 to 32 seconds of slack -- you strolled after them and won. They move at very nearly
+   your own pace now, so closing the last few hundred units is the whole job, and his crew is
+   still between you and them because only the man himself leaves. */
+const ROGUE_GRAB = {
+  mvp:      { who: "THE BANK MANAGER",       walk: 206, note: "He is carrying him. Not leading him -- carrying." },
+  kuru:     { who: "A NIGHT SECURITY GUARD", walk: 238, note: "The guard is walking on his own. He does not look frightened. That is worse." },
+  drive:    { who: "THE VAULT ENGINEER",     walk: 196, note: "They want the man who built it, not the thing he built." },
+  monstruo: { who: "A CASHIER",              walk: 214, note: "Forty of them came out. One of them is not a mime." },
+  voz:      { who: "A CITY CLERK",           walk: 228, note: "She asked him to come. He came." },
+  arson:    { who: "A FIRE WARDEN",          walk: 200, note: "He took the one whose job was to get everybody out." },
 };
 const rogueIds = () => Object.keys(ROGUE_JOB);
 const isJewelCell = (i, j) => JEWEL_CELLS.some((c) => c.i === i && c.j === j);
@@ -4127,6 +4144,82 @@ function makeFloor(b, f, rnd) {
         P(q2.x0 + pad, q2.y1 - pad - 22, 28, 22, "jw_workdesk");
         P(q2.x1 - pad - 14, q2.y0 + pad, 14, 14, "jw_security_camera");
         break;
+      /* CORMORANT ISLAND and RAVEN HOOK GENERAL. Every one of these rooms was built at L405
+         and left EMPTY -- the floor plans went in and the furniture never did, which is the
+         honest answer to "did you furnish the hospital". Built from prop types that already
+         exist and already draw, so the rooms are furnished now and the 128 cut plates can be
+         mapped over the top later without touching this. */
+      case "asyrecep":
+        P(q2.x0 + 8, cy - 11, Math.max(40, W2 * 0.55), 24, "counter");
+        runX(q2, q2.y1 - pad - 20, clamp(Math.round(W2 / 120), 2, 4), 44, 20, "bench", pad);
+        P(q2.x1 - pad - 16, q2.y0 + pad, 16, 16, "bk_camera_dome");
+        break;
+      case "asyadminrm":
+        P(q2.x0 + pad, q2.y0 + pad, 52, 26, "desk");
+        P(q2.x1 - pad - 26, q2.y0 + pad, 26, 44, "cab");
+        P(q2.x0 + pad, q2.y1 - pad - 22, 40, 22, "shelf");
+        break;
+      case "asysecure":
+        P(q2.x0 + 6, q2.y0 + pad, Math.max(22, W2 - 12), 26, "cab");
+        P(q2.x0 + 6, q2.y1 - pad - 24, Math.max(22, W2 - 12), 24, "safe");
+        break;
+      case "asycell":
+        // a cot and a pan. There is nothing else in a cell and there should not be.
+        P(q2.x0 + 6, q2.y0 + 8, Math.max(26, W2 - 14), Math.max(18, H2 * 0.42), "bed");
+        P(q2.x1 - 20, q2.y1 - 20, 14, 14, "toilet");
+        break;
+      case "asycorr":
+        P(q2.x0 + pad, cy - 7, 22, 14, "bk_camera_dome");
+        P(q2.x1 - pad - 22, cy - 7, 22, 14, "bk_camera_dome");
+        break;
+      case "asyoffices":
+        runX(q2, q2.y0 + pad, clamp(Math.round(W2 / 140), 2, 4), 52, 28, "desk", pad);
+        P(q2.x1 - pad - 26, q2.y1 - pad - 44, 26, 44, "cab");
+        break;
+      case "asyhead":
+        /* Teague's room. The desk faces the door, the couch faces the desk, and the cabinet
+           of everything he has written about them is behind him. */
+        P(cx - 34, cy - 16, 68, 32, "lx_desk_exec");
+        P(cx - 10, cy + 22, 20, 20, "lx_chair_exec");
+        P(q2.x0 + pad, q2.y1 - pad - 24, 56, 24, "lx_sofa_sect");
+        P(q2.x1 - pad - 26, q2.y0 + pad, 26, 46, "cab");
+        P(q2.x0 + pad, q2.y0 + pad, 30, 20, "lx_bookcase");
+        break;
+      case "asyhall": break;
+
+      case "hoslobby":
+        runX(q2, q2.y0 + pad, clamp(Math.round(W2 / 120), 2, 4), 46, 20, "bench", pad);
+        P(q2.x1 - pad - 22, q2.y1 - pad - 22, 22, 22, "vend");
+        break;
+      case "hosdesk":
+        P(q2.x0 + 8, q2.y0 + 4, W2 - 16, Math.max(16, H2 - 8), "counter");
+        break;
+      case "hoser":
+        // curtained bays and the crash cart between them
+        runX(q2, q2.y0 + pad, clamp(Math.round(W2 / 110), 2, 4), 48, 26, "bed", pad);
+        P(cx - 14, q2.y1 - pad - 22, 28, 22, "cab");
+        break;
+      case "hosstore":
+        P(q2.x0 + 6, q2.y0 + pad, Math.max(22, W2 - 12), 26, "shelf");
+        P(q2.x0 + 6, q2.y1 - pad - 22, Math.max(22, W2 - 12), 22, "crate");
+        break;
+      case "hosbay":
+        P(q2.x0 + 6, q2.y0 + 8, Math.max(28, W2 - 14), Math.max(20, H2 * 0.46), "bed");
+        P(q2.x1 - 20, q2.y1 - 18, 14, 14, "cab");
+        break;
+      case "hoscorr": break;
+      case "hosgown":
+        P(q2.x0 + pad, q2.y0 + pad, 40, 22, "shelf");
+        P(q2.x1 - pad - 26, q2.y0 + pad, 26, 22, "sink");
+        break;
+      case "hosburnward":
+        /* Isolation beds in a row behind plastic. Elias mopped this floor. */
+        runX(q2, q2.y0 + pad, clamp(Math.round(W2 / 130), 2, 4), 54, 30, "bed", pad);
+        P(q2.x0 + pad, q2.y1 - pad - 24, 34, 24, "cab");
+        P(q2.x1 - pad - 30, q2.y1 - pad - 24, 30, 24, "tub");
+        break;
+      case "hospad": break;
+      case "hosstair": break;
       case "bkhall": {
         P(q2.x0 + pad, q2.y0 + pad, Math.min(120, W2 * 0.40), 26, "bk_sofa_wait");
         runX(q2, cy - 6, clamp(Math.round(W2 / 90), 2, 5), 62, 10, "bk_queue_ropes", 20);
@@ -9549,6 +9642,7 @@ export default function IronLionLayer004() {
         }
       }
       drawBomb();
+      drawGrab();
       drawHeldRogues();
       drawJobBanner();
       if (g.wireFx && Number.isFinite(g.wireFx.x0) && Number.isFinite(g.wireFx.y0)
@@ -23778,6 +23872,20 @@ export default function IronLionLayer004() {
        floors, in the order they were caught, so the landing fills up as you work. */
     /* The device. A hidden one shows nothing until you are almost on it, which is the whole
        difference between Kuru's job and MVP's -- one is a race and the other is a search. */
+    /* The hostage, and the distance left to the car. Always visible: this is a race, and a
+       race you cannot see the finish line of is just a man walking away. */
+    function drawGrab() {
+      if (!g.job || g.job.phase !== "grab" || !g.job.grab) return;
+      const B = g.job.grab;
+      const left = Math.hypot(B.tx - B.x, B.ty - B.y);
+      ctx.fillStyle = "rgba(20,18,20,0.9)";
+      ctx.fillRect(B.x - 11, B.y - 15, 22, 30);
+      ctx.fillStyle = "#e0d6c4";
+      ctx.fillRect(B.x - 8, B.y - 12, 16, 12);
+      ctx.font = "700 11px system-ui, sans-serif";
+      ctx.fillStyle = left < 400 ? "#ff6a5a" : "#e8c46a";
+      ctx.fillText(Math.round(left / 10) + "m TO THE CAR", B.x - 40, B.y - 22);
+    }
     function drawBomb() {
       if (!g.job || g.job.phase !== "fuse" || !g.job.bomb) return;
       const B = g.job.bomb;
@@ -24513,12 +24621,17 @@ export default function IronLionLayer004() {
       const rid = force || ids[(Math.random() * ids.length) | 0];
       const st = JOB_SITES[(Math.random() * JOB_SITES.length) | 0];
       // a coin, unless a caller asked for one -- both types use the same sites and the same men
-      const type = (force === "bomb" || (force !== "rob" && Math.random() < 0.42)) ? "bomb" : "rob";
+      let type = "rob";
+      if (force === "bomb" || force === "grab") type = force;
+      else { const r2 = Math.random(); type = r2 < 0.34 ? "bomb" : r2 < 0.60 ? "grab" : "rob"; }
       g.job = { rid, st, type, phase: "called", t: 0, crew: null, boss: null, maxhp: 1 };
       const R = ROGUE_JOB[rid];
       g.pickupFlash = { nm: "job_called", t: 4.0 };
-      g.jobBanner = (type === "bomb" ? "DEVICE \u00b7 " : "") + R.name + " \u2014 " + st.what;
-      g.jobNote = type === "bomb" ? (ROGUE_BOMB[rid] || {}).where || "" : R.approach;
+      const tag = type === "bomb" ? "DEVICE \u00b7 " : type === "grab" ? "TAKEN \u00b7 " : "";
+      g.jobBanner = tag + R.name + " \u2014 " + st.what;
+      g.jobNote = type === "bomb" ? (ROGUE_BOMB[rid] || {}).where || ""
+                : type === "grab" ? (ROGUE_GRAB[rid] || {}).note || ""
+                : R.approach;
     }
     function jobArrive() {
       const j = g.job, R = ROGUE_JOB[j.rid];
@@ -24575,6 +24688,23 @@ export default function IronLionLayer004() {
         cr.members[1].wpn = null; cr.members[1].inside = 1; cr.members[1].spd = 0;
       }
       j.crew = cr; j.boss = boss; j.maxhp = R.hp; j.phase = "fight"; j.t = 0;
+      if (j.type === "grab") {
+        /* They walk the hostage out to a car that is already running, a block and a half away.
+           The man himself goes with them, so there is nobody to punch at the site -- catching
+           the hostage IS the job. */
+        const G2 = ROGUE_GRAB[j.rid] || { who: "SOMEBODY", walk: 80 };
+        const ang = Math.random() * 6.283;
+        j.grab = { x, y, tx: x + Math.cos(ang) * PITCH * 1.15, ty: y + Math.sin(ang) * PITCH * 1.15,
+                   spd: G2.walk, who: G2.who };
+        const k4 = cr.members.indexOf(boss);
+        if (k4 >= 0) cr.members.splice(k4, 1);
+        j.boss = null;
+        j.phase = "grab"; j.t = 0;
+        g.jobBanner = G2.who + " IS BEING WALKED OUT";
+        g.jobNote = G2.note || "";
+        g.pickupFlash = { nm: "they_have_someone", t: 4.0 };
+        return;
+      }
       if (j.type === "bomb") {
         /* He does not stay. The device is the job, and a man standing next to his own bomb
            waiting to be punched is a man who has misunderstood what a bomb is for. */
@@ -24636,6 +24766,27 @@ export default function IronLionLayer004() {
       if (j.phase === "called") {
         const [x, y] = jobSiteXY(j.st);
         if (Math.hypot(g.p.x - x, g.p.y - y) < 300) jobArrive();
+        return;
+      }
+      if (j.phase === "grab") {
+        const B = j.grab;
+        const dx = B.tx - B.x, dy = B.ty - B.y, dd = Math.hypot(dx, dy) || 1;
+        B.x += (dx / dd) * B.spd * dt; B.y += (dy / dd) * B.spd * dt;
+        if (Math.hypot(g.p.x - B.x, g.p.y - B.y) < 70) {
+          j.phase = "done"; j.t = 0; j.grab = null;
+          g.jobBanner = B.who + " IS BACK";
+          g.jobNote = j.st.what + ".";
+          g.pickupFlash = { nm: "got_them_back", t: 3.4 };
+          g.stats.saved = (g.stats.saved || 0) + 1;
+          return;
+        }
+        if (dd < 40) {
+          j.phase = "done"; j.t = 0; j.grab = null;
+          g.jobBanner = B.who + " IS GONE";
+          g.jobNote = "The car did not wait.";
+          g.pickupFlash = { nm: "they_took_them", t: 4.0 };
+          g.stats.lost = (g.stats.lost || 0) + 1;
+        }
         return;
       }
       if (j.phase === "fuse") {
