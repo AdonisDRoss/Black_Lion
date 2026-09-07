@@ -1495,7 +1495,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 398 — RIGHT FOLDER";
+const BUILD_TAG = "LAYER 400 — THE LASH";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2539,6 +2539,15 @@ const ROGUE_JOB = {
     approach: "Mimes. Forty of them, filling the room, and none of them says anything.",
     escape: "crowd",
     escapeLine: "The crowd closes over him. When it opens he is one of forty again." },
+  /* ELIAS REED. The sixth, and he proves the table was worth building -- three rows and he
+     exists. He is not here for the money. He is here because money is MATTER, and matter is
+     what fire eats; he watches a vault burn the way other men watch a fire in a grate.
+     No crew, because nobody wants to stand next to him. Lowest hp of the six, because he has
+     never once thought about being hit. */
+  arson: { name: "THE ARSONIST", crew: 0, wing: null, loud: true, hp: 70,
+    approach: "He is not taking the money. He has stacked it in the middle of the floor.",
+    escape: "watch",
+    escapeLine: "He does not run. He stands in the doorway until the heat moves him." },
   voz: { name: "LA VOZ", crew: 3, wing: "mime", loud: false, hp: 80,
     approach: "Somebody who works here left a door unlocked. She has not touched a thing.",
     escape: "walk",
@@ -2563,6 +2572,11 @@ const ROGUE_LINE = {
            sho: "Blades. In nineteen eighty-six.",
            eclipse: "A reporter. Good. Write down that the wall was load-bearing." },
   monstruo: { lion: "", rio: "", kenny: "", sho: "", eclipse: "" },
+  arson: { lion: "You put fires out. I have read about you. What a small thing to be.",
+           rio: "Stand closer. You have never really looked at one, have you.",
+           kenny: "Everything you were is ash already. I am only being honest about it.",
+           sho: "Steel burns too. It takes longer, that is all.",
+           eclipse: "Write it down. Write down that it EATS. Nobody ever writes that part." },
   voz: { lion: "He says you were a policeman once. He says it like it explains you.",
          rio: "He says you are somebody's son. He says that is a shame.",
          kenny: "He says he remembers the fifth fight. He says you should have stayed down.",
@@ -9332,9 +9346,11 @@ export default function IronLionLayer004() {
         }
       }
       drawJobBanner();
-      if (g.wireFx) {
+      if (g.wireFx && Number.isFinite(g.wireFx.x0) && Number.isFinite(g.wireFx.y0)
+          && Number.isFinite(g.wireFx.x1) && Number.isFinite(g.wireFx.y1)
+          && Number.isFinite(g.wireFx.t)) {
         // the wire uses the whip's own curve, so the two tools read as one piece of kit
-        const q = g.wireFx, u = Math.min(1, q.t);
+        const q = g.wireFx, u = clamp(q.t, 0, 1);
         const dx = (q.x1 - q.x0) * u, dy = (q.y1 - q.y0) * u;
         const len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
         const slack = (1 - u) * Math.min(44, len * 0.30);
@@ -18473,6 +18489,27 @@ export default function IronLionLayer004() {
       // thrown in a jacket and jeans does not
       const lionHit = (g.lionOn ? 2 : 1) * (g.plain ? 0.55 : 1);
       if (g.mode !== "foot" || g.p.atkCd > 0) return;
+      /* MAXINE'S STRIKE IS THE WHIP. Nothing was gating her out of melee -- she was throwing
+         the same bare-handed punch as everyone else, at the same reach, which on a woman built
+         to stay out of arm's reach reads as the button doing nothing. She has a whip on her
+         hip in every other part of this file; it should be the thing she hits with.
+         Reach 190 against a fist's ~40, one target, and it uses the wire's own draw so you can
+         SEE where it went -- which is the actual difference between a working attack and one
+         you cannot tell fired. */
+      if (g.who === "eclipse" && !g.p.wpn) {
+        const near = hostilesNear(g.p.x, g.p.y, 190);
+        g.p.atkCd = 0.42; g.p.atk = 0.26;          // the swing animation, same field as everyone
+        if (!near.length) return;
+        let best = near[0], bd = 1e9;
+        for (const m of near) {
+          const d = Math.hypot(m.x - g.p.x, m.y - g.p.y);
+          if (d < bd) { bd = d; best = m; }
+        }
+        g.wireFx = { x0: g.p.x, y0: g.p.y, x1: best.x, y1: best.y, t: 0 };
+        best.hp -= 14 * lionHit; best.stunT = Math.max(best.stunT || 0, 0.9);
+        if (best.hp < 0) best.hp = 0;
+        return;
+      }
       // a gun in hand reaches past melee range -- find the nearest hostile within gun range first
       /* A bottle is thrown at where you are aiming and then it is gone -- one use, no
          magazine, and it lands where you let go rather than tracking anyone. */
@@ -23199,29 +23236,37 @@ export default function IronLionLayer004() {
     }
     function drawFx() {
       for (const f of (g.fx || [])) {
-        if (!Number.isFinite(f.x)) continue;
+        /* f.y was NEVER checked -- only f.x. And k was never clamped, so an effect that lived
+           past its own life ran k negative and took the radius with it. Canvas throws "the
+           provided value is non-finite" on a NaN coordinate and IndexSizeError on a negative
+           radius, and both of those repeat every single frame because nothing here removes
+           the entry. Guard both coordinates, clamp k, and floor every radius at zero. */
+        if (!Number.isFinite(f.x) || !Number.isFinite(f.y) || !Number.isFinite(f.t)) continue;
+        const R0 = (v) => (Number.isFinite(v) && v > 0 ? v : 0);
         if (f.kind === "sonic") {
           /* Purple, and two rings rather than one so it reads as a PULSE going out instead of
              a single blast edge. The inner one lags, which is what makes it look like sound. */
-          const k = 1 - f.t / 0.42;
+          const k = clamp(1 - f.t / 0.42, 0, 1);
           ctx.strokeStyle = `rgba(196,150,255,${(1 - k) * 0.85})`;
           ctx.lineWidth = 5 * (1 - k) + 1.5;
-          ctx.beginPath(); ctx.arc(f.x, f.y, 10 + k * 200, 0, 6.3); ctx.stroke();
+          ctx.beginPath(); ctx.arc(f.x, f.y, R0(10 + k * 200), 0, 6.3); ctx.stroke();
           ctx.strokeStyle = `rgba(228,206,255,${(1 - k) * 0.5})`;
           ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.arc(f.x, f.y, 4 + k * 132, 0, 6.3); ctx.stroke();
+          ctx.beginPath(); ctx.arc(f.x, f.y, R0(4 + k * 132), 0, 6.3); ctx.stroke();
         } else if (f.kind === "ring") {
           // concussive: a hard white ring going out, gold behind it
-          const k = 1 - f.t / 0.30;
+          const k = clamp(1 - f.t / 0.30, 0, 1);
           ctx.strokeStyle = `rgba(255,236,180,${(1 - k) * 0.9})`;
           ctx.lineWidth = 5 * (1 - k) + 1;
-          ctx.beginPath(); ctx.arc(f.x, f.y, 8 + k * 46, 0, 6.3); ctx.stroke();
+          ctx.beginPath(); ctx.arc(f.x, f.y, R0(8 + k * 46), 0, 6.3); ctx.stroke();
         } else {
-          const k = 1 - f.t / 0.20;
+          const k = clamp(1 - f.t / 0.20, 0, 1);
+          // f.ang is undefined on anything the job code pushed -- NaN straight into arc()
+          const ang0 = Number.isFinite(f.ang) ? f.ang : 0;
           ctx.strokeStyle = `rgba(240,240,232,${(1 - k) * 0.75})`;
           ctx.lineWidth = 4;
           ctx.beginPath();
-          ctx.arc(f.x, f.y, 30, f.ang - 1.1 + k * 1.6, f.ang + 0.5 + k * 1.6);
+          ctx.arc(f.x, f.y, 30, ang0 - 1.1 + k * 1.6, ang0 + 0.5 + k * 1.6);
           ctx.stroke();
         }
       }
@@ -23876,6 +23921,18 @@ export default function IronLionLayer004() {
       });
       /* La Voz does not bring muscle, she brings somebody who already works there. One of
          hers is unarmed and stands still -- the inside man, who is the approach. */
+      /* THE MONEY GOES UP. Not stolen -- burned, in the building it lived in, which is a
+         different problem to solve: there is nothing to chase and nothing to recover, only
+         time. igniteBuilding already exists and the fire brigade already answers it, so his
+         whole job is one call into machinery that was built years before he was. */
+      if (j.rid === "arson") {
+        const site = (getCell(j.st.i, j.st.j).blds || []).find((q) => q.door && !q.perimeter);
+        if (site) {
+          igniteBuilding(site, false);
+          if (!g.fires) g.fires = [];
+          if (g.fires.indexOf(site) < 0) g.fires.push(site);
+        }
+      }
       if (j.rid === "voz" && cr.members[1]) {
         cr.members[1].wpn = null; cr.members[1].inside = 1; cr.members[1].spd = 0;
       }
@@ -23897,11 +23954,11 @@ export default function IronLionLayer004() {
          anything you could see. */
       if (R.escape === "roof") {
         // straight up and gone. He is over the parapet before you reach the stairs.
-        g.fx.push({ kind: "puff", x: b.x, y: b.y, t: 0 });
+        g.fx.push({ kind: "puff", x: b.x, y: b.y, t: 0, ang: 0 });  // ang REQUIRED: the default branch reads it
         b.vx = 0; b.vy = -300;
       } else if (R.escape === "crowd") {
         // he does not move. The mimes close over him and he is one of forty again.
-        g.fx.push({ kind: "puff", x: b.x, y: b.y, t: 0 });
+        g.fx.push({ kind: "puff", x: b.x, y: b.y, t: 0, ang: 0 });  // ang REQUIRED: the default branch reads it
         for (const mm of (j.crew.members || [])) {
           if (mm === b) continue;
           const dx = b.x - mm.x, dy = b.y - mm.y, d2 = Math.hypot(dx, dy) || 1;
@@ -23913,6 +23970,10 @@ export default function IronLionLayer004() {
       } else if (R.escape === "atv") {
         g.fx.push({ kind: "ring", x: b.x, y: b.y, t: 0 });
         b.vx = 300; b.vy = -140;        // over the counter and away, fast and straight
+      }
+      else if (R.escape === "watch") {
+        // he does not go anywhere. He stops fighting and he stops moving, and he looks at it.
+        b.vx = 0; b.vy = 0; b.watching = 1;
       }
       // "walk" gets nothing at all, on purpose: she simply is not there any more
     }
