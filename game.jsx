@@ -1536,7 +1536,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 418 — DOME AND MARBLE";
+const BUILD_TAG = "LAYER 419 — THE TERMINAL IS BACK";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -4999,13 +4999,37 @@ function makeFloor(b, f, rnd) {
      solid still overlapping it is dropped rather than nudged, because a nudged prop just
      lands in the next doorway along. */
   {
+    /* ONLY THE LAYOUTS I GENERATED, and never anything you can USE.
+       The first version ran on every floor plan in the file and deleted five props out of the
+       den, the terminal console among them -- a hand-authored room I had no business editing
+       to fix a problem in my own generated ones. TIDY_KINDS is exactly the set I wrote; the
+       den, the arcade, the venue, the casino and the rest are left alone.
+       INTERACTIVE is the second guard: a prop you can walk up to and press E on is never
+       deleted, wherever it stands. Better a door you have to squeeze past than a terminal
+       that is not in the building. */
+    const INTERACTIVE = { console: 1, terminal: 1, cab: 1, lift: 1, safe: 1, cardtable: 1,
+                          wheeltable: 1, bartop: 1, stagedeck: 1, reel: 1, cbradio: 1,
+                          scanner: 1, printer: 1, bed: 1, sk_rack: 1, drum: 1 };
     const CLEAR = DOORW + 26;
-    for (const d of doorMarks) {
+    for (const d of (TIDY_KINDS[kind] ? doorMarks : [])) {
       for (let i = props.length - 1; i >= 0; i--) {
         const p = props[i];
         const bx0 = d.x - (d.v ? WT + 14 : CLEAR / 2), bx1 = d.x + (d.v ? WT + 14 : CLEAR / 2);
         const by0 = d.y - (d.v ? CLEAR / 2 : WT + 14), by1 = d.y + (d.v ? CLEAR / 2 : WT + 14);
         if (p.x >= bx1 || p.x + p.w <= bx0 || p.y >= by1 || p.y + p.h <= by0) continue;
+        /* Keep or delete was the wrong choice. Anything you can USE gets SHOVED clear of the
+           opening along whichever axis is shorter, so a filing cabinet stops standing in the
+           door without a terminal ever ceasing to exist. Only scenery is deleted, and only
+           when it has nowhere to go. */
+        if (INTERACTIVE[p.t]) {
+          const outL = bx0 - (p.x + p.w), outR = bx1 - p.x;
+          const outU = by0 - (p.y + p.h), outD = by1 - p.y;
+          const best = [[Math.abs(outL), "x", outL], [Math.abs(outR), "x", outR],
+                        [Math.abs(outU), "y", outU], [Math.abs(outD), "y", outD]]
+                        .sort((m1, m2) => m1[0] - m2[0])[0];
+          if (best[1] === "x") p.x += best[2]; else p.y += best[2];
+          continue;
+        }
         props.splice(i, 1);
       }
     }
