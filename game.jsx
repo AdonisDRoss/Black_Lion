@@ -1495,7 +1495,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 404 — OUT THE BACK";
+const BUILD_TAG = "LAYER 406 — THE CELLS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2504,6 +2504,23 @@ const JEWEL_CELLS = [
 ];
 const isPawnCell = (i, j) => PAWN_CELLS.some((c) => c.i === i && c.j === j);
 
+/* ---------- CORMORANT ISLAND, and RAVEN HOOK GENERAL ----------
+   The asylum is out in the lake, reached by one causeway, which is the whole point of it:
+   a place with a single road in is a place people do not leave by accident. Raven Hook has
+   a bird for every institution that matters -- the Raven, the Kestrel, Il Corvo -- so the
+   island is the Cormorant, the bird that goes under and comes back up. */
+const ASYLUM_CELL = { i: 28, j: 10 };
+const ASYLUM_SHORE = 27;                 // the causeway runs west from the island to here
+const HOSPITAL_CELL = { i: 7, j: 11 };
+const isAsylumCell = (i, j) => i === ASYLUM_CELL.i && j === ASYLUM_CELL.j;
+const isHospitalCell = (i, j) => i === HOSPITAL_CELL.i && j === HOSPITAL_CELL.j;
+/* DR. AMBROSE TEAGUE. Medical director, and the man who has had all five rogues in his
+   office and written every one of them up. Whether that makes him the best informant in the
+   city or the reason they keep getting out is not settled, and should not be. */
+const ASYLUM_NAME = "CORMORANT ISLAND STATE HOSPITAL";
+const HOSPITAL_NAME = "RAVEN HOOK GENERAL";
+const HEAD_DOCTOR = "DR. AMBROSE TEAGUE";
+
 /* ---------- THE ROGUES' GALLERY ----------
    FIFTEEN SITES AND FIVE VOCABULARIES, NOT SEVENTY-FIVE SCRIPTS. Every site is a building
    that already exists and is already enterable, so a job is never a set dressed for it -- it
@@ -2590,6 +2607,17 @@ const ROGUE_LINE = {
          kenny: "He says he remembers the fifth fight. He says you should have stayed down.",
          sho: "He says you are fast. He does not say it kindly.",
          eclipse: "He says he knows who your father was. He says ask me again another night." },
+};
+/* What they say through the door about the job that put them in here. Every one of them is
+   still arguing their own case, which is the point of letting you visit: a rogue you beat once
+   is not a rogue who has changed his mind. `%s` is the place he was taken. */
+const HELD_LINE = {
+  mvp:      "%s. I was three steps from the door. Three.",
+  kuru:     "%s was clean until you. Nobody was even awake.",
+  drive:    "You are standing there because of %s. I am sitting here because of a wall.",
+  monstruo: "",
+  voz:      "He has not said anything about %s. That is what frightens me.",
+  arson:    "%s is still warm. Go and stand in it. You will understand.",
 };
 const rogueIds = () => Object.keys(ROGUE_JOB);
 const isJewelCell = (i, j) => JEWEL_CELLS.some((c) => c.i === i && c.j === j);
@@ -2830,7 +2858,8 @@ function getCell(i, j) {
     || isBankCell(i, j)
     || isFoodCell(i, j)
     || isTradeCell(i, j)
-    || isPawnCell(i, j) || isJewelCell(i, j);
+    || isPawnCell(i, j) || isJewelCell(i, j)
+    || isAsylumCell(i, j) || isHospitalCell(i, j);
   if (gasLot) walls = null;
   else if (landmark) {
     walls = null;   // no chain-link across a landmark's approach either
@@ -3139,6 +3168,11 @@ function floorKind(b, f) {
   if (b.kind === "ristorante") return f === 0 ? "ristorante" : "apartments";
   if (b.kind === "warehouse" || b.kind === "garage") return "warehouse";
   /* Ground floor is the bank; anything above it is the offices that run it. */
+  /* Four floors each, and the floor IS the content -- you go up through an institution the
+     way you would walk through one, reception first and the locked part in the middle. */
+  if (b.kind === "asylum") return f === 0 ? "asyadmin" : f === 3 ? "asyoffice" : "asycells";
+  if (b.kind === "hospital") return f === 0 ? "hosreception" : f === 1 ? "hosward"
+                                  : f === 2 ? "hosburn" : "hoshelipad";
   if (b.kind === "bank") return f === 0 ? "bankfloor" : "offices";
   if (b.kind === "fastfood") return f === 0 ? "ffloor" : "offices";
   if (b.kind === "bar2") return f === 0 ? "barfloor" : "offices";
@@ -3499,6 +3533,59 @@ function makeFloor(b, f, rnd) {
     put(0, line, GX - 1, line, "ffcounter");
     put(0, back, Math.max(0, GX - 3), GY - 1, "ffkitchen");
     put(Math.max(1, GX - 2), back, GX - 1, GY - 1, "ffstore");
+  } else if (kind === "asyadmin") {
+    // reception at the front, admin behind it, and the stair hall between the two
+    const line = clamp(Math.round(GY * 0.42), 1, Math.max(1, GY - 2));
+    hub = put(0, 0, GX - 1, line - 1, "asyrecep");
+    put(0, line, GX - 1, line, "asyhall");
+    put(0, line + 1, Math.max(0, GX - 3), GY - 1, "asyadminrm");
+    put(Math.max(1, GX - 2), line + 1, GX - 1, GY - 1, "asysecure");
+  } else if (kind === "asycells") {
+    /* EIGHT CELLS A FLOOR, four a side, off one corridor down the middle. Every cell touches
+       ONLY the corridor -- no cell shares a wall opening with the next -- which is the same
+       trick the motel needed and for the same reason: a corridor is what makes eight rooms
+       eight rooms instead of one long room with furniture in it. */
+    const mid = Math.max(1, Math.round(GY / 2));
+    hub = put(0, mid, GX - 1, mid, "asycorr");
+    const per = 4;
+    for (let u = 0; u < per; u++) {
+      const a0 = Math.round((u * GX) / per), a1 = Math.round(((u + 1) * GX) / per) - 1;
+      if (a1 < a0) continue;
+      put(a0, 0, a1, mid - 1, "asycell");            // north side
+      put(a0, mid + 1, a1, GY - 1, "asycell");       // south side
+    }
+  } else if (kind === "asyoffice") {
+    const line = clamp(Math.round(GY * 0.55), 1, Math.max(1, GY - 2));
+    hub = put(0, 0, GX - 1, line - 1, "asyoffices");
+    put(0, line, GX - 1, line, "asyhall");
+    // his office is the big one at the end, and it is the only room up here with a door you
+    // have to be let through
+    put(0, line + 1, GX - 1, GY - 1, "asyhead");
+  } else if (kind === "hosreception") {
+    const line = clamp(Math.round(GY * 0.46), 1, Math.max(1, GY - 2));
+    hub = put(0, 0, GX - 1, line - 1, "hoslobby");
+    put(0, line, GX - 1, line, "hosdesk");
+    put(0, line + 1, Math.max(0, GX - 3), GY - 1, "hoser");
+    put(Math.max(1, GX - 2), line + 1, GX - 1, GY - 1, "hosstore");
+  } else if (kind === "hosward") {
+    const mid = Math.max(1, Math.round(GY / 2));
+    hub = put(0, mid, GX - 1, mid, "hoscorr");
+    for (let u = 0; u < 3; u++) {
+      const a0 = Math.round((u * GX) / 3), a1 = Math.round(((u + 1) * GX) / 3) - 1;
+      if (a1 < a0) continue;
+      put(a0, 0, a1, mid - 1, "hosbay");
+      put(a0, mid + 1, a1, GY - 1, "hosbay");
+    }
+  } else if (kind === "hosburn") {
+    /* The burn unit. Elias mopped these floors. It is one sterile ward behind a gowning room,
+       because you do not walk into a burn unit, you are admitted through it. */
+    const line = clamp(Math.round(GY * 0.30), 1, Math.max(1, GY - 2));
+    hub = put(0, 0, GX - 1, line - 1, "hosgown");
+    put(0, line, GX - 1, line, "hoscorr");
+    put(0, line + 1, GX - 1, GY - 1, "hosburnward");
+  } else if (kind === "hoshelipad") {
+    hub = put(0, 0, GX - 1, Math.max(0, GY - 3), "hospad");
+    put(0, Math.max(1, GY - 2), GX - 1, GY - 1, "hosstair");
   } else if (kind === "bankfloor") {
     /* A bank is one room the public may stand in, and everything else behind the counter.
        The HALL is the hub because it is the only part you can walk into off the street. The
@@ -4983,6 +5070,23 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     if (bar) { b.style = bar.style; b.biz = "bar"; b.signKey = BAR_KIT[bar.style].sign; }
     else if (kd === "cafe") { b.biz = "cafe"; b.signKey = "sign_marquee"; }
     else { b.biz = "guns"; b.signKey = "sign_wood"; b.name = "RAVEN HOOK FIREARMS"; }
+    out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+    return out;
+  }
+  /* Both go in AHEAD of every zone branch, including the water branch -- an island building
+     has to beat the rule that says water cells hold no buildings, or there is no island. */
+  if (isAsylumCell(i, j)) {
+    const bw = LW * 0.74, bh = LH * 0.62;
+    const b = mkB(lx0 + (LW - bw) / 2, ly0 + (LH - bh) / 2, bw, bh, 4, "asylum", rnd, key);
+    b.tone = 0.30; b.name = ASYLUM_NAME; b.signKey = "sign_wood"; b.retail = false;
+    b.door = { side: 3, pos: 0.5 };     // the only way in faces the causeway, west
+    out.push(b);
+    return out;
+  }
+  if (isHospitalCell(i, j)) {
+    const bw = LW * 0.78, bh = LH * 0.64;
+    const b = mkB(lx0 + (LW - bw) / 2, ly0 + (LH - bh) / 2, bw, bh, 4, "hospital", rnd, key);
+    b.tone = 0.72; b.name = HOSPITAL_NAME; b.signKey = "sign_lightbox"; b.retail = false;
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
     return out;
   }
@@ -6498,13 +6602,17 @@ export default function IronLionLayer004() {
            whole round of "the files are there and the game cannot see them". Rather than
            hard-code my guess and be wrong again, try the other one. Guarded by a flag so a
            genuinely absent file still fails exactly once and is counted. */
-        if (!im.__retried) {
-          const src0 = all[k] || "";
-          let alt = null;
-          if (src0.indexOf("assets/cuts/") === 0) alt = src0.slice("assets/".length);
-          else if (src0.indexOf("cuts/") === 0) alt = "assets/" + src0;
-          if (alt) {
-            im.__retried = 1;
+        /* A LIST of places a cut might live, tried in order, one attempt each. There are now
+           three -- cuts/ at the repo root, cuts2/ beside it, and assets/cuts/ -- and guessing
+           which one has already cost a round. Rather than hard-code a fourth guess later, add
+           the folder here and every key finds itself wherever it landed. */
+        const CUT_DIRS = ["cuts/", "cuts2/", "assets/cuts/"];
+        const src0 = all[k] || "";
+        const base = src0.replace(/^(cuts\/|cuts2\/|assets\/cuts\/)/, "");
+        if (base !== src0) {
+          im.__tried = (im.__tried || 0) + 1;
+          if (im.__tried < CUT_DIRS.length) {
+            const alt = CUT_DIRS[im.__tried] + base;
             all[k] = alt;
             im.src = alt;
             return;                       // settle() is NOT called: this load is still open
@@ -6964,6 +7072,8 @@ export default function IronLionLayer004() {
       if (b.kind === "office" || b.kind === "store") return "glass";
       if (b.kind === "tower") return "brick";
       // stucco, not "stone": there is no stone pattern, and it would have fallen through to brick
+      if (b.kind === "asylum") return "brick";
+      if (b.kind === "hospital") return "stucco";
       if (b.kind === "bank") return "stucco";
       if (b.kind === "fastfood") return "glass";   // a storefront, all window across the front
       if (b.kind === "cafe") return "glass";
@@ -9369,6 +9479,7 @@ export default function IronLionLayer004() {
           ctx.beginPath(); ctx.arc(tx, ty, 4, 0, 6.3); ctx.fill();
         }
       }
+      drawHeldRogues();
       drawJobBanner();
       if (g.wireFx && Number.isFinite(g.wireFx.x0) && Number.isFinite(g.wireFx.y0)
           && Number.isFinite(g.wireFx.x1) && Number.isFinite(g.wireFx.y1)
@@ -12000,6 +12111,24 @@ export default function IronLionLayer004() {
        same idea run the other way -- kept lawn, a mown stripe, a wide made drive to every garage
        and a narrow paved walk to every front door. The drive width comes off the building, so a
        garage and the mayor's carriage sweep both get the wide one and a front door does not. */
+    /* THE CAUSEWAY. One road out to the island and no other way on or off, drawn straight on
+       the water between the shore cell and the asylum cell. It is scenery plus a surface --
+       the water is already not walkable, so the deck is what you drive on. */
+    function drawCauseway() {
+      const y = SX(ASYLUM_CELL.j) + PITCH / 2;
+      const x0 = SX(ASYLUM_SHORE) + PITCH / 2, x1 = SX(ASYLUM_CELL.i) + PITCH / 2;
+      const W2 = 78;
+      ctx.fillStyle = "rgba(58,58,62,0.98)";
+      ctx.fillRect(x0, y - W2 / 2, x1 - x0, W2);
+      ctx.fillStyle = "rgba(196,190,176,0.55)";          // parapets
+      ctx.fillRect(x0, y - W2 / 2, x1 - x0, 5);
+      ctx.fillRect(x0, y + W2 / 2 - 5, x1 - x0, 5);
+      ctx.fillStyle = "rgba(226,214,150,0.55)";          // centre line
+      for (let x = x0 + 20; x < x1; x += 90) ctx.fillRect(x, y - 2, 44, 4);
+      // lamp standards, so it reads as a road at night rather than a grey strip
+      ctx.fillStyle = "rgba(150,146,140,0.9)";
+      for (let x = x0 + 60; x < x1; x += 300) ctx.fillRect(x - 3, y - W2 / 2 - 16, 6, 16);
+    }
     function drawArdenYard(c) {
       const W = c.lx1 - c.lx0, H = c.ly1 - c.ly0;
       ctx.fillStyle = PF("lawn", "#4c6a3f");
@@ -15230,6 +15359,8 @@ export default function IronLionLayer004() {
       { z: "downtown",  name: "CITY HALL",       i: 10, j: 8, landmark: true },
       { z: "arden",     name: "ARDEN HILL",     i: 4,  j: 17 },
       { z: "arden",     name: "THE VANCE HOUSE", i: 4,  j: 19, landmark: true },
+      { z: "water",     name: "CORMORANT ISLAND", i: 28, j: 10, landmark: true, travel: true },
+      { z: "city",      name: "RAVEN HOOK GENERAL", i: 7, j: 11, landmark: true, travel: true },
       { z: "county",    name: "THE STARLITE",    i: 25, j: 21, landmark: true },
       { z: "skate",     name: "GALAXY LANES",     i: 5,  j: 9, landmark: true },
       { z: "skate",     name: "THE LAST CALL",    i: 6,  j: 9, landmark: true },
@@ -19306,6 +19437,24 @@ export default function IronLionLayer004() {
       if (!g.van || g.van.phase === "gone") callVan(); else dismissVan();
     };
     G.dockFn = () => { if (g.who === "eclipse") vanDock(); };
+    /* FAST TRAVEL, to the two places that are a long drive from everything. Deliberately only
+       these two: the island is across the water at the far edge of the map and the hospital is
+       somewhere you need to reach in a hurry, and a city you can teleport around freely is a
+       city with no distances in it. On foot only, and never while wanted -- you do not get to
+       skip a chase. */
+    G.travelFn = (which) => {
+      if (g.mode !== "foot" || g.inside) { g.pickupFlash = { nm: "on_foot_only", t: 1.6 }; return false; }
+      if ((g.heat || 0) > 0) { g.pickupFlash = { nm: "not_while_wanted", t: 1.8 }; return false; }
+      const cell = which === "asylum" ? ASYLUM_CELL : HOSPITAL_CELL;
+      const c = getCell(cell.i, cell.j);
+      const b = (c.blds || [])[0];
+      if (!b || !b.door) return false;
+      const dp = doorPoint(b);
+      g.p.x = dp[0]; g.p.y = dp[1] + 40;
+      g.roof = null; g.sewer = false;
+      g.pickupFlash = { nm: which === "asylum" ? "cormorant" : "the_general", t: 2.2 };
+      return true;
+    };
 
     function placeNamedCars() {
       if (g.namedParked) return;
@@ -20132,6 +20281,8 @@ export default function IronLionLayer004() {
         if (gasHere) { drawGasStation(c); continue; }
         if (isFireCell(i, j)) { drawFireHouse(c); continue; }
         if (isShopCell(i, j)) { drawBodyShop(c); continue; }
+        // the causeway, drawn whenever either end of it is the cell being painted
+        if (i === ASYLUM_SHORE || i === ASYLUM_CELL.i) drawCauseway();
         // after the pumps and the body shop, so those keep the surfaces they draw for themselves
         // the Arden bank keeps a forecourt, not a front lawn
         if (c.zone === "arden" && !isBankCell(i, j) && !isFoodCell(i, j) && !isTradeCell(i, j)
@@ -23400,6 +23551,41 @@ export default function IronLionLayer004() {
     }
     /* Two lines under the top bar: who and where, then what they are doing. Deliberately text
        and not an arrow -- the approach line IS the briefing. */
+    /* The men you took, in the cells you took them to. Four to a floor across the two cell
+       floors, in the order they were caught, so the landing fills up as you work. */
+    function drawHeldRogues() {
+      if (!g.inside || g.inside.kind !== "asylum") return;
+      if (g.floor !== 1 && g.floor !== 2) return;
+      const pl = (buildingPlans(g.inside) || [])[g.floor];
+      if (!pl || pl.kind !== "asycells") return;
+      const cells = (pl.rooms || []).filter((r) => r.k === "asycell");
+      const ids = Object.keys(g.held || {});
+      const start = g.floor === 1 ? 0 : 4;
+      for (let n = 0; n < cells.length && start + n < ids.length; n++) {
+        const rid = ids[start + n], r = cells[n];
+        const cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2;
+        const im2 = imgs.current["vil_" + rid];
+        if (im2 && im2.width) ctx.drawImage(im2, cx - 15, cy - 18, 30, 36);
+        else {
+          ctx.fillStyle = "#5a5a62"; ctx.fillRect(cx - 10, cy - 14, 20, 28);
+          ctx.fillStyle = "#20202a"; ctx.fillRect(cx - 10, cy - 14, 20, 7);
+        }
+        if (Math.hypot(g.p.x - cx, g.p.y - cy) > 110) continue;
+        const R = ROGUE_JOB[rid] || {};
+        const raw = HELD_LINE[rid];
+        const line = raw ? raw.replace("%s", (g.held[rid] || {}).crime || "it")
+                         : "(He has not spoken since they brought him in.)";
+        ctx.font = "600 11px system-ui, sans-serif";
+        const w = Math.max(ctx.measureText(R.name || "").width, ctx.measureText(line).width) + 16;
+        ctx.fillStyle = "rgba(10,9,12,0.85)";
+        ctx.fillRect(cx - w / 2, cy - 62, w, 34);
+        ctx.fillStyle = "#e8c46a";
+        ctx.fillText(R.name || "", cx - w / 2 + 8, cy - 46);
+        ctx.font = "400 10px system-ui, sans-serif";
+        ctx.fillStyle = "rgba(226,220,206,0.9)";
+        ctx.fillText(line, cx - w / 2 + 8, cy - 33);
+      }
+    }
     function drawJobBanner() {
       if (!g.job || !g.jobBanner) return;
       if (g.job.phase === "done" && g.job.t > 6) return;
@@ -24059,7 +24245,12 @@ export default function IronLionLayer004() {
     }
     function callJob(force) {
       if (g.job && g.job.phase !== "done") return;
-      const ids = rogueIds();
+      /* Anyone in a cell is not on the street. Without this the same man is in two places and
+         the loop stops meaning anything. If they are ALL held, the city gets its quiet spell,
+         which is exactly what beating all six should buy you. */
+      const free = rogueIds().filter((r) => !(g.held && g.held[r]));
+      if (!free.length) { g.job = { phase: "done", t: -240, rid: null, st: null }; return; }
+      const ids = free;
       const rid = force || ids[(Math.random() * ids.length) | 0];
       const st = JOB_SITES[(Math.random() * JOB_SITES.length) | 0];
       g.job = { rid, st, phase: "called", t: 0, crew: null, boss: null, maxhp: 1 };
@@ -24177,7 +24368,23 @@ export default function IronLionLayer004() {
         if (!b || b.hp <= 0 || j.crew.members.indexOf(b) < 0) { j.phase = "done"; j.t = 0; return; }
         // he never dies here. At a third left he goes, which is what makes him a rogue rather
         // than a thug, and what lets the cooldown loop put him back with a bigger job.
-        if (b.hp <= j.maxhp * 0.34) jobEscape();
+        if (b.hp <= j.maxhp * 0.34) {
+          /* THE DIFFERENCE BETWEEN A ROGUE AND A THUG IS THAT HE GETS AWAY -- unless you are
+             actually on him when he breaks. Standing off and shooting is not catching a man.
+             Close the distance before he hits a third and he goes to Cormorant Island. */
+          if (Math.hypot(g.p.x - b.x, g.p.y - b.y) < 140) {
+            g.held = g.held || {};
+            g.held[j.rid] = { crime: j.st.what, t: 0 };
+            const k2 = j.crew.members.indexOf(b);
+            if (k2 >= 0) j.crew.members.splice(k2, 1);
+            j.phase = "done"; j.t = 0;
+            g.jobBanner = ROGUE_JOB[j.rid].name + " TAKEN";
+            g.jobNote = "Cormorant Island. " + j.st.what + ".";
+            g.pickupFlash = { nm: "taken", t: 3.2 };
+            return;
+          }
+          jobEscape();
+        }
         return;
       }
       if (j.phase === "escape") {
