@@ -1495,7 +1495,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 397 — ALL 160";
+const BUILD_TAG = "LAYER 398 — RIGHT FOLDER";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -6427,7 +6427,12 @@ export default function IronLionLayer004() {
       // the three race cuts and the Sovereign set are already correctly named and foldered,
       // so they are deliberately NOT here -- pointing them at cuts/ would be a second copy.
     };
-    for (const ck in CUT_MAP) all[ck] = "assets/cuts/" + CUT_MAP[ck] + ".png";
+    /* The cut folder sits at the REPO ROOT, beside game.jsx, not inside assets/. Confirmed
+       from the repository listing: Black_Lion/ holds .github, assets, contact, cuts, numbered
+       and tools side by side. Every one of these was being asked for at assets/cuts/... which
+       is why 161 keys reported missing while the files were sitting right there. */
+    const CUTS_DIR = "cuts/";
+    for (const ck in CUT_MAP) all[ck] = CUTS_DIR + CUT_MAP[ck] + ".png";
 
     const keys = Object.keys(all);
     let left = keys.length;
@@ -6464,6 +6469,23 @@ export default function IronLionLayer004() {
         settle();
       };
       im.onerror = () => {
+        /* ONE RETRY ON THE OTHER LAYOUT before declaring anything missing. A cuts folder can
+           reasonably live either at the repo root or under assets/, and picking wrong cost a
+           whole round of "the files are there and the game cannot see them". Rather than
+           hard-code my guess and be wrong again, try the other one. Guarded by a flag so a
+           genuinely absent file still fails exactly once and is counted. */
+        if (!im.__retried) {
+          const src0 = all[k] || "";
+          let alt = null;
+          if (src0.indexOf("assets/cuts/") === 0) alt = src0.slice("assets/".length);
+          else if (src0.indexOf("cuts/") === 0) alt = "assets/" + src0;
+          if (alt) {
+            im.__retried = 1;
+            all[k] = alt;
+            im.src = alt;
+            return;                       // settle() is NOT called: this load is still open
+          }
+        }
         /* Hosted assets fail silently when the folder is not deployed, and 400 invisible
            sprites look like a bug rather than a missing upload. Count them and say so. */
         g0.missing = (g0.missing || 0) + 1;
