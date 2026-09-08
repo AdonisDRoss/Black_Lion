@@ -14666,22 +14666,48 @@ export default function IronLionLayer004() {
           ctx.fillStyle = vis ? "rgba(255,0,200,0.85)" : "rgba(0,210,255,0.85)";
           ctx.fillRect(m.x - 7, m.y - 7, 14, 14);
           ctx.fillStyle = "#ffffff";
-          ctx.fillText((cr.gang || "?") + (m.boss ? "*" : "") + " " + (m.hp | 0), m.x + 10, m.y + 4);
+          /* RAW hp, not coerced. "0" told us nothing last time: undefined, NaN and a real 0 all
+             print 0 through |0, and they are three completely different bugs. undefined/NaN
+             means the kit never landed on the member; a real 0 means something killed him. */
+          const hpTxt = m.hp === undefined ? "undef"
+            : (typeof m.hp === "number" && Number.isNaN(m.hp)) ? "NaN"
+            : String(m.hp);
+          ctx.fillText((cr.gang || "?") + (m.boss ? "*" : "") + " hp=" + hpTxt
+            + " " + (cr.state || "?"), m.x + 10, m.y + 4);
         }
       }
+      /* The readout goes in SCREEN space, not world space. Sitting it above the player's head
+         meant it rode the camera and the zoom, and at 1.9x over a marble floor it was simply
+         off the top of the phone -- which is indistinguishable from the probe not running. */
       const sh = imgs.current["gang_kings"];
       const g0 = window.__ironlion || {};
-      const px = g.p.x, py = g.p.y;
-      ctx.fillStyle = "rgba(0,0,0,0.8)";
-      ctx.fillRect(px - 160, py - 104, 320, 52);
+      /* Screen space, and parked in the middle of the picture. The HUD is DOM sitting ON TOP
+         of the canvas, so the corners are all spoken for -- readout bottom-left is under the
+         stick, top-right is under the minimap, top-left is under the address panel. The
+         middle is the one place nothing covers. */
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const bx0 = Math.round(W * 0.34), by0 = Math.round(H * 0.46);
+      ctx.fillStyle = "rgba(0,0,0,0.86)";
+      ctx.fillRect(bx0, by0, 360, 78);
+      ctx.strokeStyle = "#ff00c8"; ctx.lineWidth = 2;
+      ctx.strokeRect(bx0, by0, 360, 78);
       ctx.fillStyle = "#f2c24e";
-      ctx.fillText("crews " + g.crews.length + "   members " + seen
-        + "   alive " + alive + "   inView " + inView, px - 152, py - 88);
+      ctx.font = "11px monospace";
+      ctx.fillText("PROBE  crews " + g.crews.length + "  members " + seen
+        + "  alive " + alive + "  inView " + inView, bx0 + 8, by0 + 18);
       ctx.fillText("gang_kings " + (sh ? (sh.width + "x" + sh.height) : "NOT REGISTERED")
-        + "   missingArt " + ((g0.missingArt || []).length), px - 152, py - 74);
+        + "  missingArt " + ((g0.missingArt || []).length), bx0 + 8, by0 + 34);
       ctx.fillText("inside " + (g.inside ? (g.inside.kind || "bld") : "no")
-        + "   floor " + g.floor + "   job " + (g.job ? g.job.phase + "/" + g.job.type : "none"),
-        px - 152, py - 60);
+        + "  floor " + g.floor + "  job " + (g.job ? g.job.phase + "/" + g.job.type : "none"),
+        bx0 + 8, by0 + 50);
+      /* And what the JOB thinks its own crew is, which is a different object path from the one
+         the boxes walk. If these two disagree, the crew on screen is not the crew the job is
+         watching, and that is the bug rather than anything about hp. */
+      const jc = g.job && g.job.crew;
+      ctx.fillText("jobcrew " + (jc ? (jc.members || []).length + " st=" + (jc.state || "?")
+          + " ind=" + (jc.indoor ? "y" : "n") + " same=" + (jc.indoor === g.inside ? "y" : "n")
+        : "none") + "  boss " + (g.job && g.job.boss ? "y" : "n"),
+        bx0 + 8, by0 + 66);
       ctx.restore();
     }
     /* ---------- end CREW PROBE ---------- */
@@ -16691,7 +16717,10 @@ export default function IronLionLayer004() {
           if (Math.hypot(cr.x - cx, cr.y - cy) > 5000) g.crews.splice(n, 1);
           continue;
         }
-        if (!cr.indoor && Math.hypot(cr.x - cx, cr.y - cy) > 5000) {
+        /* Distance-cull the street only while you are ON it. Indoors, cx/cy are your position
+           inside the building, and half the city would read as 5000 away and be deleted out
+           from under you while you bought a sandwich. */
+        if (!cr.indoor && !g.inside && Math.hypot(cr.x - cx, cr.y - cy) > 5000) {
           if (cr.car) { const ci = g.traffic.indexOf(cr.car); if (ci >= 0) g.traffic.splice(ci, 1); }
           g.crews.splice(n, 1); continue;
         }
@@ -22382,12 +22411,31 @@ export default function IronLionLayer004() {
     }
     /* Whoever is actually on it. `rd_lion_ride` is a combined Darius-and-bike plate, so every
        ally rode as the Lion -- an ally gets the bare bike with his own torso drawn over it. */
+    /* The plate for the bike you are ACTUALLY on. drawMoto used to hard-code "rd_lion_bike"
+       in all three of its branches, so mounting LUNA set g.moto.skin and g.moto.model -- which
+       is why the lavender headlight came out right, MOTO_LAMP reads g.moto.model -- and then
+       painted Darius's machine underneath it. That is the whole "when I get in Eclipse's bike
+       it changes to Lion's" report: only the lamp was ever hers.
+       The skin is the point of a named bike. Read it, and fall back to his only if the named
+       art is missing, so a bike whose sheet has not landed still draws something.
+       Known edge, deliberately left: if DARIUS takes LUNA he still shows on his own combined
+       rider plate, because that branch is chosen on g.who, not on the bike. */
+    function motoPlate() {
+      const c = g.moto;
+      const k = (c.skin && c.skin.k) || c.model || null;
+      return {
+        im: k ? firstImg(k, "rd_lion_bike", "motorcycle") : firstImg("rd_lion_bike", "motorcycle"),
+        len: (c.skin && c.skin.len) || MOTO_M.len,
+        named: !!k && k !== "rd_lion_bike",
+      };
+    }
     function drawMoto() {
       const c = g.moto;
       const mounted = g.mode === "moto";
+      const plateM = motoPlate();
       if (mounted && g.who !== "lion") {
-        const L = MOTO_M.len;
-        const im = firstImg("rd_lion_bike", "motorcycle");
+        const L = plateM.len;
+        const im = plateM.im;
         if (im && im.width) {
           const w = L * (im.width / im.height);
           ctx.save();
@@ -22405,7 +22453,7 @@ export default function IronLionLayer004() {
         return;
       }
       // mounted -> rider-and-bike plate for the current heading; parked -> the bare bike
-      if (mounted && drawRider("rd_lion_ride", c.x, c.y, c.ang, MOTO_M.len * 1.3)) {
+      if (mounted && !plateM.named && drawRider("rd_lion_ride", c.x, c.y, c.ang, MOTO_M.len * 1.3)) {
         motoLight(c);
         const inp = input.current, k = inp.keys;
         if (inp.brake || k[" "] || inp.reverse || k["s"] || k["arrowdown"]) {
@@ -22424,9 +22472,9 @@ export default function IronLionLayer004() {
 
          His bike is his; the plain `motorcycle` plate goes to the Wolves, who never had one of
          their own that worked. */
-      const L = MOTO_M.len;
+      const L = plateM.len;
       // bare bike first; the combined plate is only a fallback if that asset is missing
-      const im = firstImg("rd_lion_bike", "motorcycle");
+      const im = plateM.im;
       if (!im || !im.width) return;
       const w = L * (im.width / im.height);
       ctx.save();
@@ -22965,7 +23013,14 @@ export default function IronLionLayer004() {
       updatePolice(dt);
       updateDetectives(dt);
       if (!g.inside) updateChatter(dt);
-      if (!g.inside) updateCrews(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
+      /* NOT gated on !g.inside any more. updateCrews is written to handle being indoors -- it
+         has `if (!cr.indoor && g.inside) continue;` a few lines in, and spawnCourt/spawnThrone
+         at the top are both guarded on g.inside being SET -- but the gate here meant it never
+         ran in a building, so none of that code had ever executed. An indoor crew therefore got
+         no AI at all: it never picked a target, never advanced, never swung. That is "the Kings
+         inside didn't attack, they didn't even move", and it is also why the club court and the
+         throne room have always been empty. */
+      updateCrews(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       if (!g.inside) updateTraffic(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       if (!g.inside) updateFwyTraffic(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       updateAudio(dt);
@@ -23180,7 +23235,6 @@ export default function IronLionLayer004() {
       if (!g.inside) drawBoss();
       if (!g.inside) drawLeaders(view);
       drawRankBadges();
-      drawCrewProbe(view);          // TEMPORARY -- delete with the CREW PROBE block
       if (!g.inside) drawFlashpoints();
       if (!g.inside) drawFireDept();
       if (!g.inside) drawSecondAlarm();
@@ -23273,6 +23327,9 @@ export default function IronLionLayer004() {
       if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); }
       drawGuards(); drawDeputies(); drawBlast();
       drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
+      drawCrewProbe(view);          // TEMPORARY -- delete with the CREW PROBE block.
+                                    // LAST on purpose: called earlier, interior furniture
+                                    // painted straight over the boxes and it read as nothing.
       drawRockets(); drawChoppers();
       /* Anyone in the fight, not only gang crews -- police, and any civilian who has been hit.
          A bar over one man and nothing over the next reads as a bug rather than a rule. */
@@ -25485,7 +25542,16 @@ export default function IronLionLayer004() {
         g.pickupFlash = { nm: "bull_bar", t: 1.6 };
       } else if (sp.id === "smoke") {
         g.slicks = g.slicks || [];
-        g.slicks.push({ x: v.x - cs * 50, y: v.y - sn * 50, r: 90, t: 14, smoke: 1 });
+        /* The cloud she drops on the spot, and it now sits on the road long enough to be worth
+           riding through -- 14s was gone before a car that saw her turn had finished turning. */
+        g.slicks.push({ x: v.x - cs * 50, y: v.y - sn * 50, r: 90, t: 24, smoke: 1 });
+        /* AND SHE KEEPS LAYING IT. One puff behind a moving bike is a puff she has already
+           ridden out of by the time it is drawn, which is why the ability read as nothing
+           happening. This runs for three seconds and drops a smaller cloud behind whatever she
+           is riding, so what she leaves down the road is a wall rather than a full stop.
+           Time-limited and self-clearing: there is no way to leave it switched on. */
+        g.smokeTrail = 3.0;
+        g.smokeTick = 0;
         g.pickupFlash = { nm: "smoke_out", t: 1.6 };
       } else if (sp.id === "boost") {
         return turboBoost();
@@ -25569,7 +25635,22 @@ export default function IronLionLayer004() {
     function stepSlicks(dt) {
       g.specCd = Math.max(0, (g.specCd || 0) - dt);
       g.ramT = Math.max(0, (g.ramT || 0) - dt);
-      const L = g.slicks || [];
+      g.slicks = g.slicks || [];
+      const L = g.slicks;
+      /* Maxine's trail. Laid off the back of whatever she is actually driving, so it works on
+         LUNA and out of the van without knowing which. Each puff is smaller and shorter-lived
+         than the one she drops on the spot -- a trail is a screen, not fourteen bombs. */
+      if ((g.smokeTrail || 0) > 0) {
+        g.smokeTrail = Math.max(0, g.smokeTrail - dt);
+        g.smokeTick = (g.smokeTick || 0) - dt;
+        const tv = inVehicle() ? activeVeh() : null;
+        if (tv && Number.isFinite(tv.x) && g.smokeTick <= 0) {
+          g.smokeTick = 0.10;
+          const a2 = tv.ang || 0;
+          L.push({ x: tv.x - Math.cos(a2) * 34, y: tv.y - Math.sin(a2) * 34,
+                   r: 54, t: 11, smoke: 1 });
+        }
+      }
       for (let i = L.length - 1; i >= 0; i--) {
         const s2 = L[i];
         s2.t -= dt;
@@ -26006,7 +26087,7 @@ export default function IronLionLayer004() {
       )}
       {hud.raid && (
         <div style={{ marginTop: 6, fontSize: 9, letterSpacing: "0.12em", color: "#ff9a5a" }}>
-          {hud.raid.from} IN {hud.raid.held} TURF \u00b7 {hud.raid.dist}m
+          {hud.raid.from} IN {hud.raid.held} TURF · {hud.raid.dist}m
         </div>
       )}
       {hud.pull > 0 && (
