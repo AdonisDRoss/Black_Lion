@@ -1536,7 +1536,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 423 — THERE HE IS";
+const BUILD_TAG = "LAYER 424 — REGISTERED";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -24973,6 +24973,14 @@ export default function IronLionLayer004() {
       const outdoors = (j.type === "haul" || j.type === "grab");
       const cr = warCrew(gang, outdoors ? x : sx, outdoors ? y : sy,
                          Math.max(1, R.crew + 1), R.wing);
+      /* warCrew registers the crew ITSELF -- the last line of its body is g.crews.push(cr).
+         I briefly added a second push here on the theory that it did not, which would have
+         put the same crew in the list twice: drawn twice, damaged twice, counted twice.
+         Removed. What WAS missing is the state: warCrew builds every crew as "hang", so the
+         men stood around idle at a robbery and never engaged, and the whole crowd read as
+         bystanders rather than as the crew doing the job. */
+      cr.state = "hostile";
+      cr.war = 0;                     // this is a crime, not a turf war -- no rival to seek
       if (site0 && !outdoors) { cr.indoor = site0; cr.indoorFloor = 0; }
       const boss = cr.members[0];
       boss.hp = R.hp; boss.boss = 1; boss.rid = j.rid;
@@ -25311,6 +25319,12 @@ export default function IronLionLayer004() {
           g.pickupFlash = { nm: "job_done", t: 3.0 };
         }
         return;
+      }
+      if (j.phase === "done" && j.t === 0 && j.crew) {
+        // the job is over: its crew leaves with it rather than standing in the street forever
+        const ci = g.crews.indexOf(j.crew);
+        if (ci >= 0) g.crews.splice(ci, 1);
+        j.crew = null;
       }
       if (j.phase === "done" && j.t > 90) callJob();   // the loop: he is out again
     }
