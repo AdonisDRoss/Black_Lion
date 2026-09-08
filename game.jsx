@@ -16615,7 +16615,26 @@ export default function IronLionLayer004() {
 
       for (let n = g.crews.length - 1; n >= 0; n--) {
         const cr = g.crews[n];
-        if (cr.indoor && (cr.indoor !== g.inside || cr.indoorFloor !== g.floor)) { g.crews.splice(n, 1); continue; }
+        /* An indoor crew is NOT stale just because you happen to be outdoors.
+           updateCrews is only ever called with g.inside === null (see the call site), so this
+           line used to fire on every indoor crew every frame and splice it out one frame after
+           it was created -- including the job crew, which jobArrive builds while you are still
+           driving to the site. That is the whole "the rogue and his crew do not appear" bug:
+           j.boss and j.crew still held live references, so the boss ring, his name and the
+           countdown all drew (they read off j.boss directly), while the bodies did not, because
+           the draw loop iterates g.crews and the crew was no longer in it. It also explains why
+           moving haul and grab outdoors at L422 fixed those two job types and left rob and bomb
+           broken: only the indoor ones set cr.indoor.
+           Leave the crew alone and let it wait in its room. Drop it only when you are far enough
+           away that you are not coming back for it. Every draw and combat loop in this file
+           already filters on cr.indoor === g.inside, so a waiting crew costs nothing.
+           `continue` rather than falling through is load-bearing: without it the per-member AI
+           below runs on men standing inside a building while you are on the street, and they
+           walk out through the walls towards you. */
+        if (cr.indoor && (cr.indoor !== g.inside || cr.indoorFloor !== g.floor)) {
+          if (Math.hypot(cr.x - cx, cr.y - cy) > 5000) g.crews.splice(n, 1);
+          continue;
+        }
         if (!cr.indoor && Math.hypot(cr.x - cx, cr.y - cy) > 5000) {
           if (cr.car) { const ci = g.traffic.indexOf(cr.car); if (ci >= 0) g.traffic.splice(ci, 1); }
           g.crews.splice(n, 1); continue;
