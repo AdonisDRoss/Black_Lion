@@ -1536,7 +1536,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 421 — THE HAUL";
+const BUILD_TAG = "LAYER 422 — IN THE STREET";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -9763,6 +9763,10 @@ export default function IronLionLayer004() {
       /* These used to be drawn here, at the tail of drawRoof -- which only runs when you are
          standing ON a roof. That is why the guide arrow, the oil, the rocket and the muzzle
          flashes all disappeared the moment you got in a car. They belong in the frame. */
+      /* Pinned to the banner. The banner is confirmed to draw while you are driving, so
+         anchoring the arrow to the same call is the one placement that cannot be gated out
+         by a branch I have misread -- which is what happened the last two times. */
+      drawJobArrow();
       drawJobBanner();
       if (g.wireFx && Number.isFinite(g.wireFx.x0) && Number.isFinite(g.wireFx.y0)
           && Number.isFinite(g.wireFx.x1) && Number.isFinite(g.wireFx.y1)
@@ -20249,6 +20253,12 @@ export default function IronLionLayer004() {
             musicPlay(g.gigBand);
           }
           else if (cj === 9 && (ci === 5 || ci === 6)) musicPlay("youth");
+          /* A JOB OWNS THE MUSIC. The six themes were registered and never played -- nothing
+             ever asked for them, so the zone track kept running through every crime in the
+             game. A live job takes the speakers and hands them back when it ends. */
+          else if (g.job && g.job.rid && g.job.phase !== "done" && g.job.phase !== "gone"
+                   && g.job.phase !== "called")
+            musicPlay("vil_" + g.job.rid);
           else commit(ZONE_MUSIC[zoneOf(ci, cj)] || "drive");
         }
         }
@@ -22990,7 +23000,6 @@ export default function IronLionLayer004() {
       if (!g.inside) drawFoodTrucks(view);
       if (g.inside) drawInterior(g.inside, g.floor, g.insideT);
       drawHeldRogues();
-      drawJobArrow();     // on foot, on a bike, in a car, on a roof, indoors
       // staff, customers and anyone robbing them, on top of the floor and its furniture
       if (g.inside && g.insideT > 0.5) drawShopFolk();
       drawComp();
@@ -24118,7 +24127,12 @@ export default function IronLionLayer004() {
                 || (() => { const c = getCell(g.job.st.i, g.job.st.j);
                             return { x: (c.lx0 + c.lx1) / 2, y: (c.ly0 + c.ly1) / 2 }; })();
       if (!tgt || !Number.isFinite(tgt.x)) return;
-      const dx = tgt.x - g.p.x, dy = tgt.y - g.p.y;
+      /* Anchored to WHATEVER YOU ARE IN, not to g.p. In a vehicle g.p is left standing where
+         you got in, so the arrow was being drawn back at the kerb you parked at -- off screen,
+         which reads as it disappearing the moment you drive. */
+      const me = inVehicle() ? activeVeh() : g.p;
+      if (!me || !Number.isFinite(me.x)) return;
+      const dx = tgt.x - me.x, dy = tgt.y - me.y;
       const d = Math.hypot(dx, dy) || 1;
       /* It leads ALL the way. Cutting it at 240 meant it vanished exactly when the site was
          somewhere in front of you and you still could not tell which door. 70 is close enough
@@ -24126,7 +24140,7 @@ export default function IronLionLayer004() {
       if (d < 70) return;
       const a = Math.atan2(dy, dx);
       const R = 150;
-      const ax = g.p.x + Math.cos(a) * R, ay = g.p.y + Math.sin(a) * R;
+      const ax = me.x + Math.cos(a) * R, ay = me.y + Math.sin(a) * R;
       ctx.save();
       ctx.translate(ax, ay); ctx.rotate(a);
       ctx.fillStyle = "rgba(232,196,106,0.92)";
@@ -24921,8 +24935,14 @@ export default function IronLionLayer004() {
       const site0 = (getCell(j.st.i, j.st.j).blds || []).find((q) => q.door && !q.perimeter);
       const sx = site0 ? site0.x + site0.w / 2 : x;
       const sy = site0 ? site0.y + site0.h / 2 : y;
-      const cr = warCrew(gang, sx, sy, Math.max(1, R.crew + 1), R.wing);
-      if (site0) { cr.indoor = site0; cr.indoorFloor = 0; }
+      /* A HAUL HAPPENS IN THE STREET. The robbery ties its crew to the building, which is
+         right for a bank job and wrong for an armoured car -- it put Elias and everybody with
+         him INSIDE the bank while the truck sat on the road outside, so you arrived at the
+         scene and there was nobody there. Only the indoor job goes indoors. */
+      const outdoors = (j.type === "haul" || j.type === "grab");
+      const cr = warCrew(gang, outdoors ? x : sx, outdoors ? y : sy,
+                         Math.max(1, R.crew + 1), R.wing);
+      if (site0 && !outdoors) { cr.indoor = site0; cr.indoorFloor = 0; }
       const boss = cr.members[0];
       boss.hp = R.hp; boss.boss = 1; boss.rid = j.rid;
       /* `loud` was defined on all five rogues and referenced NOWHERE -- dead data since the
@@ -24951,15 +24971,17 @@ export default function IronLionLayer004() {
       cr.members.forEach((mm, mi) => {
         if (!mi) return;
         const ang = (mi / Math.max(1, cr.members.length - 1)) * 6.283;
-        mm.x = sx + Math.cos(ang) * spread * (0.55 + 0.45 * ((mi * 7) % 5) / 5);
-        mm.y = sy + Math.sin(ang) * spread * (0.55 + 0.45 * ((mi * 3) % 5) / 5);
+        const ox = outdoors ? x : sx, oy = outdoors ? y : sy;
+        mm.x = ox + Math.cos(ang) * spread * (0.55 + 0.45 * ((mi * 7) % 5) / 5);
+        mm.y = oy + Math.sin(ang) * spread * (0.55 + 0.45 * ((mi * 3) % 5) / 5);
         // keep them off the walls, or half of them get filtered out of the room
-        if (site0) {
+        if (site0 && !outdoors) {
           mm.x = clamp(mm.x, site0.x + 26, site0.x + site0.w - 26);
           mm.y = clamp(mm.y, site0.y + 26, site0.y + site0.h - 26);
         }
       });
-      if (site0) { boss.x = sx; boss.y = sy; }
+      if (site0 && !outdoors) { boss.x = sx; boss.y = sy; }
+      else { boss.x = x; boss.y = y; }
       /* La Voz does not bring muscle, she brings somebody who already works there. One of
          hers is unarmed and stands still -- the inside man, who is the approach. */
       /* THE MONEY GOES UP. Not stolen -- burned, in the building it lived in, which is a
@@ -25123,8 +25145,11 @@ export default function IronLionLayer004() {
           }
         }
         // the crew is the job until it is not. No crew, and it goes straight to the pursuit.
-        const alive = (j.crew && j.crew.members || []).filter((mm) => mm && mm.hp > 0).length;
-        if (alive === 0) startRunner(j);
+        /* The boss counts as his own crew of one, so a rogue who brings NOBODY never cleared
+           and the pursuit never started. Count the men he brought, not the man himself. */
+        const alive = (j.crew && j.crew.members || [])
+          .filter((mm) => mm && mm.hp > 0 && mm !== j.boss).length;
+        if (alive === 0 && !j.moving) startRunner(j);
         return;
       }
       if (j.phase === "runner") {
