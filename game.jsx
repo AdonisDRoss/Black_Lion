@@ -1536,7 +1536,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 422 — IN THE STREET";
+const BUILD_TAG = "LAYER 423 — THERE HE IS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -9766,6 +9766,7 @@ export default function IronLionLayer004() {
       /* Pinned to the banner. The banner is confirmed to draw while you are driving, so
          anchoring the arrow to the same call is the one placement that cannot be gated out
          by a branch I have misread -- which is what happened the last two times. */
+      drawJobBoss();
       drawJobArrow();
       drawJobBanner();
       if (g.wireFx && Number.isFinite(g.wireFx.x0) && Number.isFinite(g.wireFx.y0)
@@ -13697,6 +13698,14 @@ export default function IronLionLayer004() {
       if (b.shape === "capitol") {
         const cx2 = b.x + b.w / 2, cy2 = b.y + b.h / 2;
         const mw = b.w * 0.52, mh = b.h * 0.62;
+        /* RESPECT THE FADE. drawBuildingExt is called for the building you are standing in
+           with alpha = 1 - insideT, so the exterior can dissolve as you walk in. Every colour
+           in this block was a solid literal, so City Hall's roof kept painting at full opacity
+           over the interior -- which is why the dome turned up on the floor of levels two and
+           three. Everything below rides globalAlpha, and at a full fade we do not draw at all. */
+        if (alpha < 0.02) return;
+        ctx.save();
+        ctx.globalAlpha *= alpha;
         ctx.fillStyle = "#f4f3ee";                                  // white stone, not stucco
         ctx.fillRect(cx2 - mw / 2, cy2 - mh / 2, mw, mh);
         const ww = b.w * 0.21, wh = mh * 0.66;                      // a wing either side
@@ -13748,6 +13757,7 @@ export default function IronLionLayer004() {
         ctx.beginPath(); ctx.arc(cx2 - R * 0.03, cy2 - R * 0.05, R * 0.15, 0, 6.3); ctx.fill();
         ctx.strokeStyle = "rgba(80,60,14,0.5)"; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.arc(cx2 - R * 0.03, cy2 - R * 0.05, R * 0.15, 0, 6.3); ctx.stroke();
+        ctx.restore();
       } else if (b.shape === "mansion") {
         const cx2 = b.x + b.w / 2;
         const mw = b.w * 0.60, mh = b.h * 0.46;
@@ -24120,6 +24130,27 @@ export default function IronLionLayer004() {
     }
     /* WHERE THE JOB IS. An arrow pinned near the edge of the screen pointing at it, with the
        distance -- there is no other way to find a crime in a city this size. */
+    /* WHERE HE IS STANDING. A ring and his name over the boss for as long as the job runs.
+       You reported arriving at a haul and finding nobody twice; the crew was in the wrong
+       place the first time, and the second time I still had no way to tell you whether he was
+       there at all. Now the game says so -- and if this draws nothing, he genuinely is not
+       spawned, which is a different bug and one I can then go and find. */
+    function drawJobBoss() {
+      const j = g.job;
+      if (!j || !j.boss || j.phase === "done" || j.phase === "gone") return;
+      const b = j.boss;
+      if (!Number.isFinite(b.x) || b.hp <= 0) return;
+      const pulse = 0.5 + 0.5 * Math.sin(g.t * 5);
+      ctx.strokeStyle = `rgba(232,120,90,${0.5 + 0.4 * pulse})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(b.x, b.y, 26 + pulse * 5, 0, 6.3); ctx.stroke();
+      ctx.font = "700 11px system-ui, sans-serif";
+      const nm = (ROGUE_JOB[j.rid] || {}).name || "";
+      ctx.fillStyle = "rgba(10,9,12,0.8)";
+      ctx.fillRect(b.x - nm.length * 3.4 - 5, b.y - 46, nm.length * 6.8 + 10, 15);
+      ctx.fillStyle = "#ff9a7a";
+      ctx.fillText(nm, b.x - nm.length * 3.4, b.y - 35);
+    }
     function drawJobArrow() {
       if (!g.job || !g.job.st) return;
       if (g.job.phase === "done" || g.job.phase === "gone") return;
@@ -25021,7 +25052,9 @@ export default function IronLionLayer004() {
         g.traffic.push(tv);
         j.truck = tv; j.moving = moving;
         j.phase = "haul"; j.t = 0;
-        g.jobBanner = R.name + (moving ? " \u00b7 STILL ROLLING" : " \u00b7 IT IS OPEN");
+        const men = (cr.members || []).filter((mm) => mm && mm !== boss).length;
+        g.jobBanner = R.name + (moving ? " \u00b7 STILL ROLLING" : " \u00b7 IT IS OPEN")
+                    + "  [" + (men ? men + " with him" : "alone") + "]";
         g.jobNote = moving ? "They have not stopped it yet. Get to it before they do."
                            : "The doors are off. Whatever is left is still in there.";
         g.pickupFlash = { nm: moving ? "still_rolling" : "doors_are_off", t: 3.4 };
