@@ -23429,7 +23429,6 @@ export default function IronLionLayer004() {
         drawSlicks();
         drawRockets();
         drawMuzzles();
-        drawBomb();
         drawGrab();
         if (g.fireFloor === 0) drawFireRoofs(view);
         drawGasRoofs(view);
@@ -23456,6 +23455,13 @@ export default function IronLionLayer004() {
         // on the deck you must be drawn above the slab you are standing on
         if (g.onFwy && !g.onRamp && inVehicle()) { if (g.mode === "car") drawCar(); else drawMoto(); }
       }
+      /* THE DEVICE IS INSIDE A BUILDING. drawBomb sat in the `if (!g.inside)` block above, so
+         the one job that puts an object in a room was the one job whose object was only ever
+         drawn on the street. You could stand on it, defuse it by accident, or -- far more
+         likely -- never see it and eat TOO LATE. Same family as the arrow being pinned to the
+         banner: anything the player has to walk to has to draw wherever the player is.
+         drawGrab stays outdoors: the grab walks somebody to a car, and the car is on the street. */
+      drawBomb();
       if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); }
       drawGuards(); drawDeputies(); drawBlast();
       drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
@@ -24464,7 +24470,20 @@ export default function IronLionLayer004() {
       if (!g.job || g.job.phase !== "fuse" || !g.job.bomb) return;
       const B = g.job.bomb;
       const d = Math.hypot(g.p.x - B.x, g.p.y - B.y);
-      if (B.hidden && d > 260) return;
+      if (B.hidden && d > 260) {
+        /* A hidden device with no tell is not hidden, it is absent -- Kuru, El Monstruo and
+           La Voz all hide theirs, which is three of the six jobs you cannot find. Outside 260
+           you get a direction and a fading pulse, not the thing itself: still a search, but a
+           search with a hot and cold. */
+        const a = Math.atan2(B.y - g.p.y, B.x - g.p.x);
+        const pulse = 0.30 + 0.30 * Math.sin(g.t * 4);
+        const rr = 128;
+        ctx.fillStyle = `rgba(235,90,70,${pulse})`;
+        ctx.beginPath();
+        ctx.arc(g.p.x + Math.cos(a) * rr, g.p.y + Math.sin(a) * rr, 5 + 2 * pulse, 0, 6.3);
+        ctx.fill();
+        return;
+      }
       const blink = 0.5 + 0.5 * Math.sin(g.t * (B.fuse < 20 ? 18 : 7));
       /* Per-rogue device art, keyed bomb_<rid> -- bomb_mvp, bomb_kuru, bomb_drive,
          bomb_monstruo, bomb_voz, bomb_arson. Falls back to the old black box the moment one is
@@ -25303,8 +25322,24 @@ export default function IronLionLayer004() {
     function jobArrive() {
       const j = g.job, R = ROGUE_JOB[j.rid];
       const [x, y] = jobSiteXY(j.st);
+      /* WHO IS STANDING WITH HIM. The wing decides it, and the wings already say the right
+         thing: kuru ninja, drive cyber, monstruo mime, voz mime -- she shares his, because she
+         IS in his crew -- and mvp and arson null, because neither of them keeps men.
+         A wingless rogue who still needs bodies borrows the LOCAL gang, whoever holds the turf
+         he picked. `Object.keys(GANG_COL)[0]` was hardcoded to kings, so every job in the city
+         was a Kings job regardless of whose corner it happened on. Whoever runs that block
+         turns out for him now, which is also how he gets men without having any. */
       let gang = null;
-      try { gang = Object.keys(GANG_COL || {})[0] || null; } catch (e) { gang = null; }
+      try {
+        gang = zoneGang(j.st.i, j.st.j) || Object.keys(GANG_COL || {})[0] || null;
+      } catch (e) {
+        try { gang = Object.keys(GANG_COL || {})[0] || null; } catch (e2) { gang = null; }
+      }
+      /* MVP and the Arsonist run alone by design -- crew 0 -- but "alone" cannot mean "alone
+         with an armoured car he is supposed to be emptying". On the two jobs that are physical
+         work he gets local hands: no wing, no hx plate, so they draw as exactly what they are,
+         men off that corner rather than anybody's crew. */
+      const borrowed = (!R.wing && (j.type === "haul" || j.type === "grab")) ? 2 : 0;
       /* THEY HAVE TO BE INSIDE THE BANK. The crew was spawned at the CELL centre with no
          `indoor` set, which puts them on the pavement -- and every draw and combat loop in
          this file skips a crew with no indoor when YOU are inside. So you walked into the
@@ -25319,7 +25354,7 @@ export default function IronLionLayer004() {
          scene and there was nobody there. Only the indoor job goes indoors. */
       const outdoors = (j.type === "haul" || j.type === "grab");
       const cr = warCrew(gang, outdoors ? x : sx, outdoors ? y : sy,
-                         Math.max(1, R.crew + 1), R.wing);
+                         Math.max(1, R.crew + 1 + borrowed), R.wing);
       /* warCrew registers the crew ITSELF -- the last line of its body is g.crews.push(cr).
          I briefly added a second push here on the theory that it did not, which would have
          put the same crew in the list twice: drawn twice, damaged twice, counted twice.
