@@ -14630,6 +14630,62 @@ export default function IronLionLayer004() {
       }
     }
 
+    /* ---------- TEMPORARY: CREW PROBE -- delete this whole block when the draw bug is shut
+       Flip CREW_PROBE to false to silence it without deleting anything.
+
+       The crew is now provably IN g.crews and provably NEAR you -- the rank card names
+       DARNELL MOSELY, and that panel only appears for a live member inside nearestMember's
+       range. So the remaining fault is downstream of the cull, in the draw. Three candidates
+       are left and reading the file cannot separate them, because they all depend on runtime
+       state:
+         1. the members never reach drawKing, because the view-rect test in the crew draw loop
+            rejects them (drawRankBadges has no such test, which is exactly why the tags show
+            and the bodies do not -- that asymmetry is the single best lead here);
+         2. they reach drawKing, but imgs.current["gang_kings"] never loaded, so drawGangTop
+            returns false and falls through to m.o, which warCrew sets to null -- draws nothing;
+         3. they reach drawKing and draw, but somewhere off under the touch buttons.
+
+       This answers all three in one look, on the phone, with no console:
+         MAGENTA box = member passed the view test.  CYAN box = member failed it.
+         No box at all = the crew is not where you think it is.
+       and the readout over your head gives the sheet's real dimensions. */
+    const CREW_PROBE = true;
+    function drawCrewProbe(view) {
+      if (!CREW_PROBE) return;
+      let seen = 0, inView = 0, alive = 0;
+      ctx.save();
+      ctx.font = "10px monospace";
+      for (const cr of g.crews) {
+        // the same filter the real draw loop uses, MINUS the view test
+        if (cr.indoor ? (cr.indoor !== g.inside || cr.indoorFloor !== g.floor) : g.inside) continue;
+        for (const m of cr.members) {
+          seen++;
+          if (m.hp > 0) alive++;
+          const vis = !(m.x < view.x0 || m.x > view.x1 || m.y < view.y0 || m.y > view.y1);
+          if (vis) inView++;
+          ctx.fillStyle = vis ? "rgba(255,0,200,0.85)" : "rgba(0,210,255,0.85)";
+          ctx.fillRect(m.x - 7, m.y - 7, 14, 14);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText((cr.gang || "?") + (m.boss ? "*" : "") + " " + (m.hp | 0), m.x + 10, m.y + 4);
+        }
+      }
+      const sh = imgs.current["gang_kings"];
+      const g0 = window.__ironlion || {};
+      const px = g.p.x, py = g.p.y;
+      ctx.fillStyle = "rgba(0,0,0,0.8)";
+      ctx.fillRect(px - 160, py - 104, 320, 52);
+      ctx.fillStyle = "#f2c24e";
+      ctx.fillText("crews " + g.crews.length + "   members " + seen
+        + "   alive " + alive + "   inView " + inView, px - 152, py - 88);
+      ctx.fillText("gang_kings " + (sh ? (sh.width + "x" + sh.height) : "NOT REGISTERED")
+        + "   missingArt " + ((g0.missingArt || []).length), px - 152, py - 74);
+      ctx.fillText("inside " + (g.inside ? (g.inside.kind || "bld") : "no")
+        + "   floor " + g.floor + "   job " + (g.job ? g.job.phase + "/" + g.job.type : "none"),
+        px - 152, py - 60);
+      ctx.restore();
+    }
+    /* ---------- end CREW PROBE ---------- */
+
     /* ---------- flashpoints ----------
        The war's central mechanic, and the reason Darius is in it. Two things happen at once
        in different quarters. You can reach one. The other happens anyway -- a shop burns and
@@ -23124,6 +23180,7 @@ export default function IronLionLayer004() {
       if (!g.inside) drawBoss();
       if (!g.inside) drawLeaders(view);
       drawRankBadges();
+      drawCrewProbe(view);          // TEMPORARY -- delete with the CREW PROBE block
       if (!g.inside) drawFlashpoints();
       if (!g.inside) drawFireDept();
       if (!g.inside) drawSecondAlarm();
