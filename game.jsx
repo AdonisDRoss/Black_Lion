@@ -2367,6 +2367,17 @@ const BANK_CELLS = [
    Kenny already use, which is what makes the mask a TACTIC here rather than a costume: the
    police hunt a description, so changing out of sight ends the hunt. A reporter who works
    her cases by daylight and goes out at night is exactly the shape that system was built for. */
+/* THE KEYS HAVE TO BE REGISTERED OR THEY ARE NEVER FETCHED. imgs.current is filled from the
+   `all` map further down; a key that appears nowhere in these tables is simply never asked
+   for, and every lookup of it returns undefined forever. That is the trap this file already
+   fell into once with the vault door. */
+const KO_ART = {};
+for (let i = 0; i < 9; i++) KO_ART["ko_" + String(i).padStart(2, "0")] = "assets/ko/ko_" + String(i).padStart(2, "0") + ".png";
+KO_ART["ko_stun"] = "assets/ko/ko_stun.png";
+const BOMB_ART = {};
+for (const k of ["mvp", "kuru", "drive", "monstruo", "voz", "arson"])
+  BOMB_ART["bomb_" + k] = "assets/bomb/bomb_" + k + ".png";
+
 const SOV_ART = {};
 for (const k of ["yt_eclipse", "yt_eclipse_hero",          // reporter / Eclipse
                  "sv_vance", "sv_sovereign",               // the Mayor / the silver mask
@@ -6585,7 +6596,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -10962,6 +10973,13 @@ export default function IronLionLayer004() {
           o: null, pose: "hang1", jit: 0.95 + Math.random() * 0.12,
           phase: Math.random() * 6.28, hx: px, hy: py, fireCd: 0.6 + Math.random(),
           say: 0, line: "", chatCd: 1 + Math.random() * 3, drawnT: 0,
+          /* HENCHMAN PLATE. HENCH_POOL has been registered into VIL since the villains went in
+             -- every hx_ninja / hx_csu / hx_mime file loads on boot -- and nothing has ever
+             drawn one. Kuru's ninjas, Masterdrive's cyber crew and the mimes have all been
+             turning up as generic gang men.
+             NOT called `hx`: that field is already this member's home x, four keys to the
+             left. Named hxArt for that reason and no other. */
+          hxArt: (HENCH_POOL[wing] || [])[i % ((HENCH_POOL[wing] || []).length || 1)] || null,
         });
       }
       const cr = { x, y, members, state: "hang", timer: 0, gang, wing: wing || null, war: 1 };
@@ -17333,6 +17351,17 @@ export default function IronLionLayer004() {
       if (dead) ctx.globalAlpha = DOWN_ALPHA;
       ctx.translate(m.x, m.y - (dead ? 0 : d * g0.lift));
       ctx.rotate(ang);
+      /* m.stun has existed for a long time with nothing to show for it -- a stunned man drew
+         exactly like a standing one. ko_stun is the curled figure, and it is the same silhouette
+         set, so it costs nothing extra. */
+      const stunned = !dead && (m.stun || 0) > 0.15;
+      const stunIm = stunned ? imgs.current["ko_stun"] : null;
+      if (stunIm && stunIm.width) {
+        const sw = d * 1.2;
+        ctx.drawImage(stunIm, -sw / 2, -sw / 2, sw, sw);
+        ctx.restore();
+        return true;
+      }
       // stretched along the body when down, squashed across it when standing
       const ko = dead ? koPlate(m) : null;
       if (ko) {
@@ -17476,6 +17505,23 @@ export default function IronLionLayer004() {
       return u.toprow;
     }
     function drawKing(m, state) {
+      /* THE ROGUE AND HIS CREW HAVE THEIR OWN FACES. vil_<rid> and the hx_ pools are torso
+         plates in exactly the drawYouth family -- overhead, single direction, legs generated
+         underneath -- so they go through drawYouth rather than the gang sheet, and get its
+         walk, its weapon and its swing for free.
+         Until now vil_<rid> was read in one place only, drawHeldRogues, which draws him
+         through a cell door at Cormorant Island. So you could see Masterdrive's face after
+         you caught him and never during the job you caught him on.
+         Alive only: a man on the floor is a KO silhouette, and that has to win. */
+      if ((m.hp || 0) > 0) {
+        const vk = (m.boss && m.rid) ? "vil_" + m.rid : m.hxArt;
+        const vim = vk && imgs.current[vk];
+        if (vim && vim.width) {
+          m.yt = vk;
+          m.tall = m.boss ? 1.18 : 1;      // he should read as the biggest man in the room
+          if (drawYouth(m)) return;
+        }
+      }
       if (drawGangTop(m, state)) return;
       if (!outfitOK(m && m.o)) return;
       const o = m.o;
