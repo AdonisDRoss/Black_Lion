@@ -6544,8 +6544,14 @@ export default function IronLionLayer004() {
        The five Sovereign vehicles all arrived horizontal. Note this list ALREADY EXISTED for
        the bedroom plates -- declaring a second one in the same scope is a SyntaxError and the
        whole file refuses to load, so they go on the end of this one. */
+    /* "luna" is on this list as well as "vh_ecl_bike", and it has to be: SOV_ART.luna is a
+       SECOND KEY pointing at the same file, registered so MOTONAME/MOTO_LAMP have a picture
+       under the model name. The rotation is baked per KEY, not per file, so vh_ecl_bike came
+       out nose-up and luna stayed nose-LEFT. Nothing drew "luna" until drawMoto started
+       reading the skin, and then it did both things a sideways plate does: it rode sideways,
+       and `w = L * (im.width / im.height)` on a landscape image made it enormous. */
     const ROTATE_CW = ["br_00", "br_01", "br_02", "br_03", "br_04",
-                       "vh_sov_limo", "vh_sov_sedan", "vh_sov_suv", "vh_ecl_bike"];
+                       "vh_sov_limo", "vh_sov_sedan", "vh_sov_suv", "vh_ecl_bike", "luna"];
     /* vh_cross_muscle is NOT in that list any more: it now ships already nose-up, and baking
        a second quarter turn would lay it on its side. Same for vh_ecl_van, which was never
        in it. Rotate at CUT time or at LOAD time, never both. */
@@ -14652,7 +14658,7 @@ export default function IronLionLayer004() {
     const CREW_PROBE = true;
     function drawCrewProbe(view) {
       if (!CREW_PROBE) return;
-      let seen = 0, inView = 0, alive = 0;
+      let seen = 0, inView = 0, alive = 0, nofix = 0;
       ctx.save();
       ctx.font = "10px monospace";
       for (const cr of g.crews) {
@@ -14661,6 +14667,13 @@ export default function IronLionLayer004() {
         for (const m of cr.members) {
           seen++;
           if (m.hp > 0) alive++;
+          /* A member with a NaN coordinate is the FRAME ERROR. Canvas throws "the provided
+             value is non-finite" on fillRect/fillText and takes the whole render down -- 120
+             times, once a frame. The rest of the file already guards for this (updateSmoke and
+             hostilesNear both test Number.isFinite on a member), so bad coords are a thing that
+             happens here; the probe was simply the first code to draw one. Count them and skip
+             them, because "how many men have no position" is itself worth knowing. */
+          if (!Number.isFinite(m.x) || !Number.isFinite(m.y)) { nofix++; continue; }
           const vis = !(m.x < view.x0 || m.x > view.x1 || m.y < view.y0 || m.y > view.y1);
           if (vis) inView++;
           ctx.fillStyle = vis ? "rgba(255,0,200,0.85)" : "rgba(0,210,255,0.85)";
@@ -14694,7 +14707,7 @@ export default function IronLionLayer004() {
       ctx.fillStyle = "#f2c24e";
       ctx.font = "11px monospace";
       ctx.fillText("PROBE  crews " + g.crews.length + "  members " + seen
-        + "  alive " + alive + "  inView " + inView, bx0 + 8, by0 + 18);
+        + "  alive " + alive + "  inView " + inView + "  noXY " + nofix, bx0 + 8, by0 + 18);
       ctx.fillText("gang_kings " + (sh ? (sh.width + "x" + sh.height) : "NOT REGISTERED")
         + "  missingArt " + ((g0.missingArt || []).length), bx0 + 8, by0 + 34);
       ctx.fillText("inside " + (g.inside ? (g.inside.kind || "bld") : "no")
@@ -25086,6 +25099,19 @@ export default function IronLionLayer004() {
                 : type === "haul" ? "A truck on the move. Every second you spend is a second of it."
                 : R.approach;
     }
+    /* TEMPORARY test hook -- delete with the CREW PROBE block.
+       ROB is the only job type that leaves the rogue standing at the scene, and the dice give
+       it to you 28% of the time. Bomb and grab both splice the boss out of his own crew on
+       purpose, so "no rogue" on those two is the design working, not a fault. From the browser
+       console: __ironlion.job("rob"). On a phone, put it in the URL bar as
+       javascript:__ironlion.job("rob") -- or just call it from anywhere you can run one line. */
+    if (typeof window !== "undefined") {
+      (window.__ironlion = window.__ironlion || {}).job = (t) => {
+        g.job = null;
+        callJob(t || "rob");
+        return g.job && g.job.type;
+      };
+    }
     function jobArrive() {
       const j = g.job, R = ROGUE_JOB[j.rid];
       const [x, y] = jobSiteXY(j.st);
@@ -25644,9 +25670,9 @@ export default function IronLionLayer004() {
         g.smokeTrail = Math.max(0, g.smokeTrail - dt);
         g.smokeTick = (g.smokeTick || 0) - dt;
         const tv = inVehicle() ? activeVeh() : null;
-        if (tv && Number.isFinite(tv.x) && g.smokeTick <= 0) {
+        if (tv && Number.isFinite(tv.x) && Number.isFinite(tv.y) && g.smokeTick <= 0) {
           g.smokeTick = 0.10;
-          const a2 = tv.ang || 0;
+          const a2 = Number.isFinite(tv.ang) ? tv.ang : 0;
           L.push({ x: tv.x - Math.cos(a2) * 34, y: tv.y - Math.sin(a2) * 34,
                    r: 54, t: 11, smoke: 1 });
         }
