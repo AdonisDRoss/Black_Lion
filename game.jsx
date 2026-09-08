@@ -1536,7 +1536,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 419 — THE TERMINAL IS BACK";
+const BUILD_TAG = "LAYER 421 — THE HAUL";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2713,6 +2713,24 @@ const ROGUE_GRAB = {
   monstruo: { who: "A CASHIER",              walk: 214, note: "Forty of them came out. One of them is not a mime." },
   voz:      { who: "A CITY CLERK",           walk: 228, note: "She asked him to come. He came." },
   arson:    { who: "A FIRE WARDEN",          walk: 200, note: "He took the one whose job was to get everybody out." },
+};
+/* ---------- JOB TYPE FOUR: THE HAUL ----------
+   An armoured car, and the only job where WHEN you arrive decides what you are doing:
+     under 30s  -- you caught it moving. They are still running it down; stop the chase.
+     under 80s  -- it is stopped and open. The robbery is happening; fight for it.
+     after that -- the street is empty and a truck is missing. You were too late.
+   And whichever way it went, the man himself leaves in a car for his own ground. Beat the
+   crew, or arrive to find he never brought one, and the job becomes a pursuit: catch the car
+   before it reaches his base. Two of them bring nobody, so for MVP and Elias this is a chase
+   from the first second, which is the right shape for both of them. */
+const HAUL_EARLY = 30, HAUL_LATE = 80;
+const ROGUE_BASE = {
+  mvp:      { i: 9,  j: 3,  what: "the lot behind the arena" },
+  kuru:     { i: 2,  j: 12, what: "a door in Chinatown that is never locked" },
+  drive:    { i: 19, j: 5,  what: "the workshop in the Yards" },
+  monstruo: { i: 15, j: 12, what: "a theatre in La Perla with the seats taken out" },
+  voz:      { i: 6,  j: 8,  what: "an office downtown with her name on nothing" },
+  arson:    { i: 7,  j: 11, what: "the burn unit. He still has a key." },
 };
 const rogueIds = () => Object.keys(ROGUE_JOB);
 const isJewelCell = (i, j) => JEWEL_CELLS.some((c) => c.i === i && c.j === j);
@@ -4016,9 +4034,12 @@ function makeFloor(b, f, rnd) {
   /* MARBLE. Floors that are supposed to read as money: the banking hall and its vault, the
      mansion, City Hall, and the jewellers. Deliberately NOT the pawn shop -- a pawn shop with
      a marble floor is a different shop. */
+  /* City Hall is marble THROUGHOUT -- it is the one building in the city that is supposed to
+     look like it cost something, and a marble lobby with lino corridors is worse than neither. */
   const MARBLE_ROOMS = { bkhall: 1, bkline: 1, bkvault: 1, bkmgr: 1,
-                         hall: 1, throne: 1, study: 1,
-                         jewel: 1, lobby: 1, chamber: 1, mayor: 1 };
+                         hall: 1, throne: 1, study: 1, jewel: 1,
+                         lobby: 1, chamber: 1, mayor: 1, corridor: 1, office: 1,
+                         conf: 1, clerk: 1, court: 1, records: 1, vestibule: 1 };
   const counterRun = (q, kind, thick) => {
     const W3 = q.x1 - q.x0, H3 = q.y1 - q.y0;
     const t = thick || Math.max(16, H3 - 8);
@@ -4037,8 +4058,11 @@ function makeFloor(b, f, rnd) {
     // the floor itself, before anything stands on it
     /* The jeweller's room kind is "retail" like every other shop -- the trade lives on
        b.arch, not on the room. Checking MARBLE_ROOMS alone returned nothing for them. */
-    if (MARBLE_ROOMS[r.k] && (kind === "bankfloor" || kind === "mansionfloor"
-        || kind === "cityhall")) r.floorTex = "tx_marble";
+    if (MARBLE_ROOMS[r.k] && (kind === "bankfloor" || kind === "mansionfloor")) r.floorTex = "tx_marble";
+    /* City Hall is marble EVERYWHERE except the lavatories. I guessed at its room names first
+       and got five of twenty-eight; the real set is rotunda, vestibule, clerk, chamber,
+       office, corridor, conf and wc -- read out of the plan rather than assumed. */
+    if (kind === "cityhall" && r.k !== "wc") r.floorTex = "tx_marble";
     if (kind === "store" && b && b.arch === "jewel" && r.k === "retail") r.floorTex = "tx_marble";
     // K(standard, luxury) -- one call at each placement instead of a duplicated case per class
     const LUX = isLux(b), K = (std, lux) => (LUX ? lux : std);
@@ -9736,13 +9760,9 @@ export default function IronLionLayer004() {
           ctx.beginPath(); ctx.arc(tx, ty, 4, 0, 6.3); ctx.fill();
         }
       }
-      drawSlicks();
-      drawRockets();
-      drawMuzzles();
-      drawJobArrow();
-      drawBomb();
-      drawGrab();
-      drawHeldRogues();
+      /* These used to be drawn here, at the tail of drawRoof -- which only runs when you are
+         standing ON a roof. That is why the guide arrow, the oil, the rocket and the muzzle
+         flashes all disappeared the moment you got in a car. They belong in the frame. */
       drawJobBanner();
       if (g.wireFx && Number.isFinite(g.wireFx.x0) && Number.isFinite(g.wireFx.y0)
           && Number.isFinite(g.wireFx.x1) && Number.isFinite(g.wireFx.y1)
@@ -13673,7 +13693,7 @@ export default function IronLionLayer004() {
       if (b.shape === "capitol") {
         const cx2 = b.x + b.w / 2, cy2 = b.y + b.h / 2;
         const mw = b.w * 0.52, mh = b.h * 0.62;
-        ctx.fillStyle = "#e8e6df";                                  // the white block
+        ctx.fillStyle = "#f4f3ee";                                  // white stone, not stucco
         ctx.fillRect(cx2 - mw / 2, cy2 - mh / 2, mw, mh);
         const ww = b.w * 0.21, wh = mh * 0.66;                      // a wing either side
         ctx.fillRect(cx2 - mw / 2 - ww, cy2 - wh / 2, ww, wh);
@@ -13686,14 +13706,44 @@ export default function IronLionLayer004() {
         ctx.fillStyle = "#d6d3c9";
         for (let q = 0; q < 5; q++)
           ctx.fillRect(cx2 - mw * 0.30 + q * 2, cy2 + mh / 2 + q * 5, mw * 0.60 - q * 4, 5);
-        // and the dome: a gold half sphere, lit from the upper left like everything else
+        /* THE DOME, as an object SITTING ON the roof rather than a circle painted onto it.
+           Top-down you sell height with three things and this had only one of them: a shadow
+           thrown clear of the base, a drum the sphere rests on, and a specular highlight tight
+           enough to read as curvature. Lit from the upper left, like everything else here. */
         const R = Math.min(mw, mh) * 0.34;
-        const gr = ctx.createRadialGradient(cx2 - R * 0.35, cy2 - R * 0.4, R * 0.1, cx2, cy2, R);
-        gr.addColorStop(0, "#f6dd8a"); gr.addColorStop(0.6, "#d9ad3c"); gr.addColorStop(1, "#8a6a1c");
+        // the shadow it casts across its own roof, offset down-right away from the light
+        ctx.fillStyle = "rgba(24,24,30,0.34)";
+        ctx.beginPath(); ctx.ellipse(cx2 + R * 0.20, cy2 + R * 0.22, R * 1.04, R * 0.98, 0, 0, 6.3);
+        ctx.fill();
+        // the drum: a stone collar the dome stands on, which is what gives it a base
+        ctx.fillStyle = "#dedbd2";
+        ctx.beginPath(); ctx.arc(cx2, cy2, R * 1.06, 0, 6.3); ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,0.28)"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx2, cy2, R * 1.06, 0, 6.3); ctx.stroke();
+        // the sphere itself
+        const gr = ctx.createRadialGradient(cx2 - R * 0.38, cy2 - R * 0.42, R * 0.06, cx2, cy2, R);
+        gr.addColorStop(0, "#fbeeb4"); gr.addColorStop(0.42, "#e0b747");
+        gr.addColorStop(0.82, "#a8801f"); gr.addColorStop(1, "#6d5312");
         ctx.fillStyle = gr;
         ctx.beginPath(); ctx.arc(cx2, cy2, R, 0, 6.3); ctx.fill();
-        ctx.fillStyle = "#f2e2a0";
-        ctx.beginPath(); ctx.arc(cx2, cy2 - R * 0.05, R * 0.13, 0, 6.3); ctx.fill();
+        // ribs, converging on the lantern -- they curve the surface for the eye
+        ctx.strokeStyle = "rgba(90,68,16,0.34)"; ctx.lineWidth = 1.5;
+        for (let q = 0; q < 10; q++) {
+          const th = (q / 10) * 6.283;
+          ctx.beginPath();
+          ctx.moveTo(cx2 + Math.cos(th) * R * 0.16, cy2 + Math.sin(th) * R * 0.16);
+          ctx.lineTo(cx2 + Math.cos(th) * R * 0.97, cy2 + Math.sin(th) * R * 0.97);
+          ctx.stroke();
+        }
+        // the tight specular that makes it a ball and not a disc
+        ctx.fillStyle = "rgba(255,252,232,0.55)";
+        ctx.beginPath(); ctx.ellipse(cx2 - R * 0.40, cy2 - R * 0.44, R * 0.22, R * 0.15,
+                                     -0.6, 0, 6.3); ctx.fill();
+        // the lantern on top
+        ctx.fillStyle = "#f6e7ad";
+        ctx.beginPath(); ctx.arc(cx2 - R * 0.03, cy2 - R * 0.05, R * 0.15, 0, 6.3); ctx.fill();
+        ctx.strokeStyle = "rgba(80,60,14,0.5)"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(cx2 - R * 0.03, cy2 - R * 0.05, R * 0.15, 0, 6.3); ctx.stroke();
       } else if (b.shape === "mansion") {
         const cx2 = b.x + b.w / 2;
         const mw = b.w * 0.60, mh = b.h * 0.46;
@@ -22939,6 +22989,8 @@ export default function IronLionLayer004() {
       }
       if (!g.inside) drawFoodTrucks(view);
       if (g.inside) drawInterior(g.inside, g.floor, g.insideT);
+      drawHeldRogues();
+      drawJobArrow();     // on foot, on a bike, in a car, on a roof, indoors
       // staff, customers and anyone robbing them, on top of the floor and its furniture
       if (g.inside && g.insideT > 0.5) drawShopFolk();
       drawComp();
@@ -23093,6 +23145,11 @@ export default function IronLionLayer004() {
           ctx.save(); ctx.translate(hox, hoy); drawHero(); ctx.restore();
         }
         drawShopRoofs(view);
+        drawSlicks();
+        drawRockets();
+        drawMuzzles();
+        drawBomb();
+        drawGrab();
         if (g.fireFloor === 0) drawFireRoofs(view);
         drawGasRoofs(view);
         drawRamps(view);
@@ -24837,15 +24894,18 @@ export default function IronLionLayer004() {
       const st = JOB_SITES[(Math.random() * JOB_SITES.length) | 0];
       // a coin, unless a caller asked for one -- both types use the same sites and the same men
       let type = "rob";
-      if (force === "bomb" || force === "grab") type = force;
-      else { const r2 = Math.random(); type = r2 < 0.34 ? "bomb" : r2 < 0.60 ? "grab" : "rob"; }
+      if (force === "bomb" || force === "grab" || force === "haul") type = force;
+      else { const r2 = Math.random();
+             type = r2 < 0.26 ? "bomb" : r2 < 0.48 ? "grab" : r2 < 0.72 ? "haul" : "rob"; }
       g.job = { rid, st, type, phase: "called", t: 0, crew: null, boss: null, maxhp: 1 };
       const R = ROGUE_JOB[rid];
       g.pickupFlash = { nm: "job_called", t: 4.0 };
-      const tag = type === "bomb" ? "DEVICE \u00b7 " : type === "grab" ? "TAKEN \u00b7 " : "";
+      const tag = type === "bomb" ? "DEVICE \u00b7 " : type === "grab" ? "TAKEN \u00b7 "
+                : type === "haul" ? "ARMOURED CAR \u00b7 " : "";
       g.jobBanner = tag + R.name + " \u2014 " + st.what;
       g.jobNote = type === "bomb" ? (ROGUE_BOMB[rid] || {}).where || ""
                 : type === "grab" ? (ROGUE_GRAB[rid] || {}).note || ""
+                : type === "haul" ? "A truck on the move. Every second you spend is a second of it."
                 : R.approach;
     }
     function jobArrive() {
@@ -24918,6 +24978,33 @@ export default function IronLionLayer004() {
         cr.members[1].wpn = null; cr.members[1].inside = 1; cr.members[1].spd = 0;
       }
       j.crew = cr; j.boss = boss; j.maxhp = R.hp; j.phase = "fight"; j.t = 0;
+      if (j.type === "haul") {
+        const late = j.t;                       // how long you took to get here
+        if (late > HAUL_LATE) {
+          j.phase = "done"; j.t = 0;
+          g.jobBanner = "THE TRUCK IS GONE";
+          g.jobNote = "Empty street and a missing haul. You were too slow.";
+          g.pickupFlash = { nm: "too_slow", t: 3.6 };
+          g.stats.lost = (g.stats.lost || 0) + 1;
+          return;
+        }
+        const moving = late < HAUL_EARLY;
+        const tv = {
+          axis: "h", si: clamp(Math.round(y / PITCH), 0, N), dir: 1,
+          k: clamp(Math.round(x / PITCH), 0, N),
+          m: { k: moving ? "bk_truck" : "bk_truck_open", len: 128, w: 56 },
+          x, y, ang: Math.random() * 6.283, spd: 0, cruise: 0, brake: 1,
+          dead: 1, parked: 1, named: 1, trFree: 1, haul: 1,
+        };
+        g.traffic.push(tv);
+        j.truck = tv; j.moving = moving;
+        j.phase = "haul"; j.t = 0;
+        g.jobBanner = R.name + (moving ? " \u00b7 STILL ROLLING" : " \u00b7 IT IS OPEN");
+        g.jobNote = moving ? "They have not stopped it yet. Get to it before they do."
+                           : "The doors are off. Whatever is left is still in there.";
+        g.pickupFlash = { nm: moving ? "still_rolling" : "doors_are_off", t: 3.4 };
+        return;
+      }
       if (j.type === "grab") {
         /* They walk the hostage out to a car that is already running, a block and a half away.
            The man himself goes with them, so there is nobody to punch at the site -- catching
@@ -24989,6 +25076,30 @@ export default function IronLionLayer004() {
       }
       // "walk" gets nothing at all, on purpose: she simply is not there any more
     }
+    const R0name = (j) => (ROGUE_JOB[j.rid] || {}).name || "HE";
+    /* The pursuit half of the haul. His car leaves from the truck and runs for his own ground;
+       you have to be alongside it before it gets there. Deliberately faster than a street car
+       and slower than a hero car -- catchable, but not on foot. */
+    function startRunner(j) {
+      if (j.phase === "runner") return;
+      const tv = j.truck;
+      const bcell = ROGUE_BASE[j.rid] || { i: 9, j: 7 };
+      const bc = getCell(bcell.i, bcell.j);
+      const sx = tv ? tv.x : g.p.x, sy = tv ? tv.y : g.p.y;
+      const v = {
+        axis: "h", si: clamp(Math.round(sy / PITCH), 0, N), dir: 1,
+        k: clamp(Math.round(sx / PITCH), 0, N),
+        m: { k: "vh_cross_muscle", len: 118, w: 50 },
+        x: sx, y: sy, ang: 0, spd: 0, cruise: 0, brake: 0,
+        dead: 1, parked: 0, named: 1, trFree: 1, runner: 1,
+      };
+      g.traffic.push(v);
+      j.runner = { v, bx: (bc.lx0 + bc.lx1) / 2, by: (bc.ly0 + bc.ly1) / 2, spd: 300 };
+      j.phase = "runner"; j.t = 0;
+      g.jobBanner = R0name(j) + " IS RUNNING";
+      g.jobNote = "He is making for " + ((ROGUE_BASE[j.rid] || {}).what || "his own ground") + ".";
+      g.pickupFlash = { nm: "he_is_running", t: 3.4 };
+    }
     function stepJob(dt) {
       if (!g.job) return;
       const j = g.job;
@@ -24996,6 +25107,52 @@ export default function IronLionLayer004() {
       if (j.phase === "called") {
         const [x, y] = jobSiteXY(j.st);
         if (Math.hypot(g.p.x - x, g.p.y - y) < 300) jobArrive();
+        return;
+      }
+      if (j.phase === "haul") {
+        const tv = j.truck;
+        if (tv && j.moving) {
+          // it is still running, and they are on it. Catch it and it stops.
+          const a = tv.ang || 0;
+          tv.x += Math.cos(a) * 150 * dt; tv.y += Math.sin(a) * 150 * dt;
+          if (Math.hypot(g.p.x - tv.x, g.p.y - tv.y) < 110) {
+            j.moving = false; tv.m = { k: "bk_truck_open", len: 128, w: 56 };
+            g.jobBanner = R0name(j) + " \u00b7 STOPPED";
+            g.jobNote = "You got in front of it. Now they come to you.";
+            g.pickupFlash = { nm: "cut_it_off", t: 2.6 };
+          }
+        }
+        // the crew is the job until it is not. No crew, and it goes straight to the pursuit.
+        const alive = (j.crew && j.crew.members || []).filter((mm) => mm && mm.hp > 0).length;
+        if (alive === 0) startRunner(j);
+        return;
+      }
+      if (j.phase === "runner") {
+        const rn = j.runner;
+        const bx = rn.bx, by = rn.by;
+        const dx = bx - rn.v.x, dy = by - rn.v.y, dd = Math.hypot(dx, dy) || 1;
+        rn.v.x += (dx / dd) * rn.spd * dt; rn.v.y += (dy / dd) * rn.spd * dt;
+        rn.v.ang = Math.atan2(dy, dx);
+        const me = inVehicle() ? activeVeh() : g.p;
+        if (Math.hypot(me.x - rn.v.x, me.y - rn.v.y) < 120) {
+          const ix = g.traffic.indexOf(rn.v); if (ix >= 0) g.traffic.splice(ix, 1);
+          g.held = g.held || {};
+          g.held[j.rid] = { crime: j.st.what, t: 0 };
+          j.phase = "done"; j.t = 0; j.runner = null;
+          g.jobBanner = ROGUE_JOB[j.rid].name + " RUN DOWN";
+          g.jobNote = "Cormorant Island. He did not make it home.";
+          g.pickupFlash = { nm: "run_down", t: 3.4 };
+          g.stats.saved = (g.stats.saved || 0) + 1;
+          return;
+        }
+        if (dd < 90) {
+          const ix = g.traffic.indexOf(rn.v); if (ix >= 0) g.traffic.splice(ix, 1);
+          j.phase = "done"; j.t = 0; j.runner = null;
+          g.jobBanner = ROGUE_JOB[j.rid].name + " IS HOME";
+          g.jobNote = (ROGUE_BASE[j.rid] || {}).what || "";
+          g.pickupFlash = { nm: "he_made_it", t: 3.4 };
+          g.stats.lost = (g.stats.lost || 0) + 1;
+        }
         return;
       }
       if (j.phase === "grab") {
