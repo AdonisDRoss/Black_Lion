@@ -3895,7 +3895,10 @@ function makeFloor(b, f, rnd) {
   for (let s = 0; s < 4; s++) {
     const hz = s === 0 || s === 2;
     const a = hz ? b.x : b.y, len = hz ? b.w : b.h;
-    if (f === 0 && s === b.door.side) {
+    /* Same guard, same reason: makeFloor is reachable through buildingPlans from a dozen
+       places, and a door-less building would have thrown here too. No door means no gap in
+       the shell -- a solid wall, which is exactly right for a wall. */
+    if (f === 0 && b.door && s === b.door.side) {
       const d = a + len * b.door.pos;
       seg(s, a, Math.max(a, d - 30)); seg(s, Math.min(a + len, d + 30), a + len);
     } else seg(s, a, a + len);
@@ -5854,7 +5857,21 @@ function breachPoint(b) {
   if (s === 3) return [b.x - 6, b.y + b.h * p];
   return [b.x + b.w + 6, b.y + b.h * p];
 }
+/* TOTAL ON PURPOSE. Three rounds of FRAME ERROR were all the same shape: some caller handed
+   this a perimeter wall -- the Arden boundary, the prison ring, the wall round the Vance house
+   -- and `b.door.side` threw and took the frame with it. Each site got guarded one at a time
+   and another one surfaced behind it, because there is no rule anywhere saying a building has
+   a door; only a convention that the ones you can walk into do.
+   So this stops throwing. A wall has no door, and the honest answer to "where is its door" is
+   the middle of its south face -- the same default the counter code at floorKind already uses
+   (`b.door ? b.door.side : 2`). Callers that should not be drawing door furniture on a wall
+   still have their own guards and still skip; this only means that missing one costs a
+   misplaced doormat instead of the entire render. */
 function doorPoint(b) {
+  if (!b || !b.door) {
+    if (!b) return [0, 0];
+    return [b.x + b.w * 0.5, b.y + b.h + 6];
+  }
   const s = b.door.side, p = b.door.pos;
   if (s === 0) return [b.x + b.w * p, b.y - 6];
   if (s === 2) return [b.x + b.w * p, b.y + b.h + 6];
@@ -10884,6 +10901,24 @@ export default function IronLionLayer004() {
        The frame is frozen to idle so nobody walks while unconscious, and a wider, softer,
        darker ground shadow does the rest of the work. */
     const DOWN_STRETCH = 1.5, DOWN_ALPHA = 0.66, DOWN_FRAME = 4;
+    /* KO SILHOUETTES. One set covers Kings, Wolves, cops, civilians and the player, because a
+       silhouette has no colours to get wrong -- which is the whole reason the approach is worth
+       taking over drawing a downed frame per gang.
+       Slice the sheet to ko_00..ko_08 and they light up; until then every call falls through to
+       the old DOWN_FRAME and nothing changes. Pose is picked off the body's own identity, not
+       Math.random, so a man who goes down stays in the pose he landed in instead of flickering
+       through nine of them at 60fps. */
+    const KO_N = 9;
+    function koPlate(m) {
+      if (!m) return null;
+      if (m.koPose == null) {
+        const seed = (m.gtop != null ? m.gtop : 0) * 31
+          + Math.abs(Math.round((m.x || 0) + (m.y || 0) * 7)) % 977;
+        m.koPose = seed % KO_N;
+      }
+      const im = imgs.current["ko_" + String(m.koPose).padStart(2, "0")];
+      return im && im.width ? im : null;
+    }
     function downedPose(x, y, d) {
       // sits under the body, wider than the standing shadow and much softer
       drawShadow(x, y + 2, d * 0.34, d * 0.20, 0.30);
@@ -12776,6 +12811,14 @@ export default function IronLionLayer004() {
         ctx.fillText("THE GILDED CROWN", dp0[0], dp0[1] + 30);
         ctx.textAlign = "start";
       }
+      /* Everything from here down is door furniture -- the marker, the storefront sign, the
+         garage bikes, the name plate -- and every one of them needs doorPoint. A perimeter
+         wall has b.door === null, so this threw for every wall on screen, every frame. That
+         is the rest of the b.door.side count: drawArdenYard was two of the three readers, and
+         drawBuildingExt is the third and the one that fires everywhere, not just in Arden.
+         Returning here is safe: the function sets globalAlpha and never resets it, so the
+         early exit leaves exactly the state that falling off the end would. */
+      if (!b.door) return;
       // door marker at street level
       const dp = doorPoint(b);
       // storefront sign, one per retail unit, picked deterministically so it doesn't flicker between frames
@@ -17291,10 +17334,18 @@ export default function IronLionLayer004() {
       ctx.translate(m.x, m.y - (dead ? 0 : d * g0.lift));
       ctx.rotate(ang);
       // stretched along the body when down, squashed across it when standing
-      ctx.scale(1, dead ? DOWN_STRETCH : CIV_SQUASH);
-      ctx.drawImage(im, (dead ? DOWN_FRAME : f) * GANGTOP_CELL, m.gtop * GANGTOP_CELL,
-        GANGTOP_CELL, GANGTOP_CELL,
-        -d / 2, -d / 2, d, d);
+      const ko = dead ? koPlate(m) : null;
+      if (ko) {
+        /* A downed man is not a squashed standing man. No CIV_SQUASH and no DOWN_STRETCH here:
+           the plate is already drawn lying down, so stretching it again would smear him. */
+        const kw = d * 1.35, kh = kw * (ko.height / ko.width);
+        ctx.drawImage(ko, -kw / 2, -kh / 2, kw, kh);
+      } else {
+        ctx.scale(1, dead ? DOWN_STRETCH : CIV_SQUASH);
+        ctx.drawImage(im, (dead ? DOWN_FRAME : f) * GANGTOP_CELL, m.gtop * GANGTOP_CELL,
+          GANGTOP_CELL, GANGTOP_CELL,
+          -d / 2, -d / 2, d, d);
+      }
       ctx.restore();
       if (!dead && m.wpn) drawWeapon(m, d, d, state, false, true);
       return true;
@@ -23648,6 +23699,7 @@ export default function IronLionLayer004() {
               : g.inside.kind === "tower" && g.inside.hqTower && g.floor === g.inside.floors - 1 ? "KINGS HQ — TOP FLOOR"
               : "") : "",
             door: !!(G.doorFn && G.doorFn()), stair: G.stairFn ? G.stairFn() : 0,
+            obj: jobObjective(),
             crime: g.crime ? { place: g.crime.place, result: g.crime.result,
               code: g.crime.code, label: g.crime.label,
               cond: g.crime.type && g.crime.type.bleed ? Math.max(0, Math.round(g.crime.cond)) : null,
@@ -24368,8 +24420,20 @@ export default function IronLionLayer004() {
       const d = Math.hypot(g.p.x - B.x, g.p.y - B.y);
       if (B.hidden && d > 260) return;
       const blink = 0.5 + 0.5 * Math.sin(g.t * (B.fuse < 20 ? 18 : 7));
-      ctx.fillStyle = `rgba(20,18,20,0.95)`;
-      ctx.fillRect(B.x - 13, B.y - 9, 26, 18);
+      /* Per-rogue device art, keyed bomb_<rid> -- bomb_mvp, bomb_kuru, bomb_drive,
+         bomb_monstruo, bomb_voz, bomb_arson. Falls back to the old black box the moment one is
+         missing, so the six can land one at a time instead of all or nothing. The blinking
+         light is drawn OVER the art whichever way it goes: it is the only part that tells you
+         the thing is live, and it has to survive whatever the plate looks like. */
+      const bim = imgs.current["bomb_" + (g.job.rid || "")];
+      if (bim && bim.width) {
+        const bw = 46, bh = bw * (bim.height / bim.width);
+        drawShadow(B.x, B.y + bh * 0.34, bw * 0.42, bw * 0.18, 0.34);
+        ctx.drawImage(bim, B.x - bw / 2, B.y - bh / 2, bw, bh);
+      } else {
+        ctx.fillStyle = `rgba(20,18,20,0.95)`;
+        ctx.fillRect(B.x - 13, B.y - 9, 26, 18);
+      }
       ctx.fillStyle = `rgba(235,70,56,${0.35 + 0.65 * blink})`;
       ctx.beginPath(); ctx.arc(B.x, B.y - 1, 5, 0, 6.3); ctx.fill();
       ctx.font = "700 12px system-ui, sans-serif";
@@ -25133,6 +25197,62 @@ export default function IronLionLayer004() {
         callJob(t || "rob");
         return g.job && g.job.type;
       };
+    }
+    /* WHAT AM I MEANT TO BE DOING. Every phase of a job already knows its own win condition --
+       stand on the device, get within 70 of the hostage, close the distance before he hits a
+       third -- but none of that was ever said out loud, so the job read as "some men are here
+       now". This turns each phase into one line of instruction and one number that moves.
+       Read straight off the same fields stepJob checks, so it cannot drift out of sync with
+       the rules: if the objective says it, that is literally what is being tested. */
+    function jobObjective() {
+      const j = g.job;
+      if (!j || j.phase === "done" || !j.st) return null;
+      const R = ROGUE_JOB[j.rid] || {};
+      const me = inVehicle() ? activeVeh() : g.p;
+      const mtr = (dx, dy) => Math.round(Math.hypot(dx, dy) / 21);
+      const site = jobSiteXY(j.st);
+      const nm = R.name || "HIM";
+      if (j.phase === "called") return {
+        head: "GET TO " + j.st.what,
+        sub: nm + " IS ON HIS WAY THERE",
+        n: mtr(site[0] - me.x, site[1] - me.y) + "m",
+      };
+      if (j.phase === "fight") {
+        const b = j.boss;
+        const frac = b && j.maxhp ? Math.max(0, b.hp / j.maxhp) : 1;
+        return {
+          head: "PUT " + nm + " DOWN",
+          /* the rule that actually decides whether he is caught, stated before it matters
+             rather than after he is gone */
+          sub: "BE ON HIM WHEN HE BREAKS OR HE WALKS",
+          n: Math.round(frac * 100) + "%",
+        };
+      }
+      if (j.phase === "fuse" && j.bomb) return {
+        head: "STAND ON THE DEVICE",
+        sub: "TAKE A HIT AND YOU LOSE THREE SECONDS OF IT",
+        n: Math.max(0, Math.ceil(j.bomb.fuse)) + "s \u00b7 "
+           + Math.max(0, Math.ceil(j.bomb.defuse)) + "s TO CLEAR",
+      };
+      if (j.phase === "grab" && j.grab) return {
+        head: "GET " + (j.grab.who || "THEM") + " BACK",
+        sub: "CUT THE CAR OFF -- REACH THEM BEFORE IT DOES",
+        n: mtr(j.grab.x - g.p.x, j.grab.y - g.p.y) + "m",
+      };
+      if (j.phase === "runner" && j.runner && j.runner.v) return {
+        head: "RUN HIM DOWN",
+        sub: "HE IS DRIVING FOR HIS BASE",
+        n: mtr(j.runner.v.x - me.x, j.runner.v.y - me.y) + "m",
+      };
+      if (j.phase === "haul") return {
+        head: "STOP THE TRUCK",
+        sub: "IT IS STILL ROLLING",
+        n: mtr(site[0] - me.x, site[1] - me.y) + "m",
+      };
+      if (j.phase === "escape") return {
+        head: nm + " IS BREAKING", sub: "CLOSE ON HIM", n: "",
+      };
+      return { head: String(j.phase).toUpperCase(), sub: "", n: "" };
     }
     function jobArrive() {
       const j = g.job, R = ROGUE_JOB[j.rid];
@@ -26131,6 +26251,20 @@ export default function IronLionLayer004() {
                 : "NEXT \u00b7 " + hud.train.next)
             : hud.train.board ? "[E] GET ON \u00b7 DOORS OPEN"
             : hud.train.wait + " \u00b7 WAIT FOR THE TRAIN"}
+        </div>
+      )}
+      {hud.obj && (
+        <div style={{ marginTop: 8, background: "rgba(10,11,14,0.78)",
+          borderLeft: "3px solid " + C.gold, padding: "5px 9px", maxWidth: 300 }}>
+          <div style={{ fontSize: 8, letterSpacing: "0.26em", opacity: 0.5, color: C.gold }}>OBJECTIVE</div>
+          <div style={{ fontSize: 11, letterSpacing: "0.10em", marginTop: 3 }}>
+            {hud.obj.head}{hud.obj.n ? " \u00b7 " + hud.obj.n : ""}
+          </div>
+          {hud.obj.sub && (
+            <div style={{ fontSize: 9, letterSpacing: "0.08em", opacity: 0.62, marginTop: 2 }}>
+              {hud.obj.sub}
+            </div>
+          )}
         </div>
       )}
       {hud.raid && (
