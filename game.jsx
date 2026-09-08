@@ -24416,6 +24416,12 @@ export default function IronLionLayer004() {
       ctx.strokeStyle = `rgba(232,120,90,${0.5 + 0.4 * pulse})`;
       ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.arc(b.x, b.y, 26 + pulse * 5, 0, 6.3); ctx.stroke();
+      /* A second ring far enough out to be caught in peripheral vision. In a room full of his
+         crew the 26px ring sits inside the crowd and reads as one more body; this one is a
+         wide sweep with nothing else at that radius. */
+      ctx.strokeStyle = `rgba(232,120,90,${0.16 + 0.14 * pulse})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(b.x, b.y, 78 + pulse * 10, 0, 6.3); ctx.stroke();
       ctx.font = "700 11px system-ui, sans-serif";
       const nm = (ROGUE_JOB[j.rid] || {}).name || "";
       ctx.fillStyle = "rgba(10,9,12,0.8)";
@@ -24426,7 +24432,17 @@ export default function IronLionLayer004() {
     function drawJobArrow() {
       if (!g.job || !g.job.st) return;
       if (g.job.phase === "done" || g.job.phase === "gone") return;
-      const tgt = g.job.bomb || g.job.grab
+      /* POINT AT THE THING THE OBJECTIVE NAMES. The arrow used to fall straight through to the
+         SITE CENTRE whenever there was no bomb or hostage -- so during a fight it pointed at
+         the building, which is the one place you already are, and during the chase it pointed
+         back at the building he had just left. Being told to catch a man while the arrow points
+         indoors is worse than no arrow.
+         Order matters: the live man first, then the object, then the address as the fallback
+         it was always meant to be. */
+      const j0 = g.job;
+      const boss = j0.boss && Number.isFinite(j0.boss.x) && j0.boss.hp > 0 ? j0.boss : null;
+      const runner = j0.runner && j0.runner.v && Number.isFinite(j0.runner.v.x) ? j0.runner.v : null;
+      const tgt = runner || boss || j0.bomb || j0.grab
                 || (() => { const c = getCell(g.job.st.i, g.job.st.j);
                             return { x: (c.lx0 + c.lx1) / 2, y: (c.ly0 + c.ly1) / 2 }; })();
       if (!tgt || !Number.isFinite(tgt.x)) return;
