@@ -12465,6 +12465,12 @@ export default function IronLionLayer004() {
           hash(c.i, c.j, 50 + s) < 0.5 ? 34 : 62, s);
       }
       for (const b of c.blds) {
+        /* THE SAME GUARD THE LOOP THIRTY LINES UP ALREADY HAS. An Arden lot carries a
+           perimeter wall as well as a house, and the wall has no door -- so `b.door.side`
+           read null and killed the frame, 600 times, once per building per frame, the moment
+           you walked into Arden. doorPoint reads b.door too, so it has to come after the
+           check and not before it. */
+        if (!b.door) continue;
         ctx.fillStyle = "rgba(88,86,78,0.85)";
         const dp = doorPoint(b);
         if (b.door.side === 2) ctx.fillRect(dp[0] - 20, b.y + b.h, 40, Math.max(0, c.ly1 - (b.y + b.h)));
@@ -14694,33 +14700,41 @@ export default function IronLionLayer004() {
          off the top of the phone -- which is indistinguishable from the probe not running. */
       const sh = imgs.current["gang_kings"];
       const g0 = window.__ironlion || {};
+      let noM = 0;
+      for (const v of (g.traffic || [])) if (!v || !v.m) noM++;
       /* Screen space, and parked in the middle of the picture. The HUD is DOM sitting ON TOP
          of the canvas, so the corners are all spoken for -- readout bottom-left is under the
          stick, top-right is under the minimap, top-left is under the address panel. The
          middle is the one place nothing covers. */
+      /* OFF THE PLAYER. He is always at screen centre, so the middle of the picture is the one
+         place this must not sit -- which is where I put it. Down in the gap between the HUD
+         column on the left, the stick below it and the button cluster on the right. Nudge
+         these two numbers if it lands badly on a different screen: they are fractions of the
+         canvas, so they travel between phone and desktop. */
+      const PROBE_X = 0.27, PROBE_Y = 0.80;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const bx0 = Math.round(W * 0.34), by0 = Math.round(H * 0.46);
+      const bx0 = Math.round(W * PROBE_X), by0 = Math.round(H * PROBE_Y);
       ctx.fillStyle = "rgba(0,0,0,0.86)";
-      ctx.fillRect(bx0, by0, 360, 78);
+      ctx.fillRect(bx0, by0, 252, 58);
       ctx.strokeStyle = "#ff00c8"; ctx.lineWidth = 2;
-      ctx.strokeRect(bx0, by0, 360, 78);
+      ctx.strokeRect(bx0, by0, 252, 58);
       ctx.fillStyle = "#f2c24e";
-      ctx.font = "11px monospace";
-      ctx.fillText("PROBE  crews " + g.crews.length + "  members " + seen
-        + "  alive " + alive + "  inView " + inView + "  noXY " + nofix, bx0 + 8, by0 + 18);
-      ctx.fillText("gang_kings " + (sh ? (sh.width + "x" + sh.height) : "NOT REGISTERED")
-        + "  missingArt " + ((g0.missingArt || []).length), bx0 + 8, by0 + 34);
-      ctx.fillText("inside " + (g.inside ? (g.inside.kind || "bld") : "no")
-        + "  floor " + g.floor + "  job " + (g.job ? g.job.phase + "/" + g.job.type : "none"),
-        bx0 + 8, by0 + 50);
+      ctx.font = "10px monospace";
+      ctx.fillText("crew" + g.crews.length + " men" + seen + " liv" + alive
+        + " vis" + inView + " xy" + nofix + " nom" + noM, bx0 + 6, by0 + 15);
+      ctx.fillText("kings " + (sh ? (sh.width + "x" + sh.height) : "NONE")
+        + " miss" + ((g0.missingArt || []).length), bx0 + 6, by0 + 28);
+      ctx.fillText("in:" + (g.inside ? (g.inside.kind || "bld") : "no")
+        + " fl" + g.floor + " job:" + (g.job ? g.job.phase + "/" + g.job.type : "none"),
+        bx0 + 6, by0 + 41);
       /* And what the JOB thinks its own crew is, which is a different object path from the one
          the boxes walk. If these two disagree, the crew on screen is not the crew the job is
          watching, and that is the bug rather than anything about hp. */
       const jc = g.job && g.job.crew;
-      ctx.fillText("jobcrew " + (jc ? (jc.members || []).length + " st=" + (jc.state || "?")
-          + " ind=" + (jc.indoor ? "y" : "n") + " same=" + (jc.indoor === g.inside ? "y" : "n")
-        : "none") + "  boss " + (g.job && g.job.boss ? "y" : "n"),
-        bx0 + 8, by0 + 66);
+      ctx.fillText("jc:" + (jc ? (jc.members || []).length + " " + (jc.state || "?")
+          + " ind" + (jc.indoor ? "y" : "n") + " sam" + (jc.indoor === g.inside ? "y" : "n")
+        : "none") + " boss" + (g.job && g.job.boss ? "y" : "n"),
+        bx0 + 6, by0 + 54);
       ctx.restore();
     }
     /* ---------- end CREW PROBE ---------- */
@@ -20415,7 +20429,15 @@ export default function IronLionLayer004() {
           const dx2 = B.x - A.x, dy2 = B.y - A.y;
           if (Math.abs(dx2) > 220 || Math.abs(dy2) > 220) continue;
           const d2 = Math.hypot(dx2, dy2);
-          const lim = ((A.m.len + A.m.w) / 4 + (B.m.len + B.m.w) / 4) * 0.86;
+          /* A traffic entry with no `m` throws here and takes the whole frame down --
+             "undefined is not an object (evaluating 'A.m.len')". Something is pushing a
+             vehicle with no model; until that producer is found, one missing model must not
+             cost the render. The fallback numbers are the same ones this file already uses
+             twenty lines down: `(v.m && v.m.len) || 110`. The probe counts these as noM so
+             the producer can be tracked rather than papered over forever. */
+          const aL = (A.m && A.m.len) || 110, aW = (A.m && A.m.w) || 50;
+          const bL = (B.m && B.m.len) || 110, bW = (B.m && B.m.w) || 50;
+          const lim = ((aL + aW) / 4 + (bL + bW) / 4) * 0.86;
           if (d2 >= lim || d2 < 0.01) continue;
           const ux2 = dx2 / d2, uy2 = dy2 / d2, push2 = (lim - d2) / 2;
           const aFixed = !!A.dead, bFixed = !!B.dead;
