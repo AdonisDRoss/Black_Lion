@@ -2347,6 +2347,10 @@ const GAS_CELLS = [
   { i: 16, j: 4 }, { i: 20, j: 10 }, { i: 3, j: 13 },
   { i: 13, j: 17 }, { i: 19, j: 14 }, { i: 8, j: 19 },
   { i: 18, j: 19 }, { i: 2, j: 19 },
+  /* North of the den. It was rolling an ordinary lot and the bar plate landed on it, so the
+     block behind Darius's garage advertised NEON SLUTS. A filling station belongs behind a
+     garage anyway. */
+  { i: 3, j: 3 },
 ];
 const isGasCell = (i, j) => GAS_CELLS.some((gc) => gc.i === i && gc.j === j);
 /* ---------- the banks ----------
@@ -3130,6 +3134,7 @@ function fireHouseAt(i, j) { return FIRE_CELLS.find((c) => c.i === i && c.j === 
 const SHOP_CELLS = [
   { i: 20, j: 3 }, { i: 0, j: 4 },  { i: 7, j: 14 }, { i: 15, j: 8 },
   { i: 1, j: 18 }, { i: 17, j: 20 }, { i: 13, j: 1 }, { i: 5, j: 20 },
+  { i: 4, j: 3 },      // the repair shop next door to it, same reason
 ];
 const isShopCell = (i, j) => SHOP_CELLS.some((sc) => sc.i === i && sc.j === j);
 // Il Corvo -- the family's restaurant, and the room behind it
@@ -9334,11 +9339,15 @@ export default function IronLionLayer004() {
       // legs first, so the torso plate overlaps the hips -- the staff are drawn the same way
       const stride = sp > 10 ? Math.sin((p.anim || 0) * 1.1) * h * 0.09 : 0;
       ctx.fillStyle = "#20222a";
-      ctx.fillRect(-w * 0.25, h * 0.26 + stride, w * 0.17, h * 0.40);
-      ctx.fillRect(w * 0.08, h * 0.26 - stride, w * 0.17, h * 0.40);
+      /* Legs were starting at 0.26h and running to 0.66h -- the torso plate only reaches 0.50h,
+         so a sixth of every leg stuck out past the bottom of the body and read as standing in
+         front of yourself. Pulled up and shortened so they finish inside the plate: from above
+         you should see a man's shoulders and the tops of his legs, not his shins. */
+      ctx.fillRect(-w * 0.25, h * 0.12 + stride, w * 0.17, h * 0.34);
+      ctx.fillRect(w * 0.08, h * 0.12 - stride, w * 0.17, h * 0.34);
       ctx.fillStyle = "#15161b";
-      ctx.fillRect(-w * 0.27, h * 0.60 + stride, w * 0.21, h * 0.11);
-      ctx.fillRect(w * 0.06, h * 0.60 - stride, w * 0.21, h * 0.11);
+      ctx.fillRect(-w * 0.27, h * 0.40 + stride, w * 0.21, h * 0.10);
+      ctx.fillRect(w * 0.06, h * 0.40 - stride, w * 0.21, h * 0.10);
       ctx.drawImage(im, -w / 2, -h / 2, w, h);
       /* What he is holding. The ally plates are torsos with no weapon layer, so an armed man
          read as an unarmed one -- a held shape in his right hand, sized off the plate. Crude,
@@ -13594,7 +13603,10 @@ export default function IronLionLayer004() {
     }
     function drawBuildingExt(b, alpha) {
       if (alpha <= 0.01) return;
-      if (b.kind === "den") { drawDenExt(b, alpha); return; }
+      /* The plate check has to come BEFORE this. drawDenExt returns, so rf_one_den was cut,
+         named, registered and could never be reached -- the den was the one building in the
+         city whose art was guaranteed not to draw. */
+      if (b.kind === "den" && !platedRoof(b)) { drawDenExt(b, alpha); return; }
       /* A PLATED BUILDING IS THE PLATE. The overlay used to be painted on top of the generated
          shell, which was wrong the moment the plates started carrying their own walls and eaves:
          you got two sets of walls, and the shell's parallax extrusion leaning out from under the
@@ -25602,10 +25614,12 @@ export default function IronLionLayer004() {
         const drive = d > want ? 1 : d < want * 0.65 ? -0.7 : 0;
         a.vx = (dx / d) * drive * 96; a.vy = (dy / d) * drive * 96;
         a.x += a.vx * dt; a.y += a.vy * dt; a.anim += dt * 6;
+        a.shootT = Math.max(0, (a.shootT || 0) - dt);
         a.fireCd -= dt;
         if (a.fireCd <= 0 && d < 340) {
           a.fireCd = 1.5 + Math.random();
           p.hp = Math.max(0, p.hp - 5);
+          a.shootT = 0.34; a.face = Math.atan2(dy, dx);
           hfx().push({ kind: "tracer", x: a.x, y: a.y, x2: p.x, y2: p.y, t: 0.08, life: 0.08 });
           hfx().push({ kind: "flash", x: a.x, y: a.y, ang: Math.atan2(dy, dx), t: 0.06, life: 0.06 });
         }
@@ -25642,7 +25656,38 @@ export default function IronLionLayer004() {
           }
         }
       } else if (h.stage === "banner") {
-        if (!bannerLive && !g.hunter && h.cd <= 0) { G.hunterFn(null); h.cd = 999; }
+        if (!bannerLive && !g.hunter && !g.mech && h.cd <= 0) {
+          /* HOW HE TURNS UP. Rolled, not scripted -- flown in, driving his own truck, or inside
+             Unit 04. The mech route is the interesting one: you fight the machine, and when it
+             comes apart HE CLIMBS OUT of it, so the wreck is where the real fight starts. */
+          const roll = Math.random();
+          if (roll < 0.34) {
+            G.hunterFn(null);                                    // the chopper
+          } else if (roll < 0.67) {
+            G.hunterFn(null);
+            g.chop = null;                                       // no chopper: he drove
+            if (g.hunter) {
+              g.hunter.dropT = 0;
+              h.ride = { x: g.hunter.x + 700, y: g.hunter.y + 700,
+                         tx: g.hunter.x + 40, ty: g.hunter.y + 40,
+                         ang: Math.PI * 1.25, phase: "out", t: 7 };
+              g.jobBanner = HERO_HUNTER.called + " \u00b7 HE DROVE HIMSELF";
+            }
+          } else {
+            G.mechFn(null);
+            h.inMech = 1;
+            g.jobBanner = HERO_HUNTER.called + " \u00b7 INSIDE UNIT 04";
+          }
+          h.cd = 999;
+        }
+        /* Out of the wreck. */
+        if (h.inMech && g.mech && g.mech.hp <= 0 && !g.hunter) {
+          h.inMech = 0;
+          G.hunterFn([g.mech.x + 30, g.mech.y + 30]);
+          g.chop = null;
+          if (g.hunter) g.hunter.dropT = 0;
+          g.jobBanner = HERO_HUNTER.called + " \u00b7 OUT OF THE WRECK";
+        }
         if (g.hunter && g.hunter.hp <= 0 && !h.picked) {
           /* HIS RIDE. Not an ambulance and not a prison van -- his own truck, which drives in,
              waits while he gets up, and leaves with him in it. */
@@ -25691,6 +25736,29 @@ export default function IronLionLayer004() {
         if (a.hp <= 0) { const ko = koPlate(a); if (ko) {
             ctx.drawImage(ko, a.x - 22, a.y - 22, 44, 44); } continue; }
         if (!drawYouth(a)) continue;
+        /* ARMS ON THE GUN. The plates are torsos with the arms painted down at the sides, which
+           is fine for a man walking and wrong for a man shooting at you. Two forearms out in
+           front and the weapon between them, drawn over the plate for the third of a second
+           after he fires -- same trick as Bannerman's burst pose, and it uses the existing
+           weapon sprite rather than a new one. */
+        if ((a.shootT || 0) > 0) {
+          const h2 = 26, face = Number.isFinite(a.face) ? a.face : 0;
+          ctx.save();
+          ctx.translate(a.x, a.y);
+          ctx.rotate(face + Math.PI / 2);
+          ctx.strokeStyle = "#20242c"; ctx.lineWidth = h2 * 0.13; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(-h2 * 0.30, -h2 * 0.05); ctx.lineTo(-h2 * 0.10, h2 * 0.34); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(h2 * 0.30, -h2 * 0.05); ctx.lineTo(h2 * 0.10, h2 * 0.34); ctx.stroke();
+          const wim = imgs.current["wp_pistol"] || imgs.current["wp_tommy"];
+          if (wim && wim.width) {
+            const gw = h2 * 0.42, gh = gw * (wim.height / wim.width);
+            ctx.drawImage(wim, -gw / 2, h2 * 0.24, gw, gh);
+          } else {
+            ctx.fillStyle = "#15181e";
+            ctx.fillRect(-h2 * 0.06, h2 * 0.24, h2 * 0.12, h2 * 0.26);
+          }
+          ctx.restore();
+        }
         const f = Math.max(0, a.hp / (a.maxHp || 1));
         ctx.fillStyle = "rgba(10,9,12,0.8)"; ctx.fillRect(a.x - 18, a.y - 34, 36, 5);
         ctx.fillStyle = "#8fb4e8"; ctx.fillRect(a.x - 17, a.y - 33, 34 * f, 3);
