@@ -2478,6 +2478,59 @@ const FIS_NAMES = ["HALPERN", "OYELARAN", "STRAND", "DEMARCO", "KESSLER", "AUGUS
 /* HALLORAN'S REST. The trailer plates are drawn with their long axis HORIZONTAL, so the units
    are generated wide rather than tall and the plate maps onto the footprint with no rotation --
    which is also correct: a single-wide's door is on its long side. */
+/* ================= ROOF OVERLAYS =================
+   The trailers work because a single-wide is ONE silhouette -- every unit is the same box, so
+   one plate fits every instance. A generated house is not: stretch a 16m roof plate across a
+   9m house and you get a doll's house. So the overlay is per SILHOUETTE CLASS, and buildings
+   that want one are generated to snap to that class's footprint instead of free-rolling.
+   Any class with no art falls straight through to the generated facade, so this can be filled
+   in one class at a time and nothing breaks in between. */
+const ROOF_SETS = {
+  // Arden. One district, four plates a class, and the lots already march to a grid.
+  /* ard_ranch is declared and has no plates yet, so it is deliberately NOT in the Arden roll
+     below -- a street that is half overlay and half generated shell looks worse than either
+     one on its own. Cut the four ranch plates and add it back to the roll. */
+  ard_ranch:      ["rf_ard_ranch_a", "rf_ard_ranch_b", "rf_ard_ranch_c", "rf_ard_ranch_d"],
+  ard_colonial:   ["rf_ard_colonial_a", "rf_ard_colonial_b", "rf_ard_colonial_c", "rf_ard_colonial_d"],
+  ard_foursquare: ["rf_ard_four_a", "rf_ard_four_b", "rf_ard_four_c", "rf_ard_four_d"],
+  ard_garage:     ["rf_ard_garage_a", "rf_ard_garage_b"],
+};
+/* THE FOOTPRINTS, in metres, that each class is drawn to. A building tagged with a class is
+   generated at exactly these dimensions -- that is the deal, and it is what stops one plate
+   having to cover a range of shapes. */
+const ROOF_FOOT = {
+  ard_ranch:      { w: 15, h: 9.5 },
+  ard_colonial:   { w: 12.4, h: 11 },   // 1.13, the aspect the plates were actually drawn at
+  ard_foursquare: { w: 11, h: 11 },
+  ard_garage:     { w: 7,  h: 7 },
+};
+/* THE ONE-OFFS. A special building is its own class of exactly one, so there is no footprint
+   to agree on -- the plate is drawn to whatever that building already is. Keyed off the flag
+   the building already carries rather than a new one. */
+const ROOF_ONE = [
+  ["den",       (b) => b.kind === "den"],
+  ["cityhall",  (b) => b.kind === "cityhall"],
+  ["kestrel",   (b) => b.landmark && b.kind !== "cityhall"],
+  ["asylum",    (b) => b.kind === "asylum"],
+  ["hospital",  (b) => b.kind === "hospital"],
+  ["prison",    (b) => b.kind === "prison"],
+  ["precinct",  (b) => b.kind === "precinct"],
+  ["starlite",  (b) => b.kind === "motel"],
+  ["fis",       (b) => !!b.fis],
+  ["vance",     (b) => b.kind === "mansion"],
+  ["terminal",  (b) => b.kind === "terminal"],
+  ["arcade",    (b) => b.kind === "arcade"],
+];
+function oneOffRoof(b) {
+  if (!b || b.trailer) return null;
+  for (const [k, test] of ROOF_ONE) { try { if (test(b)) return "rf_one_" + k; } catch (e) {} }
+  return null;
+}
+const ROOF_ART = {};
+for (const [k] of ROOF_ONE) ROOF_ART["rf_one_" + k] = "assets/roofs/rf_one_" + k + ".png";
+for (const cls in ROOF_SETS)
+  for (const k of ROOF_SETS[cls]) ROOF_ART[k] = "assets/roofs/" + k + ".png";
+
 const TC_ART = {};
 for (const k of ["tc_trailer_a", "tc_trailer_b", "tc_trailer_c", "tc_trailer_d",
                  "tc_skirt", "tc_steps", "tc_deck", "tc_propane", "tc_mailbank",
@@ -3884,9 +3937,15 @@ function makeFloor(b, f, rnd) {
     put(0, mid + 1, Math.max(0, Math.round(GX * 0.22)), GY - 1, "fis_holdgear");
   } else if (kind === "fis_lobby") {
     // marble, a long counter, and a seal you cross before anyone speaks to you
+    /* The counter runs across PART of the hall, not all of it. A full-width desk made the
+       lobby two rooms with a doorway punched through, and you spent the whole visit edging
+       round it -- which is not what a lobby is for. It now stops about three fifths across and
+       the rest is open floor you can walk straight through. */
     const line = clamp(Math.round(GY * 0.52), 1, Math.max(1, GY - 2));
+    const cut = clamp(Math.round(GX * 0.58), 1, Math.max(1, GX - 2));
     hub = put(0, 0, GX - 1, line - 1, "fis_atrium");
-    put(0, line, GX - 1, line, "fis_desk");
+    put(0, line, cut, line, "fis_desk");
+    put(cut + 1, line, GX - 1, line, "fis_open");      // the way through
     put(0, line + 1, Math.max(0, GX - 4), GY - 1, "fis_wait");
     put(Math.max(1, GX - 3), line + 1, GX - 1, GY - 1, "fis_records");
   } else if (kind === "fis_bullpen") {
@@ -4501,6 +4560,9 @@ function makeFloor(b, f, rnd) {
       case "fis_desk":
         counterRun(q2, "counter");
         P(q2.x0 + pad, cy - 9, 20, 18, "fis_phone_a");
+        break;
+      // deliberately empty. This is the gap beside the counter and it stays walkable.
+      case "fis_open":
         break;
       case "fis_wait":
         runX(q2, q2.y0 + pad, clamp(Math.round(W2 / 130), 2, 4), 44, 22, "fis_chair_stack_a", pad);
@@ -5826,8 +5888,14 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     const HH = LH / 2;
     for (let half = 0; half < 2; half++) {
       const north = half === 0;
-      const hw = Math.min(LW * 0.50, (16 + rnd() * 4) * MU);
-      const hh = Math.min(HH * 0.48, (11 + rnd() * 2.5) * MU);
+      /* Snapped, not rolled. Every Arden house is now one of three shapes, which is the whole
+         point of the overlay: a plate drawn for a 15x9.5 ranch fits every ranch on the street
+         instead of being stretched over whatever the dice gave. Real streets look like this --
+         a builder put up three plans and sold them forty times. */
+      const cls = rnd() < 0.55 ? "ard_colonial" : "ard_foursquare";
+      const foot = ROOF_FOOT[cls];
+      const hw = Math.min(LW * 0.50, foot.w * MU);
+      const hh = Math.min(HH * 0.48, foot.h * MU);
       const hx = lx0 + (LW - hw) * (0.28 + rnd() * 0.44);
       const set = HH * (0.26 + rnd() * 0.07);              // the same setback off both kerbs
       const hy = north ? ly0 + set : ly1 - set - hh;
@@ -5835,13 +5903,16 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       b.door = { side: north ? 0 : 2, pos: 0.34 + rnd() * 0.32 };
       b.tone = 0.56 + rnd() * 0.38;      // painted brick and pale stone, not grey siding
       b.arden = true;
+      b.roofCls = cls;
+      b.roofKey = ROOF_SETS[cls][(Math.abs(key + half * 101) >> 2) % ROOF_SETS[cls].length];
       out.push(b);
       /* The garage. A wing off one flank rather than a shed at the back, set behind the front
          of the house so the drive runs up BESIDE the house to the kerb and not through it.
          Built as a house, not a `garage`: a garage kind takes the metal warehouse façade and a
          corrugated shed on a lawn is the one thing that would give the whole street away. */
       const east = rnd() < 0.5;
-      const gw = Math.min(hw * 0.44, 7.5 * MU), gh = Math.min(hh * 0.76, 7 * MU);
+      const gf = ROOF_FOOT.ard_garage;
+      const gw = Math.min(hw * 0.60, gf.w * MU), gh = Math.min(hh * 0.90, gf.h * MU);
       const gx = east ? Math.min(hx + hw + 16, lx1 - gw) : Math.max(hx - gw - 16, lx0);
       // if the lot is too narrow to hold a wing clear of the house, the house goes up alone
       if (gx + gw > hx - 8 && gx < hx + hw + 8) continue;
@@ -5849,6 +5920,8 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       const gb = mkB(gx, gy, gw, gh, 1, "house", rnd, key + half * 101 + 7);
       gb.door = { side: north ? 0 : 2, pos: 0.5 };
       gb.tone = b.tone; gb.arden = true; gb.ardenDrive = true;
+      gb.roofCls = "ard_garage";
+      gb.roofKey = ROOF_SETS.ard_garage[(Math.abs(key + half * 7) >> 1) % ROOF_SETS.ard_garage.length];
       out.push(gb);
     }
     return out;
@@ -7046,7 +7119,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -13161,6 +13234,69 @@ export default function IronLionLayer004() {
       }
       ctx.restore();
     }
+    /* THE FORECOURT. Concrete, on the DOOR side, with the seal centred on the doorway itself.
+       Before this the seal was drawn on the south face on the assumption that is where the door
+       would be -- faceDoor picks whichever side faces the street, so half the time the emblem
+       was on the back of the building and the way in was round the other side with nothing
+       marking it. The seal is now the doormat: walk over it and you are at the door. */
+    function drawFisPlaza(b, alpha) {
+      if (alpha <= 0.02 || !b.door) return;
+      const dp = doorPoint(b);
+      const side = b.door.side;
+      const horiz = side === 0 || side === 2;
+      const D = 92, W2 = Math.min(b.w, b.h) * 0.9 + 120;
+      let px, py, pw, ph;
+      if (side === 0)      { pw = horiz ? W2 : D; ph = D; px = dp[0] - pw / 2; py = b.y - D - 2; }
+      else if (side === 2) { pw = W2; ph = D; px = dp[0] - pw / 2; py = b.y + b.h + 2; }
+      else if (side === 3) { pw = D; ph = W2; px = b.x - D - 2; py = dp[1] - ph / 2; }
+      else                 { pw = D; ph = W2; px = b.x + b.w + 2; py = dp[1] - ph / 2; }
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = PF("plaza", "#8b8578");
+      ctx.fillRect(px, py, pw, ph);
+      // a lip along the building edge so the slab reads as poured, not painted on
+      ctx.fillStyle = "rgba(0,0,0,0.18)";
+      if (horiz) ctx.fillRect(px, side === 2 ? py : py + ph - 3, pw, 3);
+      else ctx.fillRect(side === 1 ? px : px + pw - 3, py, 3, ph);
+
+      // seal ON the doorway
+      const sim = imgs.current["fis_seal"];
+      if (sim && sim.width) {
+        const sw = Math.min(72, D * 0.72);
+        const ox = side === 0 ? 0 : side === 2 ? 0 : side === 3 ? -sw * 0.7 : sw * 0.7;
+        const oy = side === 0 ? -sw * 0.7 : side === 2 ? sw * 0.7 : 0;
+        ctx.globalAlpha = alpha * 0.9;
+        ctx.drawImage(sim, dp[0] + ox - sw / 2, dp[1] + oy - sw / 2, sw, sw);
+        ctx.globalAlpha = alpha;
+      }
+      /* Benches and planters, set BACK off the doorway. Nothing sits in the approach: a federal
+         building keeps its entrance clear and it also means none of this can block the door. */
+      const bench = (bx, by, bw, bh) => {
+        ctx.fillStyle = "rgba(74,58,42,0.95)"; ctx.fillRect(bx, by, bw, bh);
+        ctx.fillStyle = "rgba(30,26,22,0.6)"; ctx.fillRect(bx, by + bh - 2, bw, 2);
+      };
+      const planter = (cx2, cy2) => {
+        ctx.fillStyle = "rgba(120,116,104,0.95)";
+        ctx.fillRect(cx2 - 11, cy2 - 11, 22, 22);
+        ctx.fillStyle = "rgba(58,92,52,0.9)";
+        ctx.beginPath(); ctx.arc(cx2, cy2, 8, 0, 6.3); ctx.fill();
+      };
+      const far = 84;
+      if (horiz) {
+        const yy = side === 2 ? py + ph * 0.62 : py + ph * 0.18;
+        bench(dp[0] - far - 34, yy, 62, 14);
+        bench(dp[0] + far - 28, yy, 62, 14);
+        planter(dp[0] - far - 62, yy + 6);
+        planter(dp[0] + far + 62, yy + 6);
+      } else {
+        const xx = side === 1 ? px + pw * 0.62 : px + pw * 0.18;
+        bench(xx, dp[1] - far - 34, 14, 62);
+        bench(xx, dp[1] + far - 28, 14, 62);
+        planter(xx + 6, dp[1] - far - 62);
+        planter(xx + 6, dp[1] + far + 62);
+      }
+      ctx.restore();
+    }
     function drawBuildingExt(b, alpha) {
       if (alpha <= 0.01) return;
       if (b.kind === "den") { drawDenExt(b, alpha); return; }
@@ -13186,17 +13322,7 @@ export default function IronLionLayer004() {
       }
       drawParking(b, alpha);
       if (b.landmark) drawCasinoStair(b, alpha);
-      /* The seal goes on the forecourt, not on the wall -- it is the thing you walk over on the
-         way in, which is how you know whose building this is before you read the sign. */
-      if (b.fis) {
-        const sim = imgs.current["fis_seal"];
-        if (sim && sim.width) {
-          const sw = Math.min(b.w * 0.34, 84);
-          ctx.globalAlpha = alpha * 0.85;
-          ctx.drawImage(sim, b.x + b.w / 2 - sw / 2, b.y + b.h + 10, sw, sw);
-          ctx.globalAlpha = alpha;
-        }
-      }
+      if (b.fis) drawFisPlaza(b, alpha);
       const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
       const k = b.floors * FLOOR_RISE;
       const ox = clamp((cx - g.cam.x) * k, -190, 190);
@@ -13347,6 +13473,35 @@ export default function IronLionLayer004() {
          drawBuildingExt is the third and the one that fires everywhere, not just in Arden.
          Returning here is safe: the function sets globalAlpha and never resets it, so the
          early exit leaves exactly the state that falling off the end would. */
+      /* THE OVERLAY. Drawn on the same parallax-offset rect the facade uses, so it sits exactly
+         where the building appears to be. It goes OVER the generated shell rather than instead
+         of it: the shell is a few fills and the plate covers it completely, and doing it this
+         way means a class with no art yet is not a hole in the street, it is just the old
+         building. The door furniture below still draws on top of both. */
+      if (!b.trailer) {
+        if (b._roof1 === undefined) b._roof1 = oneOffRoof(b);
+        const rk = b.roofKey || b._roof1;
+        const rim = rk ? imgs.current[rk] : null;
+        if (rim && rim.width) {
+          /* FACING. Every plate is drawn with its FRONT at the bottom of the frame -- the eaves
+             the dormers break through, the garage opening. A house whose door is on the north
+             face needs that front turned to point north, or the dormers look out over the back
+             garden and the whole street reads as built backwards.
+             A vertical flip is all Arden needs, because those lots only ever put a door on the
+             north or south face. An east/west door would want a quarter turn; nothing generates
+             one yet, and guessing at it now would be a rotation nobody can check. */
+          const flipV = b.door && b.door.side === 0;
+          if (flipV) {
+            ctx.save();
+            ctx.translate(rx, ry + b.h);
+            ctx.scale(1, -1);
+            ctx.drawImage(rim, 0, 0, b.w, b.h);
+            ctx.restore();
+          } else {
+            ctx.drawImage(rim, rx, ry, b.w, b.h);
+          }
+        }
+      }
       if (!b.door) return;
       // door marker at street level
       const dp = doorPoint(b);
