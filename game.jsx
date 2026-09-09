@@ -2485,11 +2485,39 @@ for (const k of ["tc_trailer_a", "tc_trailer_b", "tc_trailer_c", "tc_trailer_d",
                  "tc_deadcar_a", "tc_deadcar_b", "tc_deadcar_c",
                  "tc_res_1", "tc_res_2", "tc_res_3", "tc_res_4",
                  "tc_res_5", "tc_res_6", "tc_res_7", "tc_res_8",
-                 "tx_tr_carpet", "tx_tr_dirt"])
+                 "tx_tr_carpet", "tx_tr_dirt", "tx_tr_road"])
   TC_ART[k] = "assets/tc/" + k + ".png";
 const TC_ROOF = ["tc_trailer_a", "tc_trailer_b", "tc_trailer_c", "tc_trailer_d"];
 const TC_RES = ["tc_res_1", "tc_res_2", "tc_res_3", "tc_res_4",
                 "tc_res_5", "tc_res_6", "tc_res_7", "tc_res_8"];
+/* WHAT THEY SAY. Nobody out here is talking to you -- they are finishing an argument you walked
+   in on, which is the whole joke. Kept clean and kept stupid. */
+/* Him, off the clock. Still the loudest man in any yard he is standing in. */
+const MVP_OFF = [
+  "I'm retired. Ask anybody. I'm RETIRED.",
+  "Two seasons. Two. And they still won't put me on a card.",
+  "You want a photograph? Everybody wants a photograph.",
+  "I have never robbed a bank in this county. Look it up.",
+  "This is my off day. Even I get an off day.",
+];
+const TC_LINES = [
+  "That is MY extension cord and everybody knows it.",
+  "The health department can't come out here. It's a driveway.",
+  "I did NOT hit that trailer. That trailer was already like that.",
+  "Randy says the dog is a raccoon. It is not a raccoon.",
+  "I'm not on parole, I'm on a PAYMENT PLAN. Different thing.",
+  "You can't repossess a porch. It's attached.",
+  "Second time this month somebody's took my steps.",
+  "It's not a stolen car if the man left the keys IN it.",
+  "I've got a business plan and it involves this exact barbecue.",
+  "That's grease fire number three. We're calling it a tradition.",
+  "The propane's fine. The propane has ALWAYS been fine.",
+  "I'm a licensed contractor in the state of my own opinion.",
+  "Don't look at the bench. The bench is load-bearing.",
+  "Whoever's been reading my mail, I know your handwriting.",
+  "He said he'd fix the roof in April. He did not say WHICH April.",
+  "That satellite dish gets four channels and two of 'em are the same.",
+];
 
 const KO_ART = {};
 for (let i = 0; i < 9; i++) KO_ART["ko_" + String(i).padStart(2, "0")] = "assets/ko/ko_" + String(i).padStart(2, "0") + ".png";
@@ -2901,7 +2929,8 @@ const isFireCell = (i, j) => FIRE_CELLS.some((c) => c.i === i && c.j === j);
    farm branch throws away 58% of its cells and puts a homestead on the rest, so these were
    empty ground more often than not. A court is not houses at a smaller scale: it is a gravel
    loop with units angled off it, and the difference is the whole look. */
-const TRAILER_CELLS = [{ i: 24, j: 7 }, { i: 25, j: 7 }];
+const TRAILER_CELLS = [{ i: 24, j: 7 }, { i: 25, j: 7 }, { i: 26, j: 7 },
+                       { i: 24, j: 8 }, { i: 25, j: 8 }, { i: 26, j: 8 }];
 const isTrailerCell = (i, j) => TRAILER_CELLS.some((c) => c.i === i && c.j === j);
 function fireHouseAt(i, j) { return FIRE_CELLS.find((c) => c.i === i && c.j === j) || null; }
 
@@ -23645,6 +23674,17 @@ export default function IronLionLayer004() {
       updateCrews(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       stepHunter(dt);
       stepArrivals(dt);
+      /* Only the cells you are standing in or beside. Six lots of people all wandering at once
+         is six lots of work for five of them nobody can see. */
+      if (!g.inside) {
+        const ci = clamp(Math.floor(g.p.x / PITCH), 0, N - 1);
+        const cj = clamp(Math.floor(g.p.y / PITCH), 0, N - 1);
+        for (let a = -1; a <= 1; a++) for (let b2 = -1; b2 <= 1; b2++) {
+          if (!isTrailerCell(ci + a, cj + b2)) continue;
+          const cc = getCell(ci + a, cj + b2);
+          if (cc) stepCourtFolk(dt, cc);
+        }
+      }
       if (!g.inside) updateTraffic(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       if (!g.inside) updateFwyTraffic(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       updateAudio(dt);
@@ -24245,6 +24285,7 @@ export default function IronLionLayer004() {
               : g.inside.kind === "tower" && g.inside.hqTower && g.floor === g.inside.floors - 1 ? "KINGS HQ — TOP FLOOR"
               : "") : "",
             door: !!(G.doorFn && G.doorFn()), stair: G.stairFn ? G.stairFn() : 0,
+            entry: g.inside ? (g.inside.entry || 0) : 0,
             obj: jobObjective(),
             crime: g.crime ? { place: g.crime.place, result: g.crime.result,
               code: g.crime.code, label: g.crime.label,
@@ -25309,7 +25350,83 @@ export default function IronLionLayer004() {
     /* THE YARD. Dirt under the whole cell instead of field grass, then the junk, placed off the
        cell key so it is in the same spot every time you come back. Deterministic scatter, not
        random: a court whose dead cars move between visits is a screensaver. */
+    /* MVP AT HOME. He has a crew of nobody and a base out of town, and this is where he is when
+       there is no armoured car to stand in front of. In civvies: same man, no mask, and he will
+       not fight you here unless you start it -- a rogue you can only ever meet mid-crime is a
+       job, not a person. */
+    function courtFolk(c) {
+      c._tcFolk = c._tcFolk || null;
+      if (c._tcFolk) return c._tcFolk;
+      const rnd = mulberry((c.i * 911 + c.j * 313) >>> 0);
+      const list = [];
+      const n = 2 + ((rnd() * 3) | 0);
+      for (let k = 0; k < n; k++) {
+        list.push({
+          x: c.lx0 + (c.lx1 - c.lx0) * (0.12 + rnd() * 0.76),
+          y: c.ly0 + (c.ly1 - c.ly0) * (0.10 + rnd() * 0.80),
+          vx: 0, vy: 0, anim: rnd() * 6, jit: 0.94 + rnd() * 0.12,
+          yt: TC_RES[(rnd() * TC_RES.length) | 0],
+          hp: 20, sayCd: rnd() * 9, line: "", say: 0,
+          hx: 0, hy: 0, wanderCd: rnd() * 4,
+        });
+      }
+      // one cell in six gets him, and it is always the same one
+      if (((c.i * 31 + c.j) % 6) === 0) {
+        list.push({
+          x: c.lx0 + (c.lx1 - c.lx0) * 0.5, y: c.ly0 + (c.ly1 - c.ly0) * 0.66,
+          vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.16,
+          yt: "vil_mvp", mvp: 1, hp: 40, sayCd: 3, line: "", say: 0, wanderCd: 2,
+        });
+      }
+      c._tcFolk = list;
+      return list;
+    }
+    function stepCourtFolk(dt, c) {
+      for (const q of courtFolk(c)) {
+        q.wanderCd -= dt;
+        if (q.wanderCd <= 0) {
+          q.wanderCd = 2.5 + Math.random() * 4;
+          const a = Math.random() * 6.283;
+          q.vx = Math.cos(a) * 16; q.vy = Math.sin(a) * 16;
+          if (Math.random() < 0.4) { q.vx = 0; q.vy = 0; }
+        }
+        q.x += q.vx * dt; q.y += q.vy * dt;
+        q.x = clamp(q.x, c.lx0 + 10, c.lx1 - 10);
+        q.y = clamp(q.y, c.ly0 + 10, c.ly1 - 10);
+        q.anim += dt * 6;
+        q.say = Math.max(0, (q.say || 0) - dt);
+        q.sayCd -= dt;
+        if (q.sayCd <= 0) {
+          q.sayCd = 6 + Math.random() * 10;
+          q.line = q.mvp
+            ? (MVP_OFF[(Math.random() * MVP_OFF.length) | 0])
+            : TC_LINES[(Math.random() * TC_LINES.length) | 0];
+          q.say = 3.2;
+        }
+      }
+    }
+    function drawCourtFolk(c) {
+      for (const q of courtFolk(c)) {
+        if (!Number.isFinite(q.x)) continue;
+        if (!drawYouth(q)) continue;
+        if (q.say > 0 && q.line) bubble(q.x, q.y - 26, q.line, q.mvp ? "#e8c27a" : "#cfe0d0");
+      }
+    }
     function drawTrailerYard(c) {
+      /* THE ROADS FIRST, and painted OUTSIDE the cell. drawGround lays one sheet of asphalt
+         across the whole view and then puts each cell's pad on top, so the "road" is just the
+         asphalt showing through the gaps. Overspilling the cell by half a street covers those
+         gaps with tracked dirt -- which is the only way a county court gets dirt roads without
+         touching the road pass itself. */
+      const road = imgs.current["tx_tr_road"];
+      const M = 96;
+      if (road && road.width) {
+        const rp = ctx.createPattern(road, "repeat");
+        if (rp) {
+          ctx.fillStyle = rp;
+          ctx.fillRect(c.x0 - M, c.y0 - M, (c.x1 - c.x0) + M * 2, (c.y1 - c.y0) + M * 2);
+        }
+      }
       const dirt = imgs.current["tx_tr_dirt"];
       const w = c.lx1 - c.lx0, h = c.ly1 - c.ly0;
       if (dirt && dirt.width) {
@@ -25338,6 +25455,7 @@ export default function IronLionLayer004() {
         drawShadow(px, py + hh * 0.42, ww * 0.42, hh * 0.20, 0.30);
         ctx.drawImage(im, px - ww / 2, py - hh / 2, ww, hh);
       }
+      drawCourtFolk(c);
       // the mailboxes always, at the mouth, because that is the one thing every court has
       const mb = imgs.current["tc_mailbank"];
       if (mb && mb.width) {
@@ -27517,7 +27635,14 @@ export default function IronLionLayer004() {
         )}
         {hud.inside && (
           <div style={{ marginTop: 8, fontSize: 10, color: C.gold, letterSpacing: "0.12em" }}>
-            FLOOR {(hud.floor ?? 0) + 1} / {hud.floors}{hud.planKind ? " \u00b7 " + hud.planKind.toUpperCase() : ""}
+            {/* A building with a basement counts from its ENTRY floor, not from index zero.
+                The field office was reading FLOOR 2 / 5 in its own lobby, which is the level
+                below being counted as a storey. Below the entry reads B1, B2 and so on. */}
+            {(hud.floor ?? 0) < (hud.entry ?? 0)
+              ? "B" + ((hud.entry ?? 0) - (hud.floor ?? 0))
+              : "FLOOR " + (((hud.floor ?? 0) - (hud.entry ?? 0)) + 1)
+                + " / " + Math.max(1, (hud.floors ?? 1) - (hud.entry ?? 0))}
+            {hud.planKind ? " \u00b7 " + hud.planKind.toUpperCase() : ""}
             {hud.fkind ? ` · ${{ club: "CLUB FLOOR", terminal: "CONCOURSE", house_g1: "HOUSE", house_g2: "HOUSE", house_u: "UPSTAIRS", tower_flats: "FLATS", dining: "HOUSE", store: "STORE", lobby: "LOBBY", apartments: "APARTMENTS", offices: "OFFICES", reception: "RECEPTION" }[hud.fkind] || ""}` : ""}
           </div>
         )}
