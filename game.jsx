@@ -1536,7 +1536,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 424 — REGISTERED";
+const BUILD_TAG = "LAYER 425 — SIX APPROACHES";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -16863,7 +16863,16 @@ export default function IronLionLayer004() {
           // long enough gone and they are not coming back into this fight
           if (cr.fleeT <= 0 && alive) { cr.broke = false; cr.state = "hang"; cr.rival = null; }
         }
-        if (!alive) { cr.state = "hang"; }
+        /* A JOB CREW IS NOT A HANGOUT. jobArrive sets state "hostile" and deliberately leaves
+           rival null -- a robbery is a crime, not a turf war, so there is no rival to seek.
+           But this machine runs on EVERY crew every frame, and with no rival and the player
+           further than 250 away it fell straight through to `cr.state = "hang"` on the very
+           next tick. So Kuru and his ninjas arrived hostile, were reset to idle before you
+           could see it, and stood on the pavement like any other corner crew -- which is
+           exactly what the probe reported: `kings* hp=95 hang`.
+           A crew that is working a job stays hostile until it is broken or dead. */
+        if (cr.job && alive && !cr.broke) { cr.state = "hostile"; }
+        else if (!alive) { cr.state = "hang"; }
         else if (cr.broke) { cr.state = "flee"; }
         else if (cr.rival) {
           cr.state = "hostile";
@@ -25335,6 +25344,101 @@ export default function IronLionLayer004() {
       };
       return { head: String(j.phase).toUpperCase(), sub: "", n: "" };
     }
+    /* HIS RIDE, PARKED WHERE HE LEFT IT. VIL_CARS already carries one vehicle per rogue with
+       its measured length and width, and until now four of the five were dead data -- only the
+       van was ever put on the map. A parked bike outside a jeweller's is how you know whose
+       job you have walked into before anybody says a word, and it is the thing he leaves on
+       when he goes. Nose-up plates, so `ang` is a heading like every other vehicle here. */
+    function parkVilCar(rid, x, y, ang) {
+      const V = VIL_CARS.find((v) => v.who === rid);
+      if (!V) return null;
+      const tv = {
+        x, y, ang: ang == null ? Math.random() * 6.283 : ang,
+        m: { k: V.k, len: V.len, w: V.w },
+        spd: 0, cruise: 0, brake: 1, rad: 24, dead: 1, parked: 1, named: 1,
+        axis: "h", si: clamp(Math.round(y / PITCH), 0, N),
+        k: clamp(Math.round(x / PITCH), 0, N), dir: 1, fleeing: 0,
+        vilCar: 1, who: rid,
+      };
+      g.traffic.push(tv);
+      return tv;
+    }
+    /* One branch per rogue. Each does ONE visible thing and says one line; none of them share
+       an effect, because two rogues with the same arrival is the same as neither having one. */
+    function jobApproach(j, cr, boss, x, y, sx, sy, outdoors, site0) {
+      const ox = outdoors ? x : sx, oy = outdoors ? y : sy;
+      const site = site0 || (getCell(j.st.i, j.st.j).blds || []).find((q) => q.door && !q.perimeter);
+
+      if (j.rid === "drive") {
+        /* Unchanged, and still the only one that alters the building permanently: the site
+           keeps a `breach` on the side opposite its door, which nearbyDoor treats as a second
+           way in and out. It is never repaired -- a bank he has already hit is a bank with two
+           entrances for good. */
+        if (site && !site.breach) {
+          const dside = site.door.side;
+          site.breach = { side: (dside + 2) % 4, pos: 0.30 + Math.random() * 0.40 };
+          g.pickupFlash = { nm: "wall_came_down", t: 2.4 };
+        }
+        parkVilCar("drive", ox + 70, oy + 40, Math.PI);
+        return;
+      }
+
+      if (j.rid === "kuru") {
+        /* He came over the roof and the alarm died twenty minutes ago, so there is nothing
+           broken and nobody outside knows. What you get instead is the bike at the kerb and
+           his men ABOVE you -- the ninjas start spread wide and high on the approach rather
+           than stacked on his shoulder, because a man who cuts the alarm first does not put
+           four swords in the doorway. */
+        parkVilCar("kuru", ox - 58, oy + 46, -Math.PI / 2);
+        cr.members.forEach((mm, mi) => {
+          if (!mi || mm === boss) return;
+          const a = (mi / Math.max(1, cr.members.length - 1)) * 6.283;
+          mm.x = ox + Math.cos(a) * 150;
+          mm.y = oy + Math.sin(a) * 150;
+          mm.hx = mm.x; mm.hy = mm.y;
+          if (site0 && !outdoors) {
+            mm.x = clamp(mm.x, site0.x + 26, site0.x + site0.w - 26);
+            mm.y = clamp(mm.y, site0.y + 26, site0.y + site0.h - 26);
+          }
+        });
+        g.pickupFlash = { nm: "alarm_is_already_dead", t: 2.4 };
+        return;
+      }
+
+      if (j.rid === "monstruo") {
+        /* Forty of them filling the room is his approach, and the spread already does that.
+           What was missing is the rod at the kerb and the silence -- no heat on arrival, so
+           the street outside is completely normal while the room is full of mimes. */
+        parkVilCar("monstruo", ox + 64, oy - 52, 0);
+        g.pickupFlash = { nm: "nobody_is_saying_anything", t: 2.4 };
+        return;
+      }
+
+      if (j.rid === "mvp") {
+        /* Straight through the front doors in daylight, still wearing the pads. He is loud by
+           table and the heat is already up; the ATV is left ON THE PAVEMENT at the door rather
+           than parked, because he is not planning to be subtle about leaving either. */
+        parkVilCar("mvp", ox, oy + 58, -Math.PI / 2);
+        g.pickupFlash = { nm: "he_came_in_the_front", t: 2.4 };
+        return;
+      }
+
+      if (j.rid === "voz") {
+        /* Somebody who works here left a door unlocked. No vehicle -- she walks -- and the
+           inside man is already handled below. What this adds is the door itself: the site is
+           left UNLOCKED behind her, which is the only trace she leaves anywhere. */
+        if (site) site.unlocked = 1;
+        g.pickupFlash = { nm: "a_door_was_left_open", t: 2.4 };
+        return;
+      }
+
+      if (j.rid === "arson") {
+        /* The fire is lit further down in jobArrive -- igniteBuilding and the brigade are
+           machinery that predates him. He stands in the doorway, so he does not get a ride. */
+        g.pickupFlash = { nm: "he_is_not_taking_it", t: 2.4 };
+        return;
+      }
+    }
     function jobArrive() {
       const j = g.job, R = ROGUE_JOB[j.rid];
       const [x, y] = jobSiteXY(j.st);
@@ -25379,6 +25483,9 @@ export default function IronLionLayer004() {
          bystanders rather than as the crew doing the job. */
       cr.state = "hostile";
       cr.war = 0;                     // this is a crime, not a turf war -- no rival to seek
+      /* THE FLAG THE STATE MACHINE READS. Without it the line above survives one frame.
+         See the `cr.job` branch in the crew update. */
+      cr.job = 1;
       if (site0 && !outdoors) { cr.indoor = site0; cr.indoorFloor = 0; }
       const boss = cr.members[0];
       boss.hp = R.hp; boss.boss = 1; boss.rid = j.rid;
@@ -25393,14 +25500,14 @@ export default function IronLionLayer004() {
          a second way in and out. It is not repaired afterwards: the city keeps the hole, so a
          bank he has already hit is a bank with two entrances for good. That is the point of
          giving each rogue an approach -- it should leave the map different. */
-      if (j.rid === "drive") {
-        const site = (getCell(j.st.i, j.st.j).blds || []).find((q) => q.door && !q.perimeter);
-        if (site && !site.breach) {
-          const dside = site.door.side;
-          site.breach = { side: (dside + 2) % 4, pos: 0.30 + Math.random() * 0.40 };
-          g.pickupFlash = { nm: "wall_came_down", t: 2.4 };
-        }
-      }
+      /* SIX APPROACHES, NOT ONE. `approach` has been a sentence in ROGUE_JOB since the
+         gallery went in and only ONE of them was ever built -- Masterdrive's van in the wall.
+         Every other rogue's arrival was a line of prose over a crew standing on a pavement,
+         which is why five of the six read as "some men are here now" and he was the only one
+         who felt like he had turned up. The whole point of giving each of them an approach is
+         that it should leave the scene different, so each one now does one thing you can see.
+         Keyed off `rid`, one branch each, no shared effect. */
+      jobApproach(j, cr, boss, x, y, sx, sy, outdoors, site0);
       /* Spread. Monstruo's eight fill the ROOM -- that is his whole approach and clustering
          them on the door made him read as just another crew with more men. Everyone else
          stacks near their boss. */
