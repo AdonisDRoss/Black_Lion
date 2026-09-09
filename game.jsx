@@ -2475,6 +2475,22 @@ const FIS_PLATES = ["fis_agent_1", "fis_agent_2", "fis_agent_3", "fis_agent_4"];
 const FIS_NAMES = ["HALPERN", "OYELARAN", "STRAND", "DEMARCO", "KESSLER", "AUGUSTINE",
                    "REYES-WHITT", "NAKAGAWA", "BOULANGER", "ODUYA", "PRYCE", "VANTERPOOL"];
 
+/* HALLORAN'S REST. The trailer plates are drawn with their long axis HORIZONTAL, so the units
+   are generated wide rather than tall and the plate maps onto the footprint with no rotation --
+   which is also correct: a single-wide's door is on its long side. */
+const TC_ART = {};
+for (const k of ["tc_trailer_a", "tc_trailer_b", "tc_trailer_c", "tc_trailer_d",
+                 "tc_skirt", "tc_steps", "tc_deck", "tc_propane", "tc_mailbank",
+                 "tc_clothesline", "tc_bins", "tc_bench", "tc_heavybag",
+                 "tc_deadcar_a", "tc_deadcar_b", "tc_deadcar_c",
+                 "tc_res_1", "tc_res_2", "tc_res_3", "tc_res_4",
+                 "tc_res_5", "tc_res_6", "tc_res_7", "tc_res_8",
+                 "tx_tr_carpet", "tx_tr_dirt"])
+  TC_ART[k] = "assets/tc/" + k + ".png";
+const TC_ROOF = ["tc_trailer_a", "tc_trailer_b", "tc_trailer_c", "tc_trailer_d"];
+const TC_RES = ["tc_res_1", "tc_res_2", "tc_res_3", "tc_res_4",
+                "tc_res_5", "tc_res_6", "tc_res_7", "tc_res_8"];
+
 const KO_ART = {};
 for (let i = 0; i < 9; i++) KO_ART["ko_" + String(i).padStart(2, "0")] = "assets/ko/ko_" + String(i).padStart(2, "0") + ".png";
 KO_ART["ko_stun"] = "assets/ko/ko_stun.png";
@@ -2880,6 +2896,13 @@ const FIRE_CELLS = [
   { i: 13, j: 2, name: "ENGINE 4" },     // the sixth ward
 ];
 const isFireCell = (i, j) => FIRE_CELLS.some((c) => c.i === i && c.j === j);
+/* ---------- HALLORAN'S REST ----------
+   Two farm cells, side by side, so the court reads as one place rather than two of them. The
+   farm branch throws away 58% of its cells and puts a homestead on the rest, so these were
+   empty ground more often than not. A court is not houses at a smaller scale: it is a gravel
+   loop with units angled off it, and the difference is the whole look. */
+const TRAILER_CELLS = [{ i: 24, j: 7 }, { i: 25, j: 7 }];
+const isTrailerCell = (i, j) => TRAILER_CELLS.some((c) => c.i === i && c.j === j);
 function fireHouseAt(i, j) { return FIRE_CELLS.find((c) => c.i === i && c.j === j) || null; }
 
 const SHOP_CELLS = [
@@ -3374,6 +3397,7 @@ const DOORW = 34;          // 1.6m doorway -- was 19, which is narrower than 2x 
 
 function floorKind(b, f) {
   if (b.kind === "house") return f === 0 ? (b.floors > 1 ? "house_g2" : "house_g1") : "house_u";
+  if (b.kind === "trailer") return "trailer";
   if (b.kind === "store") return "store";
   if (b.kind === "den") return "den";
   /* Civic buildings put their whole point on the ground floor -- the counter, the cells, the
@@ -3436,7 +3460,9 @@ function makeFloor(b, f, rnd) {
     // a cell is a small room; on the coarse grid a run of them comes out the size of offices
     || kind === "precinct" || kind === "sechq" || kind === "cityhall"
     || kind === "fis_hold" || kind === "fis_lobby" || kind === "fis_bullpen"
-    || kind === "fis_plans" || kind === "fis_exec";
+    || kind === "fis_plans" || kind === "fis_exec"
+    // three rooms end to end in five metres of width needs the fine grid, same as the motel
+    || kind === "trailer";
   /* The motel needs a finer grid than anything else in the game and it is worth saying why:
      eleven units, each of which must be a room PLUS its own bathroom, and no two bathrooms
      may touch or the doorway tree will chain one unit into the next. That needs at least two
@@ -3803,6 +3829,15 @@ function makeFloor(b, f, rnd) {
     // his office is the big one at the end, and it is the only room up here with a door you
     // have to be let through
     put(0, line + 1, GX - 1, GY - 1, "asyhead");
+  } else if (kind === "trailer") {
+    /* LIVING, BATH, BED, in that order from the door. One long axis, three rooms across it, and
+       the bathroom in the middle where the plumbing stack would actually be -- which also means
+       you walk past the bathroom door to reach the bedroom, the way you do in a real one. */
+    const a = Math.max(1, Math.round(GX * 0.42));
+    const c0 = Math.max(a + 1, Math.round(GX * 0.62));
+    hub = put(0, 0, a - 1, GY - 1, "tr_living");
+    put(a, 0, c0 - 1, GY - 1, "tr_bath");
+    put(c0, 0, GX - 1, GY - 1, "tr_bed");
   } else if (kind === "fis_hold") {
     /* THE BASEMENT. Same corridor trick the asylum cells use, and for the same reason -- every
        cell touches ONLY the corridor, so six cells stay six rooms instead of one long room with
@@ -4246,6 +4281,8 @@ function makeFloor(b, f, rnd) {
     if (kind === "fis_lobby") r.floorTex = "tx_marble";
     if (kind === "fis_exec" && r.k === "fis_director") r.floorTex = "tx_marble";
     if (kind === "fis_hold") r.floorTex = "tx_concrete";
+    // one carpet through the whole unit, because that is how a trailer is carpeted
+    if (kind === "trailer") r.floorTex = "tx_tr_carpet";
     if (kind === "store" && b && b.arch === "jewel" && r.k === "retail") r.floorTex = "tx_marble";
     // K(standard, luxury) -- one call at each placement instead of a duplicated case per class
     const LUX = isLux(b), K = (std, lux) => (LUX ? lux : std);
@@ -4408,6 +4445,25 @@ function makeFloor(b, f, rnd) {
       /* THE FIELD OFFICE. Furnished from the cut sheet, so every one of these keys is a real
          plate rather than a generic box: fis_desk_pc, fis_table_conf, fis_evidence_board and
          the rest all draw the pixel art that came in with the faction. */
+      /* The court. Furnished from what is already in the file -- couch, tv, table, bed, toilet,
+         sink -- so it works before any new plate lands, and the tc_ keys can be dropped over
+         the top later without touching the layout. */
+      case "tr_living":
+        // "sofa", not "couch" -- couch is not a prop kind this file knows, and an unknown kind
+        // draws nothing at all rather than complaining
+        P(q2.x0 + 6, q2.y0 + 6, Math.max(26, W2 - 12), 20, "sofa");
+        P(cx - 12, q2.y1 - pad - 16, 24, 16, "tv");
+        P(q2.x1 - pad - 18, q2.y0 + pad + 22, 18, 14, "table");
+        break;
+      case "tr_bath":
+        P(q2.x0 + 5, q2.y0 + 5, 16, 16, "toilet");
+        P(q2.x1 - 21, q2.y0 + 5, 16, 14, "sink");
+        P(q2.x0 + 5, q2.y1 - 20, Math.max(18, W2 - 10), 15, "bath");
+        break;
+      case "tr_bed":
+        P(q2.x0 + 6, q2.y0 + 8, Math.max(24, W2 - 12), Math.max(18, H2 * 0.46), "bed");
+        P(q2.x1 - pad - 20, q2.y1 - pad - 26, 20, 26, "cab");
+        break;
       case "fis_atrium":
         P(cx - 26, q2.y0 + pad, 52, 52, "fis_seal");
         runX(q2, q2.y1 - pad - 22, clamp(Math.round(W2 / 150), 2, 4), 48, 22, "bench", pad);
@@ -5769,6 +5825,29 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     return out;
   }
 
+  if (zone === "farm" && isTrailerCell(i, j)) {
+    /* Single-wides, 5m x 13m, set at a slight angle off a gravel loop. The angle is the point:
+       a row of boxes square to the road is a housing estate, and nobody ever set a trailer down
+       square to anything. Each is three rooms end to end, which is what the plan expects. */
+    const rows = 2, per = 3;
+    for (let r = 0; r < rows; r++) {
+      for (let u = 0; u < per; u++) {
+        if (rnd() < 0.12) continue;                 // a vacant pad. A full court is a suspicious court
+        const tw = 13.0 * MU, th = 5.0 * MU;      // long axis across, like the plate
+        const gx = lx0 + LW * (0.16 + u * 0.30) + (rnd() - 0.5) * 10;
+        const gy = ly0 + LH * (r === 0 ? 0.20 : 0.62) + (rnd() - 0.5) * 10;
+        const t = mkB(gx, gy, tw, th, 1, "trailer", rnd, key + r * 37 + u * 11);
+        // door on the loop side: north row faces down into the loop, south row faces up
+        t.door = { side: r === 0 ? 2 : 0, pos: 0.24 + rnd() * 0.20 };
+        t.roofKey = TC_ROOF[(Math.abs(key + r * 37 + u * 11) >> 2) % TC_ROOF.length];
+        t.tone = 0.30 + rnd() * 0.46;
+        t.trailer = true;
+        t.skirt = rnd() < 0.7;
+        out.push(t);
+      }
+    }
+    return out;
+  }
   if (zone === "farm") {
     // one homestead per few blocks: house, barn, silo, set well back off the county road
     if (rnd() > 0.42) return out;
@@ -6168,6 +6247,58 @@ function breachPoint(b) {
    (`b.door ? b.door.side : 2`). Callers that should not be drawing door furniture on a wall
    still have their own guards and still skip; this only means that missing one costs a
    misplaced doormat instead of the entire render. */
+/* ================= PARKING =================
+   Derived from the building rather than generated with it. Every one of the twenty-odd branches
+   in genBuildings would otherwise need its own lot code, and the lot is not new information --
+   a building's door already says which side faces the street, and the lot goes on the other one.
+   Cached on the building the first time it is asked for, so it is stable for the session.
+
+   A business gets a LOT: asphalt with marked stalls, sized off its own footprint.
+   A home gets a DRIVE: one spot at the kerb on the door side, which is where a car in front of
+   a house actually sits. Arden houses already have a real garage wing and a drive drawn beside
+   them, so they are left alone -- adding a second surface would pave the lawn twice. */
+const LOT_KINDS = { office: 1, bank: 1, store: 1, cafe: 1, bar2: 1, fastfood: 1, gunshop: 1,
+                    venue: 1, nightclub: 1, ristorante: 1, warehouse: 1, garage: 1, arcade: 1,
+                    motel: 1, hospital: 1, precinct: 1, cityhall: 1, sechq: 1, bandvenue: 1 };
+const HOME_KINDS = { house: 1, tower: 1, apartments: 1 };
+const STALL = 26;                  // one car's width across the mouth of a stall
+
+function parkingOf(b) {
+  if (!b || b._park !== undefined) return b ? b._park : null;
+  b._park = null;
+  if (!b.door || b.perimeter || b.landmark) return null;
+  const side = b.door.side;                      // 0 N, 1 E, 2 S, 3 W -- the street side
+  const spots = [];
+  if (b.fis || LOT_KINDS[b.kind]) {
+    /* Behind the building, away from the door. A lot between you and the entrance is a lot
+       nobody would build: the walk from the car to the door has to cross the frontage. */
+    const depth = Math.min(64, Math.max(38, b.h * 0.42));
+    const wide = Math.min(b.w, Math.max(70, b.w * 0.92));
+    let x, y, w, h, horiz;
+    if (side === 0)      { x = b.x + (b.w - wide) / 2; y = b.y + b.h + 8;      w = wide; h = depth; horiz = 1; }
+    else if (side === 2) { x = b.x + (b.w - wide) / 2; y = b.y - depth - 8;    w = wide; h = depth; horiz = 1; }
+    else if (side === 3) { x = b.x + b.w + 8;          y = b.y + (b.h - wide) / 2; w = depth; h = wide; horiz = 0; }
+    else                 { x = b.x - depth - 8;        y = b.y + (b.h - wide) / 2; w = depth; h = wide; horiz = 0; }
+    const n = clamp(Math.floor((horiz ? w : h) / STALL), 2, 8);
+    for (let k = 0; k < n; k++) {
+      const t = (k + 0.5) / n;
+      spots.push(horiz ? { x: x + w * t, y: y + h * 0.5, ang: Math.PI / 2 }
+                       : { x: x + w * 0.5, y: y + h * t, ang: 0 });
+    }
+    b._park = { kind: "lot", x, y, w, h, horiz, spots, taken: spots.map(() => null) };
+  } else if (HOME_KINDS[b.kind] && !b.arden) {
+    // one spot, at the kerb, on the door side. A house does not have a car park.
+    const dp = doorPoint(b);
+    const out = 30;
+    const off = side === 0 ? [0, -out] : side === 2 ? [0, out] : side === 3 ? [-out, 0] : [out, 0];
+    const ang = (side === 0 || side === 2) ? 0 : Math.PI / 2;
+    const sp = { x: dp[0] + off[0] * 1.15, y: dp[1] + off[1] * 1.15, ang };
+    b._park = { kind: "drive", x: sp.x - 16, y: sp.y - 26, w: 32, h: 52,
+                horiz: ang === 0 ? 0 : 1, spots: [sp], taken: [null] };
+  }
+  return b._park;
+}
+
 function doorPoint(b) {
   if (!b || !b.door) {
     if (!b) return [0, 0];
@@ -6886,7 +7017,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -8301,6 +8432,10 @@ export default function IronLionLayer004() {
         // one of a small pool of baked looks, and one of eight builds. The older sheets
         // carry fewer rows, so the draw wraps this index rather than trusting it.
         civ: pickCiv(),
+        /* Out at Halloran's Rest the residents ARE the residents. pickCiv is the downtown pool
+           -- suits and shoppers, forty miles from anywhere they would actually be standing.
+           drawPed already prefers p.yt over the civ sheet, so this needs no drawing code. */
+        yt: isTrailerCell(bi, bj) ? TC_RES[(Math.random() * TC_RES.length) | 0] : null,
         jit: 0.93 + Math.random() * 0.15,
         spd: 54 + Math.random() * 30,
         anim: Math.random() * 6.28, mode: "walk", timer: 0,
@@ -12972,9 +13107,55 @@ export default function IronLionLayer004() {
       ctx.fill();
     }
 
+    /* The surface. Respects the alpha argument, which is not optional here -- a lot painted at
+       full opacity while the shell above it fades out is exterior art sitting on top of an
+       interior, which is the one prop mistake this file has made most often. */
+    function drawParking(b, alpha) {
+      const pk = parkingOf(b);
+      if (!pk || alpha <= 0.02) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = pk.kind === "drive" ? "rgba(96,94,90,0.85)" : "rgba(58,58,62,0.92)";
+      ctx.fillRect(pk.x, pk.y, pk.w, pk.h);
+      // stall lines, and only between stalls -- a line down each edge reads as a kerb
+      ctx.strokeStyle = "rgba(214,206,168,0.42)";
+      ctx.lineWidth = 1.4;
+      if (pk.kind === "lot") {
+        const n = pk.spots.length;
+        for (let k = 1; k < n; k++) {
+          const t = k / n;
+          ctx.beginPath();
+          if (pk.horiz) { ctx.moveTo(pk.x + pk.w * t, pk.y + 3); ctx.lineTo(pk.x + pk.w * t, pk.y + pk.h - 3); }
+          else { ctx.moveTo(pk.x + 3, pk.y + pk.h * t); ctx.lineTo(pk.x + pk.w - 3, pk.y + pk.h * t); }
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
     function drawBuildingExt(b, alpha) {
       if (alpha <= 0.01) return;
       if (b.kind === "den") { drawDenExt(b, alpha); return; }
+      if (b.trailer) {
+        /* The unit IS the plate. A generated brick facade with a parallax roof on a five-metre
+           box reads as a shed, and the whole court would look like a storage yard. */
+        const tim = imgs.current[b.roofKey || "tc_trailer_b"];
+        if (tim && tim.width) {
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          drawShadow(b.x + b.w / 2, b.y + b.h * 0.94, b.w * 0.46, b.h * 0.30, 0.34);
+          ctx.drawImage(tim, b.x, b.y, b.w, b.h);
+          const sk = imgs.current["tc_skirt"];
+          if (b.skirt && sk && sk.width) ctx.drawImage(sk, b.x, b.y + b.h - 6, b.w, 10);
+          const st = imgs.current["tc_steps"];
+          if (st && st.width) {
+            const dp = doorPoint(b);
+            ctx.drawImage(st, dp[0] - 11, dp[1] - 8, 22, 20);
+          }
+          ctx.restore();
+          return;
+        }
+      }
+      drawParking(b, alpha);
       if (b.landmark) drawCasinoStair(b, alpha);
       /* The seal goes on the forecourt, not on the wall -- it is the thing you walk over on the
          way in, which is how you know whose building this is before you read the sign. */
@@ -21245,6 +21426,7 @@ export default function IronLionLayer004() {
         }
         if (c.zone === "prison") continue;             // so does the prison, in one campus
         if (c.zone === "neon") { drawNeon(c); continue; }
+        if (isTrailerCell(c.i, c.j)) { drawTrailerYard(c); continue; }
         if (c.zone === "farm") { drawFarm(c); continue; }
         if (c.zone === "town") { drawTownLot(c); continue; }
         if (c.zone === "chinatown") {
@@ -23455,6 +23637,7 @@ export default function IronLionLayer004() {
          throne room have always been empty. */
       updateCrews(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       stepHunter(dt);
+      stepArrivals(dt);
       if (!g.inside) updateTraffic(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       if (!g.inside) updateFwyTraffic(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       updateAudio(dt);
@@ -25038,6 +25221,115 @@ export default function IronLionLayer004() {
       ctx.font = "700 10px system-ui, sans-serif";
       ctx.fillStyle = "#e8c27a";
       ctx.fillText(HERO_HUNTER.called, H.x - 30, H.y - 50);
+    }
+    /* ARRIVALS. Somebody drives home, parks, gets out and goes inside. Self-contained rather
+       than bolted onto the traffic AI: those cars are following lanes and a lane is the one
+       thing a parking space is not. These are spawned at the kerb already pointed at the space,
+       so nothing has to path.
+       Parked, they are ordinary traffic entries with dead: 1 -- which is what the file already
+       uses for a car standing still, so they draw, they collide, and you can steal one. */
+    function stepArrivals(dt) {
+      g.arrive = g.arrive || [];
+      g.arriveCd = (g.arriveCd || 0) - dt;
+      const cam = g.cam;
+      if (g.arriveCd <= 0 && !g.inside && g.arrive.length < 5) {
+        g.arriveCd = 3.5 + Math.random() * 5;
+        const ci = clamp(Math.floor(cam.x / PITCH), 0, N - 1);
+        const cj = clamp(Math.floor(cam.y / PITCH), 0, N - 1);
+        const c = getCell(ci + ((Math.random() * 3) | 0) - 1, cj + ((Math.random() * 3) | 0) - 1);
+        const b = c && (c.blds || []).find((q) => {
+          const pk = parkingOf(q);
+          return pk && pk.taken.some((t) => !t);
+        });
+        if (b) {
+          const pk = parkingOf(b);
+          const k = pk.taken.findIndex((t) => !t);
+          const sp = pk.spots[k];
+          /* CARM is the ordinary traffic pool. Filtered: a bus does not pull onto a driveway,
+             and a cruiser arriving home would read as the police coming for you. */
+          const pool = CARM.filter((q) => !q.bus && q.k !== "cruiser" && q.k !== "taxi");
+          const CIVM = pool[(Math.random() * pool.length) | 0] || CARM[0];
+          const dp = doorPoint(b);
+          const v = {
+            x: sp.x - Math.cos(sp.ang) * 150, y: sp.y - Math.sin(sp.ang) * 150,
+            ang: sp.ang, spd: 0, brake: 0, m: CIVM, dead: 0, arriving: 1,
+            tx: sp.x, ty: sp.y, tang: sp.ang, homeB: b, slot: k, doorTo: dp,
+          };
+          if (Number.isFinite(v.x)) {
+            pk.taken[k] = v;
+            g.traffic.push(v);
+            g.arrive.push(v);
+          }
+        }
+      }
+      for (let i = g.arrive.length - 1; i >= 0; i--) {
+        const v = g.arrive[i];
+        if (!v || !Number.isFinite(v.x)) { g.arrive.splice(i, 1); continue; }
+        if (v.arriving) {
+          const dx = v.tx - v.x, dy = v.ty - v.y, d = Math.hypot(dx, dy);
+          if (d < 4) {
+            v.x = v.tx; v.y = v.ty; v.ang = v.tang;
+            v.arriving = 0; v.dead = 1; v.spd = 0;
+            /* Out of the car and up the path. The ped is a normal civilian -- same sheet, same
+               walk -- given one destination and told to stop existing when it gets there,
+               because a man who walks through a front door should not come back out of it
+               thirty seconds later on a random errand. */
+            const q = spawnPedAt(v.x + Math.cos(v.ang + 1.57) * 16, v.y + Math.sin(v.ang + 1.57) * 16);
+            const ped = q || g.peds[g.peds.length - 1];
+            if (ped && v.doorTo) { ped.tgt = [v.doorTo[0], v.doorTo[1]]; ped.goHome = 1; }
+            g.arrive.splice(i, 1);
+            continue;
+          }
+          const spd = Math.min(70, 24 + d * 0.9);
+          v.x += (dx / d) * spd * dt; v.y += (dy / d) * spd * dt;
+          v.ang = Math.atan2(dy, dx);
+        }
+      }
+      /* And the walk in. When one of them reaches the door it goes inside and is gone. */
+      for (let i = (g.peds || []).length - 1; i >= 0; i--) {
+        const q = g.peds[i];
+        if (!q || !q.goHome) continue;
+        if (Math.hypot(q.tgt[0] - q.x, q.tgt[1] - q.y) < 14) g.peds.splice(i, 1);
+      }
+    }
+    /* THE YARD. Dirt under the whole cell instead of field grass, then the junk, placed off the
+       cell key so it is in the same spot every time you come back. Deterministic scatter, not
+       random: a court whose dead cars move between visits is a screensaver. */
+    function drawTrailerYard(c) {
+      const dirt = imgs.current["tx_tr_dirt"];
+      const w = c.lx1 - c.lx0, h = c.ly1 - c.ly0;
+      if (dirt && dirt.width) {
+        const pat = ctx.createPattern(dirt, "repeat");
+        if (pat) { ctx.fillStyle = pat; ctx.fillRect(c.lx0, c.ly0, w, h); }
+      } else {
+        ctx.fillStyle = "rgba(104,94,74,0.95)"; ctx.fillRect(c.lx0, c.ly0, w, h);
+      }
+      /* The gravel loop. One bar across the middle of the cell -- the units sit either side of
+         it, which is what makes them a court and not a row. */
+      ctx.fillStyle = "rgba(122,116,104,0.85)";
+      ctx.fillRect(c.lx0 + w * 0.04, c.ly0 + h * 0.44, w * 0.92, h * 0.13);
+
+      const rnd = mulberry((c.i * 733 + c.j * 197) >>> 0);
+      const JUNK = ["tc_deadcar_a", "tc_deadcar_b", "tc_deadcar_c", "tc_bench", "tc_heavybag",
+                    "tc_propane", "tc_bins", "tc_clothesline", "tc_deck", "tc_mailbank"];
+      for (let k = 0; k < JUNK.length; k++) {
+        if (rnd() < 0.28) continue;
+        const im = imgs.current[JUNK[k]];
+        if (!im || !im.width) continue;
+        // out of the loop, into the strip in front of or behind a unit
+        const band = rnd() < 0.5 ? 0.14 : 0.80;
+        const px = c.lx0 + w * (0.08 + rnd() * 0.84);
+        const py = c.ly0 + h * (band + (rnd() - 0.5) * 0.10);
+        const ww = Math.min(84, 26 + im.width * 0.16), hh = ww * (im.height / im.width);
+        drawShadow(px, py + hh * 0.42, ww * 0.42, hh * 0.20, 0.30);
+        ctx.drawImage(im, px - ww / 2, py - hh / 2, ww, hh);
+      }
+      // the mailboxes always, at the mouth, because that is the one thing every court has
+      const mb = imgs.current["tc_mailbank"];
+      if (mb && mb.width) {
+        const ww = 62, hh = ww * (mb.height / mb.width);
+        ctx.drawImage(mb, c.lx0 + w * 0.05, c.ly0 + h * 0.50 - hh / 2, ww, hh);
+      }
     }
     function drawJobBoss() {
       const j = g.job;
