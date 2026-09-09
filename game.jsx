@@ -16363,6 +16363,13 @@ export default function IronLionLayer004() {
       { z: "water",     name: "CORMORANT ISLAND", i: 28, j: 10, landmark: true, travel: true },
       { z: "city",      name: "RAVEN HOOK GENERAL", i: 7, j: 11, landmark: true, travel: true },
       { z: "county",    name: "THE STARLITE",    i: 25, j: 21, landmark: true },
+      /* The field office. Downtown is logged the moment you drive through it, so this appears
+         as soon as the quarter does -- which is right: the FIS is not a secret, it has a seal
+         on the forecourt and its name over the door. Arrives at 11,6, the lot it stands on. */
+      { z: "downtown",  name: "THE FIELD OFFICE",  i: 11, j: 6, landmark: true },
+      /* Halloran's Rest. Under THE COUNTY's zone, so driving out to the farmland once unlocks
+         both -- the court is not a separate district, it is an address in one. */
+      { z: "farm",      name: "HALLORAN'S REST",   i: 24, j: 7, landmark: true },
       { z: "skate",     name: "GALAXY LANES",     i: 5,  j: 9, landmark: true },
       { z: "skate",     name: "THE LAST CALL",    i: 6,  j: 9, landmark: true },
       /* The elevated. Downtown is the busiest stop and the one worth arriving at, and the
