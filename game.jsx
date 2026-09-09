@@ -271,6 +271,8 @@ const vehName = (k) => CARNAME[k] || MOTONAME[k]
 /* Two named vehicles. They sit in CARM so every system that already knows how to draw, damage,
    park and steal a car handles them with no special case. */
 const NAMED_CARS = [
+  // armoured, and it should feel it: longer and wider than anything the RHPD puts on the street
+  { k: "hh_suv", len: 132, w: 68, who: "bannerman" },
   { k: "sho_car", len: 118, w: 48 },
   { k: "kenny_truck", len: 104, w: 56 },
   { k: "ef_car", len: 116, w: 52 },
@@ -1536,7 +1538,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 425 — SIX APPROACHES";
+const BUILD_TAG = "LAYER 424 — REGISTERED";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -2371,6 +2373,108 @@ const BANK_CELLS = [
    `all` map further down; a key that appears nowhere in these tables is simply never asked
    for, and every lookup of it returns undefined forever. That is the trap this file already
    fell into once with the vault door. */
+/* The FIS. Plates are already nose-UP: the two vehicles were turned at CUT time, so neither
+   goes in ROTATE_CW -- rotate at cut time or at load time, never both, which is the mistake
+   that had LUNA riding sideways. */
+const FIS_ART = {};
+for (const k of ["fis_director", "fis_snow", "fis_lin",
+                 "fis_agent_1", "fis_agent_2", "fis_agent_3", "fis_agent_4",
+                 "fis_car", "fis_snow_car", "fis_seal",
+                 "fis_ped_1", "fis_ped_2", "fis_ped_3",
+                 "fis_desk_pc", "fis_desk_phone", "fis_desk_terminal", "fis_table_conf",
+                 "fis_filecab_row", "fis_lockers", "fis_evidence_board", "fis_gunrack",
+                 "fis_console_a", "fis_console_b", "fis_phone_a", "fis_phone_b",
+                 "fis_chair_office_a", "fis_chair_office_b", "fis_chair_office_c",
+                 "fis_chair_stack_a", "fis_chair_stack_b", "fis_chair_stack_c",
+                 "fis_chair_blue", "fis_clock", "fis_watercooler", "fis_extinguisher",
+                 "fis_tx_floor_grey", "fis_tx_floor_carpet",
+                 /* THE HERO HUNTER. Filed under the FIS because they are who calls him, but he
+                    is not one of them -- the plates are Army, not Bureau, and that difference
+                    is the whole character. His torso is already nose-UP; the SUV came in
+                    nose-LEFT and was turned at CUT time, so neither goes in ROTATE_CW. */
+                 "hh_hunter", "hh_suv"])
+  FIS_ART[k] = "assets/fis/" + k + ".png";
+
+/* THE PEOPLE. The Director is never called anything else to his face -- the name is on the
+   door and in the file, and nobody uses it. Snow and Lin are the two who carry the story;
+   the rest are the regulars, drawn from four plates and this name pool so the same four
+   faces are not the same four men every time. */
+const FIS_WHO = {
+  director: { key: "fis_director", name: "OWEN BRAMHALL", called: "THE DIRECTOR" },
+  snow:     { key: "fis_snow",     name: "AGENT SNOW", car: "fis_snow_car" },
+  lin:      { key: "fis_lin",      name: "AGENT LIN" },
+};
+/* MAJOR DESMOND HALE. Nobody in Raven Hook calls him that -- the flag on his shoulder and the
+   one bolted across his truck bed got him named off the street the same way La Voz and El
+   Monstruo were, and BANNERMAN is what comes over the scanner. Army, seconded to the FIS,
+   which is why he has a room on the Director's floor and none of the Bureau's furniture in it. */
+/* WHAT HE SAYS. Same shape as ROGUE_LINE and for the same reason -- who you brought is the
+   only thing about you he can see, and he has read all five files. He is not a villain who
+   monologues; he is a soldier who has been briefed, which is worse.
+   Eclipse gets the pass at her because that IS the character: he cannot look at a woman doing
+   this job without making it about him, and it is the one crack in an otherwise flawless
+   professional. She should get to hit him for it. */
+const HUNTER_LINE = {
+  meet: {
+    lion:    "Darius King. Fifty-one years old. You should be somebody's grandfather.",
+    rio:     "They put a CHILD on the file. I'm not fighting a child. I'm collecting one.",
+    kenny:   "Khan. I've got your fight tapes. Whole unit watched them. You were slower than they said.",
+    sho:     "A sword. In a city with helicopters. Somebody sold you a story.",
+    eclipse: "Well. Nobody said the mask was going to look like that.",
+  },
+  taunt1: {
+    lion:    "Every year you stay out here is a year they get to say you're the problem.",
+    rio:     "Does your mother know? Genuine question. I have to put it in the report.",
+    kenny:   "Sit down, old man. You've got maybe four good ones left and I've got all night.",
+    sho:     "Beautiful form. Absolutely beautiful. Bring it to a range sometime.",
+    eclipse: "You could just interview me. Dinner. I'd give you the whole file.",
+  },
+  taunt2: {
+    lion:    "This city didn't ask for you. It just stopped asking you to leave.",
+    rio:     "Fifteen. I was in Panama at nineteen. You've got four years to grow up.",
+    kenny:   "You fought men who were PAID to lose to you. I'm not.",
+    sho:     "I've got a hundred and ten pounds on you and a government behind me.",
+    eclipse: "Keep running. I'm enjoying the view and I get paid either way.",
+  },
+  win: {
+    lion:    "Stay down, Mr King. It's the first sensible thing you've done.",
+    rio:     "Somebody's coming to get you. Try not to be embarrassing about it.",
+    kenny:   "That's the tape I'll be showing.",
+    sho:     "Pick it up. Go home. Do something with your hands that isn't this.",
+    eclipse: "Now you'll write about me. Spell it right.",
+  },
+  lost: {
+    lion:    "...Fifty-one.",
+    rio:     "You are FIFTEEN.",
+    kenny:   "The tapes were slower. The tapes were slower.",
+    sho:     "That should not have worked.",
+    eclipse: "Was that -- was any of that a yes?",
+  },
+};
+const HERO_HUNTER = {
+  key: "hh_hunter", ride: "hh_suv",
+  name: "MAJOR DESMOND HALE", called: "BANNERMAN",
+};
+/* HERO-HUNTING KIT. Every move answers a specific hero rather than doing generic damage, which
+   is the only way a single opponent stays interesting against five of them:
+     NET      pins you where you stand -- the answer to Sho and Rio, whose whole defence is not
+              being where the last thing was.
+     DAMPEN   kills powers in a radius -- the answer to Eclipse's scream and goggles and to
+              Kenny's shockwave. Fists still work. That is the point: it makes everyone fight
+              the way HE fights.
+     BURST    suppressing fire at range, low damage, high pressure. Answers standing still.
+     CHARGE   shoulder rush that puts you down -- the answer to Darius, who wins by trading. */
+const HUNTER_KIT = {
+  hp: 260,
+  net:    { cd: 9.0,  r: 250, pin: 2.2 },
+  dampen: { cd: 15.0, r: 200, t: 5.0 },
+  burst:  { cd: 3.4,  r: 430, dmg: 5 },
+  charge: { cd: 7.5,  r: 165, dmg: 22 },
+};
+const FIS_PLATES = ["fis_agent_1", "fis_agent_2", "fis_agent_3", "fis_agent_4"];
+const FIS_NAMES = ["HALPERN", "OYELARAN", "STRAND", "DEMARCO", "KESSLER", "AUGUSTINE",
+                   "REYES-WHITT", "NAKAGAWA", "BOULANGER", "ODUYA", "PRYCE", "VANTERPOOL"];
+
 const KO_ART = {};
 for (let i = 0; i < 9; i++) KO_ART["ko_" + String(i).padStart(2, "0")] = "assets/ko/ko_" + String(i).padStart(2, "0") + ".png";
 KO_ART["ko_stun"] = "assets/ko/ko_stun.png";
@@ -2571,6 +2675,12 @@ const isPawnCell = (i, j) => PAWN_CELLS.some((c) => c.i === i && c.j === j);
 const ASYLUM_CELL = { i: 28, j: 10 };
 const ASYLUM_SHORE = 27;                 // the causeway runs west from the island to here
 const HOSPITAL_CELL = { i: 7, j: 11 };
+/* FIS FIELD OFFICE. Downtown is i6-12 / j4-10; the lots already spoken for in that box are
+   6,4-6,9 · 8,6 · 9,5 · 9,7 (First Merchants) · 9,8 · 9,9 · 10,8 · 10,10 · 11,9 · 12,9 · 12,10.
+   11,6 is empty, sits mid-district, and is two blocks off the bank the rogues keep hitting --
+   near enough that the federal interest is obvious, far enough that it is not the same scene. */
+const FIS_CELL = { i: 11, j: 6 };
+const isFisCell = (i, j) => i === FIS_CELL.i && j === FIS_CELL.j;
 const isAsylumCell = (i, j) => i === ASYLUM_CELL.i && j === ASYLUM_CELL.j;
 const isHospitalCell = (i, j) => i === HOSPITAL_CELL.i && j === HOSPITAL_CELL.j;
 /* DR. AMBROSE TEAGUE. Medical director, and the man who has had all five rogues in his
@@ -3297,6 +3407,12 @@ function floorKind(b, f) {
   if (b.kind === "asylum") return f === 0 ? "asyadmin" : f === 3 ? "asyoffice" : "asycells";
   if (b.kind === "hospital") return f === 0 ? "hosreception" : f === 1 ? "hosward"
                                   : f === 2 ? "hosburn" : "hoshelipad";
+  /* THE FIELD OFFICE, bottom to top. Index 0 is the BASEMENT, not the street -- the building
+     carries entry: 1, and the door puts you on index 1. That is why the holding level can exist
+     at all: plans are an array, a negative index is not a floor, so the basement has to BE
+     index zero and the lobby has to sit above it. */
+  if (b.fis) return f === 0 ? "fis_hold" : f === 1 ? "fis_lobby" : f === 2 ? "fis_bullpen"
+                  : f === 3 ? "fis_plans" : "fis_exec";
   if (b.kind === "bank") return f === 0 ? "bankfloor" : "offices";
   if (b.kind === "fastfood") return f === 0 ? "ffloor" : "offices";
   if (b.kind === "bar2") return f === 0 ? "barfloor" : "offices";
@@ -3318,7 +3434,9 @@ function makeFloor(b, f, rnd) {
     || kind === "den" || kind === "kings_hq" || kind === "terminal" || kind === "club"
     || kind === "apartments" || kind === "offices" || kind === "lobby" || kind === "tower_flats"
     // a cell is a small room; on the coarse grid a run of them comes out the size of offices
-    || kind === "precinct" || kind === "sechq" || kind === "cityhall";
+    || kind === "precinct" || kind === "sechq" || kind === "cityhall"
+    || kind === "fis_hold" || kind === "fis_lobby" || kind === "fis_bullpen"
+    || kind === "fis_plans" || kind === "fis_exec";
   /* The motel needs a finer grid than anything else in the game and it is worth saying why:
      eleven units, each of which must be a room PLUS its own bathroom, and no two bathrooms
      may touch or the doorway tree will chain one unit into the next. That needs at least two
@@ -3685,6 +3803,52 @@ function makeFloor(b, f, rnd) {
     // his office is the big one at the end, and it is the only room up here with a door you
     // have to be let through
     put(0, line + 1, GX - 1, GY - 1, "asyhead");
+  } else if (kind === "fis_hold") {
+    /* THE BASEMENT. Same corridor trick the asylum cells use, and for the same reason -- every
+       cell touches ONLY the corridor, so six cells stay six rooms instead of one long room with
+       bars drawn on it. These are not for inmates. They are for people like you. */
+    const mid = Math.max(1, Math.round(GY / 2));
+    hub = put(0, mid, GX - 1, mid, "fis_holdcorr");
+    put(0, 0, Math.max(0, Math.round(GX * 0.22)), mid - 1, "fis_holddesk");
+    for (let u = 0; u < 3; u++) {
+      const a0 = Math.round(GX * 0.26 + (u * GX * 0.74) / 3);
+      const a1 = Math.round(GX * 0.26 + ((u + 1) * GX * 0.74) / 3) - 1;
+      if (a1 < a0) continue;
+      put(a0, 0, a1, mid - 1, "fis_cell");
+      put(a0, mid + 1, a1, GY - 1, "fis_cell");
+    }
+    put(0, mid + 1, Math.max(0, Math.round(GX * 0.22)), GY - 1, "fis_holdgear");
+  } else if (kind === "fis_lobby") {
+    // marble, a long counter, and a seal you cross before anyone speaks to you
+    const line = clamp(Math.round(GY * 0.52), 1, Math.max(1, GY - 2));
+    hub = put(0, 0, GX - 1, line - 1, "fis_atrium");
+    put(0, line, GX - 1, line, "fis_desk");
+    put(0, line + 1, Math.max(0, GX - 4), GY - 1, "fis_wait");
+    put(Math.max(1, GX - 3), line + 1, GX - 1, GY - 1, "fis_records");
+  } else if (kind === "fis_bullpen") {
+    const line = clamp(Math.round(GY * 0.62), 1, Math.max(1, GY - 2));
+    hub = put(0, 0, GX - 1, line - 1, "fis_desks");
+    put(0, line, GX - 1, line, "fis_hall");
+    put(0, line + 1, Math.max(0, Math.round(GX * 0.55)), GY - 1, "fis_files");
+    put(Math.max(1, Math.round(GX * 0.55) + 1), line + 1, GX - 1, GY - 1, "fis_break");
+  } else if (kind === "fis_plans") {
+    /* WHERE THE CASE GETS BUILT. Two rooms off a corridor: the war room with the board and the
+       long table, and a smaller room with the radio bench. Snow and Lin work this floor. */
+    const mid = clamp(Math.round(GY * 0.50), 1, Math.max(1, GY - 2));
+    hub = put(0, mid, GX - 1, mid, "fis_hall");
+    put(0, 0, Math.max(0, Math.round(GX * 0.58)), mid - 1, "fis_warroom");
+    put(Math.max(1, Math.round(GX * 0.58) + 1), 0, GX - 1, mid - 1, "fis_radio");
+    put(0, mid + 1, Math.max(0, Math.round(GX * 0.48)), GY - 1, "fis_case_a");
+    put(Math.max(1, Math.round(GX * 0.48) + 1), mid + 1, GX - 1, GY - 1, "fis_case_b");
+  } else if (kind === "fis_exec") {
+    /* THE TOP. His office takes the whole north face and it should -- a director whose room is
+       the same size as his agents' is not a director. The quarters at the far end are somebody
+       living at work, which is the only thing you need to know about the man in them. */
+    const line = clamp(Math.round(GY * 0.46), 1, Math.max(1, GY - 2));
+    hub = put(0, line, GX - 1, line, "fis_hall");
+    put(0, 0, GX - 1, line - 1, "fis_director");
+    put(0, line + 1, Math.max(0, Math.round(GX * 0.42)), GY - 1, "fis_exec_off");
+    put(Math.max(1, Math.round(GX * 0.42) + 1), line + 1, GX - 1, GY - 1, "fis_hunter");
   } else if (kind === "hosreception") {
     const line = clamp(Math.round(GY * 0.46), 1, Math.max(1, GY - 2));
     hub = put(0, 0, GX - 1, line - 1, "hoslobby");
@@ -4077,6 +4241,11 @@ function makeFloor(b, f, rnd) {
        and got five of twenty-eight; the real set is rotunda, vestibule, clerk, chamber,
        office, corridor, conf and wc -- read out of the plan rather than assumed. */
     if (kind === "cityhall" && r.k !== "wc") r.floorTex = "tx_marble";
+    /* Marble everywhere the public sees, concrete in the basement. The change underfoot is the
+       only thing that tells you which side of the building you have walked into. */
+    if (kind === "fis_lobby") r.floorTex = "tx_marble";
+    if (kind === "fis_exec" && r.k === "fis_director") r.floorTex = "tx_marble";
+    if (kind === "fis_hold") r.floorTex = "tx_concrete";
     if (kind === "store" && b && b.arch === "jewel" && r.k === "retail") r.floorTex = "tx_marble";
     // K(standard, luxury) -- one call at each placement instead of a duplicated case per class
     const LUX = isLux(b), K = (std, lux) => (LUX ? lux : std);
@@ -4236,6 +4405,106 @@ function makeFloor(b, f, rnd) {
          honest answer to "did you furnish the hospital". Built from prop types that already
          exist and already draw, so the rooms are furnished now and the 128 cut plates can be
          mapped over the top later without touching this. */
+      /* THE FIELD OFFICE. Furnished from the cut sheet, so every one of these keys is a real
+         plate rather than a generic box: fis_desk_pc, fis_table_conf, fis_evidence_board and
+         the rest all draw the pixel art that came in with the faction. */
+      case "fis_atrium":
+        P(cx - 26, q2.y0 + pad, 52, 52, "fis_seal");
+        runX(q2, q2.y1 - pad - 22, clamp(Math.round(W2 / 150), 2, 4), 48, 22, "bench", pad);
+        P(q2.x1 - pad - 20, q2.y0 + pad, 20, 20, "fis_clock");
+        break;
+      case "fis_desk":
+        counterRun(q2, "counter");
+        P(q2.x0 + pad, cy - 9, 20, 18, "fis_phone_a");
+        break;
+      case "fis_wait":
+        runX(q2, q2.y0 + pad, clamp(Math.round(W2 / 130), 2, 4), 44, 22, "fis_chair_stack_a", pad);
+        P(q2.x0 + pad, q2.y1 - pad - 26, 26, 26, "fis_watercooler");
+        P(q2.x1 - pad - 18, q2.y1 - pad - 22, 18, 22, "fis_extinguisher");
+        break;
+      case "fis_records":
+        P(q2.x0 + 6, q2.y0 + pad, Math.max(26, W2 - 12), 30, "fis_filecab_row");
+        P(q2.x0 + 6, q2.y1 - pad - 30, Math.max(26, W2 - 12), 30, "fis_filecab_row");
+        break;
+      case "fis_desks":
+        runX(q2, q2.y0 + pad, clamp(Math.round(W2 / 150), 2, 4), 54, 30, "fis_desk_pc", pad);
+        runX(q2, cy + 6, clamp(Math.round(W2 / 150), 2, 4), 54, 30, "fis_desk_phone", pad);
+        P(q2.x1 - pad - 22, q2.y1 - pad - 22, 22, 22, "fis_chair_office_a");
+        break;
+      case "fis_files":
+        P(q2.x0 + 6, q2.y0 + pad, Math.max(26, W2 - 12), 30, "fis_filecab_row");
+        P(q2.x0 + pad, q2.y1 - pad - 26, 34, 26, "fis_lockers");
+        break;
+      case "fis_break":
+        P(q2.x0 + pad, q2.y0 + pad, 26, 26, "fis_watercooler");
+        P(cx - 22, cy - 12, 44, 24, "fis_table_conf");
+        runX(q2, q2.y1 - pad - 20, 2, 20, 20, "fis_chair_stack_b", pad);
+        break;
+      case "fis_hall":
+        P(q2.x0 + pad, cy - 9, 18, 18, "fis_clock");
+        P(q2.x1 - pad - 18, cy - 11, 18, 22, "fis_extinguisher");
+        break;
+      /* THE WAR ROOM. The board is the room. Everything else is arranged so you have to stand
+         in front of it to look at anything -- table in the middle, chairs facing one wall. */
+      case "fis_warroom":
+        P(cx - Math.max(24, W2 * 0.30), cy - 14, Math.max(48, W2 * 0.60), 28, "fis_table_conf");
+        P(q2.x0 + 8, q2.y0 + 6, Math.max(34, W2 * 0.44), 26, "fis_evidence_board");
+        runX(q2, q2.y1 - pad - 20, clamp(Math.round(W2 / 120), 2, 4), 20, 20, "fis_chair_office_b", pad);
+        P(q2.x1 - pad - 18, q2.y0 + pad, 18, 18, "fis_clock");
+        break;
+      case "fis_radio":
+        P(q2.x0 + 6, q2.y0 + pad, Math.max(30, W2 - 12), 26, "fis_console_b");
+        P(q2.x0 + 6, cy + 2, Math.max(30, W2 - 12), 26, "fis_console_a");
+        P(q2.x1 - pad - 18, q2.y1 - pad - 18, 18, 18, "fis_chair_office_c");
+        break;
+      case "fis_case_a":
+        P(q2.x0 + pad, q2.y0 + pad, 54, 30, "fis_desk_terminal");
+        P(q2.x1 - pad - 34, q2.y0 + pad, 34, 26, "fis_evidence_board");
+        P(q2.x0 + pad, q2.y1 - pad - 20, 20, 20, "fis_chair_office_a");
+        break;
+      case "fis_case_b":
+        P(q2.x0 + pad, q2.y0 + pad, 54, 30, "fis_desk_phone");
+        P(q2.x1 - pad - 30, q2.y1 - pad - 30, 30, 30, "fis_filecab_row");
+        P(q2.x0 + pad, q2.y1 - pad - 20, 20, 20, "fis_chair_office_b");
+        break;
+      /* HIS ROOM. Marble under it, the long table down the middle, and nothing of the bullpen
+         in here -- no stacking chairs, no lockers, no water cooler. The difference between this
+         room and the one below it is the whole point of the floor. */
+      case "fis_director":
+        P(cx - Math.max(30, W2 * 0.26), cy - 16, Math.max(60, W2 * 0.52), 32, "fis_table_conf");
+        P(cx - 28, q2.y0 + pad, 56, 30, "fis_desk_terminal");
+        P(cx - 12, q2.y0 + pad + 32, 24, 22, "fis_chair_blue");
+        P(q2.x0 + pad, q2.y1 - pad - 30, 30, 30, "fis_filecab_row");
+        P(q2.x1 - pad - 20, q2.y0 + pad, 20, 20, "fis_clock");
+        P(q2.x1 - pad - 20, q2.y1 - pad - 18, 20, 18, "fis_phone_b");
+        break;
+      case "fis_exec_off":
+        P(q2.x0 + pad, q2.y0 + pad, 54, 30, "fis_desk_pc");
+        P(q2.x1 - pad - 22, q2.y1 - pad - 22, 22, 22, "fis_chair_office_c");
+        break;
+      /* HE LIVES AT WORK. A desk, a rack, a cot. Nothing on the walls. */
+      case "fis_hunter":
+        P(q2.x0 + 6, q2.y0 + 8, Math.max(26, W2 * 0.52), Math.max(18, H2 * 0.34), "bed");
+        P(q2.x1 - pad - 34, q2.y0 + pad, 34, 26, "fis_gunrack");
+        P(q2.x0 + pad, q2.y1 - pad - 28, 50, 28, "fis_desk_terminal");
+        P(q2.x1 - pad - 30, q2.y1 - pad - 26, 30, 26, "fis_lockers");
+        break;
+      case "fis_holdcorr":
+        P(q2.x0 + pad, cy - 7, 20, 14, "bk_camera_dome");
+        P(q2.x1 - pad - 20, cy - 7, 20, 14, "bk_camera_dome");
+        break;
+      case "fis_cell":
+        P(q2.x0 + 6, q2.y0 + 8, Math.max(24, W2 - 14), Math.max(16, H2 * 0.40), "bed");
+        P(q2.x1 - 20, q2.y1 - 20, 14, 14, "toilet");
+        break;
+      case "fis_holddesk":
+        P(q2.x0 + 6, q2.y0 + pad, Math.max(24, W2 - 12), 26, "fis_desk_phone");
+        P(q2.x0 + 6, q2.y1 - pad - 22, Math.max(20, W2 - 12), 22, "fis_console_a");
+        break;
+      case "fis_holdgear":
+        P(q2.x0 + 6, q2.y0 + pad, Math.max(24, W2 - 12), 28, "fis_lockers");
+        P(q2.x0 + 6, q2.y1 - pad - 26, Math.max(24, W2 - 12), 26, "fis_gunrack");
+        break;
       case "asyrecep":
         P(q2.x0 + 8, cy - 11, Math.max(40, W2 * 0.55), 24, "counter");
         runX(q2, q2.y1 - pad - 20, clamp(Math.round(W2 / 120), 2, 4), 44, 20, "bench", pad);
@@ -5391,6 +5660,27 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
                   1 + Math.floor(rnd() * 3), "bank", rnd, key);
     b.tone = 0.66; b.name = bnk.name; b.signKey = "sign_lightbox";
     b.retail = false; b.bank = true;
+    out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+    return out;
+  }
+  /* THE FIELD OFFICE. Fixed cell, fixed size, always there -- same reasoning as the Kestrel:
+     somewhere you can be TOLD to go, rather than somewhere that happens to exist this run.
+     Set back off the avenue with a forecourt, four floors, one door. Federal buildings in this
+     city should read as heavier than the banks around them, so it takes more of its lot than a
+     bank does and none of the retail flags. */
+  if (isFisCell(i, j) && !civicAt(i, j)) {
+    const bw = Math.min(LW * 0.80, 34 * MU), bh = Math.min(LH * 0.62, 26 * MU);
+    /* FIVE plans, not four: basement, lobby, bullpen, planning, executive. */
+    const b = mkB(lx0 + (LW - bw) / 2, ly0 + LH * 0.26, bw, bh, 5, "offices", rnd, key);
+    b.tone = 0.72;
+    b.name = "FEDERAL INVESTIGATION SERVICE";
+    b.signKey = "sign_lightbox";
+    b.retail = false; b.eatery = false;
+    b.fis = true;
+    /* The street door puts you on index 1. Everything that opens a building sets g.floor to
+       b.entry now instead of hardcoding 0, and the exit test asks for b.entry too -- otherwise
+       you walk in at basement level and can never leave from the lobby. */
+    b.entry = 1;
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
     return out;
   }
@@ -6596,7 +6886,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -7121,7 +7411,7 @@ export default function IronLionLayer004() {
       if (dp) {
         // drive straight into the tunnel and park in the bay -- still behind the wheel,
         // get out with the normal car-exit control once you're stopped
-        g.inside = dp; g.floor = 0;
+        g.inside = dp; g.floor = dp.entry || 0;
         const v = g.mode === "car" ? g.car : g.mode === "moto" ? g.moto : g.civ;
         v.x = dp._cx; v.y = dp._cy; v.ang = -Math.PI / 2; v.vx = 0; v.vy = 0;
         return;
@@ -7183,8 +7473,8 @@ export default function IronLionLayer004() {
         }
         g.floor++; return;
       }
-      if (st === -1) { if (g.floor > 0) { g.floor--; return; } }
-      if (g.floor === 0 && G.doorFn && G.doorFn() === g.inside) { g.inside = null; return; }
+      if (st === -1) { if (g.floor > 0) { g.floor--; return; } }   // 0 is the basement here, not the street
+      if (g.floor === (g.inside.entry || 0) && G.doorFn && G.doorFn() === g.inside) { g.inside = null; return; }
       /* Last, and only last. Leaving always wins: stairs, then the door, then the table. This
          block returns unconditionally, so anything indoors has to live inside it. */
       if (G.tableFn && G.tableFn()) return;
@@ -7198,7 +7488,7 @@ export default function IronLionLayer004() {
        building he was nowhere near -- and it is checked before the train. */
     if (g.mode === "foot" && g.onPlat == null && G.doorFn) {
       const b = G.doorFn();
-      if (b) { g.inside = b; g.floor = 0; return; }
+      if (b) { g.inside = b; g.floor = b.entry || 0; return; }
     }
     // (E still works; autoDoor below means you rarely need it)
     /* After the door, for the same reason the table is: a truck parked near an entrance should
@@ -12686,6 +12976,17 @@ export default function IronLionLayer004() {
       if (alpha <= 0.01) return;
       if (b.kind === "den") { drawDenExt(b, alpha); return; }
       if (b.landmark) drawCasinoStair(b, alpha);
+      /* The seal goes on the forecourt, not on the wall -- it is the thing you walk over on the
+         way in, which is how you know whose building this is before you read the sign. */
+      if (b.fis) {
+        const sim = imgs.current["fis_seal"];
+        if (sim && sim.width) {
+          const sw = Math.min(b.w * 0.34, 84);
+          ctx.globalAlpha = alpha * 0.85;
+          ctx.drawImage(sim, b.x + b.w / 2 - sw / 2, b.y + b.h + 10, sw, sw);
+          ctx.globalAlpha = alpha;
+        }
+      }
       const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
       const k = b.floors * FLOOR_RISE;
       const ox = clamp((cx - g.cam.x) * k, -190, 190);
@@ -16863,16 +17164,7 @@ export default function IronLionLayer004() {
           // long enough gone and they are not coming back into this fight
           if (cr.fleeT <= 0 && alive) { cr.broke = false; cr.state = "hang"; cr.rival = null; }
         }
-        /* A JOB CREW IS NOT A HANGOUT. jobArrive sets state "hostile" and deliberately leaves
-           rival null -- a robbery is a crime, not a turf war, so there is no rival to seek.
-           But this machine runs on EVERY crew every frame, and with no rival and the player
-           further than 250 away it fell straight through to `cr.state = "hang"` on the very
-           next tick. So Kuru and his ninjas arrived hostile, were reset to idle before you
-           could see it, and stood on the pavement like any other corner crew -- which is
-           exactly what the probe reported: `kings* hp=95 hang`.
-           A crew that is working a job stays hostile until it is broken or dead. */
-        if (cr.job && alive && !cr.broke) { cr.state = "hostile"; }
-        else if (!alive) { cr.state = "hang"; }
+        if (!alive) { cr.state = "hang"; }
         else if (cr.broke) { cr.state = "flee"; }
         else if (cr.rival) {
           cr.state = "hostile";
@@ -23028,7 +23320,7 @@ export default function IronLionLayer004() {
           const db = G.doorFn();
           const moving = Math.hypot(g.p.vx || 0, g.p.vy || 0) > 26;
           if (db && !g.inside && moving) {
-            g.inside = db; g.floor = 0; g.doorCd = 1.6;
+            g.inside = db; g.floor = db.entry || 0; g.doorCd = 1.6;
             // step him in off the threshold, toward the middle of the building
             const cx2 = db.x + db.w / 2, cy2 = db.y + db.h / 2;
             const a = Math.atan2(cy2 - g.p.y, cx2 - g.p.x);
@@ -23162,6 +23454,7 @@ export default function IronLionLayer004() {
          inside didn't attack, they didn't even move", and it is also why the club court and the
          throne room have always been empty. */
       updateCrews(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
+      stepHunter(dt);
       if (!g.inside) updateTraffic(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       if (!g.inside) updateFwyTraffic(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       updateAudio(dt);
@@ -23194,7 +23487,7 @@ export default function IronLionLayer004() {
         g.bootDen = false;
         const s = denSpot();
         if (s) {
-          g.inside = s.b; g.floor = 0; g.mode = "foot";
+          g.inside = s.b; g.floor = s.b.entry || 0; g.mode = "foot";
           g.p.x = s.war.x0 + 70; g.p.y = (s.war.y0 + s.war.y1) / 2;
           const bx = (s.bay.x0 + s.bay.x1) / 2, by = (s.bay.y0 + s.bay.y1) / 2;
           g.car.x = bx + 46; g.car.y = by; g.car.ang = -Math.PI / 2;
@@ -23471,9 +23764,10 @@ export default function IronLionLayer004() {
          banner: anything the player has to walk to has to draw wherever the player is.
          drawGrab stays outdoors: the grab walks somebody to a car, and the car is on the street. */
       drawBomb();
-      if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); }
+      if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); drawFisStaff(); }
       drawGuards(); drawDeputies(); drawBlast();
       drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
+      drawHunter();
       drawCrewProbe(view);          // TEMPORARY -- delete with the CREW PROBE block.
                                     // LAST on purpose: called earlier, interior furniture
                                     // painted straight over the boxes and it read as nothing.
@@ -24416,6 +24710,335 @@ export default function IronLionLayer004() {
        place the first time, and the second time I still had no way to tell you whether he was
        there at all. Now the game says so -- and if this draws nothing, he genuinely is not
        spawned, which is a different bug and one I can then go and find. */
+    /* WHO IS IN THE BUILDING. Built once per floor and cached on the building, so the same
+       agent is at the same desk every time you come back -- a field office whose staff shuffle
+       between visits is a lobby with people in it, not an institution.
+       They go through drawYouth like the rogues do: the plates are the same torso family, so
+       they get the legs, the idle and the weapon layer without any new drawing code. */
+    function fisStaff(b, f) {
+      if (!b || !b.fis) return null;
+      b._fisStaff = b._fisStaff || {};
+      if (b._fisStaff[f]) return b._fisStaff[f];
+      const plan = (buildingPlans(b) || [])[f];
+      const list = [];
+      if (plan && plan.rooms) {
+        const at = (kind, yt, name, ox, oy) => {
+          const r = plan.rooms.find((q) => q.k === kind);
+          if (!r) return;
+          list.push({
+            x: (r.x0 + r.x1) / 2 + (ox || 0), y: (r.y0 + r.y1) / 2 + (oy || 0),
+            vx: 0, vy: 0, anim: Math.random() * 6, jit: 0.96 + Math.random() * 0.1,
+            yt, name, hp: 40,
+          });
+        };
+        const nm = (i) => "AGENT " + FIS_NAMES[(Math.abs(b.key || 1) * 7 + i * 13) % FIS_NAMES.length];
+        if (f === 1) { at("fis_desk", FIS_PLATES[0], nm(0), 0, -16); at("fis_wait", FIS_PLATES[1], nm(1), 24, 0); }
+        if (f === 2) {
+          at("fis_desks", FIS_PLATES[2], nm(2), -34, 26);
+          at("fis_desks", FIS_PLATES[3], nm(3), 34, 26);
+          at("fis_files", FIS_PLATES[0], nm(4), 0, 18);
+        }
+        /* Snow and Lin work three. This is where the case against you gets built, so this is
+           where the two people building it are. */
+        if (f === 3) {
+          at("fis_warroom", FIS_WHO.snow.key, FIS_WHO.snow.name, -30, 24);
+          at("fis_warroom", FIS_WHO.lin.key, FIS_WHO.lin.name, 30, 24);
+          at("fis_radio", FIS_PLATES[1], nm(5), 0, 22);
+        }
+        if (f === 4) {
+          at("fis_director", FIS_WHO.director.key, FIS_WHO.director.called, 0, 34);
+          at("fis_exec_off", FIS_PLATES[2], nm(6), 0, 20);
+          /* He is in his quarters, not at a desk, because he does not work here -- he waits
+             here. Offset toward the rack rather than the cot: a man sitting on his bed reads
+             as off duty, and he never is. */
+          at("fis_hunter", HERO_HUNTER.key, HERO_HUNTER.called, 10, 14);
+        }
+      }
+      b._fisStaff[f] = list;
+      return list;
+    }
+    function drawFisStaff() {
+      const b = g.inside;
+      if (!b || !b.fis) return;
+      const list = fisStaff(b, g.floor);
+      if (!list) return;
+      for (const m of list) {
+        if (!Number.isFinite(m.x)) continue;
+        drawYouth(m);
+        // the name only when you are close enough to be talking to them
+        if (Math.hypot(m.x - g.p.x, m.y - g.p.y) < 78) {
+          ctx.font = "700 10px system-ui, sans-serif";
+          const w = m.name.length * 6.2;
+          ctx.fillStyle = "rgba(10,9,12,0.82)";
+          ctx.fillRect(m.x - w / 2 - 4, m.y - 40, w + 8, 14);
+          ctx.fillStyle = "#cfe0ff";
+          ctx.fillText(m.name, m.x - w / 2, m.y - 30);
+        }
+      }
+    }
+    /* HIS FIGHT. Cooldown-driven rather than scripted, so the same four tools read differently
+       against different heroes without any per-hero branching: whoever keeps their distance eats
+       BURST, whoever closes eats CHARGE, whoever teleports around eats NET, and whoever leans on
+       a power spends five seconds finding out they have hands. */
+    function stepHunter(dt) {
+      const H = g.hunter;
+      if (!H) return;
+      g.dampT = Math.max(0, (g.dampT || 0) - dt);
+      stepHunterFx(dt);
+      if (H.hp <= 0) {
+        if (!H.said) {
+          H.said = 1;
+          g.jobBanner = HERO_HUNTER.called + " \u00b7 DOWN";
+          g.jobNote = (HUNTER_LINE.lost || {})[g.who || "lion"] || "";
+          g.pickupFlash = { nm: "hunter_down", t: 4.5 };
+        }
+        H.gone = (H.gone || 0) + dt;
+        if (H.gone > 12) g.hunter = null;
+        return;
+      }
+      if (g.inside) return;                       // he does not follow you indoors. Yet.
+      const p = g.p;
+      const dx = p.x - H.x, dy = p.y - H.y, d = Math.hypot(dx, dy) || 1;
+      const ux = dx / d, uy = dy / d;
+
+      H.netCd -= dt; H.dampCd -= dt; H.burstCd -= dt; H.chargeCd -= dt; H.sayCd -= dt;
+
+      // he closes, but never all the way -- he wants his own range, not yours
+      const want = 190;
+      const drive = d > want ? 1 : d < want * 0.6 ? -0.55 : 0;
+      const spd = 118;
+      H.vx = ux * drive * spd; H.vy = uy * drive * spd;
+      H.x += H.vx * dt; H.y += H.vy * dt;
+      H.anim = (H.anim || 0) + dt * 6;
+
+      /* Each move sets act/actT. The body reads it to know which arms to draw and the fx list
+         reads it to know what to throw -- one flag rather than the two of them guessing, so a
+         move can never animate as one thing and hit as another. */
+      const act = (n, t) => { H.act = n; H.actT = t; H.actL = t; H.face = Math.atan2(uy, ux); };
+      hfx();
+      if (H.dampCd <= 0 && d < HUNTER_KIT.dampen.r) {
+        H.dampCd = HUNTER_KIT.dampen.cd;
+        g.dampT = HUNTER_KIT.dampen.t;
+        act("dampen", 0.70);
+        g.hfx.push({ kind: "damp", x: H.x, y: H.y, r: HUNTER_KIT.dampen.r, t: 0.62, life: 0.62 });
+        g.pickupFlash = { nm: "damped", t: 1.8 };
+      } else if (H.netCd <= 0 && d < HUNTER_KIT.net.r) {
+        H.netCd = HUNTER_KIT.net.cd;
+        p.stunT = Math.max(p.stunT || 0, HUNTER_KIT.net.pin);
+        act("net", 0.46);
+        g.hfx.push({ kind: "net", x: H.x, y: H.y, x2: p.x, y2: p.y,
+                     t: 0.34, life: 0.34, pin: HUNTER_KIT.net.pin });
+        g.pickupFlash = { nm: "netted", t: 1.8 };
+      } else if (H.chargeCd <= 0 && d < HUNTER_KIT.charge.r) {
+        H.chargeCd = HUNTER_KIT.charge.cd;
+        const fx0 = H.x, fy0 = H.y;
+        H.x += ux * 90; H.y += uy * 90;
+        p.hp = Math.max(0, p.hp - HUNTER_KIT.charge.dmg);
+        p.stunT = Math.max(p.stunT || 0, 0.5);
+        g.shake = Math.max(g.shake || 0, 7);
+        act("charge", 0.42);
+        g.hfx.push({ kind: "dash", x: fx0, y: fy0, x2: H.x, y2: H.y, t: 0.30, life: 0.30 });
+        g.hfx.push({ kind: "impact", x: H.x + ux * 16, y: H.y + uy * 16, t: 0.26, life: 0.26 });
+      } else if (H.burstCd <= 0 && d < HUNTER_KIT.burst.r) {
+        H.burstCd = HUNTER_KIT.burst.cd;
+        p.hp = Math.max(0, p.hp - HUNTER_KIT.burst.dmg);
+        act("burst", 0.30);
+        H.kick = 1;
+        g.hfx.push({ kind: "tracer", x: H.x, y: H.y, x2: p.x, y2: p.y, t: 0.10, life: 0.10 });
+        g.hfx.push({ kind: "flash", x: H.x, y: H.y, ang: Math.atan2(uy, ux), t: 0.08, life: 0.08 });
+      }
+      H.actT = Math.max(0, (H.actT || 0) - dt);
+      H.kick = Math.max(0, (H.kick || 0) - dt * 6);
+
+      if (H.sayCd <= 0) {
+        H.sayCd = 7 + Math.random() * 5;
+        H.taunt = (H.taunt || 0) + 1;
+        const pool = H.taunt % 2 ? HUNTER_LINE.taunt1 : HUNTER_LINE.taunt2;
+        g.jobNote = (pool || {})[g.who || "lion"] || "";
+      }
+      if (p.hp <= 0 && !H.crowed) {
+        H.crowed = 1;
+        g.jobNote = (HUNTER_LINE.win || {})[g.who || "lion"] || "";
+      }
+    }
+    const hfx = () => { g.hfx = g.hfx || []; return g.hfx; };
+    /* HIS OWN FX LIST, not the shared one. Two reasons: the shared drawFx keys off `kind` and
+       has three shapes, none of which is a net; and everything in here is a LINE between two
+       points rather than a ring at one, which the shared list has no field for. */
+    function stepHunterFx(dt) {
+      const L = hfx();
+      for (let i = L.length - 1; i >= 0; i--) {
+        L[i].t -= dt;
+        if (L[i].t <= 0) L.splice(i, 1);
+      }
+    }
+    function drawHunterFx() {
+      for (const f of hfx()) {
+        if (!Number.isFinite(f.x) || !Number.isFinite(f.y) || !Number.isFinite(f.t)) continue;
+        const k = clamp(1 - f.t / (f.life || 0.3), 0, 1);     // 0 at birth, 1 at death
+        const a = 1 - k;
+        if (f.kind === "flash") {
+          // a hard short cone off the muzzle. Two frames of it, and that is correct.
+          const ang = Number.isFinite(f.ang) ? f.ang : 0;
+          ctx.fillStyle = `rgba(255,232,168,${a})`;
+          ctx.beginPath();
+          ctx.moveTo(f.x + Math.cos(ang) * 12, f.y + Math.sin(ang) * 12);
+          ctx.lineTo(f.x + Math.cos(ang + 0.35) * 30, f.y + Math.sin(ang + 0.35) * 30);
+          ctx.lineTo(f.x + Math.cos(ang - 0.35) * 30, f.y + Math.sin(ang - 0.35) * 30);
+          ctx.closePath(); ctx.fill();
+        } else if (f.kind === "tracer") {
+          if (!Number.isFinite(f.x2)) continue;
+          ctx.strokeStyle = `rgba(255,214,150,${a * 0.85})`;
+          ctx.lineWidth = 1.6;
+          ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x2, f.y2); ctx.stroke();
+        } else if (f.kind === "dash") {
+          // three streaks along the line he travelled, so a 90px jump reads as a rush
+          if (!Number.isFinite(f.x2)) continue;
+          const dx = f.x2 - f.x, dy = f.y2 - f.y;
+          const nx = -dy, ny = dx, nl = Math.hypot(nx, ny) || 1;
+          for (let s = -1; s <= 1; s++) {
+            const ox = (nx / nl) * s * 7, oy = (ny / nl) * s * 7;
+            ctx.strokeStyle = `rgba(210,220,235,${a * (s === 0 ? 0.5 : 0.28)})`;
+            ctx.lineWidth = s === 0 ? 3 : 2;
+            ctx.beginPath();
+            ctx.moveTo(f.x + ox, f.y + oy);
+            ctx.lineTo(f.x + dx * (0.35 + k * 0.65) + ox, f.y + dy * (0.35 + k * 0.65) + oy);
+            ctx.stroke();
+          }
+        } else if (f.kind === "impact") {
+          ctx.strokeStyle = `rgba(255,244,224,${a * 0.9})`;
+          ctx.lineWidth = 4 * a + 1;
+          ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(0, 6 + k * 34), 0, 6.3); ctx.stroke();
+        } else if (f.kind === "damp") {
+          /* COLD. Everything else in this game that goes bang is warm -- gold, orange, white.
+             The dampener is the one effect that takes something away instead of adding it, so
+             it is blue-white and it goes out in silence. Two rings, the inner one lagging. */
+          const R = Math.max(0, (f.r || 200) * k);
+          ctx.strokeStyle = `rgba(150,205,255,${a * 0.85})`;
+          ctx.lineWidth = 4 * a + 1.5;
+          ctx.beginPath(); ctx.arc(f.x, f.y, R, 0, 6.3); ctx.stroke();
+          ctx.strokeStyle = `rgba(226,240,255,${a * 0.45})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(0, R * 0.62), 0, 6.3); ctx.stroke();
+        } else if (f.kind === "net") {
+          /* It travels. Six strands opening out from his hand into a spread, so you can watch
+             it cross the gap and know what is about to land on you. */
+          if (!Number.isFinite(f.x2)) continue;
+          const hx = f.x + (f.x2 - f.x) * k, hy = f.y + (f.y2 - f.y) * k;
+          const ang = Math.atan2(f.y2 - f.y, f.x2 - f.x);
+          const spread = 6 + k * 22;
+          ctx.strokeStyle = `rgba(190,200,180,${0.35 + a * 0.5})`;
+          ctx.lineWidth = 1.6;
+          for (let n = 0; n < 6; n++) {
+            const th = ang + (n / 6) * 6.283;
+            ctx.beginPath();
+            ctx.moveTo(f.x + Math.cos(ang) * 10, f.y + Math.sin(ang) * 10);
+            ctx.lineTo(hx + Math.cos(th) * spread, hy + Math.sin(th) * spread);
+            ctx.stroke();
+          }
+          ctx.beginPath(); ctx.arc(hx, hy, Math.max(0, spread), 0, 6.3); ctx.stroke();
+        }
+      }
+      /* And while it is ON you. A mesh over the player for as long as the pin lasts -- without
+         this the net is a thing that happens and then you are just mysteriously stuck. */
+      if ((g.p.stunT || 0) > 0 && (g.hunter && g.hunter.hp > 0)) {
+        const px = g.p.x, py = g.p.y, R = 17;
+        ctx.strokeStyle = "rgba(196,206,186,0.55)";
+        ctx.lineWidth = 1.2;
+        for (let n = -2; n <= 2; n++) {
+          ctx.beginPath(); ctx.moveTo(px + n * 7, py - R); ctx.lineTo(px + n * 7, py + R); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(px - R, py + n * 7); ctx.lineTo(px + R, py + n * 7); ctx.stroke();
+        }
+      }
+    }
+
+    /* HIS BODY. drawYouth generates legs but no arms -- the plate's arms are painted on, and for
+       the heroes that is fine because a swing is drawn over the top for one frame. He is on
+       screen for a whole fight, so he gets both: legs that stride and arms that do the move he
+       is actually performing. Everything is drawn in HIS rotated frame, so forward is +y after
+       YOUTH_FACE and the poses read the same whichever way he is pointing. */
+    function drawHunterBody(H) {
+      const im = imgs.current[HERO_HUNTER.key];
+      if (!im || !im.width) return false;
+      const h = 30 * (H.jit || 1) * 0.82 * (H.tall || 1), w = h * (im.width / im.height);
+      const sp = Math.hypot(H.vx || 0, H.vy || 0);
+      const face = sp > 6 ? Math.atan2(H.vy, H.vx) : (Number.isFinite(H.face) ? H.face : 0);
+      const t = H.actT > 0 ? 1 - H.actT / (H.actL || 1) : 0;   // 0 at the start of the move
+      ctx.save();
+      ctx.translate(H.x, H.y);
+      ctx.rotate(face + YOUTH_FACE);
+
+      // ---- legs. Braced wide on charge, planted on burst, striding otherwise.
+      const brace = H.act === "charge" && H.actT > 0 ? 1 : 0;
+      const planted = (H.act === "burst" || H.act === "dampen") && H.actT > 0;
+      const stride = planted ? 0 : (sp > 10 ? Math.sin((H.anim || 0) * 1.1) * h * 0.11 : 0);
+      const legOut = brace ? w * 0.06 : 0;
+      ctx.fillStyle = "#23261f";
+      ctx.fillRect(-w * 0.25 - legOut, h * 0.26 + stride, w * 0.17, h * 0.40);
+      ctx.fillRect(w * 0.08 + legOut, h * 0.26 - stride, w * 0.17, h * 0.40);
+      ctx.fillStyle = "#14150f";
+      ctx.fillRect(-w * 0.27 - legOut, h * 0.60 + stride, w * 0.21, h * 0.11);
+      ctx.fillRect(w * 0.06 + legOut, h * 0.60 - stride, w * 0.21, h * 0.11);
+
+      ctx.drawImage(im, -w / 2, -h / 2, w, h);
+
+      // ---- arms, drawn OVER the plate so they can leave its silhouette
+      const arm = (sx, sy, a1, a2, len) => {
+        const ex = sx + Math.cos(a1) * len, ey = sy + Math.sin(a1) * len;
+        ctx.strokeStyle = "#252a20"; ctx.lineWidth = h * 0.13; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+        const fx2 = ex + Math.cos(a2) * len * 0.9, fy2 = ey + Math.sin(a2) * len * 0.9;
+        ctx.strokeStyle = "#2c3226"; ctx.lineWidth = h * 0.11;
+        ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(fx2, fy2); ctx.stroke();
+        return [fx2, fy2];
+      };
+      const SL = -w * 0.34, SR = w * 0.34, SY = -h * 0.06, LEN = h * 0.24;
+      const FWD = Math.PI / 2;                       // forward in the rotated frame
+      const swing = sp > 10 ? Math.sin((H.anim || 0) * 1.1) * 0.5 : 0;
+
+      if (H.act === "burst" && H.actT > 0) {
+        // both hands on it, shoulders square, and the whole rig kicks back on the shot
+        const k = (H.kick || 0) * h * 0.06;
+        const [hx, hy] = arm(SL, SY + k, FWD - 0.30, FWD - 0.10, LEN);
+        arm(SR, SY + k, FWD + 0.30, FWD + 0.10, LEN);
+        ctx.strokeStyle = "#181c14"; ctx.lineWidth = h * 0.10;
+        ctx.beginPath(); ctx.moveTo(hx, hy - h * 0.02); ctx.lineTo(hx, hy + h * 0.30); ctx.stroke();
+      } else if (H.act === "net" && H.actT > 0) {
+        // wind up across the body, then throw. t crosses 0.45 and the arm snaps forward.
+        const th = t < 0.45 ? -1.5 + t * 1.6 : FWD * (t - 0.45) * 2.6 - 0.7;
+        arm(SR, SY, th, th + 0.25, LEN * 1.05);
+        arm(SL, SY, FWD - 0.9 + swing * 0.2, FWD - 0.5, LEN * 0.8);
+      } else if (H.act === "charge" && H.actT > 0) {
+        // both forearms up and in. He is leading with the shoulder, not the hands.
+        arm(SL, SY, FWD - 0.55, FWD - 1.15, LEN);
+        arm(SR, SY, FWD + 0.55, FWD + 1.15, LEN);
+      } else if (H.act === "dampen" && H.actT > 0) {
+        // arms out wide then driven down -- the one move where he is not aiming at you
+        const spread = 1.25 - t * 0.85;
+        arm(SL, SY, FWD - spread, FWD - spread * 1.3, LEN * 1.1);
+        arm(SR, SY, FWD + spread, FWD + spread * 1.3, LEN * 1.1);
+      } else {
+        // walking. Arms swing against the legs, which is what makes a walk look like a walk.
+        arm(SL, SY, FWD - 1.15 - swing * 0.45, FWD - 0.75 - swing * 0.5, LEN * 0.92);
+        arm(SR, SY, FWD + 1.15 - swing * 0.45, FWD + 0.75 - swing * 0.5, LEN * 0.92);
+      }
+      ctx.restore();
+      return true;
+    }
+    function drawHunter() {
+      const H = g.hunter;
+      if (!H || g.inside || !Number.isFinite(H.x)) return;
+      drawHunterFx();
+      if (!drawHunterBody(H)) return;
+      const f = Math.max(0, H.hp / (H.maxHp || 1));
+      ctx.fillStyle = "rgba(10,9,12,0.8)";
+      ctx.fillRect(H.x - 26, H.y - 44, 52, 6);
+      ctx.fillStyle = f > 0.35 ? "#7fd4a0" : "#e8785a";
+      ctx.fillRect(H.x - 25, H.y - 43, 50 * f, 4);
+      ctx.font = "700 10px system-ui, sans-serif";
+      ctx.fillStyle = "#e8c27a";
+      ctx.fillText(HERO_HUNTER.called, H.x - 30, H.y - 50);
+    }
     function drawJobBoss() {
       const j = g.job;
       if (!j || !j.boss || j.phase === "done" || j.phase === "gone") return;
@@ -25344,101 +25967,6 @@ export default function IronLionLayer004() {
       };
       return { head: String(j.phase).toUpperCase(), sub: "", n: "" };
     }
-    /* HIS RIDE, PARKED WHERE HE LEFT IT. VIL_CARS already carries one vehicle per rogue with
-       its measured length and width, and until now four of the five were dead data -- only the
-       van was ever put on the map. A parked bike outside a jeweller's is how you know whose
-       job you have walked into before anybody says a word, and it is the thing he leaves on
-       when he goes. Nose-up plates, so `ang` is a heading like every other vehicle here. */
-    function parkVilCar(rid, x, y, ang) {
-      const V = VIL_CARS.find((v) => v.who === rid);
-      if (!V) return null;
-      const tv = {
-        x, y, ang: ang == null ? Math.random() * 6.283 : ang,
-        m: { k: V.k, len: V.len, w: V.w },
-        spd: 0, cruise: 0, brake: 1, rad: 24, dead: 1, parked: 1, named: 1,
-        axis: "h", si: clamp(Math.round(y / PITCH), 0, N),
-        k: clamp(Math.round(x / PITCH), 0, N), dir: 1, fleeing: 0,
-        vilCar: 1, who: rid,
-      };
-      g.traffic.push(tv);
-      return tv;
-    }
-    /* One branch per rogue. Each does ONE visible thing and says one line; none of them share
-       an effect, because two rogues with the same arrival is the same as neither having one. */
-    function jobApproach(j, cr, boss, x, y, sx, sy, outdoors, site0) {
-      const ox = outdoors ? x : sx, oy = outdoors ? y : sy;
-      const site = site0 || (getCell(j.st.i, j.st.j).blds || []).find((q) => q.door && !q.perimeter);
-
-      if (j.rid === "drive") {
-        /* Unchanged, and still the only one that alters the building permanently: the site
-           keeps a `breach` on the side opposite its door, which nearbyDoor treats as a second
-           way in and out. It is never repaired -- a bank he has already hit is a bank with two
-           entrances for good. */
-        if (site && !site.breach) {
-          const dside = site.door.side;
-          site.breach = { side: (dside + 2) % 4, pos: 0.30 + Math.random() * 0.40 };
-          g.pickupFlash = { nm: "wall_came_down", t: 2.4 };
-        }
-        parkVilCar("drive", ox + 70, oy + 40, Math.PI);
-        return;
-      }
-
-      if (j.rid === "kuru") {
-        /* He came over the roof and the alarm died twenty minutes ago, so there is nothing
-           broken and nobody outside knows. What you get instead is the bike at the kerb and
-           his men ABOVE you -- the ninjas start spread wide and high on the approach rather
-           than stacked on his shoulder, because a man who cuts the alarm first does not put
-           four swords in the doorway. */
-        parkVilCar("kuru", ox - 58, oy + 46, -Math.PI / 2);
-        cr.members.forEach((mm, mi) => {
-          if (!mi || mm === boss) return;
-          const a = (mi / Math.max(1, cr.members.length - 1)) * 6.283;
-          mm.x = ox + Math.cos(a) * 150;
-          mm.y = oy + Math.sin(a) * 150;
-          mm.hx = mm.x; mm.hy = mm.y;
-          if (site0 && !outdoors) {
-            mm.x = clamp(mm.x, site0.x + 26, site0.x + site0.w - 26);
-            mm.y = clamp(mm.y, site0.y + 26, site0.y + site0.h - 26);
-          }
-        });
-        g.pickupFlash = { nm: "alarm_is_already_dead", t: 2.4 };
-        return;
-      }
-
-      if (j.rid === "monstruo") {
-        /* Forty of them filling the room is his approach, and the spread already does that.
-           What was missing is the rod at the kerb and the silence -- no heat on arrival, so
-           the street outside is completely normal while the room is full of mimes. */
-        parkVilCar("monstruo", ox + 64, oy - 52, 0);
-        g.pickupFlash = { nm: "nobody_is_saying_anything", t: 2.4 };
-        return;
-      }
-
-      if (j.rid === "mvp") {
-        /* Straight through the front doors in daylight, still wearing the pads. He is loud by
-           table and the heat is already up; the ATV is left ON THE PAVEMENT at the door rather
-           than parked, because he is not planning to be subtle about leaving either. */
-        parkVilCar("mvp", ox, oy + 58, -Math.PI / 2);
-        g.pickupFlash = { nm: "he_came_in_the_front", t: 2.4 };
-        return;
-      }
-
-      if (j.rid === "voz") {
-        /* Somebody who works here left a door unlocked. No vehicle -- she walks -- and the
-           inside man is already handled below. What this adds is the door itself: the site is
-           left UNLOCKED behind her, which is the only trace she leaves anywhere. */
-        if (site) site.unlocked = 1;
-        g.pickupFlash = { nm: "a_door_was_left_open", t: 2.4 };
-        return;
-      }
-
-      if (j.rid === "arson") {
-        /* The fire is lit further down in jobArrive -- igniteBuilding and the brigade are
-           machinery that predates him. He stands in the doorway, so he does not get a ride. */
-        g.pickupFlash = { nm: "he_is_not_taking_it", t: 2.4 };
-        return;
-      }
-    }
     function jobArrive() {
       const j = g.job, R = ROGUE_JOB[j.rid];
       const [x, y] = jobSiteXY(j.st);
@@ -25483,9 +26011,6 @@ export default function IronLionLayer004() {
          bystanders rather than as the crew doing the job. */
       cr.state = "hostile";
       cr.war = 0;                     // this is a crime, not a turf war -- no rival to seek
-      /* THE FLAG THE STATE MACHINE READS. Without it the line above survives one frame.
-         See the `cr.job` branch in the crew update. */
-      cr.job = 1;
       if (site0 && !outdoors) { cr.indoor = site0; cr.indoorFloor = 0; }
       const boss = cr.members[0];
       boss.hp = R.hp; boss.boss = 1; boss.rid = j.rid;
@@ -25500,14 +26025,14 @@ export default function IronLionLayer004() {
          a second way in and out. It is not repaired afterwards: the city keeps the hole, so a
          bank he has already hit is a bank with two entrances for good. That is the point of
          giving each rogue an approach -- it should leave the map different. */
-      /* SIX APPROACHES, NOT ONE. `approach` has been a sentence in ROGUE_JOB since the
-         gallery went in and only ONE of them was ever built -- Masterdrive's van in the wall.
-         Every other rogue's arrival was a line of prose over a crew standing on a pavement,
-         which is why five of the six read as "some men are here now" and he was the only one
-         who felt like he had turned up. The whole point of giving each of them an approach is
-         that it should leave the scene different, so each one now does one thing you can see.
-         Keyed off `rid`, one branch each, no shared effect. */
-      jobApproach(j, cr, boss, x, y, sx, sy, outdoors, site0);
+      if (j.rid === "drive") {
+        const site = (getCell(j.st.i, j.st.j).blds || []).find((q) => q.door && !q.perimeter);
+        if (site && !site.breach) {
+          const dside = site.door.side;
+          site.breach = { side: (dside + 2) % 4, pos: 0.30 + Math.random() * 0.40 };
+          g.pickupFlash = { nm: "wall_came_down", t: 2.4 };
+        }
+      }
       /* Spread. Monstruo's eight fill the ROOM -- that is his whole approach and clustering
          them on the door made him read as just another crew with more men. Everyone else
          stacks near their boss. */
@@ -26275,6 +26800,75 @@ export default function IronLionLayer004() {
       gg.lockerOpen = false; gg.paused = false;
       setHud((h) => ({ ...h, lockerOpen: false }));
     };
+
+    /* ---------- BANNERMAN ---------- */
+
+    /* THE DAMPENER, wrapped in ONE place. Gating ten hero abilities means editing ten functions
+       and missing one, and the one you miss is the one the player uses. Every power bridge is
+       already assigned by the time we get here, so wrap them all at once instead. Fists, the
+       whip and vehicles are deliberately NOT on this list: dampened does not mean helpless, it
+       means you fight the way he does. */
+    for (const k of ["sonicFn", "gogglesFn", "blowFn", "starFn", "kickFn",
+                     "spinFn", "tazeFn", "smokeFn", "wireFn"]) {
+      const f = G[k];
+      if (typeof f !== "function" || f.__damped) continue;
+      const w = (...a) => {
+        const gg = G.current;
+        if (gg && (gg.dampT || 0) > 0) { gg.pickupFlash = { nm: "damped", t: 1.2 }; return; }
+        return f(...a);
+      };
+      w.__damped = 1;
+      G[k] = w;
+    }
+
+    G.hunterFn = (where) => {
+      const gg = G.current;
+      if (gg.hunter && gg.hunter.hp > 0) return "already out";
+      const p = gg.p;
+      const a = Math.random() * 6.283;
+      const d = 320;
+      const H = {
+        x: (where && where[0]) || p.x + Math.cos(a) * d,
+        y: (where && where[1]) || p.y + Math.sin(a) * d,
+        vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.22,
+        yt: HERO_HUNTER.key, hp: HUNTER_KIT.hp, maxHp: HUNTER_KIT.hp,
+        netCd: 4, dampCd: 6, burstCd: 1, chargeCd: 5, sayCd: 0, taunt: 0,
+      };
+      gg.hunter = H;
+      const who = gg.who || "lion";
+      gg.jobBanner = HERO_HUNTER.called + " \u00b7 ON YOU";
+      gg.jobNote = (HUNTER_LINE.meet || {})[who] || "";
+      gg.pickupFlash = { nm: "hunter_out", t: 4.5 };
+      return "out";
+    };
+
+    G.fisFn = () => {
+      /* FAST TRAVEL TO THE FIELD OFFICE. Puts him on the forecourt, not inside: you still walk
+         through the seal and the front door, which is the bit that makes it a building rather
+         than a menu. Refuses while you are in a building or on the train, because teleporting
+         out of an interior leaves g.inside pointing at somewhere you are no longer standing. */
+      const gg = G.current;
+      if (gg.inside || gg.onTrain || gg.onPlat != null) {
+        gg.pickupFlash = { nm: "fis_no", t: 1.6 };
+        return false;
+      }
+      const c = getCell(FIS_CELL.i, FIS_CELL.j);
+      if (!c) return false;
+      const b = (c.blds || []).find((q) => q.fis);
+      const x = b ? b.x + b.w / 2 : (c.lx0 + c.lx1) / 2;
+      const y = b ? b.y + b.h + 46 : (c.ly0 + c.ly1) / 2;
+      gg.p.x = x; gg.p.y = y; gg.p.vx = 0; gg.p.vy = 0;
+      if (gg.mode !== "foot") { gg.mode = "foot"; }
+      gg.cam.x = x; gg.cam.y = y;
+      gg.pickupFlash = { nm: "fis_here", t: 2.0 };
+      return true;
+    };
+
+    if (typeof window !== "undefined") {
+      const W2 = (window.__ironlion = window.__ironlion || {});
+      W2.hunter = (x, y) => G.hunterFn(x != null ? [x, y] : null);
+      W2.fis = () => G.fisFn();
+    }
     raf = requestAnimationFrame(frame);
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
   }, [ready]);
@@ -26332,6 +26926,9 @@ export default function IronLionLayer004() {
     district_logged: "DISTRICT LOGGED",
     saved: "SAVED", save_failed: "COULD NOT SAVE", save_cleared: "SAVE CLEARED",
     reloading: "RELOADING",
+    hunter_out: "BANNERMAN IS ON YOU", hunter_down: "BANNERMAN IS DOWN",
+    damped: "POWERS DEAD", netted: "PINNED",
+    fis_here: "FEDERAL PLAZA", fis_no: "NOT FROM IN HERE",
     aboard: "ABOARD", arrived: "THIS IS YOUR STOP", all_aboard: "ALL ABOARD",
     up_top: "UP ON THE PLATFORM",
     repairing: "THE CREW ARE ON IT",
@@ -27896,6 +28493,8 @@ export default function IronLionLayer004() {
               () => { input.current.fire = false; })}
             {hud.cab && btn("QUIT", "leave machine",
               () => { G.cabFn && G.cabFn(); }, null)}
+            {!hud.cab && btn("FED", "field office",
+              () => { G.fisFn && G.fisFn(); }, null)}
             {!hud.cab && btn(hud.board ? "PUSH" : "RUN",
               hud.board ? "tap kick · hold brake" : "sprint",
               () => { input.current.run = true; },
