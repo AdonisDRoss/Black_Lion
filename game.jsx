@@ -1861,7 +1861,7 @@ function rampList() {
     r.gx = gx; r.gy = gy;
   }
   rampList._c = out;
-  return dryOut(out);
+  return out;
 }
 /* The footprint a ramp occupies, so buildings can be kept out of it. */
 function rampBoxes() {
@@ -8350,7 +8350,7 @@ export default function IronLionLayer004() {
         for (const o2 of ((c2 && (c2.units || c2.crew)) || [])) if (o2 && o2.hp > 0) out.push(o2);
       for (const u of (g.guards || [])) if (u && u.hp > 0) out.push(u);
       for (const u of (g.deps || [])) if (u && u.hp > 0) out.push(u);
-      return dryOut(out);
+      return out;
     }
     function kickTarget() {
       // the same fault as the stars: standing still aimed the kick due east
@@ -9562,7 +9562,7 @@ export default function IronLionLayer004() {
           out.push({ x, y, type, next: { x, y: clear((s + 1) * POLE_STEP) } });
         }
       }
-      return dryOut(out);
+      return out;
     }
     function armY(p) { return p.y - (POLE_ART[p.type] || POLE_ART.single).h * (POLE_ART[p.type] || POLE_ART.single).armY; }
 
@@ -11013,7 +11013,7 @@ export default function IronLionLayer004() {
         out.push({ ...p, cash: 60 + ((Math.random() * 240) | 0), bet: 10, lost: false,
                    say: "", gone: false });
       }
-      return dryOut(out);
+      return out;
     }
     function runFolk(playerWon) {
       const t = g.table;
@@ -13442,7 +13442,7 @@ export default function IronLionLayer004() {
       for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
         for (const b of getCell(i, j).blds) out.push(b);
       }
-      return dryOut(out);
+      return out;
     }
 
     function drawDenExt(b, alpha) {
@@ -16282,7 +16282,7 @@ export default function IronLionLayer004() {
         const L = LEADERS[k];
         out.push({ key: k, ...L, x: SX(L.where.i) + PITCH / 2, y: SX(L.where.j) + PITCH / 2 });
       }
-      return dryOut(out);
+      return out;
     }
     function nearLeader() {
       if (g.inside || inVehicle()) return null;
@@ -18966,13 +18966,13 @@ export default function IronLionLayer004() {
       const out = [];
       if (g.police) out.push(g.police.car);
       for (const P of g.policeMore || []) out.push(P.car);
-      return dryOut(out);
+      return out;
     }
     function policeUnits() {
       const out = [];
       if (g.police) for (const u of g.police.units) out.push(u);
       for (const P of g.policeMore || []) for (const u of P.units) out.push(u);
-      return dryOut(out);
+      return out;
     }
     function makeCruiser(x, y, spread) {
       const along = y + (Math.random() < 0.5 ? -1 : 1) * (1500 + Math.random() * 900);
@@ -26700,7 +26700,7 @@ export default function IronLionLayer004() {
           if (!blocked(l, sp.y)) { sp.x = l; break; }
         }
       }
-      return dryOut(out);
+      return out;
     }
     function otherSpot() {
       /* Stood in the open, not against the machinery. Bay-centre-plus-54 put him half inside
@@ -27841,7 +27841,7 @@ export default function IronLionLayer004() {
       const pol = (g.police && g.police.units) || [];
       for (const c of pol)
         if (c && c.hp > 0 && Number.isFinite(c.x) && Math.hypot(c.x - x, c.y - y) < r) out.push(c);
-      return dryOut(out);
+      return out;
     }
     const WIRE_R = 340;
     /* FIBER WIRE. Long reach, one target, and it uses the whip line to get there -- same
