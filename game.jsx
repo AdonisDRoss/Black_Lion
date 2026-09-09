@@ -1107,6 +1107,13 @@ YT.yt_tko_hero = "assets/youth/yt_tko_hero.png";
    the swinging arm and the held weapon all work on them with nothing written per villain.
    Ages are 1986. */
 const VILLAINS = [
+  /* THE ARSONIST. He is in ROGUE_JOB, he runs jobs, he has approach lines and a base -- and he
+     was never in VILLAINS, so vil_arson was never registered and drawKing had nothing to draw.
+     Five plates for six rogues, and this was the missing one.
+     `civ` rather than `hero`: what he has is an out-of-costume plate, not a hero-form one. */
+  { id: "arson", name: "THE ARSONIST", age: 34, yt: "vil_arson", hero: "vil_arson_civ", hp: 18,
+    alone: true,
+    note: "Does not take the money. Stacks it in the middle of the floor and lights it." },
   { id: "voz", name: "LA VOZ", age: 38, yt: "vil_voz", hero: "vil_voz_hero", hp: 14,
     alone: true, speaksFor: "monstruo",
     note: "Says what El Monstruo wants. Nobody can prove she ever asks him." },
@@ -2567,6 +2574,10 @@ const ROOF_FOOT = {
   ard_colonial:   { w: 12.4, h: 11 },   // 1.13, the aspect the plates were actually drawn at
   ard_foursquare: { w: 11, h: 11 },
   ard_garage:     { w: 7,  h: 7 },
+  /* SNAPPED, like Arden. The shophouse plates carry their washing lines hanging off the bottom
+     edge, so stretching one across a wide lot scaled the laundry up with it -- shirts the size
+     of a car. A fixed footprint is the only thing that keeps drawn-in detail at drawn size. */
+  gen_shophouse:  { w: 8, h: 13 },
   // the only generic that IS snapped: one town, one plan, timber
   gen_cabin:      { w: 10, h: 8 },
 };
@@ -6289,8 +6300,10 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     for (let k = 0; k < n; k++) {
       const bw = (LW - 8) / n;
       if (k !== gapAt) {
-        const bh = LH * (0.40 + rnd() * 0.16);
-        const b = mkB(x + 2, ly0 + 6, bw - 4, bh, 2 + Math.floor(rnd() * 2), "shophouse", rnd, key + k);
+        const sf = ROOF_FOOT.gen_shophouse;
+        const bh = Math.min(LH * 0.56, sf.h * MU);
+        const b = mkB(x + 2, ly0 + 6, Math.min(bw - 4, sf.w * MU), bh,
+          2 + Math.floor(rnd() * 2), "shophouse", rnd, key + k);
         b.tone = 0.20; b.retail = true; assignBiz(b, zone, key + k);
         out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
       }
@@ -24476,6 +24489,7 @@ export default function IronLionLayer004() {
       drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
       drawArrivals();
       drawFisHunt();
+      drawFlames();
       drawHunter();
       drawMech();
       drawChopper();          // last: it is above everything, because it is in the air
@@ -26292,11 +26306,59 @@ export default function IronLionLayer004() {
         ctx.restore();
       }
     }
+    /* HIS FLAME. Drawn, not a sprite: a jet is a cone that flickers and reaches, and a static
+       plate of fire pointed at somebody reads as a decal. Three overlapping cones with the
+       inner one shortest and whitest, jittered per frame, plus the ember spray at the tip.
+       Any rogue with a flamer sets boss.flameT; nothing else in the file has to know. */
+    function drawFlames() {
+      const j = g.job, b = j && j.boss;
+      if (!b || !Number.isFinite(b.x) || !((b.flameT || 0) > 0)) return;
+      const a = Number.isFinite(b.flameAng) ? b.flameAng : 0;
+      const t = b.flameT;
+      const reach = 96 * Math.min(1, t * 3);
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(a);
+      const cone = (len, spread, col) => {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        for (let k = -3; k <= 3; k++) {
+          const th = (k / 3) * spread;
+          const jitter = 1 + (Math.random() - 0.5) * 0.22;
+          ctx.lineTo(Math.cos(th) * len * jitter + 10, Math.sin(th) * len * jitter);
+        }
+        ctx.closePath(); ctx.fill();
+      };
+      cone(reach, 0.36, "rgba(196,64,20,0.42)");
+      cone(reach * 0.74, 0.26, "rgba(244,146,38,0.62)");
+      cone(reach * 0.44, 0.16, "rgba(255,232,178,0.82)");
+      for (let k = 0; k < 5; k++) {
+        const d = reach * (0.7 + Math.random() * 0.5);
+        const th = (Math.random() - 0.5) * 0.5;
+        ctx.fillStyle = `rgba(255,${140 + ((Math.random() * 90) | 0)},60,${0.4 + Math.random() * 0.4})`;
+        ctx.fillRect(Math.cos(th) * d + 10, Math.sin(th) * d, 3, 3);
+      }
+      ctx.restore();
+    }
     function drawJobBoss() {
       const j = g.job;
       if (!j || !j.boss || j.phase === "done" || j.phase === "gone") return;
       const b = j.boss;
       if (!Number.isFinite(b.x) || b.hp <= 0) return;
+      /* The Arsonist swings a flamethrower rather than a fist. Kept here beside the ring so the
+         one place that already knows which rogue is on the board is the place that decides. */
+      if (j.rid === "arson") {
+        b.flameCd = (b.flameCd || 0) - (g.dt || 0.016);
+        const d = Math.hypot(g.p.x - b.x, g.p.y - b.y);
+        if (b.flameCd <= 0 && d < 120) {
+          b.flameCd = 2.4;
+          b.flameT = 0.85;
+          b.flameAng = Math.atan2(g.p.y - b.y, g.p.x - b.x);
+          g.p.hp = Math.max(0, g.p.hp - 9);
+        }
+        b.flameT = Math.max(0, (b.flameT || 0) - (g.dt || 0.016));
+      }
       const pulse = 0.5 + 0.5 * Math.sin(g.t * 5);
       ctx.strokeStyle = `rgba(232,120,90,${0.5 + 0.4 * pulse})`;
       ctx.lineWidth = 2.5;
