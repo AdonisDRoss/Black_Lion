@@ -2674,7 +2674,8 @@ for (const k of ["gs_canopy", "gs_pumps", "gs_shop", "tx_gs_forecourt",
                     they were placed now have faces. ft_burger and ft_noodle have no plate of
                     their own yet and borrow the nearest match. */
                  "ft_taco", "ft_coffee", "ft_hotdog", "ft_chips", "ft_burger", "ft_noodle",
-                 "veh_fis_trans", "fis_mech", "fis_mech_wreck", "tc_ruin"])
+                 "veh_fis_trans", "fis_mech", "fis_mech_wreck", "tc_ruin",
+                 "fis_badge_silver", "fis_badge_gold"])
   CITY_ART[k] = "assets/city/" + k + ".png";
 const SOV2_ART = {};
 for (const k of ["sv_arch", "sv_pillar", "sv_stair", "sv_manhole", "sv_desk", "sv_map_table",
@@ -8363,6 +8364,14 @@ export default function IronLionLayer004() {
         for (const o2 of ((c2 && (c2.units || c2.crew)) || [])) if (o2 && o2.hp > 0) out.push(o2);
       for (const u of (g.guards || [])) if (u && u.hp > 0) out.push(u);
       for (const u of (g.deps || [])) if (u && u.hp > 0) out.push(u);
+      /* THE FIS WERE NOT ON THIS LIST. Same fault as `.crew` above and `g.cops` before it: they
+         live in g.fisHunt.squad, which nothing here knew about, so every weapon that routes
+         through combatTargets passed straight through a federal agent. Bannerman and the mech
+         are their own objects and go on too -- a hunter you cannot hit is a cutscene. */
+      const fh = g.fisHunt;
+      if (fh && fh.squad) for (const a of fh.squad) if (a && a.hp > 0) out.push(a);
+      if (g.hunter && g.hunter.hp > 0) out.push(g.hunter);
+      if (g.mech && g.mech.hp > 0) out.push(g.mech);
       return out;
     }
     function kickTarget() {
@@ -25491,12 +25500,10 @@ export default function IronLionLayer004() {
         drawYouth(m);
         // the name only when you are close enough to be talking to them
         if (Math.hypot(m.x - g.p.x, m.y - g.p.y) < 78) {
-          ctx.font = "700 10px system-ui, sans-serif";
-          const w = m.name.length * 6.2;
-          ctx.fillStyle = "rgba(10,9,12,0.82)";
-          ctx.fillRect(m.x - w / 2 - 4, m.y - 40, w + 8, 14);
-          ctx.fillStyle = "#cfe0ff";
-          ctx.fillText(m.name, m.x - w / 2, m.y - 30);
+          // gold for anybody the story knows by name, silver for the regulars
+          const gold = m.yt === FIS_WHO.snow.key || m.yt === FIS_WHO.lin.key
+            || m.yt === FIS_WHO.director.key || m.yt === HERO_HUNTER.key;
+          fisTag(m, m.name, gold);
         }
       }
     }
@@ -25637,15 +25644,37 @@ export default function IronLionLayer004() {
         collideCrew(a);                       // agents are not rogues; they use the door
         a.shootT = Math.max(0, (a.shootT || 0) - dt);
         a.fireCd -= dt;
-        if (a.fireCd <= 0 && d < 340) {
-          a.fireCd = 1.5 + Math.random();
-          p.hp = Math.max(0, p.hp - 5);
-          a.shootT = 0.34; a.face = Math.atan2(dy, dx);
-          hfx().push({ kind: "tracer", x: a.x, y: a.y, x2: p.x, y2: p.y, t: 0.08, life: 0.08 });
-          hfx().push({ kind: "flash", x: a.x, y: a.y, ang: Math.atan2(dy, dx), t: 0.06, life: 0.06 });
+        a.netCd = (a.netCd || 0) - dt;
+        a.shootT = Math.max(0, (a.shootT || 0) - dt);
+        /* THE NET. Same tool Bannerman carries, issued down to the agents -- three seconds
+           pinned, and a long cooldown so it is a moment rather than a lock. Only one of them
+           throws at a time: g.netUp is a squad-wide gate, because three agents netting you in
+           sequence is not a fight, it is a cutscene you cannot leave. */
+        if (a.netCd <= 0 && d < 240 && !(g.netUp > 0)) {
+          a.netCd = 11 + Math.random() * 4;
+          g.netUp = 3.0;
+          p.stunT = Math.max(p.stunT || 0, 3.0);
+          a.shootT = 0.4; a.face = Math.atan2(dy, dx);
+          hfx().push({ kind: "net", x: a.x, y: a.y, x2: p.x, y2: p.y, t: 0.34, life: 0.34 });
+          g.pickupFlash = { nm: "netted", t: 1.8 };
+        }
+        /* SMG, not a pistol. Three-round bursts, tighter cooldown, less per round -- the read
+           is volume of fire, which is what makes a squad of them different from one man. */
+        if (a.burst > 0 && a.burstCd <= 0) {
+          a.burst--; a.burstCd = 0.08;
+          p.hp = Math.max(0, p.hp - 3);
+          a.shootT = 0.3; a.face = Math.atan2(dy, dx);
+          hfx().push({ kind: "tracer", x: a.x, y: a.y, x2: p.x, y2: p.y, t: 0.07, life: 0.07 });
+          hfx().push({ kind: "flash", x: a.x, y: a.y, ang: Math.atan2(dy, dx), t: 0.05, life: 0.05 });
+        } else if (a.burstCd > 0) {
+          a.burstCd -= dt;
+        } else if (a.fireCd <= 0 && d < 340) {
+          a.fireCd = 1.9 + Math.random();
+          a.burst = 3;
         }
       }
 
+      g.netUp = Math.max(0, (g.netUp || 0) - dt);
       const liveAgents = h.squad.filter((a) => a.hp > 0).length;
       const bannerLive = g.hunter && g.hunter.hp > 0;
       h.cd -= dt;
@@ -25670,6 +25699,8 @@ export default function IronLionLayer004() {
                 vx: 0, vy: 0, anim: Math.random() * 6, jit: 1,
                 yt: FIS_PLATES[(Math.random() * FIS_PLATES.length) | 0],
                 hp: 60, maxHp: 60, fireCd: 1 + Math.random(),
+                netCd: 6 + Math.random() * 6, burst: 0, burstCd: 0,
+                name: "AGENT " + FIS_NAMES[(Math.random() * FIS_NAMES.length) | 0],
               });
             }
             g.jobBanner = "FIS \u00b7 AGENTS ON YOU";
@@ -25749,6 +25780,27 @@ export default function IronLionLayer004() {
         }
       }
     }
+    /* One tag for every federal on screen, so a regular and a named agent are told apart the
+       same way everywhere -- squad, field office, or Bannerman standing in the road. */
+    function fisTag(o, name, gold) {
+      if (!o || !Number.isFinite(o.x)) return;
+      const f = Math.max(0, o.hp / (o.maxHp || o.hp || 1));
+      const bg = imgs.current[gold ? "fis_badge_gold" : "fis_badge_silver"];
+      const bw = 13, bh = bg && bg.width ? bw * (bg.height / bg.width) : 16;
+      ctx.font = "700 9px system-ui, sans-serif";
+      const tw = ctx.measureText(name).width;
+      const total = tw + bw + 6;
+      const x0 = o.x - total / 2, y0 = o.y - 46;
+      ctx.fillStyle = "rgba(10,9,12,0.82)";
+      ctx.fillRect(x0 - 4, y0 - 2, total + 8, 14);
+      if (bg && bg.width) ctx.drawImage(bg, x0, y0 - bh * 0.14, bw, bh);
+      ctx.fillStyle = gold ? "#e8c27a" : "#cfd8e6";
+      ctx.fillText(name, x0 + bw + 6, y0 + 9);
+      // the bar under it, so health and identity read as one label
+      ctx.fillStyle = "rgba(10,9,12,0.8)"; ctx.fillRect(o.x - 20, y0 + 14, 40, 5);
+      ctx.fillStyle = f > 0.35 ? "#7fd4a0" : "#e8785a";
+      ctx.fillRect(o.x - 19, y0 + 15, 38 * f, 3);
+    }
     function drawFisHunt() {
       const h = g.fisHunt;
       if (!h || !h.on || g.inside) return;
@@ -25780,9 +25832,10 @@ export default function IronLionLayer004() {
           }
           ctx.restore();
         }
-        const f = Math.max(0, a.hp / (a.maxHp || 1));
-        ctx.fillStyle = "rgba(10,9,12,0.8)"; ctx.fillRect(a.x - 18, a.y - 34, 36, 5);
-        ctx.fillStyle = "#8fb4e8"; ctx.fillRect(a.x - 17, a.y - 33, 34 * f, 3);
+        /* BADGE AND NAME. Silver is a regular; gold is somebody whose name is in the file --
+           Snow, Lin, the Director, Bannerman. The badge is the rank, so you can read a threat
+           at a glance without reading the word. */
+        fisTag(a, a.name || "AGENT", false);
       }
       const R = h.ride;
       if (R && Number.isFinite(R.x)) {
@@ -26055,9 +26108,7 @@ export default function IronLionLayer004() {
       ctx.fillRect(H.x - 26, H.y - 44, 52, 6);
       ctx.fillStyle = f > 0.35 ? "#7fd4a0" : "#e8785a";
       ctx.fillRect(H.x - 25, H.y - 43, 50 * f, 4);
-      ctx.font = "700 10px system-ui, sans-serif";
-      ctx.fillStyle = "#e8c27a";
-      ctx.fillText(HERO_HUNTER.called, H.x - 30, H.y - 50);
+      fisTag(H, HERO_HUNTER.called, true);
     }
     /* ARRIVALS. Somebody drives home, parks, gets out and goes inside. Self-contained rather
        than bolted onto the traffic AI: those cars are following lanes and a lane is the one
@@ -27903,6 +27954,13 @@ export default function IronLionLayer004() {
       const pol = (g.police && g.police.units) || [];
       for (const c of pol)
         if (c && c.hp > 0 && Number.isFinite(c.x) && Math.hypot(c.x - x, c.y - y) < r) out.push(c);
+      // and the federals, for the same reason
+      const fh2 = g.fisHunt;
+      const extra = (fh2 && fh2.squad ? fh2.squad.slice() : []);
+      if (g.hunter) extra.push(g.hunter);
+      if (g.mech) extra.push(g.mech);
+      for (const a of extra)
+        if (a && a.hp > 0 && Number.isFinite(a.x) && Math.hypot(a.x - x, a.y - y) < r) out.push(a);
       return out;
     }
     const WIRE_R = 340;
