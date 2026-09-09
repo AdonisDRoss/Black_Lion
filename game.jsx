@@ -23957,6 +23957,7 @@ export default function IronLionLayer004() {
       if (g.inside) { drawGig(); drawArcadeKids(); drawBenched(); drawFisStaff(); }
       drawGuards(); drawDeputies(); drawBlast();
       drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
+      drawArrivals();
       drawHunter();
       drawCrewProbe(view);          // TEMPORARY -- delete with the CREW PROBE block.
                                     // LAST on purpose: called earlier, interior furniture
@@ -25263,8 +25264,13 @@ export default function IronLionLayer004() {
             tx: sp.x, ty: sp.y, tang: sp.ang, homeB: b, slot: k, doorTo: dp,
           };
           if (Number.isFinite(v.x)) {
+            /* NOT into g.traffic while it is still moving. The traffic driver reads si, k, axis
+               and dir off every live entry to find its lane, and an arriving car has none of
+               them -- laneX(undefined, undefined) is NaN, NaN goes straight into v.x, and
+               canvas throws "the provided value is non-finite" every frame from then on. That
+               is the FRAME ERROR. It only joins the traffic list once it is PARKED, where
+               `if (v.dead) continue` at the top of the driver skips it entirely. */
             pk.taken[k] = v;
-            g.traffic.push(v);
             g.arrive.push(v);
           }
         }
@@ -25277,6 +25283,7 @@ export default function IronLionLayer004() {
           if (d < 4) {
             v.x = v.tx; v.y = v.ty; v.ang = v.tang;
             v.arriving = 0; v.dead = 1; v.spd = 0;
+            g.traffic.push(v);            // parked, so the driver leaves it alone
             /* Out of the car and up the path. The ped is a normal civilian -- same sheet, same
                walk -- given one destination and told to stop existing when it gets there,
                because a man who walks through a front door should not come back out of it
@@ -25336,6 +25343,21 @@ export default function IronLionLayer004() {
       if (mb && mb.width) {
         const ww = 62, hh = ww * (mb.height / mb.width);
         ctx.drawImage(mb, c.lx0 + w * 0.05, c.ly0 + h * 0.50 - hh / 2, ww, hh);
+      }
+    }
+    /* Arriving cars draw here rather than through drawTraffic, because they are not traffic
+       yet. Same body call, so a car pulling in looks like every other car on the street. */
+    function drawArrivals() {
+      for (const v of (g.arrive || [])) {
+        if (!v || !v.arriving || !Number.isFinite(v.x) || !Number.isFinite(v.y)) continue;
+        const im = imgs.current[v.m.k];
+        if (!im || !im.width) continue;
+        const L = v.m.len, w = v.m.w || L * (im.width / im.height);
+        ctx.save();
+        ctx.translate(v.x, v.y); ctx.rotate((v.ang || 0) + Math.PI / 2);
+        drawShadow(2, 5, w * 0.42, L * 0.40, 0.32);
+        drawBody(im, w, L, v);
+        ctx.restore();
       }
     }
     function drawJobBoss() {
@@ -28792,8 +28814,6 @@ export default function IronLionLayer004() {
               () => { input.current.fire = false; })}
             {hud.cab && btn("QUIT", "leave machine",
               () => { G.cabFn && G.cabFn(); }, null)}
-            {!hud.cab && btn("FED", "field office",
-              () => { G.fisFn && G.fisFn(); }, null)}
             {!hud.cab && btn(hud.board ? "PUSH" : "RUN",
               hud.board ? "tap kick · hold brake" : "sprint",
               () => { input.current.run = true; },
