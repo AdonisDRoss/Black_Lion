@@ -1861,7 +1861,7 @@ function rampList() {
     r.gx = gx; r.gy = gy;
   }
   rampList._c = out;
-  return out;
+  return dryOut(out);
 }
 /* The footprint a ramp occupies, so buildings can be kept out of it. */
 function rampBoxes() {
@@ -2646,6 +2646,11 @@ for (const k of ["tx_lawn_a", "tx_lawn_b", "tx_yard_wild_a", "tx_yard_wild_b"])
 const LAWNS = ["tx_lawn_a", "tx_lawn_b"];
 const WILD = ["tx_yard_wild_a", "tx_yard_wild_b"];
 
+const PORT_ART = {};
+for (const k of ["tx_port_apron", "po_crane", "po_containers_a", "po_containers_b",
+                 "po_containers_c", "po_warehouse", "po_freighter", "po_tug"])
+  PORT_ART[k] = "assets/port/" + k + ".png";
+
 const CITY_ART = {};
 for (const k of ["gs_canopy", "gs_pumps", "gs_shop", "tx_gs_forecourt",
                  "bs_bays", "bs_boothdoor", "bs_wreck_a", "bs_wreck_b", "bs_wreck_c",
@@ -2915,6 +2920,13 @@ const HOSPITAL_CELL = { i: 7, j: 11 };
    6,4-6,9 · 8,6 · 9,5 · 9,7 (First Merchants) · 9,8 · 9,9 · 10,8 · 10,10 · 11,9 · 12,9 · 12,10.
    11,6 is empty, sits mid-district, and is two blocks off the bank the rogues keep hitting --
    near enough that the federal interest is obvious, far enough that it is not the same scene. */
+/* THE PORT. Along the water on the terminal side, which is where the rail already runs -- a
+   dock with no railhead is a dock nothing leaves. Four cells: two of apron and cranes, one of
+   container stacks, one shed. Any cell that turns out to be water builds nothing, because the
+   dry filter above runs on these too. */
+const PORT_CELLS = [{ i: 15, j: 6 }, { i: 15, j: 7 }, { i: 16, j: 6 }, { i: 16, j: 7 }];
+const isPortCell = (i, j) => PORT_CELLS.some((c) => c.i === i && c.j === j);
+
 const FIS_CELL = { i: 11, j: 6 };
 /* WRAV. Downtown, two blocks off the field office, on 10,5 -- another lot that was empty.
    Maxine works for the press, and the game has had a news van you can call since Eclipse went
@@ -5849,6 +5861,14 @@ function assignBiz(b, zone, key) {
 function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
   const LW = lx1 - lx0, LH = ly1 - ly0, key = i * 1000 + j;
   const out = [];
+  /* NOTHING STANDS IN THE RIVER. zoneOf only tests the CELL CENTRE for water, so a cell whose
+     middle is dry but whose edge is not still generated a full block -- which is why Neon Flats
+     had buildings out in the channel. Filtering the footprint centre catches every zone at once
+     instead of special-casing the one where it was noticed. */
+  const dryOut = (arr) => arr.filter((b) =>
+    !b || b.perimeter || !Number.isFinite(b.x)
+      ? true
+      : waterDepth(b.x + b.w / 2, b.y + b.h / 2) < 0.08);
   if (zone === "prison") {
     // one block, filling most of the cell, with a yard round it
     if (i !== PRISON_CELL.i || j !== PRISON_CELL.j) return out;
@@ -5878,7 +5898,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     faceDoor(b, lx0, ly0, lx1, ly1, rnd);
     b.door = { side: 2, pos: 0.5 };          // the gate faces the approach road
     out.push(b);
-    return out;
+    return dryOut(out);
   }
   if (zone === "park" || zone === "cemetery" || zone === "skate") return out;
   if (zone === "mountain") {
@@ -5896,7 +5916,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       b.snow = 1;
       out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
     }
-    return out;
+    return dryOut(out);
   }
 
   /* A fixed civic building takes its whole cell and nothing else is generated there. Checked
@@ -5917,7 +5937,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     b.name = jew ? "ALDRIDGE FINE JEWELRY" : "THIRD ST PAWN";
     b.tone = jew ? 0.6 : 0.36;
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
-    return out;
+    return dryOut(out);
   }
   if (isTradeCell(i, j) && !civicAt(i, j)) {
     const bar = barAt(i, j);
@@ -5935,7 +5955,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     else if (kd === "cafe") { b.biz = "cafe"; b.signKey = "sign_marquee"; }
     else { b.biz = "guns"; b.signKey = "sign_wood"; b.name = "RAVEN HOOK FIREARMS"; }
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
-    return out;
+    return dryOut(out);
   }
   /* Both go in AHEAD of every zone branch, including the water branch -- an island building
      has to beat the rule that says water cells hold no buildings, or there is no island. */
@@ -5945,14 +5965,14 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     b.tone = 0.30; b.name = ASYLUM_NAME; b.signKey = "sign_wood"; b.retail = false;
     b.door = { side: 3, pos: 0.5 };     // the only way in faces the causeway, west
     out.push(b);
-    return out;
+    return dryOut(out);
   }
   if (isHospitalCell(i, j)) {
     const bw = LW * 0.78, bh = LH * 0.64;
     const b = mkB(lx0 + (LW - bw) / 2, ly0 + (LH - bh) / 2, bw, bh, 4, "hospital", rnd, key);
     b.tone = 0.72; b.name = HOSPITAL_NAME; b.signKey = "sign_lightbox"; b.retail = false;
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
-    return out;
+    return dryOut(out);
   }
   const fd = foodAt(i, j);
   if (fd && !civicAt(i, j)) {
@@ -5962,7 +5982,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     b.chain = fd.chain; b.name = kit.label; b.signKey = kit.sign;
     b.tone = 0.58; b.retail = true; b.eatery = true; b.biz = "fastfood";
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
-    return out;
+    return dryOut(out);
   }
   const bnk = bankAt(i, j);
   if (bnk && !civicAt(i, j)) {
@@ -5972,13 +5992,24 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     b.tone = 0.66; b.name = bnk.name; b.signKey = "sign_lightbox";
     b.retail = false; b.bank = true;
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
-    return out;
+    return dryOut(out);
   }
   /* THE FIELD OFFICE. Fixed cell, fixed size, always there -- same reasoning as the Kestrel:
      somewhere you can be TOLD to go, rather than somewhere that happens to exist this run.
      Set back off the avenue with a forecourt, four floors, one door. Federal buildings in this
      city should read as heavier than the banks around them, so it takes more of its lot than a
      bank does and none of the retail flags. */
+  if (isPortCell(i, j) && !civicAt(i, j)) {
+    // one long transit shed per port cell, set back from the quay edge
+    if (rnd() < 0.45) return dryOut(out);
+    const bw = Math.min(LW * 0.86, 40 * MU), bh = Math.min(LH * 0.30, 13 * MU);
+    const b = mkB(lx0 + (LW - bw) / 2, ly0 + LH * 0.06, bw, bh, 1, "warehouse", rnd, key);
+    b.tone = 0.30; b.retail = false; b.port = true;
+    b.roofCls = "one";                       // stop the generic picker overriding the shed
+    b.roofKey = "po_warehouse";
+    out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+    return dryOut(out);
+  }
   if (isNewsCell(i, j) && !civicAt(i, j)) {
     const bw = Math.min(LW * 0.70, 26 * MU), bh = Math.min(LH * 0.56, 22 * MU);
     const b = mkB(lx0 + (LW - bw) / 2, ly0 + LH * 0.30, bw, bh, 3, "offices", rnd, key);
@@ -5987,7 +6018,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     b.retail = false; b.eatery = false;
     b.news = true;
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
-    return out;
+    return dryOut(out);
   }
   if (isFisCell(i, j) && !civicAt(i, j)) {
     const bw = Math.min(LW * 0.80, 34 * MU), bh = Math.min(LH * 0.62, 26 * MU);
@@ -6003,7 +6034,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
        you walk in at basement level and can never leave from the lobby. */
     b.entry = 1;
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
-    return out;
+    return dryOut(out);
   }
   const civ = civicAt(i, j);
   if (civ) {
@@ -6047,7 +6078,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
            (wx1 - wx0 - gapW) / 2, WT, 905);                                  // front, east of gate
     }
     out.push(b);
-    return out;
+    return dryOut(out);
   }
 
   /* ---------- ARDEN: the houses ----------
@@ -6101,7 +6132,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       gb.roofKey = ROOF_SETS.ard_garage[(Math.abs(key + half * 7) >> 1) % ROOF_SETS.ard_garage.length];
       out.push(gb);
     }
-    return out;
+    return dryOut(out);
   }
 
   if (zone === "farm" && isTrailerCell(i, j)) {
@@ -6125,7 +6156,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
         out.push(t);
       }
     }
-    return out;
+    return dryOut(out);
   }
   if (zone === "farm") {
     // one homestead per few blocks: house, barn, silo, set well back off the county road
@@ -6144,7 +6175,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       silo.tone = 0.10;
       out.push(silo);
     }
-    return out;
+    return dryOut(out);
   }
 
   if (zone === "neon") {
@@ -6169,7 +6200,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       faceDoor(b, lx0, ly0, lx1, ly1, rnd);
       b.door = { side: 2, pos: 0.5 };
       out.push(b);
-      return out;
+      return dryOut(out);
     }
     /* The strip: deep-plan venues built hard to the kerb on both sides of one street, with
        parking behind. Nothing here is a house -- every building is somewhere you go in. */
@@ -6199,7 +6230,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
         assignBiz(m, zone, key + 30);
         out.push(faceDoor(m, lx0, ly0, lx1, ly1, rnd));
       }
-      return out;
+      return dryOut(out);
     }
     // off the strip: low sheds, a lot and not much else
     if (rnd() < 0.5) return out;
@@ -6208,7 +6239,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       1, "shed", rnd, key);
     b.tone = 0.14;
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
-    return out;
+    return dryOut(out);
   }
 
   if (zone === "town") {
@@ -6246,7 +6277,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       }
       out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
     }
-    return out;
+    return dryOut(out);
   }
 
   if (zone === "chinatown") {
@@ -6271,7 +6302,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       2 + Math.floor(rnd() * 2), "shophouse", rnd, key + 40);
     b2.tone = 0.18; b2.retail = true; assignBiz(b2, zone, key + 40);
     out.push(faceDoor(b2, lx0, ly0, lx1, ly1, rnd));
-    return out;
+    return dryOut(out);
   }
 
   if (zone === "irish") {
@@ -6302,7 +6333,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       pub.tone = 0.16;
       out.push(faceDoor(pub, lx0, ly0, lx1, ly1, rnd));
     }
-    return out;
+    return dryOut(out);
   }
 
   if (zone === "barrio") {
@@ -6322,7 +6353,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       b.tone = 0.17;
       out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
     });
-    return out;
+    return dryOut(out);
   }
 
   if (zone === "uptown" && i === CORVO_CELL.i && j === CORVO_CELL.j) {
@@ -6332,7 +6363,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     r.tone = 0.20; r.retail = true; r.biz = "italian"; r.eatery = true;
     r.signKey = "sign_marquee"; r.name = "IL CORVO";
     out.push(faceDoor(r, lx0, ly0, lx1, ly1, rnd));
-    return out;
+    return dryOut(out);
   }
 
   if (zone === "uptown") {
@@ -6354,7 +6385,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       wing.tone = 0.12;
       out.push(faceDoor(wing, lx0, ly0, lx1, ly1, rnd));
     }
-    return out;
+    return dryOut(out);
   }
 
   if (i === DEN_CELL.i && j === DEN_CELL.j) {
@@ -6363,7 +6394,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     db.door = { side: 0, pos: 0.5 };   // north wall -- same side the bay actually sits against
     db.tone = 0.05;
     out.push(db);
-    return out;
+    return dryOut(out);
   }
 
   if (i === WOLVES_CELL.i && j === WOLVES_CELL.j) {
@@ -6374,7 +6405,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     wb.door = { side: 2, pos: 0.5 };
     wb.tone = 0.08;
     out.push(wb);
-    return out;
+    return dryOut(out);
   }
 
   if (zone === "hood") {
@@ -6390,7 +6421,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       const bb = mkB(px, py, pw, ph, rnd() < 0.38 ? 2 : 1, "house", rnd, key + a * 7 + b2 * 31);
       out.push(faceDoor(bb, lx0, ly0, lx1, ly1, rnd));
     }
-    return out;
+    return dryOut(out);
   }
 
   if (zone === "projects") {
@@ -6407,7 +6438,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       if (c === 0) bb.hqTower = true;   // the Kings hold the penthouse of the corner tower
       out.push(bb);
     }
-    return out;
+    return dryOut(out);
   }
 
   if (zone === "terminal") {
@@ -6417,7 +6448,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       bb.door = { side: 2, pos: 0.5 };
       out.push(bb);
     }
-    return out;
+    return dryOut(out);
   }
 
   if (zone === "industrial") {
@@ -6456,7 +6487,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
         out.push(faceDoor(bb, lx0, ly0, lx1, ly1, rnd));
       }
     }
-    return out;
+    return dryOut(out);
   }
 
   if (i === CLUB_CELL.i && j === CLUB_CELL.j) {
@@ -6465,7 +6496,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     cb.door = { side: 2, pos: 0.5 };
     cb.tone = 0.12;
     out.push(cb);
-    return out;
+    return dryOut(out);
   }
 
   if (rnd() < 0.66) {
@@ -6478,7 +6509,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     if (bb.retail) assignBiz(bb, zone, bb.key || key);
     out.push(faceDoor(bb, lx0, ly0, lx1, ly1, rnd));
   }
-  return out;
+  return dryOut(out);
 }
 
 function makeBuildingUnused(lx0, ly0, lx1, ly1, rnd, i, j) {
@@ -7306,7 +7337,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -8319,7 +8350,7 @@ export default function IronLionLayer004() {
         for (const o2 of ((c2 && (c2.units || c2.crew)) || [])) if (o2 && o2.hp > 0) out.push(o2);
       for (const u of (g.guards || [])) if (u && u.hp > 0) out.push(u);
       for (const u of (g.deps || [])) if (u && u.hp > 0) out.push(u);
-      return out;
+      return dryOut(out);
     }
     function kickTarget() {
       // the same fault as the stars: standing still aimed the kick due east
@@ -8744,7 +8775,12 @@ export default function IronLionLayer004() {
         /* Out at Halloran's Rest the residents ARE the residents. pickCiv is the downtown pool
            -- suits and shoppers, forty miles from anywhere they would actually be standing.
            drawPed already prefers p.yt over the civ sheet, so this needs no drawing code. */
-        yt: isTrailerCell(bi, bj) ? TC_RES[(Math.random() * TC_RES.length) | 0] : null,
+        /* Out at Halloran's Rest the residents are the residents; on the quay they are dock
+           workers. Both reuse plates that are already loaded -- the court set and the pixel
+           figures that came in with the FIS office and have never been used for anything. */
+        yt: isTrailerCell(bi, bj) ? TC_RES[(Math.random() * TC_RES.length) | 0]
+          : isPortCell(bi, bj) ? ["fis_ped_1", "fis_ped_2", "fis_ped_3"][(Math.random() * 3) | 0]
+          : null,
         jit: 0.93 + Math.random() * 0.15,
         spd: 54 + Math.random() * 30,
         anim: Math.random() * 6.28, mode: "walk", timer: 0,
@@ -9526,7 +9562,7 @@ export default function IronLionLayer004() {
           out.push({ x, y, type, next: { x, y: clear((s + 1) * POLE_STEP) } });
         }
       }
-      return out;
+      return dryOut(out);
     }
     function armY(p) { return p.y - (POLE_ART[p.type] || POLE_ART.single).h * (POLE_ART[p.type] || POLE_ART.single).armY; }
 
@@ -10977,7 +11013,7 @@ export default function IronLionLayer004() {
         out.push({ ...p, cash: 60 + ((Math.random() * 240) | 0), bet: 10, lost: false,
                    say: "", gone: false });
       }
-      return out;
+      return dryOut(out);
     }
     function runFolk(playerWon) {
       const t = g.table;
@@ -13406,7 +13442,7 @@ export default function IronLionLayer004() {
       for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
         for (const b of getCell(i, j).blds) out.push(b);
       }
-      return out;
+      return dryOut(out);
     }
 
     function drawDenExt(b, alpha) {
@@ -15185,6 +15221,19 @@ export default function IronLionLayer004() {
         if (q !== k.menu) SOLID_PROP[q] = 1;
       }
     }
+    /* WALLS STOP PEOPLE. collideBuildings has existed since the prison wall went in and only
+       three things ever called it -- the player on foot, the player in a car, and nothing else.
+       Every gang member, every agent and every rogue walked through brickwork.
+       A ROGUE IS EXEMPT ON PURPOSE. Masterdrive puts a van through a wall, Kuru is through the
+       roof before the alarm goes -- going where the building says you cannot is the whole point
+       of them. The crews are solid; the man they work for is not.
+       Bullets are deliberately NOT on this list. A round through a shopfront is correct, and
+       the file already resolves those against people rather than geometry. */
+    function collideCrew(m) {
+      if (!m || m.boss || m.rid) return;               // the rogue goes where he likes
+      if (!Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
+      collideBuildings(m, 11, false);
+    }
     function collideBuildings(o, r, isCar) {
       if (g.onFwy) return;              // nothing up here to hit but the parapets
       if ((g.roof || g.sewer || g.fireFloor) && o === g.p) return;  // a plane away
@@ -16233,7 +16282,7 @@ export default function IronLionLayer004() {
         const L = LEADERS[k];
         out.push({ key: k, ...L, x: SX(L.where.i) + PITCH / 2, y: SX(L.where.j) + PITCH / 2 });
       }
-      return out;
+      return dryOut(out);
     }
     function nearLeader() {
       if (g.inside || inVehicle()) return null;
@@ -16822,6 +16871,9 @@ export default function IronLionLayer004() {
       /* Halloran's Rest. Under THE COUNTY's zone, so driving out to the farmland once unlocks
          both -- the court is not a separate district, it is an address in one. */
       { z: "farm",      name: "HALLORAN'S REST",   i: 24, j: 7, landmark: true },
+      /* The quay. Filed under the terminal zone -- the district it backs onto, and the one you
+         unlock by going there. A dock and a railhead are the same trip. */
+      { z: "terminal",  name: "THE PORT",          i: 15, j: 6, landmark: true },
       { z: "skate",     name: "GALAXY LANES",     i: 5,  j: 9, landmark: true },
       { z: "skate",     name: "THE LAST CALL",    i: 6,  j: 9, landmark: true },
       /* The elevated. Downtown is the busiest stop and the one worth arriving at, and the
@@ -17884,19 +17936,19 @@ export default function IronLionLayer004() {
             m.y += (sy2 / sd) * (22 - sd) * 0.5;
           }
           if (m.zap > 0) m.zap -= dt;
-          if (m.stun > 0) { m.x += m.vx * dt; m.y += m.vy * dt; m.vx *= 0.86; m.vy *= 0.86; continue; }
+          if (m.stun > 0) { m.x += m.vx * dt; m.y += m.vy * dt; collideCrew(m); m.vx *= 0.86; m.vy *= 0.86; continue; }
           // one hit from going down: he runs whatever the rest of them are doing
           if (m.hp <= 1 && cr.state === "hostile" && !m.wpn) {
             const ax = m.x - tx, ay = m.y - ty, ad = Math.hypot(ax, ay) || 1;
             m.vx = (ax / ad) * 140; m.vy = (ay / ad) * 140;
-            m.x += m.vx * dt; m.y += m.vy * dt;
+            m.x += m.vx * dt; m.y += m.vy * dt; collideCrew(m);
             continue;
           }
           if (cr.state === "flee") {
             // straight away from whatever is hurting them, and they do not shoot while running
             const ax = m.x - tx, ay = m.y - ty, ad = Math.hypot(ax, ay) || 1;
             m.vx = (ax / ad) * 150; m.vy = (ay / ad) * 150;
-            m.x += m.vx * dt; m.y += m.vy * dt;
+            m.x += m.vx * dt; m.y += m.vy * dt; collideCrew(m);
             continue;
           }
           if (cr.state === "hostile" && pastLeash(cr, tx, ty)) {
@@ -17904,7 +17956,7 @@ export default function IronLionLayer004() {
             const hx = m.hx, hy = m.hy, hd = Math.hypot(hx - m.x, hy - m.y) || 1;
             if (hd > 26) { m.vx = ((hx - m.x) / hd) * 96; m.vy = ((hy - m.y) / hd) * 96; }
             else { m.vx *= 0.8; m.vy *= 0.8; }
-            m.x += m.vx * dt; m.y += m.vy * dt;
+            m.x += m.vx * dt; m.y += m.vy * dt; collideCrew(m);
             continue;
           }
           if (cr.state === "hostile") {
@@ -17961,7 +18013,7 @@ export default function IronLionLayer004() {
             const tx = m.hx + Math.cos(m.phase) * 15, ty = m.hy + Math.sin(m.phase * 0.8) * 12;
             m.vx = (tx - m.x) * 0.9; m.vy = (ty - m.y) * 0.9;
           }
-          m.x += m.vx * dt; m.y += m.vy * dt;
+          m.x += m.vx * dt; m.y += m.vy * dt; collideCrew(m);
         }
       }
     }
@@ -18914,13 +18966,13 @@ export default function IronLionLayer004() {
       const out = [];
       if (g.police) out.push(g.police.car);
       for (const P of g.policeMore || []) out.push(P.car);
-      return out;
+      return dryOut(out);
     }
     function policeUnits() {
       const out = [];
       if (g.police) for (const u of g.police.units) out.push(u);
       for (const P of g.policeMore || []) for (const u of P.units) out.push(u);
-      return out;
+      return dryOut(out);
     }
     function makeCruiser(x, y, spread) {
       const along = y + (Math.random() < 0.5 ? -1 : 1) * (1500 + Math.random() * 900);
@@ -21885,6 +21937,7 @@ export default function IronLionLayer004() {
         }
         if (c.zone === "prison") continue;             // so does the prison, in one campus
         if (c.zone === "neon") { drawNeon(c); continue; }
+        if (isPortCell(c.i, c.j)) { drawPort(c); continue; }
         if (isTrailerCell(c.i, c.j)) { drawTrailerYard(c); continue; }
         if (c.zone === "farm") { drawFarm(c); continue; }
         if (c.zone === "town") { drawTownLot(c); continue; }
@@ -25567,6 +25620,7 @@ export default function IronLionLayer004() {
         const drive = d > want ? 1 : d < want * 0.65 ? -0.7 : 0;
         a.vx = (dx / d) * drive * 96; a.vy = (dy / d) * drive * 96;
         a.x += a.vx * dt; a.y += a.vy * dt; a.anim += dt * 6;
+        collideCrew(a);                       // agents are not rogues; they use the door
         a.shootT = Math.max(0, (a.shootT || 0) - dt);
         a.fireCd -= dt;
         if (a.fireCd <= 0 && d < 340) {
@@ -26132,6 +26186,46 @@ export default function IronLionLayer004() {
         if (q.say > 0 && q.line) bubble(q.x, q.y - 26, q.line, q.mvp ? "#e8c27a" : "#cfe0d0");
       }
     }
+    /* THE QUAY. Apron across the whole cell, then the fixed furniture -- cranes on their rails
+       along the water edge, container stacks inland, and a hull alongside if the cell actually
+       touches water. All seeded off the cell, so the yard is laid out the same every visit;
+       a container park that reshuffles is a car park with boxes on it. */
+    function drawPort(c) {
+      const w = c.lx1 - c.lx0, h = c.ly1 - c.ly0;
+      const ap = imgs.current["tx_port_apron"];
+      const pat = ap && ap.width ? ctx.createPattern(ap, "repeat") : null;
+      ctx.fillStyle = pat || "rgba(96,98,94,0.95)";
+      ctx.fillRect(c.lx0, c.ly0, w, h);
+
+      const rnd = mulberry((c.i * 8191 + c.j * 6151) >>> 0);
+      const put = (k, px, py, ww, rot) => {
+        const im = imgs.current[k];
+        if (!im || !im.width || !Number.isFinite(px) || !Number.isFinite(py)) return;
+        const hh = ww * (im.height / im.width);
+        drawShadow(px, py + hh * 0.34, ww * 0.40, hh * 0.18, 0.30);
+        if (rot) { ctx.save(); ctx.translate(px, py); ctx.rotate(rot);
+          ctx.drawImage(im, -ww / 2, -hh / 2, ww, hh); ctx.restore(); }
+        else ctx.drawImage(im, px - ww / 2, py - hh / 2, ww, hh);
+      };
+
+      // container stacks inland, in a loose grid because that is how they are actually stored
+      const STK = ["po_containers_a", "po_containers_b", "po_containers_c"];
+      for (let r = 0; r < 2; r++) for (let k = 0; k < 3; k++) {
+        if (rnd() < 0.22) continue;
+        put(STK[(k + r) % 3],
+          c.lx0 + w * (0.18 + k * 0.28), c.ly0 + h * (0.52 + r * 0.24), 96);
+      }
+      // two cranes on the water edge, square to it
+      for (let k = 0; k < 2; k++)
+        put("po_crane", c.lx0 + w * (0.30 + k * 0.42), c.ly0 + h * 0.30, 92);
+
+      /* Anything floating only draws where there IS water -- otherwise a freighter ends up
+         parked on the tarmac, which is the same class of mistake as a building in the river. */
+      const qx = c.lx0 + w * 0.5, qy = c.ly0 - 40;
+      if (waterDepth(qx, qy) > 0.10) {
+        put(rnd() < 0.6 ? "po_freighter" : "po_tug", qx, qy - 60, 118);
+      }
+    }
     function drawTrailerYard(c) {
       /* THE ROADS FIRST, and painted OUTSIDE the cell. drawGround lays one sheet of asphalt
          across the whole view and then puts each cell's pad on top, so the "road" is just the
@@ -26606,7 +26700,7 @@ export default function IronLionLayer004() {
           if (!blocked(l, sp.y)) { sp.x = l; break; }
         }
       }
-      return out;
+      return dryOut(out);
     }
     function otherSpot() {
       /* Stood in the open, not against the machinery. Bay-centre-plus-54 put him half inside
@@ -27747,7 +27841,7 @@ export default function IronLionLayer004() {
       const pol = (g.police && g.police.units) || [];
       for (const c of pol)
         if (c && c.hp > 0 && Number.isFinite(c.x) && Math.hypot(c.x - x, c.y - y) < r) out.push(c);
-      return out;
+      return dryOut(out);
     }
     const WIRE_R = 340;
     /* FIBER WIRE. Long reach, one target, and it uses the whip line to get there -- same
