@@ -273,6 +273,7 @@ const vehName = (k) => CARNAME[k] || MOTONAME[k]
 const NAMED_CARS = [
   // armoured, and it should feel it: longer and wider than anything the RHPD puts on the street
   { k: "hh_suv", len: 132, w: 68, who: "bannerman" },
+  { k: "veh_fireengine", len: 168, w: 62 },
   { k: "sho_car", len: 118, w: 48 },
   { k: "kenny_truck", len: 104, w: 56 },
   { k: "ef_car", len: 116, w: 52 },
@@ -2494,7 +2495,50 @@ const ROOF_SETS = {
   ard_colonial:   ["rf_ard_colonial_a", "rf_ard_colonial_b", "rf_ard_colonial_c", "rf_ard_colonial_d"],
   ard_foursquare: ["rf_ard_four_a", "rf_ard_four_b", "rf_ard_four_c", "rf_ard_four_d"],
   ard_garage:     ["rf_ard_garage_a", "rf_ard_garage_b"],
+
+  /* THE GENERICS. These are not snapped to a footprint the way Arden is -- there are thousands
+     of them across every zone and forcing one size would flatten the whole map. Instead each
+     class covers a RANGE and the plate is drawn to the building it lands on, so the art has to
+     be designed to take some stretch: keep the detail near the middle and the edges plain, and
+     nothing that reads as a fixed size (no single AC unit alone in a corner). */
+  gen_house1:   ["rf_g_house1_a", "rf_g_house1_b", "rf_g_house1_c", "rf_g_house1_d"],
+  gen_house2:   ["rf_g_house2_a", "rf_g_house2_b", "rf_g_house2_c", "rf_g_house2_d"],
+  gen_row:      ["rf_g_row_a", "rf_g_row_b", "rf_g_row_c"],
+  gen_walkup:   ["rf_g_walkup_a", "rf_g_walkup_b", "rf_g_walkup_c"],
+  gen_tower:    ["rf_g_tower_a", "rf_g_tower_b", "rf_g_tower_c"],
+  gen_shop:     ["rf_g_shop_a", "rf_g_shop_b", "rf_g_shop_c", "rf_g_shop_d"],
+  gen_office:   ["rf_g_office_a", "rf_g_office_b", "rf_g_office_c"],
+  gen_shed:     ["rf_g_shed_a", "rf_g_shed_b", "rf_g_shed_c"],
+  gen_ff:       ["rf_g_ff_a", "rf_g_ff_b", "rf_g_ff_c", "rf_g_ff_d"],
+  gen_bar:      ["rf_g_bar_a", "rf_g_bar_b"],
+  gen_bank:     ["rf_g_bank_a", "rf_g_bank_b"],
+  gen_shophouse:["rf_g_shophouse_a", "rf_g_shophouse_b", "rf_g_shophouse_c"],
+  gen_cabin:    ["rf_g_cabin_a", "rf_g_cabin_b", "rf_g_cabin_c", "rf_g_cabin_d"],
+  gen_barn:     ["rf_g_barn_a", "rf_g_barn_b"],
+  gen_farmhouse:["rf_g_farmhouse_a", "rf_g_farmhouse_b"],
 };
+
+/* WHICH GENERIC A BUILDING IS. Read off the kind and the floor count it already has -- no new
+   flags on the generator, so this covers every zone at once and any building type added later
+   falls through to the generated shell rather than to the wrong plate. */
+function genRoofClass(b) {
+  if (!b || b.trailer || b.roofCls) return null;
+  const k = b.kind, f = b.floors || 1;
+  if (b.town && (k === "farmhouse" || k === "house")) return "gen_cabin";
+  if (k === "fastfood") return "gen_ff";
+  if (k === "bank") return "gen_bank";
+  if (k === "bar2" || k === "cafe" || k === "nightclub" || k === "bandvenue") return "gen_bar";
+  if (k === "shophouse") return "gen_shophouse";
+  if (k === "barn") return "gen_barn";
+  if (k === "farmhouse") return "gen_farmhouse";
+  if (k === "warehouse" || k === "garage") return "gen_shed";
+  if (k === "store" || k === "storefront" || k === "gunshop") return "gen_shop";
+  if (k === "house") return f > 1 ? "gen_house2" : "gen_house1";
+  if (k === "apartments" || k === "rowhouse") return f > 3 ? "gen_walkup" : "gen_row";
+  if (k === "tower") return f > 6 ? "gen_tower" : "gen_walkup";
+  if (k === "office") return f > 6 ? "gen_tower" : "gen_office";
+  return null;
+}
 /* THE FOOTPRINTS, in metres, that each class is drawn to. A building tagged with a class is
    generated at exactly these dimensions -- that is the deal, and it is what stops one plate
    having to cover a range of shapes. */
@@ -2503,6 +2547,8 @@ const ROOF_FOOT = {
   ard_colonial:   { w: 12.4, h: 11 },   // 1.13, the aspect the plates were actually drawn at
   ard_foursquare: { w: 11, h: 11 },
   ard_garage:     { w: 7,  h: 7 },
+  // the only generic that IS snapped: one town, one plan, timber
+  gen_cabin:      { w: 10, h: 8 },
 };
 /* THE ONE-OFFS. A special building is its own class of exactly one, so there is no footprint
    to agree on -- the plate is drawn to whatever that building already is. Keyed off the flag
@@ -2528,6 +2574,28 @@ function oneOffRoof(b) {
 }
 const ROOF_ART = {};
 for (const [k] of ROOF_ONE) ROOF_ART["rf_one_" + k] = "assets/roofs/rf_one_" + k + ".png";
+
+/* The pieces that go over the three cell-drawn lots, and the vault kit. These are not roofs --
+   each one is sized to a rect a helper already returns (gasCanopy, gasShop, shopRoof, fireBox),
+   so they drop straight over what those functions draw today. */
+const CITY_ART = {};
+for (const k of ["gs_canopy", "gs_pumps", "gs_shop", "tx_gs_forecourt",
+                 "bs_bays", "bs_boothdoor", "bs_wreck_a", "bs_wreck_b", "bs_wreck_c",
+                 "tx_bs_yard", "fh_bays", "fh_quarters", "veh_fireengine",
+                 /* THE TRUCKS ALREADY EXISTED. FOOD_TRUCKS has been in this file since the
+                    vendors went in -- six of them, placed per quarter, each with a menu -- and
+                    drawFoodTrucks reads imgs.current[t.k] where t.k is ft_taco, ft_hotdog and
+                    so on. So the new plates are named for THOSE keys instead of inventing a
+                    parallel set, and six vendors that have been drawing nothing since the day
+                    they were placed now have faces. ft_burger and ft_noodle have no plate of
+                    their own yet and borrow the nearest match. */
+                 "ft_taco", "ft_coffee", "ft_hotdog", "ft_chips", "ft_burger", "ft_noodle"])
+  CITY_ART[k] = "assets/city/" + k + ".png";
+const SOV2_ART = {};
+for (const k of ["sv_arch", "sv_pillar", "sv_stair", "sv_manhole", "sv_desk", "sv_map_table",
+                 "sv_switchgear", "sv_strongdoor", "sv_crates_a", "sv_crates_b",
+                 "sv_pipes", "sv_lamp", "tx_sv_water_edge"])
+  SOV2_ART[k] = "assets/sov2/" + k + ".png";
 for (const cls in ROOF_SETS)
   for (const k of ROOF_SETS[cls]) ROOF_ART[k] = "assets/roofs/" + k + ".png";
 
@@ -6046,7 +6114,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
         const b = main
           ? mkB(p + 2, ly0 + 26, wdt - 4, depth, 2, "storefront", rnd, key + k)
           : mkB(lx0 + 26, p + 2, depth, wdt - 4, 2, "storefront", rnd, key + k);
-        b.tone = 0.16; b.retail = true; assignBiz(b, zone, key + k);
+        b.tone = 0.16; b.retail = true; b.town = 1; assignBiz(b, zone, key + k);
         out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
         p += wdt;
       }
@@ -6054,9 +6122,15 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     for (let k = 0; k < 2; k++) {
       if (rnd() < 0.3) continue;
       const w = 100 + rnd() * 50, h = 84 + rnd() * 40;
-      const b = mkB(lx0 + 40 + rnd() * (LW - w - 80), ly1 - h - 40 - rnd() * 60, w, h,
-        2, "farmhouse", rnd, key + 20 + k);
+      /* Hazelbrook builds in TIMBER, not brick. Snapped to the cabin footprint so one plate
+         covers the whole town, same deal as Arden. */
+      const cf = ROOF_FOOT.gen_cabin;
+      const b = mkB(lx0 + 40 + rnd() * (LW - cf.w * MU - 80), ly1 - cf.h * MU - 40 - rnd() * 60,
+        cf.w * MU, cf.h * MU, 2, "farmhouse", rnd, key + 20 + k);
       b.tone = 0.12;
+      b.town = 1;
+      b.roofCls = "gen_cabin";
+      b.roofKey = ROOF_SETS.gen_cabin[(Math.abs(key + k * 17) >> 1) % ROOF_SETS.gen_cabin.length];
       out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
     }
     return out;
@@ -7119,7 +7193,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -13297,9 +13371,62 @@ export default function IronLionLayer004() {
       }
       ctx.restore();
     }
+    /* THE ONE PLACE that answers "does this building have art". Cached per building: the class
+       lookup walks a table and the answer cannot change during a session. Order is deliberate --
+       an explicitly tagged class (Arden, the court) beats a named one-off, which beats a
+       generic, because the more specific the tag the more it was meant. */
+    function platedRoof(b) {
+      if (!b || b.trailer) return null;
+      if (b._plate === undefined) {
+        if (b._roof1 === undefined) b._roof1 = oneOffRoof(b);
+        if (b._roofG === undefined) {
+          const gc = genRoofClass(b);
+          const set = gc && ROOF_SETS[gc];
+          b._roofG = set ? set[(Math.abs(b.key || 1) >> 2) % set.length] : null;
+        }
+        b._plate = b.roofKey || b._roof1 || b._roofG || null;
+      }
+      if (!b._plate) return null;
+      const im = imgs.current[b._plate];
+      return im && im.width ? im : null;
+    }
     function drawBuildingExt(b, alpha) {
       if (alpha <= 0.01) return;
       if (b.kind === "den") { drawDenExt(b, alpha); return; }
+      /* A PLATED BUILDING IS THE PLATE. The overlay used to be painted on top of the generated
+         shell, which was wrong the moment the plates started carrying their own walls and eaves:
+         you got two sets of walls, and the shell's parallax extrusion leaning out from under the
+         picture. So a building with a plate does not draw a shell at all.
+         And it is drawn on the FOOTPRINT rect, not the parallax-offset one. The plate is the
+         whole building rather than just its roof, so it belongs exactly where the collision box
+         is -- which is what makes it line up perfectly instead of nearly. */
+      const pk = platedRoof(b);
+      if (pk) {
+        drawParking(b, alpha);
+        if (b.fis) drawFisPlaza(b, alpha);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        drawShadow(b.x + b.w / 2, b.y + b.h * 0.96, b.w * 0.46, b.h * 0.26, 0.34);
+        /* Front of every plate is at the bottom of its frame. A north-facing door needs the
+           plate turned so its front looks at the street. */
+        if (b.door && b.door.side === 0) {
+          ctx.translate(b.x, b.y + b.h); ctx.scale(1, -1);
+          ctx.drawImage(pk, 0, 0, b.w, b.h);
+        } else {
+          ctx.drawImage(pk, b.x, b.y, b.w, b.h);
+        }
+        ctx.restore();
+        // the marker, so a plated building still tells you where to walk in
+        if (b.door) {
+          const dp = doorPoint(b);
+          ctx.save();
+          ctx.globalAlpha = alpha * 0.8;
+          ctx.fillStyle = "rgba(232,196,122,0.85)";
+          ctx.fillRect(dp[0] - 9, dp[1] - 3, 18, 6);
+          ctx.restore();
+        }
+        return;
+      }
       if (b.trailer) {
         /* The unit IS the plate. A generated brick facade with a parallax roof on a five-metre
            box reads as a shed, and the whole court would look like a storage yard. */
@@ -13473,35 +13600,6 @@ export default function IronLionLayer004() {
          drawBuildingExt is the third and the one that fires everywhere, not just in Arden.
          Returning here is safe: the function sets globalAlpha and never resets it, so the
          early exit leaves exactly the state that falling off the end would. */
-      /* THE OVERLAY. Drawn on the same parallax-offset rect the facade uses, so it sits exactly
-         where the building appears to be. It goes OVER the generated shell rather than instead
-         of it: the shell is a few fills and the plate covers it completely, and doing it this
-         way means a class with no art yet is not a hole in the street, it is just the old
-         building. The door furniture below still draws on top of both. */
-      if (!b.trailer) {
-        if (b._roof1 === undefined) b._roof1 = oneOffRoof(b);
-        const rk = b.roofKey || b._roof1;
-        const rim = rk ? imgs.current[rk] : null;
-        if (rim && rim.width) {
-          /* FACING. Every plate is drawn with its FRONT at the bottom of the frame -- the eaves
-             the dormers break through, the garage opening. A house whose door is on the north
-             face needs that front turned to point north, or the dormers look out over the back
-             garden and the whole street reads as built backwards.
-             A vertical flip is all Arden needs, because those lots only ever put a door on the
-             north or south face. An east/west door would want a quarter turn; nothing generates
-             one yet, and guessing at it now would be a rotation nobody can check. */
-          const flipV = b.door && b.door.side === 0;
-          if (flipV) {
-            ctx.save();
-            ctx.translate(rx, ry + b.h);
-            ctx.scale(1, -1);
-            ctx.drawImage(rim, 0, 0, b.w, b.h);
-            ctx.restore();
-          } else {
-            ctx.drawImage(rim, rx, ry, b.w, b.h);
-          }
-        }
-      }
       if (!b.door) return;
       // door marker at street level
       const dp = doorPoint(b);
