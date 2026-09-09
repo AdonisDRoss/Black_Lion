@@ -2465,6 +2465,17 @@ const HERO_HUNTER = {
               the way HE fights.
      BURST    suppressing fire at range, low damage, high pressure. Answers standing still.
      CHARGE   shoulder rush that puts you down -- the answer to Darius, who wins by trading. */
+/* FIS UNIT 04. The escalation above Bannerman: when a man in a vest has not worked, they send
+   the thing they built instead of a man. Two weapons and no legs worth the name -- it is slow,
+   it does not chase, and everything about fighting it is about the gap between its volleys.
+   It is NOT a vehicle. It never joins g.traffic: no lane fields, no model, and the last two
+   things that went in there without both took a frame down. */
+const MECH_KIT = {
+  hp: 520, spd: 46, r: 34,
+  gat:  { cd: 2.6, r: 380, dmg: 7, burst: 5 },   // the arm with six barrels
+  pods: { cd: 8.0, r: 300, dmg: 26 },            // the rocket block on the other arm
+  stomp:{ cd: 6.0, r: 90,  dmg: 18 },            // if you get underneath it
+};
 const HUNTER_KIT = {
   hp: 260,
   net:    { cd: 9.0,  r: 250, pin: 2.2 },
@@ -2522,6 +2533,10 @@ const ROOF_SETS = {
    flags on the generator, so this covers every zone at once and any building type added later
    falls through to the generated shell rather than to the wrong plate. */
 function genRoofClass(b) {
+  const c = genRoofClassRaw(b);
+  return c && !ROOF_PENDING.has(c) ? c : null;
+}
+function genRoofClassRaw(b) {
   if (!b || b.trailer || b.roofCls) return null;
   const k = b.kind, f = b.floors || 1;
   if (b.town && (k === "farmhouse" || k === "house")) return "gen_cabin";
@@ -2532,7 +2547,8 @@ function genRoofClass(b) {
   if (k === "barn") return "gen_barn";
   if (k === "farmhouse") return "gen_farmhouse";
   if (k === "warehouse" || k === "garage") return "gen_shed";
-  if (k === "store" || k === "storefront" || k === "gunshop") return "gen_shop";
+  if (k === "gunshop") return null;                  // it has a one-off of its own
+  if (k === "store" || k === "storefront") return "gen_shop";
   if (k === "house") return f > 1 ? "gen_house2" : "gen_house1";
   if (k === "apartments" || k === "rowhouse") return f > 3 ? "gen_walkup" : "gen_row";
   if (k === "tower") return f > 10 ? "gen_glass" : f > 6 ? "gen_tower" : "gen_walkup";
@@ -2567,6 +2583,7 @@ const ROOF_ONE = [
   ["terminal",  (b) => b.kind === "terminal"],
   ["arcade",    (b) => b.kind === "arcade"],
   ["news",      (b) => !!b.news],
+  ["gunshop",   (b) => b.kind === "gunshop"],
 ];
 /* Some one-offs are one-of-several: there is more than one precinct in this city and they
    should not all have a helipad on the roof. A named class with a SET picks from it by key. */
@@ -2584,14 +2601,41 @@ function oneOffRoof(b) {
   }
   return null;
 }
+/* WHAT HAS NOT BEEN DRAWN YET. ROOF_SETS is the design -- every class the city will eventually
+   have -- and this is the subset with no plates on disk. Registering a key makes the loader go
+   and look for it, so declaring nine classes ahead of their art bought a permanent
+   "25 ASSETS MISSING" on the HUD and twenty-five 404s on every boot.
+   A pending class is not registered and never handed out, so those buildings quietly keep their
+   generated shell. Cut a set's plates, delete its name from this list, done. */
+/* EMPTY. Every declared class has plates on disk. Leave the Set in place: the next class
+   somebody declares ahead of its art goes in here instead of onto the missing-assets line. */
+const ROOF_PENDING = new Set([]);
 const ROOF_ART = {};
 for (const [k] of ROOF_ONE) ROOF_ART["rf_one_" + k] = "assets/roofs/rf_one_" + k + ".png";
+for (const k of (ROOF_ONE_SETS.precinct || [])) ROOF_ART[k] = "assets/roofs/" + k + ".png";
 
 /* The pieces that go over the three cell-drawn lots, and the vault kit. These are not roofs --
    each one is sized to a rect a helper already returns (gasCanopy, gasShop, shopRoof, fireBox),
    so they drop straight over what those functions draw today. */
 /* Yards. Two mown and two gone-over, so a street can have both -- an Arden lawn and the plot
    two doors down that nobody has touched since spring. */
+/* MOVING WATER. Nine frames each, calm and storm, and they replace ONE flat fill -- the river,
+   the lake and the channel round Cormorant Island have all been a single colour with a pattern
+   on it since they went in.
+   Storm is not wired to anything yet on purpose: there is no rain state to switch on. When
+   there is, WATER_SET is the only line that has to change. */
+/* The sewer's own surfaces. It has been three flat fills and a pattern name since it went in. */
+const SEW_ART = {};
+for (const k of ["tx_sw_brick", "tx_sw_brick_var", "tx_sw_brick_dark", "tx_sw_brick_wet",
+                 "tx_sw_concrete", "tx_sw_concrete_tile", "tx_sw_grating", "tx_sw_grate_rust",
+                 "tx_sw_grate_vent", "tx_sw_moss", "tx_sw_pipe", "tx_sw_rust", "sw_ladder_plate"])
+  SEW_ART[k] = "assets/tex/" + k + ".png";
+
+const WATER_ART = {};
+for (const set of ["calm", "storm"])
+  for (let i = 0; i < 9; i++)
+    WATER_ART["tx_water_" + set + "_" + i] = "assets/tex/tx_water_" + set + "_" + i + ".png";
+
 const YARD_ART = {};
 for (const k of ["tx_lawn_a", "tx_lawn_b", "tx_yard_wild_a", "tx_yard_wild_b"])
   YARD_ART[k] = "assets/tex/" + k + ".png";
@@ -2610,15 +2654,17 @@ for (const k of ["gs_canopy", "gs_pumps", "gs_shop", "tx_gs_forecourt",
                     they were placed now have faces. ft_burger and ft_noodle have no plate of
                     their own yet and borrow the nearest match. */
                  "ft_taco", "ft_coffee", "ft_hotdog", "ft_chips", "ft_burger", "ft_noodle",
-                 "veh_fis_trans"])
+                 "veh_fis_trans", "fis_mech", "fis_mech_wreck", "tc_ruin"])
   CITY_ART[k] = "assets/city/" + k + ".png";
 const SOV2_ART = {};
 for (const k of ["sv_arch", "sv_pillar", "sv_stair", "sv_manhole", "sv_desk", "sv_map_table",
                  "sv_switchgear", "sv_strongdoor", "sv_crates_a", "sv_crates_b",
                  "sv_pipes", "sv_lamp", "tx_sv_water_edge"])
   SOV2_ART[k] = "assets/sov2/" + k + ".png";
-for (const cls in ROOF_SETS)
+for (const cls in ROOF_SETS) {
+  if (ROOF_PENDING.has(cls)) continue;
   for (const k of ROOF_SETS[cls]) ROOF_ART[k] = "assets/roofs/" + k + ".png";
+}
 
 const TC_ART = {};
 for (const k of ["tc_trailer_a", "tc_trailer_b", "tc_trailer_c", "tc_trailer_d",
@@ -4031,17 +4077,30 @@ function makeFloor(b, f, rnd) {
     put(0, mid + 1, Math.max(0, Math.round(GX * 0.22)), GY - 1, "fis_holdgear");
   } else if (kind === "fis_lobby") {
     // marble, a long counter, and a seal you cross before anyone speaks to you
-    /* The counter runs across PART of the hall, not all of it. A full-width desk made the
-       lobby two rooms with a doorway punched through, and you spent the whole visit edging
-       round it -- which is not what a lobby is for. It now stops about three fifths across and
-       the rest is open floor you can walk straight through. */
-    const line = clamp(Math.round(GY * 0.52), 1, Math.max(1, GY - 2));
+    /* THE COUNTER GOES AT THE FAR END. Putting it across the middle meant it sat between the
+       door and the room no matter which wall the door was on -- you walked in and immediately
+       had to go round a desk. It is now placed relative to b.door.side, so the whole half you
+       arrive in is open floor and the counter is something you approach rather than squeeze
+       past. It also still stops three fifths across, leaving a gap at one end.
+       Which end is "far" is decided here rather than in the furniture, because the plan is the
+       only place that knows where the door is. */
+    const nd = !!(b && b.door && b.door.side === 0);   // door on the north wall
     const cut = clamp(Math.round(GX * 0.58), 1, Math.max(1, GX - 2));
-    hub = put(0, 0, GX - 1, line - 1, "fis_atrium");
-    put(0, line, cut, line, "fis_desk");
-    put(cut + 1, line, GX - 1, line, "fis_open");      // the way through
-    put(0, line + 1, Math.max(0, GX - 4), GY - 1, "fis_wait");
-    put(Math.max(1, GX - 3), line + 1, GX - 1, GY - 1, "fis_records");
+    if (nd) {
+      const line = clamp(Math.round(GY * 0.70), 1, Math.max(1, GY - 2));
+      hub = put(0, 0, GX - 1, line - 1, "fis_atrium");          // you arrive here
+      put(0, line, cut, line, "fis_desk");
+      put(cut + 1, line, GX - 1, line, "fis_open");             // the way through
+      put(0, line + 1, Math.max(0, GX - 4), GY - 1, "fis_wait");
+      put(Math.max(1, GX - 3), line + 1, GX - 1, GY - 1, "fis_records");
+    } else {
+      const line = clamp(Math.round(GY * 0.30), 1, Math.max(1, GY - 2));
+      put(0, 0, Math.max(0, GX - 4), line - 1, "fis_wait");
+      put(Math.max(1, GX - 3), 0, GX - 1, line - 1, "fis_records");
+      put(0, line, cut, line, "fis_desk");
+      put(cut + 1, line, GX - 1, line, "fis_open");
+      hub = put(0, line + 1, GX - 1, GY - 1, "fis_atrium");     // you arrive here
+    }
   } else if (kind === "fis_bullpen") {
     const line = clamp(Math.round(GY * 0.62), 1, Math.max(1, GY - 2));
     hub = put(0, 0, GX - 1, line - 1, "fis_desks");
@@ -4646,9 +4705,15 @@ function makeFloor(b, f, rnd) {
         P(q2.x0 + 6, q2.y0 + 8, Math.max(24, W2 - 12), Math.max(18, H2 * 0.46), "bed");
         P(q2.x1 - pad - 20, q2.y1 - pad - 26, 20, 26, "cab");
         break;
+      /* The seal is INSIDE, centred in the hall you walk into. It was on the forecourt, which
+         put it outdoors on a slab you cross without looking down -- and outdoors it was also
+         competing with the door marker for the same six feet of pavement. Set into the lobby
+         floor it is the first thing in front of you when the door shuts. Benches pushed to the
+         side walls so nothing stands between the door and the middle of the room. */
       case "fis_atrium":
-        P(cx - 26, q2.y0 + pad, 52, 52, "fis_seal");
-        runX(q2, q2.y1 - pad - 22, clamp(Math.round(W2 / 150), 2, 4), 48, 22, "bench", pad);
+        P(cx - 32, cy - 32, 64, 64, "fis_seal");
+        P(q2.x0 + pad, cy - 24, 20, 48, "bench");
+        P(q2.x1 - pad - 20, cy - 24, 20, 48, "bench");
         P(q2.x1 - pad - 20, q2.y0 + pad, 20, 20, "fis_clock");
         break;
       case "fis_desk":
@@ -6168,8 +6233,12 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
         cf.w * MU, cf.h * MU, 2, "farmhouse", rnd, key + 20 + k);
       b.tone = 0.12;
       b.town = 1;
-      b.roofCls = "gen_cabin";
-      b.roofKey = ROOF_SETS.gen_cabin[(Math.abs(key + k * 17) >> 1) % ROOF_SETS.gen_cabin.length];
+      /* The footprint snaps either way -- when the cabin plates land they will fit the town
+         that is already standing. Only the KEY waits on the art. */
+      if (!ROOF_PENDING.has("gen_cabin")) {
+        b.roofCls = "gen_cabin";
+        b.roofKey = ROOF_SETS.gen_cabin[(Math.abs(key + k * 17) >> 1) % ROOF_SETS.gen_cabin.length];
+      }
       out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
     }
     return out;
@@ -7232,7 +7301,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -7942,6 +8011,26 @@ export default function IronLionLayer004() {
        recoloured toward its district. */
     mkPat("kestrel_wall", "tx_kestrel_wall", [186, 182, 170], 0.88);
     const PF = (k, fb) => PAT[k] || fb;
+    /* THE CURRENT FRAME OF THE WATER, as a canvas pattern. Every water fill in the file already
+       goes through PF("water", ...) -- three call sites -- so overriding that one lookup animates
+       all of them at once rather than editing each. ~7fps: fast enough to move, slow enough that
+       nine frames read as a loop instead of a shimmer.
+       Falls back to the flat pattern the moment a frame is missing, so this is safe before the
+       art lands and safe if one file fails. */
+    let _wpat = null, _wframe = -1, _wset = "calm";
+    function waterPat(fb) {
+      const f = Math.floor((g.t || 0) * 7) % 9;
+      if (f !== _wframe || !_wpat) {
+        const im = imgs.current["tx_water_" + _wset + "_" + f];
+        if (im && im.width) {
+          const q = ctx.createPattern(im, "repeat");
+          if (q) { _wpat = q; _wframe = f; }
+        } else {
+          return PF("water", fb);
+        }
+      }
+      return _wpat || PF("water", fb);
+    }
     function wealthTier(b) {
       if (b.kind === "house" || b.kind === "den" || b.kind === "warehouse" || b.kind === "garage") return 0;
       if (b.kind === "tower" || b.kind === "club") return 2;
@@ -10516,6 +10605,31 @@ export default function IronLionLayer004() {
       g.suspicion = Math.max(0, g.suspicion - dt * 5);
     }
 
+    /* THE WAY DOWN, from above. isManhole has decided where the entrances are since the sewer
+       went in, and nothing has ever drawn one on the street -- 22 plates were cut and named for
+       exactly this and never used. You had to already know where a hole was to use it. */
+    function drawManholes(view) {
+      const im = imgs.current["sv_manhole"];
+      if (!im || !im.width) return;
+      const i0 = Math.floor(view.x0 / PITCH) - 1, i1 = Math.ceil(view.x1 / PITCH) + 1;
+      const j0 = Math.floor(view.y0 / PITCH) - 1, j1 = Math.ceil(view.y1 / PITCH) + 1;
+      for (let i = Math.max(0, i0); i <= Math.min(SEWER_MAX, i1); i++) {
+        if (i % SEWER_EVERY) continue;
+        for (let j = Math.max(0, j0); j <= Math.min(SEWER_MAX, j1); j++) {
+          if (j % SEWER_EVERY || !isManhole(i, j)) continue;
+          const cx = SX(i), cy = SX(j), w = 38;
+          ctx.drawImage(im, cx - w / 2, cy - w / 2, w, w);
+          // only lit when you are close enough to use it, or every junction is a beacon
+          const d = Math.hypot(g.p.x - cx, g.p.y - cy);
+          if (d < 150) {
+            const a = (1 - d / 150) * (0.35 + 0.3 * Math.sin(g.t * 3));
+            ctx.strokeStyle = `rgba(232,196,122,${a})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(cx, cy, w * 0.66, 0, 6.3); ctx.stroke();
+          }
+        }
+      }
+    }
     function drawSewer(view) {
       if (!g.sewer) return;
       // black everything out: you are underground, the city is gone
@@ -10542,8 +10656,15 @@ export default function IronLionLayer004() {
         const a1 = r.vert ? Math.min(SX(SEWER_MAX), view.y1 + 200) : Math.min(SX(SEWER_MAX), view.x1 + 200);
         if (a1 <= a0) continue;
         const W2 = TUN_HW * 2;
-        // brick vault floor
-        ctx.fillStyle = PF("brick", "#3a2a24");
+        /* Real brick under the tunnels. Picked per RUN off its own coordinate, so one stretch
+           is dry brick and the next is wet or mossy -- and it is the same stretch every time
+           you come back down. */
+        const bset = ["tx_sw_brick", "tx_sw_brick_var", "tx_sw_brick_dark",
+                      "tx_sw_brick_wet", "tx_sw_moss"];
+        const bim = imgs.current[bset[Math.abs(Math.round(r.c / 40)) % bset.length]];
+        let bpat = null;
+        if (bim && bim.width) bpat = ctx.createPattern(bim, "repeat");
+        ctx.fillStyle = bpat || PF("brick", "#3a2a24");
         if (r.vert) ctx.fillRect(r.c - TUN_HW, a0, W2, a1 - a0);
         else ctx.fillRect(a0, r.c - TUN_HW, a1 - a0, W2);
         // courses
@@ -10552,8 +10673,13 @@ export default function IronLionLayer004() {
           if (r.vert) ctx.fillRect(r.c - TUN_HW, q, W2, 2);
           else ctx.fillRect(q, r.c - TUN_HW, 2, W2);
         }
-        // the channel down the middle, running with black water
-        ctx.fillStyle = "#12181a";
+        /* The channel runs the same animated water as the river, then a heavy dark wash over
+           it. Underground it should be the SAME water moving at the same rate -- it is the same
+           city -- just with almost no light on it. */
+        ctx.fillStyle = waterPat("#12181a");
+        if (r.vert) ctx.fillRect(r.c - 34, a0, 68, a1 - a0);
+        else ctx.fillRect(a0, r.c - 34, a1 - a0, 68);
+        ctx.fillStyle = "rgba(6,9,11,0.72)";
         if (r.vert) ctx.fillRect(r.c - 34, a0, 68, a1 - a0);
         else ctx.fillRect(a0, r.c - 34, a1 - a0, 68);
         const flow = (g.t * 60) % 120;
@@ -10562,8 +10688,10 @@ export default function IronLionLayer004() {
           if (r.vert) ctx.fillRect(r.c - 30, q + flow, 60, 22);
           else ctx.fillRect(q + flow, r.c - 30, 22, 60);
         }
-        // walkway ledges either side
-        ctx.fillStyle = "rgba(255,255,255,0.045)";
+        // walkway ledges either side -- concrete, so the safe footing reads as different stuff
+        const wim = imgs.current["tx_sw_concrete"];
+        const wpat = wim && wim.width ? ctx.createPattern(wim, "repeat") : null;
+        ctx.fillStyle = wpat || "rgba(255,255,255,0.045)";
         if (r.vert) { ctx.fillRect(r.c - TUN_HW, a0, 10, a1 - a0); ctx.fillRect(r.c + TUN_HW - 10, a0, 10, a1 - a0); }
         else { ctx.fillRect(a0, r.c - TUN_HW, a1 - a0, 10); ctx.fillRect(a0, r.c + TUN_HW - 10, a1 - a0, 10); }
       }
@@ -10576,8 +10704,36 @@ export default function IronLionLayer004() {
           const rr = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
           const cx = SX(i), cy = SX(j);
           if (isManhole(i, j)) {
-            prop("sw_00", cx, cy - 40, 46);                 // the cover, from beneath
-            prop("sw_02", cx - 54, cy - 40, 34);            // the ladder up
+            /* The new plates sit over the old markers, and fall back to them if they have not
+               landed. The pip is the point: a ladder you can only see once you are standing on
+               it is not an exit, it is a surprise. */
+            const cover = imgs.current["sv_manhole"];
+            prop(cover && cover.width ? "sv_manhole" : "sw_00", cx, cy - 40, 46);
+            /* THE LADDER, drawn rather than plated. Every ladder plate that came in was a flat
+               elevation -- rungs seen from the side -- and from directly overhead you would see
+               two rails and the rungs foreshortened to bars, which is four lines of canvas and
+               looks right at any size instead of only at one. The lit shaft above it is the
+               part that actually reads: it is the only light down here that is daylight. */
+            const lx = cx - 54, ly = cy - 40;
+            ctx.save();
+            ctx.fillStyle = "rgba(214,222,235,0.10)";      // daylight down the shaft
+            ctx.beginPath(); ctx.arc(lx, ly, 30, 0, 6.3); ctx.fill();
+            ctx.strokeStyle = "rgba(150,158,168,0.95)";
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(lx - 9, ly - 22); ctx.lineTo(lx - 9, ly + 22);
+            ctx.moveTo(lx + 9, ly - 22); ctx.lineTo(lx + 9, ly + 22); ctx.stroke();
+            ctx.strokeStyle = "rgba(178,186,196,0.9)";
+            ctx.lineWidth = 2.5;
+            for (let q = -18; q <= 18; q += 9) {
+              ctx.beginPath(); ctx.moveTo(lx - 9, ly + q); ctx.lineTo(lx + 9, ly + q); ctx.stroke();
+            }
+            ctx.restore();
+            const pulse = 0.45 + 0.35 * Math.sin(g.t * 3 + i + j);
+            ctx.fillStyle = `rgba(232,196,122,${pulse})`;
+            ctx.beginPath(); ctx.arc(cx - 54, cy - 40, 5, 0, 6.3); ctx.fill();
+            ctx.font = "700 9px system-ui, sans-serif";
+            ctx.fillStyle = `rgba(232,196,122,${0.35 + pulse * 0.4})`;
+            ctx.fillText("UP", cx - 62, cy - 56);
           }
           if (rr() < 0.6) prop("sw_09", cx + 62, cy - 60, 40);   // wall floodlight
           if (rr() < 0.5) prop("sw_11", cx - 60, cy + 50, 44);   // debris
@@ -12448,7 +12604,7 @@ export default function IronLionLayer004() {
         if (wsh > view.x0 - 900) {
           ctx.fillStyle = "#43464a";
           ctx.fillRect(wsh, y, 46, step + 1);
-          ctx.fillStyle = PF("water", "#1b2f3a");
+          ctx.fillStyle = waterPat("#1b2f3a");
           ctx.fillRect(WORLD_MIN - 200, y, wsh - (WORLD_MIN - 200), step + 1);
           ctx.fillStyle = "rgba(150,190,196,0.22)";
           ctx.fillRect(wsh - 90, y, 90, step + 1);
@@ -12465,7 +12621,7 @@ export default function IronLionLayer004() {
           ctx.fillStyle = "#3c3f42";                       // rip-rap
           ctx.fillRect(sh - 40, y, 40, step + 1);
         }
-        ctx.fillStyle = PF("water", "#1b2f3a");
+        ctx.fillStyle = waterPat("#1b2f3a");
         ctx.fillRect(sh, y, WORLD_MAX - sh + 200, step + 1);
         ctx.fillStyle = "rgba(150,190,196,0.24)";          // shallows
         ctx.fillRect(sh, y, y < bEnd ? 130 : 90, step + 1);
@@ -12508,7 +12664,7 @@ export default function IronLionLayer004() {
       for (let x = x0; x < x1; x += step) {
         const c = riverCentre(x);
         // deep water
-        ctx.fillStyle = PF("water", "#1b2f3a");
+        ctx.fillStyle = waterPat("#1b2f3a");
         ctx.fillRect(x, c - RIVER_HW, step + 1, RIVER_HW * 2);
         // shallows either side
         ctx.fillStyle = "rgba(96,132,140,0.30)";
@@ -13383,16 +13539,12 @@ export default function IronLionLayer004() {
       if (horiz) ctx.fillRect(px, side === 2 ? py : py + ph - 3, pw, 3);
       else ctx.fillRect(side === 1 ? px : px + pw - 3, py, 3, ph);
 
-      // seal ON the doorway
-      const sim = imgs.current["fis_seal"];
-      if (sim && sim.width) {
-        const sw = Math.min(72, D * 0.72);
-        const ox = side === 0 ? 0 : side === 2 ? 0 : side === 3 ? -sw * 0.7 : sw * 0.7;
-        const oy = side === 0 ? -sw * 0.7 : side === 2 ? sw * 0.7 : 0;
-        ctx.globalAlpha = alpha * 0.9;
-        ctx.drawImage(sim, dp[0] + ox - sw / 2, dp[1] + oy - sw / 2, sw, sw);
-        ctx.globalAlpha = alpha;
-      }
+      /* No seal out here any more -- it lives on the lobby floor. What marks the door outside
+         is a plain threshold strip, which is all it needed: the seal was doing a job the door
+         marker was already doing, and doing it four feet to one side. */
+      ctx.fillStyle = "rgba(196,186,160,0.9)";
+      if (horiz) ctx.fillRect(dp[0] - 26, side === 2 ? py + 4 : py + ph - 10, 52, 6);
+      else ctx.fillRect(side === 1 ? px + 4 : px + pw - 10, dp[1] - 26, 6, 52);
       /* Benches and planters, set BACK off the doorway. Nothing sits in the approach: a federal
          building keeps its entrance clear and it also means none of this can block the door. */
       const bench = (bx, by, bw, bh) => {
@@ -24104,6 +24256,7 @@ export default function IronLionLayer004() {
           drawCasinoSpot(b, g.inside === b ? 1 - g.insideT : 1);
         }
       }
+      if (!g.inside) drawManholes(view);
       if (!g.inside) drawFoodTrucks(view);
       if (g.inside) drawInterior(g.inside, g.floor, g.insideT);
       drawHeldRogues();
@@ -24301,7 +24454,9 @@ export default function IronLionLayer004() {
       drawGuards(); drawDeputies(); drawBlast();
       drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
       drawArrivals();
+      drawFisHunt();
       drawHunter();
+      drawMech();
       drawChopper();          // last: it is above everything, because it is in the air
       drawCrewProbe(view);          // TEMPORARY -- delete with the CREW PROBE block.
                                     // LAST on purpose: called earlier, interior furniture
@@ -24590,6 +24745,7 @@ export default function IronLionLayer004() {
               : "") : "",
             door: !!(G.doorFn && G.doorFn()), stair: G.stairFn ? G.stairFn() : 0,
             entry: g.inside ? (g.inside.entry || 0) : 0,
+            hunt: !!(g.fisHunt && g.fisHunt.on),
             obj: jobObjective(),
             crime: g.crime ? { place: g.crime.place, result: g.crime.result,
               code: g.crime.code, label: g.crime.label,
@@ -25349,8 +25505,211 @@ export default function IronLionLayer004() {
       ctx.drawImage(im, -w / 2, -L / 2, w, L);
       ctx.restore();
     }
+    function stepMech(dt) {
+      const M = g.mech;
+      if (!M) return;
+      if (M.hp <= 0) {
+        if (!M.said) {
+          M.said = 1;
+          g.jobBanner = "FIS UNIT 04 \u00b7 DESTROYED";
+          g.pickupFlash = { nm: "mech_down", t: 4.0 };
+          g.shake = Math.max(g.shake || 0, 12);
+          hfx().push({ kind: "impact", x: M.x, y: M.y, t: 0.5, life: 0.5 });
+        }
+        /* THE WRECK STAYS. It does not fade after twelve seconds the way a body does -- a
+           destroyed federal war machine in the middle of Halloran Avenue is a landmark, and
+           the street should have to drive around it. */
+        return;
+      }
+      if (g.inside) return;
+      const p = g.p;
+      const dx = p.x - M.x, dy = p.y - M.y, d = Math.hypot(dx, dy) || 1;
+      const ux = dx / d, uy = dy / d;
+      M.gatCd -= dt; M.podCd -= dt; M.stompCd -= dt; M.burstCd -= dt;
+
+      /* It walks. It never runs, and it never backs off -- the whole fight is you deciding how
+         close you are willing to be, so it must be the one thing in the scene that is always
+         coming forward at the same speed. */
+      if (d > 120) {
+        M.x += ux * MECH_KIT.spd * dt;
+        M.y += uy * MECH_KIT.spd * dt;
+        M.step += dt * 3.2;
+      }
+      M.ang = Math.atan2(uy, ux);
+
+      if (M.burst > 0 && M.burstCd <= 0) {
+        M.burst--; M.burstCd = 0.09;
+        p.hp = Math.max(0, p.hp - MECH_KIT.gat.dmg);
+        hfx().push({ kind: "tracer", x: M.x + ux * 30, y: M.y + uy * 30, x2: p.x, y2: p.y,
+                     t: 0.08, life: 0.08 });
+        hfx().push({ kind: "flash", x: M.x + ux * 30, y: M.y + uy * 30,
+                     ang: Math.atan2(uy, ux), t: 0.06, life: 0.06 });
+      } else if (M.podCd <= 0 && d < MECH_KIT.pods.r) {
+        M.podCd = MECH_KIT.pods.cd;
+        p.hp = Math.max(0, p.hp - MECH_KIT.pods.dmg);
+        g.shake = Math.max(g.shake || 0, 8);
+        for (let k = 0; k < 3; k++)
+          hfx().push({ kind: "impact", x: p.x + (Math.random() - 0.5) * 60,
+                       y: p.y + (Math.random() - 0.5) * 60, t: 0.3 + k * 0.06, life: 0.36 });
+      } else if (M.stompCd <= 0 && d < MECH_KIT.stomp.r) {
+        M.stompCd = MECH_KIT.stomp.cd;
+        p.hp = Math.max(0, p.hp - MECH_KIT.stomp.dmg);
+        p.stunT = Math.max(p.stunT || 0, 0.6);
+        g.shake = Math.max(g.shake || 0, 10);
+        hfx().push({ kind: "damp", x: M.x, y: M.y, r: MECH_KIT.stomp.r, t: 0.4, life: 0.4 });
+      } else if (M.gatCd <= 0 && d < MECH_KIT.gat.r) {
+        M.gatCd = MECH_KIT.gat.cd;
+        M.burst = MECH_KIT.gat.burst;
+      }
+    }
+    function drawMech() {
+      const M = g.mech;
+      if (!M || g.inside || !Number.isFinite(M.x)) return;
+      const dead = M.hp <= 0;
+      const im = imgs.current[dead ? "fis_mech_wreck" : "fis_mech"];
+      if (!im || !im.width) return;
+      const H = dead ? 96 : 116, W2 = H * (im.width / im.height);
+      // it rocks as it walks. Two degrees, and it is the difference between walking and sliding
+      const roll = dead ? 0 : Math.sin(M.step) * 0.035;
+      ctx.save();
+      drawShadow(M.x, M.y + H * 0.30, W2 * 0.40, H * 0.24, dead ? 0.30 : 0.40);
+      ctx.translate(M.x, M.y);
+      ctx.rotate((dead ? (M.ang || 0) : M.ang + Math.PI / 2) + roll);
+      ctx.drawImage(im, -W2 / 2, -H / 2, W2, H);
+      ctx.restore();
+      if (dead) return;
+      const f = Math.max(0, M.hp / (M.maxHp || 1));
+      ctx.fillStyle = "rgba(10,9,12,0.8)";
+      ctx.fillRect(M.x - 34, M.y - 74, 68, 7);
+      ctx.fillStyle = f > 0.35 ? "#7fd4a0" : "#e8785a";
+      ctx.fillRect(M.x - 33, M.y - 73, 66 * f, 5);
+      ctx.font = "700 10px system-ui, sans-serif";
+      ctx.fillStyle = "#e8c27a";
+      ctx.fillText("FIS UNIT 04", M.x - 32, M.y - 80);
+    }
+    function stepFisHunt(dt) {
+      const h = g.fisHunt;
+      if (!h || !h.on || g.inside || g.sewer) return;
+      const p = g.p;
+
+      // ---- the agents on the ground
+      for (let i = h.squad.length - 1; i >= 0; i--) {
+        const a = h.squad[i];
+        if (!Number.isFinite(a.x)) { h.squad.splice(i, 1); continue; }
+        if (a.hp <= 0) { a.gone = (a.gone || 0) + dt; if (a.gone > 10) h.squad.splice(i, 1); continue; }
+        const dx = p.x - a.x, dy = p.y - a.y, d = Math.hypot(dx, dy) || 1;
+        const want = 150;
+        const drive = d > want ? 1 : d < want * 0.65 ? -0.7 : 0;
+        a.vx = (dx / d) * drive * 96; a.vy = (dy / d) * drive * 96;
+        a.x += a.vx * dt; a.y += a.vy * dt; a.anim += dt * 6;
+        a.fireCd -= dt;
+        if (a.fireCd <= 0 && d < 340) {
+          a.fireCd = 1.5 + Math.random();
+          p.hp = Math.max(0, p.hp - 5);
+          hfx().push({ kind: "tracer", x: a.x, y: a.y, x2: p.x, y2: p.y, t: 0.08, life: 0.08 });
+          hfx().push({ kind: "flash", x: a.x, y: a.y, ang: Math.atan2(dy, dx), t: 0.06, life: 0.06 });
+        }
+      }
+
+      const liveAgents = h.squad.filter((a) => a.hp > 0).length;
+      const bannerLive = g.hunter && g.hunter.hp > 0;
+      h.cd -= dt;
+
+      if (h.stage === "agents") {
+        if (!liveAgents && h.cd <= 0) {
+          if (h.squad.length) { h.wins++; h.squad.length = 0; }   // a wave was cleared
+          if (h.wins >= 2) {
+            /* TWO WAVES IS THE PRICE. They do not keep sending men after that -- they send the
+               one they keep for this. */
+            h.stage = "banner";
+            h.cd = 3;
+            g.jobBanner = "THEY ARE SENDING SOMEBODY ELSE";
+          } else {
+            h.cd = 22 + Math.random() * 14;
+            const n = 2 + ((Math.random() * 2) | 0);
+            const a0 = Math.random() * 6.283;
+            for (let k = 0; k < n; k++) {
+              const th = a0 + (k / n) * 1.2;
+              h.squad.push({
+                x: p.x + Math.cos(th) * 360, y: p.y + Math.sin(th) * 360,
+                vx: 0, vy: 0, anim: Math.random() * 6, jit: 1,
+                yt: FIS_PLATES[(Math.random() * FIS_PLATES.length) | 0],
+                hp: 60, maxHp: 60, fireCd: 1 + Math.random(),
+              });
+            }
+            g.jobBanner = "FIS \u00b7 AGENTS ON YOU";
+            g.pickupFlash = { nm: "agents_out", t: 2.4 };
+          }
+        }
+      } else if (h.stage === "banner") {
+        if (!bannerLive && !g.hunter && h.cd <= 0) { G.hunterFn(null); h.cd = 999; }
+        if (g.hunter && g.hunter.hp <= 0 && !h.picked) {
+          /* HIS RIDE. Not an ambulance and not a prison van -- his own truck, which drives in,
+             waits while he gets up, and leaves with him in it. */
+          h.picked = 1;
+          const a2 = Math.random() * 6.283;
+          h.ride = {
+            x: g.hunter.x + Math.cos(a2) * 700, y: g.hunter.y + Math.sin(a2) * 700,
+            tx: g.hunter.x + 40, ty: g.hunter.y + 40, ang: a2 + Math.PI, phase: "in", t: 0,
+          };
+          g.jobBanner = HERO_HUNTER.called + " \u00b7 BEING COLLECTED";
+        }
+      }
+
+      // ---- the truck
+      const R = h.ride;
+      if (R) {
+        const dx = R.tx - R.x, dy = R.ty - R.y, d = Math.hypot(dx, dy) || 1;
+        if (R.phase === "in") {
+          const spd = Math.min(300, 70 + d * 1.1);
+          R.x += (dx / d) * spd * dt; R.y += (dy / d) * spd * dt;
+          R.ang = Math.atan2(dy, dx);
+          if (d < 30) { R.phase = "wait"; R.t = 2.6; }
+        } else if (R.phase === "wait") {
+          R.t -= dt;
+          if (R.t <= 0) {
+            R.phase = "out";
+            R.t = 8;
+            g.hunter = null;                       // he is in the truck now
+            g.jobBanner = HERO_HUNTER.called + " \u00b7 GONE";
+            /* Back to the start. He comes again, and the agents come again first, because a
+               hunter you beat once and never see again was never a hunt. */
+            h.stage = "agents"; h.wins = 0; h.picked = 0; h.cd = 40;
+          }
+        } else {
+          R.t -= dt;
+          R.x += Math.cos(R.ang) * 260 * dt; R.y += Math.sin(R.ang) * 260 * dt;
+          if (R.t <= 0) h.ride = null;
+        }
+      }
+    }
+    function drawFisHunt() {
+      const h = g.fisHunt;
+      if (!h || !h.on || g.inside) return;
+      for (const a of h.squad) {
+        if (!Number.isFinite(a.x)) continue;
+        if (a.hp <= 0) { const ko = koPlate(a); if (ko) {
+            ctx.drawImage(ko, a.x - 22, a.y - 22, 44, 44); } continue; }
+        if (!drawYouth(a)) continue;
+        const f = Math.max(0, a.hp / (a.maxHp || 1));
+        ctx.fillStyle = "rgba(10,9,12,0.8)"; ctx.fillRect(a.x - 18, a.y - 34, 36, 5);
+        ctx.fillStyle = "#8fb4e8"; ctx.fillRect(a.x - 17, a.y - 33, 34 * f, 3);
+      }
+      const R = h.ride;
+      if (R && Number.isFinite(R.x)) {
+        const im = imgs.current["hh_suv"];
+        if (im && im.width) {
+          const L = 132, w = L * (im.width / im.height);
+          drawShadow(R.x, R.y + 6, w * 0.42, L * 0.38, 0.34);
+          ctx.save(); ctx.translate(R.x, R.y); ctx.rotate((R.ang || 0) + Math.PI / 2);
+          ctx.drawImage(im, -w / 2, -L / 2, w, L); ctx.restore();
+        }
+      }
+    }
     function stepHunter(dt) {
       stepChopper(dt);
+      stepMech(dt);
+      stepFisHunt(dt);
       const H = g.hunter;
       if (!H) return;
       if ((H.dropT || 0) > 0) { H.dropT -= dt; return; }   // still on the ramp
@@ -27631,6 +27990,41 @@ export default function IronLionLayer004() {
       return "out";
     };
 
+    /* THE FIS HUNT. Off by default and toggled from the HUD, because a faction that starts
+       hunting you the moment you load is a faction you cannot test anything else around.
+       Three stages, and each is earned:
+         AGENTS      two or three of them, on foot, with pistols. Beat a wave and they send
+                     another. Beat two waves and they stop sending agents.
+         BANNERMAN   flown in by the transport. One man, four moves, the whole kit.
+         PICKUP      beat him and his own truck comes for him. He is not dead and he is not
+                     arrested -- he gets in and drives away, which is what makes him a
+                     recurring problem rather than a boss you have finished. */
+    G.fisHuntFn = () => {
+      const gg = G.current;
+      gg.fisHunt = gg.fisHunt || { on: false, wins: 0, cd: 6, squad: [], stage: "agents" };
+      const h = gg.fisHunt;
+      h.on = !h.on;
+      if (!h.on) { h.squad.length = 0; gg.chop = null; }
+      gg.pickupFlash = { nm: h.on ? "hunt_on" : "hunt_off", t: 2.0 };
+      return h.on;
+    };
+
+    G.mechFn = (where) => {
+      const gg = G.current;
+      if (gg.mech && gg.mech.hp > 0) return "already out";
+      const p = gg.p;
+      const a = Math.random() * 6.283;
+      gg.mech = {
+        x: (where && where[0]) || p.x + Math.cos(a) * 420,
+        y: (where && where[1]) || p.y + Math.sin(a) * 420,
+        ang: a + Math.PI, hp: MECH_KIT.hp, maxHp: MECH_KIT.hp,
+        gatCd: 2, podCd: 5, stompCd: 4, burst: 0, burstCd: 0, step: 0,
+      };
+      gg.jobBanner = "FIS UNIT 04 \u00b7 DEPLOYED";
+      gg.pickupFlash = { nm: "mech_out", t: 4.5 };
+      return "out";
+    };
+
     G.fisFn = () => {
       /* FAST TRAVEL TO THE FIELD OFFICE. Puts him on the forecourt, not inside: you still walk
          through the seal and the front door, which is the bit that makes it a building rather
@@ -27656,6 +28050,8 @@ export default function IronLionLayer004() {
     if (typeof window !== "undefined") {
       const W2 = (window.__ironlion = window.__ironlion || {});
       W2.hunter = (x, y) => G.hunterFn(x != null ? [x, y] : null);
+      W2.mech = (x, y) => G.mechFn(x != null ? [x, y] : null);
+      W2.hunt = () => G.fisHuntFn();
       W2.fis = () => G.fisFn();
     }
     raf = requestAnimationFrame(frame);
@@ -27716,6 +28112,9 @@ export default function IronLionLayer004() {
     saved: "SAVED", save_failed: "COULD NOT SAVE", save_cleared: "SAVE CLEARED",
     reloading: "RELOADING",
     hunter_out: "BANNERMAN IS ON YOU", hunter_down: "BANNERMAN IS DOWN",
+    mech_out: "UNIT 04 IS WALKING", mech_down: "UNIT 04 IS SCRAP",
+    hunt_on: "THE FIS ARE LOOKING FOR YOU", hunt_off: "THE FIS HAVE STOOD DOWN",
+    agents_out: "AGENTS ON YOU",
     damped: "POWERS DEAD", netted: "PINNED",
     fis_here: "FEDERAL PLAZA", fis_no: "NOT FROM IN HERE",
     aboard: "ABOARD", arrived: "THIS IS YOUR STOP", all_aboard: "ALL ABOARD",
@@ -29289,6 +29688,8 @@ export default function IronLionLayer004() {
               () => { input.current.fire = false; })}
             {hud.cab && btn("QUIT", "leave machine",
               () => { G.cabFn && G.cabFn(); }, null)}
+            {!hud.cab && btn("FIS", hud.hunt ? "hunting" : "stood down",
+              () => { G.fisHuntFn && G.fisHuntFn(); }, hud.hunt)}
             {!hud.cab && btn(hud.board ? "PUSH" : "RUN",
               hud.board ? "tap kick · hold brake" : "sprint",
               () => { input.current.run = true; },
