@@ -2488,9 +2488,6 @@ const FIS_NAMES = ["HALPERN", "OYELARAN", "STRAND", "DEMARCO", "KESSLER", "AUGUS
    in one class at a time and nothing breaks in between. */
 const ROOF_SETS = {
   // Arden. One district, four plates a class, and the lots already march to a grid.
-  /* ard_ranch is declared and has no plates yet, so it is deliberately NOT in the Arden roll
-     below -- a street that is half overlay and half generated shell looks worse than either
-     one on its own. Cut the four ranch plates and add it back to the roll. */
   ard_ranch:      ["rf_ard_ranch_a", "rf_ard_ranch_b", "rf_ard_ranch_c", "rf_ard_ranch_d"],
   ard_colonial:   ["rf_ard_colonial_a", "rf_ard_colonial_b", "rf_ard_colonial_c", "rf_ard_colonial_d"],
   ard_foursquare: ["rf_ard_four_a", "rf_ard_four_b", "rf_ard_four_c", "rf_ard_four_d"],
@@ -2506,6 +2503,9 @@ const ROOF_SETS = {
   gen_row:      ["rf_g_row_a", "rf_g_row_b", "rf_g_row_c"],
   gen_walkup:   ["rf_g_walkup_a", "rf_g_walkup_b", "rf_g_walkup_c"],
   gen_tower:    ["rf_g_tower_a", "rf_g_tower_b", "rf_g_tower_c"],
+  /* Downtown's tallest. Split off from gen_tower by height alone -- no new flag on the
+     generator, and it puts the mirrored glass where the money is without hand-placing any. */
+  gen_glass:    ["rf_g_glass_a", "rf_g_glass_b", "rf_g_glass_c"],
   gen_shop:     ["rf_g_shop_a", "rf_g_shop_b", "rf_g_shop_c", "rf_g_shop_d"],
   gen_office:   ["rf_g_office_a", "rf_g_office_b", "rf_g_office_c"],
   gen_shed:     ["rf_g_shed_a", "rf_g_shed_b", "rf_g_shed_c"],
@@ -2535,15 +2535,15 @@ function genRoofClass(b) {
   if (k === "store" || k === "storefront" || k === "gunshop") return "gen_shop";
   if (k === "house") return f > 1 ? "gen_house2" : "gen_house1";
   if (k === "apartments" || k === "rowhouse") return f > 3 ? "gen_walkup" : "gen_row";
-  if (k === "tower") return f > 6 ? "gen_tower" : "gen_walkup";
-  if (k === "office") return f > 6 ? "gen_tower" : "gen_office";
+  if (k === "tower") return f > 10 ? "gen_glass" : f > 6 ? "gen_tower" : "gen_walkup";
+  if (k === "office") return f > 10 ? "gen_glass" : f > 6 ? "gen_tower" : "gen_office";
   return null;
 }
 /* THE FOOTPRINTS, in metres, that each class is drawn to. A building tagged with a class is
    generated at exactly these dimensions -- that is the deal, and it is what stops one plate
    having to cover a range of shapes. */
 const ROOF_FOOT = {
-  ard_ranch:      { w: 15, h: 9.5 },
+  ard_ranch:      { w: 15, h: 8.2 },   // 1.83, the aspect the plates came in at
   ard_colonial:   { w: 12.4, h: 11 },   // 1.13, the aspect the plates were actually drawn at
   ard_foursquare: { w: 11, h: 11 },
   ard_garage:     { w: 7,  h: 7 },
@@ -2566,10 +2566,22 @@ const ROOF_ONE = [
   ["vance",     (b) => b.kind === "mansion"],
   ["terminal",  (b) => b.kind === "terminal"],
   ["arcade",    (b) => b.kind === "arcade"],
+  ["news",      (b) => !!b.news],
 ];
+/* Some one-offs are one-of-several: there is more than one precinct in this city and they
+   should not all have a helipad on the roof. A named class with a SET picks from it by key. */
+const ROOF_ONE_SETS = {
+  precinct: ["rf_one_precinct", "rf_one_precinct_pad"],
+};
 function oneOffRoof(b) {
   if (!b || b.trailer) return null;
-  for (const [k, test] of ROOF_ONE) { try { if (test(b)) return "rf_one_" + k; } catch (e) {} }
+  for (const [k, test] of ROOF_ONE) {
+    try {
+      if (!test(b)) continue;
+      const set = ROOF_ONE_SETS[k];
+      return set ? set[(Math.abs(b.key || 1) >> 3) % set.length] : "rf_one_" + k;
+    } catch (e) {}
+  }
   return null;
 }
 const ROOF_ART = {};
@@ -2578,6 +2590,14 @@ for (const [k] of ROOF_ONE) ROOF_ART["rf_one_" + k] = "assets/roofs/rf_one_" + k
 /* The pieces that go over the three cell-drawn lots, and the vault kit. These are not roofs --
    each one is sized to a rect a helper already returns (gasCanopy, gasShop, shopRoof, fireBox),
    so they drop straight over what those functions draw today. */
+/* Yards. Two mown and two gone-over, so a street can have both -- an Arden lawn and the plot
+   two doors down that nobody has touched since spring. */
+const YARD_ART = {};
+for (const k of ["tx_lawn_a", "tx_lawn_b", "tx_yard_wild_a", "tx_yard_wild_b"])
+  YARD_ART[k] = "assets/tex/" + k + ".png";
+const LAWNS = ["tx_lawn_a", "tx_lawn_b"];
+const WILD = ["tx_yard_wild_a", "tx_yard_wild_b"];
+
 const CITY_ART = {};
 for (const k of ["gs_canopy", "gs_pumps", "gs_shop", "tx_gs_forecourt",
                  "bs_bays", "bs_boothdoor", "bs_wreck_a", "bs_wreck_b", "bs_wreck_c",
@@ -2589,7 +2609,8 @@ for (const k of ["gs_canopy", "gs_pumps", "gs_shop", "tx_gs_forecourt",
                     parallel set, and six vendors that have been drawing nothing since the day
                     they were placed now have faces. ft_burger and ft_noodle have no plate of
                     their own yet and borrow the nearest match. */
-                 "ft_taco", "ft_coffee", "ft_hotdog", "ft_chips", "ft_burger", "ft_noodle"])
+                 "ft_taco", "ft_coffee", "ft_hotdog", "ft_chips", "ft_burger", "ft_noodle",
+                 "veh_fis_trans"])
   CITY_ART[k] = "assets/city/" + k + ".png";
 const SOV2_ART = {};
 for (const k of ["sv_arch", "sv_pillar", "sv_stair", "sv_manhole", "sv_desk", "sv_map_table",
@@ -2845,6 +2866,11 @@ const HOSPITAL_CELL = { i: 7, j: 11 };
    11,6 is empty, sits mid-district, and is two blocks off the bank the rogues keep hitting --
    near enough that the federal interest is obvious, far enough that it is not the same scene. */
 const FIS_CELL = { i: 11, j: 6 };
+/* WRAV. Downtown, two blocks off the field office, on 10,5 -- another lot that was empty.
+   Maxine works for the press, and the game has had a news van you can call since Eclipse went
+   in; it should have somewhere to come from. */
+const NEWS_CELL = { i: 10, j: 5 };
+const isNewsCell = (i, j) => i === NEWS_CELL.i && j === NEWS_CELL.j;
 const isFisCell = (i, j) => i === FIS_CELL.i && j === FIS_CELL.j;
 const isAsylumCell = (i, j) => i === ASYLUM_CELL.i && j === ASYLUM_CELL.j;
 const isHospitalCell = (i, j) => i === HOSPITAL_CELL.i && j === HOSPITAL_CELL.j;
@@ -5883,6 +5909,16 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
      Set back off the avenue with a forecourt, four floors, one door. Federal buildings in this
      city should read as heavier than the banks around them, so it takes more of its lot than a
      bank does and none of the retail flags. */
+  if (isNewsCell(i, j) && !civicAt(i, j)) {
+    const bw = Math.min(LW * 0.70, 26 * MU), bh = Math.min(LH * 0.56, 22 * MU);
+    const b = mkB(lx0 + (LW - bw) / 2, ly0 + LH * 0.30, bw, bh, 3, "offices", rnd, key);
+    b.tone = 0.42;
+    b.name = "WRAV CHANNEL 7";
+    b.retail = false; b.eatery = false;
+    b.news = true;
+    out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+    return out;
+  }
   if (isFisCell(i, j) && !civicAt(i, j)) {
     const bw = Math.min(LW * 0.80, 34 * MU), bh = Math.min(LH * 0.62, 26 * MU);
     /* FIVE plans, not four: basement, lobby, bullpen, planning, executive. */
@@ -5960,7 +5996,10 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
          point of the overlay: a plate drawn for a 15x9.5 ranch fits every ranch on the street
          instead of being stretched over whatever the dice gave. Real streets look like this --
          a builder put up three plans and sold them forty times. */
-      const cls = rnd() < 0.55 ? "ard_colonial" : "ard_foursquare";
+      /* All three plans are in now. Ranches lead, which is right for a 1986 suburb -- the
+         two-storey stuff is the older money at the top of the hill. */
+      const rr = rnd();
+      const cls = rr < 0.44 ? "ard_ranch" : rr < 0.74 ? "ard_colonial" : "ard_foursquare";
       const foot = ROOF_FOOT[cls];
       const hw = Math.min(LW * 0.50, foot.w * MU);
       const hh = Math.min(HH * 0.48, foot.h * MU);
@@ -7193,7 +7232,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -13117,6 +13156,17 @@ export default function IronLionLayer004() {
         if (hash(c.i, c.j, 40 + s) < 0.45) continue;
         drawVeg(hash(c.i, c.j, 50 + s) < 0.5 ? "bush" : "hedge", hx, hy,
           hash(c.i, c.j, 50 + s) < 0.5 ? 34 : 62, s);
+      }
+      /* The lawn. Two mown tiles and two overgrown, picked per LOT rather than per district,
+         so the street reads as a row of people who each mow at their own pace. */
+      {
+        const seed = mulberry((c.i * 617 + c.j * 149) >>> 0);
+        const key2 = (seed() < 0.72 ? LAWNS : WILD)[(seed() * 2) | 0];
+        const tim = imgs.current[key2];
+        if (tim && tim.width) {
+          const pat = ctx.createPattern(tim, "repeat");
+          if (pat) { ctx.fillStyle = pat; ctx.fillRect(c.lx0, c.ly0, c.lx1 - c.lx0, c.ly1 - c.ly0); }
+        }
       }
       for (const b of c.blds) {
         /* THE SAME GUARD THE LOOP THIRTY LINES UP ALREADY HAS. An Arden lot carries a
@@ -24252,6 +24302,7 @@ export default function IronLionLayer004() {
       drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
       drawArrivals();
       drawHunter();
+      drawChopper();          // last: it is above everything, because it is in the air
       drawCrewProbe(view);          // TEMPORARY -- delete with the CREW PROBE block.
                                     // LAST on purpose: called earlier, interior furniture
                                     // painted straight over the boxes and it read as nothing.
@@ -25265,9 +25316,44 @@ export default function IronLionLayer004() {
        against different heroes without any per-hero branching: whoever keeps their distance eats
        BURST, whoever closes eats CHARGE, whoever teleports around eats NET, and whoever leans on
        a power spends five seconds finding out they have hands. */
+    function stepChopper(dt) {
+      const ch = g.chop;
+      if (!ch) return;
+      ch.rotor += dt * 26;
+      const dx = ch.tx - ch.x, dy = ch.ty - ch.y, d = Math.hypot(dx, dy) || 1;
+      if (ch.phase === "in") {
+        const spd = Math.min(420, 90 + d * 1.3);
+        ch.x += (dx / d) * spd * dt; ch.y += (dy / d) * spd * dt;
+        ch.ang = Math.atan2(dy, dx);
+        if (d < 26) { ch.phase = "hold"; ch.t = 2.4; }
+      } else if (ch.phase === "hold") {
+        ch.t -= dt;
+        if (ch.t <= 0) { ch.phase = "out"; ch.t = 6; }
+      } else {
+        ch.t -= dt;
+        ch.x += Math.cos(ch.ang) * 300 * dt; ch.y += Math.sin(ch.ang) * 300 * dt;
+        if (ch.t <= 0) g.chop = null;
+      }
+    }
+    function drawChopper() {
+      const ch = g.chop;
+      if (!ch || g.inside || !Number.isFinite(ch.x)) return;
+      const im = imgs.current["veh_fis_trans"];
+      if (!im || !im.width) return;
+      const L = 150, w = L * (im.width / im.height);
+      // a shadow well below it, because the only thing that says "flying" from above is the gap
+      drawShadow(ch.x + 26, ch.y + 30, w * 0.34, L * 0.28, 0.30);
+      ctx.save();
+      ctx.translate(ch.x, ch.y);
+      ctx.rotate(ch.ang + Math.PI / 2);
+      ctx.drawImage(im, -w / 2, -L / 2, w, L);
+      ctx.restore();
+    }
     function stepHunter(dt) {
+      stepChopper(dt);
       const H = g.hunter;
       if (!H) return;
+      if ((H.dropT || 0) > 0) { H.dropT -= dt; return; }   // still on the ramp
       g.dampT = Math.max(0, (g.dampT || 0) - dt);
       stepHunterFx(dt);
       if (H.hp <= 0) {
@@ -25513,6 +25599,7 @@ export default function IronLionLayer004() {
     function drawHunter() {
       const H = g.hunter;
       if (!H || g.inside || !Number.isFinite(H.x)) return;
+      if ((H.dropT || 0) > 0) return;
       drawHunterFx();
       if (!drawHunterBody(H)) return;
       const f = Math.max(0, H.hp / (H.maxHp || 1));
@@ -27526,6 +27613,16 @@ export default function IronLionLayer004() {
         yt: HERO_HUNTER.key, hp: HUNTER_KIT.hp, maxHp: HUNTER_KIT.hp,
         netCd: 4, dampCd: 6, burstCd: 1, chargeCd: 5, sayCd: 0, taunt: 0,
       };
+      /* HE IS DROPPED OFF. A super-soldier who simply appears behind you is a spawn; one who
+         comes in over the rooftops, flares, and steps off the ramp is an arrival. The chopper
+         flies a straight line in, holds while he lands, and leaves -- it is scenery, not a
+         vehicle, so it never touches g.traffic and cannot be shot down or stolen. */
+      const inAng = Math.random() * 6.283;
+      gg.chop = {
+        x: H.x + Math.cos(inAng) * 900, y: H.y + Math.sin(inAng) * 900,
+        tx: H.x, ty: H.y, ang: inAng + Math.PI, t: 0, phase: "in", rotor: 0,
+      };
+      H.dropT = 2.2;                 // he is not on the ground until the chopper is over him
       gg.hunter = H;
       const who = gg.who || "lion";
       gg.jobBanner = HERO_HUNTER.called + " \u00b7 ON YOU";
