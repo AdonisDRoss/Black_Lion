@@ -10200,6 +10200,10 @@ export default function IronLionLayer004() {
     const plateOver = (k, r, pad) => {
       const im = imgs.current[k];
       if (!im || !im.width) return false;
+      /* One bad rect takes the whole frame down -- canvas throws on a non-finite argument and
+         the render stops there. Everything that reaches drawImage gets checked. */
+      if (!r || !Number.isFinite(r.x) || !Number.isFinite(r.y)
+        || !Number.isFinite(r.w) || !Number.isFinite(r.h)) return false;
       const q = pad || 0;
       ctx.drawImage(im, r.x - q, r.y - q, r.w + q * 2, r.h + q * 2);
       return true;
@@ -13549,6 +13553,8 @@ export default function IronLionLayer004() {
     function drawParking(b, alpha) {
       const pk = parkingOf(b);
       if (!pk || alpha <= 0.02) return;
+      if (!Number.isFinite(pk.x) || !Number.isFinite(pk.y)
+        || !Number.isFinite(pk.w) || !Number.isFinite(pk.h)) return;
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.fillStyle = pk.kind === "drive" ? "rgba(96,94,90,0.85)" : "rgba(58,58,62,0.92)";
@@ -13576,6 +13582,7 @@ export default function IronLionLayer004() {
     function drawFisPlaza(b, alpha) {
       if (alpha <= 0.02 || !b.door) return;
       const dp = doorPoint(b);
+      if (!Number.isFinite(dp[0]) || !Number.isFinite(dp[1])) return;
       const side = b.door.side;
       const horiz = side === 0 || side === 2;
       const D = 92, W2 = Math.min(b.w, b.h) * 0.9 + 120;
@@ -15726,102 +15733,6 @@ export default function IronLionLayer004() {
       }
     }
 
-    /* ---------- TEMPORARY: CREW PROBE -- delete this whole block when the draw bug is shut
-       Flip CREW_PROBE to false to silence it without deleting anything.
-
-       The crew is now provably IN g.crews and provably NEAR you -- the rank card names
-       DARNELL MOSELY, and that panel only appears for a live member inside nearestMember's
-       range. So the remaining fault is downstream of the cull, in the draw. Three candidates
-       are left and reading the file cannot separate them, because they all depend on runtime
-       state:
-         1. the members never reach drawKing, because the view-rect test in the crew draw loop
-            rejects them (drawRankBadges has no such test, which is exactly why the tags show
-            and the bodies do not -- that asymmetry is the single best lead here);
-         2. they reach drawKing, but imgs.current["gang_kings"] never loaded, so drawGangTop
-            returns false and falls through to m.o, which warCrew sets to null -- draws nothing;
-         3. they reach drawKing and draw, but somewhere off under the touch buttons.
-
-       This answers all three in one look, on the phone, with no console:
-         MAGENTA box = member passed the view test.  CYAN box = member failed it.
-         No box at all = the crew is not where you think it is.
-       and the readout over your head gives the sheet's real dimensions. */
-    const CREW_PROBE = true;
-    function drawCrewProbe(view) {
-      if (!CREW_PROBE) return;
-      let seen = 0, inView = 0, alive = 0, nofix = 0;
-      ctx.save();
-      ctx.font = "10px monospace";
-      for (const cr of g.crews) {
-        // the same filter the real draw loop uses, MINUS the view test
-        if (cr.indoor ? (cr.indoor !== g.inside || cr.indoorFloor !== g.floor) : g.inside) continue;
-        for (const m of cr.members) {
-          seen++;
-          if (m.hp > 0) alive++;
-          /* A member with a NaN coordinate is the FRAME ERROR. Canvas throws "the provided
-             value is non-finite" on fillRect/fillText and takes the whole render down -- 120
-             times, once a frame. The rest of the file already guards for this (updateSmoke and
-             hostilesNear both test Number.isFinite on a member), so bad coords are a thing that
-             happens here; the probe was simply the first code to draw one. Count them and skip
-             them, because "how many men have no position" is itself worth knowing. */
-          if (!Number.isFinite(m.x) || !Number.isFinite(m.y)) { nofix++; continue; }
-          const vis = !(m.x < view.x0 || m.x > view.x1 || m.y < view.y0 || m.y > view.y1);
-          if (vis) inView++;
-          ctx.fillStyle = vis ? "rgba(255,0,200,0.85)" : "rgba(0,210,255,0.85)";
-          ctx.fillRect(m.x - 7, m.y - 7, 14, 14);
-          ctx.fillStyle = "#ffffff";
-          /* RAW hp, not coerced. "0" told us nothing last time: undefined, NaN and a real 0 all
-             print 0 through |0, and they are three completely different bugs. undefined/NaN
-             means the kit never landed on the member; a real 0 means something killed him. */
-          const hpTxt = m.hp === undefined ? "undef"
-            : (typeof m.hp === "number" && Number.isNaN(m.hp)) ? "NaN"
-            : String(m.hp);
-          ctx.fillText((cr.gang || "?") + (m.boss ? "*" : "") + " hp=" + hpTxt
-            + " " + (cr.state || "?"), m.x + 10, m.y + 4);
-        }
-      }
-      /* The readout goes in SCREEN space, not world space. Sitting it above the player's head
-         meant it rode the camera and the zoom, and at 1.9x over a marble floor it was simply
-         off the top of the phone -- which is indistinguishable from the probe not running. */
-      const sh = imgs.current["gang_kings"];
-      const g0 = window.__ironlion || {};
-      let noM = 0;
-      for (const v of (g.traffic || [])) if (!v || !v.m) noM++;
-      /* Screen space, and parked in the middle of the picture. The HUD is DOM sitting ON TOP
-         of the canvas, so the corners are all spoken for -- readout bottom-left is under the
-         stick, top-right is under the minimap, top-left is under the address panel. The
-         middle is the one place nothing covers. */
-      /* OFF THE PLAYER. He is always at screen centre, so the middle of the picture is the one
-         place this must not sit -- which is where I put it. Down in the gap between the HUD
-         column on the left, the stick below it and the button cluster on the right. Nudge
-         these two numbers if it lands badly on a different screen: they are fractions of the
-         canvas, so they travel between phone and desktop. */
-      const PROBE_X = 0.27, PROBE_Y = 0.80;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const bx0 = Math.round(W * PROBE_X), by0 = Math.round(H * PROBE_Y);
-      ctx.fillStyle = "rgba(0,0,0,0.86)";
-      ctx.fillRect(bx0, by0, 252, 58);
-      ctx.strokeStyle = "#ff00c8"; ctx.lineWidth = 2;
-      ctx.strokeRect(bx0, by0, 252, 58);
-      ctx.fillStyle = "#f2c24e";
-      ctx.font = "10px monospace";
-      ctx.fillText("crew" + g.crews.length + " men" + seen + " liv" + alive
-        + " vis" + inView + " xy" + nofix + " nom" + noM, bx0 + 6, by0 + 15);
-      ctx.fillText("kings " + (sh ? (sh.width + "x" + sh.height) : "NONE")
-        + " miss" + ((g0.missingArt || []).length), bx0 + 6, by0 + 28);
-      ctx.fillText("in:" + (g.inside ? (g.inside.kind || "bld") : "no")
-        + " fl" + g.floor + " job:" + (g.job ? g.job.phase + "/" + g.job.type : "none"),
-        bx0 + 6, by0 + 41);
-      /* And what the JOB thinks its own crew is, which is a different object path from the one
-         the boxes walk. If these two disagree, the crew on screen is not the crew the job is
-         watching, and that is the bug rather than anything about hp. */
-      const jc = g.job && g.job.crew;
-      ctx.fillText("jc:" + (jc ? (jc.members || []).length + " " + (jc.state || "?")
-          + " ind" + (jc.indoor ? "y" : "n") + " sam" + (jc.indoor === g.inside ? "y" : "n")
-        : "none") + " boss" + (g.job && g.job.boss ? "y" : "n"),
-        bx0 + 6, by0 + 54);
-      ctx.restore();
-    }
-    /* ---------- end CREW PROBE ---------- */
 
     /* ---------- flashpoints ----------
        The war's central mechanic, and the reason Darius is in it. Two things happen at once
@@ -24515,9 +24426,6 @@ export default function IronLionLayer004() {
       drawHunter();
       drawMech();
       drawChopper();          // last: it is above everything, because it is in the air
-      drawCrewProbe(view);          // TEMPORARY -- delete with the CREW PROBE block.
-                                    // LAST on purpose: called earlier, interior furniture
-                                    // painted straight over the boxes and it read as nothing.
       drawRockets(); drawChoppers();
       /* Anyone in the fight, not only gang crews -- police, and any civilian who has been hit.
          A bar over one man and nothing over the next reads as a bug rather than a rule. */
