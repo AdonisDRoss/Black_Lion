@@ -10194,10 +10194,27 @@ export default function IronLionLayer004() {
     }
     const inRect = (x, y, r) => x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h;
 
+    /* One plate over one rect. gasShop, gasCanopy, shopRoof and fireBox have always returned
+       these rectangles and the art was cut to them weeks ago -- it just never got drawn. Each
+       falls back to the primitives underneath, so a missing file costs detail, not the lot. */
+    const plateOver = (k, r, pad) => {
+      const im = imgs.current[k];
+      if (!im || !im.width) return false;
+      const q = pad || 0;
+      ctx.drawImage(im, r.x - q, r.y - q, r.w + q * 2, r.h + q * 2);
+      return true;
+    };
     function drawGasStation(c) {
-      ctx.fillStyle = PF("lot", C.lotAsphalt);
+      const fore = imgs.current["tx_gs_forecourt"];
+      const fp = fore && fore.width ? ctx.createPattern(fore, "repeat") : null;
+      ctx.fillStyle = fp || PF("lot", C.lotAsphalt);
       ctx.fillRect(c.lx0, c.ly0, c.lx1 - c.lx0, c.ly1 - c.ly0);
       const sh = gasShop(c), cp = gasCanopy(c);
+      /* Drawn AFTER the primitives below would be wrong -- the pumps and the kiosk have to sit
+         on top of the forecourt but under the canopy, which is the order they are in here. */
+      plateOver("gs_shop", sh);
+      plateOver("gs_pumps", { x: (cp.x + cp.w / 2) - 90, y: cp.y + cp.h * 0.34, w: 180, h: 76 });
+      plateOver("gs_canopy", cp);
       const cx = (c.lx0 + c.lx1) / 2;
 
       // ---- the shop floor, laid out like any interior: front, back room, bathroom ----
@@ -12746,6 +12763,10 @@ export default function IronLionLayer004() {
        Same construction as the body shop: an apparatus floor you drive INTO, with the roof
        drawn as an overlay that fades once you are under it. Two storeys -- the bays below,
        the crew quarters above -- with stairs up and a brass pole for the way down.        */
+    function drawFireHouseArt(c, r) {
+      // ground bays on the street, crew quarters when you are upstairs in it
+      return plateOver(g.floor > 0 ? "fh_quarters" : "fh_bays", r);
+    }
     function fireBox(c) {
       const cx = (c.lx0 + c.lx1) / 2, cy = (c.ly0 + c.ly1) / 2;
       return { x: cx - 190, y: cy - 168, w: 380, h: 196 };
@@ -12767,6 +12788,7 @@ export default function IronLionLayer004() {
       const r = fireBox(c);
       ctx.fillStyle = PF("lot", C.lotAsphalt);
       ctx.fillRect(c.lx0, c.ly0, c.lx1 - c.lx0, c.ly1 - c.ly0);
+      if (drawFireHouseArt(c, r)) return;
 
       if (g.fireFloor === 1 && g.inFire === house) {
         // ---- crew quarters, drawn instead of the bays when you are upstairs ----
@@ -12884,6 +12906,27 @@ export default function IronLionLayer004() {
       ctx.globalAlpha = 1;
     }
 
+    function drawBodyShopArt(c, r) {
+      const yard = imgs.current["tx_bs_yard"];
+      const yp = yard && yard.width ? ctx.createPattern(yard, "repeat") : null;
+      if (yp) { ctx.fillStyle = yp; ctx.fillRect(c.lx0, c.ly0, c.lx1 - c.lx0, c.ly1 - c.ly0); }
+      if (!plateOver("bs_bays", r)) return false;
+      plateOver("bs_boothdoor", { x: r.x + r.w * 0.72, y: r.y - 6, w: r.w * 0.24, h: 26 });
+      // the wrecks live in the yard, seeded off the cell so they do not shuffle between visits
+      const rnd = mulberry((c.i * 401 + c.j * 977) >>> 0);
+      const W = ["bs_wreck_a", "bs_wreck_b", "bs_wreck_c"];
+      for (let k = 0; k < 3; k++) {
+        if (rnd() < 0.25) continue;
+        const im = imgs.current[W[k]];
+        if (!im || !im.width) continue;
+        const w = 84, h = w * (im.height / im.width);
+        const px = c.lx0 + (c.lx1 - c.lx0) * (0.12 + rnd() * 0.76);
+        const py = r.y + r.h + 30 + rnd() * 50;
+        drawShadow(px, py + h * 0.36, w * 0.40, h * 0.20, 0.30);
+        ctx.drawImage(im, px - w / 2, py - h / 2, w, h);
+      }
+      return true;
+    }
     function shopRoof(c) {
       const cx = (c.lx0 + c.lx1) / 2, cy = (c.ly0 + c.ly1) / 2;
       return { x: cx - 168, y: cy - 150, w: 336, h: 168 };
@@ -12897,6 +12940,8 @@ export default function IronLionLayer004() {
       ctx.fillRect(c.lx0, c.ly0, c.lx1 - c.lx0, c.ly1 - c.ly0);
       const cx = (c.lx0 + c.lx1) / 2, cy = (c.ly0 + c.ly1) / 2;
       const r = shopRoof(c);
+      // the plate covers the whole lot -- yard, bays and wrecks -- so nothing below needs to run
+      if (drawBodyShopArt(c, r)) return;
 
       // --- the floor of the building, drawn flat like any interior ---
       ctx.fillStyle = PF("shopfloor", "#3b3c40");
@@ -29549,19 +29594,27 @@ export default function IronLionLayer004() {
             <div style={{ textAlign: "left" }}>
               <div style={{ fontSize: 8, letterSpacing: "0.2em", color: C.gold }}>ON SCREEN</div>
               {[["stats", "RUN STATS"], ["scanner", "SCANNER CALLS"], ["debug", "DEBUG LINE"],
-                ["topDown", "ROTATING LION"]]
+                ["topDown", "ROTATING LION"], ["fisHunt", "FIS HUNT"]]
                 .map(([k, nm]) => (
                   <div key={k} onClick={() => {
                     const gg = G.current;
                     // topDown lives on the game object, not in show
                     if (k === "topDown") { gg.topDown = !gg.topDown; setHud((h) => ({ ...h, topDown: gg.topDown })); return; }
+                    /* The hunt is not a display option -- it starts and stops a faction -- so it
+                       goes through the same function the button used rather than gg.show. */
+                    if (k === "fisHunt") {
+                      const on = G.fisHuntFn ? G.fisHuntFn() : false;
+                      setHud((h) => ({ ...h, hunt: on }));
+                      return;
+                    }
                     gg.show[k] = !gg.show[k];
                     setHud((h) => ({ ...h, show: { ...gg.show } }));
                   }}
                     style={{ fontSize: 9, marginTop: 4, cursor: "pointer", letterSpacing: "0.1em",
-                      color: (k === "topDown" ? hud.topDown : hud.show && hud.show[k])
-                        ? C.gold : "rgba(232,217,181,0.35)" }}>
-                    {(k === "topDown" ? hud.topDown : hud.show && hud.show[k]) ? "◼" : "◻"}  {nm}
+                      color: (k === "topDown" ? hud.topDown : k === "fisHunt" ? hud.hunt
+                        : hud.show && hud.show[k]) ? C.gold : "rgba(232,217,181,0.35)" }}>
+                    {(k === "topDown" ? hud.topDown : k === "fisHunt" ? hud.hunt
+                      : hud.show && hud.show[k]) ? "◼" : "◻"}  {nm}
                   </div>
                 ))}
             </div>
