@@ -25822,9 +25822,14 @@ export default function IronLionLayer004() {
           ctx.strokeStyle = "#20242c"; ctx.lineWidth = h2 * 0.13; ctx.lineCap = "round";
           ctx.beginPath(); ctx.moveTo(-h2 * 0.30, -h2 * 0.05); ctx.lineTo(-h2 * 0.10, h2 * 0.34); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(h2 * 0.30, -h2 * 0.05); ctx.lineTo(h2 * 0.10, h2 * 0.34); ctx.stroke();
-          const wim = imgs.current["wp_pistol"] || imgs.current["wp_tommy"];
+          /* SCALED BY ITS LONG SIDE. Fixing the WIDTH and deriving the height meant a tall
+             narrow sprite came out enormous -- an SMG drawn barrel-up is mostly height, so
+             width*aspect blew it up to the size of the man holding it. Longest side is 15px
+             and the other follows, which is right whichever way the art is drawn. */
+          const wim = imgs.current["wp_smg"] || imgs.current["wp_tommy"] || imgs.current["wp_pistol"];
           if (wim && wim.width) {
-            const gw = h2 * 0.42, gh = gw * (wim.height / wim.width);
+            const k2 = 15 / Math.max(wim.width, wim.height);
+            const gw = wim.width * k2, gh = wim.height * k2;
             ctx.drawImage(wim, -gw / 2, h2 * 0.24, gw, gh);
           } else {
             ctx.fillStyle = "#15181e";
@@ -27367,6 +27372,21 @@ export default function IronLionLayer004() {
          him INSIDE the bank while the truck sat on the road outside, so you arrived at the
          scene and there was nobody there. Only the indoor job goes indoors. */
       const outdoors = (j.type === "haul" || j.type === "grab");
+      /* HIS RIDE, PARKED AT THE SCENE. Every rogue with a vehicle in VIL_CARS gets it left
+         outside the job -- which is how a getaway is supposed to read: the car was always
+         there, you just did not look at it. dead:1 keeps the traffic driver off it, so it sits
+         where it is put and you can wreck it before he reaches it. */
+      {
+        const vc = VIL_CARS.find((v) => v.who === j.rid)
+          || { k: "vh_cross_muscle", len: 118, w: 50 };
+        const ra = Math.random() * 6.283;
+        const rv = {
+          x: x + Math.cos(ra) * 130, y: y + Math.sin(ra) * 130,
+          ang: ra + Math.PI / 2, spd: 0, brake: 0, m: vc,
+          dead: 1, parked: 1, named: 1, trFree: 1, rogueRide: 1,
+        };
+        if (Number.isFinite(rv.x)) { g.traffic.push(rv); j.ride = rv; }
+      }
       const cr = warCrew(gang, outdoors ? x : sx, outdoors ? y : sy,
                          Math.max(1, R.crew + 1 + borrowed), R.wing);
       /* warCrew registers the crew ITSELF -- the last line of its body is g.crews.push(cr).
@@ -27545,14 +27565,26 @@ export default function IronLionLayer004() {
       const bcell = ROGUE_BASE[j.rid] || { i: 9, j: 7 };
       const bc = getCell(bcell.i, bcell.j);
       const sx = tv ? tv.x : g.p.x, sy = tv ? tv.y : g.p.y;
-      const v = {
-        axis: "h", si: clamp(Math.round(sy / PITCH), 0, N), dir: 1,
-        k: clamp(Math.round(sx / PITCH), 0, N),
-        m: { k: "vh_cross_muscle", len: 118, w: 50 },
-        x: sx, y: sy, ang: 0, spd: 0, cruise: 0, brake: 0,
-        dead: 1, parked: 0, named: 1, trFree: 1, runner: 1,
-      };
-      g.traffic.push(v);
+      /* If his own car is still standing, THAT is what he leaves in -- Kuru on the bike,
+         Masterdrive in the van. Falling back to a stock muscle car only when there isn't one.
+         Reusing the parked entry rather than spawning a second means the car you have been
+         looking at for the last minute is the car that pulls away. */
+      let v = j.ride && Number.isFinite(j.ride.x) ? j.ride : null;
+      if (v) {
+        v.parked = 0; v.runner = 1; v.rogueRide = 0;
+        v.axis = "h"; v.si = clamp(Math.round(v.y / PITCH), 0, N);
+        v.dir = 1; v.k = clamp(Math.round(v.x / PITCH), 0, N);
+        v.spd = 0; v.cruise = 0;
+      } else {
+        v = {
+          axis: "h", si: clamp(Math.round(sy / PITCH), 0, N), dir: 1,
+          k: clamp(Math.round(sx / PITCH), 0, N),
+          m: { k: "vh_cross_muscle", len: 118, w: 50 },
+          x: sx, y: sy, ang: 0, spd: 0, cruise: 0, brake: 0,
+          dead: 1, parked: 0, named: 1, trFree: 1, runner: 1,
+        };
+        g.traffic.push(v);
+      }
       j.runner = { v, bx: (bc.lx0 + bc.lx1) / 2, by: (bc.ly0 + bc.ly1) / 2, spd: 300 };
       j.phase = "runner"; j.t = 0;
       g.jobBanner = R0name(j) + " IS RUNNING";
@@ -27705,8 +27737,32 @@ export default function IronLionLayer004() {
       }
       if (j.phase === "escape") {
         const b = j.boss;
-        if (b) { b.hp = 9999; b.x += (b.vx || 0) * dt; b.y += (b.vy || 0) * dt; }
-        if (j.t > 2.2) {
+        /* HE RUNS FOR THE CAR. Before this he drifted on his last velocity for 2.2 seconds and
+           was then spliced out of his own crew -- which is why he evaporated the moment he
+           cleared the door. Now he makes for the vehicle that has been parked outside since he
+           arrived, stays drawn the whole way, and only stops being a man on foot when he is in
+           it. Wreck the car first and he has nothing to reach.
+           Still invulnerable while he runs: the escape is a chase, not a last free hit. */
+        const R2 = j.ride;
+        if (b) {
+          b.hp = 9999;
+          if (R2 && Number.isFinite(R2.x)) {
+            const dx = R2.x - b.x, dy = R2.y - b.y, d = Math.hypot(dx, dy) || 1;
+            const spd = 190;
+            b.vx = (dx / d) * spd; b.vy = (dy / d) * spd;
+            b.anim = (b.anim || 0) + dt * 7;
+            if (d < 26) {
+              // in the car. From here the chase is the runner, and the runner IS his car.
+              const k = j.crew.members.indexOf(b);
+              if (k >= 0) j.crew.members.splice(k, 1);
+              startRunner(j);
+              return;
+            }
+          }
+          b.x += (b.vx || 0) * dt; b.y += (b.vy || 0) * dt;
+        }
+        // no car, or he never gets there: the old timeout still ends it
+        if (j.t > (R2 ? 9 : 2.2)) {
           const k = j.crew.members.indexOf(b);
           if (k >= 0) j.crew.members.splice(k, 1);
           j.phase = "done"; j.t = 0;
