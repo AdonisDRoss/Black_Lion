@@ -1067,6 +1067,18 @@ YT.yt_mentor = "assets/youth/yt_mentor.png";
 YT.yt_kenny = "assets/youth/yt_kenny.png";
 YT.yt_kenny_hero = "assets/youth/yt_kenny_hero.png";
 YT.wp_katana = "assets/youth/wp_katana.png";
+/* THE ROSTER'S OWN FOLDER. These eleven keys were scattered across assets/youth/ and
+   assets/sov/ -- Eclipse's two lived with the Sovereign art for no reason other than the
+   order they were drawn in. HERE they are one set, and HERO_ART is spread LAST into `all`
+   below so it overrides whichever folder a key was first claimed by. Re-cutting the roster
+   is now one folder, not three.
+   yt_rio_ride is the third Rio plate: his hero plate carries the deck across his shoulders,
+   and drawBoardUnder puts the real deck under his feet, so riding drew two boards. */
+const HERO_ART = {};
+for (const k of ["yt_lion", "yt_lion_hero", "yt_rio", "yt_rio_hero", "yt_rio_ride",
+                 "yt_kenny", "yt_kenny_hero", "yt_sho", "yt_sho_hero",
+                 "yt_eclipse", "yt_eclipse_hero"])
+  HERO_ART[k] = "assets/heroes/" + k + ".png";
 const ST = {};
 for (const k of ["change", "mech", "owner", "door", "bar", "sound"])
   ST["st_" + k] = "assets/staff/st_" + k + ".png";
@@ -1125,15 +1137,15 @@ const VILLAINS = [
     note: "An old engineer in a rig he built. Slowest and hardest thing in the city." },
   { id: "monstruo", name: "EL MONSTRUO", age: 41, yt: "vil_monstruo", hero: "vil_monstruo_hero", hp: 20,
     note: "Never speaks. Nobody has decided whether that is the act." },
-  /* ZERO. Arthur Peale ran the cold room at the Halcyon Cryonic Trust until it folded in
-     eighty-four and the building was sold on. Nobody asked what happened to the people who
-     were already in it. He is the only rogue in the table who has never taken money and has
-     never once denied a single thing he has done.
-     `civ` rather than `hero`, the same case as Elias: the second plate is the man out of the
-     rig, not a hero form. */
-  { id: "zero", name: "ZERO", age: 49, yt: "vil_zero", hero: "vil_zero_civ", hp: 24,
-    alone: true,
-    note: "Kept eleven of them. Says he is the only man in this city who did not break a promise." },
+  /* THE ICICLE. Clarissa Vance, who was the face of the decade and then was not. The
+     preservative did what she asked and nothing she wanted: it stopped her exactly where she
+     stood. She has not aged since eighty-four and cannot survive warm.
+     `yt` is the RIG -- the environmental suit is what she is in whenever you meet her, so it
+     is the default plate, not the alternate. `vil_icicle_civ` is Clarissa out of it and there
+     is no art for it yet; it will read as missing until there is, which is the honest state
+     rather than pointing the key at somebody else's plate. */
+  { id: "icicle", name: "THE ICICLE", age: 41, yt: "vil_icicle", hero: "vil_icicle_civ", hp: 22,
+    note: "Does not think of them as victims. Thinks of them as the only eleven she got to in time." },
 ];
 /* One vehicle each, except MVP whose ATV is the only thing he owns. All four checked nose-up
    before wiring -- read off the plate, not assumed, because six vehicles in this project have
@@ -1143,9 +1155,9 @@ const VIL_CARS = [
   { k: "vh_mvp_atv", len: 92, w: 62, who: "mvp" },
   { k: "vh_mons_rod", len: 112, w: 58, who: "monstruo" },
   { k: "vh_drive_van", len: 122, w: 66, who: "drive", rockets: 1 },
-  /* The wagon is a refrigerated meat truck with the plant still running off the tailgate.
-     Measured off the plate nose-UP, so it does NOT go in ROTATE_CW. */
-  { k: "vh_zero_wagon", len: 132, w: 62, who: "zero" },
+  /* The Cold Storage Continental -- a refrigerated transport with the plant still running off
+     the tailgate. Turned nose-UP at cut time, so it does NOT also go in ROTATE_CW. */
+  { k: "vh_icicle_wagon", len: 132, w: 62, who: "icicle" },
 ];
 /* HENCHMEN. Each rogue draws from one pool; MVP has none, because a man whose career ended
    when he killed somebody on a field does not have people. They are gang types, so a fight
@@ -1157,6 +1169,11 @@ const HENCH = {
            note: "Machines he built. Sacked for selling the designs abroad; he kept the tools." },
   monstruo: { pool: "mime", n: 8, hp: 8, wpn: "tommy",
               note: "Nobody knows where he found them. Nobody has asked twice." },
+  /* Muscle off the mountain estate. Two of them carry her tanks, and two of them are men she
+     has already used and thawed badly -- which is why the pool has a frozen plate in it and
+     why nobody who works for her has ever asked for a raise. */
+  icicle: { pool: "ice", n: 6, hp: 12, wpn: "cryo",
+            note: "Estate security. She keeps the ones that photograph well." },
 };
 const HENCH_POOL = {
   ninja: ["hx_ninja_1", "hx_ninja_2", "hx_ninja_3", "hx_ninja_4",
@@ -1164,6 +1181,11 @@ const HENCH_POOL = {
   cyber: ["hx_csu_1", "hx_csu_2", "hx_a9_1", "hx_a9_2"],
   mime:  ["hx_mime_1", "hx_mime_2", "hx_mime_3", "hx_mime_4",
           "hx_mime_5", "hx_mime_6", "hx_mime_7", "hx_mime_8"],
+  /* 1 standard, 2 leader, 3 heavy with the tanks, 4 heavy with the pack, 5 thawed,
+     6 the one she left too long, 7 the bald one. Seven plates for a pool of six, so the
+     line-up is not identical every time she turns out. */
+  ice:   ["hx_ice_1", "hx_ice_2", "hx_ice_3", "hx_ice_4",
+          "hx_ice_5", "hx_ice_6", "hx_ice_7"],
 };
 const VIL = {};
 for (const pool of Object.values(HENCH_POOL))
@@ -1173,6 +1195,19 @@ for (const v of VILLAINS) {
   VIL[v.yt] = "assets/villains/" + v.yt + ".png";
   VIL[v.hero] = "assets/villains/" + v.hero + ".png";
 }
+/* WHICH PLATE IS HIM AT WORK. `yt` and `hero` do NOT mean the same thing across this table
+   and never have: for five of them `yt` is the man OUT of costume and `hero` is the costume,
+   and for Elias and Clarissa `yt` IS the costume because neither has a hero-form plate. The
+   one place that draws a job boss was reading "vil_" + rid, which is `yt` -- so five of the
+   seven turned up to their own robbery in street clothes.
+   An explicit map rather than a rule guessed from the key names, because the key names are
+   exactly what was wrong. An eighth rogue is one line here. */
+const VIL_SUIT = {
+  mvp: "vil_mvp_hero", kuru: "vil_kuru_hero", drive: "vil_drive_hero",
+  monstruo: "vil_monstruo_hero", voz: "vil_voz_hero",
+  arson: "vil_arson", icicle: "vil_icicle",
+};
+const vilSuit = (rid) => VIL_SUIT[rid] || ("vil_" + rid);
 for (const k of ["wp_tommy", "wp_laser", "wp_katana2", "wp_longsword", "wp_cryo"])
   VIL[k] = "assets/villains/" + k + ".png";
 /* THE FROZEN. Four plates and they are four THAW STAGES, not four victims -- ice_00 solid
@@ -3029,17 +3064,16 @@ const ROGUE_JOB = {
     approach: "Somebody who works here left a door unlocked. She has not touched a thing.",
     escape: "walk",
     escapeLine: "She walks out past the police, and one of them holds the door." },
-  /* ZERO. The seventh, and he is the first one who does not want what is in the building.
-     He wants the room COLD, and whatever is standing in it when that happens is a thing he
-     has preserved rather than a thing he has killed -- which is the distinction he will make
-     to you, at length, while you are stuck to the floor.
-     crew 0, wing null, loud false: he works alone and he works quietly, and on the two jobs
-     that are physical work the borrowed-hands rule gives him two men off the local corner
-     like it does for MVP and Elias. */
-  zero: { name: "ZERO", crew: 0, wing: null, loud: false, hp: 110,
+  /* THE ICICLE. The seventh, and the first one who does not want what is in the building.
+     She wants the ROOM, at the temperature she keeps things at, and whatever is standing in it
+     when that happens is a thing she has saved rather than a thing she has killed -- which is
+     the distinction she will make to you, at length, while you are stuck to the floor.
+     Second `she: true` in the table after La Voz, and the second-largest crew after Monstruo:
+     unlike the other quiet one she does not work alone, she arrives with staff. */
+  icicle: { name: "THE ICICLE", she: true, crew: 5, wing: "ice", loud: false, hp: 120,
     approach: "The doors are frosted on the inside. Nobody in there is moving and none of them are hurt.",
     escape: "wagon",
-    escapeLine: "The wagon pulls out at fifteen miles an hour. He has never once driven fast." },
+    escapeLine: "The Continental pulls out at fifteen miles an hour. She has never once driven fast." },
 };
 /* What each of them says to whoever showed up. Five by five, because who you brought is the
    only thing about you they can see. */
@@ -3065,11 +3099,11 @@ const ROGUE_LINE = {
            kenny: "Everything you were is ash already. I am only being honest about it.",
            sho: "Steel burns too. It takes longer, that is all.",
            eclipse: "Write it down. Write down that it EATS. Nobody ever writes that part." },
-  zero: { lion: "You put people in the ground. I put them somewhere they can be got back out of.",
-          rio: "You are fifteen. Nothing has been taken off you yet. Wait.",
-          kenny: "Khan. The knees, the hands, all of it going at once. I could stop that tonight.",
-          sho: "A blade cuts things so they cannot be put back. Mine is the opposite of yours.",
-          eclipse: "Print the names. Eleven of them. Somebody ought to be keeping that list besides me." },
+  icicle: { lion: "You were a handsome man. I can see exactly where it went.",
+            rio: "Fifteen. You have no idea what I would pay to be stopped at fifteen.",
+            kenny: "Sixty-one, and you still walk into rooms. I find that almost brave.",
+            sho: "Move again. That is the only interesting thing you have done.",
+            eclipse: "You photograph well. Hold still and you always will." },
   voz: { lion: "He says you were a policeman once. He says it like it explains you.",
          rio: "He says you are somebody's son. He says that is a shame.",
          kenny: "He says he remembers the fifth fight. He says you should have stayed down.",
@@ -3086,7 +3120,7 @@ const HELD_LINE = {
   monstruo: "",
   voz:      "He has not said anything about %s. That is what frightens me.",
   arson:    "%s is still warm. Go and stand in it. You will understand.",
-  zero:     "%s is not the crime. The crime was signed in eighty-four and nobody has been charged for it.",
+  icicle:   "%s was not a crime. Go and look at them. Not one of them has aged a day.",
 };
 /* ---------- JOB TYPE TWO: THE DEVICE ----------
    The robbery asks how you get past somebody. This asks whether you get there. There is no
@@ -3117,9 +3151,9 @@ const ROGUE_BOMB = {
               fuse: 36, hidden: true },
   arson:    { where: "It is not a bomb. It is an accelerant, and it is under everything.",
               fuse: 34, hidden: false },
-  /* Hidden, and the longest fuse of the seven, because his does not go off -- it opens, and
+  /* Hidden, and the longest fuse of the seven, because hers does not go off -- it opens, and
      the room comes down to nothing over about a minute. The clock is the same either way. */
-  zero:     { where: "Not a bomb. A coolant flask under the floor, and it does not burn.",
+  icicle:   { where: "Not a bomb. A coolant flask under the floor, and it does not burn.",
               fuse: 42, hidden: true },
 };
 /* ---------- JOB TYPE THREE: THE GRAB ----------
@@ -3138,9 +3172,9 @@ const ROGUE_GRAB = {
   monstruo: { who: "A CASHIER",              walk: 214, note: "Forty of them came out. One of them is not a mime." },
   voz:      { who: "A CITY CLERK",           walk: 228, note: "She asked him to come. He came." },
   arson:    { who: "A FIRE WARDEN",          walk: 200, note: "He took the one whose job was to get everybody out." },
-  /* The slowest walk in the table. Nobody is being dragged: the doctor signed the Halcyon
-     release in eighty-four and has been waiting eleven years to be asked about it. */
-  zero:     { who: "A CRYOGENICS DOCTOR",   walk: 190, note: "Nobody is being pulled. They are walking out together." },
+  /* The slowest walk in the table, and nobody is being dragged. She picks people she has
+     decided are worth keeping and she tells them so, and it works often enough. */
+  icicle:   { who: "A PRIMA BALLERINA",     walk: 194, note: "Nobody is pulling her. She has been told she is being saved." },
 };
 /* ---------- JOB TYPE FOUR: THE HAUL ----------
    An armoured car, and the only job where WHEN you arrive decides what you are doing:
@@ -3159,7 +3193,10 @@ const ROGUE_BASE = {
   monstruo: { i: 15, j: 12, what: "a theatre in La Perla with the seats taken out" },
   voz:      { i: 6,  j: 8,  what: "an office downtown with her name on nothing" },
   arson:    { i: 7,  j: 11, what: "the burn unit. He still has a key." },
-  zero:     { i: 14, j: 8,  what: "the cold store by the docks. The power has never once been off." },
+  /* Inside ZONES.mountain (i0 24, i1 27, j0 0, j1 2), which is the only ground on this map
+     that reads as an estate rather than a street. The Vault is not a building yet -- this is
+     the address the Continental drives to and nothing more. */
+  icicle:   { i: 25, j: 1,  what: "the Vault, up the mountain road, where nothing has been warm since eighty-four." },
 };
 /* HIS GUN, in one table, the same as MECH_KIT and HUNTER_KIT and ROAR. `thaw` is doing two
    jobs on purpose -- it is how long a man stays pinned AND how long the block takes to melt,
@@ -3170,6 +3207,32 @@ const CRYO = { r: 118, arc: 0.30, cd: 2.8, beam: 0.7, dmg: 5, pin: 1.6, thaw: 6.
    the cheaper way out of a fight you were losing. `back` is what he is discharged at: enough
    to walk out on, not enough to walk straight back into the same room. */
 const DOWN_KIT = { ko: 100, arrest: 150, back: 0.6 };
+/* HOW HARD THE HEROES ARE. Every one of the fourteen places that takes health off the player
+   divides by this, so it is ONE number rather than fourteen retuned constants -- and the
+   relative weight of a fist against a shotgun against a burning car is preserved exactly as
+   it was written. 2.5 is "two and a half times the fight you used to survive". Raise it to 3
+   and nothing else has to move.
+   Deliberately NOT done by raising the roster's hp: the HUD bar, the food pickup and the
+   status payload all read the player as a number out of 100, and changing that means finding
+   every one of them. */
+const TOUGH = 2.5;
+/* THE WEATHER. Rolled, not toggled: a switch you set yourself is a setting, and the point of
+   weather is that the city decides. Every field is per-kind so a storm is not "more rain" --
+   it is darker, heavier, faster and it has lightning, and each of those is a number here.
+     drops  how many streaks are alive at once      dark  how far the street is dimmed
+     len    streak length in world units            spd   fall speed
+     bolt   average seconds between strikes (0 = never) */
+const WX_KIT = {
+  clear: { drops: 0,   dark: 0.00, len: 0,  spd: 0,    bolt: 0 },
+  light: { drops: 90,  dark: 0.08, len: 12, spd: 900,  bolt: 0 },
+  med:   { drops: 220, dark: 0.18, len: 20, spd: 1250, bolt: 0 },
+  storm: { drops: 420, dark: 0.30, len: 30, spd: 1650, bolt: 7 },
+};
+/* The roll. Clear is the most likely single outcome and it is still barely half the time,
+   because weather nobody ever sees is not weather. Spells run minutes, not seconds -- a sky
+   that changes every twenty seconds reads as a bug. */
+const WX_ODDS = [["clear", 0.50], ["light", 0.22], ["med", 0.17], ["storm", 0.11]];
+const WX_SPELL = [110, 260];
 const rogueIds = () => Object.keys(ROGUE_JOB);
 const isJewelCell = (i, j) => JEWEL_CELLS.some((c) => c.i === i && c.j === j);
 
@@ -7403,7 +7466,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -10624,7 +10687,7 @@ export default function IronLionLayer004() {
       if (g.p.x < r.x0 - M || g.p.x > r.x1 + M || g.p.y < r.y0 - M || g.p.y > r.y1 + M) {
         const fl = g.roof.floors || 2;
         g.roof = null;
-        g.p.hp = Math.max(0, g.p.hp - fl * 6);
+        g.p.hp = Math.max(0, g.p.hp - (fl * 6) / TOUGH);
         g.shake = Math.max(g.shake, 14);
         sfxImpact(0.9);
         g.pickupFlash = { nm: "long_way_down", t: 2.0 };
@@ -10929,7 +10992,7 @@ export default function IronLionLayer004() {
       // out of your depth you tire; stamina is the clock on how far you can cross
       // a swimmer should be able to cross with effort, not drown two lengths from the bank
       if (dep > 0.3) g.p.stamina = Math.max(0, g.p.stamina - dt * (0.55 + dep * 0.7));
-      if (g.p.stamina <= 0 && dep > 0.5) g.p.hp = Math.max(0, g.p.hp - dt * 3);
+      if (g.p.stamina <= 0 && dep > 0.5) g.p.hp = Math.max(0, g.p.hp - (dt * 3) / TOUGH);
     }
 
     /* A swimmer is a head and a wake, not a body. Drawn instead of the walk sprite. */
@@ -12583,7 +12646,7 @@ export default function IronLionLayer004() {
           const va = (v.vx != null || v.vy != null)
             ? Math.atan2(v.vy || 0, v.vx || 0) : (v.ang || 0);
           g.p.vx = Math.cos(va) * (70 + sp); g.p.vy = Math.sin(va) * (70 + sp);
-          g.p.hp = Math.max(0, g.p.hp - dmg * 1.4);
+          g.p.hp = Math.max(0, g.p.hp - (dmg * 1.4) / TOUGH);
           g.shake = Math.max(g.shake, 10);
         }
       }
@@ -15824,7 +15887,7 @@ export default function IronLionLayer004() {
       } else if (B.atkCd <= 0) {
         B.atk = 0.3; B.atkCd = 0.9;
         if (Math.random() < 0.75) {
-          g.p.hp = Math.max(0, g.p.hp - 6);
+          g.p.hp = Math.max(0, g.p.hp - (6) / TOUGH);
           g.p.vx += ux * 320; g.p.vy += uy * 320;
           g.shake = Math.max(g.shake, 10);
           sfxPunch();
@@ -18099,7 +18162,7 @@ export default function IronLionLayer004() {
                 m.atk = 1.2;
                 const hx2 = tx - m.x, hy2 = ty - m.y, hd2 = Math.hypot(hx2, hy2) || 1;
                 if (targetIsPlayer) {
-                  g.p.hp = Math.max(0, g.p.hp - 6);
+                  g.p.hp = Math.max(0, g.p.hp - (6) / TOUGH);
                   g.p.vx += (hx2 / hd2) * 80; g.p.vy += (hy2 / hd2) * 80;
                   g.shake = Math.max(g.shake, 6); g.hurt = 0.35;
                 } else if (targetMember) {
@@ -18610,7 +18673,8 @@ export default function IronLionLayer004() {
          you caught him and never during the job you caught him on.
          Alive only: a man on the floor is a KO silhouette, and that has to win. */
       if ((m.hp || 0) > 0) {
-        const vk = (m.boss && m.rid) ? "vil_" + m.rid : m.hxArt;
+        /* In costume. On a job he is never the man in the street clothes -- see VIL_SUIT. */
+        const vk = (m.boss && m.rid) ? vilSuit(m.rid) : m.hxArt;
         const vim = vk && imgs.current[vk];
         if (vim && vim.width) {
           m.yt = vk;
@@ -18933,7 +18997,7 @@ export default function IronLionLayer004() {
           const f = 1 - d / r.blast;
           const a = Math.atan2(o.y - r.ty, o.x - r.tx);
           if (o === g.p) {
-            g.p.hp = Math.max(0, g.p.hp - 34 * f);
+            g.p.hp = Math.max(0, g.p.hp - (34 * f) / TOUGH);
             g.p.vx += Math.cos(a) * 420 * f; g.p.vy += Math.sin(a) * 420 * f;
             g.p.stumble = 0.8;
           } else {
@@ -20464,7 +20528,7 @@ export default function IronLionLayer004() {
         sfxGunshot();
         const acc = clamp(0.62 - dp / 900, 0.14, 0.5);
         if (Math.random() < acc) {
-          g.p.hp = Math.max(0, g.p.hp - 9);
+          g.p.hp = Math.max(0, g.p.hp - (9) / TOUGH);
           g.shake = Math.max(g.shake, 6);
           g.hurt = 0.35;
         }
@@ -20478,7 +20542,7 @@ export default function IronLionLayer004() {
           t.vx = 0; t.vy = 0;
           if (t.atk <= 0) {
             t.atk = 1.15;
-            g.p.hp = Math.max(0, g.p.hp - 7);
+            g.p.hp = Math.max(0, g.p.hp - (7) / TOUGH);
             g.p.vx += (dxp / dp) * 90; g.p.vy += (dyp / dp) * 90;
             g.shake = Math.max(g.shake, 7);
             g.hurt = 0.35;
@@ -22485,7 +22549,15 @@ export default function IronLionLayer004() {
                    g.p.y - Math.sin(g.p.kickAng) * f * 14 + 3,
                    12 * (1 - f * 0.4), 5 * (1 - f * 0.4), 0.34);
       }
-      if (g.who !== "lion") {
+      /* THE LION GOES THROUGH THE SAME PATH AS THE REST OF THEM NOW. He was the only man
+         drawn off the embedded lion_act sheet instead of a plate, which is why he never quite
+         matched the others -- and why that base64 blob is still a large part of this file.
+         GUARDED ON THE PLATE HAVING LOADED. With nothing in assets/heroes/ he falls straight
+         back to drawKing exactly as before, so uploading the art is what turns this on and a
+         missing file changes nothing. That is deliberate: this is the one edit here that
+         could take the player character off screen if it were wrong. */
+      const lionPlate = g.who === "lion" ? heroPlate(rosterOf("lion")) : null;
+      if (g.who !== "lion" || (lionPlate && imgs.current[lionPlate])) {
         const r = rosterOf(g.who);
         const plate = heroPlate(r);
         if (plate && imgs.current[plate]) {
@@ -22713,7 +22785,7 @@ export default function IronLionLayer004() {
         const d = Math.hypot(o.x - x, o.y - y);
         if (d > R) return;
         const f = 1 - d / R;
-        if (isPlayer) { g.p.hp = Math.max(0, g.p.hp - dmg * f * 1.6); return; }
+        if (isPlayer) { g.p.hp = Math.max(0, g.p.hp - (dmg * f * 1.6) / TOUGH); return; }
         o.hp -= dmg * f; o.stun = Math.max(o.stun || 0, 0.5 * f);
         const a = Math.atan2(o.y - y, o.x - x);
         o.vx = Math.cos(a) * 210 * f; o.vy = Math.sin(a) * 210 * f;
@@ -22793,7 +22865,7 @@ export default function IronLionLayer004() {
           t = Math.max(0, Math.min(1, t));
           const px = sx + dx * t, py = sy + dy * t;
           if (Math.hypot(o.x - px, o.y - py) > 13) return false;
-          if (isPlayer) { g.p.hp = Math.max(0, g.p.hp - b.dmg); g.shake = Math.max(g.shake, 4);
+          if (isPlayer) { g.p.hp = Math.max(0, g.p.hp - (b.dmg) / TOUGH); g.shake = Math.max(g.shake, 4);
                           bleed(g.p.x, g.p.y, false); return true; }
           o.hp -= b.dmg;
           o.stun = Math.max(o.stun || 0, 0.25);
@@ -22948,7 +23020,7 @@ export default function IronLionLayer004() {
       if (g.p.x < r.x0 - M2 || g.p.x > r.x1 + M2 || g.p.y < r.y0 - M2 || g.p.y > r.y1 + M2) {
         // stepped off, and it is the same drop as a roof
         g.onPlat = null;
-        g.p.hp = Math.max(0, g.p.hp - 10);
+        g.p.hp = Math.max(0, g.p.hp - (10) / TOUGH);
         g.shake = Math.max(g.shake, 14);
         g.pickupFlash = { nm: "long_way_down", t: 2.0 };
       }
@@ -23408,7 +23480,7 @@ export default function IronLionLayer004() {
         for (const cr of g.crews) if (!cr.indoor) for (const m of cr.members) burn(m);
         if (g.crime) for (const t of g.crime.thugs) burn(t);
         if (g.mode === "foot" && Math.hypot(g.p.x - b.x, g.p.y - b.y) < b.r) {
-          g.p.hp = Math.max(0, g.p.hp - 0.9);
+          g.p.hp = Math.max(0, g.p.hp - (0.9) / TOUGH);
         }
       }
     }
@@ -24344,6 +24416,7 @@ export default function IronLionLayer004() {
       updateItems(dt, g.cam.x, g.cam.y);
       updatePolice(dt);
       updateDetectives(dt);
+      updateWeather(dt);
       /* THE KNOCKOUT. Fourteen separate Math.max(0, ...) calls clamp the player's health and
          until now not one line in this file READ the result -- you could stand at zero
          indefinitely and the city carried on around you. This is the consequence.
@@ -24707,6 +24780,10 @@ export default function IronLionLayer004() {
       drawFlames();
       drawFreeze();
       drawIce();
+      /* Above the bodies and below the HUD -- rain in front of a man is rain he is standing
+         in; rain behind him is a wallpaper. Indoors it is skipped, because it is drawn on the
+         world plane and there is a roof over you. */
+      if (!g.inside) drawWeather();
       drawHunter();
       drawMech();
       drawChopper();          // last: it is above everything, because it is in the air
@@ -25510,6 +25587,14 @@ export default function IronLionLayer004() {
     // both allies suit up; the flag is per-man so one does not wear the other's decision
     G.heroFn = () => { if (g.who !== "lion") { g.hero = g.hero || {}; g.hero[g.who] = !g.hero[g.who]; } };
     function heroPlate(r) {
+      /* ON THE BOARD, THE DECK COMES OFF HIS BACK. His hero plate wears it across the
+         shoulders, which is right when he is walking and wrong the instant he is riding --
+         drawBoardUnder is already putting the real deck under his feet, so the two of them
+         together put two boards on screen. One extra key rather than moving the deck, because
+         a deck slung on a back and a deck being stood on are different pictures.
+         Every path that asks which plate he is wearing comes through here -- the body, the
+         bench, the bike -- so this is the one place it has to be said. */
+      if (r.id === "rio" && g.board && g.board.on) return "yt_rio_ride";
       return (r.hero && g.hero && g.hero[r.id]) ? r.hero : r.yt;
     }
     function drawOneBenched(sp) {
@@ -26781,7 +26866,7 @@ export default function IronLionLayer004() {
           b.flameCd = 2.4;
           b.flameT = 0.85;
           b.flameAng = Math.atan2(g.p.y - b.y, g.p.x - b.x);
-          g.p.hp = Math.max(0, g.p.hp - 9);
+          g.p.hp = Math.max(0, g.p.hp - (9) / TOUGH);
         }
         b.flameT = Math.max(0, (b.flameT || 0) - (g.dt || 0.016));
       }
@@ -26789,14 +26874,14 @@ export default function IronLionLayer004() {
          being here: this is the one place that already knows which rogue is on the board.
          Stun-led rather than damage-led, like ROAR -- 5 points and a second and a half on the
          floor, and the floor is where his crew get to reach you. */
-      if (j.rid === "zero") {
+      if (j.rid === "icicle") {
         b.cryoCd = (b.cryoCd || 0) - (g.dt || 0.016);
         const d2 = Math.hypot(g.p.x - b.x, g.p.y - b.y);
         if (b.cryoCd <= 0 && d2 < CRYO.r) {
           b.cryoCd = CRYO.cd;
           b.cryoT = CRYO.beam;
           b.cryoAng = Math.atan2(g.p.y - b.y, g.p.x - b.x);
-          g.p.hp = Math.max(0, g.p.hp - CRYO.dmg);
+          g.p.hp = Math.max(0, g.p.hp - (CRYO.dmg) / TOUGH);
           g.p.stunT = Math.max(g.p.stunT || 0, CRYO.pin);
           g.p.iceT = Math.max(g.p.iceT || 0, CRYO.pin + 1.2);
           /* He does not aim around his own borrowed hands, and that is the point of him. */
@@ -26952,6 +27037,76 @@ export default function IronLionLayer004() {
         ctx.fillText(line, cx - w / 2 + 8, cy - 33);
       }
     }
+    /* ---------- WEATHER ----------
+       Rolled on a timer and forced from the console, never from a menu switch.
+       Drawn in WORLD space around the camera rather than screen space: every other overlay in
+       this file that wanted the screen had to go and find the canvas dimensions, and a rect
+       centred on g.cam with a generous half-extent covers the view at any size with no
+       dimension lookup at all. */
+    const WX_R = 1400;
+    function rollWeather() {
+      const r = Math.random();
+      let acc = 0, k = "clear";
+      for (const [kind, p] of WX_ODDS) { acc += p; if (r < acc) { k = kind; break; } }
+      g.wx = g.wx || {};
+      g.wx.k = k;
+      g.wx.t = WX_SPELL[0] + Math.random() * (WX_SPELL[1] - WX_SPELL[0]);
+      g.wx.boltCd = 1 + Math.random() * 4;
+      g.wx.flash = 0;
+      if (k !== "clear") g.pickupFlash = { nm: "wx_" + k, t: 2.2 };
+    }
+    function updateWeather(dt) {
+      if (!g.wx || g.wx.k == null) { rollWeather(); return; }
+      g.wx.t -= dt;
+      if (g.wx.t <= 0) { rollWeather(); return; }
+      const K = WX_KIT[g.wx.k] || WX_KIT.clear;
+      g.wx.flash = Math.max(0, (g.wx.flash || 0) - dt * 3.2);
+      if (!K.bolt) return;
+      /* LIGHTNING. Not on a fixed cadence -- a strike every seven seconds on the dot is a
+         metronome. The cooldown is redrawn from a spread each time so the gaps are uneven,
+         which is the whole reason it makes you look up. */
+      g.wx.boltCd -= dt;
+      if (g.wx.boltCd <= 0) {
+        g.wx.boltCd = K.bolt * (0.4 + Math.random() * 1.6);
+        g.wx.flash = 1;
+        g.shake = Math.max(g.shake || 0, 5 + Math.random() * 5);
+      }
+    }
+    function drawWeather() {
+      const W = g.wx;
+      if (!W || !W.k || W.k === "clear") return;
+      const K = WX_KIT[W.k] || WX_KIT.clear;
+      const cx = g.cam.x, cy = g.cam.y;
+      if (!Number.isFinite(cx) || !Number.isFinite(cy)) return;
+      ctx.save();
+      // the sky going down over the street
+      ctx.fillStyle = `rgba(16,18,30,${K.dark})`;
+      ctx.fillRect(cx - WX_R, cy - WX_R, WX_R * 2, WX_R * 2);
+      /* The rain. Positions are a hash of the drop index, so a drop does not teleport
+         sideways between frames -- only its fall offset moves, which is what makes it read as
+         falling rather than as static noise redrawn. */
+      ctx.strokeStyle = W.k === "storm" ? "rgba(190,205,235,0.42)" : "rgba(180,195,225,0.30)";
+      ctx.lineWidth = W.k === "storm" ? 1.6 : 1.1;
+      const slant = W.k === "storm" ? 0.42 : 0.16;
+      const span = WX_R * 2;
+      ctx.beginPath();
+      for (let i = 0; i < K.drops; i++) {
+        const hx = ((i * 9781) % 10000) / 10000;
+        const hy = ((i * 6151) % 10000) / 10000;
+        const fall = (hy * span + g.t * K.spd) % span;
+        const x = cx - WX_R + hx * span - fall * slant;
+        const y = cy - WX_R + fall;
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + K.len * slant, y + K.len);
+      }
+      ctx.stroke();
+      // the strike itself, over everything, gone in about a third of a second
+      if ((W.flash || 0) > 0) {
+        ctx.fillStyle = `rgba(226,238,255,${0.55 * W.flash * W.flash})`;
+        ctx.fillRect(cx - WX_R, cy - WX_R, WX_R * 2, WX_R * 2);
+      }
+      ctx.restore();
+    }
     function drawJobBanner() {
       if (!g.job || !g.jobBanner) return;
       if (g.job.phase === "done" && g.job.t > 6) return;
@@ -27060,7 +27215,7 @@ export default function IronLionLayer004() {
        `kit` is what he starts with the first time you take him out. After that whatever he
        was carrying is on the bench with him and comes back when you pick him up again. */
     const ROSTER = [
-      { id: "lion", name: "THE LION", yt: null,
+      { id: "lion", name: "THE LION", yt: "yt_lion", hero: "yt_lion_hero",
         kit: { wpn: null, ammo: 0, holstered: false, board: false, hp: 100 } },
       { id: "rio", name: "RIO", yt: "yt_rio", hero: "yt_rio_hero",
         kit: { wpn: null, ammo: 0, holstered: false, board: true, hp: 100, smoke: 50 } },
@@ -28892,6 +29047,13 @@ export default function IronLionLayer004() {
       return "out";
     };
 
+    G.rainFn = (k) => {
+      const gg = G.current;
+      if (!WX_KIT[k]) { rollWeather(); return gg.wx.k; }
+      gg.wx = gg.wx || {};
+      gg.wx.k = k; gg.wx.t = 240; gg.wx.boltCd = 1; gg.wx.flash = 0;
+      return k;
+    };
     G.downFn = (why) => { downHero(why === "arrest" ? "arrest" : "ko"); return true; };
     G.upFn = () => { G.current.down = {}; return true; };
     G.fisFn = () => {
@@ -28924,6 +29086,7 @@ export default function IronLionLayer004() {
       W2.fis = () => G.fisFn();
       W2.down = (why) => G.downFn(why || "ko");      // put the current man on the shelf
       W2.up = () => G.upFn();                        // clear every cooldown
+      W2.rain = (k) => G.rainFn(k);                  // "clear" | "light" | "med" | "storm"
     }
     raf = requestAnimationFrame(frame);
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
