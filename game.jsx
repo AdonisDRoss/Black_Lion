@@ -25602,14 +25602,27 @@ export default function IronLionLayer004() {
        plate at a different aspect and it still comes out the right size.
        Reference is the Lion's CIV plate on purpose, not heroPlate("lion") -- his hero plate is
        a different shape, and keying off it would resize the whole roster when he suits up. */
-    const HERO_SPAN = { lion: 1.00, rio: 0.84, kenny: 1.14, sho: 0.94, eclipse: 0.90 };
+    const HERO_SPAN = { lion: 1.00, rio: 0.84, kenny: 0.96, sho: 0.76, eclipse: 0.90 };
+    /* The Lion's civ plate is 224x159. HARDCODED, not looked up. It was read off
+       imgs.current.yt_lion, and when that lookup missed the whole thing fell back to the old
+       hand-tuned numbers -- so every span change I made did nothing at all and the exact three
+       sizes that were wrong stayed wrong. A reference measurement is not runtime state. */
+    const HERO_REF = 224 / 159;
+    /* PER-PLATE CORRECTION, on top of the span. Matching total width assumes the arms sit at
+       roughly the same angle on every plate, and they do not: the Lion's mask plate is 224x111
+       with the arms flung right out, so making its WIDTH match his civ plate makes the BODY
+       inside it noticeably smaller. Anything whose arms are unusually wide or unusually tucked
+       gets a nudge here rather than a hand-tuned tall, so the span rule stays the rule and the
+       exceptions stay visible as exceptions. Default is 1 -- a plate not listed needs nothing. */
+    const HERO_FIT = { yt_lion_hero: 1.22 };
     function heroTall(r) {
-      const im = imgs.current[heroPlate(r)], ref = imgs.current.yt_lion;
-      /* No art, no change: falls back to exactly the numbers that were here before, so a
-         missing file cannot silently resize anybody. */
-      if (!im || !im.width || !ref || !ref.width)
-        return r.id === "sho" ? 1.42 : r.id === "kenny" ? 1.24 : 1;
-      return (HERO_SPAN[r.id] || 1) * ((ref.width / ref.height) / (im.width / im.height));
+      const plate = heroPlate(r);
+      const im = imgs.current[plate];
+      /* Only the plate itself is runtime state now, and drawYouth already bails when it is
+         missing -- so if you can SEE him, this ran. No fallback to fall into. */
+      if (!im || !im.width) return 1;
+      return (HERO_SPAN[r.id] || 1) * (HERO_FIT[plate] || 1)
+             * (HERO_REF / (im.width / im.height));
     }
     function heroPlate(r) {
       /* ON THE BOARD, THE DECK COMES OFF HIS BACK. His hero plate wears it across the
