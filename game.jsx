@@ -1151,10 +1151,16 @@ const VILLAINS = [
    before wiring -- read off the plate, not assumed, because six vehicles in this project have
    arrived pointing the wrong way. */
 const VIL_CARS = [
-  { k: "vh_kuru_bike", len: 96, w: 34, who: "kuru" },
+  /* `w` is MEASURED off each plate now, not guessed: w = len * (plate width / plate height),
+     with every one cut nose-UP. A width that disagrees with the art is what makes a car look
+     stretched at speed and read as a different vehicle from the one parked. */
+  { k: "vh_kuru_bike", len: 96, w: 32, who: "kuru" },
   { k: "vh_mvp_atv", len: 92, w: 62, who: "mvp" },
-  { k: "vh_mons_rod", len: 112, w: 58, who: "monstruo" },
-  { k: "vh_drive_van", len: 122, w: 66, who: "drive", rockets: 1 },
+  { k: "vh_mons_rod", len: 112, w: 67, who: "monstruo" },
+  { k: "vh_drive_van", len: 122, w: 68, who: "drive", rockets: 1 },
+  /* LA VOZ HAD NO CAR AT ALL -- she was the one rogue missing from this list, so her scene
+     fell through to the generic fallback and her getaway was somebody else's sedan. */
+  { k: "vh_voz_coupe", len: 118, w: 52, who: "voz" },
   /* The Cold Storage Continental -- a refrigerated transport with the plant still running off
      the tailgate. Turned nose-UP at cut time, so it does NOT also go in ROTATE_CW. */
   { k: "vh_icicle_wagon", len: 132, w: 62, who: "icicle" },
@@ -1191,6 +1197,10 @@ const VIL = {};
 for (const pool of Object.values(HENCH_POOL))
   for (const k of pool) VIL[k] = "assets/villains/" + k + ".png";
 for (const v of VIL_CARS) VIL[v.k] = "assets/villains/" + v.k + ".png";
+/* Bannerman's truck. NOT in VIL_CARS -- that list is keyed by `who` against a rogue id and he
+   is not a rogue, he is the man they send. Registered here so the plate loads; the ride object
+   in the hunt already carries its own position and phase and now has a model to draw with. */
+VIL.vh_hale_truck = "assets/villains/vh_hale_truck.png";
 /* A NULL SECOND LOOK REGISTERS NOTHING. Clarissa has the rig and no out-of-suit plate yet,
    and registering vil_icicle_civ ahead of the art bought a permanent line on the HUD saying
    so -- which is the exact mistake ROOF_PENDING exists to stop, made again in another folder.
@@ -26126,6 +26136,7 @@ export default function IronLionLayer004() {
               g.hunter.dropT = 0;
               h.ride = { x: g.hunter.x + 700, y: g.hunter.y + 700,
                          tx: g.hunter.x + 40, ty: g.hunter.y + 40,
+                         m: { k: "vh_hale_truck", len: 128, w: 60 },
                          ang: Math.PI * 1.25, phase: "out", t: 7 };
               g.jobBanner = HERO_HUNTER.called + " \u00b7 HE DROVE HIMSELF";
             }
