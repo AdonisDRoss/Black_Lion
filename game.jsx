@@ -25818,8 +25818,14 @@ export default function IronLionLayer004() {
     /* One tag for every federal on screen, so a regular and a named agent are told apart the
        same way everywhere -- squad, field office, or Bannerman standing in the road. */
     function fisTag(o, name, gold) {
-      if (!o || !Number.isFinite(o.x)) return;
-      const f = Math.max(0, o.hp / (o.maxHp || o.hp || 1));
+      if (!o || !Number.isFinite(o.x) || !Number.isFinite(o.y)) return;
+      /* A tag is drawn for staff, squad and Bannerman, and they were built at different times
+         with different fields -- one of them arriving without maxHp makes f NaN, and a NaN
+         width in fillRect throws. Clamped rather than trusted. */
+      let f = o.hp / (o.maxHp || o.hp || 1);
+      if (!Number.isFinite(f)) f = 1;
+      f = clamp(f, 0, 1);
+      name = String(name == null ? "AGENT" : name);
       const bg = imgs.current[gold ? "fis_badge_gold" : "fis_badge_silver"];
       const bw = 13, bh = bg && bg.width ? bw * (bg.height / bg.width) : 16;
       ctx.font = "700 9px system-ui, sans-serif";
@@ -26407,6 +26413,7 @@ export default function IronLionLayer004() {
        dampener's blue-white: his is the only ability in the game that ADDS force. */
     function drawRoar() {
       if (!((g.roarT || 0) > 0)) return;
+      if (!Number.isFinite(g.p.x) || !Number.isFinite(g.p.y)) return;
       const k = 1 - g.roarT / 0.75;
       for (let i = 0; i < 3; i++) {
         const kk = clamp(k * (1 + i * 0.35), 0, 1);
@@ -27431,9 +27438,17 @@ export default function IronLionLayer004() {
         const vc = VIL_CARS.find((v) => v.who === j.rid)
           || { k: "vh_cross_muscle", len: 118, w: 50 };
         const ra = Math.random() * 6.283;
+        const rx0 = x + Math.cos(ra) * 130, ry0 = y + Math.sin(ra) * 130;
+        /* LANE FIELDS FROM BIRTH. This is the third vehicle I have put into g.traffic without
+           axis/si/k/dir -- the arrival car, then the food trucks, now this. Anything that walks
+           the traffic list and touches lane maths reads them, gets undefined, and hands NaN to
+           canvas. Setting them costs four lines and removes the entire failure mode, whether or
+           not the pass that reads them skips `dead`. */
         const rv = {
-          x: x + Math.cos(ra) * 130, y: y + Math.sin(ra) * 130,
-          ang: ra + Math.PI / 2, spd: 0, brake: 0, m: vc,
+          x: rx0, y: ry0,
+          axis: "h", si: clamp(Math.round(ry0 / PITCH), 0, N),
+          dir: 1, k: clamp(Math.round(rx0 / PITCH), 0, N),
+          ang: ra + Math.PI / 2, spd: 0, cruise: 0, brake: 0, m: vc,
           dead: 1, parked: 1, named: 1, trFree: 1, rogueRide: 1,
         };
         if (Number.isFinite(rv.x)) { g.traffic.push(rv); j.ride = rv; }
@@ -27815,7 +27830,8 @@ export default function IronLionLayer004() {
         const R2 = j.ride;
         if (b) {
           b.hp = 9999;
-          if (R2 && Number.isFinite(R2.x)) {
+          if (R2 && Number.isFinite(R2.x) && Number.isFinite(R2.y)
+            && Number.isFinite(b.x) && Number.isFinite(b.y)) {
             const dx = R2.x - b.x, dy = R2.y - b.y, d = Math.hypot(dx, dy) || 1;
             const spd = 190;
             b.vx = (dx / d) * spd; b.vy = (dy / d) * spd;
