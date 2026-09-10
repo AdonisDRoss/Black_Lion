@@ -1075,7 +1075,7 @@ YT.wp_katana = "assets/youth/wp_katana.png";
    yt_rio_ride is the third Rio plate: his hero plate carries the deck across his shoulders,
    and drawBoardUnder puts the real deck under his feet, so riding drew two boards. */
 const HERO_ART = {};
-for (const k of ["yt_lion", "yt_lion_hero", "yt_rio", "yt_rio_hero", "yt_rio_ride",
+for (const k of ["yt_lion", "yt_lion_hero", "yt_mentor", "yt_rio", "yt_rio_hero", "yt_rio_ride",
                  "yt_kenny", "yt_kenny_hero", "yt_sho", "yt_sho_hero",
                  "yt_eclipse", "yt_eclipse_hero"])
   HERO_ART[k] = "assets/heroes/" + k + ".png";
@@ -25656,12 +25656,19 @@ export default function IronLionLayer004() {
         if (!drawActorTop(sp.r.actor, 0, u, null)) {
           ctx.fillStyle = "#2f4a3a"; ctx.fillRect(sp.x - 9, sp.y - 14, 18, 28);
         }
-      } else if (sp.r.id !== "lion") {
+      } else {
         const im = imgs.current[heroPlate(sp.r)];
         if (im && im.width) {
-          /* Sho stands a head taller than Rio -- he is nearer the Lion's build, and at this
-             size height is most of what separates two men in dark jackets. */
-          const h = sp.r.id === "sho" ? 38 : sp.r.id === "kenny" ? 34 : sp.r.id === "eclipse" ? 25 : 28,
+          /* THE IDLE DRAW WAS ITS OWN SIZING and that is why the roster kept coming out wrong
+             after every span change: the man standing in the bay never went near heroTall.
+             Four hardcoded heights (sho 38, kenny 34, eclipse 25, everyone else 28) set the
+             HEIGHT and let width follow the aspect -- the same mistake heroTall exists to fix,
+             sitting one function away from the fix.
+             Now it is the same rule, just scaled up: 34 instead of the world's 24.6, because
+             the bay is a display case and he should read bigger there than on the street.
+             The Lion is no longer excluded either -- he was skipped entirely, which is why his
+             idle was still the old sheet while his street sprite was the new plate. */
+          const h = 34 * heroTall(sp.r),
                 w = h * (im.width / im.height);
           // and only a man who is carrying a board is drawn stood on one
           const dk = (sp.r.kit && sp.r.kit.board) ? imgs.current.sk_deck : null;
@@ -25673,19 +25680,6 @@ export default function IronLionLayer004() {
           ctx.drawImage(im, -w / 2, -h / 2, w, h);
           ctx.restore();
         } else { ctx.fillStyle = "#5a7a9a"; ctx.fillRect(sp.x - 8, sp.y - 13, 16, 26); }
-      } else {
-        /* Darius, not the Lion. He is stood in his own garage waiting to be asked -- he is not
-           in the mask, so row 0 of darius_top rather than the costume sheet. */
-        const im = imgs.current.darius_top;
-        if (im && im.width) {
-          /* darius_top is 552x92 -- twelve 46px columns over two rows. `im.height / 2` happens
-             to equal 46 here, but it is the wrong reason and it shrank him the moment the
-             sheet changed. Take the real cell. */
-          /* 34 read as a child. Darius is a full figure in one cell, so he needs the whole
-             cell height rather than a number that matched an ally's torso. */
-          const cell = 46, d = 46;
-          ctx.drawImage(im, 0, 0, cell, cell, sp.x - d / 2, sp.y - d / 2, d, d);
-        } else { ctx.fillStyle = "#8a6a3a"; ctx.fillRect(sp.x - 9, sp.y - 14, 18, 28); }
       }
       // the prompt, so you know it is a conversation and not scenery
       if (Math.hypot(g.p.x - sp.x, g.p.y - sp.y) < 64)
