@@ -20525,6 +20525,22 @@ export default function IronLionLayer004() {
         if (g.crime) for (const t of g.crime.thugs) consider(t);
         if (g.shop && g.shop.rob) for (const t of g.shop.rob.thugs) consider(t);
         if (g.boss && (!g.boss.roof || g.roof === g.boss.roof)) consider(g.boss);
+        /* THE LOCK NEVER KNEW ABOUT THE LAW. This is why the FIS and the police felt
+           bulletproof even after they went onto the bullet list -- the gun aims at the nearest
+           man `consider` has been shown, and it had only ever been shown gang members. With no
+           candidate it fires straight ahead, so hitting an officer meant lining him up by hand
+           while he shot back. They are candidates now.
+           Police only once they are actually after you: auto-aiming at a passing patrolman
+           every time you draw would start fights you never chose. */
+        if ((g.heat || 0) > 0) for (const u of policeUnits()) consider(u);
+        for (const f of federals()) consider(f);
+        /* A LOCK YOU CHOSE beats the nearest man. Held for as long as he is alive and in range,
+           so a burst stays on one target instead of drifting to whoever wandered closer. */
+        if (g.lockOn && g.lockOn.hp > 0 && Number.isFinite(g.lockOn.x)
+          && Math.hypot(g.lockOn.x - g.p.x, g.lockOn.y - g.p.y) < st.range * 1.2) {
+          best = g.lockOn;
+          bd = Math.hypot(best.x - g.p.x, best.y - g.p.y);
+        } else if (g.lockOn) { g.lockOn = null; }
         /* Fires whether or not there is a target. Before, no hostile in range meant the shot
            silently became a punch -- which is exactly what "it looks like I'm just punching"
            was. He aims at the nearest man if there is one and straight ahead if there is not. */
@@ -24590,6 +24606,21 @@ export default function IronLionLayer004() {
       drawGuards(); drawDeputies(); drawBlast();
       drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
       drawArrivals();
+      /* The lock, drawn on the man himself. A target you cannot see you have chosen is a
+         setting, not a mechanic. */
+      if (g.lockOn && g.lockOn.hp > 0 && Number.isFinite(g.lockOn.x)) {
+        const L = g.lockOn, pu = 0.6 + 0.4 * Math.sin(g.t * 6);
+        ctx.strokeStyle = `rgba(232,120,90,${0.55 + 0.35 * pu})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(L.x, L.y, 20 + pu * 3, 0, 6.3); ctx.stroke();
+        for (let q = 0; q < 4; q++) {
+          const a2 = q * 1.5708;
+          ctx.beginPath();
+          ctx.moveTo(L.x + Math.cos(a2) * 24, L.y + Math.sin(a2) * 24);
+          ctx.lineTo(L.x + Math.cos(a2) * 31, L.y + Math.sin(a2) * 31);
+          ctx.stroke();
+        }
+      }
       drawFisHunt();
       drawRoar();
       drawFlames();
@@ -24882,6 +24913,7 @@ export default function IronLionLayer004() {
             entry: g.inside ? (g.inside.entry || 0) : 0,
             hunt: !!(g.fisHunt && g.fisHunt.on),
             roarCd: g.roarCd || 0,
+            locked: !!(g.lockOn && g.lockOn.hp > 0),
             obj: jobObjective(),
             crime: g.crime ? { place: g.crime.place, result: g.crime.result,
               code: g.crime.code, label: g.crime.label,
@@ -27987,6 +28019,34 @@ export default function IronLionLayer004() {
     };      // test button: reroll a job now
     G.turboFn = () => safely("turbo", turboBoost);
 
+    /* TARGET CYCLE. Not on the stick -- you were right that it would fight your movement, and a
+       twin-stick control on a phone with one thumb on the joystick is a control you cannot use
+       while driving away from anything. It is a button: tap to take the nearest, tap again to
+       step to the next, and it clears itself when the man is down or out of range. */
+    G.cycleTargetFn = () => {
+      const gg = G.current;
+      const p = gg.p;
+      const list = [];
+      const add = (o) => {
+        if (!o || o.hp <= 0 || !Number.isFinite(o.x)) return;
+        if (Math.hypot(o.x - p.x, o.y - p.y) > 520) return;
+        list.push(o);
+      };
+      for (const cr of (gg.crews || [])) {
+        if (cr.indoor ? (cr.indoor !== gg.inside || cr.indoorFloor !== gg.floor) : gg.inside) continue;
+        for (const m of (cr.members || [])) add(m);
+      }
+      if (gg.job && gg.job.boss) add(gg.job.boss);
+      for (const u of policeUnits()) add(u);
+      for (const f of federals()) add(f);
+      if (!list.length) { gg.lockOn = null; gg.pickupFlash = { nm: "no_target", t: 1.2 }; return false; }
+      list.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
+      const i = gg.lockOn ? list.indexOf(gg.lockOn) : -1;
+      gg.lockOn = list[(i + 1) % list.length];
+      gg.pickupFlash = { nm: "locked", t: 1.2 };
+      return true;
+    };
+
     /* ---------- THE SPECIALS ----------
        One button, and what it does is decided by what you are sitting in. Every one of these
        goes through the systems that already exist -- the bullet list, the fire system, the
@@ -28632,6 +28692,7 @@ export default function IronLionLayer004() {
     hunter_out: "BANNERMAN IS ON YOU", hunter_down: "BANNERMAN IS DOWN",
     mech_out: "UNIT 04 IS WALKING", mech_down: "UNIT 04 IS SCRAP",
     hunt_on: "THE FIS ARE LOOKING FOR YOU", hunt_off: "THE FIS HAVE STOOD DOWN",
+    locked: "TARGET", no_target: "NOBODY IN RANGE",
     air_unit_off: "THE BIRD IS TURNING FOR HOME",
     roar: "NOBODY IN RANGE", roar_hit: "THE WHOLE ROOM WENT DOWN",
     agents_out: "AGENTS ON YOU",
@@ -30237,6 +30298,8 @@ export default function IronLionLayer004() {
                 : hud.wpn === "grenade" || hud.wpn === "molotov" ? "throw"
                 : hud.wpn === "bat" || hud.wpn === "knife" ? "swing" : "shoot",
               () => G.strikeFn && G.strikeFn())}
+            {hud.wpn && !hud.holstered && btn("TGT", hud.locked ? "next" : "lock on",
+              () => G.cycleTargetFn && G.cycleTargetFn(), hud.locked)}
             {hud.wpn && btn(hud.holstered ? "DRAW" : "PUT UP",
               hud.holstered ? hud.wpn.replace(/_/g, " ") : "use hands",
               () => G.drawFn && G.drawFn())}
