@@ -1075,7 +1075,7 @@ YT.wp_katana = "assets/youth/wp_katana.png";
    yt_rio_ride is the third Rio plate: his hero plate carries the deck across his shoulders,
    and drawBoardUnder puts the real deck under his feet, so riding drew two boards. */
 const HERO_ART = {};
-for (const k of ["yt_lion", "yt_lion_hero", "yt_mentor", "yt_rio", "yt_rio_hero", "yt_rio_ride",
+for (const k of ["yt_lion", "yt_lion_hero", "yt_lion_hero_bare", "yt_mentor", "yt_rio", "yt_rio_hero", "yt_rio_ride",
                  "yt_kenny", "yt_kenny_hero", "yt_sho", "yt_sho_hero",
                  "yt_eclipse", "yt_eclipse_hero"])
   HERO_ART[k] = "assets/heroes/" + k + ".png";
@@ -22560,8 +22560,13 @@ export default function IronLionLayer004() {
          back to drawKing exactly as before, so uploading the art is what turns this on and a
          missing file changes nothing. That is deliberate: this is the one edit here that
          could take the player character off screen if it were wrong. */
-      const lionPlate = g.who === "lion" ? heroPlate(rosterOf("lion")) : null;
-      if (g.who !== "lion" || (lionPlate && imgs.current[lionPlate])) {
+      /* `.width`, NOT truthiness. The loader puts an Image object in imgs.current the moment
+         it starts fetching, so a file that never arrives leaves a REAL object that is simply
+         0 wide. Testing the object meant this gate passed for art that had not loaded,
+         drawYouth then bailed on !im.width, and the Lion came out as the stand-in box instead
+         of falling back to drawKing the way this guard was written to. */
+      const lionArt = g.who === "lion" ? imgs.current[heroPlate(rosterOf("lion"))] : null;
+      if (g.who !== "lion" || (lionArt && lionArt.width)) {
         const r = rosterOf(g.who);
         const plate = heroPlate(r);
         if (plate && imgs.current[plate]) {
@@ -23841,7 +23846,13 @@ export default function IronLionLayer004() {
       const c = g.moto;
       const mounted = g.mode === "moto";
       const plateM = motoPlate();
-      if (mounted && g.who !== "lion") {
+      /* THE LION ON THE BIKE. Excluded here exactly as he was excluded from the bench draw,
+         and for the same stale reason -- he fell through to rd_lion_ride, the old combined
+         rider-and-bike sheet, which is the model you are seeing. Same guard shape as the
+         ground draw: tested on .width, so a plate that has not loaded still falls back to the
+         old sheet rather than putting him on the bike as a coloured box. */
+      const lionRide = g.who === "lion" ? imgs.current[heroPlate(rosterOf("lion"))] : null;
+      if (mounted && (g.who !== "lion" || (lionRide && lionRide.width))) {
         const L = plateM.len;
         const im = plateM.im;
         if (im && im.width) {
@@ -25614,7 +25625,7 @@ export default function IronLionLayer004() {
        inside it noticeably smaller. Anything whose arms are unusually wide or unusually tucked
        gets a nudge here rather than a hand-tuned tall, so the span rule stays the rule and the
        exceptions stay visible as exceptions. Default is 1 -- a plate not listed needs nothing. */
-    const HERO_FIT = { yt_lion_hero: 1.22 };
+    const HERO_FIT = {};
     function heroTall(r) {
       const plate = heroPlate(r);
       const im = imgs.current[plate];
@@ -25639,7 +25650,19 @@ export default function IronLionLayer004() {
          g.plain itself. The moment he started drawing from a plate, THIS is the line that had
          to know it -- otherwise he suits up, the flag flips, the HUD agrees, and the picture
          never changes. Inverted against the others on purpose: plain means OUT of costume. */
-      if (r.id === "lion") return g.plain ? r.yt : (r.hero || r.yt);
+      /* ARMS OFF WHEN THE DRAWN ARM IS DOING THE WORK. drawYouth paints its arm OVER the
+         plate, which is right for a punch you can read as a blur and wrong for a rifle: two
+         forearms, one holding nothing. `_bare` is the same plate with the hanging arms taken
+         off below the shoulder, so the arm the code draws is the only arm on screen.
+         Gated on r.id === g.who because heroPlate also answers for BENCHED men, and g.p.atk
+         is the PLAYER's swing -- without this, drawing your rifle took the arms off whoever
+         happened to be standing in the bay. */
+      if (r.id === "lion" && !g.plain) {
+        const busy = r.id === g.who &&
+          ((g.p.atk || 0) > 0 || (g.p.punT || 0) > 0 || (g.p.wpn && !g.p.holstered));
+        return busy ? "yt_lion_hero_bare" : (r.hero || r.yt);
+      }
+      if (r.id === "lion") return r.yt;
       return (r.hero && g.hero && g.hero[r.id]) ? r.hero : r.yt;
     }
     function drawOneBenched(sp) {
@@ -28027,8 +28050,19 @@ export default function IronLionLayer004() {
          there, you just did not look at it. dead:1 keeps the traffic driver off it, so it sits
          where it is put and you can wreck it before he reaches it. */
       {
-        const vc = VIL_CARS.find((v) => v.who === j.rid)
-          || { k: "vh_cross_muscle", len: 118, w: 50 };
+        /* HIS CAR WAS ALWAYS BEING PARKED -- IT HAD NOTHING TO DRAW. Every key in VIL_CARS
+           points at assets/villains/vh_*.png and not one of those files exists; the fallback
+           vh_cross_muscle does not either. So the vehicle went into g.traffic correctly, the
+           traffic pass walked it correctly, and the draw found a zero-width image and skipped
+           it, which reads on screen as no car at the scene at all.
+           Fall back to a plain street car when the rogue's own plate has not loaded. A generic
+           sedan sitting outside the job is the whole point of the beat; his personal car is
+           the flourish, and a flourish should not be the difference between a getaway that
+           exists and one that does not. */
+        const own = VIL_CARS.find((v) => v.who === j.rid);
+        const ownArt = own && imgs.current[own.k];
+        const vc = (ownArt && ownArt.width) ? own
+          : { k: "car", len: (own && own.len) || 118, w: (own && own.w) || 50 };
         const ra = Math.random() * 6.283;
         const rx0 = x + Math.cos(ra) * 130, ry0 = y + Math.sin(ra) * 130;
         /* LANE FIELDS FROM BIRTH. This is the third vehicle I have put into g.traffic without
@@ -29219,6 +29253,14 @@ export default function IronLionLayer004() {
       onContextMenu={(e) => e.preventDefault()}
       onPointerDown={(e) => { e.preventDefault(); onDown && onDown(); }}
       onPointerUp={(e) => { e.preventDefault(); onUp && onUp(); }}
+      /* CANCEL AND LEAVE RELEASE IT TOO. pointerup is not the only way a press ends: slide the
+         thumb off the button and you get pointerleave, and the browser fires pointercancel on
+         its own whenever it decides the gesture belongs to it -- a scroll, a notification, the
+         Safari toolbar. Neither was bound, so onUp never ran and the flag stayed set. On GAS
+         that is a car accelerating with nothing pressed; the joystick already binds cancel,
+         which is why it was only ever the buttons that stuck. */
+      onPointerCancel={(e) => { e.preventDefault(); onUp && onUp(); }}
+      onPointerLeave={(e) => { onUp && onUp(); }}
       onPointerLeave={() => onUp && onUp()}
       style={{
         width: size || 68, height: size || 68, borderRadius: "50%", display: "flex", flexDirection: "column",
