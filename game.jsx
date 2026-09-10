@@ -3007,7 +3007,7 @@ const ROGUE_JOB = {
     approach: "He is not taking the money. He has stacked it in the middle of the floor.",
     escape: "watch",
     escapeLine: "He does not run. He stands in the doorway until the heat moves him." },
-  voz: { name: "LA VOZ", crew: 3, wing: "mime", loud: false, hp: 80,
+  voz: { name: "LA VOZ", she: true, crew: 3, wing: "mime", loud: false, hp: 80,
     approach: "Somebody who works here left a door unlocked. She has not touched a thing.",
     escape: "walk",
     escapeLine: "She walks out past the police, and one of them holds the door." },
@@ -12523,6 +12523,7 @@ export default function IronLionLayer004() {
       }
       if (g.crime) for (const t of g.crime.thugs) hit(t);
       for (const u of policeUnits()) hit(u);
+      for (const f of federals()) hit(f);          // you can run an agent over, same as anyone
       // and the player, when somebody else is driving
       if (g.mode === "foot" && !g.inside) {
         const dx = g.p.x - v.x, dy = g.p.y - v.y;
@@ -15258,9 +15259,30 @@ export default function IronLionLayer004() {
        of them. The crews are solid; the man they work for is not.
        Bullets are deliberately NOT on this list. A round through a shopfront is correct, and
        the file already resolves those against people rather than geometry. */
+    /* NOBODY WALKS THROUGH BRICK, INCLUDING HIM. The rogue was exempt on the theory that going
+       where the building says you cannot is his whole character -- but that is his APPROACH,
+       written in the job text, not his exit. Watching him leave through a wall reads as a bug,
+       not as flair, and it is the reason the chase looked broken: he went out the back of the
+       building and there was no back. */
+    /* EVERY FEDERAL ON THE MAP, in one place. This is the fourth time something could not be
+       shot because the list that finds targets did not know about it -- g.cops, then .crew on
+       the police object, then the hunt squad, now the office staff and the mech. The cause is
+       the same every time: a new kind of person gets its own array, and every existing loop
+       keeps walking the arrays it already knew about.
+       So: one function, used by the bullet loop, the car, the blast, combatTargets and
+       hostilesNear. A fifth kind of federal only has to be added here. */
+    function federals() {
+      const out = [];
+      const h = g.fisHunt;
+      if (h && h.squad) for (const a of h.squad) if (a && a.hp > 0) out.push(a);
+      if (g.hunter && g.hunter.hp > 0) out.push(g.hunter);
+      if (g.mech && g.mech.hp > 0) out.push(g.mech);
+      if (g.inside && g.inside.fis && g.inside._fisStaff)
+        for (const m of (g.inside._fisStaff[g.floor] || [])) if (m && m.hp > 0) out.push(m);
+      return out;
+    }
     function collideCrew(m) {
-      if (!m || m.boss || m.rid) return;               // the rogue goes where he likes
-      if (!Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
+      if (!m || !Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
       collideBuildings(m, 11, false);
     }
     function collideBuildings(o, r, isCar) {
@@ -18912,8 +18934,13 @@ export default function IronLionLayer004() {
         const pv = inVehicle() ? activeVeh() : g.p;
         if (g.chaseT > 120 && !have("news"))
           g.choppers.push({ kind: "news", x: pv.x - 900, y: pv.y - 900, ang: 0, alt: 1 });
-        if (g.chaseT > 180 && !have("police")) {
-          g.choppers.push({ kind: "police", x: pv.x + 900, y: pv.y - 900, ang: 0, alt: 1 });
+        /* And a gap between birds. Without this the ninety-second fuel limit did nothing --
+           the old one turns for home, `have("police")` stops counting it that same frame, and a
+           fresh one lifts off immediately. Forty-five seconds of clear sky is the window the
+           whole air-support idea is worth having: it is when you actually get away. */
+        g.heliCd = Math.max(0, (g.heliCd || 0) - dt);
+        if (g.chaseT > 180 && !have("police") && g.heliCd <= 0) {
+          g.choppers.push({ kind: "police", x: pv.x + 900, y: pv.y - 900, ang: 0, alt: 1, onStation: 0 });
           g.pickupFlash = { nm: "air_unit_overhead", t: 2.6 };
         }
       }
@@ -18938,8 +18965,21 @@ export default function IronLionLayer004() {
         h.x += Math.cos(h.ang) * spd * dt; h.y += Math.sin(h.ang) * spd * dt;
         /* Spotting. Under a roof or an overpass you are invisible to it -- that is the whole
            counterplay, and it is the one kind of cover a car chase cannot use. */
-        h.sees = h.kind === "police" && d < 620 && !underCover(pv2.x, pv2.y);
-        if (h.sees) g.wantedT = Math.max(g.wantedT || 0, 20);
+        /* IT RUNS OUT OF FUEL. The bird held the wanted clock at 20 seconds for as long as it
+           could see you, and it could always see you -- so it was not a pressure, it was a
+           ceiling on ever getting away. Now it has ninety seconds on station and then turns for
+           home whether it has you or not, and its spotting radius is tighter.
+           And when it does see you it SLOWS the clock rather than resetting it: the clock still
+           runs down under a helicopter, just half as fast. Getting under a roof still stops it
+           dead, which keeps the counterplay the file was built around. */
+        h.onStation = (h.onStation || 0) + dt;
+        if (h.kind === "police" && h.onStation > 90 && !h.leaving) {
+          h.leaving = 1;
+          g.heliCd = 45;
+          g.pickupFlash = { nm: "air_unit_off", t: 2.4 };
+        }
+        h.sees = h.kind === "police" && !h.leaving && d < 460 && !underCover(pv2.x, pv2.y);
+        if (h.sees) g.heliSlow = 0.5;
       }
     }
     function underCover(x, y) {
@@ -19074,7 +19114,11 @@ export default function IronLionLayer004() {
        whoever is running it, so the HUD can say "VESCARI" rather than "wanted".
        LINE OF SIGHT is the whole rule: the clock only runs while nobody who wants you can see
        you. Break the sightline and it starts; be seen and it resets to the full count. */
-    const LOSE_AFTER = 45;
+    /* FORTY-FIVE SECONDS out of sight was too long to be a mechanic -- long enough that you
+       stopped trying and just drove until it expired, which is the opposite of a chase having
+       an ending you can play toward. Twenty-two is still a real gap to open, and it is short
+       enough that breaking line of sight feels like doing something. */
+    const LOSE_AFTER = 22;
     function pursuerNear(r) {
       /* Anyone actively hunting, within r. Police first, then any crew that is chasing --
          `chasing` is the flag the AI already sets, so this asks the world rather than
@@ -19169,7 +19213,12 @@ export default function IronLionLayer004() {
       /* Ninety seconds of wanted time was already the police rule; this is the SIGHTLINE rule
          on top of it. Forty-five clear seconds and they have lost you, whatever the clock says. */
       if ((g.heat || 0) > 0) {
-        g.copLost = Math.max(0, (g.copLost == null ? LOSE_AFTER : g.copLost) - dt);
+        /* The chopper halves the rate rather than stopping it. heliSlow is set each frame it
+           has eyes on you and cleared here, so one frame out of its cone and you are back to
+           full speed. */
+        const rate = dt * (g.heliSlow ? 0.5 : 1);
+        g.heliSlow = 0;
+        g.copLost = Math.max(0, (g.copLost == null ? LOSE_AFTER : g.copLost) - rate);
         if (g.copLost <= 0) {
           g.heat = 0; g.wantedT = 0; g.wantedAs = null; g.copFrom = null;
           for (const v of (g.traffic || [])) if (v.patrol) v.chasing = 0;
@@ -19368,6 +19417,29 @@ export default function IronLionLayer004() {
         if (u.state === "wait") { u.x = c.x; u.y = c.y; continue; }
         // wanted and in sight: work the car rather than canvassing past him
         if (u.hp > 0 && copCover(u, c, dt)) continue;
+        /* WANTED MEANS SHOT AT. Officers had exactly two behaviours -- canvass, and engage a
+           hostile CREW -- so at three stars they walked past you to go and shoot somebody else.
+           A pursuit where the pursuers never fire is a parade.
+           Only at heat 2+, only in the open, and only within the weapon's range: at one star
+           they are still looking for you rather than shooting at you. */
+        if (u.hp > 0 && (g.heat || 0) >= 2 && !g.inside && u.state !== "wait") {
+          const dxp = g.p.x - u.x, dyp = g.p.y - u.y, dp2 = Math.hypot(dxp, dyp) || 1;
+          const W2 = WPN[u.wpn] || { spd: 900, dmg: 3, range: 400, spread: 0.10, rate: 1.0 };
+          if (dp2 < (W2.range || 400) && !underCover(g.p.x, g.p.y)) {
+            const ap = Math.atan2(dyp, dxp);
+            // hold about 210 -- close enough to be a threat, far enough to be a firing line
+            const want2 = dp2 < 170 ? -1 : dp2 > 250 ? 1 : 0;
+            u.vx = Math.cos(ap) * 150 * want2; u.vy = Math.sin(ap) * 150 * want2;
+            if (u.fireCd <= 0 && !gunJammed(u)) {
+              u.fireCd = (W2.rate || 1.0) + Math.random() * 0.4;
+              u.swing = 0.15;
+              fireBullet(u, ap + (Math.random() - 0.5) * (W2.spread || 0.10) * 2,
+                W2.spd || 900, W2.dmg || 3, W2.range || 400, false, "cop", W2.knock);
+            }
+            u.state = "engage";
+            continue;
+          }
+        }
         // spot a hostile crew nearby and go engage instead of canvassing past it
         if (u.hp > 0 && (u.state === "canvass" || u.state === "engage")) {
           let target = null, best = 420;
@@ -21685,7 +21757,15 @@ export default function IronLionLayer004() {
     }
 
     function resolveTrafficOverlap() {
-      const list = g.traffic;
+      /* POLICE CARS AND YOURS GO IN TOO. g.traffic is civilian traffic only, so a cruiser parked
+         across a junction was scenery -- you drove through a roadblock because the roadblock was
+         never in the list that stops two cars occupying the same ground.
+         Built fresh each frame rather than kept: police cars come and go, and a stale reference
+         to a wrecked cruiser is a ghost you would bounce off. */
+      const list = g.traffic.slice();
+      for (const pc of policeCars()) if (pc && Number.isFinite(pc.x)) list.push(pc);
+      const mine = inVehicle() ? activeVeh() : null;
+      if (mine && Number.isFinite(mine.x)) list.push(mine);
       for (let pass = 0; pass < 2; pass++) {
         for (let i = 0; i < list.length; i++) {
           const a = list[i];
@@ -22566,6 +22646,7 @@ export default function IronLionLayer004() {
       if (g.crime) for (const t of g.crime.thugs) hit(t);
       if (g.shop && g.shop.rob) for (const t of g.shop.rob.thugs) hit(t);
       for (const u of policeUnits()) hit(u);
+      for (const f of federals()) hit(f);          // a blast does not check credentials
       if (g.comp && g.comp.out) hit(g.comp);
       /* Ember Flats security and the Hollow Pass deputies were reachable by the abilities but
          not by a bullet -- they live in their own lists and only combatTargets() knew about
@@ -22688,6 +22769,10 @@ export default function IronLionLayer004() {
             }
           }
         } else if (g.mode === "foot") {
+          /* Police and federals were never on this loop. Every round the player fired went
+             straight through an officer standing in the road. */
+          if (!gone) for (const u of policeUnits()) if (hit(u)) { gone = true; break; }
+          if (!gone) for (const f of federals()) if (hit(f)) { gone = true; break; }
           if (hit(g.p, true)) gone = true;
         }
         /* Rounds fired by one crew hit the OTHER crew. Without this a gang fight was two lines
@@ -27356,7 +27441,9 @@ export default function IronLionLayer004() {
       const nm = R.name || "HIM";
       if (j.phase === "called") return {
         head: "GET TO " + j.st.what,
-        sub: nm + " IS ON HIS WAY THERE",
+        /* Not every rogue is a he. La Voz never was, and the objective has called her one since
+           the line was written. Read it off the rogue instead of hardcoding it. */
+        sub: nm + (R.she ? " IS ON HER WAY THERE" : " IS ON HIS WAY THERE"),
         n: mtr(site[0] - me.x, site[1] - me.y) + "m",
       };
       if (j.phase === "fight") {
@@ -27464,6 +27551,7 @@ export default function IronLionLayer004() {
       cr.state = "hostile";
       cr.war = 0;                     // this is a crime, not a turf war -- no rival to seek
       if (site0 && !outdoors) { cr.indoor = site0; cr.indoorFloor = 0; }
+      j.site = site0 || null;         // the building he has to come OUT of
       const boss = cr.members[0];
       boss.hp = R.hp; boss.boss = 1; boss.rid = j.rid;
       /* `loud` was defined on all five rogues and referenced NOWHERE -- dead data since the
@@ -27830,13 +27918,29 @@ export default function IronLionLayer004() {
         const R2 = j.ride;
         if (b) {
           b.hp = 9999;
-          if (R2 && Number.isFinite(R2.x) && Number.isFinite(R2.y)
-            && Number.isFinite(b.x) && Number.isFinite(b.y)) {
-            const dx = R2.x - b.x, dy = R2.y - b.y, d = Math.hypot(dx, dy) || 1;
+          /* TWO LEGS. If the job was inside a building he makes for its DOOR first and only
+             then for the car -- because he is solid now, and a man who runs straight at a car
+             parked on the far side of a wall just grinds along the inside of it forever.
+             b.outT latches once he is clear, so he does not turn round and go back in when the
+             car happens to sit past the doorway. */
+          let tx2 = null, ty2 = null;
+          if (j.site && !b.outT) {
+            const dp = doorPoint(j.site);
+            const outAng = j.site.door
+              ? [Math.PI / 2, 0, -Math.PI / 2, Math.PI][j.site.door.side] : Math.PI / 2;
+            tx2 = dp[0] - Math.cos(outAng) * 34;
+            ty2 = dp[1] - Math.sin(outAng) * 34;
+            if (Math.hypot(tx2 - b.x, ty2 - b.y) < 30) { b.outT = 1; tx2 = null; }
+          }
+          if (tx2 == null && R2 && Number.isFinite(R2.x) && Number.isFinite(R2.y)) {
+            tx2 = R2.x; ty2 = R2.y;
+          }
+          if (tx2 != null && Number.isFinite(b.x) && Number.isFinite(b.y)) {
+            const dx = tx2 - b.x, dy = ty2 - b.y, d = Math.hypot(dx, dy) || 1;
             const spd = 190;
             b.vx = (dx / d) * spd; b.vy = (dy / d) * spd;
             b.anim = (b.anim || 0) + dt * 7;
-            if (d < 26) {
+            if (b.outT && R2 && d < 26) {
               // in the car. From here the chase is the runner, and the runner IS his car.
               const k = j.crew.members.indexOf(b);
               if (k >= 0) j.crew.members.splice(k, 1);
@@ -27845,9 +27949,10 @@ export default function IronLionLayer004() {
             }
           }
           b.x += (b.vx || 0) * dt; b.y += (b.vy || 0) * dt;
+          collideCrew(b);            // solid on the way out, like everybody else
         }
         // no car, or he never gets there: the old timeout still ends it
-        if (j.t > (R2 ? 9 : 2.2)) {
+        if (j.t > (R2 ? 14 : 2.2)) {
           const k = j.crew.members.indexOf(b);
           if (k >= 0) j.crew.members.splice(k, 1);
           j.phase = "done"; j.t = 0;
@@ -28527,6 +28632,7 @@ export default function IronLionLayer004() {
     hunter_out: "BANNERMAN IS ON YOU", hunter_down: "BANNERMAN IS DOWN",
     mech_out: "UNIT 04 IS WALKING", mech_down: "UNIT 04 IS SCRAP",
     hunt_on: "THE FIS ARE LOOKING FOR YOU", hunt_off: "THE FIS HAVE STOOD DOWN",
+    air_unit_off: "THE BIRD IS TURNING FOR HOME",
     roar: "NOBODY IN RANGE", roar_hit: "THE WHOLE ROOM WENT DOWN",
     agents_out: "AGENTS ON YOU",
     damped: "POWERS DEAD", netted: "PINNED",
