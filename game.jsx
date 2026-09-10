@@ -8370,6 +8370,13 @@ export default function IronLionLayer004() {
          are their own objects and go on too -- a hunter you cannot hit is a cutscene. */
       const fh = g.fisHunt;
       if (fh && fh.squad) for (const a of fh.squad) if (a && a.hp > 0) out.push(a);
+      /* AND THE OFFICE. The staff were built as furniture -- cached per floor, drawn, and on
+         nobody's target list -- so shooting a federal agent at his own desk did nothing at all.
+         They are men in a room; they can be hit, and they hit back. */
+      if (g.inside && g.inside.fis && g.inside._fisStaff) {
+        for (const m of (g.inside._fisStaff[g.floor] || []))
+          if (m && m.hp > 0) out.push(m);
+      }
       if (g.hunter && g.hunter.hp > 0) out.push(g.hunter);
       if (g.mech && g.mech.hp > 0) out.push(g.mech);
       return out;
@@ -24171,6 +24178,7 @@ export default function IronLionLayer004() {
          throne room have always been empty. */
       updateCrews(dt, inVehicle() ? activeVeh().x : g.p.x, inVehicle() ? activeVeh().y : g.p.y);
       stepHunter(dt);
+      stepFisStaff(dt);
       stepArrivals(dt);
       /* Only the cells you are standing in or beside. Six lots of people all wandering at once
          is six lots of work for five of them nobody can see. */
@@ -24498,6 +24506,7 @@ export default function IronLionLayer004() {
       drawSmoke(); drawShock(); drawArcs(); drawStars(); drawDriveByArms(); drawFx();
       drawArrivals();
       drawFisHunt();
+      drawRoar();
       drawFlames();
       drawHunter();
       drawMech();
@@ -24787,6 +24796,7 @@ export default function IronLionLayer004() {
             door: !!(G.doorFn && G.doorFn()), stair: G.stairFn ? G.stairFn() : 0,
             entry: g.inside ? (g.inside.entry || 0) : 0,
             hunt: !!(g.fisHunt && g.fisHunt.on),
+            roarCd: g.roarCd || 0,
             obj: jobObjective(),
             crime: g.crime ? { place: g.crime.place, result: g.crime.result,
               code: g.crime.code, label: g.crime.label,
@@ -25461,7 +25471,7 @@ export default function IronLionLayer004() {
           list.push({
             x: (r.x0 + r.x1) / 2 + (ox || 0), y: (r.y0 + r.y1) / 2 + (oy || 0),
             vx: 0, vy: 0, anim: Math.random() * 6, jit: 0.96 + Math.random() * 0.1,
-            yt, name, hp: 40,
+            yt, name, hp: 40, maxHp: 40, fireCd: 1 + Math.random(), alert: 0,
           });
         };
         const nm = (i) => "AGENT " + FIS_NAMES[(Math.abs(b.key || 1) * 7 + i * 13) % FIS_NAMES.length];
@@ -25489,6 +25499,31 @@ export default function IronLionLayer004() {
       }
       b._fisStaff[f] = list;
       return list;
+    }
+    /* They shoot back. Nothing elaborate -- they are not the hunt, they are the people who
+       work here -- but a building full of armed federal agents that stands still while you
+       walk through it shooting is a diorama. */
+    function stepFisStaff(dt) {
+      const b = g.inside;
+      if (!b || !b.fis) return;
+      const list = fisStaff(b, g.floor);
+      if (!list) return;
+      const p = g.p;
+      for (const m of list) {
+        if (!m || m.hp <= 0 || !Number.isFinite(m.x)) continue;
+        const dx = p.x - m.x, dy = p.y - m.y, d = Math.hypot(dx, dy) || 1;
+        m.alert = Math.max(0, (m.alert || 0) - dt);
+        if ((m.maxHp || 40) > m.hp) m.alert = 4;         // being shot at counts as an alert
+        m.shootT = Math.max(0, (m.shootT || 0) - dt);
+        m.fireCd = (m.fireCd || 1.4) - dt;
+        if (m.alert > 0 && d < 300 && m.fireCd <= 0) {
+          m.fireCd = 1.4 + Math.random();
+          p.hp = Math.max(0, p.hp - 4);
+          m.shootT = 0.3; m.face = Math.atan2(dy, dx);
+          hfx().push({ kind: "tracer", x: m.x, y: m.y, x2: p.x, y2: p.y, t: 0.07, life: 0.07 });
+          hfx().push({ kind: "flash", x: m.x, y: m.y, ang: Math.atan2(dy, dx), t: 0.05, life: 0.05 });
+        }
+      }
     }
     function drawFisStaff() {
       const b = g.inside;
@@ -25861,6 +25896,8 @@ export default function IronLionLayer004() {
       if (!H) return;
       if ((H.dropT || 0) > 0) { H.dropT -= dt; return; }   // still on the ramp
       g.dampT = Math.max(0, (g.dampT || 0) - dt);
+      g.roarCd = Math.max(0, (g.roarCd || 0) - dt);
+      g.roarT = Math.max(0, (g.roarT || 0) - dt);
       stepHunterFx(dt);
       if (H.hp <= 0) {
         if (!H.said) {
@@ -26366,6 +26403,20 @@ export default function IronLionLayer004() {
        plate of fire pointed at somebody reads as a decal. Three overlapping cones with the
        inner one shortest and whitest, jittered per frame, plus the ember spray at the tip.
        Any rogue with a flamer sets boss.flameT; nothing else in the file has to know. */
+    /* Three rings going out, the outer one fastest and faintest. Gold rather than the
+       dampener's blue-white: his is the only ability in the game that ADDS force. */
+    function drawRoar() {
+      if (!((g.roarT || 0) > 0)) return;
+      const k = 1 - g.roarT / 0.75;
+      for (let i = 0; i < 3; i++) {
+        const kk = clamp(k * (1 + i * 0.35), 0, 1);
+        const a = (1 - kk) * (0.5 - i * 0.12);
+        if (a <= 0) continue;
+        ctx.strokeStyle = `rgba(232,196,122,${a})`;
+        ctx.lineWidth = (4 - i) * (1 - kk) + 1;
+        ctx.beginPath(); ctx.arc(g.p.x, g.p.y, ROAR.r * kk, 0, 6.3); ctx.stroke();
+      }
+    }
     function drawFlames() {
       const j = g.job, b = j && j.boss;
       if (!b || !Number.isFinite(b.x) || !((b.flameT || 0) > 0)) return;
@@ -27625,9 +27676,27 @@ export default function IronLionLayer004() {
         const rn = j.runner;
         const bx = rn.bx, by = rn.by;
         const dx = bx - rn.v.x, dy = by - rn.v.y, dd = Math.hypot(dx, dy) || 1;
+        const me = inVehicle() ? activeVeh() : g.p;
+        /* RUBBER BAND. A flat 300 meant he simply left -- on foot you were never going to see
+           him again, and a chase you cannot lose and cannot win is not a chase. He now runs at
+           a speed set by the gap: close and he opens it up, far and he eases off so you can
+           claw it back. He never drops below 120, so it is still a pursuit and not a stroll. */
+        const gap = Math.hypot(me.x - rn.v.x, me.y - rn.v.y);
+        const want = gap < 260 ? 330 : gap < 700 ? 250 : 150;
+        rn.spd += clamp(want - rn.spd, -260 * dt, 260 * dt);
+        rn.spd = Math.max(120, rn.spd);
         rn.v.x += (dx / dd) * rn.spd * dt; rn.v.y += (dy / dd) * rn.spd * dt;
         rn.v.ang = Math.atan2(dy, dx);
-        const me = inVehicle() ? activeVeh() : g.p;
+        /* And a hard cut. Past 2200 he is gone -- said plainly, rather than the marker sitting
+           at 3000m while you drive at a dot you will never reach. */
+        if (gap > 2200) {
+          const ix0 = g.traffic.indexOf(rn.v); if (ix0 >= 0) g.traffic.splice(ix0, 1);
+          j.phase = "done"; j.t = 0; j.runner = null;
+          g.jobBanner = ROGUE_JOB[j.rid].name + " LOST YOU";
+          g.jobNote = "He is not coming back this way.";
+          g.pickupFlash = { nm: "job_done", t: 3.0 };
+          return;
+        }
         if (Math.hypot(me.x - rn.v.x, me.y - rn.v.y) < 120) {
           const ix = g.traffic.indexOf(rn.v); if (ix >= 0) g.traffic.splice(ix, 1);
           g.held = g.held || {};
@@ -28300,6 +28369,43 @@ export default function IronLionLayer004() {
       return h.on;
     };
 
+    /* THE ROAR. Darius has slow time, a whip and his hands -- all single-target or defensive,
+       which is why he reads thin next to a woman who screams a room flat and a boy who throws
+       stars. This is his crowd answer: everything inside 210 goes down and stays down.
+       Deliberately NOT damage-led. Eclipse's scream hurts; his roar STAGGERS -- 4 seconds of
+       stun and a shove away from him, which is what a man with hands actually wants: everyone
+       on the floor and time to walk to whoever matters. */
+    const ROAR = { r: 210, cd: 16, stun: 4.0, dmg: 12, push: 320 };
+    G.roarFn = () => {
+      const gg = G.current;
+      if (gg.who !== "lion") return false;
+      if ((gg.roarCd || 0) > 0) return false;
+      if (gg.dampT > 0) { gg.pickupFlash = { nm: "damped", t: 1.2 }; return false; }
+      gg.roarCd = ROAR.cd;
+      gg.roarT = 0.75;
+      const p = gg.p;
+      let hit = 0;
+      for (const t of hostilesNear(p.x, p.y, ROAR.r)) {
+        if (!t || t.hp <= 0) continue;
+        hit++;
+        t.hp = Math.max(0, t.hp - ROAR.dmg);
+        t.stunT = Math.max(t.stunT || 0, ROAR.stun);
+        const dx = t.x - p.x, dy = t.y - p.y, d = Math.hypot(dx, dy) || 1;
+        t.vx = (dx / d) * ROAR.push; t.vy = (dy / d) * ROAR.push;
+      }
+      /* Cars too. A shout that rolls men over and leaves the traffic untouched is a sound
+         effect; this one rocks whatever is parked near him. */
+      for (const v of (gg.traffic || [])) {
+        if (!v || !Number.isFinite(v.x)) continue;
+        const dx = v.x - p.x, dy = v.y - p.y, d = Math.hypot(dx, dy);
+        if (d > ROAR.r || d < 1) continue;
+        v.x += (dx / d) * 14; v.y += (dy / d) * 14;
+      }
+      gg.shake = Math.max(gg.shake || 0, 14);
+      gg.pickupFlash = { nm: hit ? "roar_hit" : "roar", t: 1.6 };
+      return true;
+    };
+
     G.mechFn = (where) => {
       const gg = G.current;
       if (gg.mech && gg.mech.hp > 0) return "already out";
@@ -28405,6 +28511,7 @@ export default function IronLionLayer004() {
     hunter_out: "BANNERMAN IS ON YOU", hunter_down: "BANNERMAN IS DOWN",
     mech_out: "UNIT 04 IS WALKING", mech_down: "UNIT 04 IS SCRAP",
     hunt_on: "THE FIS ARE LOOKING FOR YOU", hunt_off: "THE FIS HAVE STOOD DOWN",
+    roar: "NOBODY IN RANGE", roar_hit: "THE WHOLE ROOM WENT DOWN",
     agents_out: "AGENTS ON YOU",
     damped: "POWERS DEAD", netted: "PINNED",
     fis_here: "FEDERAL PLAZA", fis_no: "NOT FROM IN HERE",
@@ -29989,6 +30096,9 @@ export default function IronLionLayer004() {
               () => { G.cabFn && G.cabFn(); }, null)}
             {!hud.cab && btn("FIS", hud.hunt ? "hunting" : "stood down",
               () => { G.fisHuntFn && G.fisHuntFn(); }, hud.hunt)}
+            {!hud.cab && hud.who === "lion" && btn("ROAR",
+              hud.roarCd > 0 ? Math.ceil(hud.roarCd) + "s" : "knock down",
+              () => { G.roarFn && G.roarFn(); }, hud.roarCd <= 0)}
             {!hud.cab && btn(hud.board ? "PUSH" : "RUN",
               hud.board ? "tap kick · hold brake" : "sprint",
               () => { input.current.run = true; },
