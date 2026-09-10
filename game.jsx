@@ -1161,6 +1161,10 @@ const VIL_CARS = [
   /* LA VOZ HAD NO CAR AT ALL -- she was the one rogue missing from this list, so her scene
      fell through to the generic fallback and her getaway was somebody else's sedan. */
   { k: "vh_voz_coupe", len: 118, w: 52, who: "voz" },
+  /* Elias had no car either -- the second rogue missing from this list. A flatbed with cans
+     and a box in the bed, which is the truck of a man who brings his own accelerant rather
+     than a getaway car. Cut nose-RIGHT off the plate and turned CCW, not CW like the others. */
+  { k: "vh_arson_truck", len: 126, w: 51, who: "arson" },
   /* The Cold Storage Continental -- a refrigerated transport with the plant still running off
      the tailgate. Turned nose-UP at cut time, so it does NOT also go in ROTATE_CW. */
   { k: "vh_icicle_wagon", len: 132, w: 62, who: "icicle" },
@@ -1180,6 +1184,12 @@ const HENCH = {
      why nobody who works for her has ever asked for a raise. */
   icicle: { pool: "ice", n: 6, hp: 12, wpn: "cryo",
             note: "Estate security. She keeps the ones that photograph well." },
+  /* THE VOZ GIRLS. She takes young women off the street and gives them somewhere to be, and
+     what she gives them is a costume: half of them dressed as HIM, half of them dressed as
+     HER. Eight plates, four and four, and the split is the whole character -- she is not
+     building a gang, she is staging the two people she cannot stop looking at. */
+  voz: { pool: "vozgirl", n: 6, hp: 10, wpn: "tommy",
+         note: "Girls off the street. Half wear his stripes, half wear her hair." },
 };
 const HENCH_POOL = {
   ninja: ["hx_ninja_1", "hx_ninja_2", "hx_ninja_3", "hx_ninja_4",
@@ -1192,6 +1202,9 @@ const HENCH_POOL = {
      line-up is not identical every time she turns out. */
   ice:   ["hx_ice_1", "hx_ice_2", "hx_ice_3", "hx_ice_4",
           "hx_ice_5", "hx_ice_6", "hx_ice_7"],
+  // 1-2 and 5-6 are the mimes; 3-4 and 7-8 are the redheads. Four of each, on purpose.
+  vozgirl: ["hx_voz_1", "hx_voz_2", "hx_voz_3", "hx_voz_4",
+            "hx_voz_5", "hx_voz_6", "hx_voz_7", "hx_voz_8"],
 };
 const VIL = {};
 for (const pool of Object.values(HENCH_POOL))
@@ -1201,6 +1214,10 @@ for (const v of VIL_CARS) VIL[v.k] = "assets/villains/" + v.k + ".png";
    is not a rogue, he is the man they send. Registered here so the plate loads; the ride object
    in the hunt already carries its own position and phase and now has a model to draw with. */
 VIL.vh_hale_truck = "assets/villains/vh_hale_truck.png";
+/* ELEGY. Not in VILLAINS: she does not run jobs, she stands next to the man who does. The
+   overhead plate is her at a scene; the standing one is for the den and the profiles. */
+VIL.vil_elegy = "assets/villains/vil_elegy.png";
+VIL.vil_elegy_civ = "assets/villains/vil_elegy_civ.png";
 /* A NULL SECOND LOOK REGISTERS NOTHING. Clarissa has the rig and no out-of-suit plate yet,
    and registering vil_icicle_civ ahead of the art bought a permanent line on the HUD saying
    so -- which is the exact mistake ROOF_PENDING exists to stop, made again in another folder.
@@ -3074,7 +3091,9 @@ const ROGUE_JOB = {
     approach: "He is not taking the money. He has stacked it in the middle of the floor.",
     escape: "watch",
     escapeLine: "He does not run. He stands in the doorway until the heat moves him." },
-  voz: { name: "LA VOZ", she: true, crew: 3, wing: "mime", loud: false, hp: 80,
+  /* wing "voz", not "mime". She walked out of his outfit and took nobody with her -- borrowing
+     his mimes was the old arrangement and it is exactly what she is trying to stop being. */
+  voz: { name: "LA VOZ", she: true, crew: 4, wing: "voz", loud: false, hp: 80,
     approach: "Somebody who works here left a door unlocked. She has not touched a thing.",
     escape: "walk",
     escapeLine: "She walks out past the police, and one of them holds the door." },
@@ -3221,6 +3240,28 @@ const CRYO = { r: 118, arc: 0.30, cd: 2.8, beam: 0.7, dmg: 5, pin: 1.6, thaw: 6.
    the cheaper way out of a fight you were losing. `back` is what he is discharged at: enough
    to walk out on, not enough to walk straight back into the same room. */
 const DOWN_KIT = { ko: 100, arrest: 150, back: 0.6 };
+/* PERDITA KELL. She is a DEFENDER, not a fighter -- everything here is on a long cooldown and
+   pointed at making you stop, not at killing you. The gas is the real weapon and it does no
+   damage at all: a second and a half of not being able to read the screen, next to a man who
+   can. The pistol is what she does when the gas is not ready, and it is deliberately poor. */
+const ELEGY_KIT = {
+  stand: 46,                       // how far behind him she stays
+  gas:    { cd: 9.0, r: 240, t: 1.6 },
+  pistol: { cd: 2.2, r: 320, dmg: 4 },
+  whip:   { cd: 3.0, r: 92,  dmg: 7 },
+  hp: 34, speech: 260,
+};
+/* She narrates. Not taunting -- she finds it beautiful, which is worse. */
+const ELEGY_LINES = [
+  "He will not explain himself to you. I will, and only because I enjoy it.",
+  "You came all this way to interrupt something lovely.",
+  "There is a word for men who arrive during the last verse. It is not a kind one.",
+  "He has never said my name. He does not have to. Look at him.",
+  "I read for a room of forty once. He was the only one who stayed to the end.",
+  "You may hit him. He will let you. That is not the same as you winning.",
+  "I wrote four hundred copies of a book nobody wanted. This is a bigger audience.",
+  "Do you know what he is? He is the only quiet thing left in this city.",
+];
 /* HOW HARD THE HEROES ARE. Every one of the fourteen places that takes health off the player
    divides by this, so it is ONE number rather than fourteen retuned constants -- and the
    relative weight of a fist against a shotgun against a burning car is preserved exactly as
@@ -8480,6 +8521,11 @@ export default function IronLionLayer004() {
        exclusively on bystanders. That is the whole reason none of it seemed to work. */
     function combatTargets() {
       const out = Array.isArray(g.peds) ? g.peds.slice() : [];
+      /* ELEGY. She is not in a crew and never will be -- she is hung off the job object, which
+         is exactly the shape this file keeps getting caught by: a person who exists and is on
+         nobody's list. One line here and she is on ALL of them at once, because bullets, the
+         blast, the roar, the shockwave and the auto-aim all come through this function. */
+      if (g.job && g.job.elegy && g.job.elegy.hp > 0) out.push(g.job.elegy);
       for (const cr of (g.crews || [])) {
         if (cr.indoor ? (cr.indoor !== g.inside || cr.indoorFloor !== g.floor) : g.inside) continue;
         for (const m of (cr.members || [])) if (m && m.hp > 0) out.push(m);
@@ -18342,7 +18388,12 @@ export default function IronLionLayer004() {
          `drawnT` is set on every shot and on drawing the weapon, and runs about a second -- so
          it is up while he is shooting and for a beat after, and away the rest of the time. */
       if (m.holstered) return;
-      if (!(m.drawnT > 0)) return;
+      /* A ROGUE'S CREW KEEP THEIR GUNS OUT. drawnT runs about a second off a shot, which is
+         right for a street gang who mostly stand around -- and wrong for eight mimes who have
+         turned out to a robbery. They were carrying the whole time; the tommy gun was simply
+         only drawn in the second after firing. `hxArt` is what marks a hench plate, so this
+         covers every pool at once and none of the ordinary peds. */
+      if (!(m.drawnT > 0) && !m.hxArt) return;
       const w2 = WPN2[m.wpn], a2 = w2 && imgs.current.wpn2_atlas;
       const wr = (a2 && a2.width) ? w2 : WPN[m.wpn];
       const wa = (a2 && a2.width) ? a2 : imgs.current.weapon_atlas;
@@ -24809,6 +24860,25 @@ export default function IronLionLayer004() {
          in; rain behind him is a wallpaper. Indoors it is skipped, because it is drawn on the
          world plane and there is a roof over you. */
       if (!g.inside) drawWeather();
+      /* HER GAS. Drawn in world space around the camera like the rain, for the same reason --
+         no canvas dimensions to go and find. Canvas has no cheap real blur, so this is a
+         double-drawn haze plus a wash: you can still see shapes and you cannot read detail,
+         which is the point. It does no damage. It just takes the screen off you for a beat. */
+      if ((g.gasT || 0) > 0 && Number.isFinite(g.cam.x)) {
+        g.gasT = Math.max(0, g.gasT - (g.dt || 0.016));
+        const k = Math.min(1, g.gasT / 0.5), R2 = 1400;
+        ctx.save();
+        ctx.globalAlpha = 0.42 * k;
+        ctx.fillStyle = "#b9c4a8";
+        ctx.fillRect(g.cam.x - R2, g.cam.y - R2, R2 * 2, R2 * 2);
+        ctx.globalAlpha = 0.24 * k;
+        for (let q = 0; q < 5; q++) {
+          const rr = 260 + q * 150;
+          ctx.fillStyle = q % 2 ? "rgba(214,222,200,0.5)" : "rgba(150,166,140,0.5)";
+          ctx.beginPath(); ctx.arc(g.cam.x, g.cam.y, rr, 0, 6.3); ctx.fill();
+        }
+        ctx.restore();
+      }
       drawHunter();
       drawMech();
       drawChopper();          // last: it is above everything, because it is in the air
@@ -25701,7 +25771,11 @@ export default function IronLionLayer004() {
              the bay is a display case and he should read bigger there than on the street.
              The Lion is no longer excluded either -- he was skipped entirely, which is why his
              idle was still the old sheet while his street sprite was the new plate. */
-          const h = 34 * heroTall(sp.r),
+          /* SAME SIZE AS HE IS ON THE STREET. 34 was me deciding the bay should read as a
+             display case, and it just made the man in the garage a different man from the one
+             who walks out of it. 30 * 0.82 is the exact figure drawYouth uses, so idle and
+             action are now one number in two places. */
+          const h = 30 * 0.82 * heroTall(sp.r),
                 w = h * (im.width / im.height);
           // and only a man who is carrying a board is drawn stood on one
           const dk = (sp.r.kit && sp.r.kit.board) ? imgs.current.sk_deck : null;
@@ -26793,6 +26867,22 @@ export default function IronLionLayer004() {
        dampener's blue-white: his is the only ability in the game that ADDS force. */
     function drawRoar() {
       if (!((g.roarT || 0) > 0)) return;
+      /* THE SOUND MADE VISIBLE. Three rings leaving him at different speeds, the outer one
+         reaching exactly ROAR.r so what you SEE is what got hit -- a crowd move whose reach you
+         have to guess at is a crowd move you never learn to aim. Drawn before the existing
+         pass rather than replacing it, so the old flash still reads underneath. */
+      {
+        const kk = 1 - g.roarT / 0.75;
+        ctx.save();
+        for (let q = 0; q < 3; q++) {
+          const t2 = Math.min(1, kk * (1.35 - q * 0.22));
+          if (t2 <= 0) continue;
+          ctx.strokeStyle = `rgba(232,196,106,${(1 - t2) * (0.55 - q * 0.12)})`;
+          ctx.lineWidth = 7 - q * 2;
+          ctx.beginPath(); ctx.arc(g.p.x, g.p.y, 210 * t2, 0, 6.3); ctx.stroke();
+        }
+        ctx.restore();
+      }
       if (!Number.isFinite(g.p.x) || !Number.isFinite(g.p.y)) return;
       const k = 1 - g.roarT / 0.75;
       for (let i = 0; i < 3; i++) {
@@ -26947,6 +27037,69 @@ export default function IronLionLayer004() {
          being here: this is the one place that already knows which rogue is on the board.
          Stun-led rather than damage-led, like ROAR -- 5 points and a second and a half on the
          floor, and the floor is where his crew get to reach you. */
+      /* ELEGY, BEHIND HIM. Hung off the job rather than pushed into a crew list on purpose:
+         she is not a fighter and does not belong in a target loop yet -- see the note I owe you
+         about that below. She holds station off his back, speaks once when you close, and then
+         spends the fight trying to make you look away from him. */
+      if (j.rid === "monstruo" && b && Number.isFinite(b.x)) {
+        const dt2 = g.dt || 0.016;
+        if (!j.elegy) j.elegy = { x: b.x, y: b.y + ELEGY_KIT.stand, hp: ELEGY_KIT.hp,
+                                  said: 0, gasCd: 2.5, pisCd: 1.4, whipCd: 0 };
+        const E = j.elegy;
+        /* DOWN, NOT DEAD. She is a poet with a pistol standing next to a man who fights for a
+           living -- she goes over quickly and she does not get back up this scene. */
+        if (E.hp <= 0) {
+          if (!j.elegyDown) {
+            j.elegyDown = 1;
+            g.jobBanner = "ELEGY \u00b7 DOWN";
+            g.jobNote = "He has stopped. He is looking at her and not at you.";
+            /* He does not carry on as if nothing happened. */
+            b.stunT = Math.max(b.stunT || 0, 1.6);
+          }
+        } else {
+        /* Station-keeping, not pathing: she stands OPPOSITE you across him, so closing on him
+           never puts you next to her. */
+        const aw = Math.atan2(b.y - g.p.y, b.x - g.p.x);
+        const tx = b.x + Math.cos(aw) * ELEGY_KIT.stand, ty = b.y + Math.sin(aw) * ELEGY_KIT.stand;
+        E.x += (tx - E.x) * Math.min(1, dt2 * 3.2);
+        E.y += (ty - E.y) * Math.min(1, dt2 * 3.2);
+        const dp = Math.hypot(g.p.x - E.x, g.p.y - E.y);
+        if (!E.said && dp < ELEGY_KIT.speech) {
+          E.said = 1;
+          g.jobNote = ELEGY_LINES[(Math.random() * ELEGY_LINES.length) | 0];
+          g.jobBanner = "ELEGY \u00b7 SPEAKING FOR HIM";
+        }
+        E.gasCd -= dt2; E.pisCd -= dt2; E.whipCd -= dt2;
+        if (E.gasCd <= 0 && dp < ELEGY_KIT.gas.r) {
+          E.gasCd = ELEGY_KIT.gas.cd;
+          g.gasT = Math.max(g.gasT || 0, ELEGY_KIT.gas.t);   // no damage. Just do not look.
+          g.fx.push({ kind: "ring", x: E.x, y: E.y, t: 0.34 });
+        } else if (E.whipCd <= 0 && dp < ELEGY_KIT.whip.r) {
+          E.whipCd = ELEGY_KIT.whip.cd;
+          g.p.hp = Math.max(0, g.p.hp - ELEGY_KIT.whip.dmg / TOUGH);
+          E.whipT = 0.22; E.whipAng = Math.atan2(g.p.y - E.y, g.p.x - E.x);
+        } else if (E.pisCd <= 0 && dp < ELEGY_KIT.pistol.r) {
+          E.pisCd = ELEGY_KIT.pistol.cd;
+          g.p.hp = Math.max(0, g.p.hp - ELEGY_KIT.pistol.dmg / TOUGH);
+        }
+        }
+        E.whipT = Math.max(0, (E.whipT || 0) - dt2);
+        if (E.hp > 0) drawShadow(E.x, E.y + 3, 11, 5, 0.34);
+        const eim = imgs.current.vil_elegy;
+        if (eim && eim.width) {
+          const eh = 26, ew = eh * (eim.width / eim.height);
+          ctx.save(); ctx.translate(E.x, E.y);
+          ctx.rotate(Math.atan2(g.p.y - E.y, g.p.x - E.x) + Math.PI / 2);
+          ctx.drawImage(eim, -ew / 2, -eh / 2, ew, eh); ctx.restore();
+        }
+        if (E.whipT > 0) {
+          ctx.save(); ctx.translate(E.x, E.y); ctx.rotate(E.whipAng);
+          ctx.strokeStyle = "rgba(28,22,26,0.85)"; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(8, 0);
+          ctx.quadraticCurveTo(ELEGY_KIT.whip.r * 0.6, -14, ELEGY_KIT.whip.r, 4);
+          ctx.stroke(); ctx.restore();
+        }
+      }
       if (j.rid === "icicle") {
         b.cryoCd = (b.cryoCd || 0) - (g.dt || 0.016);
         const d2 = Math.hypot(g.p.x - b.x, g.p.y - b.y);
@@ -27837,8 +27990,10 @@ export default function IronLionLayer004() {
         while (da < -Math.PI) da += Math.PI * 2;
         if (Math.abs(da) > 0.7) continue;            // a cone, not a bomb
         const a2 = Math.atan2(t.y - g.p.y, t.x - g.p.x);
-        t.stunT = 3.0; t.knock = 0.45;
-        t.vx = Math.cos(a2) * 380; t.vy = Math.sin(a2) * 380;
+        /* It is a heavyweight's punch through the air and it should read like one: further off
+           their feet and longer on the floor. 380 barely moved a man before he walked back in. */
+        t.stunT = 4.5; t.knock = 0.8;
+        t.vx = Math.cos(a2) * 640; t.vy = Math.sin(a2) * 640;
         if (t.hp != null) t.hp -= 2;
         t.say = 1.3; t.line = "!!";
       }
