@@ -1144,7 +1144,7 @@ const VILLAINS = [
      is the default plate, not the alternate. `vil_icicle_civ` is Clarissa out of it and there
      is no art for it yet; it will read as missing until there is, which is the honest state
      rather than pointing the key at somebody else's plate. */
-  { id: "icicle", name: "THE ICICLE", age: 41, yt: "vil_icicle", hero: "vil_icicle_civ", hp: 22,
+  { id: "icicle", name: "THE ICICLE", age: 41, yt: "vil_icicle", hero: null, hp: 22,
     note: "Does not think of them as victims. Thinks of them as the only eleven she got to in time." },
 ];
 /* One vehicle each, except MVP whose ATV is the only thing he owns. All four checked nose-up
@@ -1191,9 +1191,13 @@ const VIL = {};
 for (const pool of Object.values(HENCH_POOL))
   for (const k of pool) VIL[k] = "assets/villains/" + k + ".png";
 for (const v of VIL_CARS) VIL[v.k] = "assets/villains/" + v.k + ".png";
+/* A NULL SECOND LOOK REGISTERS NOTHING. Clarissa has the rig and no out-of-suit plate yet,
+   and registering vil_icicle_civ ahead of the art bought a permanent line on the HUD saying
+   so -- which is the exact mistake ROOF_PENDING exists to stop, made again in another folder.
+   The key comes back the day the picture does. */
 for (const v of VILLAINS) {
-  VIL[v.yt] = "assets/villains/" + v.yt + ".png";
-  VIL[v.hero] = "assets/villains/" + v.hero + ".png";
+  if (v.yt) VIL[v.yt] = "assets/villains/" + v.yt + ".png";
+  if (v.hero) VIL[v.hero] = "assets/villains/" + v.hero + ".png";
 }
 /* WHICH PLATE IS HIM AT WORK. `yt` and `hero` do NOT mean the same thing across this table
    and never have: for five of them `yt` is the man OUT of costume and `hero` is the costume,
@@ -22564,7 +22568,7 @@ export default function IronLionLayer004() {
           drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
           const u = { x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1,
                       yt: plate, bang: g.board.ang,
-                      tall: r.id === "sho" ? 1.42 : r.id === "kenny" ? 1.24 : 1,
+                      tall: heroTall(r),
                       wpn: g.p.holstered ? null : g.p.wpn,
                       // a bat carried at rest looked like a plank glued to his hip
                       swing: Math.max(g.p.atk || 0, g.p.punT || 0),
@@ -23852,7 +23856,7 @@ export default function IronLionLayer004() {
         const plate = heroPlate(r);
         drawYouth({ x: c.x, y: c.y, vx: Math.cos(c.ang), vy: Math.sin(c.ang),
                     anim: 0, jit: 1, yt: plate,
-                    tall: r.id === "sho" ? 1.42 : r.id === "kenny" ? 1.24 : 1 });
+                    tall: heroTall(r) });
         motoLight(c);
         return;
       }
@@ -25586,6 +25590,27 @@ export default function IronLionLayer004() {
     // MASK suits the Lion up; for Rio it is the same button and the same idea, his own coat
     // both allies suit up; the flag is per-man so one does not wear the other's decision
     G.heroFn = () => { if (g.who !== "lion") { g.hero = g.hero || {}; g.hero[g.who] = !g.hero[g.who]; } };
+    /* HOW BIG HE READS, MEASURED OFF THE LION.
+       drawYouth sets h = 30 * 0.82 * tall and then takes w from the PLATE'S OWN ASPECT. So
+       `tall` controls height and the width just follows whatever shape the art happens to be
+       -- and on a true-overhead plate the width IS the shoulder span, which is the only size
+       cue you can see from above. Kenny's plate is 224x117 against the Lion's 224x159; at the
+       old flat tall of 1.24 he came out enormous, and it was never his `tall` that was wrong,
+       it was that nothing was controlling his WIDTH.
+       So HERO_SPAN says how wide each man reads RELATIVE TO THE LION, and tall is solved
+       backwards from the loaded image so the span lands right whatever the crop. Re-cut a
+       plate at a different aspect and it still comes out the right size.
+       Reference is the Lion's CIV plate on purpose, not heroPlate("lion") -- his hero plate is
+       a different shape, and keying off it would resize the whole roster when he suits up. */
+    const HERO_SPAN = { lion: 1.00, rio: 0.84, kenny: 1.14, sho: 0.94, eclipse: 0.90 };
+    function heroTall(r) {
+      const im = imgs.current[heroPlate(r)], ref = imgs.current.yt_lion;
+      /* No art, no change: falls back to exactly the numbers that were here before, so a
+         missing file cannot silently resize anybody. */
+      if (!im || !im.width || !ref || !ref.width)
+        return r.id === "sho" ? 1.42 : r.id === "kenny" ? 1.24 : 1;
+      return (HERO_SPAN[r.id] || 1) * ((ref.width / ref.height) / (im.width / im.height));
+    }
     function heroPlate(r) {
       /* ON THE BOARD, THE DECK COMES OFF HIS BACK. His hero plate wears it across the
          shoulders, which is right when he is walking and wrong the instant he is riding --
@@ -25595,6 +25620,13 @@ export default function IronLionLayer004() {
          Every path that asks which plate he is wearing comes through here -- the body, the
          bench, the bike -- so this is the one place it has to be said. */
       if (r.id === "rio" && g.board && g.board.on) return "yt_rio_ride";
+      /* THE LION'S MASK IS `g.plain`, NOT g.hero. He predates the g.hero map entirely: the
+         MASK button toggles g.plain directly and heroFn() skips him with an explicit
+         `if (g.who !== "lion")`. That was fine while he was drawn off lion_act, which read
+         g.plain itself. The moment he started drawing from a plate, THIS is the line that had
+         to know it -- otherwise he suits up, the flag flips, the HUD agrees, and the picture
+         never changes. Inverted against the others on purpose: plain means OUT of costume. */
+      if (r.id === "lion") return g.plain ? r.yt : (r.hero || r.yt);
       return (r.hero && g.hero && g.hero[r.id]) ? r.hero : r.yt;
     }
     function drawOneBenched(sp) {
