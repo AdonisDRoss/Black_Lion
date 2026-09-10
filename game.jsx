@@ -1125,6 +1125,15 @@ const VILLAINS = [
     note: "An old engineer in a rig he built. Slowest and hardest thing in the city." },
   { id: "monstruo", name: "EL MONSTRUO", age: 41, yt: "vil_monstruo", hero: "vil_monstruo_hero", hp: 20,
     note: "Never speaks. Nobody has decided whether that is the act." },
+  /* ZERO. Arthur Peale ran the cold room at the Halcyon Cryonic Trust until it folded in
+     eighty-four and the building was sold on. Nobody asked what happened to the people who
+     were already in it. He is the only rogue in the table who has never taken money and has
+     never once denied a single thing he has done.
+     `civ` rather than `hero`, the same case as Elias: the second plate is the man out of the
+     rig, not a hero form. */
+  { id: "zero", name: "ZERO", age: 49, yt: "vil_zero", hero: "vil_zero_civ", hp: 24,
+    alone: true,
+    note: "Kept eleven of them. Says he is the only man in this city who did not break a promise." },
 ];
 /* One vehicle each, except MVP whose ATV is the only thing he owns. All four checked nose-up
    before wiring -- read off the plate, not assumed, because six vehicles in this project have
@@ -1134,6 +1143,9 @@ const VIL_CARS = [
   { k: "vh_mvp_atv", len: 92, w: 62, who: "mvp" },
   { k: "vh_mons_rod", len: 112, w: 58, who: "monstruo" },
   { k: "vh_drive_van", len: 122, w: 66, who: "drive", rockets: 1 },
+  /* The wagon is a refrigerated meat truck with the plant still running off the tailgate.
+     Measured off the plate nose-UP, so it does NOT go in ROTATE_CW. */
+  { k: "vh_zero_wagon", len: 132, w: 62, who: "zero" },
 ];
 /* HENCHMEN. Each rogue draws from one pool; MVP has none, because a man whose career ended
    when he killed somebody on a field does not have people. They are gang types, so a fight
@@ -1161,8 +1173,14 @@ for (const v of VILLAINS) {
   VIL[v.yt] = "assets/villains/" + v.yt + ".png";
   VIL[v.hero] = "assets/villains/" + v.hero + ".png";
 }
-for (const k of ["wp_tommy", "wp_laser", "wp_katana2", "wp_longsword"])
+for (const k of ["wp_tommy", "wp_laser", "wp_katana2", "wp_longsword", "wp_cryo"])
   VIL[k] = "assets/villains/" + k + ".png";
+/* THE FROZEN. Four plates and they are four THAW STAGES, not four victims -- ice_00 solid
+   through ice_03 nearly gone. Registering a key sends the loader looking for it, so these
+   four files have to be in assets/villains/ or the HUD will say so; that is the trade and it
+   is the right one here, because unlike the roof classes the art for these exists. */
+for (let i = 0; i < 4; i++)
+  VIL["ice_0" + i] = "assets/villains/ice_0" + i + ".png";
 /* Sixteen racers: a car, a driver plate and a name each. Paired so the man matches the machine
    -- the goth drives the black sedan, the parent drives the cruiser. */
 const RACERS = [
@@ -3011,6 +3029,17 @@ const ROGUE_JOB = {
     approach: "Somebody who works here left a door unlocked. She has not touched a thing.",
     escape: "walk",
     escapeLine: "She walks out past the police, and one of them holds the door." },
+  /* ZERO. The seventh, and he is the first one who does not want what is in the building.
+     He wants the room COLD, and whatever is standing in it when that happens is a thing he
+     has preserved rather than a thing he has killed -- which is the distinction he will make
+     to you, at length, while you are stuck to the floor.
+     crew 0, wing null, loud false: he works alone and he works quietly, and on the two jobs
+     that are physical work the borrowed-hands rule gives him two men off the local corner
+     like it does for MVP and Elias. */
+  zero: { name: "ZERO", crew: 0, wing: null, loud: false, hp: 110,
+    approach: "The doors are frosted on the inside. Nobody in there is moving and none of them are hurt.",
+    escape: "wagon",
+    escapeLine: "The wagon pulls out at fifteen miles an hour. He has never once driven fast." },
 };
 /* What each of them says to whoever showed up. Five by five, because who you brought is the
    only thing about you they can see. */
@@ -3036,6 +3065,11 @@ const ROGUE_LINE = {
            kenny: "Everything you were is ash already. I am only being honest about it.",
            sho: "Steel burns too. It takes longer, that is all.",
            eclipse: "Write it down. Write down that it EATS. Nobody ever writes that part." },
+  zero: { lion: "You put people in the ground. I put them somewhere they can be got back out of.",
+          rio: "You are fifteen. Nothing has been taken off you yet. Wait.",
+          kenny: "Khan. The knees, the hands, all of it going at once. I could stop that tonight.",
+          sho: "A blade cuts things so they cannot be put back. Mine is the opposite of yours.",
+          eclipse: "Print the names. Eleven of them. Somebody ought to be keeping that list besides me." },
   voz: { lion: "He says you were a policeman once. He says it like it explains you.",
          rio: "He says you are somebody's son. He says that is a shame.",
          kenny: "He says he remembers the fifth fight. He says you should have stayed down.",
@@ -3052,6 +3086,7 @@ const HELD_LINE = {
   monstruo: "",
   voz:      "He has not said anything about %s. That is what frightens me.",
   arson:    "%s is still warm. Go and stand in it. You will understand.",
+  zero:     "%s is not the crime. The crime was signed in eighty-four and nobody has been charged for it.",
 };
 /* ---------- JOB TYPE TWO: THE DEVICE ----------
    The robbery asks how you get past somebody. This asks whether you get there. There is no
@@ -3082,6 +3117,10 @@ const ROGUE_BOMB = {
               fuse: 36, hidden: true },
   arson:    { where: "It is not a bomb. It is an accelerant, and it is under everything.",
               fuse: 34, hidden: false },
+  /* Hidden, and the longest fuse of the seven, because his does not go off -- it opens, and
+     the room comes down to nothing over about a minute. The clock is the same either way. */
+  zero:     { where: "Not a bomb. A coolant flask under the floor, and it does not burn.",
+              fuse: 42, hidden: true },
 };
 /* ---------- JOB TYPE THREE: THE GRAB ----------
    The robbery asks how you get past somebody. The device asks whether you get there. This one
@@ -3099,6 +3138,9 @@ const ROGUE_GRAB = {
   monstruo: { who: "A CASHIER",              walk: 214, note: "Forty of them came out. One of them is not a mime." },
   voz:      { who: "A CITY CLERK",           walk: 228, note: "She asked him to come. He came." },
   arson:    { who: "A FIRE WARDEN",          walk: 200, note: "He took the one whose job was to get everybody out." },
+  /* The slowest walk in the table. Nobody is being dragged: the doctor signed the Halcyon
+     release in eighty-four and has been waiting eleven years to be asked about it. */
+  zero:     { who: "A CRYOGENICS DOCTOR",   walk: 190, note: "Nobody is being pulled. They are walking out together." },
 };
 /* ---------- JOB TYPE FOUR: THE HAUL ----------
    An armoured car, and the only job where WHEN you arrive decides what you are doing:
@@ -3117,7 +3159,17 @@ const ROGUE_BASE = {
   monstruo: { i: 15, j: 12, what: "a theatre in La Perla with the seats taken out" },
   voz:      { i: 6,  j: 8,  what: "an office downtown with her name on nothing" },
   arson:    { i: 7,  j: 11, what: "the burn unit. He still has a key." },
+  zero:     { i: 14, j: 8,  what: "the cold store by the docks. The power has never once been off." },
 };
+/* HIS GUN, in one table, the same as MECH_KIT and HUNTER_KIT and ROAR. `thaw` is doing two
+   jobs on purpose -- it is how long a man stays pinned AND how long the block takes to melt,
+   so the four plates are a clock you can read off the street rather than decoration. */
+const CRYO = { r: 118, arc: 0.30, cd: 2.8, beam: 0.7, dmg: 5, pin: 1.6, thaw: 6.0 };
+/* HOW LONG A MAN IS OFF THE BOARD. Arrest costs more than a beating -- the police keep you
+   longer than a ward does, and losing half your cash to the desk sergeant should not also be
+   the cheaper way out of a fight you were losing. `back` is what he is discharged at: enough
+   to walk out on, not enough to walk straight back into the same room. */
+const DOWN_KIT = { ko: 100, arrest: 150, back: 0.6 };
 const rogueIds = () => Object.keys(ROGUE_JOB);
 const isJewelCell = (i, j) => JEWEL_CELLS.some((c) => c.i === i && c.j === j);
 
@@ -19349,9 +19401,18 @@ export default function IronLionLayer004() {
       }
       g.inside = null; g.roof = null; g.onPlat = null; g.onTrain = null;
       g.mode = "foot";
+      /* AND THEN SOMEBODY ELSE PICKS IT UP. The man they took is the man who sits in the cell;
+         he is banked stripped, because they took his gun before this line ran, which is
+         exactly what should be waiting for him when his clock is up. */
+      downHero("arrest");
     }
     function updatePolice(dt) {
       if ((g.arrested || 0) > 0) g.arrested -= dt;
+      /* Their clocks run wherever you are -- in the den, in a building, across the map. A
+         cooldown that only ticked while you were looking at the bay would mean the fastest way
+         to get a man back was to go and stand in your own garage. */
+      if (g.down) for (const id in g.down)
+        if (g.down[id] > 0) g.down[id] = Math.max(0, g.down[id] - dt);
       if (g.copTimer > 0) {
         g.copTimer -= dt;
         if (g.copTimer <= 0 && g.copScene) { dispatchPolice(g.copScene[0], g.copScene[1]); g.copScene = null; }
@@ -22773,6 +22834,20 @@ export default function IronLionLayer004() {
           if (!gone && g.shop && g.shop.rob)
             for (const t of g.shop.rob.thugs) if (hit(t)) { gone = true; break; }
           if (!gone && g.boss && (!g.boss.roof || g.roof === g.boss.roof)) if (hit(g.boss)) gone = true;
+          /* POLICE AND FEDERALS, ON THE PLAYER'S OWN ROUNDS. They WERE added to this loop --
+             into the `else` branch, the one that runs for rounds the player did not fire. So
+             an officer could be shot by a gang member and not by you, and every round you
+             took passed straight through him while the auto-aim was happily locked on. Same
+             shape as the aim list before it and the crews before that: the thing existed, and
+             it was on the wrong list.
+             ABOVE the civilians on purpose -- a man standing in front of a bystander stops the
+             round, and a cop is the one thing most likely to be standing in front of one.
+             `witnessed` at level 3 because shooting the law is not a thing that needs a
+             witness; it pins heat at 3 whether or not anybody saw it. */
+          if (!gone) for (const u of policeUnits())
+            if (hit(u)) { gone = true; witnessed(u.x, u.y, 3, true); break; }
+          if (!gone) for (const f of federals())
+            if (hit(f)) { gone = true; witnessed(f.x, f.y, 3, true); break; }
           /* Civilians as well. A round that passes through a bystander and keeps going makes the
              city a shooting gallery -- and the whole point of this character is that he minds. */
           if (!gone) for (const pd of g.peds) {
@@ -24269,6 +24344,12 @@ export default function IronLionLayer004() {
       updateItems(dt, g.cam.x, g.cam.y);
       updatePolice(dt);
       updateDetectives(dt);
+      /* THE KNOCKOUT. Fourteen separate Math.max(0, ...) calls clamp the player's health and
+         until now not one line in this file READ the result -- you could stand at zero
+         indefinitely and the city carried on around you. This is the consequence.
+         Gated on `arrested` so a man taken in at low health does not also register as a
+         knockout on the same frame and burn two of the roster at once. */
+      if (g.p.hp <= 0 && !((g.arrested || 0) > 0)) downHero("ko");
       if (!g.inside) updateChatter(dt);
       /* NOT gated on !g.inside any more. updateCrews is written to handle being indoors -- it
          has `if (!cr.indoor && g.inside) continue;` a few lines in, and spawnCourt/spawnThrone
@@ -24624,6 +24705,8 @@ export default function IronLionLayer004() {
       drawFisHunt();
       drawRoar();
       drawFlames();
+      drawFreeze();
+      drawIce();
       drawHunter();
       drawMech();
       drawChopper();          // last: it is above everything, because it is in the air
@@ -25400,6 +25483,28 @@ export default function IronLionLayer004() {
     function drawBenched() {
       if (!g.inside || g.inside.kind !== "den" || g.floor !== 0) return;
       for (const sp of otherSpots()) drawOneBenched(sp);
+      drawDownList();
+    }
+    /* WHO IS NOT HERE. An empty bay with one man missing and no explanation reads as the swap
+       being broken. The clock is printed because "a while" is not a thing a player can plan
+       around -- knowing Kenny is back in forty seconds is the difference between waiting and
+       going out short. */
+    function drawDownList() {
+      const out = ROSTER.filter((r) => isDown(r.id));
+      if (!out.length) return;
+      const s = denSpot();
+      if (!s || !s.bay) return;
+      const x = s.bay.x0 + 14, y0 = s.bay.y0 + 18;
+      ctx.font = "700 11px system-ui, sans-serif";
+      ctx.fillStyle = "rgba(10,9,12,0.78)";
+      ctx.fillRect(x - 8, y0 - 13, 148, 16 + out.length * 14);
+      ctx.fillStyle = "#e8c46a";
+      ctx.fillText("NOT AVAILABLE", x, y0);
+      ctx.font = "400 11px system-ui, sans-serif";
+      for (let n = 0; n < out.length; n++) {
+        ctx.fillStyle = "rgba(226,220,206,0.9)";
+        ctx.fillText(out[n].name + "  " + Math.ceil(g.down[out[n].id]) + "s", x, y0 + 14 + n * 14);
+      }
     }
     // MASK suits the Lion up; for Rio it is the same button and the same idea, his own coat
     // both allies suit up; the flag is per-man so one does not wear the other's decision
@@ -26572,6 +26677,96 @@ export default function IronLionLayer004() {
       }
       ctx.restore();
     }
+    /* HIS COLD. Drawn and not a sprite, for the same reason the flame is: a beam that reaches
+       and crawls cannot be a static plate pointed at somebody. Three cones like the flame but
+       jittered a third as hard -- fire flickers, ice CREEPS -- with crystal spurs along it.
+       Any rogue with a cryo gun sets boss.cryoT; nothing else in the file has to know. */
+    function drawFreeze() {
+      const j = g.job, b = j && j.boss;
+      if (!b || !Number.isFinite(b.x) || !((b.cryoT || 0) > 0)) return;
+      const a = Number.isFinite(b.cryoAng) ? b.cryoAng : 0;
+      const k = 1 - b.cryoT / CRYO.beam;
+      const reach = CRYO.r * Math.min(1, 0.35 + k * 1.2);
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(a);
+      const cone = (len, spread, col) => {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        for (let q = -3; q <= 3; q++) {
+          const th = (q / 3) * spread;
+          const jitter = 1 + (Math.random() - 0.5) * 0.10;
+          ctx.lineTo(Math.cos(th) * len * jitter + 10, Math.sin(th) * len * jitter);
+        }
+        ctx.closePath(); ctx.fill();
+      };
+      cone(reach, CRYO.arc, "rgba(96,168,220,0.34)");
+      cone(reach * 0.78, CRYO.arc * 0.66, "rgba(158,222,244,0.54)");
+      cone(reach * 0.46, CRYO.arc * 0.34, "rgba(238,252,255,0.80)");
+      for (let q = 0; q < 7; q++) {
+        const dd = reach * (0.2 + Math.random() * 0.8);
+        const th = (Math.random() - 0.5) * CRYO.arc * 1.6;
+        const s = 2 + ((Math.random() * 3) | 0);
+        ctx.fillStyle = `rgba(226,248,255,${0.35 + Math.random() * 0.45})`;
+        ctx.fillRect(Math.cos(th) * dd + 10, Math.sin(th) * dd, s, s);
+      }
+      ctx.restore();
+    }
+    /* WHO THE BEAM CATCHES. Through combatTargets(), NOT g.peds. That is the list this file
+       learned the hard way -- gang crews, police, guards, deputies, the FIS squad and the
+       office staff all live somewhere other than g.peds, and every ability that searched
+       g.peds alone was landing exclusively on bystanders. A beam that passes through a
+       police officer is the same bug as a bullet that does. */
+    function freezeCone(x, y, ang) {
+      for (const t of combatTargets()) {
+        if (!t || !Number.isFinite(t.x) || !(t.hp > 0)) continue;
+        const dx = t.x - x, dy = t.y - y;
+        if (Math.hypot(dx, dy) > CRYO.r) continue;
+        let da = Math.atan2(dy, dx) - ang;
+        while (da > Math.PI) da -= 6.283;
+        while (da < -Math.PI) da += 6.283;
+        if (Math.abs(da) > CRYO.arc) continue;
+        t.frozeT = Math.max(t.frozeT || 0, CRYO.thaw);
+        t.stunT = Math.max(t.stunT || 0, CRYO.thaw);
+        t.vx = 0; t.vy = 0;
+      }
+    }
+    /* THE FROZEN, DRAWN. An OVERLAY pass after the bodies rather than a case inside each
+       unit's own draw path: peds, crew members, police, guards and federals are drawn by five
+       different loops, and adding a branch to all five is exactly how a thing ends up on four
+       lists and not the fifth. One pass over combatTargets() catches every one of them, now
+       and for whatever the eighth kind of person turns out to be.
+       frozeT is decremented HERE and gates nothing mechanical -- the pin is stunT, which runs
+       down in its own update loop, so a man cannot get stuck solid because a draw pass was
+       skipped for a frame. */
+    function drawIce() {
+      const dt = g.dt || 0.016;
+      for (const t of combatTargets()) {
+        if (!t || !((t.frozeT || 0) > 0) || !Number.isFinite(t.x)) continue;
+        t.frozeT = Math.max(0, t.frozeT - dt);
+        const k = 1 - t.frozeT / CRYO.thaw;
+        const im = imgs.current["ice_0" + clamp(Math.floor(k * 4), 0, 3)];
+        if (im && im.width) ctx.drawImage(im, t.x - 17, t.y - 22, 34, 44);
+        else {
+          ctx.fillStyle = `rgba(150,214,240,${0.55 - k * 0.3})`;
+          ctx.fillRect(t.x - 13, t.y - 18, 26, 36);
+          ctx.strokeStyle = "rgba(238,252,255,0.7)"; ctx.lineWidth = 1.5;
+          ctx.strokeRect(t.x - 13, t.y - 18, 26, 36);
+        }
+      }
+      /* And you, if he caught you. Frost ON the man, not a block around him -- the hero is
+         drawn at a size the ice plate does not match, and a 34x44 box over Darius reads as a
+         missing sprite rather than as being frozen. */
+      if ((g.p.iceT || 0) > 0 && Number.isFinite(g.p.x)) {
+        g.p.iceT = Math.max(0, g.p.iceT - dt);
+        const a2 = Math.min(0.5, g.p.iceT * 0.35);
+        ctx.fillStyle = `rgba(158,222,244,${a2})`;
+        ctx.beginPath(); ctx.arc(g.p.x, g.p.y, 20, 0, 6.3); ctx.fill();
+        ctx.strokeStyle = `rgba(238,252,255,${a2 + 0.2})`; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(g.p.x, g.p.y, 21, 0, 6.3); ctx.stroke();
+      }
+    }
     function drawJobBoss() {
       const j = g.job;
       if (!j || !j.boss || j.phase === "done" || j.phase === "gone") return;
@@ -26589,6 +26784,25 @@ export default function IronLionLayer004() {
           g.p.hp = Math.max(0, g.p.hp - 9);
         }
         b.flameT = Math.max(0, (b.flameT || 0) - (g.dt || 0.016));
+      }
+      /* ZERO does not swing anything. Same slot as the flamethrower and the same reason for
+         being here: this is the one place that already knows which rogue is on the board.
+         Stun-led rather than damage-led, like ROAR -- 5 points and a second and a half on the
+         floor, and the floor is where his crew get to reach you. */
+      if (j.rid === "zero") {
+        b.cryoCd = (b.cryoCd || 0) - (g.dt || 0.016);
+        const d2 = Math.hypot(g.p.x - b.x, g.p.y - b.y);
+        if (b.cryoCd <= 0 && d2 < CRYO.r) {
+          b.cryoCd = CRYO.cd;
+          b.cryoT = CRYO.beam;
+          b.cryoAng = Math.atan2(g.p.y - b.y, g.p.x - b.x);
+          g.p.hp = Math.max(0, g.p.hp - CRYO.dmg);
+          g.p.stunT = Math.max(g.p.stunT || 0, CRYO.pin);
+          g.p.iceT = Math.max(g.p.iceT || 0, CRYO.pin + 1.2);
+          /* He does not aim around his own borrowed hands, and that is the point of him. */
+          freezeCone(b.x, b.y, b.cryoAng);
+        }
+        b.cryoT = Math.max(0, (b.cryoT || 0) - (g.dt || 0.016));
       }
       const pulse = 0.5 + 0.5 * Math.sin(g.t * 5);
       ctx.strokeStyle = `rgba(232,120,90,${0.5 + 0.4 * pulse})`;
@@ -26882,8 +27096,73 @@ export default function IronLionLayer004() {
                optics: true, quiet: true } },
     ];
     const rosterOf = (id) => ROSTER.find((r) => r.id === id) || ROSTER[0];
-    // everyone you are NOT, in roster order, so the line-up does not reshuffle as you swap
-    const benched = () => ROSTER.filter((r) => r.id !== g.who);
+    /* THE BENCH IS NOT INFINITE ANY MORE. A man who is knocked out or taken in is OFF the
+       roster while his clock runs: not drawn in the bay, not swappable, not on the prompt.
+       benched() is the single gate for all three -- otherSpots() draws from it and G.swapFn
+       picks from what otherSpots() returned -- so filtering HERE removes him from the room and
+       from the button in one place instead of two. That is the shape this file keeps getting
+       wrong in the other direction. */
+    const isDown = (id) => ((g.down && g.down[id]) || 0) > 0;
+    const available = () => ROSTER.filter((r) => !isDown(r.id));
+    // everyone you are NOT and who is fit, in roster order, so the line-up does not reshuffle
+    const benched = () => ROSTER.filter((r) => r.id !== g.who && !isDown(r.id));
+    /* PUT A MAN ON THE FLOOR. Shared by the knockout and the arrest so both roads out of a
+       fight lead to the same place. Everything a voluntary swap does at the bench happens
+       here too -- kit banked, Sho put back in the den crew -- because the difference between
+       walking away and being carried away should be the clock, not the bookkeeping. */
+    function becomeHero(to, why) {
+      g.who = to.id;
+      wearKit(g.bench[to.id] || to.kit);
+      if (to.id !== "lion") { g.lionOn = false; g.plain = true; g.roof = null; }
+      input.current.lion = false;
+      /* OUT FRONT OF THE DEN, not inside it -- the same rule the FIS fast travel follows.
+         Dropping somebody into an interior leaves g.inside pointing at a building he is not
+         standing in, and every indoor loop in this file then disagrees about where he is. He
+         walks in through his own front door like everybody else. */
+      const b = denOf();
+      const x = b ? b.x + b.w / 2 : g.p.x, y = b ? b.y + b.h + 46 : g.p.y;
+      g.inside = null; g.roof = null; g.sewer = null; g.fireFloor = null;
+      g.onPlat = null; g.onTrain = null; g.mode = "foot";
+      g.p.x = x; g.p.y = y; g.p.vx = 0; g.p.vy = 0;
+      g.p.stunT = 0; g.p.iceT = 0;
+      g.cam.x = x; g.cam.y = y;
+      g.pickupFlash = { nm: (why === "arrest" ? "taken_in" : "carried_out") + "_now_" + to.id, t: 2.8 };
+    }
+    function downHero(why) {
+      const id = g.who;
+      g.bench = g.bench || {};
+      g.down = g.down || {};
+      const k = packKit();
+      k.hp = Math.max(1, Math.round((rosterOf(id).kit.hp || 100) * DOWN_KIT.back));
+      g.bench[id] = k;
+      g.down[id] = why === "arrest" ? DOWN_KIT.arrest : DOWN_KIT.ko;
+      // if you were Sho, the crew member you were spliced out of goes back in
+      if (g.shoHidden) {
+        const h = g.shoHidden;
+        h.m.x = g.p.x; h.m.y = g.p.y;
+        if (h.cr.members.indexOf(h.m) < 0) h.cr.members.push(h.m);
+        g.shoHidden = null;
+      }
+      /* NOBODY LEFT. Whoever is closest to coming back gets pulled early and comes out WHOLE
+         -- 100, not the ward's discharge number -- because a game that cannot be continued is
+         a worse outcome than a game that hands you a healed man. Closest to ready is the
+         lowest clock, which is also the man who has been resting longest. */
+      let next = available()[0];
+      if (!next) {
+        let bid = ROSTER[0].id, bt = Infinity;
+        for (const r of ROSTER) {
+          const t = g.down[r.id] || 0;
+          if (t < bt) { bt = t; bid = r.id; }
+        }
+        g.down[bid] = 0;
+        const k2 = g.bench[bid] || { ...rosterOf(bid).kit };
+        k2.hp = 100;
+        g.bench[bid] = k2;
+        next = rosterOf(bid);
+        g.pickupFlash = { nm: "last_man_up", t: 3.0 };
+      }
+      becomeHero(next, why);
+    }
 
     /* Along the SOUTH wall of the bay, away from the lift and the cars. Spread across the
        width so two men are not standing in each other, and each one is talkable on his own. */
@@ -27734,6 +28013,16 @@ export default function IronLionLayer004() {
       } else if (R.escape === "atv") {
         g.fx.push({ kind: "ring", x: b.x, y: b.y, t: 0.30 });
         b.vx = 300; b.vy = -140;        // over the counter and away, fast and straight
+      }
+      else if (R.escape === "wagon") {
+        /* He does not run and he does not hurry. He backs the wagon out at a walking pace and
+           puts the room down to nothing on the way past, which is the only reason he gets to
+           leave that slowly. */
+        g.fx.push({ kind: "ring", x: b.x, y: b.y, t: 0.30 });
+        b.cryoT = CRYO.beam;
+        b.cryoAng = Math.atan2(g.p.y - b.y, g.p.x - b.x);
+        freezeCone(b.x, b.y, b.cryoAng);
+        b.vx = -120; b.vy = 0;
       }
       else if (R.escape === "watch") {
         // he does not go anywhere. He stops fighting and he stops moving, and he looks at it.
@@ -28603,6 +28892,8 @@ export default function IronLionLayer004() {
       return "out";
     };
 
+    G.downFn = (why) => { downHero(why === "arrest" ? "arrest" : "ko"); return true; };
+    G.upFn = () => { G.current.down = {}; return true; };
     G.fisFn = () => {
       /* FAST TRAVEL TO THE FIELD OFFICE. Puts him on the forecourt, not inside: you still walk
          through the seal and the front door, which is the bit that makes it a building rather
@@ -28631,6 +28922,8 @@ export default function IronLionLayer004() {
       W2.mech = (x, y) => G.mechFn(x != null ? [x, y] : null);
       W2.hunt = () => G.fisHuntFn();
       W2.fis = () => G.fisFn();
+      W2.down = (why) => G.downFn(why || "ko");      // put the current man on the shelf
+      W2.up = () => G.upFn();                        // clear every cooldown
     }
     raf = requestAnimationFrame(frame);
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
