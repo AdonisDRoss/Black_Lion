@@ -3255,6 +3255,11 @@ const DOG_KIT = {
      embarrassed about. In it she is RAYO -- shorter, harder, and the name he uses out loud when
      other people are listening. Same dog. */
   name: "CENTELLA", hero: "RAYO",
+  /* The animal plates face DOWN -- measured, not guessed: the bottom quarter of dog_rio is 29px
+     wide (head and ears) against 15px at the top (tail). A down-facing plate needs ang - PI/2.
+     Kept as a number so that if a future sheet arrives drawn the other way up it is one edit
+     here rather than a hunt through the draw. */
+  face: -Math.PI / 2,
   tow: { spd: 520, stop: 90, pick: 1.5 },
   follow: 54, spd: 340,
   bite: { cd: 1.9, r: 46, dmg: 9 },
@@ -24994,7 +24999,7 @@ export default function IronLionLayer004() {
                             const k = v && ((v.m && v.m.k) || (v.skin && v.skin.k) || v.k);
                             return k === "sho_car"; })(),
             turboCd: g.turboCd || 0, turboOn: g.turboT || 0, blowCd: g.p.blowCd || 0,
-            towOn: !!g.towTo,
+            towOn: !!g.towTo, dogLoose: !!g.dogLoose,
             board: !!g.board.on, hasBoard: !!g.board.has, atRack: atRack(),
             cab: g.cab ? g.cab.g : null,
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
@@ -27364,13 +27369,21 @@ export default function IronLionLayer004() {
       const D = g.dog;
       /* Heel, on the side away from wherever he is going, so she is never under his board. */
       const pa = Math.atan2(g.p.vy || 0, g.p.vx || 1);
-      const tx = g.p.x - Math.cos(pa) * DOG_KIT.follow, ty = g.p.y - Math.sin(pa) * DOG_KIT.follow;
+      // off the lead she trails further back and drifts -- she is following, not heeling
+      const fl = DOG_KIT.follow * (g.dogLoose ? 1.9 : 1);
+      const tx = g.p.x - Math.cos(pa) * fl, ty = g.p.y - Math.sin(pa) * fl;
       const dx = tx - D.x, dy = ty - D.y, dd = Math.hypot(dx, dy);
       if (dd > 6) {
         const s = Math.min(DOG_KIT.spd, dd * 4) * dt;
         D.x += (dx / dd) * s; D.y += (dy / dd) * s;
-        D.ang = Math.atan2(dy, dx);
       }
+      /* FACING COMES FROM INTENT, NOT FROM RESIDUAL MOVEMENT. Reading it off her own velocity
+         meant that the moment she reached the heel point -- which is BEHIND him -- the last
+         thing she recorded was her run backwards toward it, and she stood there pointing the
+         wrong way. She looks where he is going when he is moving, and at him when he is not,
+         which is what a dog on a lead actually does. */
+      const moving = Math.hypot(g.p.vx || 0, g.p.vy || 0) > 12;
+      D.ang = moving ? pa : Math.atan2(g.p.y - D.y, g.p.x - D.x);
       D.biteCd -= dt; D.howlCd -= dt; D.healCd -= dt; D.biteT = Math.max(0, D.biteT - dt);
       // nearest hostile to HER, not to him -- she goes for what is closest to the boy
       let near = null, nd = 1e9;
@@ -27436,6 +27449,11 @@ export default function IronLionLayer004() {
     G.towFn = () => {
       const gg = G.current;
       if (gg.who !== "rio") return false;
+      if (gg.dogLoose) {                       // she is off the lead: this clips her back on
+        gg.dogLoose = 0;
+        gg.pickupFlash = { nm: "back_on_the_lead", t: 1.4 };
+        return true;
+      }
       if (gg.towTo) { gg.towTo = null; gg.tow = null; return true; }   // press again to stop
       const list = dogDests();
       if (!list.length) { gg.pickupFlash = { nm: "nowhere_to_go", t: 1.2 }; return false; }
@@ -27489,12 +27507,14 @@ export default function IronLionLayer004() {
       /* THE LEASH. Same quadratic as Elegy's whip -- a line with a sag in it reads as slack
          rope and a straight one reads as a bug. It hangs between his hand and her collar and
          it is the only thing on screen that says these two are together. */
-      ctx.save();
-      ctx.strokeStyle = "rgba(40,34,30,0.75)"; ctx.lineWidth = 1.6;
-      const mx = (g.p.x + D.x) / 2, my = (g.p.y + D.y) / 2 + 10;
-      ctx.beginPath(); ctx.moveTo(g.p.x, g.p.y);
-      ctx.quadraticCurveTo(mx, my, D.x, D.y); ctx.stroke();
-      ctx.restore();
+      if (!g.dogLoose) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(40,34,30,0.75)"; ctx.lineWidth = 1.6;
+        const mx = (g.p.x + D.x) / 2, my = (g.p.y + D.y) / 2 + 10;
+        ctx.beginPath(); ctx.moveTo(g.p.x, g.p.y);
+        ctx.quadraticCurveTo(mx, my, D.x, D.y); ctx.stroke();
+        ctx.restore();
+      }
       if ((D.howlT || 0) > 0) {
         const k = 1 - D.howlT / 0.6;
         ctx.strokeStyle = `rgba(196,214,236,${(1 - k) * 0.5})`;
@@ -27505,7 +27525,10 @@ export default function IronLionLayer004() {
       const im = imgs.current[(g.hero && g.hero.rio) ? "dog_rio_hero" : "dog_rio"];
       if (im && im.width) {
         const h = 30 * (D.biteT > 0 ? 1.08 : 1), w = h * (im.width / im.height);
-        ctx.save(); ctx.translate(D.x, D.y); ctx.rotate(D.ang + Math.PI / 2);
+        /* MINUS, not plus. Every hero plate on this sheet faces UP and every animal on the
+           other one faces DOWN -- head at the bottom, tail at the top. Reusing the hero rotation
+           on her ran her backwards down the street. */
+        ctx.save(); ctx.translate(D.x, D.y); ctx.rotate(D.ang + DOG_KIT.face);
         ctx.drawImage(im, -w / 2, -h / 2, w, h); ctx.restore();
       }
     }
@@ -29502,6 +29525,7 @@ export default function IronLionLayer004() {
       W2.down = (why) => G.downFn(why || "ko");      // put the current man on the shelf
       W2.up = () => G.upFn();                        // clear every cooldown
       W2.rain = (k) => G.rainFn(k);                  // "clear" | "light" | "med" | "storm"
+      W2.tow = () => G.towFn();                      // open the dog's destination list
     }
     raf = requestAnimationFrame(frame);
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
@@ -31063,6 +31087,14 @@ export default function IronLionLayer004() {
             const gg = G.current;
             // Sho has no grapple; the same control is his legs
             if (gg.who === "sho") { G.shoJumpFn && G.shoJumpFn(); return; }
+            /* RIO LETS HER OFF. First press unclips her and she just comes along; after that
+               the button is the grapple again, so he does not lose the rooftops for owning a
+               dog. Clipping her back on is the TOW button, which is the one she answers to. */
+            if (gg.who === "rio" && gg.dog && !gg.dogLoose && !gg.roof) {
+              gg.dogLoose = 1; gg.towTo = null; gg.tow = null;
+              gg.pickupFlash = { nm: "off_the_leash", t: 1.6 };
+              return;
+            }
             if (gg.roof) {
               // a roof within a stride is a jump; otherwise reach for the next one, and only
               // climb down when there is nothing to go to
@@ -31116,7 +31148,8 @@ export default function IronLionLayer004() {
           <>
             {!hud.cab && hud.turbo && btn("BOOST", (hud.turboCd || 0) > 0 ? Math.ceil(hud.turboCd) + "s" : "ready",
               () => { G.turboFn && G.turboFn(); }, null, (hud.turboOn || 0) > 0)}
-            {!hud.cab && hud.who === "rio" && btn("TOW", hud.towOn ? "stop" : "where to",
+            {!hud.cab && hud.who === "rio" && btn(hud.dogLoose ? "LEAD" : "TOW",
+              hud.dogLoose ? "clip her on" : hud.towOn ? "stop" : "where to",
               () => G.towFn(), null, false, 56)}
             {!hud.cab && hud.who === "kenny" && btn("BLOW", (hud.blowCd || 0) > 0 ? Math.ceil(hud.blowCd) + "s" : "shockwave",
               () => { G.blowFn && G.blowFn(); }, null)}
