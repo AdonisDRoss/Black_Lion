@@ -3251,7 +3251,11 @@ const DOWN_KIT = { ko: 100, arrest: 150, back: 0.6 };
    `bite` is the only damage she does. `howl` is the real move -- it staggers a crowd the way
    the roar does but from the far side of it, so the two of you have a room between you. */
 const DOG_KIT = {
-  name: "CENTELLA",
+  /* Out of the rig she is CENTELLA, which is what a fifteen-year-old picks and is then slightly
+     embarrassed about. In it she is RAYO -- shorter, harder, and the name he uses out loud when
+     other people are listening. Same dog. */
+  name: "CENTELLA", hero: "RAYO",
+  tow: { spd: 520, stop: 90, pick: 1.5 },
   follow: 54, spd: 340,
   bite: { cd: 1.9, r: 46, dmg: 9 },
   howl: { cd: 11.0, r: 190, stun: 2.4 },
@@ -24990,6 +24994,7 @@ export default function IronLionLayer004() {
                             const k = v && ((v.m && v.m.k) || (v.skin && v.skin.k) || v.k);
                             return k === "sho_car"; })(),
             turboCd: g.turboCd || 0, turboOn: g.turboT || 0, blowCd: g.p.blowCd || 0,
+            towOn: !!g.towTo,
             board: !!g.board.on, hasBoard: !!g.board.has, atRack: atRack(),
             cab: g.cab ? g.cab.g : null,
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
@@ -27390,6 +27395,7 @@ export default function IronLionLayer004() {
         g.shake = Math.max(g.shake || 0, 4);
       }
       D.howlT = Math.max(0, (D.howlT || 0) - dt);
+      stepTow(D, dt);
       /* She comes and leans on him. Only when he is actually hurt and only when she can reach,
          so it is a reason to stop running rather than a trickle of free health. */
       if (D.healCd <= 0 && g.p.hp < 70 && Math.hypot(g.p.x - D.x, g.p.y - D.y) < DOG_KIT.heal.r) {
@@ -27399,7 +27405,87 @@ export default function IronLionLayer004() {
       }
       drawDog(D);
     }
+    /* WHERE SHE CAN TAKE HIM. Built fresh each time the list opens rather than held, because a
+       destination that moves -- and the objective is a man who is running -- has to be re-asked
+       for, not remembered. The objective entry resolves exactly the way drawJobArrow does:
+       the live man first, then the object, then the address. */
+    function dogDests() {
+      const out = [];
+      const j0 = g.job;
+      if (j0 && j0.st && j0.phase !== "done" && j0.phase !== "gone") {
+        const boss = j0.boss && Number.isFinite(j0.boss.x) && j0.boss.hp > 0 ? j0.boss : null;
+        const runner = j0.runner && j0.runner.v && Number.isFinite(j0.runner.v.x) ? j0.runner.v : null;
+        let t = runner || boss || j0.bomb || j0.grab;
+        if (!t) { const c = getCell(j0.st.i, j0.st.j);
+                  t = { x: (c.lx0 + c.lx1) / 2, y: (c.ly0 + c.ly1) / 2 }; }
+        if (t && Number.isFinite(t.x)) out.push({ nm: "THE OBJECTIVE", x: t.x, y: t.y });
+      }
+      const b0 = denOf();
+      if (b0) out.push({ nm: "THE DEN", x: b0.x + b0.w / 2, y: b0.y + b0.h + 46 });
+      for (const rid of rogueIds()) {
+        const B = ROGUE_BASE[rid];
+        if (!B) continue;
+        const c = getCell(B.i, B.j);
+        if (c) out.push({ nm: ROGUE_JOB[rid].name + " \u00b7 HOME", x: (c.lx0 + c.lx1) / 2, y: (c.ly0 + c.ly1) / 2 });
+      }
+      return out;
+    }
+    /* THE PICKER, ON THE CANVAS. No modal: a list you tap through, where the same button that
+       opened it moves the highlight, and letting go of it for a beat is what confirms. On a
+       phone that is one thumb in one place, which is the only way this is usable on a board. */
+    G.towFn = () => {
+      const gg = G.current;
+      if (gg.who !== "rio") return false;
+      if (gg.towTo) { gg.towTo = null; gg.tow = null; return true; }   // press again to stop
+      const list = dogDests();
+      if (!list.length) { gg.pickupFlash = { nm: "nowhere_to_go", t: 1.2 }; return false; }
+      if (!gg.tow) gg.tow = { list, i: 0, t: DOG_KIT.tow.pick };
+      else { gg.tow.list = list; gg.tow.i = (gg.tow.i + 1) % list.length; gg.tow.t = DOG_KIT.tow.pick; }
+      return true;
+    };
+    function stepTow(D, dt) {
+      if (g.tow) {
+        g.tow.t -= dt;
+        if (g.tow.t <= 0) {
+          g.towTo = g.tow.list[g.tow.i] || null;
+          g.tow = null;
+          if (g.towTo) g.jobBanner = DOG_KIT.hero + " \u00b7 " + g.towTo.nm;
+        }
+      }
+      if (!g.towTo) return;
+      /* She runs ahead on the leash and he holds on. Rio is MOVED, not accelerated -- a tow is
+         not him pedalling, and letting his own physics fight it made the board judder. */
+      const dx = g.towTo.x - g.p.x, dy = g.towTo.y - g.p.y, d = Math.hypot(dx, dy) || 1;
+      if (d < DOG_KIT.tow.stop) {
+        g.towTo = null; g.p.vx = 0; g.p.vy = 0;
+        g.pickupFlash = { nm: "good_girl", t: 1.6 };
+        return;
+      }
+      const s = DOG_KIT.tow.spd * dt;
+      g.p.x += (dx / d) * s; g.p.y += (dy / d) * s;
+      g.p.vx = (dx / d) * DOG_KIT.tow.spd; g.p.vy = (dy / d) * DOG_KIT.tow.spd;
+      // she is out in front of him on the line, not heeling
+      D.x = g.p.x + (dx / d) * 52; D.y = g.p.y + (dy / d) * 52; D.ang = Math.atan2(dy, dx);
+    }
+    function drawTowList() {
+      if (!g.tow || !g.tow.list) return;
+      const L = g.tow.list, x = g.cam.x - 180, y0 = g.cam.y - 120;
+      ctx.save();
+      ctx.fillStyle = "rgba(10,9,12,0.82)";
+      ctx.fillRect(x - 10, y0 - 16, 232, 20 + L.length * 16);
+      ctx.font = "700 11px system-ui, sans-serif";
+      ctx.fillStyle = "#e8c46a";
+      ctx.fillText("WHERE TO, " + DOG_KIT.name + "?", x, y0 - 3);
+      ctx.font = "400 11px system-ui, sans-serif";
+      for (let i = 0; i < L.length; i++) {
+        const on = i === g.tow.i;
+        ctx.fillStyle = on ? "#e8c46a" : "rgba(226,220,206,0.7)";
+        ctx.fillText((on ? "\u25b8 " : "  ") + L[i].nm, x, y0 + 14 + i * 16);
+      }
+      ctx.restore();
+    }
     function drawDog(D) {
+      drawTowList();
       /* THE LEASH. Same quadratic as Elegy's whip -- a line with a sag in it reads as slack
          rope and a straight one reads as a bug. It hangs between his hand and her collar and
          it is the only thing on screen that says these two are together. */
@@ -31030,6 +31116,8 @@ export default function IronLionLayer004() {
           <>
             {!hud.cab && hud.turbo && btn("BOOST", (hud.turboCd || 0) > 0 ? Math.ceil(hud.turboCd) + "s" : "ready",
               () => { G.turboFn && G.turboFn(); }, null, (hud.turboOn || 0) > 0)}
+            {!hud.cab && hud.who === "rio" && btn("TOW", hud.towOn ? "stop" : "where to",
+              () => G.towFn(), null, false, 56)}
             {!hud.cab && hud.who === "kenny" && btn("BLOW", (hud.blowCd || 0) > 0 ? Math.ceil(hud.blowCd) + "s" : "shockwave",
               () => { G.blowFn && G.blowFn(); }, null)}
             {!hud.cab && hud.who === "kenny" && btn("HIT", (hud.chain || 0) === 3 ? "uppercut" : "combo " + ((hud.chain || 0) + 1),
