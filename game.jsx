@@ -1075,7 +1075,8 @@ YT.wp_katana = "assets/youth/wp_katana.png";
    yt_rio_ride is the third Rio plate: his hero plate carries the deck across his shoulders,
    and drawBoardUnder puts the real deck under his feet, so riding drew two boards. */
 const HERO_ART = {};
-for (const k of ["yt_lion", "yt_lion_hero", "yt_lion_hero_bare", "yt_mentor", "yt_rio", "yt_rio_hero", "yt_rio_ride",
+for (const k of ["yt_lion", "yt_lion_hero", "yt_lion_hero_bare", "yt_mentor",
+                 "dog_rio", "dog_rio_hero", "yt_rio", "yt_rio_hero", "yt_rio_ride",
                  "yt_kenny", "yt_kenny_hero", "yt_sho", "yt_sho_hero",
                  "yt_eclipse", "yt_eclipse_hero"])
   HERO_ART[k] = "assets/heroes/" + k + ".png";
@@ -3244,6 +3245,18 @@ const DOWN_KIT = { ko: 100, arrest: 150, back: 0.6 };
    pointed at making you stop, not at killing you. The gas is the real weapon and it does no
    damage at all: a second and a half of not being able to read the screen, next to a man who
    can. The pistol is what she does when the gas is not ready, and it is deliberately poor. */
+/* CENTELLA. Rio's shepherd, and the first thing in this file that belongs to ONE hero.
+   She cannot be knocked out on purpose: a companion you can lose is a companion you stop
+   taking risks with, and a fifteen-year-old on a skateboard needs the opposite of that.
+   `bite` is the only damage she does. `howl` is the real move -- it staggers a crowd the way
+   the roar does but from the far side of it, so the two of you have a room between you. */
+const DOG_KIT = {
+  name: "CENTELLA",
+  follow: 54, spd: 340,
+  bite: { cd: 1.9, r: 46, dmg: 9 },
+  howl: { cd: 11.0, r: 190, stun: 2.4 },
+  heal: { cd: 22.0, amt: 18, r: 60 },
+};
 const ELEGY_KIT = {
   stand: 46,                       // how far behind him she stays
   gas:    { cd: 9.0, r: 240, t: 1.6 },
@@ -24859,6 +24872,7 @@ export default function IronLionLayer004() {
       /* Above the bodies and below the HUD -- rain in front of a man is rain he is standing
          in; rain behind him is a wallpaper. Indoors it is skipped, because it is drawn on the
          world plane and there is a roof over you. */
+      stepDog();
       if (!g.inside) drawWeather();
       /* HER GAS. Drawn in world space around the camera like the rain, for the same reason --
          no canvas dimensions to go and find. Canvas has no cheap real blur, so this is a
@@ -27332,6 +27346,82 @@ export default function IronLionLayer004() {
         ctx.fillRect(cx - WX_R, cy - WX_R, WX_R * 2, WX_R * 2);
       }
       ctx.restore();
+    }
+    /* ---------- CENTELLA ----------
+       Rio's, and only Rio's. Hung off g rather than a crew list, and NOT on combatTargets --
+       that omission is the whole design here, not the usual oversight: nothing may target her.
+       She swaps plate with him, because the armour is his and she wears the other half of it. */
+    function stepDog() {
+      if (g.who !== "rio" || g.inside) { g.dog = null; return; }
+      const dt = g.dt || 0.016;
+      if (!g.dog) g.dog = { x: g.p.x - 40, y: g.p.y + 30, ang: 0,
+                            biteCd: 0, howlCd: 4, healCd: 8, biteT: 0 };
+      const D = g.dog;
+      /* Heel, on the side away from wherever he is going, so she is never under his board. */
+      const pa = Math.atan2(g.p.vy || 0, g.p.vx || 1);
+      const tx = g.p.x - Math.cos(pa) * DOG_KIT.follow, ty = g.p.y - Math.sin(pa) * DOG_KIT.follow;
+      const dx = tx - D.x, dy = ty - D.y, dd = Math.hypot(dx, dy);
+      if (dd > 6) {
+        const s = Math.min(DOG_KIT.spd, dd * 4) * dt;
+        D.x += (dx / dd) * s; D.y += (dy / dd) * s;
+        D.ang = Math.atan2(dy, dx);
+      }
+      D.biteCd -= dt; D.howlCd -= dt; D.healCd -= dt; D.biteT = Math.max(0, D.biteT - dt);
+      // nearest hostile to HER, not to him -- she goes for what is closest to the boy
+      let near = null, nd = 1e9;
+      for (const t of combatTargets()) {
+        if (!t || !(t.hp > 0) || !Number.isFinite(t.x) || t.ally) continue;
+        const d2 = Math.hypot(t.x - D.x, t.y - D.y);
+        if (d2 < nd) { nd = d2; near = t; }
+      }
+      if (near && D.biteCd <= 0 && nd < DOG_KIT.bite.r) {
+        D.biteCd = DOG_KIT.bite.cd; D.biteT = 0.2;
+        near.hp = Math.max(0, near.hp - DOG_KIT.bite.dmg);
+        near.stunT = Math.max(near.stunT || 0, 0.5);
+        near.say = 1.0; near.line = "!";
+      }
+      if (D.howlCd <= 0 && near && nd < DOG_KIT.howl.r) {
+        D.howlCd = DOG_KIT.howl.cd; D.howlT = 0.6;
+        for (const t of combatTargets()) {
+          if (!t || !(t.hp > 0) || t.ally) continue;
+          if (Math.hypot(t.x - D.x, t.y - D.y) > DOG_KIT.howl.r) continue;
+          t.stunT = Math.max(t.stunT || 0, DOG_KIT.howl.stun);
+        }
+        g.shake = Math.max(g.shake || 0, 4);
+      }
+      D.howlT = Math.max(0, (D.howlT || 0) - dt);
+      /* She comes and leans on him. Only when he is actually hurt and only when she can reach,
+         so it is a reason to stop running rather than a trickle of free health. */
+      if (D.healCd <= 0 && g.p.hp < 70 && Math.hypot(g.p.x - D.x, g.p.y - D.y) < DOG_KIT.heal.r) {
+        D.healCd = DOG_KIT.heal.cd;
+        g.p.hp = Math.min(100, g.p.hp + DOG_KIT.heal.amt);
+        g.pickupFlash = { nm: DOG_KIT.name.toLowerCase() + "_stayed_with_you", t: 1.8 };
+      }
+      drawDog(D);
+    }
+    function drawDog(D) {
+      /* THE LEASH. Same quadratic as Elegy's whip -- a line with a sag in it reads as slack
+         rope and a straight one reads as a bug. It hangs between his hand and her collar and
+         it is the only thing on screen that says these two are together. */
+      ctx.save();
+      ctx.strokeStyle = "rgba(40,34,30,0.75)"; ctx.lineWidth = 1.6;
+      const mx = (g.p.x + D.x) / 2, my = (g.p.y + D.y) / 2 + 10;
+      ctx.beginPath(); ctx.moveTo(g.p.x, g.p.y);
+      ctx.quadraticCurveTo(mx, my, D.x, D.y); ctx.stroke();
+      ctx.restore();
+      if ((D.howlT || 0) > 0) {
+        const k = 1 - D.howlT / 0.6;
+        ctx.strokeStyle = `rgba(196,214,236,${(1 - k) * 0.5})`;
+        ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(D.x, D.y, DOG_KIT.howl.r * k, 0, 6.3); ctx.stroke();
+      }
+      drawShadow(D.x, D.y + 2, 10, 4, 0.32);
+      const im = imgs.current[(g.hero && g.hero.rio) ? "dog_rio_hero" : "dog_rio"];
+      if (im && im.width) {
+        const h = 30 * (D.biteT > 0 ? 1.08 : 1), w = h * (im.width / im.height);
+        ctx.save(); ctx.translate(D.x, D.y); ctx.rotate(D.ang + Math.PI / 2);
+        ctx.drawImage(im, -w / 2, -h / 2, w, h); ctx.restore();
+      }
     }
     function drawJobBanner() {
       if (!g.job || !g.jobBanner) return;
