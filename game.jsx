@@ -3853,7 +3853,10 @@ const FLOOR_RISE = 0.052;  // parallax per floor
 
 /* ================= INTERIOR FLOOR PLANS ================= */
 const WT = 8;              // wall thickness
-const DOORW = 34;          // 1.6m doorway -- was 19, which is narrower than 2x the player's own
+const DOORW = 48;          // 2.2m. 34 was a doorway two people could not pass in, and the man
+                           // you are chasing uses the same gap you do -- a door narrow enough
+                           // to snag you snags HIM, and a rogue stuck on a door frame is not a
+                           // getaway, it is a bug that looks like one.
                             // collision radius (13), making every interior doorway in the game
                             // mathematically impossible to walk through no matter how carefully aimed
 
@@ -4546,13 +4549,17 @@ function makeFloor(b, f, rnd) {
     const px = b.x + x * cw, py = b.y + y * ch;
     if (v) {
       if (!opened) { walls.push({ x: px - WT / 2, y: py, w: WT, h: ch }); return; }
+      /* NO NUBS. The leftover either side of a gap was kept whenever it was wider than TWO
+         PIXELS -- too small to see and perfectly capable of stopping you dead in a doorway,
+         which is the bit of wall that has been catching everybody. Below 7 it is not a wall,
+         it is a snag, and the whole boundary opens instead. */
       const gap = Math.min(DOORW, ch * 0.6), s = (ch - gap) / 2;
-      if (s > 2) { walls.push({ x: px - WT / 2, y: py, w: WT, h: s });
+      if (s > 7) { walls.push({ x: px - WT / 2, y: py, w: WT, h: s });
                    walls.push({ x: px - WT / 2, y: py + ch - s, w: WT, h: s }); }
     } else {
       if (!opened) { walls.push({ x: px, y: py - WT / 2, w: cw, h: WT }); return; }
       const gap = Math.min(DOORW, cw * 0.6), s = (cw - gap) / 2;
-      if (s > 2) { walls.push({ x: px, y: py - WT / 2, w: s, h: WT });
+      if (s > 7) { walls.push({ x: px, y: py - WT / 2, w: s, h: WT });
                    walls.push({ x: px + cw - s, y: py - WT / 2, w: s, h: WT }); }
     }
   };
@@ -21895,7 +21902,13 @@ export default function IronLionLayer004() {
            empty when you came home. They are the cars you are supposed to keep. */
         if (v.named) continue;
         if (away > 4800) { g.traffic.splice(n, 1); continue; }
-        if (v.dead && !v.crewCar) { v.deadT = (v.deadT || 0) + dt; if (v.deadT > 50 && away > 1400) { g.traffic.splice(n, 1); continue; } }
+        /* THE ROGUE'S RIDE IS NEVER CULLED. This line is why his car was never at the scene:
+           it is parked the moment the job is announced, which is also the moment you start
+           driving across town to reach it -- more than 50 seconds and more than 1400 away, so
+           it was spliced out of the list before you ever laid eyes on it. The art was fine and
+           so was the push; the car was simply already gone. `crewCar` was exempted here for
+           exactly this reason and his ride needed the same exemption. */
+        if (v.dead && !v.crewCar && !v.rogueRide) { v.deadT = (v.deadT || 0) + dt; if (v.deadT > 50 && away > 1400) { g.traffic.splice(n, 1); continue; } }
         // an abandoned car is scenery now -- it holds position until it despawns
         if (v.dead) { v.spd = 0; v.brake = 1; continue; }
         if (v.fleeing > 0) v.fleeing -= dt;
