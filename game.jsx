@@ -3293,6 +3293,25 @@ const ELEGY_LINES = [
    status payload all read the player as a number out of 100, and changing that means finding
    every one of them. */
 const TOUGH = 2.5;
+/* THREE SECONDS WITHOUT BEING TOUCHED AND HE STARTS COMING BACK. Slow enough that it is never
+   an alternative to leaving a fight -- 6.5 a second means a full bar takes fifteen seconds of
+   nobody hitting you -- and fast enough that a bad street corner is not carried for the rest of
+   the night. It does NOT heal you out of a fight; it heals you between them. */
+const REGEN = { delay: 3.0, rate: 6.5 };
+/* ONE BUTTON, FIVE ANSWERS. Everything here runs through the same damage-soak, so a defensive
+   move is a number rather than five separate interceptions:
+     soak   fraction of a hit given straight back  t  how long the window is
+     root   he cannot move while it is up          riposte  whoever lands on him gets stunned
+     dash   he goes this fast in his facing        hide     hostiles lose him for the duration
+   Sho's parry is half a second at FULL soak: a real window you have to time. Kenny's block is
+   two and a half at 0.8 and he cannot move -- he is a wall, and a wall does not reposition. */
+const GUARD = {
+  lion:    { nm: "BRACE", t: 2.0, cd: 6.0, soak: 0.60, shove: 260 },
+  kenny:   { nm: "BLOCK", t: 2.6, cd: 7.0, soak: 0.80, root: 1 },
+  sho:     { nm: "PARRY", t: 0.5, cd: 4.0, soak: 1.00, riposte: 1 },
+  rio:     { nm: "ROLL",  t: 0.7, cd: 3.5, soak: 1.00, dash: 430 },
+  eclipse: { nm: "VEIL",  t: 1.6, cd: 6.0, soak: 0.50, hide: 1 },
+};
 /* THE WEATHER. Rolled, not toggled: a switch you set yourself is a setting, and the point of
    weather is that the city decides. Every field is per-kind so a storm is not "more rain" --
    it is darker, heavier, faster and it has lightning, and each of those is a number here.
@@ -24520,6 +24539,41 @@ export default function IronLionLayer004() {
          indefinitely and the city carried on around you. This is the consequence.
          Gated on `arrested` so a man taken in at low health does not also register as a
          knockout on the same frame and burn two of the roster at once. */
+      /* ONE PLACE FOR ALL OF IT. Fourteen separate lines take health off the player and not one
+         of them is going to be taught about guarding or regeneration -- so instead of hooking
+         fourteen sites, WATCH the number. A drop since last frame is a hit, whatever caused it:
+         a bullet, a fire, a car, Elegy's whip, a fall. That also means anything added later is
+         covered the day it is written. */
+      {
+        const seen = g.p.hpSeen == null ? g.p.hp : g.p.hpSeen;
+        const drop = seen - g.p.hp;
+        const G0 = GUARD[g.who];
+        if (drop > 0) {
+          g.p.noHitT = 0;
+          if ((g.p.grdT || 0) > 0 && G0) {
+            g.p.hp = Math.min(100, g.p.hp + drop * G0.soak);
+            g.shake = Math.max(g.shake || 0, 3);
+            if (G0.riposte) {
+              /* He took it on the blade. Whoever was close enough to land it is now on the
+                 floor, which is the entire point of spending half a second on this. */
+              for (const t of combatTargets()) {
+                if (!t || !(t.hp > 0) || t.ally) continue;
+                if (Math.hypot(t.x - g.p.x, t.y - g.p.y) > 96) continue;
+                t.stunT = Math.max(t.stunT || 0, 2.2);
+              }
+              g.pickupFlash = { nm: "parried", t: 1.0 };
+            }
+          }
+        } else {
+          g.p.noHitT = (g.p.noHitT || 0) + dt;
+        }
+        if ((g.p.noHitT || 0) >= REGEN.delay && g.p.hp > 0 && g.p.hp < 100)
+          g.p.hp = Math.min(100, g.p.hp + REGEN.rate * dt);
+        g.p.hpSeen = g.p.hp;
+        g.p.grdT = Math.max(0, (g.p.grdT || 0) - dt);
+        g.p.grdCd = Math.max(0, (g.p.grdCd || 0) - dt);
+        g.p.hidden = (g.p.grdT > 0 && G0 && G0.hide) ? 1 : (g.p.hidden && !G0 ? g.p.hidden : 0);
+      }
       if (g.p.hp <= 0 && !((g.arrested || 0) > 0)) downHero("ko");
       if (!g.inside) updateChatter(dt);
       /* NOT gated on !g.inside any more. updateCrews is written to handle being indoors -- it
@@ -24999,6 +25053,8 @@ export default function IronLionLayer004() {
                             const k = v && ((v.m && v.m.k) || (v.skin && v.skin.k) || v.k);
                             return k === "sho_car"; })(),
             turboCd: g.turboCd || 0, turboOn: g.turboT || 0, blowCd: g.p.blowCd || 0,
+            grdCd: g.p.grdCd || 0, grdOn: (g.p.grdT || 0) > 0,
+            grdNm: (GUARD[g.who] || {}).nm || "",
             towOn: !!g.towTo, dogLoose: !!g.dogLoose,
             board: !!g.board.on, hasBoard: !!g.board.has, atRack: atRack(),
             cab: g.cab ? g.cab.g : null,
@@ -28235,6 +28291,27 @@ export default function IronLionLayer004() {
         fireRocket(v, pv.x + (pv.vx || 0) * 0.8, pv.y + (pv.vy || 0) * 0.8);
       }
     }
+    G.guardFn = () => {
+      const gg = G.current, G0 = GUARD[gg.who];
+      if (!G0 || (gg.p.grdCd || 0) > 0 || (gg.p.grdT || 0) > 0) return false;
+      gg.p.grdT = G0.t; gg.p.grdCd = G0.cd;
+      gg.pickupFlash = { nm: G0.nm.toLowerCase(), t: 1.0 };
+      if (G0.dash) {
+        const a = Math.atan2(gg.p.vy || 0, gg.p.vx || 1);
+        gg.p.vx = Math.cos(a) * G0.dash; gg.p.vy = Math.sin(a) * G0.dash;
+      }
+      if (G0.shove) {
+        /* He sets his feet and everything leaning on him goes back a step. Not damage -- room. */
+        for (const t of combatTargets()) {
+          if (!t || !(t.hp > 0) || t.ally) continue;
+          const dx = t.x - gg.p.x, dy = t.y - gg.p.y, d = Math.hypot(dx, dy) || 1;
+          if (d > 110) continue;
+          t.vx = (dx / d) * G0.shove; t.vy = (dy / d) * G0.shove;
+          t.stunT = Math.max(t.stunT || 0, 0.7);
+        }
+      }
+      return true;
+    };
     G.blowFn = () => { if (g.who === "kenny") safely("blow", concussiveBlow); };
     G.punchFn = () => { if (g.who === "kenny") safely("punch", kennyPunch); };
     /* The Sho Stopper's boost. Fifteen percent over its already-highest top speed for three
@@ -31146,6 +31223,8 @@ export default function IronLionLayer004() {
           </>
         ) : (
           <>
+            {!hud.cab && hud.grdNm && btn(hud.grdNm, (hud.grdCd || 0) > 0 ? Math.ceil(hud.grdCd) + "s" : "defend",
+              () => { G.guardFn && G.guardFn(); }, null, !!hud.grdOn)}
             {!hud.cab && hud.turbo && btn("BOOST", (hud.turboCd || 0) > 0 ? Math.ceil(hud.turboCd) + "s" : "ready",
               () => { G.turboFn && G.turboFn(); }, null, (hud.turboOn || 0) > 0)}
             {!hud.cab && hud.who === "rio" && btn(hud.dogLoose ? "LEAD" : "TOW",
