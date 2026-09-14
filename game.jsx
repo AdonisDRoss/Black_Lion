@@ -1071,6 +1071,12 @@ YT.wp_katana = "assets/youth/wp_katana.png";
    to cover that, which is exactly the case a repeating pattern exists for. `tx_el_station` is
    the one exception in this list: a building plate, not a tile, and it is snapped to a
    footprint rather than stretched. */
+/* THE NORTH'S BUILDINGS. Plates, not tiles -- snapped to a footprint and never stretched. */
+const CITY2 = {};
+for (const k of ["ct_gym", "ct_walkup", "ct_store", "ct_barber", "ct_laundro", "ct_church",
+                 "ct_courthouse", "ct_offices", "ct_chronicle", "ct_policehq", "ct_works",
+                 "ct_stadium", "ct_dome", "ct_gates"])
+  CITY2[k] = "assets/city/" + k + ".png";
 const TEX = {};
 for (const k of ["tx_platform", "tx_track", "tx_terrazzo", "tx_deckplate",
                  "tx_lino", "tx_edgeline", "tx_el_station"])
@@ -2215,6 +2221,22 @@ const ZONES = {
   /* KESTREL HOUSE. Del Hollis sits at 28,23 and had no ground at all. A corporate security
      firm does not hold a district -- it holds its own campus, which is what this is. */
   kestrel:   { i0: 28, i1: 29, j0: 21, j1: 25, super: false },
+  /* ---- THE NORTH. 103 cells were sitting empty above j8 and three of the four clear runs are
+     big enough to be districts in their own right. Placed against what is already there rather
+     than dropped in the gaps: the North End backs onto the hood, Civic backs onto the terminal
+     so it has a reason to exist, and the stadium gets the far side of the industrial belt where
+     nobody has to drive through it.
+     NORTH END. West of Uptown, north of the hood -- a working neighbourhood, which is the one
+     kind of place this map does not have. Kenny is sixty-one and a boxer and there is no ground
+     on this map that is HIS; the gym goes here. */
+  northend: { i0: 0, i1: 5, j0: 0, j1: 2, super: false },
+  /* CIVIC. The second downtown, directly north of the terminal and south of Brennan ground, so
+     it is squeezed between the trains and the Irish, which is how a civic quarter actually ends
+     up where it is. Courthouse, city offices, the newspaper. */
+  civic:    { i0: 12, i1: 16, j0: 4, j1: 7, super: false },
+  /* THE STADIUM. A super-zone like the park and the cemetery: internal streets cut, so it reads
+     as one walled campus and not as six blocks that happen to touch. */
+  stadium:  { i0: 22, i1: 26, j0: 3, j1: 7, super: true },
 };
 /* Module scope on purpose. This is pure data with no dependencies, and it is read from
    BOTH scopes in this file -- the map draw sits in the outer one and could not see it
@@ -2444,6 +2466,12 @@ function zoneOf(i, j) {
      is not a city block. */
   if (waterDepth(SX(i) + PITCH / 2, SX(j) + PITCH / 2) > 0.12) return "water";
   if (inZ(ZONES.terminal, i, j)) return "terminal";
+  /* The stadium is asked here, beside the terminal and ABOVE isRural -- it sits at i22-26 which
+     is rural ground, and a check below that line could never be reached. Same trap the mountain
+     comment above describes, and the reason this one is not three lines lower. */
+  if (inZ(ZONES.stadium, i, j)) return "stadium";
+  if (inZ(ZONES.northend, i, j)) return "northend";
+  if (inZ(ZONES.civic, i, j)) return "civic";
   if (isRural(i, j)) {
     // a cell whose centre is in the channel is water, not farmland
     if (waterDepth(SX(i) + PITCH / 2, SX(j) + PITCH / 2) > 0.12) return "water";
@@ -7756,7 +7784,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX, ...CITY2 };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -24845,6 +24873,7 @@ export default function IronLionLayer004() {
         }
         stepDistros(dt);
         stepFly(dt);
+        stadiumClamp();
         g.skyPush = onTop ? 1 : 0;
         g.sky = Math.max(0, Math.min(SKY.max,
           g.sky + (onTop ? -push : SKY.rise * (g.skyBoost || 1)) * dt));
@@ -25284,6 +25313,7 @@ export default function IronLionLayer004() {
          in; rain behind him is a wallpaper. Indoors it is skipped, because it is drawn on the
          world plane and there is a roof over you. */
       stepDog();
+      drawStadium();
       drawDistros();
       drawChopPad();
       drawFly();
@@ -28182,6 +28212,53 @@ export default function IronLionLayer004() {
         const h = 150, w = h * (im.width / im.height);
         ctx.drawImage(im, x - w / 2, y - h / 2, w, h);
       }
+    }
+    /* ---------- THE STADIUM ----------
+       Five cells across, which at PITCH 1500 is about 355 metres -- a real stadium, and the
+       whole reason to size it off the ZONE rather than off the plate: the art can be re-cut at
+       any resolution and the building stays the same size on the ground.
+       Two plates stacked. The BOWL is the ground floor and it is always there. The DOME sits on
+       top and fades as you walk in under it, exactly the way drawEl handles the deck -- a roof
+       you are standing beneath has to get out of the way or you are playing blind. */
+    const STAD = { cells: 5, fade: 0.12, inner: 0.52 };
+    function stadiumAt() {
+      const Z = ZONES.stadium;
+      if (!Z) return null;
+      const x0 = SX(Z.i0), y0 = SX(Z.j0);
+      const w = (Z.i1 - Z.i0 + 1) * PITCH, h = (Z.j1 - Z.j0 + 1) * PITCH;
+      return { x: x0 + w / 2, y: y0 + h / 2, w, h };
+    }
+    /* The field is not walkable yet -- only the stands. Rather than a wall ring, the player is
+       pushed back out of the inner ellipse, which needs no collision geometry and cannot trap
+       him in a corner of it. */
+    function stadiumClamp() {
+      const S = g.stad || (g.stad = stadiumAt());
+      if (!S || g.inside || g.onPlat || g.roof || !Number.isFinite(g.p.x)) return;
+      const rx = S.w * 0.5 * STAD.inner, ry = S.h * 0.5 * STAD.inner;
+      const dx = (g.p.x - S.x) / rx, dy = (g.p.y - S.y) / ry;
+      const d = Math.hypot(dx, dy);
+      if (d >= 1 || d === 0) return;
+      g.p.x = S.x + (dx / d) * rx;
+      g.p.y = S.y + (dy / d) * ry;
+      g.p.vx = 0; g.p.vy = 0;
+    }
+    function drawStadium() {
+      const S = g.stad || (g.stad = stadiumAt());
+      if (!S || g.inside) return;
+      if (Math.hypot(g.p.x - S.x, g.p.y - S.y) > S.w * 1.1) return;
+      const bowl = imgs.current.ct_stadium, dome = imgs.current.ct_dome;
+      if (bowl && bowl.width) ctx.drawImage(bowl, S.x - S.w / 2, S.y - S.h / 2, S.w, S.h);
+      if (!dome || !dome.width) return;
+      /* UNDER IT is measured against the outer shell, not the field: you are beneath the roof
+         from the moment you pass the concourse, which is where it has to start clearing. */
+      const ux = (g.p.x - S.x) / (S.w * 0.5), uy = (g.p.y - S.y) / (S.h * 0.5);
+      const under = Math.hypot(ux, uy) < 0.94;
+      g.domeA = (g.domeA == null ? 1 : g.domeA) + ((under ? STAD.fade : 1) - (g.domeA == null ? 1 : g.domeA))
+                * Math.min(1, (g.dt || 0.016) * 5);
+      ctx.save();
+      ctx.globalAlpha = g.domeA;
+      ctx.drawImage(dome, S.x - S.w / 2, S.y - S.h / 2, S.w, S.h);
+      ctx.restore();
     }
     function drawSky() {
       if (g.sky == null || !Number.isFinite(g.cam.x)) return;
