@@ -1076,7 +1076,7 @@ YT.wp_katana = "assets/youth/wp_katana.png";
    and drawBoardUnder puts the real deck under his feet, so riding drew two boards. */
 const HERO_ART = {};
 for (const k of ["yt_lion", "yt_lion_hero", "yt_lion_hero_bare", "yt_mentor",
-                 "dog_rio", "dog_rio_hero", "yt_rio", "yt_rio_hero", "yt_rio_ride",
+                 "dog_rio", "dog_rio_hero", "vh_lion_chop", "yt_rio", "yt_rio_hero", "yt_rio_ride",
                  "yt_kenny", "yt_kenny_hero", "yt_sho", "yt_sho_hero",
                  "yt_eclipse", "yt_eclipse_hero"])
   HERO_ART[k] = "assets/heroes/" + k + ".png";
@@ -1213,7 +1213,7 @@ const HENCH_POOL = {
   // 1-2 and 5-6 are the mimes; 3-4 and 7-8 are the redheads. Four of each, on purpose.
   /* Two plates, not eight. The Deuce do not dress up -- that is La Voz's affectation and the
      opposite of how these two run a business. */
-  deuce: ["hx_deuce_1", "hx_deuce_2"],
+  deuce: ["hx_deuce_1", "hx_deuce_2", "hx_deuce_3", "hx_deuce_4", "hx_deuce_5"],
   vozgirl: ["hx_voz_1", "hx_voz_2", "hx_voz_3", "hx_voz_4",
             "hx_voz_5", "hx_voz_6", "hx_voz_7", "hx_voz_8"],
 };
@@ -3406,6 +3406,42 @@ const WPN_UP = {
   brack:   [["rifle_auto", 4], ["rifle_bolt", 3], ["grenade", 2]],
   sec:     [["rifle_auto", 5], ["shotgun_short", 2]],
   deuce:   [["smg_uzi", 4], ["pistol_auto", 3], ["rifle_auto", 2]],
+};
+/* WHOSE GROUND IS WHOSE, as data rather than as three lines inside the map draw. The raid
+   needs it, the placement needs it and the map needs it, and a fact kept in a draw function is
+   a fact only the draw can see. Zone NAMES, resolved late, because ZONES is declared below. */
+const GANG_TURF = {
+  kings: ["hood"], deuce: ["downtown", "neonflats"], wolves: ["industrial"],
+  mob_old: ["uptown"], chi: ["chinatown"], irish: ["irish"], barrio: ["barrio"],
+  brack: ["county"], sec: ["kestrel"],
+};
+/* THE RAID CLOCK. Long on purpose -- a distro changing hands should be news, not weather. */
+const RAID = { every: 95, guardHp: 26, spot: 320, take: 130, rings: 3, per: 3 };
+/* WHAT A GANG IS, IN FIVE NUMBERS. Base 1.0 is an ordinary crew; everything else is read
+   against that. A distro adds to exactly one of them, which is what makes holding the right
+   one for your gang matter more than holding any one at all.
+     arms   what they carry and how hard it hits
+     wheels how well they drive and whether their distro can move
+     law    how fast heat comes off them
+     med    whether their people get back up
+     eyes   how far they see you and how often they raid first */
+const GANG_STAT = {
+  kings:   { arms: 0.9, wheels: 1.0, law: 0.8, med: 1.0, eyes: 1.1 },
+  deuce:   { arms: 1.0, wheels: 1.2, law: 1.3, med: 1.1, eyes: 1.2 },
+  wolves:  { arms: 1.1, wheels: 1.4, law: 0.9, med: 0.9, eyes: 0.8 },
+  mob_old: { arms: 1.2, wheels: 1.0, law: 1.4, med: 1.0, eyes: 1.0 },
+  chi:     { arms: 0.8, wheels: 0.9, law: 1.2, med: 1.2, eyes: 1.3 },
+  irish:   { arms: 1.0, wheels: 1.0, law: 1.1, med: 0.9, eyes: 0.9 },
+  barrio:  { arms: 0.8, wheels: 1.1, law: 0.9, med: 1.1, eyes: 1.0 },
+  brack:   { arms: 1.4, wheels: 1.1, law: 1.2, med: 0.8, eyes: 0.9 },
+  sec:     { arms: 1.3, wheels: 1.0, law: 1.5, med: 1.0, eyes: 1.1 },
+};
+/* Which number each distro lifts, and by how much. One line is the entire effect system. */
+const DISTRO_STAT = { guns: ["arms", 0.6], steel: ["wheels", 0.5], paper: ["law", 0.6],
+                      clinic: ["med", 0.6], ears: ["eyes", 0.7], sky: ["law", 0.2] };
+const statOf = (gang, k) => {
+  const b = (GANG_STAT[gang] || {})[k] || 1;
+  return b;
 };
 const KINGS_RING = [
   "Andre Cole: \u201cThey bought the skate park. Bought it. Nobody threw a punch.\u201d",
@@ -8703,6 +8739,12 @@ export default function IronLionLayer004() {
          nobody's list. One line here and she is on ALL of them at once, because bullets, the
          blast, the roar, the shockwave and the auto-aim all come through this function. */
       if (g.job && g.job.elegy && g.job.elegy.hp > 0) out.push(g.job.elegy);
+      /* THE MEN ON THE DOOR. Same one-line lesson as Elegy: they are hung off the distro site
+         and not in any crew list, so without this they would be scenery you cannot shoot. */
+      if (g.distroAt) for (const k in g.distroAt) {
+        const S = g.distroAt[k];
+        if (S && S.guards) for (const gd of S.guards) if (gd.hp > 0) out.push(gd);
+      }
       for (const cr of (g.crews || [])) {
         if (cr.indoor ? (cr.indoor !== g.inside || cr.indoorFloor !== g.floor) : g.inside) continue;
         for (const m of (cr.members || [])) if (m && m.hp > 0) out.push(m);
@@ -24717,8 +24759,11 @@ export default function IronLionLayer004() {
           push *= 0.6 + 0.35 * Math.min(4, g.heat || 0);
           if ((g.night || 0) > 0.4) push *= 2;
         }
+        stepDistros(dt);
+        stepFly(dt);
         g.skyPush = onTop ? 1 : 0;
-        g.sky = Math.max(0, Math.min(SKY.max, g.sky + (onTop ? -push : SKY.rise) * dt));
+        g.sky = Math.max(0, Math.min(SKY.max,
+          g.sky + (onTop ? -push : SKY.rise * (g.skyBoost || 1)) * dt));
         /* The ring closes a zone at a time and NEVER re-opens on its own. Ground taken is
            ground taken -- pushing the volume back down stops the next one, it does not undo
            the last. Otherwise the map flickers and nothing you did ever mattered. */
@@ -25155,6 +25200,9 @@ export default function IronLionLayer004() {
          in; rain behind him is a wallpaper. Indoors it is skipped, because it is drawn on the
          world plane and there is a roof over you. */
       stepDog();
+      drawDistros();
+      drawChopPad();
+      drawFly();
       drawSky();
       if (!g.inside) drawWeather();
       /* HER GAS. Drawn in world space around the camera like the rain, for the same reason --
@@ -27772,6 +27820,277 @@ export default function IronLionLayer004() {
        rain and the tow list, so there is no canvas dimension to go and find.
        It turns GREEN and says so while you are actually costing them something, because the
        whole loop depends on you learning that standing there with heat on you is the lever. */
+    /* ---------- DISTROS ON THE GROUND ----------
+       One man, one address, guards on the door. Placed in the middle of a random cell inside
+       his own gang's turf rather than against a specific building: the turf is the promise the
+       system makes, and a cell centre is always reachable, which a building interior is not.
+       He is NOT in combatTargets -- the guards are. You cannot shoot the distro; you have to
+       clear the door and walk up to him, which is what makes him different from a target. */
+    /* THE LIVE NUMBER. Base stat plus whatever his distro adds -- one function, and every
+       effect below reads it rather than asking "do they hold X". Adding a seventh distro is a
+       line in DISTRO_STAT and nothing else. */
+    function gstat(gang, k) {
+      let v = statOf(gang, k);
+      const d = g.distro && g.distro[gang];
+      const up = d && DISTRO_STAT[d];
+      if (up && up[0] === k) v += up[1];
+      return v;
+    }
+    function placeDistros() {
+      const kinds = ["guns", "sky", "steel", "paper", "clinic", "ears"];
+      const gangs = Object.keys(GANG_TURF).filter((gg) => (GANG_TURF[gg] || []).some((z) => ZONES[z]));
+      g.distro = {}; g.distroAt = {};
+      for (let n = kinds.length - 1; n > 0; n--) {          // shuffle, so a run is not the same run
+        const m = (Math.random() * (n + 1)) | 0;
+        const t = kinds[n]; kinds[n] = kinds[m]; kinds[m] = t;
+      }
+      for (let n = 0; n < kinds.length && n < gangs.length; n++) {
+        const gang = gangs[(Math.random() * gangs.length) | 0];
+        if (g.distro[gang]) { n--; continue; }              // one each, never two
+        const zs = GANG_TURF[gang].filter((z) => ZONES[z]);
+        const Z = ZONES[zs[(Math.random() * zs.length) | 0]];
+        const ci = Z.i0 + ((Math.random() * (Z.i1 - Z.i0 + 1)) | 0);
+        const cj = Z.j0 + ((Math.random() * (Z.j1 - Z.j0 + 1)) | 0);
+        const c = getCell(ci, cj);
+        if (!c) { n--; continue; }
+        const x = (c.lx0 + c.lx1) / 2, y = (c.ly0 + c.ly1) / 2;
+        const kind = kinds[n];
+        /* A LOT OF THEM. Two men on a door is a shop; this is the single most valuable thing
+           the gang owns and it should look like it. Three rings, three deep, so the count comes
+           out between 18 and 36 depending on who he is -- and the outer ring stands wide enough
+           that you meet it before you can see him. */
+        const base = DISTRO[kind].guards || 2;
+        const guards = [];
+        for (let ring = 0; ring < RAID.rings; ring++) {
+          const n2 = base * RAID.per - ring * 2, rad = 46 + ring * 54;
+          for (let q = 0; q < n2; q++) {
+            const a = (q / n2) * 6.283 + ring * 0.4;
+            guards.push({ x: x + Math.cos(a) * rad, y: y + Math.sin(a) * rad,
+                          hp: RAID.guardHp * statOf(gang, "arms"), hp0: RAID.guardHp * statOf(gang, "arms"),
+                          /* GANGTOP keys the Family as "mob" and splits by wing; the gang ids
+                             are mob_old and mob_young. Stamp both so drawGangTop finds a sheet
+                             instead of falling through to the block. */
+                          gang: gang.startsWith("mob") ? "mob" : gang,
+                          wing: gang === "mob_old" ? "old" : null,
+                          distroGuard: 1, ring, stunT: 0, vx: 0, vy: 0, anim: Math.random() * 9 });
+          }
+        }
+        g.distro[gang] = kind;
+        g.distroAt[gang] = { kind, gang, x, y, guards, found: 0, i: ci, j: cj };
+      }
+      g.raidCd = RAID.every;
+    }
+    function stepDistros(dt) {
+      if (!g.distroAt) { placeDistros(); return; }
+      for (const gang in g.distroAt) {
+        const S = g.distroAt[gang];
+        if (!S || !Number.isFinite(S.x)) continue;
+        const d = Math.hypot(g.p.x - S.x, g.p.y - S.y);
+        /* CLINIC, live. Their people get back up -- the guards heal between visits, so coming
+           back an hour later does not find the door you already cleared. */
+        const med = gstat(gang, "med");
+        if (med > 1.2) for (const q of S.guards)
+          if (q.hp > 0 && q.hp < (q.hp0 || RAID.guardHp)) q.hp = Math.min(q.hp0 || RAID.guardHp, q.hp + (med - 1) * 2 * dt);
+        /* STEEL, live. Wheels means he does not have to stay put: a gang with the Wrench moves
+           its own distro, and the address you earned goes stale. */
+        S.moveCd = (S.moveCd == null ? 240 : S.moveCd) - dt;
+        if (S.moveCd <= 0 && gstat(gang, "wheels") > 1.3 && d > 1400 && !S.gone) {
+          S.moveCd = 240;
+          const zs = (GANG_TURF[gang] || []).filter((z) => ZONES[z]);
+          const Z = ZONES[zs[(Math.random() * zs.length) | 0]];
+          if (Z) {
+            const ci = Z.i0 + ((Math.random() * (Z.i1 - Z.i0 + 1)) | 0);
+            const cj = Z.j0 + ((Math.random() * (Z.j1 - Z.j0 + 1)) | 0);
+            const c2 = getCell(ci, cj);
+            if (c2) {
+              const nx = (c2.lx0 + c2.lx1) / 2, ny = (c2.ly0 + c2.ly1) / 2;
+              for (const q of S.guards) { q.x += nx - S.x; q.y += ny - S.y; q.hp = q.hp0 || RAID.guardHp; }
+              S.x = nx; S.y = ny; S.i = ci; S.j = cj; S.found = 0;
+              g.jobNote = DISTRO[S.kind].nm + " moved. Nobody saw the van.";
+            }
+          }
+        }
+        /* FINDING HIM IS A THING THAT HAPPENS ONCE. After that he is on your map for good --
+           an address you had to earn and then never lose is worth more than a marker. */
+        /* EARS, live, and it cuts BOTH ways. High eyes means they spot you first -- heat goes
+           up the moment you are inside their look -- and it also shrinks how close you have to
+           be before you find him, because a switchboard leaks in both directions. */
+        const eyes = gstat(gang, "eyes");
+        if (!S.gone && d < RAID.spot * eyes && !g.inside && (g.heat || 0) < 1 && eyes > 1.4)
+          g.heat = Math.max(g.heat || 0, 1);
+        if (!S.found && d < RAID.spot * (0.6 + eyes * 0.5) && !g.inside) {
+          S.found = 1;
+          g.jobBanner = (GANG_LABEL[gang] || gang) + " \u00b7 " + DISTRO[S.kind].nm;
+          g.jobNote = DISTRO[S.kind].who;
+        }
+        /* TAKING HIM. Clear the door first -- while one guard stands, he does not move. */
+        const up = S.guards.filter((q) => q.hp > 0).length;
+        if (!up && d < RAID.take && !S.gone) {
+          S.gone = 1;
+          delete g.distro[gang];
+          g.jobBanner = DISTRO[S.kind].nm + " IS OFF THE BOARD";
+          g.jobNote = (GANG_LABEL[gang] || gang) + " just lost " + DISTRO[S.kind].gain.toLowerCase();
+          g.heat = Math.max(g.heat || 0, 3);
+        }
+      }
+      /* THE RIVALS DO THIS TOO, and the gang with EARS is the one that does it first -- that is
+         what ears are FOR, and it is why the quiet distro is the dangerous one. Resolved as a
+         headline rather than a fight you have to watch: it is happening across the city. */
+      /* PAPER and SKY, live. Law is how fast trouble comes off a gang -- and while somebody in
+         this city is running a clerk and a bail desk, it comes off EVERYONE a little faster,
+         including you. That is what a corrupt county actually buys. */
+      let lawMax = 1;
+      for (const gg2 in (g.distro || {})) lawMax = Math.max(lawMax, gstat(gg2, "law"));
+      if (lawMax > 1.5 && (g.heat || 0) > 0) g.heat = Math.max(0, g.heat - (lawMax - 1.5) * 0.02 * dt);
+      /* The Chemist. Sky climbs faster for whoever holds him, and the Deuce holding him is the
+         worst case on the board -- it is their drug and their meter. */
+      const chem = Object.keys(g.distro || {}).find((h) => g.distro[h] === "sky");
+      g.skyBoost = chem ? (chem === "deuce" ? 2.0 : 1.35) : 1;
+      g.raidCd = (g.raidCd == null ? RAID.every : g.raidCd) - dt;
+      if (g.raidCd > 0) return;
+      g.raidCd = RAID.every;
+      const holders = Object.keys(g.distro || {});
+      if (holders.length < 2) return;
+      const ears = holders.find((h) => g.distro[h] === "ears");
+      const raider = ears || holders[(Math.random() * holders.length) | 0];
+      const victims = holders.filter((h) => h !== raider);
+      const victim = victims[(Math.random() * victims.length) | 0];
+      if (!victim) return;
+      const kind = g.distro[victim];
+      if (Math.random() < 0.25 + gstat(raider, "eyes") * 0.3) {
+        delete g.distro[victim];
+        if (g.distroAt[victim]) g.distroAt[victim].gone = 1;
+        g.distro[raider] = kind;
+        const S2 = g.distroAt[victim];
+        if (S2) g.distroAt[raider] = { ...S2, gang: raider, gone: 0, found: 0,
+                                       guards: S2.guards.map((q) => ({ ...q, hp: RAID.guardHp, gang: raider })) };
+        g.jobBanner = (GANG_LABEL[raider] || raider) + " TOOK " + DISTRO[kind].nm;
+        g.jobNote = "Off " + (GANG_LABEL[victim] || victim) + ". Nobody called the police.";
+      }
+    }
+    function drawDistros() {
+      if (!g.distroAt || g.inside) return;
+      for (const gang in g.distroAt) {
+        const S = g.distroAt[gang];
+        if (!S || S.gone || !Number.isFinite(S.x)) continue;
+        if (Math.hypot(g.p.x - S.x, g.p.y - S.y) > 900) continue;
+        /* THEIR OWN PEOPLE. drawGangTop already knows how to draw a member of any faction --
+           sheet, row, lift, frame and facing -- and every gang on the board has an entry in
+           GANGTOP. The guards were coloured blocks only because they were not going through it.
+           The Deuce are the exception and they fall back on purpose: they are new and have no
+           gang_deuce sheet, so they get the block until one exists rather than borrowing
+           somebody else's men. `topAng` faces each guard outward from the door, which is how a
+           man on a post stands and is also how you can read the ring from a distance. */
+        for (const q of S.guards) {
+          if (q.hp <= 0) continue;
+          drawShadow(q.x, q.y + 2, 9, 4, 0.3);
+          if (q.topAng == null) q.topAng = Math.atan2(q.y - S.y, q.x - S.x) + Math.PI / 2 + TOPDOWN_FACE;
+          /* THE DEUCE HAVE PLATES, NOT A SHEET -- two of them, gold shirt and black. No frames,
+             so they cannot go through drawGangTop; they get drawn flat and rotated like a rogue
+             hench plate, which is exactly what they are. Picked off the guard's ring index so
+             the two alternate around the circle instead of clustering. */
+          if (gang === "deuce") {
+            /* Five types now, not two. Indexed off the ring and the post angle so the same man
+               is never standing next to himself, and it is stable frame to frame. */
+            const dim = imgs.current["hx_deuce_" + (1 + (((q.ring * 7 + (q.topAng * 5 | 0)) % 5) + 5) % 5)];
+            if (dim && dim.width) {
+              const dh = 26, dw = dh * (dim.width / dim.height);
+              ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.topAng || 0);
+              ctx.drawImage(dim, -dw / 2, -dh / 2, dw, dh); ctx.restore();
+              continue;
+            }
+          }
+          if (!drawGangTop(q, "idle")) {
+            ctx.fillStyle = GANG_COL[gang] || "#8cf08c";
+            ctx.fillRect(q.x - 6, q.y - 9, 12, 18);
+            ctx.strokeStyle = "rgba(12,10,14,0.8)"; ctx.lineWidth = 1;
+            ctx.strokeRect(q.x - 6, q.y - 9, 12, 18);
+          }
+        }
+        drawShadow(S.x, S.y + 3, 11, 5, 0.34);
+        const im = imgs.current["dt_" + S.kind];
+        if (im && im.width) {
+          const h = 26, w = h * (im.width / im.height);
+          ctx.drawImage(im, S.x - w / 2, S.y - h / 2, w, h);
+        }
+        if (S.found) {
+          ctx.font = "700 10px system-ui, sans-serif";
+          ctx.fillStyle = GANG_COL[gang] || "#e8c46a";
+          ctx.textAlign = "center";
+          ctx.fillText(DISTRO[S.kind].nm, S.x, S.y - 22);
+          ctx.textAlign = "left";
+        }
+      }
+    }
+    /* ---------- THE CHOPPER ----------
+       Not a vehicle: an OBSERVER. The point is to go up, look at the map, and watch the systems
+       run from outside them -- distro rings, gang turf, the ring closing -- which you cannot do
+       from inside a man's shoulders. The world keeps updating underneath you, so what you are
+       watching is the real thing and not a paused screenshot.
+       The camera is written AFTER the normal camera has run, which is why this lives in the
+       update and not the draw: set it in the draw and whatever drew first used the old one. */
+    const FLY = { spd: 1150, up: 0.55 };
+    function stepFly(dt) {
+      if (!g.fly) return;
+      const inp = input.current, k = inp.keys || {};
+      const ax = (inp.x || 0) + (k["d"] || k["arrowright"] ? 1 : 0) - (k["a"] || k["arrowleft"] ? 1 : 0);
+      const ay = (inp.y || 0) + (k["s"] || k["arrowdown"] ? 1 : 0) - (k["w"] || k["arrowup"] ? 1 : 0);
+      g.fly.x += ax * FLY.spd * dt;
+      g.fly.y += ay * FLY.spd * dt;
+      g.fly.t = (g.fly.t || 0) + dt;
+      g.cam.x = g.fly.x; g.cam.y = g.fly.y;
+    }
+    function drawFly() {
+      if (!g.fly || !Number.isFinite(g.fly.x)) return;
+      const x = g.fly.x, y = g.fly.y, t = g.fly.t || 0;
+      /* Her shadow on the ground a long way below, and the disc above it. Two rotors turning at
+         different rates so it never looks like a still image. */
+      ctx.save();
+      ctx.fillStyle = "rgba(8,8,12,0.28)";
+      ctx.beginPath(); ctx.ellipse(x + 26, y + 34, 30, 13, 0, 0, 6.3); ctx.fill();
+      ctx.translate(x, y);
+      /* The plate has its rotor painted on, so the DRAWN rotor is a second disc over the top --
+         two arcs at different rates, which is what stops a still image reading as a hover. */
+      const cim = imgs.current.vh_lion_chop;
+      if (cim && cim.width) {
+        const ch2 = 150, cw2 = ch2 * (cim.width / cim.height);
+        ctx.drawImage(cim, -cw2 / 2, -ch2 / 2, cw2, ch2);
+      } else {
+        ctx.fillStyle = "#1b1d22"; ctx.fillRect(-13, -20, 26, 40);
+        ctx.fillStyle = "#e8c46a"; ctx.fillRect(-13, -20, 26, 5);
+      }
+      ctx.strokeStyle = "rgba(214,222,236,0.45)"; ctx.lineWidth = 3;
+      for (const [r, s] of [[62, 16], [44, -21]]) {
+        const a = t * s;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+        ctx.lineTo(-Math.cos(a) * r, -Math.sin(a) * r);
+        ctx.stroke();
+      }
+      ctx.restore();
+      ctx.font = "700 10px system-ui, sans-serif";
+      ctx.fillStyle = "rgba(232,196,106,0.8)";
+      ctx.fillText("OBSERVER \u00b7 __ironlion.fly() to land", x - 76, y - 58);
+    }
+    /* PARKED ON HIS OWN LOT. When you are not in it, it is sitting outside the den -- so the
+       chopper is a thing that EXISTS in the world rather than a camera mode that appears from
+       nowhere. Drawn at the same 150 as in the air, nose up, rotors still. */
+    function drawChopPad() {
+      if (g.fly || g.inside) return;
+      const b = denOf();
+      if (!b) return;
+      const x = b.x + b.w + 62, y = b.y + b.h - 40;
+      if (Math.hypot(g.p.x - x, g.p.y - y) > 1100) return;
+      const im = imgs.current.vh_lion_chop;
+      ctx.save();
+      ctx.strokeStyle = "rgba(232,196,106,0.35)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, 86, 0, 6.3); ctx.stroke();
+      ctx.restore();
+      if (im && im.width) {
+        const h = 150, w = h * (im.width / im.height);
+        ctx.drawImage(im, x - w / 2, y - h / 2, w, h);
+      }
+    }
     function drawSky() {
       if (g.sky == null || !Number.isFinite(g.cam.x)) return;
       const x = g.cam.x - 180, y = g.cam.y - 152, w = 150;
@@ -29856,6 +30175,34 @@ export default function IronLionLayer004() {
       W2.tow = () => G.towFn();                      // open the dog's destination list
       W2.sky = (n) => { const gg = G.current; if (n != null) gg.sky = n; return gg.sky; };
       W2.ring = () => (G.current.deuceRing || 0);
+      W2.reseed = () => { const gg = G.current; gg.distroAt = null; return true; };
+      W2.fly = (i, j) => {                            // up, or straight to a cell
+        const gg = G.current;
+        if (gg.fly && i == null) { gg.fly = null; return "landed"; }
+        let x = gg.p.x, y = gg.p.y;
+        if (i != null) { const c = getCell(i, j == null ? 0 : j);
+                         if (c) { x = (c.lx0 + c.lx1) / 2; y = (c.ly0 + c.ly1) / 2; } }
+        gg.fly = { x, y, t: 0 };
+        return "flying";
+      };
+      W2.gangs = () => {                              // every gang's live numbers
+        const gg = G.current, out = {};
+        for (const k in GANG_STAT) out[k] = {
+          holds: (gg.distro || {})[k] || "-",
+          arms: +gstat(k, "arms").toFixed(2), wheels: +gstat(k, "wheels").toFixed(2),
+          law: +gstat(k, "law").toFixed(2), med: +gstat(k, "med").toFixed(2),
+          eyes: +gstat(k, "eyes").toFixed(2),
+        };
+        return out;
+      };
+      W2.where = () => {                              // every distro, whose, and what cell
+        const gg = G.current, out = {};
+        for (const k in (gg.distroAt || {})) {
+          const S = gg.distroAt[k];
+          out[k] = (S.gone ? "GONE " : "") + S.kind + " @ " + S.i + "," + S.j;
+        }
+        return out;
+      };
       W2.distro = (gang, kind) => {                 // __ironlion.distro("kings","guns")
         const gg = G.current; gg.distro = gg.distro || {};
         if (gang) { if (kind) gg.distro[gang] = kind; else delete gg.distro[gang]; }
