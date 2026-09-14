@@ -1166,6 +1166,13 @@ const VIL_CARS = [
      and a box in the bed, which is the truck of a man who brings his own accelerant rather
      than a getaway car. Cut nose-RIGHT off the plate and turned CCW, not CW like the others. */
   { k: "vh_arson_truck", len: 126, w: 51, who: "arson" },
+  /* Measured off the plates, all three cut nose-LEFT and turned CW, so none of them belong in
+     ROTATE_CW. `who` is a rogue id everywhere else in this list and these three are not rogues
+     -- they are here for the art registration and the lane maths, and whatever places them
+     will name them directly. */
+  { k: "vh_julian_suv", len: 128, w: 62, who: "julian" },
+  { k: "vh_damian_suv", len: 128, w: 62, who: "damian" },
+  { k: "vh_rochelle_coupe", len: 116, w: 50, who: "rochelle" },
   /* The Cold Storage Continental -- a refrigerated transport with the plant still running off
      the tailgate. Turned nose-UP at cut time, so it does NOT also go in ROTATE_CW. */
   { k: "vh_icicle_wagon", len: 132, w: 62, who: "icicle" },
@@ -1204,6 +1211,9 @@ const HENCH_POOL = {
   ice:   ["hx_ice_1", "hx_ice_2", "hx_ice_3", "hx_ice_4",
           "hx_ice_5", "hx_ice_6", "hx_ice_7"],
   // 1-2 and 5-6 are the mimes; 3-4 and 7-8 are the redheads. Four of each, on purpose.
+  /* Two plates, not eight. The Deuce do not dress up -- that is La Voz's affectation and the
+     opposite of how these two run a business. */
+  deuce: ["hx_deuce_1", "hx_deuce_2"],
   vozgirl: ["hx_voz_1", "hx_voz_2", "hx_voz_3", "hx_voz_4",
             "hx_voz_5", "hx_voz_6", "hx_voz_7", "hx_voz_8"],
 };
@@ -1217,6 +1227,13 @@ for (const v of VIL_CARS) VIL[v.k] = "assets/villains/" + v.k + ".png";
 VIL.vh_hale_truck = "assets/villains/vh_hale_truck.png";
 /* ELEGY. Not in VILLAINS: she does not run jobs, she stands next to the man who does. The
    overhead plate is her at a scene; the standing one is for the den and the profiles. */
+/* THE DEUCE, in their own folder. Characters, the two street regulars, three cars and the
+   bottle. `item_sky` is the product -- it is a pickup, not a person, and it is registered here
+   rather than with the weapons because nothing about it is a weapon. */
+for (const k of ["dc_julian", "dc_damian", "dc_rochelle", "dc_tiny",
+                 "hx_deuce_1", "hx_deuce_2", "item_sky",
+                 "vh_julian_suv", "vh_damian_suv", "vh_rochelle_coupe"])
+  VIL[k] = "assets/deuce/" + k + ".png";
 VIL.vil_elegy = "assets/villains/vil_elegy.png";
 VIL.vil_elegy_civ = "assets/villains/vil_elegy_civ.png";
 /* A NULL SECOND LOOK REGISTERS NOTHING. Clarissa has the rig and no out-of-suit plate yet,
@@ -2169,12 +2186,33 @@ const ZONES = {
      could ever cross -- the lake and the river say you cannot leave, a closed road says you
      cannot leave yet. It is a super-zone so the street grid stops and it reads as one place. */
   mountain:  { i0: 24, i1: 27, j0: 0, j1: 2, super: true },
+  /* NEON FLATS. Bars and clubs on the strip below downtown, west of the park -- six clear
+     columns that were nothing. A nightlife district belongs against the money, not out in the
+     county, because the people spending there have to be able to walk home. */
+  neonflats: { i0: 6, i1: 7, j0: 11, j1: 15, super: false },
+  /* BRACKEN COUNTY proper. Curtis Bracken had a seat at 25,25 and not one square of ground. */
+  county:    { i0: 22, i1: 27, j0: 18, j1: 25, super: false },
+  /* KESTREL HOUSE. Del Hollis sits at 28,23 and had no ground at all. A corporate security
+     firm does not hold a district -- it holds its own campus, which is what this is. */
+  kestrel:   { i0: 28, i1: 29, j0: 21, j1: 25, super: false },
 };
 /* Module scope on purpose. This is pure data with no dependencies, and it is read from
    BOTH scopes in this file -- the map draw sits in the outer one and could not see it
    where it used to live, which threw "Can't find variable: LEADERS" and took the whole
    map down. Every faction pip on the map comes from here. */
 const LEADERS = {
+  /* THE DEUCE. Two names in one entry because there are two of them and the whole faction is
+     the argument between them -- Julian runs it on paper, Damian runs it on the street, and
+     neither of them is the leader on his own. Neon Flats because that is where the club is;
+     they hold the hood and downtown as well, but a man goes to the Flats to find them.
+     `side: "none"` like the Kings: they are not in the civil war, they are making money
+     while it happens, which is a position and arguably the smartest one on this list. */
+  deuce: {
+    name: "JULIAN & DAMIAN VANCE", title: "THE DEUCE", where: { i: 8, j: 9 },
+    note: "Absorbed every other crew in the hood inside eighteen months. Sky did it, not guns.",
+    line: "Everybody else was selling corners. We were selling a Friday night.",
+    side: "none",
+  },
   kings: {
     name: "ANDRE COLE", title: "THE KINGS", where: { i: 3, j: 8 },
     note: "Runs the hood the way a man runs a block he still lives on. Grew up two doors from Darius.",
@@ -2200,13 +2238,13 @@ const LEADERS = {
     side: "young",
   },
   chi: {
-    name: "MRS LILY FONG", title: "THE MERCHANTS ASSOCIATION", where: { i: 2, j: 13 },
+    name: "MRS LILY FONG", title: "SANHE \u00b7 THE MERCHANTS ASSOCIATION", where: { i: 2, j: 13 },
     note: "Speaks for the lanes. Has an arrangement with Rizzo that predates all of this.",
     line: "My arrangement is with a man. Not with whoever he is frightened of this month.",
     side: "young",
   },
   irish: {
-    name: "DECLAN BRENNAN", title: "LOCAL 114", where: { i: 14, j: 1 },
+    name: "DECLAN BRENNAN", title: "THE BRENNANS", where: { i: 14, j: 1 },
     note: "Union hall and the parish. No fighters, but he moves everything that arrives by water.",
     line: "You cannot run a city from a visiting room. Somebody ought to tell him that.",
     side: "young",
@@ -2226,9 +2264,9 @@ const LEADERS = {
     side: "none",
   },
   brack: {
-    name: "CURTIS BRACKEN", title: "BRACKEN COUNTY", where: { i: 25, j: 25 },
-    note: "Doesn't care about the city. Cares that the money is good and the man asking talks straight.",
-    line: "City business is city business. He pays on time, and he don't lie to me.",
+    name: "CURTIS BRACKEN", title: "THE PATRIOTS", where: { i: 25, j: 25 },
+    note: "Holds the county line and calls it patriotism. Half his men have never crossed into the city.",
+    line: "That city down there ain't America. It's a market. We're what's left of the other thing.",
     side: "old",
   },
 };
@@ -2237,14 +2275,28 @@ const LEADERS = {
    versions of each crew's wardrobe palette rather than the palette itself -- oxblood and bottle
    green are right on a jacket and invisible at 4px. Keyed to match LEADERS, so the two Family
    wings get their own shades: they are on opposite sides of the war and the map should say so. */
+/* THE RING. Not claimed at the start -- this is where the Deuce go NEXT, and every entry
+   borders the hood without entering it. Flip g.deuceRing and the map redraws with the Kings
+   enclosed on three sides, no spawn table touched and no square taken off Andre Cole.
+   Ordered by when they should fall: the seam first, then the workshops, then the water. */
+const DEUCE_RING = [];   // filled after ZONES is declared -- see below
 const GANG_COL = {
+  /* Deuce green, because every car, every jacket and every bottle of Sky is that colour and
+     a faction pip that disagrees with the faction is worse than no pip. */
+  deuce: "#3f9a63",
   kings: "#c9556a", wolves: "#e9a842", mob_young: "#5b86c4", mob_old: "#9fc4f0",
   chi: "#d2564a", irish: "#5aa86a", barrio: "#d9a05a", brack: "#e0793a",
   sec: "#e8a63a",
 };
+DEUCE_RING.push(ZONES.skate, ZONES.terminal, ZONES.projects);
 const GANG_LABEL = {
+  deuce: "DEUCE",
   kings: "KINGS", wolves: "WOLVES", mob_young: "RIZZO", mob_old: "VESCARI",
-  chi: "MERCHANTS", irish: "LOCAL 114", barrio: "LA PERLA", brack: "BRACKEN",
+  /* SANHE is what they call themselves. THE MERCHANTS ASSOCIATION is the name on the door, on
+     the sign outside and in the newspaper -- the public one, which is why the building keeps
+     it. Plain ASCII on purpose: a macron is exactly the kind of character that looks identical
+     in a diff and breaks a parse. */
+  chi: "SANHE", irish: "BRENNAN", barrio: "LA PERLA", brack: "PATRIOTS",
   sec: "KESTREL HOUSE",
 };
 /* --- food trucks -------------------------------------------------------------
@@ -2274,7 +2326,7 @@ const FOOD_TRUCKS = [
     menu: [["hotdog", 2], ["soda", 1]] },
   { k: "ft_burger", cell: { i: 6, j: 4 },   name: "PATTY'S",
     menu: [["sandwich", 3], ["chips", 1], ["coffee", 1]] },
-  // chinatown -- the Merchants
+  // chinatown -- Gyangu
   { k: "ft_noodle", cell: { i: 2, j: 13 },  name: "LANE NOODLE",
     menu: [["sandwich", 3], ["coffee", 1]] },
   { k: "ft_noodle", cell: { i: 4, j: 11 },  name: "SIU'S CART",
@@ -3298,6 +3350,25 @@ const TOUGH = 2.5;
    nobody hitting you -- and fast enough that a bad street corner is not carried for the rest of
    the night. It does NOT heal you out of a fight; it heals you between them. */
 const REGEN = { delay: 3.0, rate: 6.5 };
+/* SKY. One meter, and the Deuce's whole expansion hangs off it. It climbs on its own, because
+   a drug that sells is the default state and doing nothing is how the city loses -- and it
+   falls only where you are standing, which is what makes the map a place you have to BE rather
+   than a screen you read.
+     rise    per second, unattended
+     fall    per second while you are making trouble on their ground
+     reach   how close to the seat "their ground" means
+     steps   the three volumes at which the ring closes, one zone each
+   Nothing here kills anybody. You cannot shoot the Deuce out of downtown; you can only cost
+   them a night's trade, over and over, and the number is public so you can see it working. */
+const SKY = { rise: 0.22, fall: 3.4, reach: 900, steps: [35, 65, 90], max: 100 };
+/* WHAT ANDRE SAYS WHEN THEY TAKE ANOTHER ONE. Three lines for three closures, and none of them
+   is a threat: he is not losing fights, he is running out of neighbours, and a man watching
+   that happen does not shout. */
+const KINGS_RING = [
+  "Andre Cole: \u201cThey bought the skate park. Bought it. Nobody threw a punch.\u201d",
+  "Andre Cole: \u201cThat's the terminal gone. My people take two buses to work now.\u201d",
+  "Andre Cole: \u201cWe're an island. Say that word out loud and see how it sits.\u201d",
+];
 /* ONE BUTTON, FIVE ANSWERS. Everything here runs through the same damage-soak, so a defensive
    move is a number rather than five separate interceptions:
      soak   fraction of a hit given straight back  t  how long the window is
@@ -7464,8 +7535,23 @@ export default function IronLionLayer004() {
       // gang turf, outlined not filled, so it reads over the district washes
       const TURF = [
         [ZONES.uptown, "212,168,90", "VESCARI"], [WOLVES_TURF, "233,168,66", "WOLVES"],
-        [ZONES.barrio, "224,158,72", "LA PERLA"], [ZONES.chinatown, "206,74,58", "CHINATOWN"],
+        [ZONES.barrio, "224,158,72", "LA PERLA"], [ZONES.chinatown, "206,74,58", "SANHE"],
         [ZONES.hood, "233,110,180", "KINGS"],
+        /* Chinatown was outlined as a DISTRICT and not as a holding -- the only turf box on
+           this map that named a place instead of the people in it. Sanhe hold it. */
+        [ZONES.irish, "90,168,106", "BRENNANS"],
+        [ZONES.county, "224,121,58", "PATRIOTS"],
+        [ZONES.kestrel, "232,166,58", "KESTREL"],
+        /* THE DEUCE, as they stand at the start: downtown and the Flats. They own where the
+           money is and where Friday night is, which is exactly what Sky sells -- and taking
+           the Flats off Kestrel costs one faction that was holding nothing anyway, rather than
+           retconning a single Kings spawn.
+           THE GROWTH PATH is DEUCE_RING below. They do not take the hood; they close AROUND
+           it, and the Kings stop being a gang that is losing and start being an island. That
+           is a thing you watch happen instead of a thing you are told. */
+        [ZONES.downtown, "63,154,99", "DEUCE"],
+        [ZONES.neonflats, "63,154,99", "DEUCE"],
+        ...DEUCE_RING.slice(0, g.deuceRing || 0).map((z) => [z, "63,154,99", "DEUCE"]),
       ];
       for (const [Z, col] of TURF) {
         const [ax, ay] = P(SX(Z.i0), SX(Z.j0));
@@ -24552,6 +24638,80 @@ export default function IronLionLayer004() {
          indefinitely and the city carried on around you. This is the consequence.
          Gated on `arrested` so a man taken in at low health does not also register as a
          knockout on the same frame and burn two of the roster at once. */
+      /* NaN SENTINEL. Once a position goes non-finite it never comes back on its own: every
+         pass that reads it writes another NaN, the address lookup prints "undefined Ave", the
+         camera has nowhere to be and the world draws black. You cannot recover from it a frame
+         later -- so keep the last KNOWN GOOD position and put him back on it.
+         This does not fix whatever produced the NaN. It stops one bad frame from ending the
+         session, and it names the culprit in the console so the next one is findable instead
+         of being a screenshot of a black screen. */
+      /* Belt and braces: the list exists from the first frame, so no future site can repeat
+         the mistake above. */
+      g.fx = g.fx || [];
+      /* ---------- SKY, and the ring ----------
+         Pressure is proximity plus heat: being near their seat is not enough, and neither is
+         being loud on the other side of town. You have to be loud HERE. Heat is the existing
+         measure of that -- it is already what the city uses to decide you are a problem, so
+         the drug trade using the same number costs nothing and reads honestly. */
+      {
+        g.sky = g.sky == null ? 18 : g.sky;
+        const seat = LEADERS.deuce && LEADERS.deuce.where;
+        const c0 = seat && getCell(seat.i, seat.j);
+        let onTop = false;
+        if (c0 && Number.isFinite(g.p.x)) {
+          const sx = (c0.lx0 + c0.lx1) / 2, sy = (c0.ly0 + c0.ly1) / 2;
+          onTop = Math.hypot(g.p.x - sx, g.p.y - sy) < SKY.reach && (g.heat || 0) >= 2;
+        }
+        /* PRESSURE HAS WEIGHT NOW. Heat 2 is a nuisance; heat 4 is the street shutting. And a
+           club district is worth more on a Friday night than a Tuesday afternoon, so shutting
+           their door after dark costs them double. Two levers instead of one, both off numbers
+           that already existed. */
+        let push = SKY.fall;
+        if (onTop) {
+          push *= 0.6 + 0.35 * Math.min(4, g.heat || 0);
+          if ((g.night || 0) > 0.4) push *= 2;
+        }
+        g.skyPush = onTop ? 1 : 0;
+        g.sky = Math.max(0, Math.min(SKY.max, g.sky + (onTop ? -push : SKY.rise) * dt));
+        /* The ring closes a zone at a time and NEVER re-opens on its own. Ground taken is
+           ground taken -- pushing the volume back down stops the next one, it does not undo
+           the last. Otherwise the map flickers and nothing you did ever mattered. */
+        const want = SKY.steps.filter((s) => g.sky >= s).length;
+        if (want > (g.deuceRing || 0)) {
+          g.deuceRing = want;
+          const z = ["THE SKATE PARK", "THE TERMINAL", "THE PROJECTS"][want - 1] || "MORE GROUND";
+          g.jobBanner = "THE DEUCE TOOK " + z;
+          g.jobNote = KINGS_RING[want - 1] || "Nobody fought them for it. There was nobody left to.";
+        }
+      }
+      {
+        const P0 = g.p, car = g.car, moto = g.moto;
+        const bad = (o) => o && (!Number.isFinite(o.x) || !Number.isFinite(o.y));
+        if (bad(P0)) {
+          const lg = g.lastGood;
+          console.warn("[ironlion] player position went NaN", { mode: g.mode, who: g.who, inside: !!g.inside });
+          P0.x = lg ? lg.x : 0; P0.y = lg ? lg.y : 0;
+          P0.vx = 0; P0.vy = 0;
+          if (car && bad(car)) { car.x = P0.x; car.y = P0.y; car.vx = 0; car.vy = 0; car.spd = 0; }
+          if (moto && bad(moto)) { moto.x = P0.x; moto.y = P0.y; moto.spd = 0; }
+          g.cam.x = P0.x; g.cam.y = P0.y;
+          g.towTo = null; g.tow = null;
+        } else if ((g.gtick = (g.gtick || 0) + 1) % 20 === 0) {
+          g.lastGood = { x: P0.x, y: P0.y };      // a third of a second of rollback, no more
+        }
+        /* And scrub the list. A single vehicle with a NaN position poisons every pass that
+           walks g.traffic -- lane maths, the overlap resolver, the draw -- so it goes rather
+           than being carried. This is the third NaN-in-traffic bug in this file's history. */
+        if (Array.isArray(g.traffic)) {
+          for (let n = g.traffic.length - 1; n >= 0; n--) {
+            const v = g.traffic[n];
+            if (!v || !Number.isFinite(v.x) || !Number.isFinite(v.y)) {
+              console.warn("[ironlion] dropped a NaN vehicle", v && v.m && v.m.k);
+              g.traffic.splice(n, 1);
+            }
+          }
+        }
+      }
       /* ONE PLACE FOR ALL OF IT. Fourteen separate lines take health off the player and not one
          of them is going to be taught about guarding or regeneration -- so instead of hooking
          fourteen sites, WATCH the number. A drop since last frame is a hit, whatever caused it:
@@ -24949,6 +25109,7 @@ export default function IronLionLayer004() {
          in; rain behind him is a wallpaper. Indoors it is skipped, because it is drawn on the
          world plane and there is a roof over you. */
       stepDog();
+      drawSky();
       if (!g.inside) drawWeather();
       /* HER GAS. Drawn in world space around the camera like the rain, for the same reason --
          no canvas dimensions to go and find. Canvas has no cheap real blur, so this is a
@@ -27166,6 +27327,12 @@ export default function IronLionLayer004() {
         if (E.gasCd <= 0 && dp < ELEGY_KIT.gas.r) {
           E.gasCd = ELEGY_KIT.gas.cd;
           g.gasT = Math.max(g.gasT || 0, ELEGY_KIT.gas.t);   // no damage. Just do not look.
+          /* g.fx IS LAZY. Every other site in this file writes `g.fx = g.fx || []` first and
+             mine did not, so the very first time Elegy gassed you before anything else had
+             touched the list it threw -- and a throw in drawJobBoss takes the whole rest of
+             the frame with it: the rogue's AI, his car, his crew. One missing guard reading as
+             four separate bugs. */
+          g.fx = g.fx || [];
           g.fx.push({ kind: "ring", x: E.x, y: E.y, t: 0.34 });
         } else if (E.whipCd <= 0 && dp < ELEGY_KIT.whip.r) {
           E.whipCd = ELEGY_KIT.whip.cd;
@@ -27553,6 +27720,31 @@ export default function IronLionLayer004() {
       g.p.vx = (dx / d) * DOG_KIT.tow.spd; g.p.vy = (dy / d) * DOG_KIT.tow.spd;
       // she is out in front of him on the line, not heeling
       D.x = g.p.x + (dx / d) * 52; D.y = g.p.y + (dy / d) * 52; D.ang = Math.atan2(dy, dx);
+    }
+    /* THE NUMBER HAS TO BE PUBLIC. A meter you cannot see is not a mechanic, it is weather --
+       and this one decides who owns the map. Drawn in world space around the camera like the
+       rain and the tow list, so there is no canvas dimension to go and find.
+       It turns GREEN and says so while you are actually costing them something, because the
+       whole loop depends on you learning that standing there with heat on you is the lever. */
+    function drawSky() {
+      if (g.sky == null || !Number.isFinite(g.cam.x)) return;
+      const x = g.cam.x - 180, y = g.cam.y - 152, w = 150;
+      const pushing = (g.skyPush || 0) > 0;
+      ctx.save();
+      ctx.font = "700 10px system-ui, sans-serif";
+      ctx.fillStyle = pushing ? "#6cf0a0" : "rgba(226,220,206,0.62)";
+      ctx.fillText("SKY \u00b7 " + Math.round(g.sky) + (pushing ? "  COSTING THEM" : ""), x, y - 4);
+      ctx.fillStyle = "rgba(10,9,12,0.7)";
+      ctx.fillRect(x, y, w, 5);
+      ctx.fillStyle = pushing ? "#6cf0a0" : "#3f9a63";
+      ctx.fillRect(x, y, w * (g.sky / SKY.max), 5);
+      /* The three marks, so you can see the next one coming and how far off it is. */
+      for (let i = 0; i < SKY.steps.length; i++) {
+        const taken = (g.deuceRing || 0) > i;
+        ctx.fillStyle = taken ? "#e8c46a" : "rgba(226,220,206,0.45)";
+        ctx.fillRect(x + w * (SKY.steps[i] / SKY.max) - 1, y - 2, 2, 9);
+      }
+      ctx.restore();
     }
     function drawTowList() {
       if (!g.tow || !g.tow.list) return;
@@ -29616,6 +29808,8 @@ export default function IronLionLayer004() {
       W2.up = () => G.upFn();                        // clear every cooldown
       W2.rain = (k) => G.rainFn(k);                  // "clear" | "light" | "med" | "storm"
       W2.tow = () => G.towFn();                      // open the dog's destination list
+      W2.sky = (n) => { const gg = G.current; if (n != null) gg.sky = n; return gg.sky; };
+      W2.ring = () => (G.current.deuceRing || 0);
     }
     raf = requestAnimationFrame(frame);
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
