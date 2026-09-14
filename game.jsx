@@ -1234,6 +1234,12 @@ for (const k of ["dc_julian", "dc_damian", "dc_rochelle", "dc_tiny",
                  "hx_deuce_1", "hx_deuce_2", "item_sky",
                  "vh_julian_suv", "vh_damian_suv", "vh_rochelle_coupe"])
   VIL[k] = "assets/deuce/" + k + ".png";
+/* THE SIX. The plate for a distro is always dt_ + its key. Written out rather than looped over
+   DISTRO because THIS BLOCK RUNS FIRST -- DISTRO is declared further down the file, and reading
+   a const before its declaration is a throw at boot, not an undefined. The keys are duplicated
+   on purpose and the comment is the reason. */
+for (const k of ["guns", "sky", "steel", "paper", "clinic", "ears"])
+  VIL["dt_" + k] = "assets/villains/dt_" + k + ".png";
 VIL.vil_elegy = "assets/villains/vil_elegy.png";
 VIL.vil_elegy_civ = "assets/villains/vil_elegy_civ.png";
 /* A NULL SECOND LOOK REGISTERS NOTHING. Clarissa has the rig and no out-of-suit plate yet,
@@ -3364,6 +3370,43 @@ const SKY = { rise: 0.22, fall: 3.4, reach: 900, steps: [35, 65, 90], max: 100 }
 /* WHAT ANDRE SAYS WHEN THEY TAKE ANOTHER ONE. Three lines for three closures, and none of them
    is a threat: he is not losing fights, he is running out of neighbours, and a man watching
    that happen does not shout. */
+/* ---------- DISTROS ----------
+   A gang is a market, not an army, and a market needs somebody who can GET things. A distro is
+   one man. He is worth more than any ten crew members, he never fights, and he stands in a
+   building on his own gang's ground with people around him -- which makes him the only asset
+   in this game with a fixed address, and therefore the only one anybody can come and take.
+   `holds` is what the gang gets while he is alive. One distro per gang, six in the city, and
+   they are NOT evenly matched on purpose: guns and steel are loud, paper and ears are quiet,
+   and a gang that has ears knows where your distro is before you know where theirs is. */
+const DISTRO = {
+  /* `art` is not stored -- the plate is always dt_ + the key, which is why these ids are the
+     ids they are. Rename one and rename its file; there is no third place to forget. */
+  guns:   { nm: "THE ARMOURER", who: "Ordnance off a county permit and a docket nobody checks.",
+            gain: "The crew carry rifles instead of pistols.", guards: 4 },
+  sky:    { nm: "THE CHEMIST", who: "Makes it in a rented unit and has never sold a gram himself.",
+            gain: "Sky volume climbs faster and pays more.", guards: 3 },
+  steel:  { nm: "THE WRENCH", who: "Plates, papers and a ramp. Any car, forty minutes.",
+            gain: "Better cars, and they do not lose a chase.", guards: 3 },
+  paper:  { nm: "THE CLERK", who: "Two lawyers, a bail bondsman and a man at the county desk.",
+            gain: "Heat falls off them faster and arrests do not stick.", guards: 2 },
+  clinic: { nm: "THE DOCTOR", who: "Struck off in seventy-nine. Has never once asked a name.",
+            gain: "Their people get back up. Yours do not.", guards: 2 },
+  ears:   { nm: "THE SWITCHBOARD", who: "Numbers, informants, and a girl on the police band.",
+            gain: "They see you coming -- and they find everybody else's distro first.", guards: 3 },
+};
+/* What the gun distro turns a crew into. Same shape as WPN_KIT so the swap is one lookup and
+   nothing downstream has to know a distro exists. */
+const WPN_UP = {
+  kings:   [["rifle_auto", 4], ["pistol_auto", 3], ["shotgun_short", 2]],
+  wolves:  [["rifle_auto", 3], ["shotgun_long", 4], ["molotov", 2]],
+  mob:     [["smg_uzi", 4], ["pistol_auto", 3], ["rifle_auto", 2]],
+  irish:   [["shotgun_long", 4], ["rifle_auto", 2], ["molotov", 2]],
+  chi:     [["smg_uzi", 3], ["pistol_auto", 3], ["knife", 2]],
+  barrio:  [["pistol_auto", 4], ["smg_uzi", 2], ["knife", 2]],
+  brack:   [["rifle_auto", 4], ["rifle_bolt", 3], ["grenade", 2]],
+  sec:     [["rifle_auto", 5], ["shotgun_short", 2]],
+  deuce:   [["smg_uzi", 4], ["pistol_auto", 3], ["rifle_auto", 2]],
+};
 const KINGS_RING = [
   "Andre Cole: \u201cThey bought the skate park. Bought it. Nobody threw a punch.\u201d",
   "Andre Cole: \u201cThat's the terminal gone. My people take two buses to work now.\u201d",
@@ -18506,7 +18549,10 @@ export default function IronLionLayer004() {
     }
     function weaponFor(gang, wing) {
       if (gang === "mob" && wing === "old") return pickWeighted(WPN_KIT_OLD);
-      const kit = WPN_KIT[gang];
+      /* THE ARMOURER IS THE ONLY REASON THIS LINE HAS TWO ANSWERS. Everything a distro does
+         should look like this: one lookup at the point of use, so nothing downstream has to
+         know the system exists and taking him away puts the gang straight back to pistols. */
+      const kit = ((g.distro && g.distro[gang]) === "guns" && WPN_UP[gang]) || WPN_KIT[gang];
       return kit ? pickWeighted(kit) : "pistol_auto";
     }
 
@@ -29810,6 +29856,11 @@ export default function IronLionLayer004() {
       W2.tow = () => G.towFn();                      // open the dog's destination list
       W2.sky = (n) => { const gg = G.current; if (n != null) gg.sky = n; return gg.sky; };
       W2.ring = () => (G.current.deuceRing || 0);
+      W2.distro = (gang, kind) => {                 // __ironlion.distro("kings","guns")
+        const gg = G.current; gg.distro = gg.distro || {};
+        if (gang) { if (kind) gg.distro[gang] = kind; else delete gg.distro[gang]; }
+        return gg.distro;
+      };
     }
     raf = requestAnimationFrame(frame);
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
