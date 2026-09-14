@@ -3305,6 +3305,14 @@ const CRYO = { r: 118, arc: 0.30, cd: 2.8, beam: 0.7, dmg: 5, pin: 1.6, thaw: 6.
    the cheaper way out of a fight you were losing. `back` is what he is discharged at: enough
    to walk out on, not enough to walk straight back into the same room. */
 const DOWN_KIT = { ko: 100, arrest: 150, back: 0.6 };
+/* THE SENTENCE. A flat 150 seconds says the city does not care what you did, and the prison
+   cannot be a place you play until the time you spend in it is a NUMBER SOMETHING DECIDED.
+   base   what a quiet arrest costs
+   perHeat  what each level of heat on you at the moment of the cuffs adds
+   paper  multiplier while somebody in this city is running a bail desk -- see DISTRO.paper,
+          which already makes heat fall faster for everyone; this is the same favour, bought
+   cap    nobody sits longer than this, because a mini-game with no end is a punishment */
+const SENTENCE = { base: 90, perHeat: 55, paper: 0.6, cap: 420 };
 /* PERDITA KELL. She is a DEFENDER, not a fighter -- everything here is on a long cooldown and
    pointed at making you stop, not at killing you. The gas is the real weapon and it does no
    damage at all: a second and a half of not being able to read the screen, next to a man who
@@ -28385,7 +28393,17 @@ export default function IronLionLayer004() {
       const k = packKit();
       k.hp = Math.max(1, Math.round((rosterOf(id).kit.hp || 100) * DOWN_KIT.back));
       g.bench[id] = k;
-      g.down[id] = why === "arrest" ? DOWN_KIT.arrest : DOWN_KIT.ko;
+      if (why === "arrest") {
+        let t = SENTENCE.base + SENTENCE.perHeat * Math.max(0, (g.heat || 0) - 1);
+        let lawMax = 1;
+        for (const gg2 in (g.distro || {})) lawMax = Math.max(lawMax, gstat(gg2, "law"));
+        if (lawMax > 1.5) t *= SENTENCE.paper;
+        g.down[id] = Math.min(SENTENCE.cap, Math.round(t));
+        g.sentence = { who: id, t: g.down[id], heat: g.heat || 0, bought: lawMax > 1.5 };
+        g.jobBanner = "SENTENCED \u00b7 " + g.down[id] + "s";
+        g.jobNote = (lawMax > 1.5 ? "Somebody made a call. " : "") +
+                    "He is in the Yards until it runs out.";
+      } else g.down[id] = DOWN_KIT.ko;
       // if you were Sho, the crew member you were spliced out of goes back in
       if (g.shoHidden) {
         const h = g.shoHidden;
