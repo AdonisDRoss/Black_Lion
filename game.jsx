@@ -1067,6 +1067,14 @@ YT.yt_mentor = "assets/youth/yt_mentor.png";
 YT.yt_kenny = "assets/youth/yt_kenny.png";
 YT.yt_kenny_hero = "assets/youth/yt_kenny_hero.png";
 YT.wp_katana = "assets/youth/wp_katana.png";
+/* THE RAIL TEXTURES. Ground, so they tile -- the deck runs 132,000 units and no plate is going
+   to cover that, which is exactly the case a repeating pattern exists for. `tx_el_station` is
+   the one exception in this list: a building plate, not a tile, and it is snapped to a
+   footprint rather than stretched. */
+const TEX = {};
+for (const k of ["tx_platform", "tx_track", "tx_terrazzo", "tx_deckplate",
+                 "tx_lino", "tx_edgeline", "tx_el_station"])
+  TEX[k] = "assets/tex/" + k + ".png";
 /* THE ROSTER'S OWN FOLDER. These eleven keys were scattered across assets/youth/ and
    assets/sov/ -- Eclipse's two lived with the Sovereign art for no reason other than the
    order they were drawn in. HERE they are one set, and HERO_ART is spread LAST into `all`
@@ -7748,7 +7756,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -23386,12 +23394,44 @@ export default function IronLionLayer004() {
         ctx.fillStyle = "rgba(0,0,0,0.30)";
         if (vert) ctx.fillRect(x0 - w / 2 + 10, Math.min(y0, y1), w, Math.abs(y1 - y0));
         else ctx.fillRect(Math.min(x0, x1), y0 - w / 2 + 10, Math.abs(x1 - x0), w);
-        ctx.fillStyle = "#2b2b30";
-        if (vert) ctx.fillRect(x0 - w / 2, Math.min(y0, y1), w, Math.abs(y1 - y0));
-        else ctx.fillRect(Math.min(x0, x1), y0 - w / 2, Math.abs(x1 - x0), w);
-        // two rails and the sleepers between them
+        /* THE DECK, IN BALLAST AND SLEEPERS. A createPattern rather than a drawImage: the deck
+           is one continuous run and a pattern repeats for free at any length, which is the
+           whole reason these were cut as tiles. Rotated for the vertical legs so the sleepers
+           run across the line and not along it -- a texture laid the wrong way round reads as
+           a bug faster than no texture at all.
+           If the file is not there it falls straight back to the flat colour below, so this is
+           safe to ship before the art lands. */
+        const tk = imgs.current.tx_track;
+        let painted = false;
+        if (tk && tk.width) {
+          const pat = ctx.createPattern(tk, "repeat");
+          if (pat) {
+            ctx.save();
+            const s = w / tk.width;                 // the tile is as wide as the deck
+            if (vert) {
+              ctx.translate(x0 - w / 2, Math.min(y0, y1));
+              ctx.scale(s, s);
+              ctx.fillStyle = pat;
+              ctx.fillRect(0, 0, tk.width, Math.abs(y1 - y0) / s);
+            } else {
+              ctx.translate(Math.min(x0, x1), y0 - w / 2 + w);
+              ctx.rotate(-Math.PI / 2);
+              ctx.scale(s, s);
+              ctx.fillStyle = pat;
+              ctx.fillRect(0, 0, tk.width, Math.abs(x1 - x0) / s);
+            }
+            ctx.restore();
+            painted = true;
+          }
+        }
+        if (!painted) {
+          ctx.fillStyle = "#2b2b30";
+          if (vert) ctx.fillRect(x0 - w / 2, Math.min(y0, y1), w, Math.abs(y1 - y0));
+          else ctx.fillRect(Math.min(x0, x1), y0 - w / 2, Math.abs(x1 - x0), w);
+        }
+        // two rails and the sleepers between them -- skipped once the tile has painted its own
         ctx.fillStyle = "#4a4a52";
-        for (const o of [-13, 13]) {
+        for (const o of painted ? [] : [-13, 13]) {
           if (vert) ctx.fillRect(x0 + o - 2, Math.min(y0, y1), 4, Math.abs(y1 - y0));
           else ctx.fillRect(Math.min(x0, x1), y0 + o - 2, Math.abs(x1 - x0), 4);
         }
