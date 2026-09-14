@@ -1240,6 +1240,12 @@ for (const k of ["dc_julian", "dc_damian", "dc_rochelle", "dc_tiny",
    on purpose and the comment is the reason. */
 for (const k of ["guns", "sky", "steel", "paper", "clinic", "ears"])
   VIL["dt_" + k] = "assets/villains/dt_" + k + ".png";
+/* THE PRODUCT, not the man. `dt_sky` is the CHEMIST -- a person -- and these three are the
+   bottle: the loose top-down, the labelled side profile for menus and evidence, and the corked
+   top-down for one sitting on a table. The names are close enough to confuse and the comment is
+   here because I confused them once already. */
+for (const k of ["item_sky", "item_sky_side", "item_sky_top"])
+  VIL[k] = "assets/villains/" + k + ".png";
 VIL.vil_elegy = "assets/villains/vil_elegy.png";
 VIL.vil_elegy_civ = "assets/villains/vil_elegy_civ.png";
 /* A NULL SECOND LOOK REGISTERS NOTHING. Clarissa has the rig and no out-of-suit plate yet,
