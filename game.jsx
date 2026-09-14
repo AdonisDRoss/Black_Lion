@@ -8254,6 +8254,36 @@ export default function IronLionLayer004() {
 
   function doAction() {
     const g = G.current;
+    /* THE CHOPPER. First branch on purpose: it is the only thing on that lot and the den door
+       is close enough that a later check would lose to it. Climbing out puts you back on the
+       pad rather than wherever you were hovering -- you flew there, you have to fly back. */
+    if (g.fly) {
+      const b0 = G.denOfFn && G.denOfFn();
+      if (b0) { g.p.x = b0.x + b0.w + 62; g.p.y = b0.y + b0.h + 30; g.cam.x = g.p.x; g.cam.y = g.p.y; }
+      g.fly = null;
+      g.pickupFlash = { nm: "down_on_the_pad", t: 1.4 };
+      return;
+    }
+    /* ANY hero, not just the Lion. It is his machine, but gating the only way to inspect the
+       map on being one particular man is a debugging tool you cannot reach half the time -- and
+       the radius is 150 rather than 96 because the pad is drawn 150 wide, so "standing on it"
+       and "close enough to board it" now agree. */
+    if (!g.inside && g.mode === "foot") {
+      const b0 = G.denOfFn && G.denOfFn();
+      if (b0) {
+        const px = b0.x + b0.w + 62, py = b0.y + b0.h - 40;
+        const dc = Math.hypot(g.p.x - px, g.p.y - py);
+        /* Says how far off you are when it does NOT fire, so a miss is a measurement instead of
+           nothing happening. */
+        if (dc >= 150 && dc < 900) console.warn("[ironlion] chopper pad is " + Math.round(dc) + " away");
+        if (dc < 150) {
+          g.fly = { x: px, y: py, t: 0 };
+          g.jobBanner = "UP";
+          g.jobNote = "Joystick to fly. E to put her down.";
+          return;
+        }
+      }
+    }
     if ((g.mode === "car" || g.mode === "moto") && !g.inside) {
       const dp = G.denDoorFn && G.denDoorFn();
       if (dp) {
@@ -25324,6 +25354,14 @@ export default function IronLionLayer004() {
             grdCd: g.p.grdCd || 0, grdOn: (g.p.grdT || 0) > 0,
             grdNm: (GUARD[g.who] || {}).nm || "",
             towOn: !!g.towTo, dogLoose: !!g.dogLoose,
+            chopNear: (() => {
+              if (g.fly) return "land";
+              if (g.inside || g.mode !== "foot") return null;
+              const b0 = denOf();
+              if (!b0) return null;
+              return Math.hypot(g.p.x - (b0.x + b0.w + 62), g.p.y - (b0.y + b0.h - 40)) < 150
+                ? "board" : null;
+            })(),
             board: !!g.board.on, hasBoard: !!g.board.has, atRack: atRack(),
             cab: g.cab ? g.cab.g : null,
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
@@ -30139,6 +30177,9 @@ export default function IronLionLayer004() {
       gg.wx.k = k; gg.wx.t = 240; gg.wx.boltCd = 1; gg.wx.flash = 0;
       return k;
     };
+    /* denOf() lives in the component scope and doAction() lives outside it -- the same split
+       that put LEADERS at module scope. One bridge rather than a second copy of the lookup. */
+    G.denOfFn = () => denOf();
     G.downFn = (why) => { downHero(why === "arrest" ? "arrest" : "ko"); return true; };
     G.upFn = () => { G.current.down = {}; return true; };
     G.fisFn = () => {
@@ -30176,6 +30217,15 @@ export default function IronLionLayer004() {
       W2.sky = (n) => { const gg = G.current; if (n != null) gg.sky = n; return gg.sky; };
       W2.ring = () => (G.current.deuceRing || 0);
       W2.reseed = () => { const gg = G.current; gg.distroAt = null; return true; };
+      W2.pad = () => {                                // where the pad is, and how far off you are
+        const gg = G.current, b0 = G.denOfFn && G.denOfFn();
+        if (!b0) return "no den";
+        const px = b0.x + b0.w + 62, py = b0.y + b0.h - 40;
+        return { padX: Math.round(px), padY: Math.round(py),
+                 you: [Math.round(gg.p.x), Math.round(gg.p.y)],
+                 away: Math.round(Math.hypot(gg.p.x - px, gg.p.y - py)),
+                 who: gg.who, mode: gg.mode, inside: !!gg.inside };
+      };
       W2.fly = (i, j) => {                            // up, or straight to a cell
         const gg = G.current;
         if (gg.fly && i == null) { gg.fly = null; return "landed"; }
