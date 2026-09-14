@@ -3493,6 +3493,15 @@ const statOf = (gang, k) => {
   const b = (GANG_STAT[gang] || {})[k] || 1;
   return b;
 };
+/* PLACES YOU CAN ASK TO BE TAKEN. One table, read by BOTH the dog's tow picker and the
+   chopper, so a destination added here turns up in both without either knowing about the
+   other. Cells, not coordinates -- the world is generated, and a cell survives that. */
+const SPOTS = [
+  { nm: "NORTH END GYM", i: 2,  j: 1 },
+  { nm: "THE STADIUM",   i: 24, j: 5 },
+  { nm: "THE COURTHOUSE", i: 14, j: 5 },
+  { nm: "THE YARDS",     i: 16, j: 23 },
+];
 const KINGS_RING = [
   "Andre Cole: \u201cThey bought the skate park. Bought it. Nobody threw a punch.\u201d",
   "Andre Cole: \u201cThat's the terminal gone. My people take two buses to work now.\u201d",
@@ -17375,6 +17384,14 @@ export default function IronLionLayer004() {
       { z: "park",      name: "HOLLOWAY PARK", i: 9,  j: 14 },
       { z: "cemetery",  name: "ST BRENDAN'S",  i: 9,  j: 17 },
       { z: "farm",      name: "THE COUNTY",    i: 25, j: 6 },
+      /* THE NORTH. `z` is the zone key travelList() checks against g.seen, so these three stay
+         off the terminal until you have actually been there -- same rule as every other
+         district, and the reason the L stops are the only entries exempt from it.
+         The stadium is listed at its EDGE and not its centre: the middle of that zone is the
+         field, and the field is the one part of it you are not allowed to stand on. */
+      { z: "northend",  name: "NORTH END",     i: 2,  j: 1 },
+      { z: "civic",     name: "CIVIC SQUARE",  i: 14, j: 5 },
+      { z: "stadium",   name: "THE STADIUM",   i: 22, j: 5 },
       { z: "town",      name: "HAZELBROOK",    i: 25, j: 25 },
       { z: "prison",    name: "KESTREL STATE",  i: 16, j: 23 },
       { z: "neon",      name: "EMBER FLATS",    i: 28, j: 23 },
@@ -27887,6 +27904,12 @@ export default function IronLionLayer004() {
       }
       const b0 = denOf();
       if (b0) out.push({ nm: "THE DEN", x: b0.x + b0.w / 2, y: b0.y + b0.h + 46 });
+      /* The named places, ahead of the rogues' homes -- somewhere you chose to go beats
+         somewhere a man you are chasing happens to live. */
+      for (const s of SPOTS) {
+        const c = getCell(s.i, s.j);
+        if (c) out.push({ nm: s.nm, x: (c.lx0 + c.lx1) / 2, y: (c.ly0 + c.ly1) / 2 });
+      }
       for (const rid of rogueIds()) {
         const B = ROGUE_BASE[rid];
         if (!B) continue;
@@ -30366,6 +30389,25 @@ export default function IronLionLayer004() {
                  you: [Math.round(gg.p.x), Math.round(gg.p.y)],
                  away: Math.round(Math.hypot(gg.p.x - px, gg.p.y - py)),
                  who: gg.who, mode: gg.mode, inside: !!gg.inside };
+      };
+      /* __ironlion.go()            lists them
+         __ironlion.go("gym")       takes you there on foot
+         __ironlion.go("gym", 1)    takes the chopper instead, so you arrive looking down */
+      W2.go = (name, air) => {
+        const gg = G.current;
+        if (!name) return SPOTS.map((s) => s.nm);
+        const s = SPOTS.find((q) => q.nm.toLowerCase().includes(String(name).toLowerCase()));
+        if (!s) return SPOTS.map((q) => q.nm);
+        const c = getCell(s.i, s.j);
+        if (!c) return "no cell";
+        const x = (c.lx0 + c.lx1) / 2, y = (c.ly0 + c.ly1) / 2;
+        if (air) { gg.fly = { x, y, t: 0 }; gg.cam.x = x; gg.cam.y = y; return "over " + s.nm; }
+        gg.inside = null; gg.roof = null; gg.sewer = null; gg.onPlat = null; gg.onTrain = null;
+        gg.mode = "foot"; gg.fly = null;
+        gg.p.x = x; gg.p.y = y; gg.p.vx = 0; gg.p.vy = 0;
+        gg.cam.x = x; gg.cam.y = y;
+        gg.jobBanner = s.nm;
+        return "at " + s.nm;
       };
       W2.fly = (i, j) => {                            // up, or straight to a cell
         const gg = G.current;
