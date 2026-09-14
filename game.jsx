@@ -279,6 +279,11 @@ const NAMED_CARS = [
   { k: "ef_car", len: 116, w: 52 },
   { k: "hp_car", len: 118, w: 52 },
   { k: "hp_truck", len: 112, w: 58 },
+  /* The detectives' unmarked sedan and the Kestrel armoured van. Both measured off their
+     plates rather than guessed -- a width that disagrees with the art is what makes a car look
+     stretched at speed, which cost four of the villain cars a re-measure. */
+  { k: "hh_det", len: 124, w: 52 },
+  { k: "hh_sec_van", len: 128, w: 63 },
   { k: "vh_kuru_bike", len: 96, w: 34 },
   { k: "vh_mvp_atv", len: 92, w: 62 },
   { k: "vh_mons_rod", len: 112, w: 58 },
@@ -1283,7 +1288,8 @@ const VIL_SUIT = {
   arson: "vil_arson", icicle: "vil_icicle",
 };
 const vilSuit = (rid) => VIL_SUIT[rid] || ("vil_" + rid);
-for (const k of ["wp_tommy", "wp_laser", "wp_katana2", "wp_longsword", "wp_cryo"])
+for (const k of ["wp_tommy", "wp_laser", "wp_katana2", "wp_longsword", "wp_cryo",
+                 "wp_minigun", "wp_m60"])
   VIL[k] = "assets/villains/" + k + ".png";
 /* THE FROZEN. Four plates and they are four THAW STAGES, not four victims -- ice_00 solid
    through ice_03 nearly gone. Registering a key sends the loader looking for it, so these
@@ -3453,8 +3459,12 @@ const WPN_UP = {
   irish:   [["shotgun_long", 4], ["rifle_auto", 2], ["molotov", 2]],
   chi:     [["smg_uzi", 3], ["pistol_auto", 3], ["knife", 2]],
   barrio:  [["pistol_auto", 4], ["smg_uzi", 2], ["knife", 2]],
-  brack:   [["rifle_auto", 4], ["rifle_bolt", 3], ["grenade", 2]],
-  sec:     [["rifle_auto", 5], ["shotgun_short", 2]],
+  /* THE TOP END. One weight each, against fours and threes -- so an M60 is something you see
+     occasionally on a gang holding the Armourer, not the thing they all turn up with. Bracken
+     gets the sixty because it is county surplus; Kestrel gets the minigun because a security
+     firm can sign for one and a street gang cannot. */
+  brack:   [["rifle_auto", 4], ["rifle_bolt", 3], ["grenade", 2], ["m60", 1]],
+  sec:     [["rifle_auto", 5], ["shotgun_short", 2], ["minigun", 1]],
   deuce:   [["smg_uzi", 4], ["pistol_auto", 3], ["rifle_auto", 2]],
 };
 /* WHOSE GROUND IS WHOSE, as data rather than as three lines inside the map draw. The raid
@@ -3496,7 +3506,37 @@ const statOf = (gang, k) => {
 /* PLACES YOU CAN ASK TO BE TAKEN. One table, read by BOTH the dog's tow picker and the
    chopper, so a destination added here turns up in both without either knowing about the
    other. Cells, not coordinates -- the world is generated, and a cell survives that. */
+/* ---------- THE VANCE TOWER ----------
+   Neon Flats, and the first building in this file with more than one floor that matters. The
+   plan is data BEFORE it is playable, so that when the plane system lands it is implementing a
+   spec rather than inventing one.
+   `lock` is the passcode gate. It is FALSE everywhere for now -- reachable, as asked -- and the
+   two penthouse floors are the ones that will flip to true. Writing the field now means the
+   lift does not need changing later; only these two values do.
+   `back` is the basement door on the rear elevation: on foot for now, a ramp when a vehicle can
+   change plane. */
+const TOWER = { i: 8, j: 9, back: { dx: 0, dy: 1 },
+  floors: [
+    { n: -1, nm: "PARKING",    tex: "tx_carpark", lock: false, drive: true },
+    { n: 0,  nm: "LOBBY",      tex: "tx_terrazzo", lock: false },
+    { n: 1,  nm: "POOL DECK",  tex: "tx_terrazzo", lock: false },
+    { n: 2,  nm: "APARTMENTS", tex: "tx_lino", lock: false },
+    { n: 3,  nm: "APARTMENTS", tex: "tx_lino", lock: false, who: "tiny" },
+    { n: 4,  nm: "APARTMENTS", tex: "tx_lino", lock: false },
+    { n: 5,  nm: "THE VANCES", tex: "tx_terrazzo", lock: false, who: "julian" },
+    { n: 6,  nm: "THE VANCES", tex: "tx_terrazzo", lock: false, who: "damian" },
+  ] };
+/* ROCHELLE'S. Neon Flats, four blocks off the tower -- close enough that being seen near it is
+   normal for a woman who manages events on that strip, far enough that she is not Julian's.
+   Every arrival and departure is then a decision somebody can count, which is the engine of the
+   whole infiltration. NOT the county motel: a high-end logistics manager does not live in one,
+   and her cover has to survive being looked at. */
+const SAFEHOUSE = { i: 7, j: 13 };
 const SPOTS = [
+  { nm: "VANCE TOWER",   i: 8,  j: 9 },
+  { nm: "THE SAFEHOUSE", i: 7,  j: 13 },
+  { nm: "NEON FLATS",    i: 6,  j: 12 },
+  { nm: "KESTREL HOUSE", i: 28, j: 23 },
   { nm: "NORTH END GYM", i: 2,  j: 1 },
   { nm: "THE STADIUM",   i: 24, j: 5 },
   { nm: "THE COURTHOUSE", i: 14, j: 5 },
@@ -17392,6 +17432,10 @@ export default function IronLionLayer004() {
       { z: "northend",  name: "NORTH END",     i: 2,  j: 1 },
       { z: "civic",     name: "CIVIC SQUARE",  i: 14, j: 5 },
       { z: "stadium",   name: "THE STADIUM",   i: 22, j: 5 },
+      /* The Flats and the tower. `z` is neonflats for both, so one visit opens both -- they are
+         four blocks apart and pretending you discovered them separately is bookkeeping. */
+      { z: "neonflats", name: "NEON FLATS",    i: 6,  j: 12 },
+      { z: "neonflats", name: "VANCE TOWER",   i: 8,  j: 9 },
       { z: "town",      name: "HAZELBROOK",    i: 25, j: 25 },
       { z: "prison",    name: "KESTREL STATE",  i: 16, j: 23 },
       { z: "neon",      name: "EMBER FLATS",    i: 28, j: 23 },
@@ -21813,6 +21857,14 @@ export default function IronLionLayer004() {
           spd: 0, cruise: 0, brake: 1, dead: 1, parked: 1, named: named ? 1 : 0,
         });
       };
+      /* KESTREL'S OWN VAN, on Kestrel's own ground. hh_sec_van was measured, registered and in
+         the vehicle list and still never appeared, because nothing SPAWNS it -- a model in a
+         table is not a car in the world. Same gap the villain rides had. */
+      {
+        const kc = getCell(28, 23);
+        if (kc) park({ k: "hh_sec_van", len: 128, w: 63 },
+                     (kc.lx0 + kc.lx1) / 2, (kc.ly0 + kc.ly1) / 2 + 60, true);
+      }
       // behind the den: the door is on the NORTH wall, so south of the building is the back
       const y = b.y + b.h + 78;
       DEN_PARK.forEach((kk, i) => {
@@ -24891,6 +24943,7 @@ export default function IronLionLayer004() {
         stepDistros(dt);
         stepFly(dt);
         stadiumClamp();
+        gymClamp();
         g.skyPush = onTop ? 1 : 0;
         g.sky = Math.max(0, Math.min(SKY.max,
           g.sky + (onTop ? -push : SKY.rise * (g.skyBoost || 1)) * dt));
@@ -25331,6 +25384,8 @@ export default function IronLionLayer004() {
          world plane and there is a roof over you. */
       stepDog();
       drawStadium();
+      drawGym();
+      drawMarks();
       drawDistros();
       drawChopPad();
       drawFly();
@@ -28244,6 +28299,152 @@ export default function IronLionLayer004() {
        top and fades as you walk in under it, exactly the way drawEl handles the deck -- a roof
        you are standing beneath has to get out of the way or you are playing blind. */
     const STAD = { cells: 5, fade: 0.12, inner: 0.52 };
+    /* LANDMARKS. A plate pinned to a cell and drawn at a size in CELLS, which is the smallest
+       thing that stands in for real placement: it puts the art on the ground where the fast
+       travel and the zone already say it should be, without touching the building generator.
+       These are NOT enterable and they carry no collision -- that is the placement pass, and
+       it is the next real piece of work. Adding one here is a line; adding one there is a
+       building with a door, an interior and a footprint. */
+    const MARKS = [
+      { k: "ct_gym",        i: 2,  j: 1, w: 2, h: 1 },
+      { k: "ct_walkup",     i: 1,  j: 0, w: 2, h: 1 },
+      { k: "ct_store",      i: 4,  j: 1, w: 1, h: 1 },
+      { k: "ct_courthouse", i: 14, j: 5, w: 2, h: 1 },
+      { k: "ct_offices",    i: 13, j: 4, w: 2, h: 1 },
+      { k: "ct_chronicle",  i: 15, j: 6, w: 2, h: 1 },
+      { k: "ct_policehq",   i: 12, j: 5, w: 2, h: 1 },
+      { k: "ct_gates",      i: 22, j: 3, w: 1, h: 1 },
+      /* The rest of North End and the works. Spread along the two free rows rather than stacked
+         on one street, so the district reads as a neighbourhood and not a parade. */
+      { k: "ct_barber",     i: 0,  j: 2, w: 1, h: 1 },
+      { k: "ct_laundro",    i: 1,  j: 2, w: 1, h: 1 },
+      { k: "ct_church",     i: 3,  j: 2, w: 1, h: 1 },
+      { k: "ct_walkup",     i: 4,  j: 0, w: 2, h: 1 },
+      { k: "ct_works",      i: 16, j: 7, w: 2, h: 1 },
+    ];
+    /* ---------- THE GYM FLOOR ----------
+       Props laid out relative to the gym's own cell, in the order a real gym is arranged: ring
+       in the middle because everything faces it, bags along the north wall where the noise is,
+       iron on the east, the office and the lockers by the door.
+       Offsets are FRACTIONS of the footprint, not pixels, so re-sizing the gym moves the
+       furniture with it instead of leaving it in the street. */
+    const GYM_AT = { i: 2, j: 1, w: 2, h: 1 };
+    const GYM_FIT = [
+      ["gy_ring",        0.00,  0.05, 0.42],
+      ["gy_heavybag",   -0.34, -0.34, 0.09],
+      ["gy_speedbag",   -0.22, -0.36, 0.09],
+      ["gy_doubleend",  -0.11, -0.35, 0.07],
+      ["gy_standbag",    0.33, -0.33, 0.10],
+      ["gy_barbell",     0.40, -0.10, 0.13],
+      ["gy_bench_weight",0.41,  0.08, 0.12],
+      ["gy_dumbrack",    0.42,  0.26, 0.12],
+      ["gy_medballs",    0.31,  0.34, 0.08],
+      ["gy_desk",       -0.40,  0.28, 0.13],
+      ["gy_lockers",    -0.24,  0.36, 0.15],
+      ["gy_bench",      -0.05,  0.40, 0.14],
+      ["gy_ropes",      -0.43, -0.10, 0.10],
+      ["gy_mirror",     -0.43,  0.08, 0.11],
+      ["gy_firstaid",    0.13,  0.40, 0.07],
+      ["gy_bucket",      0.24,  0.41, 0.07],
+      ["gy_poster",     -0.30,  0.00, 0.08],
+      ["gy_belt",        0.00, -0.44, 0.10],
+      ["gy_photo_1",    -0.12, -0.45, 0.05],
+      ["gy_photo_2",    -0.05, -0.45, 0.05],
+      ["gy_photo_3",     0.09, -0.45, 0.05],
+      ["gy_photo_4",     0.16, -0.45, 0.05],
+    ];
+    /* WHAT YOU CANNOT WALK THROUGH. Fractions of the footprint like the layout above, so the
+       boxes move with the furniture and can never drift apart from it.
+       The RING is not in this list -- it is handled below, because it is the one thing here you
+       are supposed to get INTO, and a solid box would make the stairs a decoration. */
+    const GYM_SOLID = [
+      [-0.40,  0.28, 0.13, 0.09],   // desk
+      [-0.24,  0.36, 0.15, 0.07],   // lockers
+      [-0.05,  0.40, 0.14, 0.04],   // bench
+      [ 0.40, -0.10, 0.13, 0.09],   // barbell
+      [ 0.41,  0.08, 0.12, 0.08],   // weight bench
+      [ 0.42,  0.26, 0.12, 0.07],   // dumbbell rack
+      [ 0.33, -0.33, 0.10, 0.10],   // standing bag
+      [-0.34, -0.34, 0.09, 0.09],   // heavy bag
+    ];
+    /* THE RING. Solid on all four sides except a gap at the bottom centre, which is exactly
+       where the steps are drawn on the plate -- so the way in is the way the art says it is.
+       Once you are through the gap you are inside and the same walls hold you in, which is the
+       point of a ring. */
+    const RING = { hw: 0.19, hh: 0.19, gap: 0.05, step: 0.055 };
+    function gymClamp() {
+      if (g.inside || g.mode !== "foot" || !Number.isFinite(g.p.x)) return;
+      const x0 = SX(GYM_AT.i), y0 = SX(GYM_AT.j);
+      const w = GYM_AT.w * PITCH, h = GYM_AT.h * PITCH;
+      const cx = x0 + w / 2, cy = y0 + h / 2;
+      if (Math.hypot(g.p.x - cx, g.p.y - cy) > Math.max(w, h)) return;
+      const push = (bx, by, bw, bh) => {
+        const dx = g.p.x - bx, dy = g.p.y - by;
+        if (Math.abs(dx) > bw || Math.abs(dy) > bh) return false;
+        /* Out along the shallower overlap, which is what stops a man sliding round a corner. */
+        if (bw - Math.abs(dx) < bh - Math.abs(dy)) g.p.x = bx + Math.sign(dx || 1) * bw;
+        else g.p.y = by + Math.sign(dy || 1) * bh;
+        g.p.vx = 0; g.p.vy = 0;
+        return true;
+      };
+      for (const [fx, fy, fw, fh] of GYM_SOLID)
+        push(cx + fx * w, cy + fy * h, fw * w * 0.5, fh * h * 0.5);
+      // the ring: four posts of wall with a doorway cut in the south rail
+      const rx = cx, ry = cy + 0.05 * h;
+      const hw = RING.hw * w, hh = RING.hh * h, t = 14, gp = RING.gap * w;
+      push(rx, ry - hh, hw, t);                              // north rail
+      push(rx - hw, ry, t, hh);                              // west
+      push(rx + hw, ry, t, hh);                              // east
+      push(rx - (hw + gp) / 2 - gp / 2, ry + hh, (hw - gp) / 2, t);   // south, left of the steps
+      push(rx + (hw + gp) / 2 + gp / 2, ry + hh, (hw - gp) / 2, t);   // south, right of them
+    }
+    function drawGym() {
+      if (g.inside) return;
+      const x0 = SX(GYM_AT.i), y0 = SX(GYM_AT.j);
+      const w = GYM_AT.w * PITCH, h = GYM_AT.h * PITCH;
+      const cx = x0 + w / 2, cy = y0 + h / 2;
+      if (Math.hypot(g.p.x - cx, g.p.y - cy) > 3000) return;
+      /* The floor first, as a tiled pattern -- it is ground, so it repeats rather than
+         stretching, and it goes under everything including the building plate's own roof. */
+      const fl = imgs.current.tx_gymfloor;
+      if (fl && fl.width) {
+        const pat = ctx.createPattern(fl, "repeat");
+        if (pat) {
+          ctx.save();
+          ctx.translate(cx - w / 2, cy - h / 2);
+          const s = (w / 3) / fl.width;
+          ctx.scale(s, s);
+          ctx.fillStyle = pat;
+          ctx.fillRect(0, 0, w / s, h / s);
+          ctx.restore();
+        }
+      }
+      for (const [k, fx, fy, fs] of GYM_FIT) {
+        const im = imgs.current[k];
+        if (!im || !im.width) continue;
+        const target = Math.min(w, h) * fs;
+        const sc = target / Math.max(im.width, im.height);   // snapped, never stretched
+        const dw = im.width * sc, dh = im.height * sc;
+        ctx.drawImage(im, cx + fx * w - dw / 2, cy + fy * h - dh / 2, dw, dh);
+      }
+    }
+    function drawMarks() {
+      if (g.inside) return;
+      for (const m of MARKS) {
+        const im = imgs.current[m.k];
+        if (!im || !im.width) continue;
+        const x0 = SX(m.i), y0 = SX(m.j);
+        const w = m.w * PITCH, h = m.h * PITCH;
+        const cx = x0 + w / 2, cy = y0 + h / 2;
+        if (Math.hypot(g.p.x - cx, g.p.y - cy) > 4200) continue;
+        /* Snapped to the footprint, never stretched to it: art with recognisable objects in it
+           -- a sign, a water tank, a fire escape -- distorts the moment the aspect disagrees,
+           which is the rule the washing lines taught this file. Fit inside and centre. */
+        const s = Math.min(w / im.width, h / im.height);
+        const dw = im.width * s, dh = im.height * s;
+        ctx.drawImage(im, cx - dw / 2, cy - dh / 2, dw, dh);
+      }
+    }
     function stadiumAt() {
       const Z = ZONES.stadium;
       if (!Z) return null;
