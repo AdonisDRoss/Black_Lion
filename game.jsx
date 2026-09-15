@@ -17434,8 +17434,17 @@ export default function IronLionLayer004() {
       { z: "stadium",   name: "THE STADIUM",   i: 22, j: 5 },
       /* The Flats and the tower. `z` is neonflats for both, so one visit opens both -- they are
          four blocks apart and pretending you discovered them separately is bookkeeping. */
-      { z: "neonflats", name: "NEON FLATS",    i: 6,  j: 12 },
-      { z: "neonflats", name: "VANCE TOWER",   i: 8,  j: 9 },
+      { z: "neonflats", name: "NEON FLATS",    i: 6,  j: 12, always: true },
+      { z: "neonflats", name: "VANCE TOWER",   i: 8,  j: 9, always: true },
+      /* DIRECT. Every named place built this session, on the terminal from the start -- these
+         are addresses, not discoveries. Kept in one block so the next one added is obvious. */
+      { z: "northend",  name: "NORTH END GYM",  i: 2,  j: 1,  always: true },
+      { z: "neonflats", name: "THE SAFEHOUSE",  i: 7,  j: 13, always: true },
+      { z: "civic",     name: "THE COURTHOUSE", i: 14, j: 5,  always: true },
+      { z: "civic",     name: "THE CHRONICLE",  i: 15, j: 6,  always: true },
+      { z: "civic",     name: "POLICE HQ",      i: 12, j: 5,  always: true },
+      { z: "stadium",   name: "STADIUM GATES",  i: 22, j: 3,  always: true },
+      { z: "sec",       name: "KESTREL HOUSE",  i: 28, j: 23, always: true },
       { z: "town",      name: "HAZELBROOK",    i: 25, j: 25 },
       { z: "prison",    name: "KESTREL STATE",  i: 16, j: 23 },
       { z: "neon",      name: "EMBER FLATS",    i: 28, j: 23 },
@@ -17500,7 +17509,11 @@ export default function IronLionLayer004() {
     function travelList() {
       // the L is always listed: it is a public railway, not somewhere you have to discover
       return g.travelAll ? TRAVEL.slice()
-        : TRAVEL.filter((t) => t.elStop != null || g.seen[t.z]);
+        /* `always` joins the L stops in bypassing the discovery gate. A DISTRICT is something
+           you find; a named place you already know the address of is not, and gating the gym
+           behind walking to North End first means the fast travel cannot take you to the one
+           place fast travel is for. */
+        : TRAVEL.filter((t) => t.elStop != null || t.always || g.seen[t.z]);
     }
     function doTravel(idx) {
       const list = travelList();
