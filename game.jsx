@@ -2715,7 +2715,10 @@ const ROOF_SETS = {
   gen_house1:   ["rf_g_house1_a", "rf_g_house1_b", "rf_g_house1_c", "rf_g_house1_d"],
   gen_house2:   ["rf_g_house2_a", "rf_g_house2_b", "rf_g_house2_c", "rf_g_house2_d"],
   gen_row:      ["rf_g_row_a", "rf_g_row_b", "rf_g_row_c"],
-  gen_walkup:   ["rf_g_walkup_a", "rf_g_walkup_b", "rf_g_walkup_c"],
+  /* Four now, not three. These are full-bleed plates with their own parapet and the detail held
+     in the middle -- which is the rule generics have to follow, because they are stretched to
+     whatever building they land on and a lone AC unit near a corner gives the stretch away. */
+  gen_walkup:   ["rf_g_walkup_a", "rf_g_walkup_b", "rf_g_walkup_c", "rf_g_walkup_d"],
   gen_tower:    ["rf_g_tower_a", "rf_g_tower_b", "rf_g_tower_c"],
   /* Downtown's tallest. Split off from gen_tower by height alone -- no new flag on the
      generator, and it puts the mirrored glass where the money is without hand-placing any. */
@@ -18930,7 +18933,28 @@ export default function IronLionLayer004() {
       let g0 = m && GANGTOP[m.gang];
       if (g0 && g0.wing && m.wing && g0.wing[m.wing]) g0 = g0.wing[m.wing];
       const im = g0 && imgs.current[g0.sheet];
-      if (!im || !im.width || !im.height) return false;
+      if (!im || !im.width || !im.height) {
+        /* THE DEUCE HAVE PLATES AND NO SHEET. Every other faction has a framed gang_* sheet;
+           theirs are five flat plates, so they fell through here and returned false -- which is
+           why they were invisible everywhere except the one place that drew them by hand.
+           Drawn flat and rotated like a rogue hench. The plate index comes off a per-man `dz`
+           stamped once, NOT off position, so a man does not change clothes as he walks. */
+        if (m && m.gang === "deuce") {
+          if (m.dz == null) m.dz = 1 + ((Math.random() * 5) | 0);
+          const dim = imgs.current["hx_deuce_" + m.dz];
+          if (dim && dim.width) {
+            const sp2 = Math.hypot(m.vx || 0, m.vy || 0);
+            const a2 = sp2 > 12 ? Math.atan2(m.vy, m.vx) + Math.PI / 2 + TOPDOWN_FACE
+                                : (m.topAng || 0);
+            const dh = 26, dw = dh * (dim.width / dim.height);
+            drawShadow(m.x, m.y + 2, 9, 4, 0.3);
+            ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(a2);
+            ctx.drawImage(dim, -dw / 2, -dh / 2, dw, dh); ctx.restore();
+            return true;
+          }
+        }
+        return false;
+      }
       if (m.gtop == null) m.gtop = gangRow(m);
       const sp = Math.hypot(m.vx || 0, m.vy || 0);
       const moving = sp > 12;
@@ -28342,7 +28366,11 @@ export default function IronLionLayer004() {
          footprint of a large building rather than a landmark, because from directly above a
          tower IS just a roof -- the height has to be read off what is ON it, which is why this
          plate has the pool, the plant room and the helipad and not a single window. */
-      { k: "ct_tower_cap",  i: 8,  j: 9, w: 0.40, h: 0.40 },
+      /* Nudged off the cell centre and onto the block. A mark is placed at the middle of its
+         cell and the middle of a cell in this city is the ROAD -- which is why the tower was
+         standing in the street. `ox`/`oy` are fractions of a cell, so the whole list can be
+         moved off the tarmac the same way when the rest of them need it. */
+      { k: "ct_tower_cap",  i: 8,  j: 9, w: 0.40, h: 0.40, ox: -0.22, oy: -0.20 },
       /* The rest of North End and the works. Spread along the two free rows rather than stacked
          on one street, so the district reads as a neighbourhood and not a parade. */
       { k: "ct_barber",     i: 0,  j: 2, w: 0.20, h: 0.16 },
@@ -28467,7 +28495,8 @@ export default function IronLionLayer004() {
         if (!im || !im.width) continue;
         const x0 = SX(m.i), y0 = SX(m.j);
         const w = m.w * PITCH, h = m.h * PITCH;
-        const cx = x0 + w / 2, cy = y0 + h / 2;
+        const cx = x0 + PITCH / 2 + (m.ox || 0) * PITCH;
+        const cy = y0 + PITCH / 2 + (m.oy || 0) * PITCH;
         if (Math.hypot(g.p.x - cx, g.p.y - cy) > 4200) continue;
         /* Snapped to the footprint, never stretched to it: art with recognisable objects in it
            -- a sign, a water tank, a fire escape -- distorts the moment the aspect disagrees,
