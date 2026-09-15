@@ -1079,10 +1079,19 @@ YT.wp_katana = "assets/youth/wp_katana.png";
 /* THE NORTH'S BUILDINGS. Plates, not tiles -- snapped to a footprint and never stretched. */
 const CITY2 = {};
 for (const k of ["ct_gym", "ct_walkup", "ct_store", "ct_barber", "ct_laundro", "ct_church",
-                 "ct_tower_cap",
+                 "ct_tower_cap", "ct_club",
                  "ct_courthouse", "ct_offices", "ct_chronicle", "ct_policehq", "ct_works",
                  "ct_stadium", "ct_dome", "ct_gates"])
   CITY2[k] = "assets/city/" + k + ".png";
+/* THE DECO. Fifty-one pieces off the Dice Lair sheets -- sofas, glass tables, deco rugs,
+   statues, palms, the poker table, the bar. Numbered in reading order rather than named,
+   because naming fifty-one props by eye costs more than it saves and the interior code will
+   pick from the list by index anyway. */
+const DECO = {};
+for (let i = 1; i <= 51; i++) {
+  const k = "fx_" + String(i).padStart(2, "0");
+  DECO[k] = "assets/deuce/" + k + ".png";
+}
 const TEX = {};
 for (const k of ["tx_platform", "tx_track", "tx_terrazzo", "tx_deckplate",
                  "tx_lino", "tx_edgeline", "tx_el_station"])
@@ -3538,6 +3547,7 @@ const TOWER = { i: 8, j: 9, back: { dx: 0, dy: 1 },
 const SAFEHOUSE = { i: 7, j: 13 };
 const SPOTS = [
   { nm: "VANCE TOWER",   i: 8,  j: 9 },
+  { nm: "DEUCE'S WILD",  i: 7,  j: 12 },
   { nm: "THE SAFEHOUSE", i: 7,  j: 13 },
   { nm: "NEON FLATS",    i: 6,  j: 12 },
   { nm: "KESTREL HOUSE", i: 28, j: 23 },
@@ -7837,7 +7847,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX, ...CITY2 };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX, ...CITY2, ...DECO };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -17452,6 +17462,7 @@ export default function IronLionLayer004() {
          four blocks apart and pretending you discovered them separately is bookkeeping. */
       { z: "neonflats", name: "NEON FLATS",    i: 6,  j: 12, always: true },
       { z: "neonflats", name: "VANCE TOWER",   i: 8,  j: 9, always: true },
+      { z: "neonflats", name: "DEUCE'S WILD",  i: 7,  j: 12, always: true },
       /* DIRECT. Every named place built this session, on the terminal from the start -- these
          are addresses, not discoveries. Kept in one block so the next one added is obvious. */
       { z: "northend",  name: "NORTH END GYM",  i: 2,  j: 1,  always: true },
@@ -28384,6 +28395,9 @@ export default function IronLionLayer004() {
          standing in the street. `ox`/`oy` are fractions of a cell, so the whole list can be
          moved off the tarmac the same way when the rest of them need it. */
       { k: "ct_tower_cap",  i: 8,  j: 9, w: 0.40, h: 0.40, ox: -0.26, oy: -0.26, floors: 7 },
+      /* DEUCE'S WILD. Neon Flats, one block off the tower -- the club and the home should be
+         walkable from each other, because that walk is the thing Damian watches Rochelle make. */
+      { k: "ct_club",       i: 7,  j: 12, w: 0.44, h: 0.32, ox: -0.20, oy: -0.18, floors: 2 },
       /* The rest of North End and the works. Spread along the two free rows rather than stacked
          on one street, so the district reads as a neighbourhood and not a parade. */
       { k: "ct_barber",     i: 0,  j: 2, w: 0.20, h: 0.16 },
