@@ -25826,7 +25826,27 @@ export default function IronLionLayer004() {
       return { ...b, _px: d.war.x0 + 70, _py: (d.war.y0 + d.war.y1) / 2,
         _cx: (d.bay.x0 + d.bay.x1) / 2, _cy: (d.bay.y0 + d.bay.y1) / 2 };
     }
-    G.stairFn = nearStair; G.doorFn = nearbyDoor; G.strikeFn = strike; G.denDoorFn = nearDenRamp;
+    /* THE TOWER GARAGE, the same shape as the den's ramp. Drive at the REAR face -- TOWER.back
+       says the basement door is on the far side from the canopy -- and you go in still behind
+       the wheel and park, exactly as you do at home.
+       `entry: -1` is what makes it the BASEMENT rather than the lobby: doAction reads
+       `dp.entry || 0` and the parking floor is the one below the ground. */
+    function nearTowerRamp() {
+      const m = MARKS.find((q) => q.k === "ct_club" ? false : q.k === "ct_tower_cap");
+      if (!m || !m.b) return null;
+      const b = m.b, v = activeVeh();
+      if (!v) return null;
+      const nearX = v.x > b.x - 60 && v.x < b.x + b.w + 60;
+      const nearY = v.y > b.y + b.h - 40 && v.y < b.y + b.h + 130;   // the back of the building
+      if (!nearX || !nearY) return null;
+      return { ...b, entry: -1,
+        _px: b.x + b.w / 2, _py: b.y + b.h - 60,
+        _cx: b.x + b.w * 0.5, _cy: b.y + b.h * 0.72 };
+    }
+    G.stairFn = nearStair; G.doorFn = nearbyDoor; G.strikeFn = strike;
+    /* One door function for both. The den is checked first because it is the one you use most
+       and the two can never overlap -- they are ten cells apart. */
+    G.denDoorFn = () => nearDenRamp() || nearTowerRamp();
     G.gasFn = nearGasPump; G.vehFn = activeVeh; G.mentorFn = talkMentor;
     G.consoleFn = nearConsole; G.travelListFn = travelList; G.travelFn = doTravel;
     G.travelPushFn = () => setHud((h) => ({ ...h, travelOpen: !!g.travelOpen,
@@ -28637,6 +28657,29 @@ export default function IronLionLayer004() {
       const c = clubCrowd();
       if (!c) return;
       if (Math.hypot(g.p.x - (c.b.x + c.b.w / 2), g.p.y - (c.b.y + c.b.h / 2)) > 1400) return;
+      /* THE LIGHTS. Two washes crossing the floor out of phase -- purple on a slow cycle, gold
+         on a slower one -- so the colour never settles and never strobes. Drawn UNDER the crowd
+         so people stand in the light rather than behind it, and multiplied by a soft radial so
+         the middle of the floor is the bright part and the walls stay dark.
+         Deliberately not a flashing strobe: this runs for as long as you are in the room. */
+      {
+        const t = g.t || 0, cx2 = c.b.x + c.b.w / 2, cy2 = c.b.y + c.b.h / 2;
+        const r = Math.max(c.b.w, c.b.h) * 0.62;
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        const pulse = (ph, sp) => 0.10 + 0.14 * (0.5 + 0.5 * Math.sin(t * sp + ph));
+        for (const [col, ph, sp, off] of [["124,58,196", 0, 0.9, -0.16],
+                                          ["214,168,58", 2.1, 0.55, 0.16]]) {
+          const gx = cx2 + Math.cos(t * sp * 0.6 + ph) * c.b.w * off;
+          const gy = cy2 + Math.sin(t * sp * 0.45 + ph) * c.b.h * off;
+          const gr = ctx.createRadialGradient(gx, gy, 0, gx, gy, r);
+          gr.addColorStop(0, `rgba(${col},${pulse(ph, sp).toFixed(3)})`);
+          gr.addColorStop(1, `rgba(${col},0)`);
+          ctx.fillStyle = gr;
+          ctx.fillRect(c.b.x - 20, c.b.y - 20, c.b.w + 40, c.b.h + 40);
+        }
+        ctx.restore();
+      }
       for (const q of c.list) {
         if (q.hp <= 0) continue;
         drawShadow(q.x, q.y + 2, 9, 4, 0.3);
