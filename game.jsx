@@ -1079,6 +1079,7 @@ YT.wp_katana = "assets/youth/wp_katana.png";
 /* THE NORTH'S BUILDINGS. Plates, not tiles -- snapped to a footprint and never stretched. */
 const CITY2 = {};
 for (const k of ["ct_gym", "ct_walkup", "ct_store", "ct_barber", "ct_laundro", "ct_church",
+                 "ct_tower_cap",
                  "ct_courthouse", "ct_offices", "ct_chronicle", "ct_policehq", "ct_works",
                  "ct_stadium", "ct_dome", "ct_gates"])
   CITY2[k] = "assets/city/" + k + ".png";
@@ -28315,29 +28316,40 @@ export default function IronLionLayer004() {
        cells was 355m across -- correct for a real stadium and far too big next to buildings
        that are one cell wide. 0.62 puts it near 220m, which still reads as the largest thing in
        the city without making the rest of it look like a model village. */
-    const STAD = { cells: 5, fade: 0.12, inner: 0.52, scale: 0.62 };
+    const STAD = { cells: 5, fade: 0.12, inner: 0.52, scale: 0.30 };
     /* LANDMARKS. A plate pinned to a cell and drawn at a size in CELLS, which is the smallest
        thing that stands in for real placement: it puts the art on the ground where the fast
        travel and the zone already say it should be, without touching the building generator.
        These are NOT enterable and they carry no collision -- that is the placement pass, and
        it is the next real piece of work. Adding one here is a line; adding one there is a
        building with a door, an interior and a footprint. */
+    /* SIZED AGAINST THE CITY, NOT AGAINST THE CELL. A generated building in this file is
+       260-400 units across -- roughly a quarter of a cell -- so a plate drawn at 1 whole cell
+       came out four times the size of everything around it. These are fractions of a cell now
+       and they land between 240 and 660, which is the range the rest of the city lives in.
+       The courthouse and the works are the widest because they should be. */
     const MARKS = [
-      { k: "ct_gym",        i: 2,  j: 1, w: 1, h: 1 },
-      { k: "ct_walkup",     i: 1,  j: 0, w: 2, h: 1 },
-      { k: "ct_store",      i: 4,  j: 1, w: 1, h: 1 },
-      { k: "ct_courthouse", i: 14, j: 5, w: 1.4, h: 1 },
-      { k: "ct_offices",    i: 13, j: 4, w: 1.2, h: 1 },
-      { k: "ct_chronicle",  i: 15, j: 6, w: 1.3, h: 1 },
-      { k: "ct_policehq",   i: 12, j: 5, w: 1.3, h: 1 },
-      { k: "ct_gates",      i: 22, j: 3, w: 1, h: 1 },
+      { k: "ct_gym",        i: 2,  j: 1, w: 0.32, h: 0.24 },
+      { k: "ct_walkup",     i: 1,  j: 0, w: 0.34, h: 0.22 },
+      { k: "ct_store",      i: 4,  j: 1, w: 0.24, h: 0.18 },
+      { k: "ct_courthouse", i: 14, j: 5, w: 0.44, h: 0.30 },
+      { k: "ct_offices",    i: 13, j: 4, w: 0.36, h: 0.26 },
+      { k: "ct_chronicle",  i: 15, j: 6, w: 0.40, h: 0.26 },
+      { k: "ct_policehq",   i: 12, j: 5, w: 0.38, h: 0.26 },
+      { k: "ct_gates",      i: 22, j: 3, w: 0.26, h: 0.14 },
+      /* THE TOWER, AS A CAP. Your idea, and it is the right one: the building itself is a block
+         the generator can make, and this plate sits on top of it as its roof. Drawn at the
+         footprint of a large building rather than a landmark, because from directly above a
+         tower IS just a roof -- the height has to be read off what is ON it, which is why this
+         plate has the pool, the plant room and the helipad and not a single window. */
+      { k: "ct_tower_cap",  i: 8,  j: 9, w: 0.40, h: 0.40 },
       /* The rest of North End and the works. Spread along the two free rows rather than stacked
          on one street, so the district reads as a neighbourhood and not a parade. */
-      { k: "ct_barber",     i: 0,  j: 2, w: 1, h: 1 },
-      { k: "ct_laundro",    i: 1,  j: 2, w: 1, h: 1 },
-      { k: "ct_church",     i: 3,  j: 2, w: 1, h: 1 },
-      { k: "ct_walkup",     i: 4,  j: 0, w: 1.2, h: 1 },
-      { k: "ct_works",      i: 16, j: 7, w: 1.4, h: 1 },
+      { k: "ct_barber",     i: 0,  j: 2, w: 0.20, h: 0.16 },
+      { k: "ct_laundro",    i: 1,  j: 2, w: 0.20, h: 0.16 },
+      { k: "ct_church",     i: 3,  j: 2, w: 0.22, h: 0.18 },
+      { k: "ct_walkup",     i: 4,  j: 0, w: 0.34, h: 0.22 },
+      { k: "ct_works",      i: 16, j: 7, w: 0.44, h: 0.28 },
     ];
     /* ---------- THE GYM FLOOR ----------
        Props laid out relative to the gym's own cell, in the order a real gym is arranged: ring
@@ -28348,7 +28360,7 @@ export default function IronLionLayer004() {
     /* ONE CELL, not two. Two cells is 142 metres of boxing gym -- bigger than the courthouse
        and half the length of the stadium. The furniture is laid out in fractions of this, so
        shrinking the box shrinks the whole room and the collision with it. */
-    const GYM_AT = { i: 2, j: 1, w: 1, h: 1 };
+    const GYM_AT = { i: 2, j: 1, w: 0.32, h: 0.24 };
     const GYM_FIT = [
       ["gy_ring",        0.00,  0.05, 0.42],
       ["gy_heavybag",   -0.34, -0.34, 0.09],
