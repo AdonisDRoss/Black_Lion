@@ -28311,7 +28311,11 @@ export default function IronLionLayer004() {
        Two plates stacked. The BOWL is the ground floor and it is always there. The DOME sits on
        top and fades as you walk in under it, exactly the way drawEl handles the deck -- a roof
        you are standing beneath has to get out of the way or you are playing blind. */
-    const STAD = { cells: 5, fade: 0.12, inner: 0.52 };
+    /* `scale` shrinks the bowl inside its zone. A PITCH of 1500 is about 71 metres, so five
+       cells was 355m across -- correct for a real stadium and far too big next to buildings
+       that are one cell wide. 0.62 puts it near 220m, which still reads as the largest thing in
+       the city without making the rest of it look like a model village. */
+    const STAD = { cells: 5, fade: 0.12, inner: 0.52, scale: 0.62 };
     /* LANDMARKS. A plate pinned to a cell and drawn at a size in CELLS, which is the smallest
        thing that stands in for real placement: it puts the art on the ground where the fast
        travel and the zone already say it should be, without touching the building generator.
@@ -28319,21 +28323,21 @@ export default function IronLionLayer004() {
        it is the next real piece of work. Adding one here is a line; adding one there is a
        building with a door, an interior and a footprint. */
     const MARKS = [
-      { k: "ct_gym",        i: 2,  j: 1, w: 2, h: 1 },
+      { k: "ct_gym",        i: 2,  j: 1, w: 1, h: 1 },
       { k: "ct_walkup",     i: 1,  j: 0, w: 2, h: 1 },
       { k: "ct_store",      i: 4,  j: 1, w: 1, h: 1 },
-      { k: "ct_courthouse", i: 14, j: 5, w: 2, h: 1 },
-      { k: "ct_offices",    i: 13, j: 4, w: 2, h: 1 },
-      { k: "ct_chronicle",  i: 15, j: 6, w: 2, h: 1 },
-      { k: "ct_policehq",   i: 12, j: 5, w: 2, h: 1 },
+      { k: "ct_courthouse", i: 14, j: 5, w: 1.4, h: 1 },
+      { k: "ct_offices",    i: 13, j: 4, w: 1.2, h: 1 },
+      { k: "ct_chronicle",  i: 15, j: 6, w: 1.3, h: 1 },
+      { k: "ct_policehq",   i: 12, j: 5, w: 1.3, h: 1 },
       { k: "ct_gates",      i: 22, j: 3, w: 1, h: 1 },
       /* The rest of North End and the works. Spread along the two free rows rather than stacked
          on one street, so the district reads as a neighbourhood and not a parade. */
       { k: "ct_barber",     i: 0,  j: 2, w: 1, h: 1 },
       { k: "ct_laundro",    i: 1,  j: 2, w: 1, h: 1 },
       { k: "ct_church",     i: 3,  j: 2, w: 1, h: 1 },
-      { k: "ct_walkup",     i: 4,  j: 0, w: 2, h: 1 },
-      { k: "ct_works",      i: 16, j: 7, w: 2, h: 1 },
+      { k: "ct_walkup",     i: 4,  j: 0, w: 1.2, h: 1 },
+      { k: "ct_works",      i: 16, j: 7, w: 1.4, h: 1 },
     ];
     /* ---------- THE GYM FLOOR ----------
        Props laid out relative to the gym's own cell, in the order a real gym is arranged: ring
@@ -28341,7 +28345,10 @@ export default function IronLionLayer004() {
        iron on the east, the office and the lockers by the door.
        Offsets are FRACTIONS of the footprint, not pixels, so re-sizing the gym moves the
        furniture with it instead of leaving it in the street. */
-    const GYM_AT = { i: 2, j: 1, w: 2, h: 1 };
+    /* ONE CELL, not two. Two cells is 142 metres of boxing gym -- bigger than the courthouse
+       and half the length of the stadium. The furniture is laid out in fractions of this, so
+       shrinking the box shrinks the whole room and the collision with it. */
+    const GYM_AT = { i: 2, j: 1, w: 1, h: 1 };
     const GYM_FIT = [
       ["gy_ring",        0.00,  0.05, 0.42],
       ["gy_heavybag",   -0.34, -0.34, 0.09],
@@ -28462,8 +28469,10 @@ export default function IronLionLayer004() {
       const Z = ZONES.stadium;
       if (!Z) return null;
       const x0 = SX(Z.i0), y0 = SX(Z.j0);
-      const w = (Z.i1 - Z.i0 + 1) * PITCH, h = (Z.j1 - Z.j0 + 1) * PITCH;
-      return { x: x0 + w / 2, y: y0 + h / 2, w, h };
+      const fw = (Z.i1 - Z.i0 + 1) * PITCH, fh = (Z.j1 - Z.j0 + 1) * PITCH;
+      /* Centred in the zone and shrunk, so the ring road and the gates still have ground to
+         stand on around it. The clamp reads the same rectangle, so the field boundary follows. */
+      return { x: x0 + fw / 2, y: y0 + fh / 2, w: fw * STAD.scale, h: fh * STAD.scale };
     }
     /* The field is not walkable yet -- only the stands. Rather than a wall ring, the player is
        pushed back out of the inner ellipse, which needs no collision geometry and cannot trap
