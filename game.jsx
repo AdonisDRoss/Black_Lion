@@ -9914,6 +9914,18 @@ export default function IronLionLayer004() {
        wrapped it in a sideways stance the wrap was thrown away -- the kid was re-centred on
        top of his own board facing his direction of travel, so he read as gliding on his feet
        with the deck hidden underneath him. It takes the stance as arguments now. */
+    /* ---------- THE PLATE RULE ----------
+       Every character plate in this game is CROPPED AT THE HIP, and nothing below it is ever
+       painted on. drawYouth draws the legs procedurally underneath and swings the striking arm
+       over the top, so a plate is a torso and a head and that is all it has to be.
+       Two things follow from that and both have cost a re-cut already:
+         - LEGS painted on the plate double up with the drawn ones. Rio and Sho each lost 53px
+           of leg to this; the detectives lost theirs; the Deuce were trimmed at cut time.
+         - ARMS painted on the plate are fine at rest and wrong the moment he fires, because the
+           drawn arm lands on top of a second forearm holding nothing. That is what
+           yt_lion_hero_bare exists for, and any plate that will hold a weapon wants the same
+           armless variant.
+       Generate at the hip, keep the arms low and close, and let this function do the moving. */
     function drawYouth(p, angOverride, backOff) {
       const im = imgs.current[p.yt];
       if (!im || !im.width) return false;
@@ -18941,16 +18953,15 @@ export default function IronLionLayer004() {
            stamped once, NOT off position, so a man does not change clothes as he walks. */
         if (m && m.gang === "deuce") {
           if (m.dz == null) m.dz = 1 + ((Math.random() * 5) | 0);
-          const dim = imgs.current["hx_deuce_" + m.dz];
-          if (dim && dim.width) {
-            const sp2 = Math.hypot(m.vx || 0, m.vy || 0);
-            const a2 = sp2 > 12 ? Math.atan2(m.vy, m.vx) + Math.PI / 2 + TOPDOWN_FACE
-                                : (m.topAng || 0);
-            const dh = 26, dw = dh * (dim.width / dim.height);
-            drawShadow(m.x, m.y + 2, 9, 4, 0.3);
-            ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(a2);
-            ctx.drawImage(dim, -dw / 2, -dh / 2, dw, dh); ctx.restore();
-            return true;
+          /* THROUGH drawYouth, NOT drawn flat. That function already owns the walk: it puts
+             PROCEDURAL LEGS under the torso and swings a striking arm over the top, which is
+             why the heroes and every rogue's crew move and these did not. A plate cropped at
+             the hip gets both for free.
+             This is the rule now -- see the note above drawYouth. */
+          const key = "hx_deuce_" + m.dz;
+          if (imgs.current[key]) {
+            m.yt = key; m.tall = 0.94;
+            if (drawYouth(m)) return true;
           }
         }
         return false;
