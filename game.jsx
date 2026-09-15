@@ -1087,6 +1087,13 @@ for (const k of ["ct_gym", "ct_walkup", "ct_store", "ct_barber", "ct_laundro", "
    statues, palms, the poker table, the bar. Numbered in reading order rather than named,
    because naming fifty-one props by eye costs more than it saves and the interior code will
    pick from the list by index anyway. */
+/* THE CLUB. Seventeen pieces -- bar, shelf, DJ booth, speakers, mirror ball, tables, booth,
+   rope, podium, machines and crates. */
+const CLUB = {};
+for (let i = 1; i <= 17; i++) {
+  const k = "cl_" + String(i).padStart(2, "0");
+  CLUB[k] = "assets/club/" + k + ".png";
+}
 const DECO = {};
 for (let i = 1; i <= 51; i++) {
   const k = "fx_" + String(i).padStart(2, "0");
@@ -1094,7 +1101,8 @@ for (let i = 1; i <= 51; i++) {
 }
 const TEX = {};
 for (const k of ["tx_platform", "tx_track", "tx_terrazzo", "tx_deckplate",
-                 "tx_lino", "tx_edgeline", "tx_el_station"])
+                 "tx_lino", "tx_edgeline", "tx_el_station",
+                 "tx_gymfloor", "tx_gymmat", "tx_carpark", "tx_dancefloor"])
   TEX[k] = "assets/tex/" + k + ".png";
 /* THE ROSTER'S OWN FOLDER. These eleven keys were scattered across assets/youth/ and
    assets/sov/ -- Eclipse's two lived with the Sovereign art for no reason other than the
@@ -3547,7 +3555,7 @@ const TOWER = { i: 8, j: 9, back: { dx: 0, dy: 1 },
 const SAFEHOUSE = { i: 7, j: 13 };
 const SPOTS = [
   { nm: "VANCE TOWER",   i: 8,  j: 9 },
-  { nm: "DEUCE'S WILD",  i: 7,  j: 12 },
+  { nm: "DEUCE'S WILD",  i: 7,  j: 13 },
   { nm: "THE SAFEHOUSE", i: 7,  j: 13 },
   { nm: "NEON FLATS",    i: 6,  j: 12 },
   { nm: "KESTREL HOUSE", i: 28, j: 23 },
@@ -7304,6 +7312,11 @@ export default function IronLionLayer004() {
        Anything missing is a silent no-op -- the game must not care whether music exists. */
     const MUSIC = {
       title:     { data: null, url: "assets/title.mp3" },
+      /* THE KINGS' OWN TRACK. Keyed by GANG, not by district -- the hood already has `hood`,
+         and this is theirs rather than the neighbourhood's, so it can follow them into a club
+         or a rooftop later without the map deciding for it. `gang_<id>` is the shape; any other
+         faction that gets a track is one line here and nothing else. */
+      gang_kings: { data: null, url: "assets/audio/gang_kings.mp3" },
       drive:     { data: null, url: "assets/drive.mp3" },
       chinatown: { data: null, url: "assets/chinatown.mp3" },
       uptown:    { data: null, url: "assets/uptown.mp3" },
@@ -7847,7 +7860,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX, ...CITY2, ...DECO };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX, ...CITY2, ...DECO, ...CLUB };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -8882,6 +8895,7 @@ export default function IronLionLayer004() {
          nobody's list. One line here and she is on ALL of them at once, because bullets, the
          blast, the roar, the shockwave and the auto-aim all come through this function. */
       if (g.job && g.job.elegy && g.job.elegy.hp > 0) out.push(g.job.elegy);
+      if (Array.isArray(g.club)) for (const q of g.club) if (q.hp > 0) out.push(q);
       /* THE MEN ON THE DOOR. Same one-line lesson as Elegy: they are hung off the distro site
          and not in any crew list, so without this they would be scenery you cannot shoot. */
       if (g.distroAt) for (const k in g.distroAt) {
@@ -17462,7 +17476,7 @@ export default function IronLionLayer004() {
          four blocks apart and pretending you discovered them separately is bookkeeping. */
       { z: "neonflats", name: "NEON FLATS",    i: 6,  j: 12, always: true },
       { z: "neonflats", name: "VANCE TOWER",   i: 8,  j: 9, always: true },
-      { z: "neonflats", name: "DEUCE'S WILD",  i: 7,  j: 12, always: true },
+      { z: "neonflats", name: "DEUCE'S WILD",  i: 7,  j: 13, always: true },
       /* DIRECT. Every named place built this session, on the terminal from the start -- these
          are addresses, not discoveries. Kept in one block so the next one added is obvious. */
       { z: "northend",  name: "NORTH END GYM",  i: 2,  j: 1,  always: true },
@@ -18952,6 +18966,8 @@ export default function IronLionLayer004() {
     }
     const GANGRIDE = { wolves: "gang_wolves_ride" };
     const GANGTOP_ROWS = 10, GANGTOP_CELL = 46, GANGTOP_SCALE = 1.15;
+    /* Which factions draw from flat plates rather than a framed sheet, and how many each has. */
+    const PLATE_GANGS = { deuce: { pre: "hx_deuce_", n: 5 }, kings: { pre: "hx_kings_", n: 20 } };
     function drawGangTop(m, state) {
       let g0 = m && GANGTOP[m.gang];
       if (g0 && g0.wing && m.wing && g0.wing[m.wing]) g0 = g0.wing[m.wing];
@@ -18962,14 +18978,18 @@ export default function IronLionLayer004() {
            why they were invisible everywhere except the one place that drew them by hand.
            Drawn flat and rotated like a rogue hench. The plate index comes off a per-man `dz`
            stamped once, NOT off position, so a man does not change clothes as he walks. */
-        if (m && m.gang === "deuce") {
-          if (m.dz == null) m.dz = 1 + ((Math.random() * 5) | 0);
+        /* GENERIC NOW, not deuce-only. Any faction listed in PLATE_GANGS comes through here
+           instead of needing a framed sheet -- the cheaper way to give a gang new art, since a
+           sheet is sixteen frames a man and a plate is one. */
+        const pg = m && PLATE_GANGS[m.gang];
+        if (pg) {
+          if (m.dz == null) m.dz = 1 + ((Math.random() * pg.n) | 0);
           /* THROUGH drawYouth, NOT drawn flat. That function already owns the walk: it puts
              PROCEDURAL LEGS under the torso and swings a striking arm over the top, which is
              why the heroes and every rogue's crew move and these did not. A plate cropped at
              the hip gets both for free.
              This is the rule now -- see the note above drawYouth. */
-          const key = "hx_deuce_" + m.dz;
+          const key = pg.pre + m.dz;
           if (imgs.current[key]) {
             m.yt = key; m.tall = 0.94;
             if (drawYouth(m)) return true;
@@ -25005,6 +25025,7 @@ export default function IronLionLayer004() {
         stadiumClamp();
         gymClamp();
         placeMarks();
+        stepClub(dt);
         marksClamp();
         g.skyPush = onTop ? 1 : 0;
         g.sky = Math.max(0, Math.min(SKY.max,
@@ -25446,6 +25467,7 @@ export default function IronLionLayer004() {
          world plane and there is a roof over you. */
       stepDog();
       drawStadium();
+      drawClub();
       drawGym();
       drawMarks();
       drawDistros();
@@ -28397,7 +28419,13 @@ export default function IronLionLayer004() {
       { k: "ct_tower_cap",  i: 8,  j: 9, w: 0.40, h: 0.40, ox: -0.26, oy: -0.26, floors: 7 },
       /* DEUCE'S WILD. Neon Flats, one block off the tower -- the club and the home should be
          walkable from each other, because that walk is the thing Damian watches Rochelle make. */
-      { k: "ct_club",       i: 7,  j: 12, w: 0.44, h: 0.32, ox: -0.20, oy: -0.18, floors: 2 },
+      /* Moved off the expressway exit. It was at 7,12 with a negative offset, which put it on
+         the slip road and into the neighbouring building -- the club plate is wide, and a wide
+         plate on a cell edge lands on whatever is next door.
+         Now one cell south and offset into the block rather than out of it, and narrowed to
+         0.34 so it fits a single lot instead of straddling two. If it is still off, `ox` and
+         `oy` are fractions of a cell: -0.5 to +0.5 covers the whole square. */
+      { k: "ct_club",       i: 7,  j: 13, w: 0.34, h: 0.26, ox: 0.18, oy: -0.06, floors: 2 },
       /* The rest of North End and the works. Spread along the two free rows rather than stacked
          on one street, so the district reads as a neighbourhood and not a parade. */
       { k: "ct_barber",     i: 0,  j: 2, w: 0.20, h: 0.16 },
@@ -28564,6 +28592,57 @@ export default function IronLionLayer004() {
         const cy = SX(m.j) + PITCH / 2 + (m.oy || 0) * PITCH;
         if (Math.abs(g.p.x - cx) > PITCH || Math.abs(g.p.y - cy) > PITCH) continue;
         boxPush(cx, cy, m.w * PITCH * 0.5, m.h * PITCH * 0.5);
+      }
+    }
+    /* ---------- THE CLUB CROWD ----------
+       Hung off the club building rather than pushed into g.peds, for the same reason Elegy and
+       the distro guards are: they belong to a place, not to the street, and the street's
+       spawner would wander them out of the door.
+       They are in combatTargets() though -- a room full of people you cannot touch is scenery,
+       and the whole point of walking into their club is that it is THEIR club. */
+    function clubCrowd() {
+      const m = MARKS.find((q) => q.k === "ct_club");
+      if (!m || !m.b) return null;
+      const b = m.b;
+      if (!g.club) {
+        g.club = [];
+        for (let i = 0; i < 14; i++) {
+          const deuce = i < 8;
+          g.club.push({
+            x: b.x + 22 + Math.random() * Math.max(1, b.w - 44),
+            y: b.y + 22 + Math.random() * Math.max(1, b.h - 44),
+            hp: deuce ? 16 : 8, gang: deuce ? "deuce" : null, civ: !deuce,
+            topAng: Math.random() * 6.283, anim: Math.random() * 9,
+            homeX: 0, homeY: 0, vx: 0, vy: 0, stunT: 0, wob: Math.random() * 6.283,
+          });
+        }
+        for (const q of g.club) { q.homeX = q.x; q.homeY = q.y; }
+      }
+      return { b, list: g.club };
+    }
+    function stepClub(dt) {
+      const c = clubCrowd();
+      if (!c) return;
+      /* They move, they do not PATROL. A shuffle around a spot they picked reads as a room
+         full of people; a crowd that walks the floor in lines reads as a queue. */
+      for (const q of c.list) {
+        if (q.hp <= 0) continue;
+        q.wob += dt * (q.civ ? 1.6 : 0.9);
+        q.x = q.homeX + Math.cos(q.wob) * (q.civ ? 14 : 8);
+        q.y = q.homeY + Math.sin(q.wob * 0.7) * (q.civ ? 10 : 6);
+        q.topAng = q.wob * 0.5;
+      }
+    }
+    function drawClub() {
+      const c = clubCrowd();
+      if (!c) return;
+      if (Math.hypot(g.p.x - (c.b.x + c.b.w / 2), g.p.y - (c.b.y + c.b.h / 2)) > 1400) return;
+      for (const q of c.list) {
+        if (q.hp <= 0) continue;
+        drawShadow(q.x, q.y + 2, 9, 4, 0.3);
+        if (q.gang === "deuce" && drawGangTop(q, "idle")) continue;
+        ctx.fillStyle = q.civ ? "#c9a17a" : (GANG_COL.deuce || "#3f9a63");
+        ctx.fillRect(q.x - 5, q.y - 8, 10, 16);
       }
     }
     function drawMarks() {
