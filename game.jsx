@@ -24993,6 +24993,8 @@ export default function IronLionLayer004() {
         stepFly(dt);
         stadiumClamp();
         gymClamp();
+        placeMarks();
+        marksClamp();
         g.skyPush = onTop ? 1 : 0;
         g.sky = Math.max(0, Math.min(SKY.max,
           g.sky + (onTop ? -push : SKY.rise * (g.skyBoost || 1)) * dt));
@@ -28364,14 +28366,14 @@ export default function IronLionLayer004() {
        and they land between 240 and 660, which is the range the rest of the city lives in.
        The courthouse and the works are the widest because they should be. */
     const MARKS = [
-      { k: "ct_gym",        i: 2,  j: 1, w: 0.32, h: 0.24 },
+      { k: "ct_gym",        i: 2,  j: 1, w: 0.32, h: 0.24, ox: -0.26, oy: -0.24, floors: 2 },
       { k: "ct_walkup",     i: 1,  j: 0, w: 0.34, h: 0.22 },
       { k: "ct_store",      i: 4,  j: 1, w: 0.24, h: 0.18 },
       { k: "ct_courthouse", i: 14, j: 5, w: 0.44, h: 0.30 },
       { k: "ct_offices",    i: 13, j: 4, w: 0.36, h: 0.26 },
       { k: "ct_chronicle",  i: 15, j: 6, w: 0.40, h: 0.26 },
       { k: "ct_policehq",   i: 12, j: 5, w: 0.38, h: 0.26 },
-      { k: "ct_gates",      i: 22, j: 3, w: 0.26, h: 0.14 },
+      { k: "ct_gates",      i: 24, j: 2, w: 0.26, h: 0.14, oy: 0.34 },
       /* THE TOWER, AS A CAP. Your idea, and it is the right one: the building itself is a block
          the generator can make, and this plate sits on top of it as its roof. Drawn at the
          footprint of a large building rather than a landmark, because from directly above a
@@ -28381,7 +28383,7 @@ export default function IronLionLayer004() {
          cell and the middle of a cell in this city is the ROAD -- which is why the tower was
          standing in the street. `ox`/`oy` are fractions of a cell, so the whole list can be
          moved off the tarmac the same way when the rest of them need it. */
-      { k: "ct_tower_cap",  i: 8,  j: 9, w: 0.40, h: 0.40, ox: -0.22, oy: -0.20 },
+      { k: "ct_tower_cap",  i: 8,  j: 9, w: 0.40, h: 0.40, ox: -0.26, oy: -0.26, floors: 7 },
       /* The rest of North End and the works. Spread along the two free rows rather than stacked
          on one street, so the district reads as a neighbourhood and not a parade. */
       { k: "ct_barber",     i: 0,  j: 2, w: 0.20, h: 0.16 },
@@ -28499,6 +28501,57 @@ export default function IronLionLayer004() {
         ctx.drawImage(im, cx + fx * w - dw / 2, cy + fy * h - dh / 2, dw, dh);
       }
     }
+    /* SOLID. A shared push, same as the gym's: out along the shallower overlap so you cannot
+       slide round a corner. `soft` marks the ones you walk over rather than into -- the gates
+       are a turnstile line and the tower cap is a ROOF, and a roof you cannot walk through at
+       street level is worse than one that is not there.
+       There are still no DOORS. That is the placement pass; this only stops you standing inside
+       a wall until it lands. */
+    function boxPush(bx, by, bw, bh) {
+      const dx = g.p.x - bx, dy = g.p.y - by;
+      if (Math.abs(dx) > bw || Math.abs(dy) > bh) return false;
+      if (bw - Math.abs(dx) < bh - Math.abs(dy)) g.p.x = bx + Math.sign(dx || 1) * bw;
+      else g.p.y = by + Math.sign(dy || 1) * bh;
+      g.p.vx = 0; g.p.vy = 0;
+      return true;
+    }
+    const MARK_SOFT = new Set(["ct_tower_cap", "ct_gates"]);
+    /* ---------- PLACEMENT ----------
+       A mark becomes a REAL BUILDING: mkB() is the same constructor the generator uses, and
+       pushing the result onto the cell's own `blds` list is what makes the rest of the file
+       treat it as a building rather than a picture. It gets a door, an interior, collision, a
+       stair and a roof for free, because every one of those systems walks c.blds.
+       Done once and lazily -- the cells are generated on demand, so this cannot run at load. */
+    function placeMarks() {
+      if (g.marksPlaced) return;
+      let any = false;
+      for (const m of MARKS) {
+        if (m.b) continue;
+        const c = getCell(m.i, m.j);
+        if (!c || !Array.isArray(c.blds)) continue;
+        any = true;
+        const w = m.w * PITCH, h = m.h * PITCH;
+        const x = SX(m.i) + PITCH / 2 + (m.ox || 0) * PITCH - w / 2;
+        const y = SX(m.j) + PITCH / 2 + (m.oy || 0) * PITCH - h / 2;
+        const b = mkB(x, y, w, h, m.floors || 1, m.kind || "store", Math.random, "mark_" + m.k);
+        /* The plate is this building's ROOF, not a separate object lying next to it. */
+        b.capPlate = m.k;
+        b.landmark = false;
+        c.blds.push(b);
+        m.b = b;
+      }
+      if (any && MARKS.every((m) => m.b)) g.marksPlaced = 1;
+    }
+    function marksClamp() {
+      if (g.inside || g.mode !== "foot" || g.roof || !Number.isFinite(g.p.x)) return;
+      for (const m of MARKS) {
+        if (MARK_SOFT.has(m.k) || m.b) continue;   // a placed building collides on its own
+        const cx = SX(m.i) + PITCH / 2 + (m.ox || 0) * PITCH;
+        const cy = SX(m.j) + PITCH / 2 + (m.oy || 0) * PITCH;
+        if (Math.abs(g.p.x - cx) > PITCH || Math.abs(g.p.y - cy) > PITCH) continue;
+        boxPush(cx, cy, m.w * PITCH * 0.5, m.h * PITCH * 0.5);
+      }
+    }
     function drawMarks() {
       if (g.inside) return;
       for (const m of MARKS) {
@@ -28506,8 +28559,9 @@ export default function IronLionLayer004() {
         if (!im || !im.width) continue;
         const x0 = SX(m.i), y0 = SX(m.j);
         const w = m.w * PITCH, h = m.h * PITCH;
-        const cx = x0 + PITCH / 2 + (m.ox || 0) * PITCH;
-        const cy = y0 + PITCH / 2 + (m.oy || 0) * PITCH;
+        /* Follows the BUILDING once one exists, so the roof can never drift off the walls. */
+        const cx = m.b ? m.b.x + m.b.w / 2 : x0 + PITCH / 2 + (m.ox || 0) * PITCH;
+        const cy = m.b ? m.b.y + m.b.h / 2 : y0 + PITCH / 2 + (m.oy || 0) * PITCH;
         if (Math.hypot(g.p.x - cx, g.p.y - cy) > 4200) continue;
         /* Snapped to the footprint, never stretched to it: art with recognisable objects in it
            -- a sign, a water tank, a fire escape -- distorts the moment the aspect disagrees,
@@ -28543,7 +28597,12 @@ export default function IronLionLayer004() {
     function drawStadium() {
       const S = g.stad || (g.stad = stadiumAt());
       if (!S || g.inside) return;
-      if (Math.hypot(g.p.x - S.x, g.p.y - S.y) > S.w * 1.1) return;
+      /* Measured against the ZONE, not the shrunken bowl. When STAD.scale came down the draw
+         radius came down with it, so the stadium was culling itself before you could see it --
+         the one thing on this map you should be able to see from a long way off. */
+      const Z2 = ZONES.stadium;
+      const zw = Z2 ? (Z2.i1 - Z2.i0 + 1) * PITCH : S.w;
+      if (Math.hypot(g.p.x - S.x, g.p.y - S.y) > zw * 1.4) return;
       const bowl = imgs.current.ct_stadium, dome = imgs.current.ct_dome;
       if (bowl && bowl.width) ctx.drawImage(bowl, S.x - S.w / 2, S.y - S.h / 2, S.w, S.h);
       if (!dome || !dome.width) return;
