@@ -1309,9 +1309,10 @@ const NF_FURN_ASPECT = { nfa_bed: 0.809, nfa_coffee: 0.973, nfa_counter: 2.552, 
 /* nfa_tub -> "tub": a swapped piece is treated by every rule exactly as the piece it replaced --
    usable, centre-standing -- or the tidy and doorway passes delete it for being unfamiliar. */
 const NF_STD = {};
-for (const std in NF_FURN) for (const set of ["nfa_", "nfb_"]) NF_STD[set + NF_FURN[std][0]] = std;
+for (const std in NF_FURN) for (const set of ["nfa_", "nfb_", "nfd_"]) NF_STD[set + NF_FURN[std][0]] = std;
 const NF_FURN_SOLID = { sofa: 1, coffee: 1, counter: 1, stove: 1, fridge: 1, bed: 1, dresser: 1, dining: 1, tub: 1 };
-const NF_FURN_KEYS = Object.keys(NF_FURN_ASPECT).filter((k) => !k.startsWith("nfd_"));
+/* The dark set is registered now: it furnishes the Vances' floors in the tower. */
+const NF_FURN_KEYS = Object.keys(NF_FURN_ASPECT);
 const NF_ART = {};
 for (const k of NF_HOUSES.concat(["nf_rochelle"], NN_KEYS)) NF_ART[k] = "assets/nflats/" + k + ".png";
 NF_ART.tx_blacktop = "assets/tex/tx_blacktop.png";
@@ -3802,9 +3803,28 @@ const TOWER = { i: 8, j: 9, back: { dx: 0, dy: 1 },
     { n: 2,  nm: "APARTMENTS", tex: "tx_lino", lock: false },
     { n: 3,  nm: "APARTMENTS", tex: "tx_lino", lock: false, who: "tiny" },
     { n: 4,  nm: "APARTMENTS", tex: "tx_lino", lock: false },
-    { n: 5,  nm: "THE VANCES", tex: "tx_terrazzo", lock: false, who: "julian" },
-    { n: 6,  nm: "THE VANCES", tex: "tx_terrazzo", lock: false, who: "damian" },
+    { n: 5,  nm: "THE VANCES", tex: "tx_terrazzo", lock: true, who: "julian" },
+    { n: 6,  nm: "THE VANCES", tex: "tx_terrazzo", lock: true, who: "damian" },
   ] };
+/* WHO IS HOME. Each `who` on a TOWER floor is a man in his room with his own people. Tiny holds the
+   card for the twins' floors: until he is down, the lift will not stop there and the stairs do not
+   open. `plate` is the Deuce character cut; `guards` how many stand in the room with him. */
+const TOWER_WHO = {
+  tiny:   { plate: "dc_tiny",   nm: "TINY",         hp: 40, guards: 5 },
+  /* `untouchable`: the Vances cannot be taken down -- not yet. You can fight your way to them and
+     through their men, but they do not fall. Their health stops at `floor` however it is taken,
+     because it is clamped on the object itself: every weapon in the game subtracts from .hp
+     directly, and guarding one of those sites would leave the other thirteen open. */
+  julian: { plate: "dc_julian", nm: "JULIAN VANCE", hp: 48, guards: 6, untouchable: true, floor: 6 },
+  damian: { plate: "dc_damian", nm: "DAMIAN VANCE", hp: 48, guards: 6, untouchable: true, floor: 6 },
+};
+/* HOW A GUARDED PLACE FIGHTS. Distro rings and the tower's rooms use the same numbers.
+   spot/spotIn: how close before they see you, on the street and in a room. Once one of them sees
+   you, or any of them is hurt, the whole site is alert. Only the `shooters` nearest men fire at
+   once -- eighteen men on a door all firing together is a wall of lead, not a fight. They close to
+   `advance`, stop at `hold`, and forget you after `calm` seconds out of sight. */
+const SITE_FIGHT = { spot: 250, spotIn: 330, reach: 320, shooters: 4, cd: [1.5, 1.3], dmg: 3.0,
+                     advance: 180, hold: 110, speed: 68, calm: 22 };
 /* ROCHELLE'S. Neon Flats, four blocks off the tower -- close enough that being seen near it is
    normal for a woman who manages events on that strip, far enough that she is not Julian's.
    Every arrival and departure is then a decision somebody can count, which is the engine of the
@@ -6654,6 +6674,7 @@ function makeFloor(b, f, rnd) {
   }
   /* VANCE TOWER, furnished. Fractions of the footprint so a re-size moves everything with it. */
   if (b && b.kind === "vance") {
+
     const X = (fx) => b.x + fx * b.w, Y = (fy) => b.y + fy * b.h;
     if (kind === "vt_parking") {
       /* Stalls along the north wall. The first three are theirs and always painted with a name;
@@ -6673,19 +6694,61 @@ function makeFloor(b, f, rnd) {
       // the ramp up to the street, on the back wall
       props.push({ x: X(0.5) - 60, y: b.y + b.h - WT - 70, w: 120, h: 62, t: "ramp_marks" });
     } else if (kind === "vt_lobby") {
-      // a desk off to one side of the doors, a waiting area across from it
+      /* The Deuce's front room: a desk off to one side of the doors with a velvet rope either side
+         of the way to it, their own dark sectionals in the waiting area, and their neon on the
+         walls -- the palm and the dice from the club, so you know whose building this is. */
       props.push({ x: X(0.60), y: Y(0.20), w: 110, h: 26, t: "counter" });
-      props.push({ x: X(0.16), y: Y(0.70), w: 80, h: 28, t: "sofa" });
-      props.push({ x: X(0.16), y: Y(0.84), w: 80, h: 28, t: "sofa" });
-      props.push({ x: X(0.40), y: Y(0.76), w: 40, h: 40, t: "table" });
+      props.push({ x: X(0.56), y: Y(0.30), w: 44, h: 22, t: "dw_rope" });
+      props.push({ x: X(0.80), y: Y(0.30), w: 44, h: 22, t: "dw_rope_b" });
+      props.push({ x: X(0.10), y: Y(0.64), w: 70, h: 62, t: "nfd_sofa" });
+      props.push({ x: X(0.30), y: Y(0.78), w: 34, h: 20, t: "nfd_coffee" });
       props.push({ x: X(0.90) - 18, y: Y(0.10), w: 18, h: 18, t: "plant" });
       props.push({ x: X(0.10), y: Y(0.10), w: 18, h: 18, t: "plant" });
+      props.push({ x: X(0.93) - 16, y: Y(0.62), w: 22, h: 26, t: "nn_palm" });
+      props.push({ x: X(0.93) - 16, y: Y(0.80), w: 24, h: 26, t: "nn_dice" });
     } else if (kind === "vt_pool") {
       props.push({ x: X(0.34), y: Y(0.26), w: b.w * 0.40, h: b.h * 0.46, t: "pool" });
       for (let k = 0; k < 3; k++) {
         props.push({ x: X(0.26) + k * 70, y: Y(0.80), w: 26, h: 56, t: "lounger" });
       }
-      props.push({ x: X(0.84), y: Y(0.30), w: 44, h: 44, t: "table" });
+      // two bistro tables where the drinks table was, and a neon wave over the deep end
+      props.push({ x: X(0.80), y: Y(0.20), w: 46, h: 28, t: "dw_bistro" });
+      props.push({ x: X(0.80), y: Y(0.68), w: 46, h: 28, t: "dw_bistro" });   // clear of the lift on the east wall
+      props.push({ x: X(0.48), y: Y(0.10), w: 34, h: 22, t: "nn_wave" });
+    } else if (kind === "mansionfloor") {
+      /* THE VANCES AT HOME. The mansion plan gives them a hall, a study and a big room with two
+         bookshelves, a safe and one sofa in it. Their own dark set goes over that: the room's
+         sofa and table become theirs, then a sectional, a TV, a dining set and a bistro table in
+         the big room, and the study becomes where one of them sleeps. Each piece is put at a spot
+         in its room and walked outward until it is clear of walls, furniture, the stairs and every
+         doorway; a piece that finds nowhere is left out rather than put through something. */
+      for (const p of props) {
+        const role = NF_FURN[p.t];
+        if (role && NF_FURN_ASPECT["nfd_" + role[0]]) p.t = "nfd_" + role[0];
+      }
+      const hitR = (a, q) => a.x < q.x + q.w && q.x < a.x + a.w && a.y < q.y + q.h && q.y < a.y + a.h;
+      const blocked = (q) => walls.some((w) => hitR(q, w)) || props.some((o) => hitR(q, o)) ||
+        (st.w > 0 && hitR(q, { x: st.x - 12, y: st.y - 12, w: st.w + 24, h: st.h + 24 })) ||
+        doorMarks.some((d) => hitR(q, { x: d.x - 40, y: d.y - 40, w: 80, h: 80 }));
+      const place = (roomK, fx, fy, t, w, h) => {
+        const r = rooms.map(rect)[rooms.findIndex((q) => q.k === roomK)];
+        if (!r) return;
+        const tx = r.x0 + (r.x1 - r.x0) * fx - w / 2, ty = r.y0 + (r.y1 - r.y0) * fy - h / 2;
+        for (let rad = 0; rad <= 120; rad += 8) for (let a = 0; a < (rad ? 12 : 1); a++) {
+          const q = { x: tx + Math.cos(a * 0.5236) * rad, y: ty + Math.sin(a * 0.5236) * rad, w, h, t };
+          if (q.x < r.x0 + WT + 2 || q.y < r.y0 + WT + 2 || q.x + w > r.x1 - WT - 2 || q.y + h > r.y1 - WT - 2) continue;
+          if (!blocked(q)) { props.push(q); return; }
+        }
+      };
+      place("throne", 0.18, 0.22, "nfd_sofa", 70, 62);
+      place("throne", 0.36, 0.44, "nfd_coffee", 34, 20);
+      place("throne", 0.14, 0.78, "nfd_tv", 30, 28);
+      place("throne", 0.72, 0.74, "nfd_dining", 70, 36);
+      place("throne", 0.78, 0.24, "nfd_bistro", 48, 42);
+      place("study", 0.50, 0.34, "nfd_bed", 52, 56);
+      place("study", 0.22, 0.80, "nfd_dresser", 34, 28);
+      place("study", 0.80, 0.80, "nfd_dresser2", 34, 28);
+      place("hall", 0.50, 0.50, "nn_star", 22, 22);
     }
   }
   /* THE LIFT. A building that carries `lift` gets one on every floor. It is placed by trying a
@@ -8448,8 +8511,12 @@ export default function IronLionLayer004() {
        or above centre, and `pickup` came back at +24 -- its cabin is in the BOTTOM half, so the
        plate is nose-down. Every other embedded model reads consistent. comp_hatch and
        comp_hatch2 are hosted files and cannot be measured from here. */
+    /* `pickup` IS NOT HERE ANY MORE. The measurement above was wrong for it: the dark mass it
+       read as a cabin in the bottom half is the open BED. Decoded and looked at, the plate has
+       its bonnet at the top and the bed at the bottom -- nose-UP, like every other car -- so
+       this list was turning a correct plate round, and every pickup in the city drove boot-first. */
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
-                        "pickup", "vn_drumkit_flip"];
+                        "vn_drumkit_flip"];
 
     const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX, ...CITY2, ...DECO, ...CLUB, ...GYM_ART, ...SKY_ART, ...DW_ART, ...SC_ART, ...NF_ART };
     /* ---------- CUT_MAP ----------
@@ -9072,6 +9139,7 @@ export default function IronLionLayer004() {
         if (G.vipBlockFn && G.vipBlockFn(g.floor + 1)) {
           return;
         }
+        if (G.floorLockFn && G.floorLockFn(g.floor + 1)) return;
         g.floor++; return;
       }
       if (st === -1) { if (g.floor > 0) { g.floor--; return; } }   // 0 is the basement here, not the street
@@ -9499,8 +9567,11 @@ export default function IronLionLayer004() {
         const S = g.distroAt[k];
         if (!S || !S.guards) continue;
         // indoors you can hit the men in the room with you; outdoors, the men on the street
-        const hereIn = !!(S.b && g.inside === S.b && g.floor === S.f);
-        for (const gd of S.guards) if (gd.hp > 0 && (gd.indoor ? hereIn : !g.inside)) out.push(gd);
+        for (const gd of S.guards) if (gd.hp > 0 && siteSees(S, gd)) out.push(gd);
+      }
+      for (const f in (g.towerSites || {})) {
+        const S = g.towerSites[f];
+        for (const q of siteBodies(S)) if (q.hp > 0 && siteSees(S, q)) out.push(q);
       }
       for (const cr of (g.crews || [])) {
         if (cr.indoor ? (cr.indoor !== g.inside || cr.indoorFloor !== g.floor) : g.inside) continue;
@@ -16627,10 +16698,13 @@ export default function IronLionLayer004() {
          running down the middle of every wall in the same colour as the tubes outside. Brighter
          in the basement, where the bedrooms are and there is no daylight to compete with.
          Rochelle's is charcoal with one violet line, like the strip on her roof. */
-      const nfHue = b.nf ? NF.hue[(b.nfIdx || 0) % NF.hue.length] : null;
+      /* The tower's public floors and the Vances' own are the Deuce's: charcoal and their green.
+         The car park and the three apartment floors stay what they are. */
+      const vanceNeon = b.kind === "vance" && (floor === 1 || floor === 2 || floor >= 6);
+      const nfHue = b.nf ? NF.hue[(b.nfIdx || 0) % NF.hue.length] : vanceNeon ? ["#3fe08a", 150] : null;
       for (const w of plan.walls) {
         ctx.fillStyle = nfHue
-          ? (b.rochelle ? "#2c2c31" : `hsl(${nfHue[1]}, 34%, ${floor === 0 ? 30 : 44}%)`)
+          ? (b.rochelle || vanceNeon ? "#2a2b30" : `hsl(${nfHue[1]}, 34%, ${floor === 0 ? 30 : 44}%)`)
           : isDen ? PF("den_wall", "#3a3c3e") : PF("wall" + wtier, `hsl(${26 + b.tone * 20}, 9%, ${32 + b.tone * 8}%)`);
         ctx.fillRect(w.x, w.y, w.w, w.h);
         ctx.fillStyle = "rgba(0,0,0,0.45)";
@@ -16706,9 +16780,12 @@ export default function IronLionLayer004() {
        carries the tuned boxes. The fallback colour is a dull canvas so a missing plate reads as
        gym kit rather than as anonymous grey. */
     for (const k of GYM_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#5b544a"; }
+    // neon pieces can hang indoors too -- flat on the wall line, not solid
+    for (const k of NN_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#b35cff"; }
+    for (const k of ["nfd_dresser2", "nfd_bistro"]) { PROP_ART[k] = k; SOLID_PROP[k] = 1; }
     // the Flats' furniture
     for (const k of NF_FURN_KEYS) {
-      PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#c9a3c8";
+      PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = k.startsWith("nfd_") ? "#3b3350" : "#c9a3c8";
       if (NF_FURN_SOLID[k.slice(4)]) SOLID_PROP[k] = 1;
     }
     // the tower: the Deuce's own cars stop yours, and so does the lift
@@ -16881,7 +16958,7 @@ export default function IronLionLayer004() {
       const b = g.inside;
       return g.liftOpen && b ? Array.from({ length: b.floors }, (_, f) => ({
         f, nm: liftLabel(b, f), n: liftLabel(b, f, true),
-        lock: !!(b.kind === "vance" && TOWER.floors[f] && TOWER.floors[f].lock) })).reverse() : null;
+        lock: floorLocked(b, f) })).reverse() : null;
     }
     function liftPush() {
       setHud((h) => ({ ...h, liftOpen: !!g.liftOpen, liftFloors: liftFloorsList(), liftCur: g.floor }));
@@ -16892,8 +16969,8 @@ export default function IronLionLayer004() {
       g.liftOpen = false; g.paused = false;
       if (f !== g.floor) {
         const fl = b.kind === "vance" ? TOWER.floors[f] : null;
-        if (fl && fl.lock) {
-          g.pickupFlash = { nm: "lift:" + fl.nm + " \u00b7 LOCKED", t: 1.8 };
+        if (floorLocked(b, f)) {
+          g.pickupFlash = { nm: "lift:" + fl.nm + " \u00b7 LOCKED \u00b7 TINY HAS THE CARD", t: 2.2 };
         } else {
           const e = liftOf(b, f);
           g.floor = f;
@@ -24511,6 +24588,16 @@ export default function IronLionLayer004() {
             for (const m of cr.members) if (hit(m)) { gone = true; break; }
             if (gone) break;
           }
+          /* THE MEN ON A DISTRO DOOR AND IN THE TOWER. Not on this list either, so every round
+             went through them -- they could only be hurt by hand. Only the ones on your side of
+             the wall: the room you are in, or the street if you are on it. */
+          if (!gone) for (const S of guardSites()) {
+            for (const q of siteBodies(S)) {
+              if (!siteSees(S, q)) continue;
+              if (hit(q)) { gone = true; S.alert = true; S.calmT = 0; break; }
+            }
+            if (gone) break;
+          }
           if (!gone && g.crime) for (const t of g.crime.thugs) if (hit(t)) { gone = true; break; }
           if (!gone && g.shop && g.shop.rob)
             for (const t of g.shop.rob.thugs) if (hit(t)) { gone = true; break; }
@@ -26142,6 +26229,7 @@ export default function IronLionLayer004() {
           if ((g.night || 0) > 0.4) push *= 2;
         }
         stepDistros(dt);
+        stepTowerSites(dt);
         stepFly(dt);
         stadiumClamp();
         placeMarks();
@@ -29315,6 +29403,133 @@ export default function IronLionLayer004() {
       }
       g.raidCd = RAID.every;
     }
+    /* ---------- GUARDED PLACES FIGHT ----------
+       Every distro and every occupied tower floor is a site: a man, the guards round him, and
+       whether they know you are there. One loop runs them all. */
+    function guardSites() {
+      const out = [];
+      for (const k in (g.distroAt || {})) { const S = g.distroAt[k]; if (S && !S.gone) out.push(S); }
+      for (const f in (g.towerSites || {})) out.push(g.towerSites[f]);
+      return out;
+    }
+    const siteBodies = (S) => (S.boss ? S.guards.concat([S.boss]) : S.guards);
+    // on your side of the wall: in his room if he is indoors and you are there, on the street if not
+    function siteSees(S, q) {
+      const hereIn = !!(S.b && g.inside === S.b && g.floor === S.f);
+      return q.indoor ? hereIn : !g.inside;
+    }
+    function siteFight(S, dt) {
+      const F = SITE_FIGHT, px = g.p.x, py = g.p.y;
+      const bodies = siteBodies(S).filter((q) => q.hp > 0);
+      if (!bodies.length) return;
+      const vis = bodies.filter((q) => siteSees(S, q));
+      // who has seen him, and who has been hurt
+      if (!S.alert && g.mode === "foot") {
+        for (const q of bodies) if (q.hp0 && q.hp < q.hp0 - 0.01) { S.alert = true; break; }
+        if (!S.alert) for (const q of vis)
+          if (Math.hypot(q.x - px, q.y - py) < (q.indoor ? F.spotIn : F.spot)) { S.alert = true; break; }
+        if (S.alert) S.calmT = 0;
+      }
+      if (!S.alert) return;
+      if (!vis.length || g.mode !== "foot") {
+        S.calmT = (S.calmT || 0) + dt;
+        if (S.calmT > F.calm) S.alert = false;
+        return;
+      }
+      S.calmT = 0;
+      const byDist = vis.map((q) => [Math.hypot(q.x - px, q.y - py), q]).sort((a, b) => a[0] - b[0]);
+      for (let n = 0; n < byDist.length; n++) {
+        const [d, q] = byDist[n];
+        q.stun = Math.max(0, (q.stun || 0) - dt);
+        q.muzzle = Math.max(0, (q.muzzle || 0) - dt * 5);
+        const ang = Math.atan2(py - q.y, px - q.x);
+        q.topAng = ang + Math.PI / 2 + TOPDOWN_FACE;
+        if (q.stun > 0) continue;
+        // close to a firing distance, give ground if he is on top of them
+        let mv = 0;
+        if (d > F.advance) mv = F.speed; else if (d < F.hold) mv = -F.speed * 0.6;
+        if (mv) {
+          q.x += Math.cos(ang) * mv * dt; q.y += Math.sin(ang) * mv * dt;
+          collideBuildings(q, 11, false);
+        }
+        q.fireCd = (q.fireCd == null ? Math.random() * F.cd[0] : q.fireCd) - dt;
+        if (n < F.shooters && d < F.reach && q.fireCd <= 0) {
+          q.fireCd = F.cd[0] + Math.random() * F.cd[1];
+          q.muzzle = 0.16;
+          sfxGunshot();
+          scatter(q.x, q.y, 420);
+          const spread = clamp(0.06 + d / 2600, 0.05, 0.34);
+          fireBullet(q, ang + (Math.random() - 0.5) * spread * 2, 980, F.dmg, F.reach * 1.15, false, q.gang);
+          g.shake = Math.max(g.shake, 2);
+        }
+      }
+    }
+    /* THE TOWER'S PEOPLE. Built the first time you walk onto an occupied floor, kept after. */
+    function stepTowerSites(dt) {
+      const b = g.inside;
+      if (b && b.kind === "vance") {
+        const fl = TOWER.floors[g.floor], W3 = fl && TOWER_WHO[fl.who];
+        g.towerSites = g.towerSites || {};
+        if (W3 && !g.towerSites[g.floor]) {
+          const pl = buildingPlans(b)[g.floor];
+          const room = pl.rooms.slice().sort((a, r2) => (r2.x1 - r2.x0) * (r2.y1 - r2.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))[0];
+          const pt = freeIndoor(b, pl, (room.x0 + room.x1) / 2, (room.y0 + room.y1) / 2, room) ||
+                     [(room.x0 + room.x1) / 2, (room.y0 + room.y1) / 2];
+          const S = { tower: 1, who: fl.who, b, f: g.floor, x: pt[0], y: pt[1], guards: [], alert: false,
+            boss: { x: pt[0], y: pt[1], vx: 0, vy: 0, hp: W3.hp, hp0: W3.hp, gang: "deuce", indoor: 1,
+                    boss: fl.who, stun: 0, topAng: null } };
+          if (W3.untouchable) {
+            let hpv = W3.hp;
+            Object.defineProperty(S.boss, "hp", { enumerable: true, configurable: true,
+              get: () => hpv,
+              set: (v) => {
+                hpv = Math.max(W3.floor, v);
+                if (v <= W3.floor && !S.warned) {
+                  S.warned = 1;
+                  g.jobBanner = W3.nm + " \u00b7 NOT TONIGHT";
+                  g.jobNote = "The Vances cannot be taken down. Not yet.";
+                }
+              } });
+          }
+          for (let q = 0; q < W3.guards; q++) {
+            const a = (q / W3.guards) * 6.283;
+            const gp = freeIndoor(b, pl, pt[0] + Math.cos(a) * 58, pt[1] + Math.sin(a) * 58, null);
+            if (gp && Math.hypot(gp[0] - pt[0], gp[1] - pt[1]) > 22)
+              S.guards.push({ x: gp[0], y: gp[1], vx: 0, vy: 0, hp: RAID.guardHp, hp0: RAID.guardHp, gang: "deuce",
+                              distroGuard: 1, ring: q % 3, indoor: 1, stun: 0, topAng: null, anim: Math.random() * 9 });
+          }
+          g.towerSites[g.floor] = S;
+        }
+      }
+      for (const f in (g.towerSites || {})) {
+        const S = g.towerSites[f];
+        siteFight(S, dt);
+        if (S.boss.hp <= 0 && !S.bossDown && !TOWER_WHO[S.who].untouchable) {
+          S.bossDown = 1;
+          const W3 = TOWER_WHO[S.who];
+          if (S.who === "tiny") {
+            g.vanceKey = true;
+            g.jobBanner = "TINY IS DOWN";
+            g.jobNote = "He was carrying the card for the top floors. The lift will stop there now.";
+          } else {
+            g.jobBanner = W3.nm + " IS DOWN";
+            const both = ["julian", "damian"].every((w) => Object.values(g.towerSites).some((q) => q.who === w && q.bossDown));
+            g.jobNote = both ? "Both Vances. The tower is quiet." : "One of the twins. The other one heard it.";
+            // the other twin's floor knows: alert it if it already exists
+            for (const k in g.towerSites) { const O = g.towerSites[k]; if (O !== S && O.who !== "tiny") O.alert = true; }
+          }
+        }
+      }
+    }
+    // a floor the lift and the stairs will not open
+    function floorLocked(b, f) {
+      return !!(b && b.kind === "vance" && TOWER.floors[f] && TOWER.floors[f].lock && !g.vanceKey);
+    }
+    G.floorLockFn = (f) => {
+      if (!floorLocked(g.inside, f)) return false;
+      g.pickupFlash = { nm: "lift:" + TOWER.floors[f].nm + " \u00b7 LOCKED \u00b7 TINY HAS THE CARD", t: 2.2 };
+      return true;
+    };
     /* WHERE A DISTRO IS. "Makes it in a rented unit" -- they were stood in the dead centre of the
        lot with no look at what was built there, so in any cell with a building in the middle the
        Chemist, the Armourer and the rest were drawn on its roof. Now: the biggest ordinary building
@@ -29446,6 +29661,7 @@ export default function IronLionLayer004() {
            up the moment you are inside their look -- and it also shrinks how close you have to
            be before you find him, because a switchboard leaks in both directions. */
         const eyes = gstat(gang, "eyes");
+        if (!S.gone) siteFight(S, dt);
         const inHis = !g.inside || (S.b && g.inside === S.b);
         if (!S.gone && d < RAID.spot * eyes && inHis && (g.heat || 0) < 1 && eyes > 1.4)
           g.heat = Math.max(g.heat || 0, 1);
@@ -29500,9 +29716,13 @@ export default function IronLionLayer004() {
       }
     }
     function drawDistros() {
-      if (!g.distroAt) return;
-      for (const gang in g.distroAt) {
-        const S = g.distroAt[gang];
+      /* The tower's rooms are sites too and draw through exactly the same loop: guards, facing,
+         muzzle flash. What differs is the man in the middle -- a boss plate and a name, not the
+         distro's product. */
+      const list = [];
+      for (const gang in (g.distroAt || {})) list.push([gang, g.distroAt[gang]]);
+      for (const f in (g.towerSites || {})) list.push(["deuce", g.towerSites[f]]);
+      for (const [gang, S] of list) {
         if (!S || S.gone || !Number.isFinite(S.x)) continue;
         if (Math.hypot(g.p.x - S.x, g.p.y - S.y) > 900) continue;
         /* Indoors he is drawn only in his own room's floor; from the street you see the men on the
@@ -29538,6 +29758,12 @@ export default function IronLionLayer004() {
               continue;
             }
           }
+          if (q.muzzle > 0) {
+            // the flash, a step ahead of him along the way he is facing
+            const fa = (q.topAng || 0) - Math.PI / 2 - TOPDOWN_FACE;
+            ctx.fillStyle = `rgba(255,214,120,${(q.muzzle * 5).toFixed(2)})`;
+            ctx.beginPath(); ctx.arc(q.x + Math.cos(fa) * 16, q.y + Math.sin(fa) * 16, 4, 0, 6.283); ctx.fill();
+          }
           if (!drawGangTop(q, "idle")) {
             ctx.fillStyle = GANG_COL[gang] || "#8cf08c";
             ctx.fillRect(q.x - 6, q.y - 9, 12, 18);
@@ -29553,6 +29779,33 @@ export default function IronLionLayer004() {
             ctx.textAlign = "center";
             ctx.fillText(DISTRO[S.kind].nm, S.x0, S.y0 - 22);
             ctx.textAlign = "left";
+          }
+          continue;
+        }
+        if (S.tower) {
+          const B = S.boss, W3 = TOWER_WHO[S.who];
+          if (B.hp > 0) {
+            drawShadow(B.x, B.y + 3, 12, 5, 0.36);
+            const bim = imgs.current[W3.plate];
+            if (B.muzzle > 0) {
+              const fa = (B.topAng || 0) - Math.PI / 2 - TOPDOWN_FACE;
+              ctx.fillStyle = `rgba(255,214,120,${(B.muzzle * 5).toFixed(2)})`;
+              ctx.beginPath(); ctx.arc(B.x + Math.cos(fa) * 17, B.y + Math.sin(fa) * 17, 4.5, 0, 6.283); ctx.fill();
+            }
+            if (bim && bim.width) {
+              const bh = 30, bw = bh * (bim.width / bim.height);
+              ctx.save(); ctx.translate(B.x, B.y); ctx.rotate(B.topAng || 0);
+              ctx.drawImage(bim, -bw / 2, -bh / 2, bw, bh); ctx.restore();
+            } else {
+              ctx.fillStyle = GANG_COL.deuce || "#3f9a63"; ctx.fillRect(B.x - 7, B.y - 10, 14, 20);
+            }
+            // name and what is left of him
+            ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center";
+            ctx.fillStyle = GANG_COL.deuce || "#e8c46a";
+            ctx.fillText(W3.nm, B.x, B.y - 26);
+            ctx.textAlign = "left";
+            ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(B.x - 16, B.y - 22, 32, 3);
+            ctx.fillStyle = "#e05a4a"; ctx.fillRect(B.x - 16, B.y - 22, 32 * clamp(B.hp / B.hp0, 0, 1), 3);
           }
           continue;
         }
