@@ -1094,6 +1094,211 @@ for (let i = 1; i <= 17; i++) {
   const k = "cl_" + String(i).padStart(2, "0");
   CLUB[k] = "assets/club/" + k + ".png";
 }
+/* ================= THE GYM, INDOORS =================
+   This used to live in the component as a street-level overlay -- floor, props and a clamp
+   pinned to the gym's CELL CORNER. The mark that became the real building sits at the cell
+   centre plus its ox/oy, 0.08 cells east and 0.14 south of that, so the furniture was drawn
+   in the street beside the building, under its roof plate, with invisible collision boxes on
+   the pavement. And none of the 22 gy_ keys were ever registered, so the loader never went to
+   look for them: the only thing on screen was the floor tile.
+   It is a floor plan now. Same fractions, same order, read by makeFloor for kind "gymfloor",
+   so the props go through the one pipeline every other interior uses.
+   Fractions are of the FOOTPRINT, centre-relative, +y towards the door. A mark is built by
+   mkB, which always puts the door on the south face, so +y is south and nothing rotates.
+   Two numbers moved: the bench from -0.05 to -0.12 so the doorway -- now centred, in line with
+   the ring steps -- is clear; and the stair, which the hub rule would have put in the ring. */
+const GYM_FIT = [
+  ["gy_ring",        0.00,  0.05, 0.42],
+  ["gy_heavybag",   -0.34, -0.34, 0.09],
+  ["gy_speedbag",   -0.22, -0.36, 0.09],
+  ["gy_doubleend",  -0.11, -0.35, 0.07],
+  ["gy_standbag",    0.33, -0.33, 0.10],
+  ["gy_barbell",     0.40, -0.10, 0.13],
+  ["gy_bench_weight",0.41,  0.08, 0.12],
+  ["gy_dumbrack",    0.42,  0.26, 0.12],
+  ["gy_medballs",    0.31,  0.34, 0.08],
+  ["gy_desk",       -0.40,  0.28, 0.13],
+  ["gy_lockers",    -0.24,  0.36, 0.15],
+  ["gy_bench",      -0.12,  0.40, 0.14],
+  ["gy_ropes",      -0.43, -0.10, 0.10],
+  ["gy_mirror",     -0.43,  0.08, 0.11],
+  ["gy_firstaid",    0.13,  0.40, 0.07],
+  ["gy_bucket",      0.24,  0.41, 0.07],
+  ["gy_poster",     -0.30,  0.00, 0.08],
+  ["gy_belt",        0.00, -0.44, 0.10],
+  ["gy_photo_1",    -0.12, -0.45, 0.05],
+  ["gy_photo_2",    -0.05, -0.45, 0.05],
+  ["gy_photo_3",     0.09, -0.45, 0.05],
+  ["gy_photo_4",     0.16, -0.45, 0.05],
+];
+/* What you cannot walk through: [fx, fy, fw, fh], fw of the width and fh of the height. */
+const GYM_SOLID = [
+  [-0.40,  0.28, 0.13, 0.09],   // desk
+  [-0.24,  0.36, 0.15, 0.07],   // lockers
+  [-0.12,  0.40, 0.14, 0.04],   // bench
+  [ 0.40, -0.10, 0.13, 0.09],   // barbell
+  [ 0.41,  0.08, 0.12, 0.08],   // weight bench
+  [ 0.42,  0.26, 0.12, 0.07],   // dumbbell rack
+  [ 0.33, -0.33, 0.10, 0.10],   // standing bag
+  [-0.34, -0.34, 0.09, 0.09],   // heavy bag
+];
+/* The ring: four rails, the south one split where the plate draws its steps. `rail` is half
+   the rail thickness. Same maths as the old gymClamp, so the gap is where it always was. */
+const GYM_RING = { hw: 0.19, hh: 0.19, gap: 0.05, oy: 0.05, rail: 14 };
+/* West of the ring, below the poster and clear of the desk and the west rail. */
+const GYM_STAIR = { fx: -0.32, fy: 0.15 };
+/* Declared up here, not beside WT where it is read: the loader registration below runs at
+   module load, and a const read before its line is a TDZ throw at boot, not an undefined. */
+const GYM_KEYS = GYM_FIT.map((q) => q[0]);
+/* THE GYM. Twenty-two plates, named, laid out by GYM_FIT. They were referenced by the street
+   overlay and registered nowhere, so not one of them had ever loaded. The list is the layout's
+   own key column, so a piece cannot be placed without also being fetched. */
+const GYM_ART = {};
+for (const k of GYM_KEYS) GYM_ART[k] = "assets/gym/" + k + ".png";
+/* ---------- SKY, ON THE STREET ----------
+   The meter was a number in the corner. These are what it looks like: seven people who were a
+   neighbourhood before the Deuce sold it a Friday night. Cropped at the hip, like every plate,
+   so drawYouth gives them legs and they walk the same streets everyone else does -- they are
+   ordinary peds with a different face, which is the point. Two are pairs (the hoodie, the
+   raincoat) at two builds, so a corner full of them does not read as clones.
+   The old man was carrying a carrier bag. It hung below his hip, and plates are sized by
+   height, so keeping it would have drawn him at about sixty percent of everyone else. */
+const SKY_ADDICTS = ["sky_man_coat", "sky_girl_ward", "sky_old_coat",
+                     "sky_hood_a", "sky_hood_b", "sky_coat_a", "sky_coat_b",
+                     /* The second sheet. Named for what they are wearing, like the first seven --
+                        a key says which plate, not who a person is. Equal weight in the pick, so
+                        the city's addicts look like the city. */
+                     "sky_vet_jacket", "sky_cardigan", "sky_flannel", "sky_quilt_coat",
+                     "sky_shirt_tie", "sky_denim", "sky_varsity", "sky_fur_collar"];
+/* How much of a street is Sky, as a fraction of new pedestrians. Their own ground is where it
+   is worst and it is never nobody; ground the ring has taken gets it second-hand, and only as
+   the meter rises. Everywhere else is clean -- for now. */
+const SKY_STREET = { turfBase: 0.08, turf: 0.42, ring: 0.30, slow: [22, 12] };
+/* WHAT THEY SAY. Nobody on Sky is talking to you, mostly -- they are talking to the streetlights,
+   to 1983, to a dog that is not there. Four pools:
+     mutter   to nobody, while they shuffle. The bulk of it.
+     ask      when you are close and on foot. They want something, or they think they know you.
+     deep     only once the meter is past the second ring step. The lines get warmer and wronger,
+              and they start talking about DOWN -- which is where the camps are going to be.
+     flinch   a gunshot, from people who have stopped being sure what is real.
+   `own` is two lines per face, so the girl with the hospital band and the old shopkeeper each
+   have something only they say. Short on purpose: the bubble is one line of 10px monospace. */
+const SKY_LINES = {
+  mutter: [
+    "THE STREETLIGHTS HUM MY NAME.", "SOMEBODY MOVED THE SKY.", "MY TEETH ARE LISTENING.",
+    "IT'S ALWAYS FRIDAY NIGHT.", "COUNT THE CRACKS. DON'T STEP.", "THE PIGEONS KNOW.",
+    "DON'T LOOK UP. IT LOOKS BACK.", "I CAN HEAR TRAINS UNDER ME.", "WHAT YEAR IS IT.",
+    "COME HOME BY SIX, SHE SAID.", "THE GREEN MAKES THE COLD GO.", "I'M NOT HERE. NEXT DOOR.",
+    "THESE HANDS AREN'T MINE.", "THE TWINS SMILE ONE SMILE.", "TASTES LIKE A POOL IN JULY.",
+    "THEY PAINTED OVER THE MOON.", "I LEFT MY SHOES IN '83.", "THE RADIO KNOWS WHAT I DID.",
+    "SEVEN. SEVEN. SEVEN. EIGHT.", "KEEP THE LIGHTS ON. PLEASE.", "I HAD A BLUE DOG ONCE.",
+    "THE BUS ONLY COMES FOR ME.", "WHO TURNED THE CITY SIDEWAYS.",
+  ],
+  ask: [
+    "GOT A LITTLE SKY?", "MISTER. JUST A PIECE.", "YOU FROM THE CLUB?",
+    "I KNOW YOUR FACE.", "WHY ARE YOU GLOWING.", "DON'T TELL MY SISTER.",
+    "QUARTER FOR THE PHONE?", "YOU LOOK LIKE THE TV.", "ARE YOU REAL OR LATE?",
+    "I CAN PAY TUESDAY.", "TAKE ME DOWN THE HOLE.", "YOU SEEN MY DOG?",
+  ],
+  deep: [
+    "THE DOWNSTAIRS PEOPLE WAIT.", "IT'S WARM UNDER THE STREETS.", "THE WATER DOWN THERE SINGS.",
+    "WE'RE BUILDING A CITY. DOWN.", "NOBODY GETS COLD DOWN THERE.", "THE CITY HAS A BASEMENT.",
+    "FOLLOW THE FIRE IN THE DARK.", "THEY LEFT A LIGHT ON FOR ME.",
+  ],
+  flinch: ["FIREWORKS. FIREWORKS.", "THE SKY'S FALLING. HA.", "NOT AGAIN. NOT AGAIN.",
+           "THAT WASN'T ME.", "IS IT FRIDAY?"],
+  own: {
+    sky_girl_ward: ["THEY FORGOT MY BRACELET.", "ROOM FOUR HAD A NICE NURSE."],
+    sky_old_coat:  ["I HAD A SHOP ON THIS CORNER.", "FORTY YEARS. FORTY."],
+    sky_man_coat:  ["I WAS A WELDER. A GOOD ONE.", "FOUNDRY CLOSED. THEN THIS."],
+    sky_hood_a:    ["SCHOOL CAN WAIT.", "MA THINKS I'M AT PRACTICE."],
+    sky_hood_b:    ["SCHOOL CAN WAIT.", "MA THINKS I'M AT PRACTICE."],
+    sky_coat_a:    ["KIDS ARE AT MY MOTHER'S.", "I'LL GET THEM SATURDAY."],
+    sky_coat_b:    ["KIDS ARE AT MY MOTHER'S.", "I'LL GET THEM SATURDAY."],
+    sky_vet_jacket: ["TWO TOURS. FOR THIS.", "THE HELICOPTERS ARE BACK."],
+    sky_cardigan:   ["THIS WAS HIS SWEATER.", "I SANG ON SUNDAYS. SOPRANO."],
+    sky_flannel:    ["I FIXED CARS. ANY CAR.", "TELL MY BROTHER I'M OKAY."],
+    sky_quilt_coat: ["I RAISED FIVE ON THIS BLOCK.", "THE LANDLORD CHANGED THE LOCK."],
+    sky_shirt_tie:  ["I HAVE A MEETING AT NINE.", "THEY THINK I STILL GO TO WORK."],
+    sky_denim:      ["THERE WAS A RIVER HERE.", "I OUTLIVED BETTER MEN."],
+    sky_varsity:    ["I HAD A SCHOLARSHIP.", "COACH DON'T CALL NO MORE."],
+    sky_fur_collar: ["THIS COAT WAS REAL ONCE.", "I WAS SOMEBODY'S DATE."],
+  },
+  /* the bubble colour: the Deuce's green, washed out */
+  tint: "#9ad6ae",
+  /* how often, per second, one of them mutters; how close "close" is; how long before asking again */
+  rate: 0.07, near: 95, askCd: [9, 6], hear: 900,
+};
+/* ---------- THE CAMPS ----------
+   Where the deep lines were pointing. A camp sits on the WALKWAY of a tunnel arm -- the strip
+   between the water channel (34 off the centreline) and the wall (96) -- a stretch out from a
+   junction, so it is something you walk toward down a dark tunnel rather than something stood
+   on the ladder. Every placement is [key, u, v, w]: u along the tunnel from the fire, v out
+   from the centreline toward the wall, w the drawn width. Plates are NEVER rotated -- they are
+   drawn from above at an angle and a turned barrel reads as a fallen one -- except the string
+   of lights, which has to follow the wall.
+   `opt` pieces roll per camp, so no two camps are the same camp. */
+const SEWER_CAMP = {
+  keys: ["sc_barrel_fire", "sc_barrel_cold", "sc_mattress", "sc_shelter", "sc_tarp", "sc_cart",
+         "sc_bedrolls", "sc_crate_radio", "sc_bucket_white", "sc_bucket_blue", "sc_cookpot",
+         "sc_cardboard", "sc_lights", "sc_bottles", "sc_sign", "sc_lantern", "sc_battery_lamp"],
+  chance: 0.30,                 // per tunnel arm, seeded -- about one camp per junction
+  along: [700, 900],            // how far out from the junction: 700 + up to 900
+  always: [["sc_cardboard", -58, 66, 56]],
+  opt: [
+    [0.55, ["sc_lights", -8, 93, 70]],
+    [0.50, ["sc_battery_lamp", -140, 82, 26]],
+    [1.00, ["sc_shelter", -62, 72, 50], ["sc_tarp", -62, 72, 52]],   // one of the two
+    [0.80, ["sc_mattress", 64, 70, 24]],
+    [0.70, ["sc_bedrolls", 100, 72, 32]],
+    [0.60, ["sc_cart", -118, 64, 24]],
+    [0.65, ["sc_crate_radio", 40, 84, 18]],
+    [0.45, ["sc_sign", 140, 80, 26]],
+    [0.55, ["sc_bottles", 78, 44, 24]],
+    [0.35, ["sc_barrel_cold", 150, 56, 16]],
+  ],
+  // the heart of it: a barrel or a pot, and it is the light
+  fire: [["sc_barrel_fire", 0, 58, 20], ["sc_cookpot", 0, 60, 24]],
+  stools: [["sc_bucket_white", -20, 42, 12], ["sc_bucket_blue", 22, 40, 12]],
+  lantern: ["sc_lantern", 118, 50, 9],
+  // where the people sit, around the fire; how many are there follows the meter
+  seats: [[-24, 44], [24, 42], [-22, 84], [10, 86]],
+  glow: 170, lit: 210,
+};
+/* ---------- NEON FLATS ----------
+   The district had no identity in the generator -- zoneOf calls these cells `city`, so the Flats
+   were an office, a bank and four empty lots. The houses go on the empty lots as real buildings
+   (MARKS), the neon goes on the pavements and fronts, and the roads go black. */
+const NF_HOUSES = ["nf_house_1", "nf_house_2", "nf_house_3", "nf_house_4", "nf_house_5", "nf_house_6"];
+const NN_KEYS = ["nn_tube_pink_s", "nn_tube_pink_l", "nn_tube_cyan_s", "nn_tube_cyan_l",
+                 "nn_corner_violet", "nn_corner_lime", "nn_corner_orange",
+                 "nn_palm", "nn_cocktail", "nn_star", "nn_arrow_up", "nn_arrow_down", "nn_dice",
+                 "nn_wave", "nn_moon", "nn_lamp_ring", "nn_bollard_orange", "nn_bollard_cyan", "nn_puddle"];
+const NF = {
+  cells: { i0: 6, i1: 7, j0: 11, j1: 15 },
+  roadTile: 440,                      // one blacktop tile, world units -- big enough that the cracks do not read as wallpaper
+  lampEvery: 360,                     // ring lamps along the pavement
+  /* One sign per house door, picked off the house; the club gets the cocktail and the dice.
+     Rochelle's gets nothing -- her cover is a quiet house, and that is the point of it. */
+  signs: ["nn_palm", "nn_star", "nn_moon", "nn_wave", "nn_palm", "nn_star"],
+  // the colour each house's interior neon runs in: pink, teal, lilac, cyan, lime, violet
+  hue: [["#ff6fb5", 330], ["#5fe3d0", 172], ["#c38bff", 272], ["#6fe8ff", 190], ["#9dff6a", 100], ["#b877ff", 275]],
+};
+const NF_ART = {};
+for (const k of NF_HOUSES.concat(["nf_rochelle"], NN_KEYS)) NF_ART[k] = "assets/nflats/" + k + ".png";
+NF_ART.tx_blacktop = "assets/tex/tx_blacktop.png";
+const SC_ART = {};
+for (const k of SEWER_CAMP.keys) SC_ART[k] = "assets/sewer/" + k + ".png";
+const SKY_ART = {};
+for (const k of SKY_ADDICTS) SKY_ART[k] = "assets/sky/" + k + ".png";
+/* DEUCE'S WILD, dressed. Named, unlike the fx_ and cl_ runs, because each one has a job in the
+   room: the door desk and the ropes are the queue, the booths are where the twins sit. */
+const DW_KEYS = ["dw_booth", "dw_booth_set", "dw_bistro", "dw_stooltable", "dw_rope", "dw_rope_b",
+                 "dw_cigmachine", "dw_payphone", "dw_crate_a", "dw_crate_b", "dw_desk_door",
+                 "dw_mirrorball"];
+const DW_SOLID = { dw_booth: 1, dw_booth_set: 1, dw_cigmachine: 1, dw_payphone: 1, dw_desk_door: 1 };
+const DW_ART = {};
+for (const k of DW_KEYS) DW_ART[k] = "assets/deuce/" + k + ".png";
 const DECO = {};
 for (let i = 1; i <= 51; i++) {
   const k = "fx_" + String(i).padStart(2, "0");
@@ -3051,7 +3256,7 @@ for (const k of LX_KEYS) HOME_ART[k] = "assets/lux/" + k + ".png";
 for (const k of MO_KEYS) HOME_ART[k] = "assets/motel/" + k + ".png";
 /* Upper class is the mansion and the Arden houses -- `b.arden` is set on every house the
    Arden branch builds, and on nothing else. */
-const isLux = (b) => !!(b && (b.arden || b.kind === "mansion"));
+const isLux = (b) => !!(b && (b.arden || b.kind === "mansion" || b.rochelle));
 
 /* ---------- bars, cafes, gun shops ----------
    Same table-not-a-script-pile approach as the four food chains. A bar is one room shape --
@@ -4156,6 +4361,22 @@ function floorKind(b, f) {
   if (b.kind === "motel") return "motelfloor";
   if (b.kind === "mansion") return "mansionfloor";
   if (b.kind === "arcade") return "arcade";
+  /* VANCE TOWER. TOWER.floors is the plan and index 0 is the car park -- the building enters on 1,
+     same as the field office. The twins' two floors borrow the mansion layout because that is
+     what they are: a house stacked on top of a building. */
+  if (b.kind === "vance") {
+    const fl = TOWER.floors[f];
+    if (f === 0) return "vt_parking";
+    if (f === 1) return "vt_lobby";
+    if (f === 2) return "vt_pool";
+    return fl && (fl.who === "julian" || fl.who === "damian") ? "mansionfloor" : "tower_flats";
+  }
+  /* A NEON FLATS HOUSE sleeps UNDERGROUND. Entry is floor 1 -- living room, kitchen, dining,
+     the bath -- and the stairs go DOWN to the bedrooms. The upstairs plan is exactly a floor of
+     bedrooms off a hall, so the basement is that plan, one level lower. */
+  if (b.kind === "nfhouse") return f === 0 ? "house_u" : "house_g2";
+  // the North End gym. Upstairs is the office that runs it.
+  if (b.kind === "gym") return f === 0 ? "gymfloor" : "offices";
   if (b.kind === "bandvenue") return "bandvenue";
   if (b.kind === "venue") return f === 0 ? "venue" : "offices";
   if (b.kind === "nightclub") return f === 0 ? "nightclub" : "offices";
@@ -4330,6 +4551,13 @@ function makeFloor(b, f, rnd) {
        which is four small rooms rather than a venue -- you could not see the band from the
        bar. The furniture still zones it; the walls were the problem. */
     hub = put(0, 0, GX - 1, GY - 1, "vnstage");
+  } else if (kind === "vt_parking" || kind === "vt_lobby" || kind === "vt_pool") {
+    // one room each: a car park, a lobby and a pool deck are open floors, not a run of offices
+    hub = put(0, 0, GX - 1, GY - 1, kind === "vt_parking" ? "carpark" : kind === "vt_lobby" ? "vt_lobby" : "pooldeck");
+  } else if (kind === "gymfloor") {
+    /* One room. The furniture zones it and the ring is the middle -- walls between the bags and
+       the iron would make it three small rooms, the same mistake the band venue made. */
+    hub = put(0, 0, GX - 1, GY - 1, "gym");
   } else if (kind === "warehouse") {
       // one big open floor -- nobody's occupying these yet, so there's no reason to over-build them
       hub = put(0, 0, GX - 1, GY - 1, "floor");
@@ -4867,7 +5095,13 @@ function makeFloor(b, f, rnd) {
     /* Same guard, same reason: makeFloor is reachable through buildingPlans from a dozen
        places, and a door-less building would have thrown here too. No door means no gap in
        the shell -- a solid wall, which is exactly right for a wall. */
-    if (f === 0 && b.door && s === b.door.side) {
+    /* The ENTRY floor, not index 0. A building with a basement (the field office, the tower) enters
+       on 1 -- and the doorway was being cut into the basement wall, leaving the lobby sealed. */
+    /* The car park's ramp: a lane-wide hole in the back wall, opposite the front door. */
+    if (b.carpark && f === 0 && b.door && s === (b.door.side + 2) % 4) {
+      const d = a + len * 0.5;
+      seg(s, a, Math.max(a, d - 64)); seg(s, Math.min(a + len, d + 64), a + len);
+    } else if (f === (b.entry || 0) && b.door && s === b.door.side) {
       const d = a + len * b.door.pos;
       seg(s, a, Math.max(a, d - 30)); seg(s, Math.min(a + len, d + 30), a + len);
     } else seg(s, a, a + len);
@@ -4877,6 +5111,11 @@ function makeFloor(b, f, rnd) {
   const hr = rect(rooms[hub]);
   const st = kind === "den"
     ? { x: -9999, y: -9999, w: 0, h: 0 }
+    /* The hub rule puts the stair in the middle of the room, and the middle of a gym is the ring. */
+    : (kind === "vt_parking" || kind === "vt_lobby" || kind === "vt_pool")
+    ? { x: b.x + WT + 16, y: b.y + b.h * 0.5 - 19, w: 64, h: 38 }
+    : kind === "gymfloor"
+    ? { x: b.x + b.w * (0.5 + GYM_STAIR.fx) - 32, y: b.y + b.h * (0.5 + GYM_STAIR.fy) - 19, w: 64, h: 38 }
     : {
         x: clamp((hr.x0 + hr.x1) / 2 - 32, hr.x0 + 6, hr.x1 - 70),
         y: clamp((hr.y0 + hr.y1) / 2 - 19, hr.y0 + 6, hr.y1 - 44),
@@ -5042,6 +5281,13 @@ function makeFloor(b, f, rnd) {
     if (kind === "fis_hold") r.floorTex = "tx_concrete";
     // one carpet through the whole unit, because that is how a trailer is carpeted
     if (kind === "trailer") r.floorTex = "tx_tr_carpet";
+    /* Canvas, not marble: the old street overlay tiled it three across the building, so it
+       carries its own tile size rather than taking the 604px marble scale. */
+    if (kind === "gymfloor") { r.floorTex = "tx_gymfloor"; r.texTile = b.w / 3; }
+    if (b && b.nf && !r.floorTex)
+      r.floorTex = r.k === "bath" ? "tx_lino" : f === 0 ? (b.rochelle ? "tx_marble" : "tx_tr_carpet") : "tx_terrazzo";
+    // the tower's own finishes, per floor, as TOWER already said -- marble on the twins' floors stays
+    if (b && b.kind === "vance" && !r.floorTex) { const fl = TOWER.floors[f]; if (fl && fl.tex) r.floorTex = fl.tex; }
     if (kind === "store" && b && b.arch === "jewel" && r.k === "retail") r.floorTex = "tx_marble";
     // K(standard, luxury) -- one call at each placement instead of a duplicated case per class
     const LUX = isLux(b), K = (std, lux) => (LUX ? lux : std);
@@ -6124,6 +6370,85 @@ function makeFloor(b, f, rnd) {
     if (TIDY_KINDS[kind]) tidyRoom(q2, propsFrom);
   }
 
+  /* THE GYM. After the room loop, because it is laid out off the whole footprint rather than
+     off a room rectangle. Pushed straight onto props, not through P(): SHRINK exists to make
+     generated rooms breathe, and these sizes were already tuned against the art.
+     Clamped inside the shell, because the final filter drops anything that is not WT clear of
+     the outer wall -- the belt on the north wall came out 4 units over and would have vanished
+     without a word. `hard` blocks are invisible and collide at exactly their size. */
+  if (kind === "gymfloor") {
+    const cx = b.x + b.w / 2, cy = b.y + b.h / 2, m = Math.min(b.w, b.h);
+    const inside = (p) => {
+      p.x = clamp(p.x, b.x + WT + 1, b.x + b.w - WT - 1 - p.w);
+      p.y = clamp(p.y, b.y + WT + 1, b.y + b.h - WT - 1 - p.h);
+      return p;
+    };
+    for (const [k, fx, fy, fs] of GYM_FIT) {
+      const sz = m * fs;
+      props.push(inside({ x: cx + fx * b.w - sz / 2, y: cy + fy * b.h - sz / 2, w: sz, h: sz, t: k }));
+    }
+    const block = (bx, by, hw, hh) =>
+      props.push(inside({ x: bx - hw, y: by - hh, w: hw * 2, h: hh * 2, t: "gy_block", hard: 1 }));
+    for (const [fx, fy, fw, fh] of GYM_SOLID)
+      block(cx + fx * b.w, cy + fy * b.h, fw * b.w * 0.5, fh * b.h * 0.5);
+    const R = GYM_RING, rx = cx, ry = cy + R.oy * b.h;
+    const hw = R.hw * b.w, hh = R.hh * b.h, t = R.rail, gp = R.gap * b.w;
+    block(rx, ry - hh, hw, t);                                          // north rail
+    block(rx - hw, ry, t, hh);                                          // west
+    block(rx + hw, ry, t, hh);                                          // east
+    block(rx - (hw + gp) / 2 - gp / 2, ry + hh, (hw - gp) / 2, t);      // south, left of the steps
+    block(rx + (hw + gp) / 2 + gp / 2, ry + hh, (hw - gp) / 2, t);      // south, right of them
+  }
+
+  /* DEUCE'S WILD. The generic nightclub rooms, furnished off its own sheet. Only this building:
+     every other nightclub in the city keeps the shared cases, and b.capPlate is what marks it
+     (placeMarks sets it before any plan is built -- plans are lazy).
+     Positions are FRACTIONS of the footprint, same as the gym, laid out against the rendered
+     plan: door on the north face into the vestibule, dance floor across the middle, bar,
+     booths and back room along the south. The generic bar case had to go -- in a room this
+     shallow it stood its bar 14 units under the doorway and nobody could get into the room.
+     [key, fx0, fy0, fw, fh] -- top-left corner and size, all fractions of b.w / b.h. */
+  if (kind === "nightclub" && b && b.capPlate === "ct_club") {
+    const own = { vestibule: 1, dance: 1, bar: 1, booth: 1 };
+    const keepHere = { floorlit: 1 };
+    const inRoom = (p, k) => { const r = rooms.map(rect)[rooms.findIndex((q) => q.k === k)];
+      return r && p.x + p.w / 2 >= r.x0 && p.x + p.w / 2 <= r.x1 && p.y + p.h / 2 >= r.y0 && p.y + p.h / 2 <= r.y1; };
+    for (let i = props.length - 1; i >= 0; i--) {
+      const p = props[i];
+      if (keepHere[p.t]) continue;
+      if (Object.keys(own).some((k) => inRoom(p, k))) props.splice(i, 1);
+    }
+    const DW_LAYOUT = [
+      // the door: payphone on the wall, the desk beside the way in, a queue rope running east
+      ["dw_payphone",   0.294, 0.036, 0.059, 0.087],
+      ["dw_desk_door",  0.361, 0.062, 0.082, 0.115],
+      ["dw_rope",       0.573, 0.077, 0.137, 0.092],
+      ["dw_rope_b",     0.712, 0.077, 0.137, 0.092],
+      // the floor: booths down both walls, tables in front of them, stools at the edge of the light
+      ["dw_booth_set",  0.024, 0.246, 0.090, 0.169],
+      ["dw_booth_set",  0.024, 0.503, 0.090, 0.169],
+      ["dw_booth_set",  0.886, 0.246, 0.090, 0.169],
+      ["dw_booth_set",  0.886, 0.503, 0.090, 0.169],
+      ["dw_bistro",     0.137, 0.282, 0.114, 0.090],
+      ["dw_bistro",     0.137, 0.564, 0.114, 0.090],
+      ["dw_bistro",     0.749, 0.282, 0.114, 0.090],
+      ["dw_bistro",     0.749, 0.564, 0.114, 0.090],
+      ["dw_stooltable", 0.255, 0.672, 0.047, 0.118],
+      ["dw_stooltable", 0.667, 0.672, 0.047, 0.118],
+      // the bar: machine on the west wall, the bar along the back, crates at the far end
+      ["dw_cigmachine", 0.020, 0.826, 0.059, 0.133],
+      ["dw_crate_a",    0.470, 0.892, 0.067, 0.069],
+      ["dw_crate_b",    0.470, 0.815, 0.067, 0.069],
+      // the booths room: two curved booths against the south wall
+      ["dw_booth",      0.588, 0.882, 0.122, 0.092],
+      ["dw_booth",      0.722, 0.882, 0.122, 0.092],
+    ];
+    for (const [k, fx, fy, fw, fh] of DW_LAYOUT)
+      props.push({ x: b.x + fx * b.w, y: b.y + fy * b.h, w: fw * b.w, h: fh * b.h, t: k });
+    // the bar itself, now against the back wall with room in front of it to stand
+    props.push({ x: b.x + 0.098 * b.w, y: b.y + 0.913 * b.h, w: 0.353 * b.w, h: 0.046 * b.h, t: "bartop" });
+  }
+
   /* NOTHING STANDS IN A DOORWAY. tidyRoom snaps furniture to the nearest wall, and a doorway
      IS a wall with a hole in it -- so the tidy pass was pushing props directly into the gaps
      and you got stuck in the opening. Every doorMark clears a box around itself; anything
@@ -6142,11 +6467,25 @@ function makeFloor(b, f, rnd) {
                           wheeltable: 1, bartop: 1, stagedeck: 1, reel: 1, cbradio: 1,
                           scanner: 1, printer: 1, bed: 1, sk_rack: 1, drum: 1 };
     const CLEAR = DOORW + 26;
-    for (const d of (TIDY_KINDS[kind] ? doorMarks : [])) {
+    /* THE FRONT DOOR IS A DOORWAY TOO. This list was only the doorways between rooms, so the tidy
+       pass could push a sofa flat against the outside wall exactly where the street door is --
+       and you walked in and stopped. The entry floor's door joins the list as a mark on the shell. */
+    const clearMarks = doorMarks.slice();
+    if (f === (b.entry || 0) && b.door) {
+      const sd = b.door.side, pos = b.door.pos;
+      if (sd === 0) clearMarks.push({ x: b.x + b.w * pos, y: b.y + WT / 2, v: false });
+      else if (sd === 2) clearMarks.push({ x: b.x + b.w * pos, y: b.y + b.h - WT / 2, v: false });
+      else if (sd === 3) clearMarks.push({ x: b.x + WT / 2, y: b.y + b.h * pos, v: true });
+      else clearMarks.push({ x: b.x + b.w - WT / 2, y: b.y + b.h * pos, v: true });
+    }
+    for (const d of (TIDY_KINDS[kind] ? clearMarks : [])) {
       for (let i = props.length - 1; i >= 0; i--) {
         const p = props[i];
-        const bx0 = d.x - (d.v ? WT + 14 : CLEAR / 2), bx1 = d.x + (d.v ? WT + 14 : CLEAR / 2);
-        const by0 = d.y - (d.v ? CLEAR / 2 : WT + 14), by1 = d.y + (d.v ? CLEAR / 2 : WT + 14);
+        /* DEEP enough to turn into. It was WT + 14 -- 22 units either side of the wall -- and a man
+           is 26 across, so a piano 19 units off a doorway left a gap nobody could fit through. */
+        const DEEP = WT + 26;
+        const bx0 = d.x - (d.v ? DEEP : CLEAR / 2), bx1 = d.x + (d.v ? DEEP : CLEAR / 2);
+        const by0 = d.y - (d.v ? CLEAR / 2 : DEEP), by1 = d.y + (d.v ? CLEAR / 2 : DEEP);
         if (p.x >= bx1 || p.x + p.w <= bx0 || p.y >= by1 || p.y + p.h <= by0) continue;
         /* Keep or delete was the wrong choice. Anything you can USE gets SHOVED clear of the
            opening along whichever axis is shorter, so a filing cabinet stops standing in the
@@ -6165,12 +6504,90 @@ function makeFloor(b, f, rnd) {
       }
     }
   }
+  /* VANCE TOWER, furnished. Fractions of the footprint so a re-size moves everything with it. */
+  if (b && b.kind === "vance") {
+    const X = (fx) => b.x + fx * b.w, Y = (fy) => b.y + fy * b.h;
+    if (kind === "vt_parking") {
+      /* Stalls along the north wall. The first three are theirs and always painted with a name;
+         the cars in them are props, so they are there when you walk in and they stop your car.
+         Rochelle's is drawn only while she is in the building -- see rochelleIn(). */
+      const stallW = 86, y0 = b.y + WT + 18, len = 132;
+      for (let k = 0; k < 6; k++) {
+        const sx = X(0.20) + k * stallW;
+        if (sx + stallW > b.x + b.w - 90) break;
+        props.push({ x: sx, y: y0, w: 2, h: len, t: "stall_line" });
+        if (k === 5 || sx + stallW * 2 > b.x + b.w - 90) props.push({ x: sx + stallW, y: y0, w: 2, h: len, t: "stall_line" });
+      }
+      const car = (k, key, w, l) => props.push({ x: X(0.20) + k * stallW + (stallW - w) / 2, y: y0 + 4, w, h: l, t: key });
+      car(0, "vh_julian_suv", 62, 128);
+      car(1, "vh_damian_suv", 62, 128);
+      car(2, "vh_rochelle_coupe", 50, 116);
+      // the ramp up to the street, on the back wall
+      props.push({ x: X(0.5) - 60, y: b.y + b.h - WT - 70, w: 120, h: 62, t: "ramp_marks" });
+    } else if (kind === "vt_lobby") {
+      // a desk off to one side of the doors, a waiting area across from it
+      props.push({ x: X(0.60), y: Y(0.20), w: 110, h: 26, t: "counter" });
+      props.push({ x: X(0.16), y: Y(0.70), w: 80, h: 28, t: "sofa" });
+      props.push({ x: X(0.16), y: Y(0.84), w: 80, h: 28, t: "sofa" });
+      props.push({ x: X(0.40), y: Y(0.76), w: 40, h: 40, t: "table" });
+      props.push({ x: X(0.90) - 18, y: Y(0.10), w: 18, h: 18, t: "plant" });
+      props.push({ x: X(0.10), y: Y(0.10), w: 18, h: 18, t: "plant" });
+    } else if (kind === "vt_pool") {
+      props.push({ x: X(0.34), y: Y(0.26), w: b.w * 0.40, h: b.h * 0.46, t: "pool" });
+      for (let k = 0; k < 3; k++) {
+        props.push({ x: X(0.26) + k * 70, y: Y(0.80), w: 26, h: 56, t: "lounger" });
+      }
+      props.push({ x: X(0.84), y: Y(0.30), w: 44, h: 44, t: "table" });
+    }
+  }
+  /* THE LIFT. A building that carries `lift` gets one on every floor. It is placed by trying a
+     short list of spots against the ACTUAL floor -- not every floor has the same walls -- and the
+     first spot that clears the walls, the stairs and every doorway wins. Whatever furniture it
+     lands on is moved out of the way, because a lift you cannot reach is worse than a missing
+     chair. `fx/fy` is where you stand to use it, and where the lift puts you down. */
+  if (b && b.lift) {
+    const LW = 46, LH = 40, pad = 22;
+    const shell = (w) => w.x <= b.x + 1 || w.y <= b.y + 1 || w.x + w.w >= b.x + b.w - 1 || w.y + w.h >= b.y + b.h - 1;
+    const hits = (a, q, m) => a.x - m < q.x + q.w && q.x < a.x + a.w + m && a.y - m < q.y + q.h && q.y < a.y + a.h + m;
+    const cands = [["e", 0.5], ["e", 0.22], ["e", 0.78], ["w", 0.22], ["w", 0.78], ["n", 0.22], ["n", 0.78],
+                   ["s", 0.22], ["s", 0.78], ["w", 0.5], ["n", 0.5], ["s", 0.5]];
+    let lift = null;
+    for (const [side, f2] of cands) {
+      const box = side === "e" ? { x: b.x + b.w - WT - 2 - LW, y: b.y + b.h * f2 - LH / 2, w: LW, h: LH }
+                : side === "w" ? { x: b.x + WT + 2, y: b.y + b.h * f2 - LH / 2, w: LW, h: LH }
+                : side === "n" ? { x: b.x + b.w * f2 - LW / 2, y: b.y + WT + 2, w: LW, h: LH }
+                : { x: b.x + b.w * f2 - LW / 2, y: b.y + b.h - WT - 2 - LH, w: LW, h: LH };
+      if (walls.some((w) => !shell(w) && hits(box, w, pad))) continue;
+      if (st.w > 0 && hits(box, st, 26)) continue;
+      if (doorMarks.some((d) => Math.abs(d.x - (box.x + LW / 2)) < LW / 2 + 34 && Math.abs(d.y - (box.y + LH / 2)) < LH / 2 + 34)) continue;
+      if (f === (b.entry || 0) && b.door) {
+        const dp = doorPoint(b);
+        if (Math.abs(dp[0] - (box.x + LW / 2)) < 90 && Math.abs(dp[1] - (box.y + LH / 2)) < 90) continue;
+      }
+      // the car park: never in a stall or on the ramp
+      if (props.some((p) => (p.t.startsWith("vh_") || p.t === "ramp_marks") && hits(box, p, 20))) continue;
+      const out = side === "e" ? [-1, 0] : side === "w" ? [1, 0] : side === "n" ? [0, 1] : [0, -1];
+      lift = { ...box, t: "elevator", side,
+               fx: box.x + LW / 2 + out[0] * (LW / 2 + 20), fy: box.y + LH / 2 + out[1] * (LH / 2 + 20) };
+      break;
+    }
+    if (lift) {
+      const clear = { x: Math.min(lift.x, lift.fx - 16), y: Math.min(lift.y, lift.fy - 16),
+                      w: 0, h: 0 };
+      clear.w = Math.max(lift.x + lift.w, lift.fx + 16) - clear.x;
+      clear.h = Math.max(lift.y + lift.h, lift.fy + 16) - clear.y;
+      for (let i = props.length - 1; i >= 0; i--)
+        if (!props[i].t.startsWith("vh_") && hits(clear, props[i], 2)) props.splice(i, 1);
+      props.push(lift);
+    }
+  }
   const inProps = props.filter((p) =>
     p.x >= b.x + WT && p.y >= b.y + WT &&
     p.x + p.w <= b.x + b.w - WT && p.y + p.h <= b.y + b.h - WT);
   /* floorTex has to survive this map or it is set on the working room and thrown away one
      line later -- which is exactly what happened the first time I wrote it. */
-  return { walls, rooms: rooms.map((r) => ({ ...rect(r), k: r.k, floorTex: r.floorTex || null })),
+  return { walls, rooms: rooms.map((r) => ({ ...rect(r), k: r.k, floorTex: r.floorTex || null,
+                                                     texTile: r.texTile || null })),
            stair: st, props: inProps, doorMarks, kind };
 }
 
@@ -6192,6 +6609,32 @@ function mkB(bx, by, bw, bh, floors, kind, rnd, key) {
   return b;
 }
 
+/* A DOOR IN THE MIDDLE OF A ROOM, not on a wall. door.pos 0.5 is the middle of the face, and on a
+   plan with an even number of rows that is exactly where an interior wall meets the outside --
+   you walked in face first into the wall between the living room and the hall. This builds the
+   entry floor once, finds the rooms that touch the door's face, and moves the door to the middle
+   of the one with the most wall on that side (the hall first, if it has one), then throws the
+   plan away so it is rebuilt with the door where it belongs. */
+function settleDoor(b) {
+  if (!b || !b.door) return;
+  b.plans = null;
+  const pl = buildingPlans(b)[b.entry || 0];
+  const s = b.door.side, horiz = s === 0 || s === 2;
+  const edge = s === 0 ? b.y : s === 1 ? b.x + b.w : s === 2 ? b.y + b.h : b.x;
+  let best = null;
+  for (const r of pl.rooms) {
+    const touches = s === 0 ? Math.abs(r.y0 - edge) < 2 : s === 2 ? Math.abs(r.y1 - edge) < 2
+                  : s === 3 ? Math.abs(r.x0 - edge) < 2 : Math.abs(r.x1 - edge) < 2;
+    if (!touches) continue;
+    const a0 = horiz ? r.x0 : r.y0, a1 = horiz ? r.x1 : r.y1;
+    const span = a1 - a0;
+    if (span < DOORW + 2 * WT + 20) continue;
+    const score = span + (r.k === "hall" || r.k === "corridor" ? 1000 : r.k === "living" ? 400 : 0);
+    if (!best || score > best.score) best = { score, mid: (a0 + a1) / 2 };
+  }
+  if (best) b.door.pos = (best.mid - (horiz ? b.x : b.y)) / (horiz ? b.w : b.h);
+  b.plans = null;
+}
 function faceDoor(b, lx0, ly0, lx1, ly1, rnd) {
   const d = [b.y - ly0, lx1 - (b.x + b.w), ly1 - (b.y + b.h), b.x - lx0];
   let side = 0;
@@ -6938,7 +7381,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       if (tx < lx0 - 30 || tx > lx1 || ty < ly0 - 30 || ty > ly1) continue;
       const bb = mkB(tx, ty, TW, TH, 6 + Math.floor(rnd() * 3), "tower", rnd, key * 4 + c);
       bb.door = { side: ty < P.cy ? 2 : 0, pos: 0.5 };
-      if (c === 0) bb.hqTower = true;   // the Kings hold the penthouse of the corner tower
+      if (c === 0) { bb.hqTower = true; bb.lift = true; }   // the Kings hold the penthouse; they do not take the stairs
       out.push(bb);
     }
     return dryOut(out);
@@ -7860,7 +8303,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "pickup", "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX, ...CITY2, ...DECO, ...CLUB };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX, ...CITY2, ...DECO, ...CLUB, ...GYM_ART, ...SKY_ART, ...DW_ART, ...SC_ART, ...NF_ART };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -8415,7 +8858,7 @@ export default function IronLionLayer004() {
       if (dp) {
         // drive straight into the tunnel and park in the bay -- still behind the wheel,
         // get out with the normal car-exit control once you're stopped
-        g.inside = dp; g.floor = dp.entry || 0;
+        g.inside = dp._b || dp; g.floor = dp._floor != null ? dp._floor : (dp.entry || 0);
         const v = g.mode === "car" ? g.car : g.mode === "moto" ? g.moto : g.civ;
         v.x = dp._cx; v.y = dp._cy; v.ang = -Math.PI / 2; v.vx = 0; v.vy = 0;
         return;
@@ -8465,6 +8908,12 @@ export default function IronLionLayer004() {
       return;
     }
     if (g.mode === "foot" && g.inside && g.inside.kind === "den" && G.mentorFn && G.mentorFn()) return;
+    if (g.mode === "foot" && g.inside && G.liftNearFn && G.liftNearFn()) {
+      const gg = G.current;
+      gg.liftOpen = !gg.liftOpen; gg.paused = gg.liftOpen;
+      if (G.liftPushFn) G.liftPushFn();
+      return;
+    }
     if (g.mode === "foot" && g.inside) {
       const st = G.stairFn && G.stairFn();
       if (st === 1 && g.floor < g.inside.floors - 1) {
@@ -9335,6 +9784,20 @@ export default function IronLionLayer004() {
       p.mode = "walk";
     }
 
+    /* Which addict plate, if any, a new pedestrian on this cell gets. Reads the live meter, so
+       pushing Sky down thins the corners out as the old faces walk off and are not replaced --
+       and ground the ring has taken starts to look like the Flats. The trailer court and the
+       quay are asked first in spawnPed and keep their own people. */
+    function skyAddictAt(bi, bj) {
+      const lvl = clamp((g.sky || 0) / SKY.max, 0, 1);
+      let chance = 0;
+      if ((GANG_TURF.deuce || []).some((z) => ZONES[z] && inZ(ZONES[z], bi, bj)))
+        chance = SKY_STREET.turfBase + SKY_STREET.turf * lvl;
+      else if (DEUCE_RING.slice(0, g.deuceRing || 0).some((Z) => Z && inZ(Z, bi, bj)))
+        chance = SKY_STREET.ring * lvl;
+      if (!(Math.random() < chance)) return null;
+      return SKY_ADDICTS[(Math.random() * SKY_ADDICTS.length) | 0];
+    }
     function spawnPed(cx, cy) {
       if (outfits.length < POOL && Math.random() < 0.35) makeOutfit();
       const ang = Math.random() * 6.283, rad = 1750 + Math.random() * 1650;
@@ -9345,6 +9808,7 @@ export default function IronLionLayer004() {
       const ck = (Math.random() * 4) | 0;
       const c = corner(bi, bj, ck);
       const off = [(Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30];
+      const sky = skyAddictAt(bi, bj);
       g.peds.push({
         x: c[0] + off[0], y: c[1] + off[1], vx: 0, vy: 0,
         bi, bj, ck, off, tgt: [c[0] + off[0], c[1] + off[1]],
@@ -9360,9 +9824,11 @@ export default function IronLionLayer004() {
            figures that came in with the FIS office and have never been used for anything. */
         yt: isTrailerCell(bi, bj) ? TC_RES[(Math.random() * TC_RES.length) | 0]
           : isPortCell(bi, bj) ? ["fis_ped_1", "fis_ped_2", "fis_ped_3"][(Math.random() * 3) | 0]
-          : null,
+          : sky,
+        sky: !!sky,
         jit: 0.93 + Math.random() * 0.15,
-        spd: 54 + Math.random() * 30,
+        // they shuffle. Half the pace of the street is the whole of the tell at a distance
+        spd: sky ? SKY_STREET.slow[0] + Math.random() * SKY_STREET.slow[1] : 54 + Math.random() * 30,
         anim: Math.random() * 6.28, mode: "walk", timer: 0,
         idlePose: Math.random() < 0.45 ? "bag" : "talk",
       });
@@ -11288,6 +11754,131 @@ export default function IronLionLayer004() {
         }
       }
     }
+    /* One camp per seeded arm, built the first time it is looked at and kept, so the people in it
+       are the same people when you come back. Keyed by junction and arm. */
+    function campAt(i, j, arm) {
+      g.camps = g.camps || new Map();
+      const key = i * 1000 + j * 10 + arm;
+      if (g.camps.has(key)) return g.camps.get(key);
+      let seed = (i * 2654435761) ^ (j * 40503) ^ (arm * 97531);
+      const rr = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+      let camp = null;
+      const dir = [[1, 0], [-1, 0], [0, 1], [0, -1]][arm];
+      const horiz = dir[1] === 0;                         // the arm runs along x: a j-line tunnel
+      const along = SEWER_CAMP.along[0] + rr() * SEWER_CAMP.along[1];
+      const lim = SX(SEWER_MAX);
+      const cx0 = SX(i) + dir[0] * along, cy0 = SX(j) + dir[1] * along;
+      if (rr() < SEWER_CAMP.chance && cx0 > 200 && cy0 > 200 && cx0 < lim - 200 && cy0 < lim - 200) {
+        const side = rr() < 0.5 ? -1 : 1;
+        /* (u, v) to the world. v is always measured OUT from the centreline, so the same list
+           lays a camp against either wall of either kind of tunnel. */
+        const at = (u, v) => horiz ? [cx0 + u, SX(j) + side * v] : [SX(i) + side * v, cy0 + u];
+        const items = [];
+        const put = ([k, u, v, w]) => { const [x, y] = at(u, v); items.push({ k, x, y, w, rot: k === "sc_lights" && !horiz }); };
+        for (const q of SEWER_CAMP.always) put(q);
+        for (const [pc, ...alts] of SEWER_CAMP.opt) if (rr() < pc) put(alts[(rr() * alts.length) | 0]);
+        const fire = SEWER_CAMP.fire[(rr() * SEWER_CAMP.fire.length) | 0];
+        put(fire);
+        for (const q of SEWER_CAMP.stools) put(q);
+        if (!items.some((q) => q.k === "sc_bottles")) put(SEWER_CAMP.lantern);
+        const [fx, fy] = at(fire[1], fire[2]);
+        const folk = SEWER_CAMP.seats.map(([u, v]) => {
+          const [x, y] = at(u, v);
+          return { x, y, vx: 0, vy: 0, hp: 8, jit: 0.95 + rr() * 0.1, anim: rr() * 6,
+                   yt: SKY_ADDICTS[(rr() * SKY_ADDICTS.length) | 0], sky: true,
+                   bang: Math.atan2(fy - y, fx - x), say: 0, line: null };
+        });
+        camp = { fx, fy, items, folk, horiz, ph: rr() * 6.28 };
+      }
+      g.camps.set(key, camp);
+      return camp;
+    }
+    /* Which camps are near a point. Junction spacing is SEWER_EVERY cells, and the furthest a camp
+       sits from its junction is along[0] + along[1], so this only ever looks at the four junctions
+       round you. */
+    function campsNear(x, y, reach) {
+      const out = [];
+      const step = SEWER_EVERY * PITCH;
+      const i0 = Math.floor((x - reach) / step) * SEWER_EVERY, i1 = Math.ceil((x + reach) / step) * SEWER_EVERY;
+      const j0 = Math.floor((y - reach) / step) * SEWER_EVERY, j1 = Math.ceil((y + reach) / step) * SEWER_EVERY;
+      for (let i = Math.max(0, i0); i <= Math.min(SEWER_MAX, i1); i += SEWER_EVERY)
+        for (let j = Math.max(0, j0); j <= Math.min(SEWER_MAX, j1); j += SEWER_EVERY)
+          for (let a = 0; a < 4; a++) {
+            const c = campAt(i, j, a);
+            if (c && Math.abs(c.fx - x) < reach && Math.abs(c.fy - y) < reach) out.push(c);
+          }
+      return out;
+    }
+    /* How many are sitting round it. One, always -- somebody keeps the fire -- and up to four as
+       Sky climbs. The slots exist from the start, so turning the meter up fills seats rather than
+       conjuring new people. */
+    const campCount = () => clamp(1 + Math.round(3 * (g.sky || 0) / SKY.max), 1, SEWER_CAMP.seats.length);
+    function stepCamps(dt) {
+      if (!g.sewer || !Number.isFinite(g.p.x)) return;
+      const n = campCount();
+      for (const c of campsNear(g.p.x, g.p.y, 1100)) {
+        for (let k = 0; k < n; k++) {
+          const q = c.folk[k];
+          if (q.hp <= 0) continue;
+          q.anim += dt;
+          if (q.say > 0) { q.say -= dt; continue; }
+          skyChatter(q, dt);                  // the same voice as the street, and the deep lines land here
+        }
+      }
+    }
+    /* Drawn AFTER the dark closes in, which is the whole trick: a camp is lit by its own fire, so
+       you can see it from down the tunnel when you cannot see the brick you are standing on.
+       Brightness is whichever is more -- the fire's reach or your own -- and a flicker on both. */
+    function drawCamps(view) {
+      const t = g.t || 0, pv = g.p;
+      const n = campCount();
+      const cx = (view.x0 + view.x1) / 2, cy = (view.y0 + view.y1) / 2;
+      const reach = Math.max(view.x1 - view.x0, view.y1 - view.y0) * 0.5 + 260;
+      for (const c of campsNear(cx, cy, reach)) {
+        const fl = 0.86 + 0.10 * Math.sin(t * 9 + c.ph) + 0.05 * Math.sin(t * 23 + c.ph * 3);
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        const gr = ctx.createRadialGradient(c.fx, c.fy, 4, c.fx, c.fy, SEWER_CAMP.glow);
+        gr.addColorStop(0, `rgba(255,150,70,${(0.34 * fl).toFixed(3)})`);
+        gr.addColorStop(0.45, `rgba(200,90,40,${(0.12 * fl).toFixed(3)})`);
+        gr.addColorStop(1, "rgba(120,40,20,0)");
+        ctx.fillStyle = gr;
+        ctx.fillRect(c.fx - SEWER_CAMP.glow, c.fy - SEWER_CAMP.glow, SEWER_CAMP.glow * 2, SEWER_CAMP.glow * 2);
+        ctx.restore();
+        const light = (x, y) => {
+          const byFire = clamp(1.15 - Math.hypot(x - c.fx, y - c.fy) / SEWER_CAMP.lit, 0.12, 1) * fl;
+          const byYou = clamp(1 - (Math.hypot(x - pv.x, y - pv.y) - 60) / 400, 0, 1);
+          return clamp(Math.max(byFire, byYou), 0, 1);
+        };
+        for (const it of c.items) {
+          const im = imgs.current[it.k];
+          if (!im || !im.width) continue;
+          const h = it.w * (im.height / im.width);
+          ctx.globalAlpha = light(it.x, it.y);
+          if (it.rot) { ctx.save(); ctx.translate(it.x, it.y); ctx.rotate(Math.PI / 2);
+            ctx.drawImage(im, -it.w / 2, -h / 2, it.w, h); ctx.restore(); }
+          else ctx.drawImage(im, it.x - it.w / 2, it.y - h / 2, it.w, h);
+        }
+        ctx.globalAlpha = 1;
+        // sparks off the top of the fire
+        ctx.fillStyle = "rgba(255,190,90,0.75)";
+        for (let s2 = 0; s2 < 5; s2++) {
+          const life = ((t * 0.9 + s2 * 0.21 + c.ph) % 1);
+          ctx.globalAlpha = (1 - life) * 0.8;
+          ctx.fillRect(c.fx + Math.sin(s2 * 7.3 + t * 2) * 6, c.fy - 10 - life * 26, 1.6, 1.6);
+        }
+        ctx.globalAlpha = 1;
+        for (let k = 0; k < n; k++) {
+          const q = c.folk[k];
+          if (q.hp <= 0) continue;
+          ctx.globalAlpha = light(q.x, q.y);
+          drawShadow(q.x, q.y + 2, 9, 4, 0.3);
+          drawYouth(q);
+          ctx.globalAlpha = 1;
+          if (q.say > 0 && q.line) bubble(q.x, q.y, q.line, SKY_LINES.tint);
+        }
+      }
+    }
     function drawSewer(view) {
       if (!g.sewer) return;
       // black everything out: you are underground, the city is gone
@@ -11409,6 +12000,7 @@ export default function IronLionLayer004() {
       lg.addColorStop(1, "rgba(3,4,6,0.94)");
       ctx.fillStyle = lg;
       ctx.fillRect(view.x0 - 100, view.y0 - 100, (view.x1 - view.x0) + 200, (view.y1 - view.y0) + 200);
+      drawCamps(view);
     }
 
     function updateWater(dt) {
@@ -15407,6 +15999,57 @@ export default function IronLionLayer004() {
       ctx.restore();
     }
 
+    /* ONE FLIGHT OF STAIRS, from above. x-axis flight: treads are strips across the box,
+       stepping along `dir` (+1 right, -1 left). `up` flights get lighter as they climb toward
+       you and each tread throws a hard shadow on the one below; `down` flights sink into black.
+       Stringers down both long sides with a lit top edge, and a handrail with its posts, are
+       what make a striped rectangle read as something with height. `vert` turns the whole
+       thing for flights that run along y (the station towers). */
+    function drawFlight(x, y, w, h, dir, up, vert) {
+      const L = vert ? h : w, T = vert ? w : h;             // along the flight, across it
+      const n = Math.max(4, Math.round(L / 7));
+      const step = L / n, rail = Math.max(3, T * 0.12);
+      ctx.save();
+      ctx.translate(x, y);
+      const R = (a, b2, c, d) => (vert ? ctx.fillRect(b2, a, d, c) : ctx.fillRect(a, b2, c, d));
+      for (let k = 0; k < n; k++) {
+        const t = (k + 0.5) / n;                             // 0 at the start, 1 at the far end
+        const a0 = dir > 0 ? k * step : L - (k + 1) * step;
+        const lv = up ? 44 + t * 52 : 78 - t * 64;           // brighter climbing, darker sinking
+        ctx.fillStyle = `rgb(${lv | 0},${(lv + 1) | 0},${(lv + 5) | 0})`;
+        R(a0, rail, step, T - rail * 2);
+        // the riser: a dark lip on the downhill edge of every tread
+        ctx.fillStyle = up ? "rgba(0,0,0,0.42)" : "rgba(0,0,0,0.55)";
+        const lip = dir > 0 ? (up ? a0 : a0 + step - 2) : (up ? a0 + step - 2 : a0);
+        R(lip, rail, 2, T - rail * 2);
+        // a nosing highlight on the uphill edge
+        ctx.fillStyle = `rgba(255,255,255,${up ? 0.05 + t * 0.12 : 0.10 * (1 - t)})`;
+        const nose = dir > 0 ? (up ? a0 + step - 1.2 : a0) : (up ? a0 : a0 + step - 1.2);
+        R(nose, rail, 1.2, T - rail * 2);
+      }
+      if (!up) {                                              // the drop, going away into the dark
+        const g2 = vert
+          ? ctx.createLinearGradient(0, dir > 0 ? 0 : L, 0, dir > 0 ? L : 0)
+          : ctx.createLinearGradient(dir > 0 ? 0 : L, 0, dir > 0 ? L : 0, 0);
+        g2.addColorStop(0, "rgba(0,0,0,0)"); g2.addColorStop(1, "rgba(0,0,0,0.55)");
+        ctx.fillStyle = g2; R(0, rail, L, T - rail * 2);
+      }
+      // stringers: dark body, lit top edge on the side the light comes from
+      ctx.fillStyle = "#26272c"; R(0, 0, L, rail); R(0, T - rail, L, rail);
+      ctx.fillStyle = "rgba(210,205,190,0.30)"; R(0, 0, L, 1); R(0, T - rail, L, 1);
+      // handrail and posts on the outer stringer
+      ctx.fillStyle = "rgba(190,160,90,0.85)"; R(0, rail * 0.35, L, 1.3);
+      ctx.fillStyle = "rgba(190,160,90,0.95)";
+      for (let k = 0; k <= 2; k++) R(Math.min(L - 2, (L - 2) * k / 2), rail * 0.1, 2, rail * 0.8);
+      // which way: a small chevron at the far end
+      ctx.fillStyle = up ? "rgba(232,196,106,0.85)" : "rgba(232,196,106,0.55)";
+      const cx2 = dir > 0 ? L - step * 0.9 : step * 0.9, cy2 = T / 2;
+      ctx.beginPath();
+      const P2 = (a, b2) => (vert ? [b2, a] : [a, b2]);
+      ctx.moveTo(...P2(cx2 + dir * 3, cy2)); ctx.lineTo(...P2(cx2 - dir * 3, cy2 - 4)); ctx.lineTo(...P2(cx2 - dir * 3, cy2 + 4));
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
     function drawInterior(b, floor, alpha) {
       if (alpha <= 0.01) return;
       const plan = buildingPlans(b)[floor];
@@ -15575,9 +16218,11 @@ export default function IronLionLayer004() {
             if (pat) {
               ctx.save();
               ctx.translate(r.x0, r.y0);
-              ctx.scale(0.16, 0.16);                  // 604px tile down to about a metre
+              // 604px tile down to about a metre, unless the room says how big one tile is
+              const ts = r.texTile ? r.texTile / tim.width : 0.16;
+              ctx.scale(ts, ts);
               ctx.fillStyle = pat;
-              ctx.fillRect(0, 0, (r.x1 - r.x0) / 0.16, (r.y1 - r.y0) / 0.16);
+              ctx.fillRect(0, 0, (r.x1 - r.x0) / ts, (r.y1 - r.y0) / ts);
               ctx.restore();
             }
           }
@@ -15598,6 +16243,80 @@ export default function IronLionLayer004() {
       const OWNED_BY_FLOOR = { slotbank: 1, cardtable: 1, wheeltable: 1 };
       for (const p of plan.props) {
         if (OWNED_BY_FLOOR[p.t]) continue;
+        // collision only -- a gy_block drawn as a coloured box would put a grey slab over the ring
+        if (p.t === "gy_block") continue;
+        // she is only parked here while she is in the building
+        if (p.t === "vh_rochelle_coupe" && !rochelleIn()) {
+          ctx.font = "700 8px system-ui, sans-serif"; ctx.fillStyle = "rgba(226,217,181,0.28)";
+          ctx.textAlign = "center"; ctx.fillText("RESERVED", p.x + p.w / 2, p.y + p.h - 10); ctx.textAlign = "start";
+          continue;
+        }
+        if (p.t === "stall_line") { ctx.fillStyle = "rgba(232,226,200,0.55)"; ctx.fillRect(p.x, p.y, p.w, p.h); continue; }
+        if (p.t === "ramp_marks") {
+          // chevrons pointing out, and the floor darkening toward daylight that is not there at night
+          ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.fillRect(p.x, p.y, p.w, p.h);
+          ctx.strokeStyle = "rgba(232,196,106,0.55)"; ctx.lineWidth = 4;
+          for (let k = 0; k < 3; k++) {
+            const yy = p.y + 12 + k * 18;
+            ctx.beginPath(); ctx.moveTo(p.x + p.w * 0.3, yy); ctx.lineTo(p.x + p.w * 0.5, yy + 10);
+            ctx.lineTo(p.x + p.w * 0.7, yy); ctx.stroke();
+          }
+          continue;
+        }
+        if (p.t === "pool") {
+          ctx.fillStyle = "#d8d4c8"; ctx.fillRect(p.x - 6, p.y - 6, p.w + 12, p.h + 12);      // coping
+          const wg = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.h);
+          wg.addColorStop(0, "#1e6f8c"); wg.addColorStop(1, "#0f4a66");
+          ctx.fillStyle = wg; ctx.fillRect(p.x, p.y, p.w, p.h);
+          ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.fillRect(p.x, p.y, p.w, 8);               // the wall's shadow in the water
+          ctx.strokeStyle = "rgba(190,236,250,0.22)"; ctx.lineWidth = 1.5;
+          for (let k = 0; k < 7; k++) {
+            const yy = p.y + 18 + k * (p.h - 30) / 6, ph = g.t * 1.4 + k;
+            ctx.beginPath();
+            for (let xx = 0; xx <= p.w - 20; xx += 10)
+              ctx.lineTo(p.x + 10 + xx, yy + Math.sin(ph + xx * 0.05) * 2.2);
+            ctx.stroke();
+          }
+          ctx.fillStyle = "rgba(255,255,255,0.5)";                                          // the ladder
+          ctx.fillRect(p.x + p.w - 22, p.y + 4, 2, 18); ctx.fillRect(p.x + p.w - 12, p.y + 4, 2, 18);
+          continue;
+        }
+        if (p.t === "lounger") {
+          ctx.fillStyle = "rgba(0,0,0,0.28)"; ctx.fillRect(p.x + 3, p.y + 4, p.w, p.h);
+          ctx.fillStyle = "#e8e2d2"; ctx.fillRect(p.x, p.y, p.w, p.h);
+          ctx.fillStyle = "#c8453a";
+          for (let k = 0; k < p.h; k += 8) ctx.fillRect(p.x + 2, p.y + k, p.w - 4, 4);
+          ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.fillRect(p.x, p.y, p.w, p.h * 0.28);
+          continue;
+        }
+        if (p.t === "elevator") {
+          /* Brushed doors, a frame, the seam, and the floor number lit over the top. The side
+             tells us which way it faces, so the doors are on the face you walk up to. */
+          const vertDoors = p.side === "e" || p.side === "w";
+          ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.fillRect(p.x + 3, p.y + 4, p.w, p.h);
+          ctx.fillStyle = "#3b3d44"; ctx.fillRect(p.x, p.y, p.w, p.h);                     // the car
+          ctx.fillStyle = "#1c1d22"; ctx.fillRect(p.x + 4, p.y + 4, p.w - 8, p.h - 8);
+          const near = liftNear() === p, open = near ? 0.5 + 0.5 * Math.sin(Math.min(1, (g.liftT || 0)) * 1.57) : 0;
+          const dg = ctx.createLinearGradient(p.x, p.y, p.x + p.w, p.y + p.h);
+          dg.addColorStop(0, "#9aa0a8"); dg.addColorStop(0.5, "#d4d8de"); dg.addColorStop(1, "#8a9098");
+          ctx.fillStyle = dg;
+          if (vertDoors) {
+            const face = p.side === "e" ? p.x : p.x + p.w - 8;
+            const gap = 3 + open * 8;
+            ctx.fillRect(face, p.y + 2, 8, p.h / 2 - gap / 2); ctx.fillRect(face, p.y + p.h / 2 + gap / 2, 8, p.h / 2 - gap / 2 - 2);
+          } else {
+            const face = p.side === "n" ? p.y + p.h - 8 : p.y;
+            const gap = 3 + open * 8;
+            ctx.fillRect(p.x + 2, face, p.w / 2 - gap / 2, 8); ctx.fillRect(p.x + p.w / 2 + gap / 2, face, p.w / 2 - gap / 2 - 2, 8);
+          }
+          ctx.fillStyle = near ? "rgba(255,196,90,0.95)" : "rgba(255,160,70,0.55)";
+          ctx.fillRect(p.x + p.w / 2 - 3, p.y + p.h / 2 - 3, 6, 6);                           // the call button
+          ctx.font = "700 9px ui-monospace, monospace"; ctx.textAlign = "center";
+          ctx.fillStyle = "rgba(255,190,90,0.9)";
+          ctx.fillText(liftLabel(b, floor, true), p.x + p.w / 2, p.y - 3);
+          ctx.textAlign = "start";
+          continue;
+        }
         if (DRAWN_PROP[p.t]) {
           if (p.t === "cellfloor") {
             ctx.fillStyle = "rgba(150,148,142,0.20)";
@@ -15739,29 +16458,51 @@ export default function IronLionLayer004() {
         if (d.v) ctx.fillRect(d.x - 2, d.y - 20, 4, 40);
         else ctx.fillRect(d.x - 20, d.y - 2, 40, 4);
       }
+      /* Drawn, not plated. Left half goes DOWN (it steps away to the left and gets darker, into
+         the floor below), right half goes UP (steps away to the right, each tread catching more
+         light than the one before). nearStair already splits the box at the same line. */
       const st = plan.stair;
-      const stUp = imgs.current.st_up, stDown = imgs.current.st_down;
-      const halfW2 = st.w / 2;
-      if (stUp && stUp.width && stDown && stDown.width) {
-        ctx.fillStyle = "rgba(22,23,26,0.95)"; ctx.fillRect(st.x, st.y, st.w, st.h);
-        if (floor > 0) ctx.drawImage(stDown, st.x + 2, st.y + 2, halfW2 - 4, st.h - 4);
-        if (floor < b.floors - 1) ctx.drawImage(stUp, st.x + halfW2 + 2, st.y + 2, halfW2 - 4, st.h - 4);
-      } else {
-        ctx.fillStyle = "rgba(22,23,26,0.95)"; ctx.fillRect(st.x, st.y, st.w, st.h);
-        ctx.fillStyle = "rgba(150,152,158,0.35)";
-        for (let x = st.x + 4; x < st.x + st.w / 2 - 4; x += 8) ctx.fillRect(x, st.y + 5, 4, st.h - 10);
-        for (let x = st.x + st.w / 2 + 4; x < st.x + st.w - 4; x += 8) ctx.fillRect(x, st.y + 5, 4, st.h - 10);
-        ctx.fillStyle = "rgba(217,164,65,0.85)";
-        if (floor > 0) ctx.fillRect(st.x + 6, st.y + st.h / 2 - 2, 14, 4);
-        if (floor < b.floors - 1) ctx.fillRect(st.x + st.w - 20, st.y + st.h / 2 - 2, 14, 4);
+      if (st.w > 0) {
+        const hw = st.w / 2;
+        ctx.fillStyle = "rgba(0,0,0,0.38)";
+        ctx.fillRect(st.x + 3, st.y + 4, st.w, st.h);                      // the well's own shadow
+        if (floor > 0) drawFlight(st.x, st.y, hw, st.h, -1, false);
+        else { ctx.fillStyle = "#34353a"; ctx.fillRect(st.x, st.y, hw, st.h); }
+        if (floor < b.floors - 1) drawFlight(st.x + hw, st.y, hw, st.h, 1, true);
+        else { ctx.fillStyle = "#34353a"; ctx.fillRect(st.x + hw, st.y, hw, st.h); }
+        ctx.fillStyle = "#1a1b1f"; ctx.fillRect(st.x + hw - 1.5, st.y, 3, st.h);   // the spine wall
       }
+      /* A Neon Flats house matches its roof: walls in the house's pastel, and a neon cove line
+         running down the middle of every wall in the same colour as the tubes outside. Brighter
+         in the basement, where the bedrooms are and there is no daylight to compete with.
+         Rochelle's is charcoal with one violet line, like the strip on her roof. */
+      const nfHue = b.nf ? NF.hue[(b.nfIdx || 0) % NF.hue.length] : null;
       for (const w of plan.walls) {
-        ctx.fillStyle = isDen ? PF("den_wall", "#3a3c3e") : PF("wall" + wtier, `hsl(${26 + b.tone * 20}, 9%, ${32 + b.tone * 8}%)`);
+        ctx.fillStyle = nfHue
+          ? (b.rochelle ? "#2c2c31" : `hsl(${nfHue[1]}, 34%, ${floor === 0 ? 30 : 44}%)`)
+          : isDen ? PF("den_wall", "#3a3c3e") : PF("wall" + wtier, `hsl(${26 + b.tone * 20}, 9%, ${32 + b.tone * 8}%)`);
         ctx.fillRect(w.x, w.y, w.w, w.h);
         ctx.fillStyle = "rgba(0,0,0,0.45)";
         ctx.fillRect(w.x, w.y + w.h - 3, w.w, 3);
       }
-      if (floor === 0) {
+      if (nfHue) {
+        const col = b.rochelle ? "#b877ff" : nfHue[0];
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        for (const w of plan.walls) {
+          const horiz2 = w.w >= w.h;
+          ctx.globalAlpha = alpha * (floor === 0 ? 0.22 : 0.12);
+          ctx.fillStyle = col;
+          if (horiz2) ctx.fillRect(w.x, w.y + w.h / 2 - 5, w.w, 10);
+          else ctx.fillRect(w.x + w.w / 2 - 5, w.y, 10, w.h);
+          ctx.globalAlpha = alpha * (floor === 0 ? 0.95 : 0.75);
+          if (horiz2) ctx.fillRect(w.x, w.y + w.h / 2 - 0.9, w.w, 1.8);
+          else ctx.fillRect(w.x + w.w / 2 - 0.9, w.y, 1.8, w.h);
+        }
+        ctx.restore();
+        ctx.globalAlpha = alpha;
+      }
+      if (floor === (b.entry || 0)) {
         const dp = doorPoint(b);
         ctx.fillStyle = "rgba(217,164,65,0.6)";
         ctx.fillRect(dp[0] - 13, dp[1] - 5, 26, 10);
@@ -15797,6 +16538,10 @@ export default function IronLionLayer004() {
        an unbuilt Benny's reads red and a Taco Crazy reads orange before any art exists. */
     // the luxury and motel sets: plate named the same as the key, one wood tone as fallback
     for (const k of LX_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#6a5947"; SOLID_PROP[k] = 1; }
+    /* A RUG IS WALKED ON. Every luxury key was made solid in one line, the rug with it -- and the
+       rug goes in the middle of the hall, beside the stairs, in the narrowest room in the house.
+       It cut every lux hall in two: in Arden, and in Rochelle's, where it sealed half of both floors. */
+    delete SOLID_PROP.lx_rug;
     for (const k of CAFE_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#5e7a72"; SOLID_PROP[k] = 1; }
     for (const k of SHOP_KEYS) { PROP_ART[k] = k;
       if (!PROP_COL[k]) PROP_COL[k] = k[0] === "j" ? "#6d5a2e" : "#5a4a38"; SOLID_PROP[k] = 1; }
@@ -15805,6 +16550,18 @@ export default function IronLionLayer004() {
       for (const q of [kk.counter, kk.back, kk.stool, kk.booth, kk.table, kk.till].concat(kk.extra)) {
         PROP_ART[q] = q; if (!PROP_COL[q]) PROP_COL[q] = kk.tint; SOLID_PROP[q] = 1; } }
     for (const k of MO_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#7a6a52"; SOLID_PROP[k] = 1; }
+    /* The gym. NOT solid by key -- a square footprint round a heavy bag is far bigger than the
+       bag, and the ring is the thing you climb into. Collision is the gy_block list, which
+       carries the tuned boxes. The fallback colour is a dull canvas so a missing plate reads as
+       gym kit rather than as anonymous grey. */
+    for (const k of GYM_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#5b544a"; }
+    // the tower: the Deuce's own cars stop yours, and so does the lift
+    for (const k of ["vh_julian_suv", "vh_damian_suv", "vh_rochelle_coupe"]) {
+      PROP_ART[k] = k; PROP_COL[k] = "#1f2228"; SOLID_PROP[k] = 1; }
+    SOLID_PROP.elevator = 1;
+    // the club: green leather and brass until the plates land
+    for (const k of DW_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#2f5a3a";
+                               if (DW_SOLID[k]) SOLID_PROP[k] = 1; }
     for (const c in FF_KIT) {
       const k = FF_KIT[c];
       for (const q of [k.counter, k.boothL, k.boothS, k.menu, k.soda, k.staff].concat(k.cook)) {
@@ -15863,6 +16620,10 @@ export default function IronLionLayer004() {
            Shrunk 6 units on each side so you can brush past a table rather than catching on a
            corner you cannot see from above. */
         for (const p of plan.props) {
+          /* `hard` is a box that was sized on purpose -- a ring rope is 28 thick and a bench is
+             14 deep, and both of the rules below would have deleted them. Exact, not shrunk. */
+          if (p.hard) { list.push({ x: p.x, y: p.y, w: p.w, h: p.h }); continue; }
+          if (p.t === "vh_rochelle_coupe" && !rochelleIn()) continue;
           if (!SOLID_PROP[p.t]) continue;
           if (p.w < 26 || p.h < 26) continue;
           list.push({ x: p.x + 6, y: p.y + 6, w: p.w - 12, h: p.h - 12 });
@@ -15926,6 +16687,71 @@ export default function IronLionLayer004() {
       return null;
     }
 
+    /* ROCHELLE. She manages events on the strip, so she is at the tower after dark and in the
+       Flats by day -- which is exactly the pattern Damian watches, and the only thing the basement
+       has to know about her. When there is a real schedule this is the one function to replace. */
+    function rochelleIn() { return (g.night || 0) > 0.45; }
+    /* A car can be indoors on the den's bay and on the tower's car park. Everywhere else a vehicle
+       is thrown back into the street the frame it gets inside. */
+    function garageHere() {
+      return !!(g.inside && g.floor === 0 && (g.inside.kind === "den" || g.inside.carpark));
+    }
+    function liftOf(b, f) {
+      const plan = b && (buildingPlans(b) || [])[f];
+      return plan ? plan.props.find((q) => q.t === "elevator") || null : null;
+    }
+    function liftNear() {
+      if (!g.inside || !g.inside.lift || g.mode !== "foot") return null;
+      const e = liftOf(g.inside, g.floor);
+      if (!e) return null;
+      return Math.hypot(g.p.x - e.fx, g.p.y - e.fy) < 44 ||
+             Math.hypot(g.p.x - (e.x + e.w / 2), g.p.y - (e.y + e.h / 2)) < 58 ? e : null;
+    }
+    /* What a floor is called on the panel. The tower reads its own plan; any other lift building
+       numbers its floors, with the lobby and the top named when they are something. */
+    function liftLabel(b, f, short) {
+      if (b.kind === "vance") {
+        const fl = TOWER.floors[f];
+        if (short) return f === 0 ? "P" : f === 1 ? "L" : String(f - 1);
+        return fl ? fl.nm : "FLOOR " + f;
+      }
+      const e = b.entry || 0;
+      if (short) return f === e ? "L" : String(f - e);
+      if (f === e) return "LOBBY";
+      if (b.hqTower && f === b.floors - 1) return "KINGS HQ";
+      return "FLOOR " + (f - e);
+    }
+    function liftFloorsList() {
+      const b = g.inside;
+      return g.liftOpen && b ? Array.from({ length: b.floors }, (_, f) => ({
+        f, nm: liftLabel(b, f), n: liftLabel(b, f, true),
+        lock: !!(b.kind === "vance" && TOWER.floors[f] && TOWER.floors[f].lock) })).reverse() : null;
+    }
+    function liftPush() {
+      setHud((h) => ({ ...h, liftOpen: !!g.liftOpen, liftFloors: liftFloorsList(), liftCur: g.floor }));
+    }
+    function liftGo(f) {
+      const b = g.inside;
+      if (!b || f == null) return;
+      g.liftOpen = false; g.paused = false;
+      if (f !== g.floor) {
+        const fl = b.kind === "vance" ? TOWER.floors[f] : null;
+        if (fl && fl.lock) {
+          g.pickupFlash = { nm: "lift:" + fl.nm + " \u00b7 LOCKED", t: 1.8 };
+        } else {
+          const e = liftOf(b, f);
+          g.floor = f;
+          if (e) { g.p.x = e.fx; g.p.y = e.fy; }
+          g.p.vx = 0; g.p.vy = 0;
+          g.liftT = 0;
+          g.pickupFlash = { nm: "lift:" + liftLabel(b, f), t: 1.6 };
+        }
+      }
+      liftPush();
+    }
+    G.liftNearFn = () => !!liftNear();
+    G.liftPushFn = liftPush;
+    G.liftGoFn = liftGo;
     function nearStair() {
       if (!g.inside) return 0;
       const st = buildingPlans(g.inside)[g.floor].stair;
@@ -20196,9 +21022,35 @@ export default function IronLionLayer004() {
       ctx.fillText(text, x, by + 9);
       ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
     }
+    const pickLine = (a) => a[(Math.random() * a.length) | 0];
+    /* A line for this addict, weighted: their own two lines sometimes, the deep pool once the
+       meter is high enough that the ring has closed its second zone, the mutter otherwise. */
+    function skyLine(p) {
+      const own = SKY_LINES.own[p.yt];
+      const r = Math.random();
+      if (own && r < 0.16) return pickLine(own);
+      if ((g.sky || 0) >= SKY.steps[1] && r < 0.46) return pickLine(SKY_LINES.deep);
+      return pickLine(SKY_LINES.mutter);
+    }
+    function skyChatter(p, dt) {
+      const pv = g.p;
+      if (!Number.isFinite(pv.x)) return;
+      const d = Math.hypot(pv.x - p.x, pv.y - p.y);
+      if (d > SKY_LINES.hear) return;              // nobody to see it, nothing to draw
+      p.skyCd = Math.max(0, (p.skyCd || 0) - dt);
+      /* YOU, on foot and close: they notice. Not every time and not twice in a row, or walking
+         past a corner of them turns into a wall of speech bubbles. */
+      if (d < SKY_LINES.near && !inVehicle() && p.skyCd <= 0) {
+        p.skyCd = SKY_LINES.askCd[0] + Math.random() * SKY_LINES.askCd[1];
+        if (Math.random() < 0.55) { p.line = pickLine(SKY_LINES.ask); p.say = 2.6; return; }
+      }
+      /* To nobody. No listener needed and no idle needed -- they talk while they walk. */
+      if (Math.random() < dt * SKY_LINES.rate) { p.line = skyLine(p); p.say = 2.4 + Math.random() * 1.2; }
+    }
     function updateChatter(dt) {
       for (const p of g.peds) {
         if (p.say > 0) { p.say -= dt; continue; }
+        if (p.sky) { skyChatter(p, dt); continue; }
         if (p.mode !== "idle" && p.mode !== "wait") continue;
         if (Math.random() > dt * 0.09) continue;
         // only speak if somebody is close enough to hear
@@ -20211,7 +21063,8 @@ export default function IronLionLayer004() {
         if (!near) continue;
         p.say = 2.8;
         p.line = CIV_LINES[(Math.random() * CIV_LINES.length) | 0];
-        if (near.say <= 0) { near.say = 2.4; near.line = CIV_LINES[(Math.random() * CIV_LINES.length) | 0]; }
+        /* Talked at by a civilian, an addict answers with whatever is in his head. */
+        if (near.say <= 0) { near.say = 2.4; near.line = near.sky ? skyLine(near) : CIV_LINES[(Math.random() * CIV_LINES.length) | 0]; }
       }
     }
 
@@ -22233,6 +23086,10 @@ export default function IronLionLayer004() {
         };
         {
           if (kind === "arcade") musicPlay("arcade");
+          /* THE KINGS' TRACK, in the Kings' own room. Registered and never asked for; the top
+             floor of the HQ tower is the one place in the city that is unambiguously theirs. */
+          else if (kind === "tower" && g.inside.hqTower && g.floor === g.inside.floors - 1)
+            musicPlay("gang_kings");
           else if (kind === "bandvenue") {
             /* Always a band, day or night -- it is a music venue, and gating the audio on
                darkness meant walking in during the afternoon was silent, which read as broken.
@@ -22683,6 +23540,28 @@ export default function IronLionLayer004() {
       vegQ = [];
       ctx.fillStyle = PF("lot", C.asphalt);
       ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+      /* BLACKTOP IN THE FLATS. The road is whatever the blocks do not cover, so this is one
+         patterned fill across the district before the blocks go down -- the lane paint and the
+         kerbs still draw over it. Anchored to the world origin, so it never swims with the
+         camera. It runs a street's width past the district so the boundary roads are all one
+         surface, not half and half. */
+      {
+        const bt = imgs.current.tx_blacktop, Z = NF.cells;
+        const rx0 = SX(Z.i0) - 240, ry0 = SX(Z.j0) - 240, rx1 = SX(Z.i1 + 1) + 240, ry1 = SX(Z.j1 + 1) + 240;
+        if (bt && bt.width && x1 > rx0 && x0 < rx1 && y1 > ry0 && y0 < ry1) {
+          const pat = ctx.createPattern(bt, "repeat");
+          if (pat) {
+            const sc = NF.roadTile / bt.width;
+            const ax0 = Math.max(x0, rx0), ay0 = Math.max(y0, ry0), ax1 = Math.min(x1, rx1), ay1 = Math.min(y1, ry1);
+            ctx.save();
+            ctx.beginPath(); ctx.rect(ax0, ay0, ax1 - ax0, ay1 - ay0); ctx.clip();
+            ctx.scale(sc, sc);
+            ctx.fillStyle = pat;
+            ctx.fillRect(ax0 / sc, ay0 / sc, (ax1 - ax0) / sc, (ay1 - ay0) / sc);
+            ctx.restore();
+          }
+        }
+      }
 
       const i0 = clamp(Math.floor(x0 / PITCH) - 1, 0, N - 1), i1 = clamp(Math.ceil(x1 / PITCH), 0, N - 1);
       const j0 = clamp(Math.floor(y0 / PITCH) - 1, 0, N - 1), j1 = clamp(Math.ceil(y1 / PITCH), 0, N - 1);
@@ -23661,13 +24540,36 @@ export default function IronLionLayer004() {
 
         /* Two platforms, one each side of the running line. The 54-wide track down the middle is
            left clear -- that is where the train pulls in. */
-        ctx.fillStyle = "rgba(28,28,32,0.35)";
-        if (vert) {
-          ctx.fillRect(x0 + 6, y0 + 8, AC - 33, (y1 - y0) - 16);
-          ctx.fillRect(p.x + 27, y0 + 8, AC - 33, (y1 - y0) - 16);
-        } else {
-          ctx.fillRect(x0 + 8, y0 + 6, (x1 - x0) - 16, AC - 33);
-          ctx.fillRect(x0 + 8, p.y + 27, (x1 - x0) - 16, AC - 33);
+        const plats = vert
+          ? [[x0 + 6, y0 + 8, AC - 33, (y1 - y0) - 16], [p.x + 27, y0 + 8, AC - 33, (y1 - y0) - 16]]
+          : [[x0 + 8, y0 + 6, (x1 - x0) - 16, AC - 33], [x0 + 8, p.y + 27, (x1 - x0) - 16, AC - 33]];
+        /* STEEL DECK PLATE. tx_deckplate was cut and registered for exactly this and nothing ever
+           drew it -- the platforms were a translucent grey wash. A pattern, not a stretched image:
+           the tread is a repeating texture and it must stay the same size on a long station and
+           a short one. PLATE_TILE is one tile's width in world units, about a sheet of plate. The
+           anchor is the platform's own corner, so the tread does not crawl as the camera moves.
+           Missing file: the old grey wash, exactly as it was. */
+        const PLATE_TILE = 44;
+        const dk = imgs.current.tx_deckplate;
+        const dpat = dk && dk.width ? ctx.createPattern(dk, "repeat") : null;
+        for (const [px0, py0, pw, ph] of plats) {
+          if (pw <= 0 || ph <= 0) continue;
+          if (dpat) {
+            const sc = PLATE_TILE / dk.width;
+            ctx.save();
+            ctx.beginPath(); ctx.rect(px0, py0, pw, ph); ctx.clip();
+            ctx.translate(px0, py0);
+            ctx.scale(sc, sc);
+            ctx.fillStyle = dpat;
+            ctx.fillRect(0, 0, pw / sc, ph / sc);
+            ctx.restore();
+            // a little of the night on the steel, so it sits with the slab instead of shining
+            ctx.fillStyle = "rgba(20,20,24,0.18)";
+            ctx.fillRect(px0, py0, pw, ph);
+          } else {
+            ctx.fillStyle = "rgba(28,28,32,0.35)";
+            ctx.fillRect(px0, py0, pw, ph);
+          }
         }
         // yellow edge line along the platform lip, both sides
         ctx.fillStyle = "rgba(214,176,60,0.85)";
@@ -23686,14 +24588,9 @@ export default function IronLionLayer004() {
           ctx.fillStyle = "rgba(0,0,0,0.32)";
           ctx.fillRect(sx + 8 + Math.min(0, dx * len), sy + 10 + Math.min(0, dy * len),
                        dx ? len : wid, dy ? len : wid);
-          ctx.fillStyle = "#4a4844";
-          ctx.fillRect(sx + Math.min(0, dx * len), sy + Math.min(0, dy * len),
-                       dx ? len : wid, dy ? len : wid);
-          ctx.fillStyle = "rgba(18,18,20,0.55)";
-          for (let u = 6; u < len; u += 9) {
-            if (dx) ctx.fillRect(sx + (dx > 0 ? u : -u), sy, 3, wid);
-            else ctx.fillRect(sx, sy + (dy > 0 ? u : -u), wid, 3);
-          }
+          // a real flight now, going DOWN away from the deck -- the street is below you
+          drawFlight(sx + Math.min(0, dx * len), sy + Math.min(0, dy * len),
+                     dx ? len : wid, dy ? len : wid, dx || dy, false, !!dy);
         };
         if (vert) {
           stair(x0 - 30, y0 + 6, -1, 0); stair(x1, y0 + 6, 1, 0);
@@ -23961,11 +24858,13 @@ export default function IronLionLayer004() {
       for (const p of g.peds) {
         const d = Math.hypot(p.x - x, p.y - y);
         if (d > r) continue;
+        // before the branch, so they flinch whoever fired -- and still run if it was the Lion
+        if (p.sky && !(p.say > 0) && Math.random() < 0.5) { p.line = pickLine(SKY_LINES.flinch); p.say = 1.8; }
         /* Only the Lion empties a street. The other two get looked at and complained about. */
         if (g.who === "lion") {
           p.mode = "panic";
           p.timer = Math.max(p.timer || 0, 2.6 + Math.random() * 2);
-        } else if (Math.random() < 0.35 && !(p.say > 0)) {
+        } else if (Math.random() < 0.35 && !(p.say > 0) && !p.sky) {
           p.line = reactLine(); p.say = 1.7;
         }
         p.fx = p.x - x; p.fy = p.y - y;
@@ -24862,7 +25761,7 @@ export default function IronLionLayer004() {
             const a = Math.atan2(cy2 - g.p.y, cx2 - g.p.x);
             g.p.x += Math.cos(a) * 30; g.p.y += Math.sin(a) * 30;
             g.p.vx = 0; g.p.vy = 0;
-          } else if (db && g.inside === db && g.floor === 0 && moving) {
+          } else if (db && g.inside === db && g.floor === (db.entry || 0) && moving) {
             g.inside = null; g.doorCd = 1.6;
             const cx2 = db.x + db.w / 2, cy2 = db.y + db.h / 2;
             const a = Math.atan2(g.p.y - cy2, g.p.x - cx2);
@@ -25023,9 +25922,9 @@ export default function IronLionLayer004() {
         stepDistros(dt);
         stepFly(dt);
         stadiumClamp();
-        gymClamp();
         placeMarks();
         stepClub(dt);
+        stepCamps(dt);
         marksClamp();
         g.skyPush = onTop ? 1 : 0;
         g.sky = Math.max(0, Math.min(SKY.max,
@@ -25146,11 +26045,12 @@ export default function IronLionLayer004() {
       if (g.busInfo) g.busInfo.t -= dt;
       if (g.pickupFlash) { g.pickupFlash.t -= dt; if (g.pickupFlash.t <= 0) g.pickupFlash = null; }
       g.insideT = lerp(g.insideT, g.inside ? 1 : 0, clamp(dt * 5, 0, 1));
-      if (g.inside && inVehicle() && g.inside.kind !== "den") g.inside = null;
+      g.liftT = (g.liftT || 0) + dt;
+      if (g.inside && inVehicle() && !garageHere()) g.inside = null;
       // This clause hardcoded g.mode === "car" and g.car. On the bike you drove out of the
       // den and stayed flagged inside it forever: interior dimming, exterior culled, no way
       // back out. Any ridden vehicle leaves the footprint the same way.
-      if (g.inside && g.inside.kind === "den" && inVehicle()) {
+      if (garageHere() && inVehicle()) {
         const b = g.inside, v = activeVeh();
         if (v && (v.x < b.x - 4 || v.x > b.x + b.w + 4 || v.y < b.y - 4 || v.y > b.y + b.h + 4)) {
           g.inside = null;
@@ -25188,7 +26088,14 @@ export default function IronLionLayer004() {
       const e = inVehicle() ? activeVeh() : g.p;
       const evx = inVehicle() ? activeVeh().vx : g.p.vx;
       const evy = inVehicle() ? activeVeh().vy : g.p.vy;
-      if (!g.title) {
+      /* THE CHOPPER WAS NOT SHAKING, IT WAS BEING DRAGGED. stepFly put the camera over her, and
+         this block then lerped it 7% of the way back toward the man standing on the ground --
+         every frame, by an amount that depended on the frame time. The comment on stepFly says
+         it runs after this; it had been moved, and runs before. So the follow camera now simply
+         does not follow the ground while she is up, and street impacts do not reach the air. */
+      if (g.fly && Number.isFinite(g.fly.x)) {
+        g.cam.x = g.fly.x; g.cam.y = g.fly.y; g.shake = 0;
+      } else if (!g.title) {
       const tx = e.x + clamp(evx * 0.35, -180, 180);
       const ty = e.y + clamp(evy * 0.35, -180, 180);
       g.cam.x = lerp(g.cam.x, tx, clamp(dt * 4.2, 0, 1));
@@ -25197,6 +26104,11 @@ export default function IronLionLayer004() {
       const base = Math.min(W, H);
       const tz = (inVehicle() ? base / (1060 + sp * 0.6) : base / 760) * zoomRef.current;
       g.cam.z = lerp(g.cam.z, clamp(tz, 0.16, 3.2), clamp(dt * 3, 0, 1));
+      }
+      if (g.fly) {
+        // a steady altitude: the ground man's speed has nothing to say about the zoom up here
+        const tzF = (Math.min(W, H) / 1400) * zoomRef.current;
+        g.cam.z = lerp(g.cam.z, clamp(tzF, 0.16, 3.2), clamp(dt * 2, 0, 1));
       }
 
       // render
@@ -25373,9 +26285,9 @@ export default function IronLionLayer004() {
         if (p.x < view.x0 || p.x > view.x1 || p.y < view.y0 || p.y > view.y1) continue;
         drawList.push([p.y, 0, p]);
       }
-      if (!g.inside || (g.inside.kind === "den" && g.floor === 0)) drawList.push([g.car.y, 1, null]);
-      if (!g.inside || (g.inside.kind === "den" && g.floor === 0)) drawList.push([g.moto.y, 7, null]);
-      if (!g.inside || (g.inside.kind === "den" && g.floor === 0)) drawList.push([g.civ.y, 8, null]);
+      if (!g.inside || garageHere()) drawList.push([g.car.y, 1, null]);
+      if (!g.inside || garageHere()) drawList.push([g.moto.y, 7, null]);
+      if (!g.inside || garageHere()) drawList.push([g.civ.y, 8, null]);
       if (g.mode === "foot" && !g.roof) drawList.push([g.p.y, 2, null]);
       drawList.sort((a, b) => a[0] - b[0]);
       for (const [, kind, p, extra] of drawList) {
@@ -25468,8 +26380,8 @@ export default function IronLionLayer004() {
       stepDog();
       drawStadium();
       drawClub();
-      drawGym();
       drawMarks();
+      drawNeonFlats(view);
       drawDistros();
       drawChopPad();
       drawFly();
@@ -25508,7 +26420,7 @@ export default function IronLionLayer004() {
       g.barList = null;
       if (!g.inside) { drawLampPosts(view); drawPolesAndWires(view); }
       if (!g.inside) {
-        for (const p of g.peds) if (p.say > 0 && p.line) bubble(p.x, p.y, p.line);
+        for (const p of g.peds) if (p.say > 0 && p.line) bubble(p.x, p.y, p.line, p.sky ? SKY_LINES.tint : undefined);
         for (const u of policeUnits()) if (u.say > 0) bubble(u.x, u.y, u.line, "#7fb0e0");
         if (g.detectives) for (const u of g.detectives.units) if (u.say > 0)
           bubble(u.x, u.y, u.line, g.detectives.corrupt ? "#c88a4a" : "#d0c090");
@@ -25605,7 +26517,9 @@ export default function IronLionLayer004() {
             board: !!g.board.on, hasBoard: !!g.board.has, atRack: atRack(),
             cab: g.cab ? g.cab.g : null,
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
+            atLift: !!liftNear(), liftOpen: !!g.liftOpen,
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
+            liftFloors: liftFloorsList(), liftCur: g.floor,
             lion: Math.round(g.lion), lionOn: !!g.lionOn, plain: !!g.plain,
             atTruck: (() => { const t = nearTruck(); return t ? t.name : null; })(),
             atTable: nearTable() || !!nearDealer(),
@@ -25785,10 +26699,15 @@ export default function IronLionLayer004() {
             detNamed: !!(g.detectives && g.detectives.named),
             heat: g.crews.some((c) => c.state === "hostile") ? 2 : g.crews.some((c) => c.state === "watch") ? 1 : 0,
             inside: !!g.inside, floor: g.floor, floors: g.inside ? g.inside.floors : 0,
-            fkind: g.inside ? floorKind(g.inside, g.floor) : "",
+            fkind: g.inside ? (g.inside.kind === "nfhouse" && g.floor === 0 ? "basement" : floorKind(g.inside, g.floor)) : "",
             venue: g.inside ? (g.inside.kind === "club" ? "THE GILDED CROWN"
+              : g.inside.capPlate === "ct_club" ? "DEUCE'S WILD"
+              : g.inside.capPlate === "ct_gym" ? "NORTH END GYM"
               : g.inside.kind === "terminal" ? "RAT CENTRAL TERMINAL"
               : g.inside.kind === "tower" && g.inside.hqTower && g.floor === g.inside.floors - 1 ? "KINGS HQ — TOP FLOOR"
+              : g.inside.kind === "vance" ? "VANCE TOWER · " + ((TOWER.floors[g.floor] || {}).nm || "")
+              : g.inside.rochelle ? "ROCHELLE'S"
+              : g.inside.kind === "nfhouse" ? "NEON FLATS"
               : "") : "",
             door: !!(G.doorFn && G.doorFn()), stair: G.stairFn ? G.stairFn() : 0,
             entry: g.inside ? (g.inside.entry || 0) : 0,
@@ -25839,9 +26758,12 @@ export default function IronLionLayer004() {
       const nearX = v.x > b.x - 60 && v.x < b.x + b.w + 60;
       const nearY = v.y > b.y + b.h - 40 && v.y < b.y + b.h + 130;   // the back of the building
       if (!nearX || !nearY) return null;
-      return { ...b, entry: -1,
+      /* The REAL building, not a copy -- `{...b}` made a second object, so nothing that asks
+         "am I in the tower" could ever say yes -- and floor 0, the car park. It was entry: -1,
+         which is not an index into anything: the interior had no plan to draw. */
+      return { _b: b, _floor: 0,
         _px: b.x + b.w / 2, _py: b.y + b.h - 60,
-        _cx: b.x + b.w * 0.5, _cy: b.y + b.h * 0.72 };
+        _cx: b.x + b.w * 0.5, _cy: b.y + b.h - 96 };
     }
     G.stairFn = nearStair; G.doorFn = nearbyDoor; G.strikeFn = strike;
     /* One door function for both. The den is checked first because it is the one you use most
@@ -25851,6 +26773,7 @@ export default function IronLionLayer004() {
     G.consoleFn = nearConsole; G.travelListFn = travelList; G.travelFn = doTravel;
     G.travelPushFn = () => setHud((h) => ({ ...h, travelOpen: !!g.travelOpen,
       travel: g.travelOpen ? travelList().map((t) => t.name) : null,
+      liftFloors: liftFloorsList(), liftCur: g.floor, liftOpen: !!g.liftOpen,
       travelAll: !!g.travelAll }));
     G.garageFn = nearGarageBay; G.garageTakeFn = takeFromGarage; G.garagePickFn = garageReplace;
     G.lockerFn = nearLocker;
@@ -28419,7 +29342,10 @@ export default function IronLionLayer004() {
        and they land between 240 and 660, which is the range the rest of the city lives in.
        The courthouse and the works are the widest because they should be. */
     const MARKS = [
-      { k: "ct_gym",        i: 2,  j: 1, w: 0.32, h: 0.24, ox: -0.26, oy: -0.24, floors: 2 },
+      /* kind + door: a mark defaulted to "store", so the gym was a shop with shelves in it.
+         The door is centred so you walk in facing the ring steps. */
+      { k: "ct_gym",        i: 2,  j: 1, w: 0.32, h: 0.24, ox: -0.26, oy: -0.24, floors: 2,
+        kind: "gym", door: 0.5 },
       { k: "ct_walkup",     i: 1,  j: 0, w: 0.34, h: 0.22 },
       { k: "ct_store",      i: 4,  j: 1, w: 0.24, h: 0.18 },
       { k: "ct_courthouse", i: 14, j: 5, w: 0.44, h: 0.30 },
@@ -28436,7 +29362,11 @@ export default function IronLionLayer004() {
          cell and the middle of a cell in this city is the ROAD -- which is why the tower was
          standing in the street. `ox`/`oy` are fractions of a cell, so the whole list can be
          moved off the tarmac the same way when the rest of them need it. */
-      { k: "ct_tower_cap",  i: 8,  j: 9, w: 0.40, h: 0.40, ox: -0.26, oy: -0.26, floors: 7 },
+      /* A REAL TOWER NOW. It was a default `store` seven times over. kind "vance" reads TOWER for
+         its floors; entry 1 puts the car park underneath; the front door goes north and the ramp
+         is cut into the south wall, which is where TOWER.back always said the garage was. */
+      { k: "ct_tower_cap",  i: 8,  j: 9, w: 0.40, h: 0.40, ox: -0.26, oy: -0.26, floors: 8,
+        kind: "vance", entry: 1, door: 0.5, doorSide: 0, lift: true, carpark: true },
       /* DEUCE'S WILD. Neon Flats, one block off the tower -- the club and the home should be
          walkable from each other, because that walk is the thing Damian watches Rochelle make. */
       /* Moved off the expressway exit. It was at 7,12 with a negative offset, which put it on
@@ -28445,124 +29375,35 @@ export default function IronLionLayer004() {
          Now one cell south and offset into the block rather than out of it, and narrowed to
          0.34 so it fits a single lot instead of straddling two. If it is still off, `ox` and
          `oy` are fractions of a cell: -0.5 to +0.5 covers the whole square. */
-      { k: "ct_club",       i: 7,  j: 13, w: 0.34, h: 0.26, ox: 0.18, oy: -0.06, floors: 2 },
+      /* "nightclub", not "club": `club` is the Gilded Crown's identity and a dozen sites look it
+         up by kind. The nightclub plan is the generic one -- vestibule, floor, bar, booths, back
+         room -- and until now Deuce's Wild was a corner shop with a crowd standing in the aisles. */
+      { k: "ct_club",       i: 7,  j: 13, w: 0.34, h: 0.26, ox: 0.18, oy: -0.06, floors: 2,
+        kind: "nightclub", door: 0.5, doorSide: 0 },
       /* The rest of North End and the works. Spread along the two free rows rather than stacked
          on one street, so the district reads as a neighbourhood and not a parade. */
+      /* NEON FLATS. Two houses a lot on 7,14 / 7,15 / 6,15, staggered so a street does not read as
+         a row of identical boxes; each footprint follows its own plate's aspect so nothing is
+         stretched. `face` turns the door to the nearest street, like faceDoor does for the city. */
+      { k: "nf_house_1",   i: 7, j: 14, w: 0.18, h: 0.18, ox: -0.18, oy: -0.12, floors: 2, kind: "nfhouse", entry: 1, face: 1, nf: 0 },
+      { k: "nf_house_2",   i: 7, j: 14, w: 0.30, h: 0.155, ox: 0.17, oy: 0.16,  floors: 2, kind: "nfhouse", entry: 1, face: 1, nf: 1 },
+      { k: "nf_house_3",   i: 7, j: 15, w: 0.20, h: 0.18, ox: 0.18, oy: -0.14,  floors: 2, kind: "nfhouse", entry: 1, face: 1, nf: 2 },
+      { k: "nf_house_4",   i: 7, j: 15, w: 0.23, h: 0.185, ox: -0.17, oy: 0.14, floors: 2, kind: "nfhouse", entry: 1, face: 1, nf: 3 },
+      { k: "nf_house_5",   i: 6, j: 15, w: 0.19, h: 0.18, ox: -0.17, oy: -0.13, floors: 2, kind: "nfhouse", entry: 1, face: 1, nf: 4 },
+      { k: "nf_house_6",   i: 6, j: 15, w: 0.25, h: 0.19, ox: 0.16, oy: 0.14,   floors: 2, kind: "nfhouse", entry: 1, face: 1, nf: 5 },
+      /* ROCHELLE'S, at SAFEHOUSE -- the same cell as the club, on the other side of the lot. That
+         was already the canon coordinate; now there is a house on it. */
+      { k: "nf_rochelle",  i: 7, j: 13, w: 0.30, h: 0.24, ox: -0.20, oy: 0.18,  floors: 2, kind: "nfhouse", entry: 1, face: 1, nf: 5, rochelle: 1 },
       { k: "ct_barber",     i: 0,  j: 2, w: 0.20, h: 0.16 },
       { k: "ct_laundro",    i: 1,  j: 2, w: 0.20, h: 0.16 },
       { k: "ct_church",     i: 3,  j: 2, w: 0.22, h: 0.18 },
       { k: "ct_walkup",     i: 4,  j: 0, w: 0.34, h: 0.22 },
       { k: "ct_works",      i: 16, j: 7, w: 0.44, h: 0.28 },
     ];
-    /* ---------- THE GYM FLOOR ----------
-       Props laid out relative to the gym's own cell, in the order a real gym is arranged: ring
-       in the middle because everything faces it, bags along the north wall where the noise is,
-       iron on the east, the office and the lockers by the door.
-       Offsets are FRACTIONS of the footprint, not pixels, so re-sizing the gym moves the
-       furniture with it instead of leaving it in the street. */
-    /* ONE CELL, not two. Two cells is 142 metres of boxing gym -- bigger than the courthouse
-       and half the length of the stadium. The furniture is laid out in fractions of this, so
-       shrinking the box shrinks the whole room and the collision with it. */
-    const GYM_AT = { i: 2, j: 1, w: 0.32, h: 0.24 };
-    const GYM_FIT = [
-      ["gy_ring",        0.00,  0.05, 0.42],
-      ["gy_heavybag",   -0.34, -0.34, 0.09],
-      ["gy_speedbag",   -0.22, -0.36, 0.09],
-      ["gy_doubleend",  -0.11, -0.35, 0.07],
-      ["gy_standbag",    0.33, -0.33, 0.10],
-      ["gy_barbell",     0.40, -0.10, 0.13],
-      ["gy_bench_weight",0.41,  0.08, 0.12],
-      ["gy_dumbrack",    0.42,  0.26, 0.12],
-      ["gy_medballs",    0.31,  0.34, 0.08],
-      ["gy_desk",       -0.40,  0.28, 0.13],
-      ["gy_lockers",    -0.24,  0.36, 0.15],
-      ["gy_bench",      -0.05,  0.40, 0.14],
-      ["gy_ropes",      -0.43, -0.10, 0.10],
-      ["gy_mirror",     -0.43,  0.08, 0.11],
-      ["gy_firstaid",    0.13,  0.40, 0.07],
-      ["gy_bucket",      0.24,  0.41, 0.07],
-      ["gy_poster",     -0.30,  0.00, 0.08],
-      ["gy_belt",        0.00, -0.44, 0.10],
-      ["gy_photo_1",    -0.12, -0.45, 0.05],
-      ["gy_photo_2",    -0.05, -0.45, 0.05],
-      ["gy_photo_3",     0.09, -0.45, 0.05],
-      ["gy_photo_4",     0.16, -0.45, 0.05],
-    ];
-    /* WHAT YOU CANNOT WALK THROUGH. Fractions of the footprint like the layout above, so the
-       boxes move with the furniture and can never drift apart from it.
-       The RING is not in this list -- it is handled below, because it is the one thing here you
-       are supposed to get INTO, and a solid box would make the stairs a decoration. */
-    const GYM_SOLID = [
-      [-0.40,  0.28, 0.13, 0.09],   // desk
-      [-0.24,  0.36, 0.15, 0.07],   // lockers
-      [-0.05,  0.40, 0.14, 0.04],   // bench
-      [ 0.40, -0.10, 0.13, 0.09],   // barbell
-      [ 0.41,  0.08, 0.12, 0.08],   // weight bench
-      [ 0.42,  0.26, 0.12, 0.07],   // dumbbell rack
-      [ 0.33, -0.33, 0.10, 0.10],   // standing bag
-      [-0.34, -0.34, 0.09, 0.09],   // heavy bag
-    ];
-    /* THE RING. Solid on all four sides except a gap at the bottom centre, which is exactly
-       where the steps are drawn on the plate -- so the way in is the way the art says it is.
-       Once you are through the gap you are inside and the same walls hold you in, which is the
-       point of a ring. */
-    const RING = { hw: 0.19, hh: 0.19, gap: 0.05, step: 0.055 };
-    function gymClamp() {
-      if (g.inside || g.mode !== "foot" || !Number.isFinite(g.p.x)) return;
-      const x0 = SX(GYM_AT.i), y0 = SX(GYM_AT.j);
-      const w = GYM_AT.w * PITCH, h = GYM_AT.h * PITCH;
-      const cx = x0 + w / 2, cy = y0 + h / 2;
-      if (Math.hypot(g.p.x - cx, g.p.y - cy) > Math.max(w, h)) return;
-      const push = (bx, by, bw, bh) => {
-        const dx = g.p.x - bx, dy = g.p.y - by;
-        if (Math.abs(dx) > bw || Math.abs(dy) > bh) return false;
-        /* Out along the shallower overlap, which is what stops a man sliding round a corner. */
-        if (bw - Math.abs(dx) < bh - Math.abs(dy)) g.p.x = bx + Math.sign(dx || 1) * bw;
-        else g.p.y = by + Math.sign(dy || 1) * bh;
-        g.p.vx = 0; g.p.vy = 0;
-        return true;
-      };
-      for (const [fx, fy, fw, fh] of GYM_SOLID)
-        push(cx + fx * w, cy + fy * h, fw * w * 0.5, fh * h * 0.5);
-      // the ring: four posts of wall with a doorway cut in the south rail
-      const rx = cx, ry = cy + 0.05 * h;
-      const hw = RING.hw * w, hh = RING.hh * h, t = 14, gp = RING.gap * w;
-      push(rx, ry - hh, hw, t);                              // north rail
-      push(rx - hw, ry, t, hh);                              // west
-      push(rx + hw, ry, t, hh);                              // east
-      push(rx - (hw + gp) / 2 - gp / 2, ry + hh, (hw - gp) / 2, t);   // south, left of the steps
-      push(rx + (hw + gp) / 2 + gp / 2, ry + hh, (hw - gp) / 2, t);   // south, right of them
-    }
-    function drawGym() {
-      if (g.inside) return;
-      const x0 = SX(GYM_AT.i), y0 = SX(GYM_AT.j);
-      const w = GYM_AT.w * PITCH, h = GYM_AT.h * PITCH;
-      const cx = x0 + w / 2, cy = y0 + h / 2;
-      if (Math.hypot(g.p.x - cx, g.p.y - cy) > 3000) return;
-      /* The floor first, as a tiled pattern -- it is ground, so it repeats rather than
-         stretching, and it goes under everything including the building plate's own roof. */
-      const fl = imgs.current.tx_gymfloor;
-      if (fl && fl.width) {
-        const pat = ctx.createPattern(fl, "repeat");
-        if (pat) {
-          ctx.save();
-          ctx.translate(cx - w / 2, cy - h / 2);
-          const s = (w / 3) / fl.width;
-          ctx.scale(s, s);
-          ctx.fillStyle = pat;
-          ctx.fillRect(0, 0, w / s, h / s);
-          ctx.restore();
-        }
-      }
-      for (const [k, fx, fy, fs] of GYM_FIT) {
-        const im = imgs.current[k];
-        if (!im || !im.width) continue;
-        const target = Math.min(w, h) * fs;
-        const sc = target / Math.max(im.width, im.height);   // snapped, never stretched
-        const dw = im.width * sc, dh = im.height * sc;
-        ctx.drawImage(im, cx + fx * w - dw / 2, cy + fy * h - dh / 2, dw, dh);
-      }
-    }
+    /* THE GYM FLOOR moved indoors: GYM_FIT, GYM_SOLID and GYM_RING sit at module level and
+       makeFloor lays them out for kind "gymfloor". The street overlay and its clamp are gone --
+       both were keyed to the cell corner rather than to the building, so once the mark became a
+       real building they were drawing furniture and pushing the player on the pavement. */
     /* SOLID. A shared push, same as the gym's: out along the shallower overlap so you cannot
        slide round a corner. `soft` marks the ones you walk over rather than into -- the gates
        are a turnstile line and the tower cap is a ROOF, and a roof you cannot walk through at
@@ -28599,6 +29440,24 @@ export default function IronLionLayer004() {
         /* The plate is this building's ROOF, not a separate object lying next to it. */
         b.capPlate = m.k;
         b.landmark = false;
+        /* mkB rolls the door position with Math.random, which is fine for a shop and wrong for a
+           room laid out around its entrance. A mark that names one gets it. */
+        if (m.door != null && b.door) b.door.pos = m.door;
+        /* And the face. mkB always says south; the club's plan puts its vestibule on the north
+           and the nearest street is north too, so a south door walked you in behind the bar. */
+        if (m.doorSide != null && b.door) b.door.side = m.doorSide;
+        if (m.entry != null) b.entry = m.entry;
+        if (m.nf != null) { b.nf = true; b.nfIdx = m.nf; }
+        if (m.rochelle) b.rochelle = true;
+        if (m.face && b.door) {
+          // the nearest street edge of the lot, the same test faceDoor uses
+          const d = [y - c.ly0, c.lx1 - (x + w), c.ly1 - (y + h), x - c.lx0];
+          let sd = 0; for (let q = 1; q < 4; q++) if (d[q] < d[sd]) sd = q;
+          b.door.side = sd; b.door.pos = 0.5;
+          settleDoor(b);
+        }
+        if (m.lift) b.lift = true;
+        if (m.carpark) b.carpark = true;
         c.blds.push(b);
         m.b = b;
       }
@@ -28626,11 +29485,16 @@ export default function IronLionLayer004() {
       const b = m.b;
       if (!g.club) {
         g.club = [];
+        /* On the DANCE FLOOR. Scattered over the whole footprint they stood in the bar, in the
+           back room and inside interior walls, now that the building has any. */
+        const pl = buildingPlans(b)[0];
+        const fl = (pl && pl.rooms.find((q) => q.k === "dance")) || { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
+        const fw = fl.x1 - fl.x0, fh = fl.y1 - fl.y0;
         for (let i = 0; i < 14; i++) {
           const deuce = i < 8;
           g.club.push({
-            x: b.x + 22 + Math.random() * Math.max(1, b.w - 44),
-            y: b.y + 22 + Math.random() * Math.max(1, b.h - 44),
+            x: fl.x0 + 22 + Math.random() * Math.max(1, fw - 44),
+            y: fl.y0 + 22 + Math.random() * Math.max(1, fh - 44),
             hp: deuce ? 16 : 8, gang: deuce ? "deuce" : null, civ: !deuce,
             topAng: Math.random() * 6.283, anim: Math.random() * 9,
             homeX: 0, homeY: 0, vx: 0, vy: 0, stunT: 0, wob: Math.random() * 6.283,
@@ -28656,6 +29520,9 @@ export default function IronLionLayer004() {
     function drawClub() {
       const c = clubCrowd();
       if (!c) return;
+      /* They are on the ground floor of THEIR building. Standing in some other building, or on
+         the club's office floor, they were drawn on top of whatever room you were in. */
+      if (g.inside && (g.inside !== c.b || (g.floor || 0) !== 0)) return;
       if (Math.hypot(g.p.x - (c.b.x + c.b.w / 2), g.p.y - (c.b.y + c.b.h / 2)) > 1400) return;
       /* THE LIGHTS. Two washes crossing the floor out of phase -- purple on a slow cycle, gold
          on a slower one -- so the colour never settles and never strobes. Drawn UNDER the crowd
@@ -28686,6 +29553,126 @@ export default function IronLionLayer004() {
         if (q.gang === "deuce" && drawGangTop(q, "idle")) continue;
         ctx.fillStyle = q.civ ? "#c9a17a" : (GANG_COL.deuce || "#3f9a63");
         ctx.fillRect(q.x - 5, q.y - 8, 10, 16);
+      }
+      /* THE MIRROR BALL. Not a floor prop -- it hangs from the ceiling, so it is drawn OVER the
+         crowd, at the middle of the dance floor, and only from inside: from the street the roof
+         plate is in the way. The flecks are the ball's light on the floor, turning slowly. */
+      if (g.inside === c.b && (g.floor || 0) === 0) {
+        const pl = buildingPlans(c.b)[0];
+        const fl = pl && pl.rooms.find((r) => r.k === "dance");
+        const mb = imgs.current.dw_mirrorball;
+        if (fl) {
+          const mx = (fl.x0 + fl.x1) / 2, my = fl.y0 + (fl.y1 - fl.y0) * 0.26, t = g.t || 0;
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          for (let i = 0; i < 18; i++) {
+            const a = t * 0.35 + i * 2.39, rr = 30 + ((i * 37) % 90);
+            const fx = mx + Math.cos(a) * rr * 1.5, fy = my + 40 + Math.sin(a) * rr * 0.8;
+            ctx.fillStyle = `rgba(230,236,255,${(0.10 + 0.12 * (0.5 + 0.5 * Math.sin(t * 3 + i))).toFixed(3)})`;
+            ctx.fillRect(fx - 1.5, fy - 1.5, 3, 3);
+          }
+          ctx.restore();
+          if (mb && mb.width) {
+            const hh = 44, ww = hh * (mb.width / mb.height);
+            ctx.drawImage(mb, mx - ww / 2, my - hh / 2, ww, hh);
+          }
+        }
+      }
+    }
+    /* ---------- THE NEON ----------
+       Seeded per cell so the street is the same street every visit. Everything here is lit at
+       night and dimmer by day: a halo is added under each piece in `lighter` mode, scaled by the
+       dark, with a slow flicker so a whole block never pulses in step. */
+    const NN_GLOW = { nn_tube_pink_s: "255,110,190", nn_tube_pink_l: "255,110,190", nn_tube_cyan_s: "100,230,255",
+      nn_tube_cyan_l: "100,230,255", nn_corner_violet: "190,120,255", nn_corner_lime: "150,255,100",
+      nn_corner_orange: "255,160,70", nn_palm: "120,255,140", nn_cocktail: "100,210,255", nn_star: "190,120,255",
+      nn_arrow_up: "150,255,100", nn_arrow_down: "255,160,70", nn_dice: "255,120,210", nn_wave: "100,230,255",
+      nn_moon: "255,230,90", nn_lamp_ring: "255,120,210", nn_bollard_orange: "255,160,70",
+      nn_bollard_cyan: "100,230,255", nn_puddle: "160,120,255" };
+    function drawNeonFlats(view) {
+      if (g.inside || g.sewer || g.fly) return;
+      const Z = NF.cells;
+      if (view.x1 < SX(Z.i0) - 400 || view.x0 > SX(Z.i1 + 1) + 400 ||
+          view.y1 < SX(Z.j0) - 400 || view.y0 > SX(Z.j1 + 1) + 400) return;
+      const t = g.t || 0, night = clamp(g.night || 0, 0, 1);
+      const put = (k, x, y, h, rot, seed) => {
+        if (x < view.x0 - 90 || x > view.x1 + 90 || y < view.y0 - 90 || y > view.y1 + 90) return;
+        const im = imgs.current[k];
+        if (!im || !im.width) return;
+        const w = h * (im.width / im.height);
+        const fl = 0.85 + 0.15 * Math.sin(t * (2.1 + (seed % 5) * 0.37) + seed);
+        if (night > 0.08 && NN_GLOW[k]) {
+          const r = Math.max(w, h) * 1.25;
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          const gr = ctx.createRadialGradient(x, y, 2, x, y, r);
+          gr.addColorStop(0, `rgba(${NN_GLOW[k]},${(0.26 * night * fl).toFixed(3)})`);
+          gr.addColorStop(1, `rgba(${NN_GLOW[k]},0)`);
+          ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+          ctx.restore();
+        }
+        ctx.globalAlpha = 0.62 + 0.38 * night * fl;
+        ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot);
+        ctx.drawImage(im, -w / 2, -h / 2, w, h);
+        ctx.restore();
+        ctx.globalAlpha = 1;
+      };
+      const CORNERS = ["nn_corner_violet", "nn_corner_lime", "nn_corner_orange"];
+      for (let i = Z.i0; i <= Z.i1; i++) for (let j = Z.j0; j <= Z.j1; j++) {
+        const c = getCell(i, j), seed = i * 131 + j * 17;
+        if (c.x1 < view.x0 - 200 || c.x0 > view.x1 + 200 || c.y1 < view.y0 - 200 || c.y0 > view.y1 + 200) continue;
+        const inset = SW * 0.5;
+        // ring lamps down every pavement
+        for (let x = c.x0 + 90; x < c.x1 - 60; x += NF.lampEvery) {
+          put("nn_lamp_ring", x, c.y0 + inset, 30, 0, seed + x);
+          put("nn_lamp_ring", x, c.y1 - inset, 30, 0, seed + x + 7);
+        }
+        for (let y = c.y0 + 90 + NF.lampEvery / 2; y < c.y1 - 60; y += NF.lampEvery) {
+          put("nn_lamp_ring", c.x0 + inset, y, 30, 0, seed + y);
+          put("nn_lamp_ring", c.x1 - inset, y, 30, 0, seed + y + 3);
+        }
+        // an L of neon on every corner of the lot, turned so the arms follow the kerb
+        const ck = CORNERS[(i + j) % CORNERS.length], cs = 42;
+        /* The sheet drew the lime and orange corners as a top-right bend and the violet one as a
+           top-left bend, so violet starts a quarter-turn behind the other two. */
+        const base = ck === "nn_corner_violet" ? Math.PI / 2 : 0;
+        put(ck, c.lx1 - cs / 2, c.ly0 + cs / 2, cs, base, seed + 1);
+        put(ck, c.lx1 - cs / 2, c.ly1 - cs / 2, cs, base + Math.PI / 2, seed + 2);
+        put(ck, c.lx0 + cs / 2, c.ly1 - cs / 2, cs, base + Math.PI, seed + 3);
+        put(ck, c.lx0 + cs / 2, c.ly0 + cs / 2, cs, base - Math.PI / 2, seed + 4);
+        // kerb tubes, one long run in the middle of each side, pink and cyan by turns
+        const tube = (i + j) % 2 ? "nn_tube_pink_l" : "nn_tube_cyan_l";
+        const mx = (c.lx0 + c.lx1) / 2, my = (c.ly0 + c.ly1) / 2;
+        put(tube, mx, c.ly0 + 4, 12, 0, seed + 5);
+        put(tube, mx, c.ly1 - 4, 12, 0, seed + 6);
+        put(tube, c.lx0 + 4, my, 12, Math.PI / 2, seed + 7);
+        put(tube, c.lx1 - 4, my, 12, Math.PI / 2, seed + 8);
+        // rain that has not drained, on the blacktop beside the block, holding the light
+        put("nn_puddle", c.x0 - 70, c.y0 + (c.y1 - c.y0) * (0.25 + ((seed * 7) % 50) / 100), 34, 0, seed + 9);
+        put("nn_puddle", c.x0 + (c.x1 - c.x0) * (0.3 + ((seed * 3) % 40) / 100), c.y1 + 70, 30, 0, seed + 10);
+      }
+      // at every door in the Flats: bollards either side, a sign over it
+      for (const m of MARKS) {
+        const b = m.b;
+        if (!b || !b.door || !(b.nf || m.k === "ct_club")) continue;
+        const dp = doorPoint(b), s2 = b.door.side;
+        const out = s2 === 0 ? [0, -1] : s2 === 1 ? [1, 0] : s2 === 2 ? [0, 1] : [-1, 0];
+        const perp = [-out[1], out[0]];
+        const sd = (b.nfIdx || 0) * 11 + 5;
+        put("nn_bollard_orange", dp[0] + perp[0] * 40 + out[0] * 12, dp[1] + perp[1] * 40 + out[1] * 12, 22, 0, sd);
+        put("nn_bollard_cyan", dp[0] - perp[0] * 40 + out[0] * 12, dp[1] - perp[1] * 40 + out[1] * 12, 22, 0, sd + 1);
+        if (b.rochelle) continue;                              // she does not advertise
+        // the sign sits on the front edge of the roof, just inside the wall over the door
+        const sx = dp[0] - out[0] * 30, sy = dp[1] - out[1] * 30;
+        if (m.k === "ct_club") {
+          put("nn_cocktail", sx + perp[0] * 46, sy + perp[1] * 46, 42, 0, sd + 2);
+          put("nn_dice", sx - perp[0] * 46, sy - perp[1] * 46, 40, 0, sd + 3);
+          // and an arrow on the pavement pointing everybody in
+          put("nn_arrow_down", dp[0] + out[0] * 54, dp[1] + out[1] * 54, 30,
+              Math.atan2(-out[1], -out[0]) - Math.PI / 2, sd + 4);
+        } else {
+          put(NF.signs[(b.nfIdx || 0) % NF.signs.length], sx, sy, 38, 0, sd + 2);
+        }
       }
     }
     function drawMarks() {
@@ -30650,6 +31637,24 @@ export default function IronLionLayer004() {
       if (best) { igniteBuilding(best, true); registerFire(best); }
     };
     G.jumpFn = roofJump;
+    /* DEBUG: straight down to the nearest camp, standing a few steps off its fire. */
+    G.campFn = () => {
+      const gg = G.current;
+      let best = null, bd = 1e12;
+      for (let i = 0; i <= SEWER_MAX; i += SEWER_EVERY)
+        for (let j = 0; j <= SEWER_MAX; j += SEWER_EVERY)
+          for (let a = 0; a < 4; a++) {
+            const c = campAt(i, j, a);
+            if (!c) continue;
+            const d = Math.hypot(c.fx - gg.p.x, c.fy - gg.p.y);
+            if (d < bd) { bd = d; best = c; }
+          }
+      if (!best) return false;
+      gg.inside = null; gg.roof = null; gg.sewer = true;
+      gg.p.x = best.fx + (best.horiz ? 90 : 0); gg.p.y = best.fy + (best.horiz ? 0 : 90);
+      gg.p.vx = 0; gg.p.vy = 0;
+      return { x: Math.round(best.fx), y: Math.round(best.fy), seated: campCount() };
+    };
     G.sewerFn = () => {
       const gg = G.current;
       const m = nearestManhole(gg.p.x, gg.p.y);
@@ -30849,6 +31854,7 @@ export default function IronLionLayer004() {
       W2.rain = (k) => G.rainFn(k);                  // "clear" | "light" | "med" | "storm"
       W2.tow = () => G.towFn();                      // open the dog's destination list
       W2.sky = (n) => { const gg = G.current; if (n != null) gg.sky = n; return gg.sky; };
+      W2.camp = () => G.campFn();                    // drop into the nearest sewer camp
       W2.ring = () => (G.current.deuceRing || 0);
       W2.reseed = () => { const gg = G.current; gg.distroAt = null; return true; };
       W2.pad = () => {                                // where the pad is, and how far off you are
@@ -30988,6 +31994,7 @@ export default function IronLionLayer004() {
   const flashText = (nm) => {
     if (!nm) return null;
     if (FLASH_TXT[nm]) return FLASH_TXT[nm];
+    if (nm.slice(0, 5) === "lift:") return nm.slice(5);
     if (nm.slice(0, 4) === "wpn_") return "+ " + nm.slice(4).replace(/_/g, " ").toUpperCase();
     return "+ " + nm.replace(/_/g, " ").toUpperCase();
   };
@@ -31261,7 +32268,7 @@ export default function IronLionLayer004() {
               : "FLOOR " + (((hud.floor ?? 0) - (hud.entry ?? 0)) + 1)
                 + " / " + Math.max(1, (hud.floors ?? 1) - (hud.entry ?? 0))}
             {hud.planKind ? " \u00b7 " + hud.planKind.toUpperCase() : ""}
-            {hud.fkind ? ` · ${{ club: "CLUB FLOOR", terminal: "CONCOURSE", house_g1: "HOUSE", house_g2: "HOUSE", house_u: "UPSTAIRS", tower_flats: "FLATS", dining: "HOUSE", store: "STORE", lobby: "LOBBY", apartments: "APARTMENTS", offices: "OFFICES", reception: "RECEPTION" }[hud.fkind] || ""}` : ""}
+            {hud.fkind ? ` · ${{ club: "CLUB FLOOR", terminal: "CONCOURSE", house_g1: "HOUSE", house_g2: "HOUSE", house_u: "UPSTAIRS", tower_flats: "FLATS", dining: "HOUSE", store: "STORE", lobby: "LOBBY", apartments: "APARTMENTS", offices: "OFFICES", reception: "RECEPTION", gymfloor: "GYM", nightclub: "CLUB FLOOR", basement: "BASEMENT · BEDROOMS" }[hud.fkind] || ""}` : ""}
           </div>
         )}
         {hud.nearCar && (
@@ -31273,6 +32280,9 @@ export default function IronLionLayer004() {
 
         {hud.door && !hud.inside && (
           <div style={{ marginTop: 8, fontSize: 10, color: C.gold, letterSpacing: "0.12em" }}>[E] ENTER BUILDING</div>
+        )}
+        {hud.inside && hud.atLift && !hud.liftOpen && (
+          <div style={{ marginTop: 8, fontSize: 10, color: C.gold, letterSpacing: "0.12em" }}>[E] LIFT</div>
         )}
         {hud.inside && hud.stair === 1 && (
           <div style={{ marginTop: 8, fontSize: 10, color: C.gold, letterSpacing: "0.12em" }}>[E] UP</div>
@@ -31835,6 +32845,43 @@ export default function IronLionLayer004() {
             setHud((h) => ({ ...h, travelOpen: false })); }}
             style={{ marginTop: 12, fontSize: 9, opacity: 0.55, letterSpacing: "0.16em",
               cursor: "pointer" }}>
+            CLOSE
+          </div>
+        </div>
+      )}
+      {/* THE LIFT PANEL. Top floor first, the way a panel reads, one big button each so it is
+          easy to hit on a phone. The floor you are on is lit and does nothing. */}
+      {hud.liftOpen && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 88, background: "rgba(6,7,9,0.90)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          fontFamily: mono, padding: 14 }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.24em", color: C.gold }}>SELECT FLOOR</div>
+          <div style={{ marginTop: 10, maxHeight: "66vh", overflowY: "auto", width: "min(78vw, 300px)",
+            WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
+            {(hud.liftFloors || []).map((q) => {
+              const here = q.f === hud.liftCur;
+              return (
+                <div key={q.f} onClick={() => { if (!here && G.liftGoFn) G.liftGoFn(q.f); }}
+                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px",
+                    marginBottom: 5, cursor: here ? "default" : "pointer",
+                    background: here ? "rgba(217,164,65,0.18)" : "rgba(12,13,17,0.85)",
+                    border: `1px solid ${here ? C.gold : "rgba(217,164,65,0.40)"}`,
+                    opacity: q.lock ? 0.5 : 1 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: "50%", display: "flex",
+                    alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700,
+                    color: here ? "#15161a" : "#ffc45a",
+                    background: here ? "#ffc45a" : "rgba(255,196,90,0.08)",
+                    border: "1px solid #ffc45a" }}>{q.n}</div>
+                  <div style={{ fontSize: 12, letterSpacing: "0.10em", color: "#e8d9b5" }}>
+                    {q.nm}{q.lock ? "  ·  LOCKED" : ""}{here ? "  ·  YOU ARE HERE" : ""}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div onClick={() => { const gg = G.current; gg.liftOpen = false; gg.paused = false;
+            setHud((h) => ({ ...h, liftOpen: false })); }}
+            style={{ marginTop: 12, fontSize: 9, opacity: 0.55, letterSpacing: "0.16em", cursor: "pointer" }}>
             CLOSE
           </div>
         </div>
