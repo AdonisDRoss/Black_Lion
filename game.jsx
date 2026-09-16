@@ -1284,11 +1284,64 @@ const NF = {
   // the colour each house's interior neon runs in: pink, teal, lilac, cyan, lime, violet
   hue: [["#ff6fb5", 330], ["#5fe3d0", 172], ["#c38bff", 272], ["#6fe8ff", 190], ["#9dff6a", 100], ["#b877ff", 275]],
 };
+/* THE FLATS' OWN CARS. Twelve sports cars cut nose-LEFT and turned nose-UP at cut time, so none
+   of them goes in ROTATE_CW. Length is fixed and the width comes off each plate, so a wide wedge
+   is wide and a narrow coupe is narrow instead of all of them squashed to one box. */
+const NFC_M = [{ k: "nfc_red_turbo", len: 104, w: 55.2 }, { k: "nfc_teal_strake", len: 104, w: 55.5 }, { k: "nfc_silver_wedge", len: 104, w: 58.3 }, { k: "nfc_black_coupe", len: 104, w: 52.3 }, { k: "nfc_gold_wedge", len: 104, w: 53.4 }, { k: "nfc_white_wedge", len: 104, w: 53.3 }, { k: "nfc_blue_targa", len: 104, w: 53.0 }, { k: "nfc_yellow_wing", len: 104, w: 53.9 }, { k: "nfc_green_coupe", len: 104, w: 50.3 }, { k: "nfc_cream_bird", len: 104, w: 52.3 }, { k: "nfc_red_targa", len: 104, w: 52.0 }, { k: "nfc_black_gold", len: 104, w: 49.8 }];
+const NFC_NEAR = 2.5;                 // cells beyond the district edge that still count as "close to it"
+const NFC_SHARE = 0.55;               // of new traffic near the Flats, how much is theirs
+/* THE FLATS' OWN FURNITURE. Two pastel sets, alternating house to house. The dark set is cut and
+   registered-free on purpose: it was for Rochelle's, and Rochelle's stays as it is.
+   Room cases place the city's STANDARD keys; for a Flats house those keys are swapped for the
+   set's piece after the room is furnished and before it is tidied, and the footprint is re-cut
+   to the plate -- an L-shaped sectional forced into the 96x32 box a straight sofa gets would be
+   drawn a third of its size. `len` is the long side in world units; the short side comes from
+   the plate. Orientation follows the box the room gave it, so a sofa on a long wall still runs
+   along it. */
+const NF_FURN = {
+  sofa: ["sofa", 54], table: ["coffee", 22], tv: ["tv", 24], counter: ["counter", -1], stove: ["stove", 26],
+  fridge: ["fridge", 32], bed: ["bed", 50], dresser: ["dresser", 28], m_table: ["dining", 54],
+  // 0: keep the box the room gave it. Bathrooms are the tightest rooms in a house, and a fixture
+  // that is a unit larger than the standard one is the one the tidy and doorway passes remove.
+  tub: ["tub", 0], toilet: ["toilet", 0], sink: ["sink", 0],
+};
+const NF_FURN_ASPECT = { nfa_bed: 0.809, nfa_coffee: 0.973, nfa_counter: 2.552, nfa_dining: 1.009, nfa_dresser: 1.052, nfa_endtable: 1.043, nfa_fridge: 0.620, nfa_sink: 0.881, nfa_sofa: 1.068, nfa_stove: 0.653, nfa_toilet: 0.533, nfa_tub: 1.970, nfa_tv: 1.027, nfb_bed: 0.993, nfb_coffee: 0.921, nfb_counter: 2.636, nfb_dining: 1.682, nfb_dresser: 1.479, nfb_dresser_neon: 1.331, nfb_fridge: 0.640, nfb_sink: 0.844, nfb_sofa: 1.199, nfb_stove: 0.701, nfb_toilet: 0.598, nfb_tub: 1.788, nfb_tv: 0.927, nfd_bed: 1.153, nfd_bistro: 1.556, nfd_coffee: 1.611, nfd_counter: 2.453, nfd_dining: 1.959, nfd_dresser: 1.156, nfd_dresser2: 1.222, nfd_fridge: 0.544, nfd_sink: 0.708, nfd_sofa: 1.153, nfd_stove: 0.993, nfd_toilet: 0.503, nfd_tub: 1.702, nfd_tv: 0.941 };
+/* nfa_tub -> "tub": a swapped piece is treated by every rule exactly as the piece it replaced --
+   usable, centre-standing -- or the tidy and doorway passes delete it for being unfamiliar. */
+const NF_STD = {};
+for (const std in NF_FURN) for (const set of ["nfa_", "nfb_"]) NF_STD[set + NF_FURN[std][0]] = std;
+const NF_FURN_SOLID = { sofa: 1, coffee: 1, counter: 1, stove: 1, fridge: 1, bed: 1, dresser: 1, dining: 1, tub: 1 };
+const NF_FURN_KEYS = Object.keys(NF_FURN_ASPECT).filter((k) => !k.startsWith("nfd_"));
 const NF_ART = {};
 for (const k of NF_HOUSES.concat(["nf_rochelle"], NN_KEYS)) NF_ART[k] = "assets/nflats/" + k + ".png";
 NF_ART.tx_blacktop = "assets/tex/tx_blacktop.png";
+for (const m of NFC_M) NF_ART[m.k] = "assets/nflats/" + m.k + ".png";
+for (const k of NF_FURN_KEYS) NF_ART[k] = "assets/nflats/" + k + ".png";
 const SC_ART = {};
 for (const k of SEWER_CAMP.keys) SC_ART[k] = "assets/sewer/" + k + ".png";
+/* WHAT EVERYONE ELSE SAYS ABOUT IT. Ordinary people, talking to each other, about Sky. How often it
+   comes up depends on how much Sky there is where they are standing -- see skyPresence(). `near`
+   is for when one of them is right there. */
+const SKY_GOSSIP = {
+  lines: [
+    "MY NEPHEW'S ON THAT GREEN.", "THEY SELL IT OUT THE CLUB.", "SKY'S CHEAPER THAN RENT.",
+    "THE TWINS DON'T EVEN HIDE IT.", "COPS WON'T TOUCH THE DEUCE.", "SAYS IT FEELS LIKE FRIDAY.",
+    "WHOLE BLOCK'S GONE GREEN.", "LOCK YOUR CAR. SKY HEADS.", "THIS CORNER USED TO BE NICE.",
+    "THEY LIVE IN THE SEWERS NOW.", "SHE WAS A NURSE BEFORE SKY.", "IT CAME IN THROUGH THE FLATS.",
+    "DON'T BUY OFF THE STRIP.", "MY KID FOUND A VIAL AT SCHOOL.", "SOMEBODY SHOULD DO SOMETHING.",
+    "NOBODY SLEEPS ON THIS STREET.",
+  ],
+  heavy: ["IT'S EVERYWHERE NOW.", "I'M MOVING OUT BY SPRING.", "YOU CAN SMELL IT ON THE WIND.",
+          "THEY'RE NOT EVEN HIDING.", "SKY RUNS THIS PART OF TOWN."],
+  near: ["DON'T LOOK AT HIM. SKY.", "WALK FASTER.", "THAT USED TO BE THE MAILMAN.",
+         "POOR THING.", "KEEP YOUR BAG CLOSE."],
+  flats: 0.30,            // the Flats talk about it a little whatever the meter says
+  turf: [0.12, 0.34],     // Deuce turf: base + share of the meter
+  ring: 0.26,             // ground the ring has taken: share of the meter
+  perAddict: 0.10, addictR: 480, addictCap: 0.35,
+  distro: 0.28, distroR: 1100,
+  max: 0.85,
+};
 const SKY_ART = {};
 for (const k of SKY_ADDICTS) SKY_ART[k] = "assets/sky/" + k + ".png";
 /* DEUCE'S WILD, dressed. Named, unlike the fx_ and cl_ runs, because each one has a job in the
@@ -5106,6 +5159,40 @@ function makeFloor(b, f, rnd) {
       seg(s, a, Math.max(a, d - 30)); seg(s, Math.min(a + len, d + 30), a + len);
     } else seg(s, a, a + len);
   }
+  /* THE WAY IN IS CLEAR. A door's position is rolled before the rooms exist, so in about a third
+     of the buildings in the city it landed where an interior wall meets the outside wall: the
+     shell had its gap, and a stub of room wall stood across the middle of it. You got through the
+     trigger -- the game said you were inside -- and stopped dead on the threshold, outside the
+     walls. Moving the door would mean building every plan whenever a block loads; instead the
+     lane through the door is cut clear of ROOM walls here, one stride deep and as wide as the gap.
+     A wall that ran out to the shell now stops short of it, so the door opens onto both rooms;
+     a wall running across just inside gets an opening. The outside wall is never touched. */
+  if (f === (b.entry || 0) && b.door) {
+    const sd = b.door.side, hz = sd === 0 || sd === 2;
+    const d = hz ? b.x + b.w * b.door.pos : b.y + b.h * b.door.pos;
+    const DEPTH = WT + 36, HALF = 30;
+    const L = sd === 0 ? { x: d - HALF, y: b.y, w: HALF * 2, h: DEPTH }
+            : sd === 2 ? { x: d - HALF, y: b.y + b.h - DEPTH, w: HALF * 2, h: DEPTH }
+            : sd === 3 ? { x: b.x, y: d - HALF, w: DEPTH, h: HALF * 2 }
+            : { x: b.x + b.w - DEPTH, y: d - HALF, w: DEPTH, h: HALF * 2 };
+    const isShell = (w) =>
+      (w.w <= WT + 1 && (w.x <= b.x + 1 || w.x + w.w >= b.x + b.w - 1)) ||
+      (w.h <= WT + 1 && (w.y <= b.y + 1 || w.y + w.h >= b.y + b.h - 1));
+    for (let i = walls.length - 1; i >= 0; i--) {
+      const W = walls[i];
+      if (isShell(W)) continue;
+      if (W.x >= L.x + L.w || L.x >= W.x + W.w || W.y >= L.y + L.h || L.y >= W.y + W.h) continue;
+      const parts = [];
+      if (W.x < L.x) parts.push({ x: W.x, y: W.y, w: L.x - W.x, h: W.h });
+      if (W.x + W.w > L.x + L.w) parts.push({ x: L.x + L.w, y: W.y, w: W.x + W.w - (L.x + L.w), h: W.h });
+      const mx0 = Math.max(W.x, L.x), mx1 = Math.min(W.x + W.w, L.x + L.w);
+      if (W.y < L.y) parts.push({ x: mx0, y: W.y, w: mx1 - mx0, h: L.y - W.y });
+      if (W.y + W.h > L.y + L.h) parts.push({ x: mx0, y: L.y + L.h, w: mx1 - mx0, h: W.y + W.h - (L.y + L.h) });
+      walls.splice(i, 1);
+      // same rule as stub(): anything under 7 along its length is a snag, not a wall
+      for (const q of parts) if (q.w > 0 && q.h > 0 && Math.max(q.w, q.h) > 7) walls.push(q);
+    }
+  }
 
   /* --- stairwell in the hub (the den is single-storey, it gets no stair at all) --- */
   const hr = rect(rooms[hub]);
@@ -5189,7 +5276,7 @@ function makeFloor(b, f, rnd) {
     };
     // 1. everything that is not a centre piece goes to its nearest wall
     for (const p of list) {
-      if (CENTRE_OK[p.t]) continue;
+      if (CENTRE_OK[p.t] || CENTRE_OK[NF_STD[p.t]]) continue;
       const dl = p.x - q.x0, dr = q.x1 - (p.x + p.w);
       const dt = p.y - q.y0, db = q.y1 - (p.y + p.h);
       const mn = Math.min(dl, dr, dt, db);
@@ -6367,6 +6454,40 @@ function makeFloor(b, f, rnd) {
       case "__lobby_old": P(q2.x0 + 10, q2.y0 + 10, 20, Math.min(90, H2 * 0.5), "mail"); P(cx - 26, q2.y1 - 30, 52, 18, "sofa"); break;
       default: break;
     }
+    if (b && b.nf && !b.rochelle) {
+      const set = (b.nfIdx || 0) % 2 ? "nfb_" : "nfa_";
+      for (let i = propsFrom; i < props.length; i++) {
+        const p = props[i], role = NF_FURN[p.t];
+        if (!role) continue;
+        const key = set + role[0], asp = NF_FURN_ASPECT[key];
+        if (!asp) continue;
+        const portrait = p.h > p.w;
+        let nw, nh;
+        if (role[1] === 0) {
+          nw = p.w; nh = p.h;                                         // the plate is fitted inside
+        } else if (role[1] < 0) {
+          /* The counter keeps the DEPTH the kitchen planned -- the stove and fridge are placed just
+             below it -- and takes its length from the plate at that depth. */
+          const depth = Math.min(p.w, p.h);
+          const along = Math.min(Math.max(p.w, p.h), depth * Math.max(asp, 1 / asp));
+          nw = portrait ? depth : along; nh = portrait ? along : depth;
+        } else {
+          // the plate's long side, laid along the long side of the box the room gave it
+          const long = role[1];
+          const plW = asp >= 1 ? long : long * asp, plH = asp >= 1 ? long / asp : long;
+          nw = plW; nh = plH;
+          if ((plW >= plH) === portrait) { nw = plH; nh = plW; }    // turned: propSprite turns the plate to match
+        }
+        nw = Math.min(nw, W2 - 8); nh = Math.min(nh, H2 - 8);
+        /* Anchored to the wall it was put against, not its centre: a sofa on the left wall grows
+           into the room, not through the wall and back over the coffee table. */
+        const nearR = (q2.x1 - (p.x + p.w)) < (p.x - q2.x0), nearB = (q2.y1 - (p.y + p.h)) < (p.y - q2.y0);
+        const nx = nearR ? p.x + p.w - nw : p.x, ny = nearB ? p.y + p.h - nh : p.y;
+        p.t = key; p.w = nw; p.h = nh;
+        p.x = clamp(nx, q2.x0 + 4, q2.x1 - 4 - nw);
+        p.y = clamp(ny, q2.y0 + 4, q2.y1 - 4 - nh);
+      }
+    }
     if (TIDY_KINDS[kind]) tidyRoom(q2, propsFrom);
   }
 
@@ -6491,13 +6612,40 @@ function makeFloor(b, f, rnd) {
            opening along whichever axis is shorter, so a filing cabinet stops standing in the
            door without a terminal ever ceasing to exist. Only scenery is deleted, and only
            when it has nowhere to go. */
-        if (INTERACTIVE[p.t]) {
+        /* A BED is shoved too. It is scenery by that rule, and a small bedroom with its door near
+           the bed lost the bed -- which leaves a bedroom that is not one. */
+        /* A toilet, a sink and a bath are moved too. A bathroom's door is often on the wall its
+           toilet was put against, and deleting the fixtures left a bathroom with nothing in it --
+           across the whole city, in about half the houses. */
+        const FIXTURE = { toilet: 1, sink: 1, tub: 1 };
+        if (INTERACTIVE[p.t] || INTERACTIVE[NF_STD[p.t]] || FIXTURE[p.t] || FIXTURE[NF_STD[p.t]] ||
+            /(^|_)bed(_four)?$/.test(p.t)) {
           const outL = bx0 - (p.x + p.w), outR = bx1 - p.x;
           const outU = by0 - (p.y + p.h), outD = by1 - p.y;
           const best = [[Math.abs(outL), "x", outL], [Math.abs(outR), "x", outR],
                         [Math.abs(outU), "y", outU], [Math.abs(outD), "y", outD]]
                         .sort((m1, m2) => m1[0] - m2[0])[0];
           if (best[1] === "x") p.x += best[2]; else p.y += best[2];
+          /* A fixture or a bed shoved clear of the doorway can land on the sink or through a room
+             wall. Slide it along whichever axis the shove did not use until it is clear of the
+             walls, the other furniture and this doorway; if nowhere is clear, it goes, exactly as
+             it did before -- clipping is worse than a missing tap. */
+          if (!INTERACTIVE[p.t] && !INTERACTIVE[NF_STD[p.t]]) {
+            const hit = (a, q) => a.x < q.x + q.w && q.x < a.x + a.w && a.y < q.y + q.h && q.y < a.y + a.h;
+            const zone = { x: bx0, y: by0, w: bx1 - bx0, h: by1 - by0 };
+            const inside = (q) => q.x >= b.x + WT && q.y >= b.y + WT && q.x + q.w <= b.x + b.w - WT && q.y + q.h <= b.y + b.h - WT;
+            const clear = (q) => inside(q) && !hit(q, zone) && !walls.some((w) => hit(q, w)) &&
+                                 !props.some((o) => o !== p && hit(q, o));
+            if (!clear(p)) {
+              const ox = p.x, oy = p.y, along = best[1] === "x" ? "y" : "x";
+              let ok = false;
+              for (let k = 1; k <= 12 && !ok; k++) for (const sg of [1, -1]) {
+                if (along === "x") p.x = ox + sg * k * 8; else p.y = oy + sg * k * 8;
+                if (clear(p)) { ok = true; break; }
+              }
+              if (!ok) { props.splice(i, 1); continue; }
+            }
+          }
           continue;
         }
         props.splice(i, 1);
@@ -9349,7 +9497,10 @@ export default function IronLionLayer004() {
          and not in any crew list, so without this they would be scenery you cannot shoot. */
       if (g.distroAt) for (const k in g.distroAt) {
         const S = g.distroAt[k];
-        if (S && S.guards) for (const gd of S.guards) if (gd.hp > 0) out.push(gd);
+        if (!S || !S.guards) continue;
+        // indoors you can hit the men in the room with you; outdoors, the men on the street
+        const hereIn = !!(S.b && g.inside === S.b && g.floor === S.f);
+        for (const gd of S.guards) if (gd.hp > 0 && (gd.indoor ? hereIn : !g.inside)) out.push(gd);
       }
       for (const cr of (g.crews || [])) {
         if (cr.indoor ? (cr.indoor !== g.inside || cr.indoorFloor !== g.floor) : g.inside) continue;
@@ -16555,6 +16706,11 @@ export default function IronLionLayer004() {
        carries the tuned boxes. The fallback colour is a dull canvas so a missing plate reads as
        gym kit rather than as anonymous grey. */
     for (const k of GYM_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#5b544a"; }
+    // the Flats' furniture
+    for (const k of NF_FURN_KEYS) {
+      PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#c9a3c8";
+      if (NF_FURN_SOLID[k.slice(4)]) SOLID_PROP[k] = 1;
+    }
     // the tower: the Deuce's own cars stop yours, and so does the lift
     for (const k of ["vh_julian_suv", "vh_damian_suv", "vh_rochelle_coupe"]) {
       PROP_ART[k] = k; PROP_COL[k] = "#1f2228"; SOLID_PROP[k] = 1; }
@@ -21047,12 +21203,41 @@ export default function IronLionLayer004() {
       /* To nobody. No listener needed and no idle needed -- they talk while they walk. */
       if (Math.random() < dt * SKY_LINES.rate) { p.line = skyLine(p); p.say = 2.4 + Math.random() * 1.2; }
     }
+    /* HOW MUCH SKY IS HERE, 0 to SKY_GOSSIP.max, for this spot. Everything that makes a place feel
+       like Sky's place adds to it: being in the Flats, being Deuce ground, being ground the ring
+       has taken, addicts actually standing nearby, and the Deuce's distro a few doors down. It is
+       both how often people here talk and how likely it is that what they say is about Sky. */
+    function skyPresence(x, y) {
+      const G2 = SKY_GOSSIP, lvl = clamp((g.sky || 0) / SKY.max, 0, 1);
+      const i = Math.floor(x / PITCH), j = Math.floor(y / PITCH), Z = NF.cells;
+      let v = 0;
+      if (i >= Z.i0 && i <= Z.i1 && j >= Z.j0 && j <= Z.j1) v += G2.flats;
+      if ((GANG_TURF.deuce || []).some((z) => ZONES[z] && inZ(ZONES[z], i, j))) v += G2.turf[0] + G2.turf[1] * lvl;
+      else if (DEUCE_RING.slice(0, g.deuceRing || 0).some((Z2) => Z2 && inZ(Z2, i, j))) v += G2.ring * lvl;
+      let n = 0;
+      for (const q of g.peds) if (q.sky && Math.abs(q.x - x) < G2.addictR && Math.abs(q.y - y) < G2.addictR) n++;
+      v += Math.min(G2.addictCap, n * G2.perAddict);
+      const D = g.distroAt && g.distroAt.deuce;
+      if (D && Math.hypot(D.x - x, D.y - y) < G2.distroR) v += G2.distro;
+      return clamp(v, 0, G2.max);
+    }
+    function gossipLine(p, pres) {
+      for (const q of g.peds)
+        if (q.sky && Math.abs(q.x - p.x) < 150 && Math.abs(q.y - p.y) < 150 && Math.random() < 0.6)
+          return pickLine(SKY_GOSSIP.near);
+      return pres > 0.55 && Math.random() < 0.4 ? pickLine(SKY_GOSSIP.heavy) : pickLine(SKY_GOSSIP.lines);
+    }
     function updateChatter(dt) {
       for (const p of g.peds) {
         if (p.say > 0) { p.say -= dt; continue; }
         if (p.sky) { skyChatter(p, dt); continue; }
         if (p.mode !== "idle" && p.mode !== "wait") continue;
-        if (Math.random() > dt * 0.09) continue;
+        // where there is more Sky, people talk more -- up to nearly twice as often
+        // cheap roll first at the highest possible rate, then scale by the real presence --
+        // the same odds, without measuring the neighbourhood for every idle man every frame
+        if (Math.random() > dt * 0.09 * (1 + SKY_GOSSIP.max)) continue;
+        const pres = skyPresence(p.x, p.y);
+        if (Math.random() > (1 + pres) / (1 + SKY_GOSSIP.max)) continue;
         // only speak if somebody is close enough to hear
         let near = null;
         for (const q of g.peds) {
@@ -21062,9 +21247,16 @@ export default function IronLionLayer004() {
         }
         if (!near) continue;
         p.say = 2.8;
-        p.line = CIV_LINES[(Math.random() * CIV_LINES.length) | 0];
-        /* Talked at by a civilian, an addict answers with whatever is in his head. */
-        if (near.say <= 0) { near.say = 2.4; near.line = near.sky ? skyLine(near) : CIV_LINES[(Math.random() * CIV_LINES.length) | 0]; }
+        const gossip = Math.random() < pres;
+        p.line = gossip ? gossipLine(p, pres) : CIV_LINES[(Math.random() * CIV_LINES.length) | 0];
+        /* Talked at by a civilian, an addict answers with whatever is in his head -- and a
+           neighbour who was just told about Sky usually has something to add. */
+        if (near.say <= 0) {
+          near.say = 2.4;
+          near.line = near.sky ? skyLine(near)
+            : gossip && Math.random() < 0.7 ? gossipLine(near, pres)
+            : CIV_LINES[(Math.random() * CIV_LINES.length) | 0];
+        }
       }
     }
 
@@ -22839,7 +23031,11 @@ export default function IronLionLayer004() {
       sedan_red: 1.14, sedan_orange: 1.10,
       wagon_teal: 0.88, pickup: 0.86, bus: 0.62, cruiser: 1.22,
     };
-    function carSpeedOf(m) { return (m && CAR_CLASS[m.k]) || 1.0; }
+    function carSpeedOf(m) { return (m && CAR_CLASS[m.k]) || (m && m.k && m.k.startsWith("nfc_") ? 1.18 : 1.0); }
+    function nearFlats(x, y) {
+      const Z = NF.cells, pad = NFC_NEAR * PITCH;
+      return x > SX(Z.i0) - pad && x < SX(Z.i1 + 1) + pad && y > SX(Z.j0) - pad && y < SX(Z.j1 + 1) + pad;
+    }
     function spawnTraffic(cx, cy) {
       const vertical = Math.random() < 0.5;
       const si = clamp(Math.round((vertical ? cx : cy) / PITCH) + ((Math.random() * 5) | 0) - 2, 0, N);
@@ -22857,6 +23053,13 @@ export default function IronLionLayer004() {
       if (v.axis === "v") { v.x = p[0]; v.y = p[1] - v.dir * back; v.ang = v.dir > 0 ? Math.PI / 2 : -Math.PI / 2; }
       else { v.y = p[1]; v.x = p[0] - v.dir * back; v.ang = v.dir > 0 ? 0 : Math.PI; }
       if (Math.hypot(v.x - cx, v.y - cy) < 850) return;
+      /* Near the Flats, a car is more likely to be one of theirs. Decided on where the car will
+         actually appear, not where the camera is, so the pool follows the district's streets. */
+      if (nearFlats(v.x, v.y) && Math.random() < NFC_SHARE) {
+        v.m = NFC_M[(Math.random() * NFC_M.length) | 0];
+        const cf2 = carSpeedOf(v.m);
+        v.spd = (120 + Math.random() * 60) * cf2; v.cruise = (150 + Math.random() * 62) * cf2;
+      }
       // NPC traffic stays on the surface; nothing spawns onto the deck
       if (onDeckSpan(v.x, v.y)) return;
       if (!canDrive(v.axis, v.si, v.k - v.dir, v.dir)) return;
@@ -25756,16 +25959,35 @@ export default function IronLionLayer004() {
           const moving = Math.hypot(g.p.vx || 0, g.p.vy || 0) > 26;
           if (db && !g.inside && moving) {
             g.inside = db; g.floor = db.entry || 0; g.doorCd = 1.6;
-            // step him in off the threshold, toward the middle of the building
-            const cx2 = db.x + db.w / 2, cy2 = db.y + db.h / 2;
-            const a = Math.atan2(cy2 - g.p.y, cx2 - g.p.x);
-            g.p.x += Math.cos(a) * 30; g.p.y += Math.sin(a) * 30;
+            /* Step him in off the threshold STRAIGHT through the door. It aimed at the middle of
+               the building, which for a door near a corner is mostly sideways -- along the wall,
+               into the jamb, and back out onto the pavement with the interior still showing. */
+            const sdI = db.door ? db.door.side : -1;
+            const inV = sdI === 0 ? [0, 1] : sdI === 1 ? [-1, 0] : sdI === 2 ? [0, -1] : sdI === 3 ? [1, 0] : null;
+            if (inV) {
+              const dp = doorPoint(db);
+              if (inV[0]) { g.p.y = clamp(g.p.y, dp[1] - 16, dp[1] + 16); g.p.x = dp[0] + inV[0] * 40; }
+              else { g.p.x = clamp(g.p.x, dp[0] - 16, dp[0] + 16); g.p.y = dp[1] + inV[1] * 40; }
+            } else {
+              const cx2 = db.x + db.w / 2, cy2 = db.y + db.h / 2;
+              const a = Math.atan2(cy2 - g.p.y, cx2 - g.p.x);
+              g.p.x += Math.cos(a) * 30; g.p.y += Math.sin(a) * 30;
+            }
             g.p.vx = 0; g.p.vy = 0;
           } else if (db && g.inside === db && g.floor === (db.entry || 0) && moving) {
             g.inside = null; g.doorCd = 1.6;
-            const cx2 = db.x + db.w / 2, cy2 = db.y + db.h / 2;
-            const a = Math.atan2(g.p.y - cy2, g.p.x - cx2);
-            g.p.x += Math.cos(a) * 34; g.p.y += Math.sin(a) * 34;
+            // and out the same way: straight through the door onto the pavement
+            const sdO = db.door ? db.door.side : -1;
+            const outV = sdO === 0 ? [0, -1] : sdO === 1 ? [1, 0] : sdO === 2 ? [0, 1] : sdO === 3 ? [-1, 0] : null;
+            if (outV) {
+              const dp = doorPoint(db);
+              if (outV[0]) { g.p.y = clamp(g.p.y, dp[1] - 16, dp[1] + 16); g.p.x = dp[0] + outV[0] * 30; }
+              else { g.p.x = clamp(g.p.x, dp[0] - 16, dp[0] + 16); g.p.y = dp[1] + outV[1] * 30; }
+            } else {
+              const cx2 = db.x + db.w / 2, cy2 = db.y + db.h / 2;
+              const a = Math.atan2(g.p.y - cy2, g.p.x - cx2);
+              g.p.x += Math.cos(a) * 34; g.p.y += Math.sin(a) * 34;
+            }
             g.p.vx = 0; g.p.vy = 0;
           }
         }
@@ -29080,32 +29302,113 @@ export default function IronLionLayer004() {
         const cj = Z.j0 + ((Math.random() * (Z.j1 - Z.j0 + 1)) | 0);
         const c = getCell(ci, cj);
         if (!c) { n--; continue; }
-        const x = (c.lx0 + c.lx1) / 2, y = (c.ly0 + c.ly1) / 2;
         const kind = kinds[n];
         /* A LOT OF THEM. Two men on a door is a shop; this is the single most valuable thing
            the gang owns and it should look like it. Three rings, three deep, so the count comes
            out between 18 and 36 depending on who he is -- and the outer ring stands wide enough
            that you meet it before you can see him. */
-        const base = DISTRO[kind].guards || 2;
-        const guards = [];
+        const site = distroSite(c);
+        const S0 = { kind, gang, x: site.x, y: site.y, b: site.b, f: site.f, guards: [], found: 0, i: ci, j: cj };
+        distroGuards(S0);
+        g.distro[gang] = kind;
+        g.distroAt[gang] = S0;
+      }
+      g.raidCd = RAID.every;
+    }
+    /* WHERE A DISTRO IS. "Makes it in a rented unit" -- they were stood in the dead centre of the
+       lot with no look at what was built there, so in any cell with a building in the middle the
+       Chemist, the Armourer and the rest were drawn on its roof. Now: the biggest ordinary building
+       on the lot, in its biggest room on the entry floor, at a spot clear of walls, furniture and
+       the stairs. A lot with nothing usable on it gets the most open ground instead. */
+    function distroSite(c) {
+      /* Not a police station, a hospital, city hall, a courthouse, a bank or the field office: a
+         gang does not cook in a building the county owns or guards. Not a silo or a barn either. */
+      const usable = (c.blds || []).filter((b) => b.door && !b.perimeter && !b.capPlate && !b.landmark && !b.fis &&
+        !["silo", "barn", "den", "club", "tower", "precinct", "hospital", "cityhall", "courthouse", "bank"].includes(b.kind));
+      usable.sort((a, b2) => b2.w * b2.h - a.w * a.h);
+      for (const b of usable) {
+        const f = b.entry || 0;
+        const pl = buildingPlans(b)[f];
+        if (!pl || !pl.rooms.length) continue;
+        const room = pl.rooms.slice().sort((a, r2) => (r2.x1 - r2.x0) * (r2.y1 - r2.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))[0];
+        const pt = freeIndoor(b, pl, (room.x0 + room.x1) / 2, (room.y0 + room.y1) / 2, room);
+        if (pt) return { x: pt[0], y: pt[1], b, f };
+      }
+      // open ground: the lot point furthest from every building, preferring the middle
+      let best = null;
+      for (let x = c.lx0 + 60; x <= c.lx1 - 60; x += 40) for (let y = c.ly0 + 60; y <= c.ly1 - 60; y += 40) {
+        let clr = 1e9;
+        for (const b of (c.blds || [])) {
+          const nx = clamp(x, b.x, b.x + b.w), ny = clamp(y, b.y, b.y + b.h);
+          clr = Math.min(clr, Math.hypot(x - nx, y - ny));
+        }
+        const score = Math.min(clr, 220) - Math.hypot(x - (c.lx0 + c.lx1) / 2, y - (c.ly0 + c.ly1) / 2) * 0.05;
+        if (!best || score > best.s) best = { s: score, x, y };
+      }
+      return best ? { x: best.x, y: best.y, b: null, f: 0 } : { x: (c.lx0 + c.lx1) / 2, y: (c.ly0 + c.ly1) / 2, b: null, f: 0 };
+    }
+    /* A standing spot inside a floor, as near (x, y) as the room allows: not in a wall, not in
+       solid furniture, not on the stairs, and inside `room` when one is given. */
+    function freeIndoor(b, pl, x, y, room) {
+      const R = 16;
+      const blocks = pl.walls.slice();
+      for (const p of pl.props) if (p.hard || (SOLID_PROP[p.t] && p.w >= 26 && p.h >= 26)) blocks.push(p);
+      if (pl.stair && pl.stair.w > 0) blocks.push(pl.stair);
+      const ok = (px, py) => {
+        if (room && (px < room.x0 + R || px > room.x1 - R || py < room.y0 + R || py > room.y1 - R)) return false;
+        if (px < b.x + WT + R || px > b.x + b.w - WT - R || py < b.y + WT + R || py > b.y + b.h - WT - R) return false;
+        return blocks.every((q) => {
+          const nx = clamp(px, q.x, q.x + q.w), ny = clamp(py, q.y, q.y + q.h);
+          return Math.hypot(px - nx, py - ny) >= R;
+        });
+      };
+      if (ok(x, y)) return [x, y];
+      for (let r = 8; r <= 160; r += 8) for (let a = 0; a < 16; a++) {
+        const px = x + Math.cos(a * 0.3927) * r, py = y + Math.sin(a * 0.3927) * r;
+        if (ok(px, py)) return [px, py];
+      }
+      return null;
+    }
+    /* THE RINGS. Out on the street they stood in three circles round him. Indoors, the inner ring is
+       in the room with him and the two outer rings hold the street in front of the door -- so you
+       still meet the rings before you see the man, which is what the rings are for. */
+    function distroGuards(S) {
+      const gang = S.gang, base = DISTRO[S.kind].guards || 2;
+      const mk = (x, y, ring, indoor) => ({ x, y,
+        hp: RAID.guardHp * statOf(gang, "arms"), hp0: RAID.guardHp * statOf(gang, "arms"),
+        /* GANGTOP keys the Family as "mob" and splits by wing; the gang ids are mob_old and
+           mob_young. Stamp both so drawGangTop finds a sheet instead of falling through. */
+        gang: gang.startsWith("mob") ? "mob" : gang, wing: gang === "mob_old" ? "old" : null,
+        distroGuard: 1, ring, indoor: indoor ? 1 : 0, topAng: null,
+        stunT: 0, vx: 0, vy: 0, anim: Math.random() * 9 });
+      S.guards = [];
+      if (!S.b) {
         for (let ring = 0; ring < RAID.rings; ring++) {
           const n2 = base * RAID.per - ring * 2, rad = 46 + ring * 54;
           for (let q = 0; q < n2; q++) {
             const a = (q / n2) * 6.283 + ring * 0.4;
-            guards.push({ x: x + Math.cos(a) * rad, y: y + Math.sin(a) * rad,
-                          hp: RAID.guardHp * statOf(gang, "arms"), hp0: RAID.guardHp * statOf(gang, "arms"),
-                          /* GANGTOP keys the Family as "mob" and splits by wing; the gang ids
-                             are mob_old and mob_young. Stamp both so drawGangTop finds a sheet
-                             instead of falling through to the block. */
-                          gang: gang.startsWith("mob") ? "mob" : gang,
-                          wing: gang === "mob_old" ? "old" : null,
-                          distroGuard: 1, ring, stunT: 0, vx: 0, vy: 0, anim: Math.random() * 9 });
+            S.guards.push(mk(S.x + Math.cos(a) * rad, S.y + Math.sin(a) * rad, ring, false));
           }
         }
-        g.distro[gang] = kind;
-        g.distroAt[gang] = { kind, gang, x, y, guards, found: 0, i: ci, j: cj };
+        return;
       }
-      g.raidCd = RAID.every;
+      const pl = buildingPlans(S.b)[S.f];
+      const n0 = Math.min(6, base * RAID.per);
+      for (let q = 0; q < n0; q++) {
+        const a = (q / n0) * 6.283;
+        const pt = freeIndoor(S.b, pl, S.x + Math.cos(a) * 46, S.y + Math.sin(a) * 46, null);
+        if (pt && Math.hypot(pt[0] - S.x, pt[1] - S.y) > 20) S.guards.push(mk(pt[0], pt[1], 0, true));
+      }
+      const dp = doorPoint(S.b), sd = S.b.door.side;
+      const out = sd === 0 ? -Math.PI / 2 : sd === 1 ? 0 : sd === 2 ? Math.PI / 2 : Math.PI;
+      for (let ring = 1; ring < RAID.rings; ring++) {
+        const n2 = Math.max(3, base * RAID.per - ring * 2), rad = 30 + ring * 52;
+        for (let q = 0; q < n2; q++) {
+          const a = out + (-1.35 + (2.7 * q) / Math.max(1, n2 - 1));
+          S.guards.push(mk(dp[0] + Math.cos(a) * rad, dp[1] + Math.sin(a) * rad, ring, false));
+        }
+      }
+      S.x0 = dp[0]; S.y0 = dp[1];            // where the street side of it is, for distance checks
     }
     function stepDistros(dt) {
       if (!g.distroAt) { placeDistros(); return; }
@@ -29130,9 +29433,9 @@ export default function IronLionLayer004() {
             const cj = Z.j0 + ((Math.random() * (Z.j1 - Z.j0 + 1)) | 0);
             const c2 = getCell(ci, cj);
             if (c2) {
-              const nx = (c2.lx0 + c2.lx1) / 2, ny = (c2.ly0 + c2.ly1) / 2;
-              for (const q of S.guards) { q.x += nx - S.x; q.y += ny - S.y; q.hp = q.hp0 || RAID.guardHp; }
-              S.x = nx; S.y = ny; S.i = ci; S.j = cj; S.found = 0;
+              const site = distroSite(c2);
+              S.x = site.x; S.y = site.y; S.b = site.b; S.f = site.f; S.i = ci; S.j = cj; S.found = 0;
+              distroGuards(S);
               g.jobNote = DISTRO[S.kind].nm + " moved. Nobody saw the van.";
             }
           }
@@ -29143,9 +29446,10 @@ export default function IronLionLayer004() {
            up the moment you are inside their look -- and it also shrinks how close you have to
            be before you find him, because a switchboard leaks in both directions. */
         const eyes = gstat(gang, "eyes");
-        if (!S.gone && d < RAID.spot * eyes && !g.inside && (g.heat || 0) < 1 && eyes > 1.4)
+        const inHis = !g.inside || (S.b && g.inside === S.b);
+        if (!S.gone && d < RAID.spot * eyes && inHis && (g.heat || 0) < 1 && eyes > 1.4)
           g.heat = Math.max(g.heat || 0, 1);
-        if (!S.found && d < RAID.spot * (0.6 + eyes * 0.5) && !g.inside) {
+        if (!S.found && d < RAID.spot * (0.6 + eyes * 0.5) && inHis) {
           S.found = 1;
           g.jobBanner = (GANG_LABEL[gang] || gang) + " \u00b7 " + DISTRO[S.kind].nm;
           g.jobNote = DISTRO[S.kind].who;
@@ -29196,11 +29500,15 @@ export default function IronLionLayer004() {
       }
     }
     function drawDistros() {
-      if (!g.distroAt || g.inside) return;
+      if (!g.distroAt) return;
       for (const gang in g.distroAt) {
         const S = g.distroAt[gang];
         if (!S || S.gone || !Number.isFinite(S.x)) continue;
         if (Math.hypot(g.p.x - S.x, g.p.y - S.y) > 900) continue;
+        /* Indoors he is drawn only in his own room's floor; from the street you see the men on the
+           door and not him, because he is inside. Anywhere else indoors, nothing. */
+        const hereIn = !!(S.b && g.inside === S.b && g.floor === S.f);
+        if (g.inside && !hereIn) continue;
         /* THEIR OWN PEOPLE. drawGangTop already knows how to draw a member of any faction --
            sheet, row, lift, frame and facing -- and every gang on the board has an entry in
            GANGTOP. The guards were coloured blocks only because they were not going through it.
@@ -29210,8 +29518,11 @@ export default function IronLionLayer004() {
            man on a post stands and is also how you can read the ring from a distance. */
         for (const q of S.guards) {
           if (q.hp <= 0) continue;
+          if (q.indoor ? !hereIn : !!g.inside) continue;
           drawShadow(q.x, q.y + 2, 9, 4, 0.3);
-          if (q.topAng == null) q.topAng = Math.atan2(q.y - S.y, q.x - S.x) + Math.PI / 2 + TOPDOWN_FACE;
+          if (q.topAng == null) q.topAng = q.indoor || !S.b
+            ? Math.atan2(q.y - S.y, q.x - S.x) + Math.PI / 2 + TOPDOWN_FACE
+            : Math.atan2(q.y - S.y0, q.x - S.x0) + Math.PI / 2 + TOPDOWN_FACE;
           /* THE DEUCE HAVE PLATES, NOT A SHEET -- two of them, gold shirt and black. No frames,
              so they cannot go through drawGangTop; they get drawn flat and rotated like a rogue
              hench plate, which is exactly what they are. Picked off the guard's ring index so
@@ -29233,6 +29544,17 @@ export default function IronLionLayer004() {
             ctx.strokeStyle = "rgba(12,10,14,0.8)"; ctx.lineWidth = 1;
             ctx.strokeRect(q.x - 6, q.y - 9, 12, 18);
           }
+        }
+        if (S.b && !hereIn) {
+          // from the street: his name over the door once he is found, and no man on the roof
+          if (S.found) {
+            ctx.font = "700 10px system-ui, sans-serif";
+            ctx.fillStyle = GANG_COL[gang] || "#e8c46a";
+            ctx.textAlign = "center";
+            ctx.fillText(DISTRO[S.kind].nm, S.x0, S.y0 - 22);
+            ctx.textAlign = "left";
+          }
+          continue;
         }
         drawShadow(S.x, S.y + 3, 11, 5, 0.34);
         const im = imgs.current["dt_" + S.kind];
