@@ -9017,11 +9017,19 @@ export default function IronLionLayer004() {
        car taken in front of police is a car taken in front of police. */
     if (!best.dead && !best.parked) {
       const a = (best.ang || 0) + Math.PI / 2;
+      /* A WHOLE pedestrian, not half of one. He had no route (bi/bj/ck), no offset, no speed and
+         no target, so the moment his panic ran out -- or anything set him walking -- the ped
+         loop read p.tgt[0] off nothing and threw every frame. Rarely seen while stolen cars were
+         mostly parked; the Flats' traffic made driven-away cars common. */
+      const dx0 = best.x + Math.cos(a) * 34, dy0 = best.y + Math.sin(a) * 34;
       g.peds.push({
-        x: best.x + Math.cos(a) * 34, y: best.y + Math.sin(a) * 34,
+        x: dx0, y: dy0,
         vx: 0, vy: 0, anim: 0, jit: 0.96 + Math.random() * 0.1,
         mode: "panic", timer: 3.4 + Math.random() * 2,
         fx: Math.cos(a), fy: Math.sin(a), hp: 3, fly: 0,
+        bi: Math.max(0, Math.min(N - 1, Math.floor(dx0 / PITCH))), bj: Math.max(0, Math.min(N - 1, Math.floor(dy0 / PITCH))),
+        ck: (Math.random() * 4) | 0, off: [(Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30],
+        tgt: [dx0, dy0], spd: 54 + Math.random() * 30,
       });
       /* Bridged: mountNearest is at indent 2, outside the component, and cannot see
          `witnessed` at indent 4. Calling it directly is a ReferenceError that would kill the
@@ -9979,6 +9987,13 @@ export default function IronLionLayer004() {
     ];
 
     function retarget(p) {
+      // anything missing a route gets one from where it stands, rather than throwing below
+      if (!p.off) p.off = [(Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30];
+      if (!Number.isFinite(p.bi) || !Number.isFinite(p.bj)) {
+        p.bi = clamp(Math.floor(p.x / PITCH), 0, N - 1); p.bj = clamp(Math.floor(p.y / PITCH), 0, N - 1);
+      }
+      if (!Number.isFinite(p.ck)) p.ck = (Math.random() * 4) | 0;
+      if (!Number.isFinite(p.spd)) p.spd = 54 + Math.random() * 30;
       if (isSuper(zoneOf(p.bi, p.bj))) {
         const c = getCell(p.bi, p.bj);
         p.tgt = [c.lx0 + Math.random() * (c.lx1 - c.lx0), c.ly0 + Math.random() * (c.ly1 - c.ly0)];
@@ -10528,6 +10543,10 @@ export default function IronLionLayer004() {
           if (p.timer <= 0) { if (p.mode === "wait") p.mode = "cross"; else retarget(p); }
           continue;
         }
+        /* The last line of defence. Any pedestrian that reaches here with no target -- from a
+           spawn site written before this loop existed, or a mode set by something that did not
+           know a walker needs one -- is given a route instead of taking the whole frame down. */
+        if (!p.tgt) { retarget(p); if (!p.tgt) { p.mode = "idle"; p.timer = 1; continue; } }
         const dx = p.tgt[0] - p.x, dy = p.tgt[1] - p.y;
         const d = Math.hypot(dx, dy);
         if (d < 9) { if (p.park) parkKidTarget(p); else retarget(p); continue; }
@@ -28563,7 +28582,7 @@ export default function IronLionLayer004() {
       /* And the walk in. When one of them reaches the door it goes inside and is gone. */
       for (let i = (g.peds || []).length - 1; i >= 0; i--) {
         const q = g.peds[i];
-        if (!q || !q.goHome) continue;
+        if (!q || !q.goHome || !q.tgt) continue;
         if (Math.hypot(q.tgt[0] - q.x, q.tgt[1] - q.y) < 14) g.peds.splice(i, 1);
       }
     }
