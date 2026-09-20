@@ -3795,7 +3795,7 @@ const statOf = (gang, k) => {
    lift does not need changing later; only these two values do.
    `back` is the basement door on the rear elevation: on foot for now, a ramp when a vehicle can
    change plane. */
-const TOWER = { i: 8, j: 9, back: { dx: 0, dy: 1 },
+const TOWER = { i: 8, j: 9, back: { dx: 0, dy: -1 },
   floors: [
     { n: -1, nm: "PARKING",    tex: "tx_carpark", lock: false, drive: true },
     { n: 0,  nm: "LOBBY",      tex: "tx_terrazzo", lock: false },
@@ -6680,7 +6680,9 @@ function makeFloor(b, f, rnd) {
       /* Stalls along the north wall. The first three are theirs and always painted with a name;
          the cars in them are props, so they are there when you walk in and they stop your car.
          Rochelle's is drawn only while she is in the building -- see rochelleIn(). */
-      const stallW = 86, y0 = b.y + WT + 18, len = 132;
+      /* The stalls go on the wall OPPOSITE the ramp, so the lane in from the street is clear. */
+      const rampN = b.door && (b.door.side + 2) % 4 === 0;
+      const stallW = 86, len = 132, y0 = rampN ? b.y + b.h - WT - 18 - len : b.y + WT + 18;
       for (let k = 0; k < 6; k++) {
         const sx = X(0.20) + k * stallW;
         if (sx + stallW > b.x + b.w - 90) break;
@@ -6691,8 +6693,8 @@ function makeFloor(b, f, rnd) {
       car(0, "vh_julian_suv", 62, 128);
       car(1, "vh_damian_suv", 62, 128);
       car(2, "vh_rochelle_coupe", 50, 116);
-      // the ramp up to the street, on the back wall
-      props.push({ x: X(0.5) - 60, y: b.y + b.h - WT - 70, w: 120, h: 62, t: "ramp_marks" });
+      // the ramp up to the street, on the back wall -- chevrons point the way out
+      props.push({ x: X(0.5) - 60, y: rampN ? b.y + WT + 8 : b.y + b.h - WT - 70, w: 120, h: 62, t: "ramp_marks", up: rampN ? 1 : 0 });
     } else if (kind === "vt_lobby") {
       /* The Deuce's front room: a desk off to one side of the doors with a velvet rope either side
          of the way to it, their own dark sectionals in the waiting area, and their neon on the
@@ -9083,7 +9085,7 @@ export default function IronLionLayer004() {
         // get out with the normal car-exit control once you're stopped
         g.inside = dp._b || dp; g.floor = dp._floor != null ? dp._floor : (dp.entry || 0);
         const v = g.mode === "car" ? g.car : g.mode === "moto" ? g.moto : g.civ;
-        v.x = dp._cx; v.y = dp._cy; v.ang = -Math.PI / 2; v.vx = 0; v.vy = 0;
+        v.x = dp._cx; v.y = dp._cy; v.ang = dp._ang != null ? dp._ang : -Math.PI / 2; v.vx = 0; v.vy = 0;
         return;
       }
     }
@@ -16498,9 +16500,9 @@ export default function IronLionLayer004() {
           ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.fillRect(p.x, p.y, p.w, p.h);
           ctx.strokeStyle = "rgba(232,196,106,0.55)"; ctx.lineWidth = 4;
           for (let k = 0; k < 3; k++) {
-            const yy = p.y + 12 + k * 18;
-            ctx.beginPath(); ctx.moveTo(p.x + p.w * 0.3, yy); ctx.lineTo(p.x + p.w * 0.5, yy + 10);
-            ctx.lineTo(p.x + p.w * 0.7, yy); ctx.stroke();
+            const yy = p.y + 12 + k * 18, tip = p.up ? -10 : 10, base = p.up ? yy + 10 : yy;
+            ctx.beginPath(); ctx.moveTo(p.x + p.w * 0.3, base); ctx.lineTo(p.x + p.w * 0.5, base + tip);
+            ctx.lineTo(p.x + p.w * 0.7, base); ctx.stroke();
           }
           continue;
         }
@@ -19268,7 +19270,10 @@ export default function IronLionLayer004() {
     /* A slow circuit of the landmarks, eased between waypoints so it reads as a flyover
        rather than a slideshow. Night is forced on because the city is better after dark. */
     function titleCam(dt) {
-      g.titleT += dt;
+      /* A loaded save replaces the state without a title clock, and if the title camera runs one
+         more frame after that, NaN % 6 is NaN and legs[NaN] is nothing -- a one-frame error banner
+         on Continue. Start the clock from zero whenever it is not a number. */
+      g.titleT = (Number.isFinite(g.titleT) ? g.titleT : 0) + (Number.isFinite(dt) ? dt : 0);
       g.nightTarget = 1;
       const legs = [[9, 6], [12, 12], [14, 14], [3, 4], [2, 13], [19, 5]];
       const t = g.titleT * 0.075;
@@ -23979,8 +23984,39 @@ export default function IronLionLayer004() {
         // the Arden bank keeps a forecourt, not a front lawn
         if (c.zone === "arden" && !isBankCell(i, j) && !isFoodCell(i, j) && !isTradeCell(i, j)
             && !isPawnCell(i, j) && !isJewelCell(i, j)) { drawArdenYard(c); continue; }
-        ctx.fillStyle = c.type === 0 ? PF("gravel", C.gravel) : c.type === 1 ? PF("lot", C.lotAsphalt) : c.type === 2 ? PF("dirt", C.dirt) : c.type === 3 ? PF("dirt", "#34322c") : PF("slab", "#3d3d3b");
+        ctx.fillStyle = c.lawn ? PF("grass", "#3f5a33")
+          : c.type === 0 ? PF("gravel", C.gravel) : c.type === 1 ? PF("lot", C.lotAsphalt) : c.type === 2 ? PF("dirt", C.dirt) : c.type === 3 ? PF("dirt", "#34322c") : PF("slab", "#3d3d3b");
         ctx.fillRect(c.lx0, c.ly0, lw, lh);
+        /* A KEPT LAWN. Paths first, then a clipped hedge along the kerb with gaps where the paths
+           meet it, then trees on a loose grid that keep off the paths and away from the building. */
+        if (c.lawn) {
+          const P2 = c.lawnPaths || [], F = c.lawnFoot;
+          for (const q of P2) {
+            ctx.fillStyle = PF("slab", "#5c5a55"); ctx.fillRect(q.x, q.y, q.w, q.h);
+            ctx.fillStyle = "rgba(0,0,0,0.18)";
+            if (q.w < q.h) { ctx.fillRect(q.x, q.y, 3, q.h); ctx.fillRect(q.x + q.w - 3, q.y, 3, q.h); }
+            else { ctx.fillRect(q.x, q.y, q.w, 3); ctx.fillRect(q.x, q.y + q.h - 3, q.w, 3); }
+          }
+          const hit2 = (x, y, r) => P2.some((q) => x > q.x - r && x < q.x + q.w + r && y > q.y - r && y < q.y + q.h + r) ||
+            (F && x > F.x - r && x < F.x + F.w + r && y > F.y - r && y < F.y + F.h + r);
+          ctx.fillStyle = "#2f4a2a";
+          for (let hx = c.lx0 + 6; hx < c.lx1 - 6; hx += 12) {
+            if (!hit2(hx, c.ly0 + 8, 8)) ctx.fillRect(hx, c.ly0 + 3, 11, 10);
+            if (!hit2(hx, c.ly1 - 8, 8)) ctx.fillRect(hx, c.ly1 - 13, 11, 10);
+          }
+          for (let hy = c.ly0 + 18; hy < c.ly1 - 18; hy += 12) {
+            if (!hit2(c.lx0 + 8, hy, 8)) ctx.fillRect(c.lx0 + 3, hy, 10, 11);
+            if (!hit2(c.lx1 - 8, hy, 8)) ctx.fillRect(c.lx1 - 13, hy, 10, 11);
+          }
+          for (let tx = c.lx0 + 90; tx < c.lx1 - 60; tx += 170) for (let ty = c.ly0 + 90; ty < c.ly1 - 60; ty += 170) {
+            const jx = tx + (hash(Math.round(tx), Math.round(ty), 21) - 0.5) * 60;
+            const jy = ty + (hash(Math.round(tx), Math.round(ty), 22) - 0.5) * 60;
+            if (hit2(jx, jy, 50)) continue;
+            if (!drawVeg("tree_leafy", jx, jy, 52, Math.round(hash(Math.round(jx), Math.round(jy), 23) * 100))) {
+              ctx.fillStyle = "#33482c"; ctx.beginPath(); ctx.arc(jx, jy, 14, 0, 6.3); ctx.fill();
+            }
+          }
+        }
 
         for (const d of c.det) {
           switch (d.t) {
@@ -27085,14 +27121,17 @@ export default function IronLionLayer004() {
       const b = m.b, v = activeVeh();
       if (!v) return null;
       const nearX = v.x > b.x - 60 && v.x < b.x + b.w + 60;
-      const nearY = v.y > b.y + b.h - 40 && v.y < b.y + b.h + 130;   // the back of the building
+      // the back of the building, whichever side TOWER.back says that is
+      const north = TOWER.back.dy < 0;
+      const nearY = north ? (v.y < b.y + 40 && v.y > b.y - 130) : (v.y > b.y + b.h - 40 && v.y < b.y + b.h + 130);
       if (!nearX || !nearY) return null;
       /* The REAL building, not a copy -- `{...b}` made a second object, so nothing that asks
          "am I in the tower" could ever say yes -- and floor 0, the car park. It was entry: -1,
          which is not an index into anything: the interior had no plan to draw. */
       return { _b: b, _floor: 0,
-        _px: b.x + b.w / 2, _py: b.y + b.h - 60,
-        _cx: b.x + b.w * 0.5, _cy: b.y + b.h - 96 };
+        _px: b.x + b.w / 2, _py: north ? b.y + 60 : b.y + b.h - 60,
+        _cx: b.x + b.w * 0.5, _cy: north ? b.y + 96 : b.y + b.h - 96,
+        _ang: north ? Math.PI / 2 : -Math.PI / 2 };
     }
     G.stairFn = nearStair; G.doorFn = nearbyDoor; G.strikeFn = strike;
     /* One door function for both. The den is checked first because it is the one you use most
@@ -29959,8 +29998,14 @@ export default function IronLionLayer004() {
       /* A REAL TOWER NOW. It was a default `store` seven times over. kind "vance" reads TOWER for
          its floors; entry 1 puts the car park underneath; the front door goes north and the ramp
          is cut into the south wall, which is where TOWER.back always said the garage was. */
-      { k: "ct_tower_cap",  i: 8,  j: 9, w: 0.40, h: 0.40, ox: -0.26, oy: -0.26, floors: 8,
-        kind: "vance", entry: 1, door: 0.5, doorSide: 0, lift: true, carpark: true },
+      /* MOVED ONTO ITS LOT. At ox/oy -0.26 the footprint started 204 units west of the lot and 132
+         north of it -- the tower stood on the pavement and in the road. It now sits on the south
+         half of the block, 40 in from the kerb, and the generated office that filled that half
+         is cleared (`clear`). The FRONT is south: the plate draws its entry steps and helipad on
+         that edge, and the door was on the north wall, round the back. The car park ramp is on
+         the north wall now, reached across the lawn (`lawn`) from the street behind. */
+      { k: "ct_tower_cap",  i: 8,  j: 9, w: 0.40, h: 0.40, ox: 0.024, oy: 0.1453, floors: 8,
+        kind: "vance", entry: 1, door: 0.5, doorSide: 2, lift: true, carpark: true, clear: true, lawn: true },
       /* DEUCE'S WILD. Neon Flats, one block off the tower -- the club and the home should be
          walkable from each other, because that walk is the thing Damian watches Rochelle make. */
       /* Moved off the expressway exit. It was at 7,12 with a negative offset, which put it on
@@ -30041,6 +30086,28 @@ export default function IronLionLayer004() {
            and the nearest street is north too, so a south door walked you in behind the bar. */
         if (m.doorSide != null && b.door) b.door.side = m.doorSide;
         if (m.entry != null) b.entry = m.entry;
+        /* `clear`: a landmark takes its ground. Any generated building the footprint lands on is
+           removed from the cell, with a margin so nothing is left touching its walls. */
+        if (m.clear) {
+          for (let q = c.blds.length - 1; q >= 0; q--) {
+            const o = c.blds[q];
+            if (o === b || o.capPlate) continue;
+            if (o.x < x + w + 30 && x - 30 < o.x + o.w && o.y < y + h + 30 && y - 30 < o.y + o.h) {
+              c.blds.splice(q, 1);
+              // a distro set up in the building that just went finds a new room
+              for (const k in (g.distroAt || {})) {
+                const S = g.distroAt[k];
+                if (S && S.b === o) {
+                  c.blds.push(b);
+                  const site = distroSite(c);
+                  c.blds.pop();
+                  S.x = site.x; S.y = site.y; S.b = site.b; S.f = site.f; S.found = 0;
+                  distroGuards(S);
+                }
+              }
+            }
+          }
+        }
         if (m.nf != null) { b.nf = true; b.nfIdx = m.nf; }
         if (m.rochelle) b.rochelle = true;
         if (m.face && b.door) {
@@ -30052,6 +30119,23 @@ export default function IronLionLayer004() {
         }
         if (m.lift) b.lift = true;
         if (m.carpark) b.carpark = true;
+        /* `lawn`: grass for the whole lot instead of the dirt and junk the block generator scatters,
+           with a front walk from the door to the kerb and a drive from the ramp to the street. */
+        if (m.lawn && b.door) {
+          c.lawn = true; c.det = [];
+          const dp = doorPoint(b), rs = (b.door.side + 2) % 4;
+          const paths = [];
+          const walk = (sd, cx, cy, wd) => {
+            if (sd === 2) paths.push({ x: cx - wd / 2, y: y + h, w: wd, h: c.ly1 - (y + h) });
+            else if (sd === 0) paths.push({ x: cx - wd / 2, y: c.ly0, w: wd, h: y - c.ly0 });
+            else if (sd === 1) paths.push({ x: x + w, y: cy - wd / 2, w: c.lx1 - (x + w), h: wd });
+            else paths.push({ x: c.lx0, y: cy - wd / 2, w: x - c.lx0, h: wd });
+          };
+          walk(b.door.side, dp[0], dp[1], 48);
+          walk(rs, x + w / 2, y + h / 2, 132);
+          c.lawnPaths = paths;
+          c.lawnFoot = { x, y, w, h };
+        }
         c.blds.push(b);
         m.b = b;
       }
