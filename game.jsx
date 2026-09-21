@@ -1507,18 +1507,52 @@ const MG_KEYS = ["mg_table", "mg_drawers", "mg_gurney", "mg_scale", "mg_sink", "
 const CS_KEYS = ["cs_tent_small", "cs_tent_big", "cs_tape", "cs_taperoll", "cs_casings", "cs_blood", "cs_tyres", "cs_footprints", "cs_wallet_a", "cs_wallet_b", "cs_matchbook", "cs_knife", "cs_bottle", "cs_revolver", "cs_crowbar", "cs_hanky", "cs_glass", "cs_lock"];
 const PD_CARS = { cruiser: { k: "pd_cruiser", len: 118, w: 53.5 }, unmarked: { k: "pd_unmarked", len: 118, w: 54.4 }, coroner: { k: "pd_coroner", len: 126, w: 60.3 }, csu: { k: "pd_csu", len: 126, w: 60.6 } };
 const PD_ASPECT = { pd_counter: 2.493, pd_desk: 1.426, pd_caseboard: 1.551, pd_evshelf: 0.910, pd_evcage: 0.973, pd_interview: 1.770, pd_bench: 1.593, pd_toilet: 0.524, pd_lockers: 0.995, pd_coffee: 0.881, pd_files: 0.781, pd_gunrack: 0.826, pd_prints: 1.029, pd_mugboard: 1.250, pd_radio: 1.288, mg_table: 1.674, mg_drawers: 1.516, mg_gurney: 1.688, mg_scale: 0.550, mg_sink: 0.853, mg_tray: 0.817, mg_xray: 1.222, mg_desk: 1.095, mg_lamp: 0.638, mg2_table: 0.472, mg2_drawers: 1.513, mg2_gurney: 0.747, mg2_sink: 0.771, mg2_scale: 0.490, mg2_cart: 0.858, mg2_xray: 1.725, mg2_desk: 1.055, mg2_light: 0.640, cs_tent_small: 1.088, cs_tent_big: 0.800, cs_tape: 8.306, cs_taperoll: 3.514, cs_casings: 0.974, cs_blood: 1.341, cs_tyres: 1.383, cs_footprints: 2.093, cs_wallet_a: 2.093, cs_wallet_b: 1.722, cs_matchbook: 1.098, cs_knife: 5.714, cs_bottle: 2.614, cs_revolver: 1.471, cs_crowbar: 4.513, cs_hanky: 1.647, cs_glass: 1.435, cs_lock: 0.448 };
-const PD_ART = { ct_precinct: "assets/city/ct_precinct.png" };
+const PD_ART = { ct_precinct: "assets/city/ct_precinct.png", pd_b2: "assets/police/pd_b2.png" };
+/* Pieces lifted off the two station scenes, and the station's people (cut at the belt). */
+const PD_KEYS2 = ["pd_vending", "pd_fridge", "pd_roundtable", "pd_flag", "pd_captdesk", "pd_trophy", "pd_chalkboard", "pd_podium", "pd_chair", "pd_chairrows", "pd_evwindow", "pd_snacks", "pd_fridge2", "pd_files2", "pd_bench_long"];
+for (const k of PD_KEYS2) PD_ART[k] = "assets/police/" + k + ".png";
+for (const k of ["yt_sergeant", "yt_csu", "yt_coroner"]) PD_ART[k] = "assets/heroes/" + k + ".png";
+/* B2's own floor. Its solid parts in fractions of the art -- pillars, the tool chest, the tyres,
+   the pump, the cabinet, the painted car, the lift posts and the workbench -- so they stop you
+   exactly where they are drawn. The ramp in the art is bottom-centre and its stairs bottom-right. */
+const PD_B2 = {
+  ramp: 0.504, stair: [0.884, 0.817, 0.964, 0.955],
+  solid: [[0.181, 0.050, 0.216, 0.204], [0.600, 0.050, 0.636, 0.204], [0.941, 0.263, 0.974, 0.424],
+          [0.267, 0.674, 0.303, 0.838], [0.723, 0.674, 0.760, 0.838], [0.941, 0.646, 0.974, 0.813],
+          [0.023, 0.571, 0.059, 0.717], [0.023, 0.809, 0.059, 0.951],
+          [0.282, 0.050, 0.427, 0.163], [0.444, 0.064, 0.495, 0.171], [0.694, 0.065, 0.797, 0.204],
+          [0.851, 0.075, 0.893, 0.171], [0.086, 0.250, 0.200, 0.534], [0.690, 0.254, 0.720, 0.477],
+          [0.859, 0.254, 0.892, 0.477], [0.098, 0.617, 0.261, 0.713]],
+  // the two empty stalls in the top row, and one at the bottom, for the fleet
+  bays: [[0.352, 0.225, 0.446, 0.534], [0.543, 0.225, 0.637, 0.534], [0.602, 0.870, 0.775, 0.955]],
+};
 for (const k of PD_KEYS) PD_ART[k] = "assets/police/" + k + ".png";
 for (const k of MG_KEYS) PD_ART[k] = "assets/morgue/" + k + ".png";
 for (const k of CS_KEYS) PD_ART[k] = "assets/scene/" + k + ".png";
 for (const c of Object.values(PD_CARS)) PD_ART[c.k] = "assets/police/" + c.k + ".png";
-const PD_SOLID = { pd_counter: 1, pd_desk: 1, pd_evshelf: 1, pd_evcage: 1, pd_interview: 1, pd_lockers: 1,
+const PD_SOLID = { mg_table: 1, mg2_table: 1, mg_drawers: 1, mg2_drawers: 1, mg_gurney: 1, mg2_gurney: 1,
+                   mg_sink: 1, mg2_sink: 1, mg_desk: 1, mg2_desk: 1, mg2_cart: 1,
+                   pd_vending: 1, pd_fridge: 1, pd_roundtable: 1, pd_captdesk: 1, pd_trophy: 1, pd_podium: 1,
+                   pd_chairrows: 1, pd_evwindow: 1, pd_snacks: 1, pd_fridge2: 1, pd_files2: 1, pd_bench_long: 1,
+                   pd_counter: 1, pd_desk: 1, pd_evshelf: 1, pd_evcage: 1, pd_interview: 1, pd_lockers: 1,
                    pd_files: 1, pd_gunrack: 1, pd_radio: 1, pd_bench: 1, pd_coffee: 1,
                    pd_cruiser: 1, pd_unmarked: 1, pd_coroner: 1, pd_csu: 1 };
 /* THE BEATS. Every district is a parish with a number, and up to five numbered patrol cars work it
    at once. A car's number is its parish and its slot -- 31 is the first car in parish 3 -- painted
    on the roof so it reads from above, the way a helicopter reads it. */
 const BEAT = { perParish: 5, chance: 0.22 };
+/* ---------- MALCOLM'S KIT ----------
+   Ramos walks with him, rides with him, drives when he asks and carries a service pistol. His car
+   has a trunk and a radio. The radio brings one, two or three cars (two officers each), a SWAT van
+   (four), an ambulance or a fire crew. */
+const DET = {
+  follow: 64, walk: 150, reach: 380, dmg: 3, fireCd: [0.9, 0.6],
+  drive: 300, arrive: 26,
+  trunk: [["pistol_auto", "SERVICE PISTOL"], ["shotgun_long", "SHOTGUN"], ["rifle_auto", "RIFLE"]],
+  unit: { spd: 380, stay: 150, reach: 420, dmg: 3, swatDmg: 5, from: 1300 },
+  // an unidentified victim: the coroner's clock, and what takes time off it
+  idBase: 480, idDna: 180, idPrints: 90, idWitness: 45, idCoroner: 150,
+};
 const ANIM_ART = {};
 for (const kind of ["dog", "cat"])
   for (let i = 1; i <= ANIM[kind].n; i++) ANIM_ART[ANIM[kind].pre + i] = "assets/animals/" + ANIM[kind].pre + i + ".png";
@@ -4672,8 +4706,8 @@ function floorKind(b, f) {
   /* Four floors each, and the floor IS the content -- you go up through an institution the
      way you would walk through one, reception first and the locked part in the middle. */
   if (b.kind === "asylum") return f === 0 ? "asyadmin" : f === 3 ? "asyoffice" : "asycells";
-  if (b.kind === "hospital") return f === 0 ? "hosreception" : f === 1 ? "hosward"
-                                  : f === 2 ? "hosburn" : "hoshelipad";
+  if (b.kind === "hospital") return f === 0 ? "morgue" : f === 1 ? "hosreception" : f === 2 ? "hosward"
+                                  : f === 3 ? "hosburn" : "hoshelipad";
   /* THE FIELD OFFICE, bottom to top. Index 0 is the BASEMENT, not the street -- the building
      carries entry: 1, and the door puts you on index 1. That is why the holding level can exist
      at all: plans are an array, a negative index is not a floor, so the basement has to BE
@@ -4837,6 +4871,17 @@ function makeFloor(b, f, rnd) {
        which is four small rooms rather than a venue -- you could not see the band from the
        bar. The furniture still zones it; the walls were the problem. */
     hub = put(0, 0, GX - 1, GY - 1, "vnstage");
+  } else if (kind === "morgue") {
+    /* THE MORGUE. Cold room down the west side for the drawers, the autopsy room as the hub,
+       and the coroner's office and the records room along the south. */
+    /* The hospital is long and shallow, so the south strip gets a real share of the depth -- at
+       a third it was 76 deep and the coroner's desk had nowhere to go. "mgrecords", not
+       "records": that name already means a room of filing cabinets. */
+    const a = Math.round(GX * 0.30), c2 = Math.round(GX * 0.64), y1 = Math.round(GY * 0.55);
+    put(0, 0, a - 1, GY - 1, "coldroom");
+    hub = put(a, 0, GX - 1, y1 - 1, "autopsy");
+    put(a, y1, c2 - 1, GY - 1, "coroneroffice");
+    put(c2, y1, GX - 1, GY - 1, "mgrecords");
   } else if (kind === "pd_garage") {
     hub = put(0, 0, GX - 1, GY - 1, "pdgarage");
   } else if (kind === "pd_lower") {
@@ -5406,7 +5451,8 @@ function makeFloor(b, f, rnd) {
        on 1 -- and the doorway was being cut into the basement wall, leaving the lobby sealed. */
     /* The car park's ramp: a lane-wide hole in the back wall, opposite the front door. */
     if (b.carpark && f === 0 && b.door && s === (b.rampSide != null ? b.rampSide : (b.door.side + 2) % 4)) {
-      const d = a + len * (b.rampPos != null ? b.rampPos : 0.5);
+      // inside, the ramp is where the floor art draws it; outside, where the canopy is
+      const d = a + len * (b.rampIn != null ? b.rampIn : b.rampPos != null ? b.rampPos : 0.5);
       seg(s, a, Math.max(a, d - 64)); seg(s, Math.min(a + len, d + 64), a + len);
     } else if (f === (b.entry || 0) && b.door && s === b.door.side) {
       const d = a + len * b.door.pos;
@@ -5453,7 +5499,10 @@ function makeFloor(b, f, rnd) {
   const st = kind === "den"
     ? { x: -9999, y: -9999, w: 0, h: 0 }
     /* The hub rule puts the stair in the middle of the room, and the middle of a gym is the ring. */
-    : (kind === "vt_parking" || kind === "vt_lobby" || kind === "vt_pool" || kind === "pd_garage")
+    : kind === "pd_garage"
+    ? { x: b.x + b.w * PD_B2.stair[0], y: b.y + b.h * PD_B2.stair[1],
+        w: b.w * (PD_B2.stair[2] - PD_B2.stair[0]), h: b.h * (PD_B2.stair[3] - PD_B2.stair[1]) }
+    : (kind === "vt_parking" || kind === "vt_lobby" || kind === "vt_pool")
     ? { x: b.x + WT + 16, y: b.y + b.h * 0.5 - 19, w: 64, h: 38 }
     : kind === "gymfloor"
     ? { x: b.x + b.w * (0.5 + GYM_STAIR.fx) - 32, y: b.y + b.h * (0.5 + GYM_STAIR.fy) - 19, w: 64, h: 38 }
@@ -6925,7 +6974,17 @@ function makeFloor(b, f, rnd) {
         if (!blocked(q)) { props.push(q); return; }
       }
     };
-    if (kind === "pd_garage") {
+    if (kind === "pd_garage" && b.pdArt) {
+      /* The floor is the art: its pillars and benches are invisible solid blocks, and the fleet
+         parks in the art's empty stalls. */
+      for (const [x0, y0, x1, y1] of PD_B2.solid)
+        props.push({ x: b.x + b.w * x0, y: b.y + b.h * y0, w: b.w * (x1 - x0), h: b.h * (y1 - y0), t: "gy_block", hard: 1 });
+      [PD_CARS.cruiser, PD_CARS.unmarked].forEach((c, k) => {
+        const [x0, y0, x1, y1] = PD_B2.bays[k];
+        const cx = b.x + b.w * (x0 + x1) / 2, cy = b.y + b.h * (y0 + y1) / 2;
+        props.push({ x: cx - c.w / 2, y: cy - c.len / 2, w: c.w, h: c.len, t: c.k });
+      });
+    } else if (kind === "pd_garage") {
       // the fleet, nose to the wall opposite the ramp, and the chevrons out
       const rampS = b.rampSide != null ? b.rampSide : 2;
       const Y0 = rampS === 2 ? b.y + WT + 14 : b.y + b.h - WT - 14 - 124;
@@ -6952,18 +7011,24 @@ function makeFloor(b, f, rnd) {
       place("office", 1, 0.2, 0.75, "pd_files", 32, 40);
     } else {
       place("pdlobby", 0, 0.55, 0.30, "pd_counter", 92, 36);
-      place("pdlobby", 0, 0.20, 0.72, "pd_bench", 50, 30);
-      place("briefing", 0, 0.5, 0.12, "pd_caseboard", 64, 40);
-      place("briefing", 0, 0.5, 0.30, "pd_desk", 56, 40);
-      for (let k = 0; k < 3; k++) place("briefing", 0, 0.5, 0.52 + k * 0.16, "pd_bench", 70, 28);
-      place("evidence", 0, 0.28, 0.35, "pd_evcage", 58, 60);
+      place("pdlobby", 0, 0.12, 0.62, "pd_bench_long", 14, 96);
+      // briefing: the board and the podium at the front, the rows facing them
+      place("briefing", 0, 0.30, 0.13, "pd_chalkboard", 50, 58);
+      place("briefing", 0, 0.70, 0.14, "pd_podium", 28, 40);
+      place("briefing", 0, 0.5, 0.58, "pd_chairrows", 118, 76);
+      place("evidence", 0, 0.5, 0.82, "pd_evwindow", 118, 32);
+      place("evidence", 0, 0.25, 0.30, "pd_evcage", 58, 60);
       place("evidence", 0, 0.75, 0.30, "pd_evshelf", 46, 50);
-      place("evidence", 0, 0.75, 0.75, "pd_evshelf", 46, 50);
-      place("captain", 0, 0.5, 0.35, "pd_desk", 58, 42);
-      place("captain", 0, 0.18, 0.75, "pd_files", 34, 42);
-      place("captain", 0, 0.82, 0.75, "pd_gunrack", 38, 46);
-      place("breakroom", 0, 0.5, 0.25, "pd_coffee", 36, 40);
-      place("breakroom", 0, 0.5, 0.65, "pd_interview", 66, 38);
+      place("evidence", 0, 0.90, 0.55, "pd_files2", 18, 46);
+      // top middle, between the trophy case and the flag: the lift takes the east wall
+      place("captain", 0, 0.52, 0.22, "pd_captdesk", 58, 52);
+      place("captain", 0, 0.88, 0.22, "pd_flag", 14, 48);
+      place("captain", 0, 0.12, 0.28, "pd_trophy", 26, 50);
+      place("captain", 0, 0.85, 0.80, "pd_gunrack", 38, 46);
+      place("breakroom", 0, 0.22, 0.14, "pd_snacks", 34, 52);
+      place("breakroom", 0, 0.78, 0.14, "pd_fridge", 30, 50);
+      place("breakroom", 0, 0.5, 0.52, "pd_roundtable", 64, 64);
+      place("breakroom", 0, 0.5, 0.86, "pd_coffee", 36, 40);
       place("lockerroom", 0, 0.5, 0.25, "pd_lockers", 52, 52);
       place("lockerroom", 0, 0.5, 0.70, "pd_bench", 50, 30);
       place("pdbath", 0, 0.3, 0.25, "pd_toilet", 18, 32);
@@ -6971,6 +7036,46 @@ function makeFloor(b, f, rnd) {
       place("pdbath", 0, 0.5, 0.78, "sink", 20, 18);
       place("pdlobby", 0, 0.85, 0.72, "pd_prints", 32, 32);
     }
+  }
+  /* THE MORGUE, furnished with both sets -- the same place-and-walk-outward rule as the station. */
+  if (kind === "morgue") {
+    const hitR = (a2, q) => a2.x < q.x + q.w && q.x < a2.x + a2.w && a2.y < q.y + q.h && q.y < a2.y + a2.h;
+    const rects = rooms.map(rect);
+    const blocked = (q) => walls.some((w) => hitR(q, w)) || props.some((o) => hitR(q, o)) ||
+      (st.w > 0 && hitR(q, { x: st.x - 14, y: st.y - 14, w: st.w + 28, h: st.h + 28 })) ||
+      doorMarks.some((d) => hitR(q, { x: d.x - 42, y: d.y - 42, w: 84, h: 84 }));
+    const place = (roomK, fx, fy, t, w, h) => {
+      const idx = rooms.findIndex((q) => q.k === roomK);
+      const r = rects[idx]; if (!r) return;
+      const tx = r.x0 + (r.x1 - r.x0) * fx - w / 2, ty = r.y0 + (r.y1 - r.y0) * fy - h / 2;
+      for (let rad = 0; rad <= 110; rad += 8) for (let a2 = 0; a2 < (rad ? 12 : 1); a2++) {
+        const q = { x: tx + Math.cos(a2 * 0.5236) * rad, y: ty + Math.sin(a2 * 0.5236) * rad, w, h, t };
+        if (q.x < r.x0 + WT + 2 || q.y < r.y0 + WT + 2 || q.x + w > r.x1 - WT - 2 || q.y + h > r.y1 - WT - 2) continue;
+        if (!blocked(q)) { props.push(q); return; }
+      }
+    };
+    // the cold room: both drawer walls and a covered gurney waiting
+    place("coldroom", 0.5, 0.12, "mg_drawers", 92, 62);
+    place("coldroom", 0.5, 0.45, "mg2_drawers", 96, 64);
+    place("coldroom", 0.5, 0.80, "mg_gurney", 66, 42);
+    // the autopsy room: two tables under their lights, sinks and scales on the walls
+    place("autopsy", 0.32, 0.42, "mg_table", 72, 44);
+    place("autopsy", 0.70, 0.42, "mg2_table", 30, 62);
+    place("autopsy", 0.18, 0.18, "mg_lamp", 24, 38);
+    place("autopsy", 0.86, 0.18, "mg2_light", 32, 44);
+    place("autopsy", 0.50, 0.12, "mg_sink", 34, 40);
+    place("autopsy", 0.92, 0.70, "mg2_sink", 36, 46);
+    place("autopsy", 0.12, 0.80, "mg_scale", 18, 30);
+    place("autopsy", 0.48, 0.72, "mg_tray", 24, 30);
+    place("autopsy", 0.62, 0.78, "mg2_cart", 30, 36);
+    place("autopsy", 0.28, 0.82, "mg2_gurney", 40, 54);
+    // the coroner's office and the records room
+    place("coroneroffice", 0.5, 0.40, "mg_desk", 50, 46);
+    place("coroneroffice", 0.15, 0.75, "pd_files", 30, 38);
+    place("coroneroffice", 0.85, 0.75, "mg2_scale", 18, 36);
+    place("mgrecords", 0.28, 0.30, "mg_xray", 44, 36);
+    place("mgrecords", 0.74, 0.30, "mg2_xray", 46, 28);
+    place("mgrecords", 0.5, 0.72, "mg2_desk", 48, 44);
   }
   /* VANCE TOWER, furnished. Fractions of the footprint so a re-size moves everything with it. */
   if (b && b.kind === "vance") {
@@ -7426,8 +7531,11 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
   }
   if (isHospitalCell(i, j)) {
     const bw = LW * 0.78, bh = LH * 0.64;
-    const b = mkB(lx0 + (LW - bw) / 2, ly0 + (LH - bh) / 2, bw, bh, 4, "hospital", rnd, key);
+    /* Five floors, entry 1: index 0 is the basement MORGUE, and the street door opens onto
+       reception above it -- the field office's arrangement, for the same reason. */
+    const b = mkB(lx0 + (LW - bw) / 2, ly0 + (LH - bh) / 2, bw, bh, 5, "hospital", rnd, key);
     b.tone = 0.72; b.name = HOSPITAL_NAME; b.signKey = "sign_lightbox"; b.retail = false;
+    b.entry = 1;          // the stairs reach every floor; a lift here landed where you could not walk out
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
     return dryOut(out);
   }
@@ -10148,7 +10256,10 @@ export default function IronLionLayer004() {
         }
       }
 
-      collideCircle(c, isMoto ? 15 : 26, true);
+      /* With Ramos at the wheel the car is on a road route, and a stopped car or a lamp post
+         in the lane held it in place for good -- pushed back every frame by exactly as far as
+         she moved it. She drives round small things; buildings still stop her. */
+      if (!(g.auto && c === activeVeh())) collideCircle(c, isMoto ? 15 : 26, true);
       collideBuildings(c, isMoto ? 15 : 26, true);
       const bx = clamp(c.x, WORLD_MIN + 26, WORLD_MAX - 26);
       const by = clamp(c.y, WORLD_MIN + 26, WORLD_MAX - 26);
@@ -10596,15 +10707,36 @@ export default function IronLionLayer004() {
       const m = freeIndoor(b, pl, (room.x0 + room.x1) / 2 - 20, (room.y0 + room.y1) / 2 + 20, room)
              || [(room.x0 + room.x1) / 2, (room.y0 + room.y1) / 2];
       const r2 = freeIndoor(b, pl, m[0] + 46, m[1] + 10, room) || [m[0] + 46, m[1] + 10];
-      g.dets = { b, f, home: r2,
+      /* The desk sergeant, behind the front counter on the street floor. */
+      let sgt = null;
+      if (b.pd) {
+        const pl2 = buildingPlans(b)[b.entry || 0];
+        const ctr = pl2.props.find((q) => q.t === "pd_counter");
+        if (ctr) sgt = { x: ctr.x + ctr.w / 2, y: ctr.y - 16, vx: 0, vy: 0, yt: "yt_sergeant", jit: 1.04, anim: 0.4, bang: -Math.PI / 2 };
+      }
+      g.dets = { b, f, home: r2, sgt,
         malcolm: { x: m[0], y: m[1], vx: 0, vy: 0, yt: "yt_malcolm", jit: 1.06, anim: 0, bang: Math.PI / 2 },
         ramos: { x: r2[0], y: r2[1], vx: 0, vy: 0, yt: "yt_ramos", jit: 0.98, anim: 1.3, bang: Math.PI } };
       return g.dets;
     }
-    function nearMalcolm() {
+    /* Who you report to. Malcolm -- unless you ARE Malcolm, and then it is your partner: Ramos,
+       in the task force room, or out at the scene while a case is open. */
+    function contactSpot() {
       const D = detectives();
-      if (!D || g.inside !== D.b || g.floor !== D.f || g.mode !== "foot") return false;
-      return Math.hypot(g.p.x - D.malcolm.x, g.p.y - D.malcolm.y) < 70;
+      if (!D) return null;
+      if (!g.detMode) return { x: D.malcolm.x, y: D.malcolm.y, b: D.b, f: D.f };
+      // she is at his shoulder: wherever he is, she is
+      const R = partner();
+      if (R && !R.inCar) return { x: R.x, y: R.y, b: g.inside || null, f: g.floor };
+      const C = g.case;
+      if (C && C.stage !== "done" && D.ramos.out) return { x: D.ramos.out[0], y: D.ramos.out[1], b: null, f: 0 };
+      return { x: D.home[0], y: D.home[1], b: D.b, f: D.f };
+    }
+    function nearMalcolm() {
+      const S2 = contactSpot();
+      if (!S2 || g.mode !== "foot") return false;
+      if (S2.b ? (g.inside !== S2.b || g.floor !== S2.f) : !!g.inside) return false;
+      return Math.hypot(g.p.x - S2.x, g.p.y - S2.y) < 70;
     }
     const cpick = (a) => a[(Math.random() * a.length) | 0];
     const wpick = (o) => { let t = Math.random() * Object.values(o).reduce((a, b) => a + b, 0);
@@ -10747,11 +10879,21 @@ export default function IronLionLayer004() {
         if (hitB) continue;
         C.van = { x: vx, y: vy, axis: "h", si: clamp(Math.round(vy / PITCH), 0, N), dir: 1, k: clamp(Math.round(vx / PITCH), 0, N),
                   ang: ox ? 0 : Math.PI / 2, spd: 0, cruise: 0, brake: 0, m: PD_CARS.csu, dead: 1, parked: 1, named: 1, trFree: 1, rogueRide: 1 };
-        g.traffic.push(C.van); break;
+        g.traffic.push(C.van);
+        C.tech = { x: scene[0] - 60, y: scene[1] - 30, vx: 0, vy: 0, yt: "yt_csu", jit: 0.97, anim: 0.7, bang: 0 };
+        break;
       }
       // Ramos goes out to it
       const D = detectives();
-      if (D) { D.ramos.out = [scene[0] + 20, scene[1] + 70]; }
+      if (D && !g.detMode) { D.ramos.out = [scene[0] + 20, scene[1] + 70]; }
+      /* NO ID ON THE VICTIM. Some of the ones who got hurt did not get up: no card, a body for the
+         morgue, and the coroner's clock. DNA, prints and witnesses all take time off it. */
+      if (K.hurt && Math.random() < 0.35) {
+        C.unknownVictim = true; C.idLeft = DET.idBase;
+        C.victim.caseRole = "body"; C.people = C.people.filter((q) => q !== C.victim);
+        C.bodyAt = [C.victim.x, C.victim.y];
+        C.lines[1] = "Victim: NO ID on the body. Taken to the morgue.";
+      }
       return C;
     }
     /* A FACT, said by somebody. Off the man's own card -- or, when the person saying it is drunk or
@@ -10786,7 +10928,8 @@ export default function IronLionLayer004() {
     }
     function ramosSays(t) {
       const D = detectives();
-      if (D) { D.ramos.say = 3.2; D.ramos.line = t.toUpperCase(); }
+      const R = g.detMode ? partner() : D && D.ramos;
+      if (R) { R.say = 3.2; R.line = t.toUpperCase(); }
       caseLine("RAMOS: " + t, false);
     }
     /* THE LAB. Each bag develops on its own clock, and says what it says when it is done. */
@@ -10801,7 +10944,23 @@ export default function IronLionLayer004() {
       return "";
     }
     function stepCase(dt) {
+      stepPartner(dt); stepAutopilot(dt); stepBackup(dt);
       const D = detectives();
+      if (g.detStart && D) {
+        g.detStart = false;
+        g.plain = true; g.mode = "foot"; g.inside = D.b; g.floor = D.f;
+        g.p.x = D.malcolm.x; g.p.y = D.malcolm.y; g.p.vx = 0; g.p.vy = 0;   // his spot -- he is you
+        // the camera is still wherever the title shot left it, and Malcolm's panel pauses the
+        // game -- so it would never get here on its own
+        g.cam.x = g.p.x; g.cam.y = g.p.y;
+        g.insideT = 1;           // and the room is already faded in, not waiting on a paused clock
+        g.detMode = true;
+        g.p.wpn = "pistol_auto"; g.p.ammo = WPN_AMMO.pistol_auto || 7; g.p.holstered = true;
+        g.rack = g.rack || []; if (g.rack.indexOf("pistol_auto") < 0) g.rack.push("pistol_auto");
+        g.partner = null; partner();
+        g.malcolmOpen = true; g.paused = true;
+        setHud((h) => ({ ...h, malcolm: malcolmPanel() }));
+      }
       if (D) { D.malcolm.anim += dt * 0.3; D.ramos.anim += dt * 0.3; if (D.ramos.say > 0) D.ramos.say -= dt; }
       const b = precinctB();
       /* THE STATION LOT. Five numbered cruisers nose-in along the stalls on your plate, and the
@@ -10848,7 +11007,19 @@ export default function IronLionLayer004() {
       for (const L of C.lab) {
         if (L.done) continue;
         L.left -= dt;
-        if (L.left <= 0) { L.done = true; caseLine(labResult(C, L.t)); }
+        if (L.left <= 0) {
+          L.done = true; caseLine(labResult(C, L.t));
+          if (C.unknownVictim && C.idLeft > 0) C.idLeft -= L.t === "dna" ? DET.idDna : L.t === "prints" ? DET.idPrints : 0;
+        }
+      }
+      if (C.unknownVictim && C.idLeft > 0) {
+        C.idLeft -= dt;
+        if (C.idLeft <= 0) {
+          const vid = identOf(C.victim);
+          caseLine("CORONER: the body is " + vid.name + ", " + vid.age + ", of " + vid.addr + ".");
+          caseLine("His people say he owed somebody on " + C.hangWhere + ".");
+          C.lead = true;
+        }
       }
       if (C.lead && C.people.filter((q) => q.caseRole === "perp" || q.caseRole === "decoy").every((q) => q.carded)) C.stage = "name";
     }
@@ -10860,19 +11031,29 @@ export default function IronLionLayer004() {
       const pend = C.lab.filter((L) => !L.done);
       const lab = pend.length ? " \u00b7 LAB " + pend.length + " (" + Math.ceil(Math.min(...pend.map((L) => L.left)) / 60) + "m)" : "";
       if (!C.atScene) return { head: "CASE \u00b7 " + C.K.nm, n: to(C.scene[0], C.scene[1]) + "m", sub: "GO TO THE SCENE \u00b7 " + C.where };
-      if (C.stage === "name" && D) return { head: "CASE \u00b7 NAME HIM", n: to(D.b.x + D.b.w / 2, D.b.y + D.b.h / 2) + "m",
-        sub: "BACK TO MALCOLM" + lab };
+      if (C.stage === "name" && D) {
+        const S2 = contactSpot();
+        return { head: "CASE \u00b7 NAME HIM", n: to(S2.x, S2.y) + "m",
+                 sub: (g.detMode ? "BACK TO RAMOS" : "BACK TO MALCOLM") + lab };
+      }
       const got = C.ev.filter((e) => e.got).length;
+      const morgue = C.unknownVictim && C.idLeft > 0 ? " \u00b7 MORGUE ID ~" + Math.ceil(C.idLeft / 60) + "m" : "";
       if (!C.lead) return { head: "CASE \u00b7 WORK THE SCENE", n: got + "/" + C.ev.length,
-        sub: "EVIDENCE \u00b7 WITNESSES \u00b7 THE BEAT COP" + (C.bag.length ? " \u00b7 " + C.bag.length + " BAGGED" : "") + lab };
+        sub: "EVIDENCE \u00b7 WITNESSES \u00b7 THE BEAT COP" + (C.bag.length ? " \u00b7 " + C.bag.length + " BAGGED" : "") + lab + morgue };
       return { head: "CASE \u00b7 " + C.hangWhere, n: to(C.hang[0], C.hang[1]) + "m",
         sub: "CARD THEM, TALK TO THEM" + (C.bag.length ? " \u00b7 " + C.bag.length + " BAGGED" : "") + lab };
     }
     function drawCase(view) {
       const D = detectives(), C = g.case;
       const out = C && C.stage !== "done" && D && D.ramos.out;
+      if (D && D.sgt && g.inside === D.b && g.floor === (D.b.entry || 0)) {
+        const q = D.sgt;
+        drawShadow(q.x, q.y + 2, 10, 4, 0.3); drawYouth(q);
+        ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText("DESK SGT", q.x, q.y - 22); ctx.textAlign = "start";
+      }
       if (D && g.inside === D.b && g.floor === D.f) {
-        for (const [q, nm] of [[D.malcolm, "MALCOLM"], out ? null : [D.ramos, "RAMOS"]].filter(Boolean)) {
+        for (const [q, nm] of [g.detMode ? null : [D.malcolm, "MALCOLM"], out || g.detMode ? null : [D.ramos, "RAMOS"]].filter(Boolean)) {
           drawShadow(q.x, q.y + 2, 10, 4, 0.3); drawYouth(q);
           ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
           ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText(nm, q.x, q.y - 22); ctx.textAlign = "start";
@@ -10898,6 +11079,10 @@ export default function IronLionLayer004() {
         const WPN = { mugging: "cs_knife", breakin: "cs_crowbar", assault: "cs_bottle", holdup: "cs_revolver" };
         const wim = imgs.current[WPN[C.K.k]];
         if (wim && wim.width) { const ww = 26, wh = ww * wim.height / wim.width; ctx.drawImage(wim, sx + 20, sy + 26, ww, wh); }
+        if (C.unknownVictim && C.idLeft > 0 && C.bodyAt) {
+          const gi = imgs.current.mg_gurney;
+          if (gi && gi.width) ctx.drawImage(gi, C.bodyAt[0] - 28, C.bodyAt[1] - 16, 56, 34);
+        }
         if (C.K.hurt) {
           ctx.strokeStyle = "rgba(240,240,236,0.7)"; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.ellipse(sx - 4, sy + 6, 9, 20, 0.4, 0, 6.283); ctx.stroke();
@@ -10926,6 +11111,12 @@ export default function IronLionLayer004() {
            always there to walk up to. */
         const dsh = imgs.current.duty_top;
         if (dsh && dsh.width) drawCop(C.cop);
+        // the crime-scene tech works the scene beside the van
+        if (C.tech) {
+          drawShadow(C.tech.x, C.tech.y + 2, 10, 4, 0.3); drawYouth(C.tech);
+          ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
+          ctx.fillStyle = "rgba(159,197,232,0.9)"; ctx.fillText("CSU", C.tech.x, C.tech.y - 22); ctx.textAlign = "start";
+        }
         else {
           const u = C.cop;
           drawShadow(u.x, u.y + 2, 10, 4, 0.32);
@@ -10952,6 +11143,296 @@ export default function IronLionLayer004() {
       }
     }
     /* ---------- TALKING ---------- */
+    /* ---------------- MALCOLM'S KIT ---------------- */
+    // anybody the good guys may shoot: hostile crews, alerted guards on your side of the wall, thugs
+    function hostiles() {
+      const out = [];
+      for (const cr of g.crews || []) if (cr.state === "hostile") for (const m of (cr.members || [])) if (m && m.hp > 0) out.push(m);
+      for (const S of guardSites()) if (S.alert) for (const q of siteBodies(S)) if (q.hp > 0 && siteSees(S, q)) out.push(q);
+      if (g.crime && g.crime.thugs) for (const t of g.crime.thugs) if (t && t.hp > 0) out.push(t);
+      return out;
+    }
+    /* A friendly shot: a real round, fired as the player's side so it hits their people and
+       never him. */
+    function allyShoot(u, dt, reach, dmg) {
+      u.fireCd = (u.fireCd || 0) - dt;
+      u.muzzle = Math.max(0, (u.muzzle || 0) - dt * 5);
+      if (u.fireCd > 0) return;
+      let best = null, bd = reach;
+      for (const q of hostiles()) { const d = Math.hypot(q.x - u.x, q.y - u.y); if (d < bd) { bd = d; best = q; } }
+      if (!best) return;
+      const a = Math.atan2(best.y - u.y, best.x - u.x);
+      u.fireCd = DET.fireCd[0] + Math.random() * DET.fireCd[1];
+      u.muzzle = 0.16; u.drawnT = 0.9; u.bang = a + Math.PI / 2 + TOPDOWN_FACE;
+      sfxGunshot();
+      fireBullet(u, a + (Math.random() - 0.5) * 0.16, 980, dmg, reach * 1.15, true, null);
+    }
+    /* RAMOS, AT HIS SHOULDER. */
+    function partner() {
+      if (!g.detMode) return null;
+      if (!g.partner) g.partner = { x: g.p.x + 50, y: g.p.y + 20, vx: 0, vy: 0, anim: 0, jit: 0.98,
+        yt: "yt_ramos", bang: Math.PI, wpn: "pistol_auto", inCar: false, fireCd: 1, say: 0 };
+      return g.partner;
+    }
+    function stepPartner(dt) {
+      const R = partner(); if (!R) return;
+      if (R.say > 0) R.say -= dt;
+      if (inVehicle()) {
+        // she gets in with him if she is close, and stays with the car if she is not
+        if (!R.inCar && Math.hypot(R.x - activeVeh().x, R.y - activeVeh().y) < 420) R.inCar = true;
+        if (R.inCar) { R.x = activeVeh().x; R.y = activeVeh().y; }
+        return;
+      }
+      if (R.inCar) {           // out of the car beside him
+        R.inCar = false; R.x = g.p.x + 46; R.y = g.p.y + 24;
+      }
+      if (R.floorOf !== g.floor || R.bldOf !== g.inside) {   // through a door or up the stairs with him
+        R.floorOf = g.floor; R.bldOf = g.inside; R.x = g.p.x + 40; R.y = g.p.y + 30;
+      }
+      const dx = g.p.x - R.x, dy = g.p.y - R.y, d = Math.hypot(dx, dy);
+      if (d > 900) { R.x = g.p.x + 40; R.y = g.p.y + 30; }
+      else if (d > DET.follow) {
+        const sp = Math.min(DET.walk * (d > 220 ? 1.7 : 1), d * 4);
+        R.vx = dx / d * sp; R.vy = dy / d * sp;
+        R.x += R.vx * dt; R.y += R.vy * dt;
+        collideBuildings(R, 11, false);
+        R.bang = Math.atan2(dy, dx) + Math.PI / 2 + TOPDOWN_FACE;
+      } else { R.vx = 0; R.vy = 0; }
+      R.anim += dt * (Math.hypot(R.vx, R.vy) > 5 ? 1 : 0.25);
+      allyShoot(R, dt, DET.reach, DET.dmg);
+    }
+    function drawPartner() {
+      const R = g.partner;
+      if (!R || !g.detMode || R.inCar) return;
+      drawShadow(R.x, R.y + 2, 10, 4, 0.3);
+      drawYouth({ ...R, wpn: R.drawnT > 0 ? R.wpn : null });
+      if (R.drawnT > 0) R.drawnT -= 0.016;
+      if (R.muzzle > 0) { const fa = R.bang - Math.PI / 2 - TOPDOWN_FACE;
+        ctx.fillStyle = "rgba(255,214,120,0.9)"; ctx.beginPath(); ctx.arc(R.x + Math.cos(fa) * 16, R.y + Math.sin(fa) * 16, 4, 0, 6.283); ctx.fill(); }
+      ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(159,197,232,0.9)"; ctx.fillText("RAMOS", R.x, R.y - 22); ctx.textAlign = "start";
+      if (R.say > 0 && R.line) bubble(R.x, R.y, R.line, "#9fc5e8");
+    }
+    /* THE ROAD HOME. Street lines are the cell boundaries; a route is along the street he is
+       on, down the cross street nearest the target, and along to the corner nearest it --
+       two turns, and never through a building. */
+    function roadRoute(x0, y0, x1, y1) {
+      const iA = clamp(Math.round(x0 / PITCH), 0, N), jA = clamp(Math.round(y0 / PITCH), 0, N);
+      const iT = clamp(Math.round(x1 / PITCH), 0, N), jT = clamp(Math.round(y1 / PITCH), 0, N);
+      const onV = Math.abs(x0 - SX(iA)) < Math.abs(y0 - SX(jA));
+      return onV
+        ? [[SX(iA), y0], [SX(iA), SX(jT)], [SX(iT), SX(jT)]]
+        : [[x0, SX(jA)], [SX(iT), SX(jA)], [SX(iT), SX(jT)]];
+    }
+    function driveTargets() {
+      const out = [], C = g.case, b = precinctB();
+      if (C && C.stage !== "done") {
+        out.push({ id: "scene", label: "THE SCENE", x: C.scene[0], y: C.scene[1] });
+        if (C.lead) out.push({ id: "hang", label: C.hangWhere.toUpperCase(), x: C.hang[0], y: C.hang[1] });
+      }
+      if (b) out.push({ id: "station", label: "THE STATION", x: b.x + b.w / 2, y: b.y + b.h + 120 });
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+        const c = getCell(i, j), h = c && (c.blds || []).find((q) => q.kind === "hospital");
+        if (h) { out.push({ id: "morgue", label: "THE MORGUE", x: h.x + h.w / 2, y: h.y + h.h + 120 }); i = N; break; }
+      }
+      return out;
+    }
+    function stepAutopilot(dt) {
+      const A = g.auto;
+      if (!A) return;
+      if (!inVehicle()) { g.auto = null; return; }
+      const v = activeVeh(), [tx, ty] = A.pts[A.i];
+      const dx = tx - v.x, dy = ty - v.y, d = Math.hypot(dx, dy);
+      if (d < DET.arrive) {
+        A.i++;
+        if (A.i >= A.pts.length) {
+          g.auto = null; v.vx = 0; v.vy = 0; v.fwd = 0;
+          const R = partner(); if (R) { R.say = 2.6; R.line = "WE'RE HERE."; }
+          g.pickupFlash = { nm: "lift:RAMOS \u00b7 WE'RE HERE", t: 2 };
+        }
+        return;
+      }
+      // she drives it: moved along the road at a normal speed, turned to where she is going
+      const sp = Math.min(DET.drive, d * 3);
+      v.x += dx / d * sp * dt; v.y += dy / d * sp * dt;
+      /* She moves it; the car's own physics must not move it a second time on the same speed,
+         or she drives at double. Its velocity is left at rest and the speedometer is fed
+         separately. */
+      v.vx = 0; v.vy = 0; v.fwd = 0; g.autoSpd = sp;
+      const want = Math.atan2(dy, dx);
+      let da = want - v.ang; while (da > Math.PI) da -= 6.283; while (da < -Math.PI) da += 6.283;
+      v.ang += da * Math.min(1, dt * 6);
+      if (g.mode === "car" || g.mode === "civ") { g.p.x = v.x; g.p.y = v.y; }
+    }
+    /* THE TRUNK of his own car. */
+    function nearTrunk() {
+      const v = g.detCar;
+      if (!g.detMode || !v || g.mode !== "foot" || g.inside) return false;
+      const bx = v.x - Math.cos(v.ang) * 60, by = v.y - Math.sin(v.ang) * 60;
+      return Math.hypot(g.p.x - bx, g.p.y - by) < 70;
+    }
+    /* THE RADIO: in a car, or standing at his own. */
+    function canRadio() {
+      if (!g.detMode) return false;
+      if (inVehicle()) return true;
+      const v = g.detCar;
+      return !!(v && g.mode === "foot" && !g.inside && Math.hypot(g.p.x - v.x, g.p.y - v.y) < 110);
+    }
+    function sendUnits(kind, n) {
+      g.backup = g.backup || [];
+      const px = g.p.x, py = g.p.y;
+      for (let k = 0; k < n; k++) {
+        const a = Math.random() * 6.283;
+        const sx = px + Math.cos(a) * DET.unit.from, sy = py + Math.sin(a) * DET.unit.from;
+        const m = kind === "swat" ? { k: "hh_sec_van", len: 128, w: 63 } : kind === "fire" ? { k: "fire_engine", len: 150, w: 60 }
+                : kind === "ems" ? { k: "ambulance", len: 132, w: 56 } : PD_CARS.cruiser;
+        const crewN = kind === "swat" ? 4 : 2;
+        const car = { x: sx, y: sy, ang: 0, m, kind, pts: roadRoute(sx, sy, px, py).concat([[px + (k - 1) * 70, py + 80]]), i: 0,
+                      phase: "enroute", life: DET.unit.stay, crew: [] };
+        g.parishNo = g.parishNo || {};
+        if (kind === "patrol") car.unit = "R" + (((g.radioN = (g.radioN || 0) + 1) % 9) + 1);
+        for (let c = 0; c < crewN; c++)
+          car.crew.push({ x: sx, y: sy, vx: 0, vy: 0, anim: Math.random() * 6, jit: 1, state: "idle",
+            rank: kind === "fire" ? (c ? DUTY_LT : DUTY_FF) : c ? DUTY_SGT : DUTY_PATROL, swat: kind === "swat",
+            o: copKits[(Math.random() * copKits.length) | 0], hp: 8, fireCd: Math.random(), seat: c, kind });
+        g.backup.push(car);
+      }
+      g.scanner = 2.5;
+    }
+    G.radioFn = (id) => {
+      const R = partner();
+      if (id === "p1") sendUnits("patrol", 1); else if (id === "p2") sendUnits("patrol", 2);
+      else if (id === "p3") sendUnits("patrol", 3); else if (id === "swat") sendUnits("swat", 1);
+      else if (id === "ems") { sendUnits("ems", 1); g.emsCall = true; }
+      else if (id === "fire") sendUnits("fire", 1);
+      else if (id === "home") for (const c of g.backup || []) c.life = 0;
+      const said = { p1: "ONE CAR, ON THE WAY.", p2: "TWO CARS ROLLING.", p3: "THREE CARS. HOLD TIGHT.",
+                     swat: "SWAT IS WHEELS UP.", ems: "BUS IS ON ITS WAY.", fire: "ENGINE COMPANY RESPONDING.",
+                     home: "ALL UNITS, STAND DOWN." }[id];
+      if (said) g.pickupFlash = { nm: "lift:DISPATCH \u00b7 " + said, t: 2.4 };
+      if (R && said) { R.say = 2; R.line = "COPY."; }
+    };
+    function stepBackup(dt) {
+      const L = g.backup; if (!L || !L.length) return;
+      for (let n = L.length - 1; n >= 0; n--) {
+        const c = L[n];
+        if (c.phase === "enroute") {
+          const [tx, ty] = c.pts[c.i], dx = tx - c.x, dy = ty - c.y, d = Math.hypot(dx, dy);
+          if (d < 30) { c.i++; if (c.i >= c.pts.length) { c.phase = "on"; for (const u of c.crew) { u.x = c.x + (u.seat - 1) * 30; u.y = c.y + 30; } } }
+          else { const sp = Math.min(DET.unit.spd, d * 3); c.x += dx / d * sp * dt; c.y += dy / d * sp * dt; c.ang = Math.atan2(dy, dx); }
+          continue;
+        }
+        c.life -= dt;
+        if (c.life <= 0) { L.splice(n, 1); continue; }
+        // on scene: the officers hold a ring round him and shoot what shoots at him
+        c.crew.forEach((u, k) => {
+          if (c.kind === "ems") {
+            if (g.emsCall && Math.hypot(u.x - g.p.x, u.y - g.p.y) < 240) {
+              g.emsCall = false; g.p.hp = g.p.maxHp || 10;
+              g.pickupFlash = { nm: "lift:EMS \u00b7 YOU'LL LIVE", t: 2.2 };
+            }
+          }
+          if (c.kind === "fire") {
+            for (const b of g.fires || []) if (b.fire && !b.burnt && Math.hypot(b.x + b.w / 2 - u.x, b.y + b.h / 2 - u.y) < 700) {
+              b.fire = false; g.pickupFlash = { nm: "lift:FIRE \u00b7 KNOCKED DOWN", t: 2 };
+            }
+          }
+          const a = (k / c.crew.length) * 6.283 + n;
+          const hx = g.inside ? c.x : g.p.x + Math.cos(a) * 110, hy = g.inside ? c.y + 30 : g.p.y + Math.sin(a) * 110;
+          const dx = hx - u.x, dy = hy - u.y, d = Math.hypot(dx, dy);
+          if (d > 12) { const sp = Math.min(DET.walk * 1.2, d * 4); u.vx = dx / d * sp; u.vy = dy / d * sp; u.x += u.vx * dt; u.y += u.vy * dt; collideBuildings(u, 11, false); u.state = "walk"; }
+          else { u.vx = 0; u.vy = 0; u.state = "idle"; }
+          u.anim += dt;
+          if (c.kind === "patrol" || c.kind === "swat") allyShoot(u, dt, DET.unit.reach, c.kind === "swat" ? DET.unit.swatDmg : DET.unit.dmg);
+        });
+      }
+    }
+    function drawBackup(view) {
+      if (g.inside) return;
+      for (const c of g.backup || []) {
+        const im = imgs.current[c.m.k];
+        ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.ang + Math.PI / 2);
+        if (im && im.width) ctx.drawImage(im, -c.m.w / 2, -c.m.len / 2, c.m.w, c.m.len);
+        else {   // no plate yet (the fire engine): drawn, red, with the ladder down its back
+          ctx.fillStyle = c.kind === "fire" ? "#b3261e" : "#2b2e36"; ctx.fillRect(-c.m.w / 2, -c.m.len / 2, c.m.w, c.m.len);
+          ctx.fillStyle = "#d8d2c4"; for (let k2 = -c.m.len / 2 + 30; k2 < c.m.len / 2 - 8; k2 += 12) ctx.fillRect(-10, k2, 20, 3);
+        }
+        // the light bar
+        if (Math.floor(performance.now() / 180) % 2) { ctx.fillStyle = c.kind === "fire" || c.kind === "ems" ? "#ff4040" : "#3f7cff"; ctx.fillRect(-12, -6, 24, 5); }
+        if (c.unit) { ctx.font = "900 15px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.lineWidth = 3; ctx.strokeStyle = "rgba(10,10,12,0.9)"; ctx.fillStyle = "#f4f2ea"; ctx.strokeText(c.unit, 0, 14); ctx.fillText(c.unit, 0, 14); }
+        ctx.restore();
+        if (c.phase !== "on") continue;
+        for (const u of c.crew) {
+          drawShadow(u.x, u.y + 2, 10, 4, 0.3);
+          const kind = c.kind === "fire" ? "duty" : "cop";
+          if (!drawActorTop(kind, u.rank, u, u.state)) { ctx.fillStyle = c.kind === "fire" ? "#a33" : "#1f2f55"; ctx.beginPath(); ctx.arc(u.x, u.y, 9, 0, 6.283); ctx.fill(); }
+          if (u.swat) { ctx.fillStyle = "#101216"; ctx.beginPath(); ctx.arc(u.x, u.y - 4, 7, 0, 6.283); ctx.fill(); }
+          if (u.muzzle > 0) { ctx.fillStyle = "rgba(255,214,120,0.9)"; ctx.beginPath(); ctx.arc(u.x, u.y - 14, 4, 0, 6.283); ctx.fill(); }
+        }
+      }
+    }
+    /* THE THREE PANELS -- trunk, radio, and where Ramos should drive. One chooser, three menus. */
+    function pickPanel(kind) {
+      if (kind === "trunk") return { title: "THE TRUNK", opts: DET.trunk.map(([k, nm]) => ({ id: "wpn:" + k, label: nm })).concat([{ id: "close", label: "SHUT IT" }]) };
+      if (kind === "radio") return { title: "RADIO \u00b7 DISPATCH", opts: [
+        { id: "radio:p1", label: "1 CAR" }, { id: "radio:p2", label: "2 CARS" }, { id: "radio:p3", label: "3 CARS" },
+        { id: "radio:swat", label: "SWAT" }, { id: "radio:ems", label: "EMS" }, { id: "radio:fire", label: "FIRE" },
+        { id: "radio:home", label: "STAND DOWN" }, { id: "close", label: "OFF" }] };
+      return { title: "RAMOS \u00b7 WHERE TO?", opts: driveTargets().map((t) => ({ id: "drive:" + t.id, label: t.label })).concat([{ id: "close", label: "I'LL DRIVE" }]) };
+    }
+    G.pickOpen = (kind) => { g.pickOpen = kind; setHud((h) => ({ ...h, pick: pickPanel(kind) })); };
+    G.pickFn = (id) => {
+      if (id.startsWith("wpn:")) {
+        const k = id.slice(4);
+        g.p.wpn = k; g.p.ammo = WPN_AMMO[k] || 6; g.p.holstered = false;
+        g.rack = g.rack || []; if (g.rack.indexOf(k) < 0) g.rack.push(k);
+        setHud((h) => ({ ...h, wpn: k, ammo: g.p.ammo, holstered: false }));
+      } else if (id.startsWith("radio:")) G.radioFn(id.slice(6));
+      else if (id.startsWith("drive:")) {
+        const t = driveTargets().find((q) => q.id === id.slice(6)), v = activeVeh();
+        if (t && v) { g.auto = { pts: roadRoute(v.x, v.y, t.x, t.y).concat([[t.x, t.y]]), i: 0 };
+          const R = partner(); if (R) { R.say = 2.4; R.line = "I'VE GOT IT."; } }
+      }
+      g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+    };
+    /* THE CORONER, by the table in the hospital basement. Says his piece when you come close. */
+    function coronerAt(b) {
+      if (!b || b.kind !== "hospital") return null;
+      if (b.coroner) return b.coroner;
+      const pl = buildingPlans(b)[0];
+      const room = pl.rooms.find((r) => r.k === "autopsy");
+      if (!room) return null;
+      const pt = freeIndoor(b, pl, (room.x0 + room.x1) / 2, (room.y0 + room.y1) / 2 + 40, room)
+               || [(room.x0 + room.x1) / 2, (room.y0 + room.y1) / 2];
+      b.coroner = { x: pt[0], y: pt[1], vx: 0, vy: 0, yt: "yt_coroner", jit: 1.02, anim: 0.2, bang: -Math.PI / 2, say: 0 };
+      return b.coroner;
+    }
+    const CORONER_LINES = ["COLD DOWN HERE. KEEP YOUR COAT ON.", "THEY ALL TELL ME SOMETHING.",
+      "BRING ME BODIES, DETECTIVE, NOT OPINIONS.", "THE LAB UPSTAIRS IS SLOW. I AM NOT.",
+      "DON'T TOUCH THE DRAWERS."];
+    function drawCoroner() {
+      const b = g.inside;
+      if (!b || b.kind !== "hospital" || g.floor !== 0) return;
+      const q = coronerAt(b);
+      if (!q) return;
+      q.anim += 0.012;
+      if (Math.hypot(g.p.x - q.x, g.p.y - q.y) < 90 && !(q.say > 0) && Math.random() < 0.02) {
+        q.say = 3; q.line = CORONER_LINES[(Math.random() * CORONER_LINES.length) | 0];
+      }
+      if (q.say > 0) q.say -= 0.016;
+      // push him on an open body and he moves it up the list -- once a case
+      const Cc = g.case;
+      if (Cc && Cc.unknownVictim && Cc.idLeft > 0 && !Cc.pushed && Math.hypot(g.p.x - q.x, g.p.y - q.y) < 90) {
+        Cc.pushed = true; Cc.idLeft -= DET.idCoroner;
+        q.say = 3.4; q.line = "YOUR JOHN DOE? FINE. I'LL MOVE HIM UP THE LIST.";
+        caseLine("CORONER: moving the John Doe up the list.");
+      }
+      drawShadow(q.x, q.y + 2, 10, 4, 0.3); drawYouth(q);
+      ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText("CORONER", q.x, q.y - 22); ctx.textAlign = "start";
+      if (q.say > 0) bubble(q.x, q.y, q.line, "#dfe6ee");
+    }
     function nearTalk() {
       const C = g.case;
       if (!C || C.stage === "done" || g.mode !== "foot" || g.inside) return null;
@@ -11016,6 +11497,7 @@ export default function IronLionLayer004() {
           const who = q.caseRole === "cop" ? "BEAT COP" : (q.carded ? identOf(q).name : ROLE_NM[q.caseRole] || "HE");
           caseLine(who + ": " + said);
           if (key === "beat") C.lead = true;
+          if (C.unknownVictim && C.idLeft > 0 && q.caseRole === "witness") C.idLeft -= DET.idWitness;
           if (shaky && q.caseRole !== "cop") ramosSays(q.tr.influence === "sky"
             ? "Look at her fingers. I wouldn't hang a case on anything she says."
             : "He's been drinking. Half of that might be true.");
@@ -11035,9 +11517,12 @@ export default function IronLionLayer004() {
     /* MALCOLM */
     function malcolmPanel() {
       const C = g.case;
+      const who = g.detMode ? "RAMOS" : "MALCOLM";
       if (!C || C.stage === "done") {
         const last = g.caseLast;
-        return { text: (last ? last + "\n\n" : "") + "Got one if you want it. Somebody got hurt and nobody's looking.",
+        return { who, text: (last ? last + "\n\n" : "") + (g.detMode
+                   ? "Dispatch has one for us, Malcolm. Somebody got hurt and nobody's looking."
+                   : "Got one if you want it. Somebody got hurt and nobody's looking."),
                  opts: [{ id: "take", label: "TAKE IT" }, { id: "close", label: "NOT NOW" }] };
       }
       const labDone = C.lab.filter((L) => L.done).length, labAll = C.lab.length;
@@ -11046,7 +11531,7 @@ export default function IronLionLayer004() {
         : !C.lead ? "Work the scene. The ground, the people, the beat. Something will point somewhere."
         : "You've got a place: " + C.hangWhere + ". Card whoever's there. Talk to them.";
       const labLine = labAll ? " Lab's done " + labDone + " of " + labAll + "." : "";
-      return { text: where + labLine + (picks.length ? "\n\nOr tell me who did it." : ""),
+      return { who, text: where + labLine + (picks.length ? "\n\nOr tell me who did it." : ""),
                opts: picks.map((q) => ({ id: "name:" + q.no, label: q.name })).concat([{ id: "close", label: "NOT YET" }]) };
     }
     G.malcolmFn = () => {
@@ -11062,10 +11547,12 @@ export default function IronLionLayer004() {
         if (right) {
           const pay = CASE.pay[0] + ((Math.random() * CASE.pay[1]) | 0);
           g.p.cash = (g.p.cash || 0) + pay;
-          g.caseLast = who + ". That's the one. Good work. There's $" + pay + " in it.";
+          g.caseLast = g.detMode ? who + ". That's our guy. The captain signs off on $" + pay + "."
+                                 : who + ". That's the one. Good work. There's $" + pay + " in it.";
           g.jobBanner = "CASE CLOSED"; g.jobNote = C.K.nm + " \u00b7 " + who + " \u00b7 $" + pay;
         } else {
-          g.caseLast = who + "? No. Wrong man, and now the right one knows we're looking. It's cold.";
+          g.caseLast = g.detMode ? who + "? No, Malcolm. Wrong man -- and now the right one knows we're looking."
+                                 : who + "? No. Wrong man, and now the right one knows we're looking. It's cold.";
           g.jobBanner = "CASE GONE COLD"; g.jobNote = "It was " + identOf(C.perp).name + ".";
         }
         C.lines.push(right ? "CLOSED: " + who + "." : "COLD: named " + who + ", wrong man.");
@@ -17654,6 +18141,11 @@ export default function IronLionLayer004() {
         const t = ROOM_TINT[r.k];
         if (t) { ctx.fillStyle = t; ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0); }
       }
+      // B2 is your garage painting, walls and all -- under the props, so the parked cars sit ON it; the plan's walls are drawn over its edges
+      if (b.pdArt && floor === 0) {
+        const art = imgs.current.pd_b2;
+        if (art && art.width) ctx.drawImage(art, b.x, b.y, b.w, b.h);
+      }
       /* Before the props, so anything the pipeline DOES place lands on top of the carpet rather
          than under it. Draws nothing if this floor has no gaming room. */
       drawGamingFloor(b, floor, alpha);
@@ -17983,7 +18475,7 @@ export default function IronLionLayer004() {
        gym kit rather than as anonymous grey. */
     for (const k of GYM_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#5b544a"; }
     // the station, the morgue and the department's cars as props
-    for (const k of PD_KEYS.concat(MG_KEYS, CS_KEYS, Object.values(PD_CARS).map((c) => c.k))) {
+    for (const k of PD_KEYS.concat(PD_KEYS2, MG_KEYS, CS_KEYS, Object.values(PD_CARS).map((c) => c.k))) {
       PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#4b5058";
       if (PD_SOLID[k]) SOLID_PROP[k] = 1;
     }
@@ -25510,6 +26002,18 @@ export default function IronLionLayer004() {
          0 wide. Testing the object meant this gate passed for art that had not loaded,
          drawYouth then bailed on !im.width, and the Lion came out as the stand-in box instead
          of falling back to drawKing the way this guard was written to. */
+      /* DETECTIVE MODE: you are Malcolm. His plate, the same torso-and-procedural-legs path as
+         every other character, so he walks and swings an arm like them. */
+      const malc = g.detMode ? imgs.current.yt_malcolm : null;
+      if (malc && malc.width) {
+        drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
+        drawYouth({ x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1.06,
+                    yt: "yt_malcolm", bang: g.board.ang, wpn: g.p.holstered ? null : g.p.wpn,
+                    swing: Math.max(g.p.atk || 0, g.p.punT || 0),
+                    swingDur: (g.p.punT || 0) > 0 ? (g.p.punDur || 0.18) : 0.26,
+                    move: (g.p.punT || 0) > 0 ? (g.p.punMove || "jab") : "swing" });
+        return;
+      }
       const lionArt = g.who === "lion" ? imgs.current[heroPlate(rosterOf("lion"))] : null;
       if (g.who !== "lion" || (lionArt && lionArt.width)) {
         const r = rosterOf(g.who);
@@ -27962,6 +28466,9 @@ export default function IronLionLayer004() {
       stepDog();
       drawAnimals(view);
       drawUnitNumbers(view);
+      drawCoroner();
+      drawPartner();
+      drawBackup(view);
       drawCase(view);
       drawStadium();
       drawClub();
@@ -28060,7 +28567,7 @@ export default function IronLionLayer004() {
       if (hudTimer <= 0) {
         hudTimer = 0.15;
         try {
-          const mph = Math.round(Math.abs(inVehicle() ? (activeVeh().fwd || 0) : g.p.moving) / 20.8 * 2.237);
+          const mph = Math.round(Math.abs(g.auto ? (g.autoSpd || 0) : inVehicle() ? (activeVeh().fwd || 0) : g.p.moving) / 20.8 * 2.237);
           const dCarDbg = Math.round(Math.hypot(g.p.x - g.car.x, g.p.y - g.car.y));
           const dMotoDbg = Math.round(Math.hypot(g.p.x - g.moto.x, g.p.y - g.moto.y));
           const nearCar = g.mode === "foot" &&
@@ -28107,8 +28614,10 @@ export default function IronLionLayer004() {
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
             atLift: !!liftNear(), liftOpen: !!g.liftOpen,
             atCiv: !!nearCiv(), idOpen: !!g.idCard, bookOpen: !!g.bookOpen, bookBox: g.bookOpen ? g.bookBox : null,
-            atMalcolm: nearMalcolm(), caseObj: caseObjective(), malcolm: g.malcolmOpen ? malcolmPanel() : null,
+            atMalcolm: nearMalcolm(), caseObj: caseObjective(), detMode: !!g.detMode, malcolm: g.malcolmOpen ? malcolmPanel() : null,
             atTalk: !!nearTalk(), talk: g.talkTo ? talkPanel(g.talkTo) : null,
+            atTrunk: nearTrunk(), canRadio: canRadio(), pick: g.pickOpen ? pickPanel(g.pickOpen) : null,
+            ramosCar: !!(g.detMode && inVehicle() && g.partner && g.partner.inCar), autoOn: !!g.auto,
             bookN: ((g.book && g.book.people) || []).length,
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
             liftFloors: liftFloorsList(), liftCur: g.floor,
@@ -28357,8 +28866,10 @@ export default function IronLionLayer004() {
         const ry = side === 0 ? b.y : side === 2 ? b.y + b.h : b.y + b.h * pos;
         if (Math.abs(v.x - rx) > 110 || Math.abs(v.y - ry) > 130) continue;
         const inV = side === 0 ? [0, 1] : side === 2 ? [0, -1] : side === 1 ? [-1, 0] : [1, 0];
-        return { _b: b, _floor: 0, _px: rx + inV[0] * 60, _py: ry + inV[1] * 60,
-                 _cx: rx + inV[0] * 96, _cy: ry + inV[1] * 96, _ang: Math.atan2(inV[1], inV[0]) };
+        // inside, the car comes down where the floor's own ramp is drawn
+        const ix = b.rampIn != null && (side === 0 || side === 2) ? b.x + b.w * b.rampIn : rx;
+        return { _b: b, _floor: 0, _px: ix + inV[0] * 60, _py: ry + inV[1] * 60,
+                 _cx: ix + inV[0] * 96, _cy: ry + inV[1] * 96, _ang: Math.atan2(inV[1], inV[0]) };
       }
       return null;
     }
@@ -31366,7 +31877,7 @@ export default function IronLionLayer004() {
         }
         if (m.lift) b.lift = true;
         if (m.carpark) b.carpark = true;
-        if (m.pd) b.pd = true;
+        if (m.pd) { b.pd = true; b.pdArt = true; b.rampIn = PD_B2.ramp; }
         if (m.rampSide != null) { b.rampSide = m.rampSide; b.rampPos = m.rampPos; }
         /* `lawn`: grass for the whole lot instead of the dirt and junk the block generator scatters,
            with a front walk from the door to the kerb and a drive from the ramp to the street. */
@@ -34305,6 +34816,20 @@ export default function IronLionLayer004() {
               boxShadow: "0 0 22px rgba(217,164,65,0.18)" }}>
             {hud.hasSave ? "CONTINUE" : "BEGIN"}
           </div>
+          {/* DETECTIVE MODE: straight into the task force room in plain clothes, Malcolm with a
+              case already in his hand. Picks up a save if there is one, like BEGIN does. */}
+          <div
+            onClick={() => {
+              const gg = G.current;
+              if (G.loadFn) G.loadFn();
+              gg.title = false; gg.nightTarget = 0; gg.bootDen = false; gg.detStart = true;
+              setHud((h) => ({ ...h, title: false }));
+            }}
+            style={{ marginTop: 12, padding: "11px 30px", border: "1px solid #6fa8dc",
+              background: "rgba(10,11,14,0.72)", color: "#cfe0f2", fontSize: 11,
+              letterSpacing: "0.26em", cursor: "pointer", userSelect: "none" }}>
+            DETECTIVE MODE
+          </div>
           {hud.hasSave && (
             /* Starting over has to be deliberate. The button above always picks the save up if
                there is one, so the only way to a clean city is through here. */
@@ -34841,6 +35366,20 @@ export default function IronLionLayer004() {
           </div>
         </div>
       )}
+      {/* THE TRUNK / THE RADIO / WHERE RAMOS DRIVES. */}
+      {hud.pick && (
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 90,
+          background: "linear-gradient(transparent, rgba(6,7,9,0.94) 22%)", padding: "40px 16px 22px", fontFamily: mono }}>
+          <div style={{ fontSize: 9, letterSpacing: "0.24em", color: "#6fa8dc" }}>{hud.pick.title}</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+            {hud.pick.opts.map((o) => (
+              <div key={o.id} onClick={() => G.pickFn && G.pickFn(o.id)}
+                style={{ padding: "9px 12px", border: "1px solid rgba(111,168,220,0.6)", cursor: "pointer",
+                  fontSize: 11, letterSpacing: "0.10em", color: "#e8d9b5", background: "rgba(12,13,17,0.9)" }}>{o.label}</div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* AN INTERVIEW. Who they are right now, how willing, and how you ask. */}
       {hud.talk && (
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 90,
@@ -34877,10 +35416,11 @@ export default function IronLionLayer004() {
           background: "linear-gradient(transparent, rgba(6,7,9,0.94) 22%)", padding: "40px 16px 22px",
           fontFamily: mono }}>
           <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-            <img src="assets/heroes/pt_malcolm.png" alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+            <img src={hud.malcolm.who === "RAMOS" ? "assets/heroes/pt_ramos.png" : "assets/heroes/pt_malcolm.png"} alt=""
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
               style={{ width: 72, height: 72, imageRendering: "pixelated", border: "1px solid rgba(111,168,220,0.5)" }} />
             <div>
-              <div style={{ fontSize: 9, letterSpacing: "0.24em", color: "#6fa8dc" }}>MALCOLM</div>
+              <div style={{ fontSize: 9, letterSpacing: "0.24em", color: "#6fa8dc" }}>{hud.malcolm.who || "MALCOLM"}</div>
               <div style={{ fontSize: 13, lineHeight: 1.5, color: "#e8d9b5", marginTop: 6, maxWidth: 520, whiteSpace: "pre-line" }}>
                 {hud.malcolm.text}
               </div>
@@ -35528,10 +36068,10 @@ export default function IronLionLayer004() {
         pointerEvents: "none", display: hud.title ? "none" : "flex" }}>
         {/* The Lion's, and only his. Rio has smoke and Sho has his hands; handing either of
              them slow time would make the swap a costume change. */}
-        {hud.who === "lion" && btn("LION", hud.lionOn ? "ON" : hud.lion > 4 ? "slow time" : "empty",
+        {hud.who === "lion" && !hud.detMode && btn("LION", hud.lionOn ? "ON" : hud.lion > 4 ? "slow time" : "empty",
           () => { input.current.lion = !input.current.lion; }, null, hud.lionOn,
           (hud.mode !== "foot") ? 56 : null)}
-        {btn(hud.who !== "lion" ? (hud.hero ? "OFF" : "SUIT") : (hud.plain ? "MASK" : "OFF"),
+        {!hud.detMode && btn(hud.who !== "lion" ? (hud.hero ? "OFF" : "SUIT") : (hud.plain ? "MASK" : "OFF"),
           hud.who !== "lion" ? (hud.hero ? "street clothes" : "suit up")
                              : (hud.plain ? "suit up" : "plain clothes"),
           () => { const gg = G.current;
@@ -35539,7 +36079,7 @@ export default function IronLionLayer004() {
                   if (!gg.inside || gg.inside.kind === "den") gg.plain = !gg.plain; },
           null, hud.plain,
           (hud.mode !== "foot") ? 56 : null)}
-        {hud.mode === "foot" && btn(
+        {hud.mode === "foot" && !hud.detMode && btn(
           hud.who === "sho" ? "JUMP"
             : hud.roof ? (hud.canJump ? "JUMP" : hud.canHook ? "HOOK" : "DROP") : "HOOK",
           hud.who === "sho" ? (hud.roof ? "get down" : "to the roof")
@@ -35656,7 +36196,7 @@ export default function IronLionLayer004() {
               () => { G.cabFn && G.cabFn(); }, null)}
             {!hud.cab && btn("FIS", hud.hunt ? "hunting" : "stood down",
               () => { G.fisHuntFn && G.fisHuntFn(); }, hud.hunt)}
-            {!hud.cab && hud.who === "lion" && btn("ROAR",
+            {!hud.cab && hud.who === "lion" && !hud.detMode && btn("ROAR",
               hud.roarCd > 0 ? Math.ceil(hud.roarCd) + "s" : "knock down",
               () => { G.roarFn && G.roarFn(); }, hud.roarCd <= 0)}
             {!hud.cab && btn(hud.board ? "PUSH" : "RUN",
@@ -35677,8 +36217,12 @@ export default function IronLionLayer004() {
               () => G.strikeFn && G.strikeFn())}
             {hud.wpn && !hud.holstered && btn("TGT", hud.locked ? "next" : "lock on",
               () => G.cycleTargetFn && G.cycleTargetFn(), hud.locked)}
-            {hud.atMalcolm && btn("MALCOLM", "talk", () => G.malcolmFn && G.malcolmFn(), null, !!hud.malcolm)}
+            {hud.atMalcolm && btn(hud.detMode ? "RAMOS" : "MALCOLM", "talk", () => G.malcolmFn && G.malcolmFn(), null, !!hud.malcolm)}
             {hud.atTalk && btn("TALK", "question", () => G.talkFn && G.talkFn(), null, !!hud.talk)}
+            {hud.atTrunk && btn("TRUNK", "long guns", () => G.pickOpen && G.pickOpen("trunk"), null, false)}
+            {hud.canRadio && btn("RADIO", "dispatch", () => G.pickOpen && G.pickOpen("radio"), null, false)}
+            {hud.ramosCar && btn("RAMOS", hud.autoOn ? "take the wheel" : "you drive",
+              () => { if (G.current.auto) { G.current.auto = null; } else G.pickOpen && G.pickOpen("drive"); }, null, hud.autoOn)}
             {btn("BOOK", hud.bookOpen ? "shut it" : (hud.bookN || 0) + " names",
               () => G.bookFn && G.bookFn(), null, hud.bookOpen)}
             {hud.atCiv && btn("ID", hud.idOpen ? "put back" : "ask for it",
