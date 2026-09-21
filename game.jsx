@@ -1505,6 +1505,9 @@ const CARS_SEEN = ["a brown van", "a dark sedan", "a two-tone Buick", "a pickup 
 const PD_KEYS = ["pd_counter", "pd_desk", "pd_caseboard", "pd_evshelf", "pd_evcage", "pd_interview", "pd_bench", "pd_toilet", "pd_lockers", "pd_coffee", "pd_files", "pd_gunrack", "pd_prints", "pd_mugboard", "pd_radio"];
 const MG_KEYS = ["mg_table", "mg_drawers", "mg_gurney", "mg_scale", "mg_sink", "mg_tray", "mg_xray", "mg_desk", "mg_lamp", "mg2_table", "mg2_drawers", "mg2_gurney", "mg2_sink", "mg2_scale", "mg2_cart", "mg2_xray", "mg2_desk", "mg2_light"];
 const CS_KEYS = ["cs_tent_small", "cs_tent_big", "cs_tape", "cs_taperoll", "cs_casings", "cs_blood", "cs_tyres", "cs_footprints", "cs_wallet_a", "cs_wallet_b", "cs_matchbook", "cs_knife", "cs_bottle", "cs_revolver", "cs_crowbar", "cs_hanky", "cs_glass", "cs_lock"];
+/* Malcolm's own car, the SWAT van and the fire engine -- all turned nose-up at cut time. */
+const PD_CARS2 = { malcolm: { k: "pd_malcolm_car", len: 120, w: 51.0 }, swat: { k: "pd_swatvan", len: 128, w: 62.0 },
+                   fire: { k: "pd_fire", len: 150, w: 54.8 } };
 const PD_CARS = { cruiser: { k: "pd_cruiser", len: 118, w: 53.5 }, unmarked: { k: "pd_unmarked", len: 118, w: 54.4 }, coroner: { k: "pd_coroner", len: 126, w: 60.3 }, csu: { k: "pd_csu", len: 126, w: 60.6 } };
 const PD_ASPECT = { pd_counter: 2.493, pd_desk: 1.426, pd_caseboard: 1.551, pd_evshelf: 0.910, pd_evcage: 0.973, pd_interview: 1.770, pd_bench: 1.593, pd_toilet: 0.524, pd_lockers: 0.995, pd_coffee: 0.881, pd_files: 0.781, pd_gunrack: 0.826, pd_prints: 1.029, pd_mugboard: 1.250, pd_radio: 1.288, mg_table: 1.674, mg_drawers: 1.516, mg_gurney: 1.688, mg_scale: 0.550, mg_sink: 0.853, mg_tray: 0.817, mg_xray: 1.222, mg_desk: 1.095, mg_lamp: 0.638, mg2_table: 0.472, mg2_drawers: 1.513, mg2_gurney: 0.747, mg2_sink: 0.771, mg2_scale: 0.490, mg2_cart: 0.858, mg2_xray: 1.725, mg2_desk: 1.055, mg2_light: 0.640, cs_tent_small: 1.088, cs_tent_big: 0.800, cs_tape: 8.306, cs_taperoll: 3.514, cs_casings: 0.974, cs_blood: 1.341, cs_tyres: 1.383, cs_footprints: 2.093, cs_wallet_a: 2.093, cs_wallet_b: 1.722, cs_matchbook: 1.098, cs_knife: 5.714, cs_bottle: 2.614, cs_revolver: 1.471, cs_crowbar: 4.513, cs_hanky: 1.647, cs_glass: 1.435, cs_lock: 0.448 };
 const PD_ART = { ct_precinct: "assets/city/ct_precinct.png", pd_b2: "assets/police/pd_b2.png" };
@@ -1530,6 +1533,11 @@ for (const k of PD_KEYS) PD_ART[k] = "assets/police/" + k + ".png";
 for (const k of MG_KEYS) PD_ART[k] = "assets/morgue/" + k + ".png";
 for (const k of CS_KEYS) PD_ART[k] = "assets/scene/" + k + ".png";
 for (const c of Object.values(PD_CARS)) PD_ART[c.k] = "assets/police/" + c.k + ".png";
+for (const c of Object.values(PD_CARS2)) PD_ART[c.k] = "assets/police/" + c.k + ".png";
+PD_ART.wp_beretta = "assets/police/wp_beretta.png";        // the detectives' standard issue, muzzle left
+PD_ART.ui_badge = "assets/ui/ui_badge.png";
+for (let k = 1; k <= 8; k++) PD_ART["yt_swat_" + k] = "assets/heroes/yt_swat_" + k + ".png";
+PD_ART.yt_carver = "assets/heroes/yt_carver.png";
 const PD_SOLID = { mg_table: 1, mg2_table: 1, mg_drawers: 1, mg2_drawers: 1, mg_gurney: 1, mg2_gurney: 1,
                    mg_sink: 1, mg2_sink: 1, mg_desk: 1, mg2_desk: 1, mg2_cart: 1,
                    pd_vending: 1, pd_fridge: 1, pd_roundtable: 1, pd_captdesk: 1, pd_trophy: 1, pd_podium: 1,
@@ -1548,7 +1556,7 @@ const BEAT = { perParish: 5, chance: 0.22 };
 const DET = {
   follow: 64, walk: 150, reach: 380, dmg: 3, fireCd: [0.9, 0.6],
   drive: 300, arrive: 26,
-  trunk: [["pistol_auto", "SERVICE PISTOL"], ["shotgun_long", "SHOTGUN"], ["rifle_auto", "RIFLE"]],
+  trunk: [["beretta", "BERETTA"], ["shotgun_long", "SHOTGUN"], ["rifle_auto", "RIFLE"]],
   unit: { spd: 380, stay: 150, reach: 420, dmg: 3, swatDmg: 5, from: 1300 },
   // an unidentified victim: the coroner's clock, and what takes time off it
   idBase: 480, idDna: 180, idPrints: 90, idWitness: 45, idCoroner: 150,
@@ -10955,8 +10963,8 @@ export default function IronLionLayer004() {
         g.cam.x = g.p.x; g.cam.y = g.p.y;
         g.insideT = 1;           // and the room is already faded in, not waiting on a paused clock
         g.detMode = true;
-        g.p.wpn = "pistol_auto"; g.p.ammo = WPN_AMMO.pistol_auto || 7; g.p.holstered = true;
-        g.rack = g.rack || []; if (g.rack.indexOf("pistol_auto") < 0) g.rack.push("pistol_auto");
+        g.p.wpn = "beretta"; g.p.ammo = WPN_AMMO.beretta || 12; g.p.holstered = true;
+        g.rack = g.rack || []; if (g.rack.indexOf("beretta") < 0) g.rack.push("beretta");
         g.partner = null; partner();
         g.malcolmOpen = true; g.paused = true;
         setHud((h) => ({ ...h, malcolm: malcolmPanel() }));
@@ -10984,7 +10992,7 @@ export default function IronLionLayer004() {
            wall so no bumper is inside the building. */
         [239, 299, 359].forEach((px, k) => park(px, 532, PD_CARS.cruiser, { unit: "0" + (k + 1) }));
         [117, 175].forEach((px, k) => park(px, 646, PD_CARS.cruiser, { unit: "0" + (k + 4) }));
-        g.detCar = park(417, 590, PD_CARS.unmarked, {});
+        g.detCar = park(417, 590, PD_CARS2.malcolm, {});
       }
       const C = g.case;
       if (!C || C.stage === "done") return;
@@ -11017,7 +11025,7 @@ export default function IronLionLayer004() {
         if (C.idLeft <= 0) {
           const vid = identOf(C.victim);
           caseLine("CORONER: the body is " + vid.name + ", " + vid.age + ", of " + vid.addr + ".");
-          caseLine("His people say he owed somebody on " + C.hangWhere + ".");
+          caseLine((vid.sex === "f" ? "Her people say she" : "His people say he") + " owed somebody on " + C.hangWhere + ".");
           C.lead = true;
         }
       }
@@ -11163,7 +11171,7 @@ export default function IronLionLayer004() {
       if (!best) return;
       const a = Math.atan2(best.y - u.y, best.x - u.x);
       u.fireCd = DET.fireCd[0] + Math.random() * DET.fireCd[1];
-      u.muzzle = 0.16; u.drawnT = 0.9; u.bang = a + Math.PI / 2 + TOPDOWN_FACE;
+      u.muzzle = 0.16; u.drawnT = 0.9; u.bang = a; u.aimAng = a;     // a heading
       sfxGunshot();
       fireBullet(u, a + (Math.random() - 0.5) * 0.16, 980, dmg, reach * 1.15, true, null);
     }
@@ -11171,7 +11179,7 @@ export default function IronLionLayer004() {
     function partner() {
       if (!g.detMode) return null;
       if (!g.partner) g.partner = { x: g.p.x + 50, y: g.p.y + 20, vx: 0, vy: 0, anim: 0, jit: 0.98,
-        yt: "yt_ramos", bang: Math.PI, wpn: "pistol_auto", inCar: false, fireCd: 1, say: 0 };
+        yt: "yt_ramos", bang: 0, wpn: "beretta", inCar: false, fireCd: 1, say: 0, walking: false };
       return g.partner;
     }
     function stepPartner(dt) {
@@ -11191,13 +11199,22 @@ export default function IronLionLayer004() {
       }
       const dx = g.p.x - R.x, dy = g.p.y - R.y, d = Math.hypot(dx, dy);
       if (d > 900) { R.x = g.p.x + 40; R.y = g.p.y + 30; }
-      else if (d > DET.follow) {
-        const sp = Math.min(DET.walk * (d > 220 ? 1.7 : 1), d * 4);
-        R.vx = dx / d * sp; R.vy = dy / d * sp;
-        R.x += R.vx * dt; R.y += R.vy * dt;
-        collideBuildings(R, 11, false);
-        R.bang = Math.atan2(dy, dx) + Math.PI / 2 + TOPDOWN_FACE;
-      } else { R.vx = 0; R.vy = 0; }
+      /* She sets off when he has got a stride ahead and stops when she has caught up -- not on
+         one line, where she started and stopped on alternate frames and shivered in place. Her
+         speed eases in and out rather than snapping. */
+      if (!R.walking && d > DET.follow + 28) R.walking = true;
+      if (R.walking && d < DET.follow) R.walking = false;
+      const want = R.walking ? Math.min(DET.walk * (d > 220 ? 1.7 : 1), d * 4) : 0;
+      const tvx = d > 0 ? dx / d * want : 0, tvy = d > 0 ? dy / d * want : 0;
+      const k = Math.min(1, dt * 7);
+      R.vx += (tvx - R.vx) * k; R.vy += (tvy - R.vy) * k;
+      if (Math.hypot(R.vx, R.vy) < 4) { R.vx = 0; R.vy = 0; }
+      R.x += R.vx * dt; R.y += R.vy * dt;
+      collideBuildings(R, 11, false);
+      /* drawYouth takes a HEADING. Walking, she faces where she is going; standing, the way he
+         is facing, like a partner at his shoulder -- not a rotation meant for another sprite. */
+      if (Math.hypot(R.vx, R.vy) > 10) R.bang = Math.atan2(R.vy, R.vx);
+      else if (!(R.drawnT > 0)) R.bang = Math.atan2(g.p.vy || 0, g.p.vx || 0) || R.bang;
       R.anim += dt * (Math.hypot(R.vx, R.vy) > 5 ? 1 : 0.25);
       allyShoot(R, dt, DET.reach, DET.dmg);
     }
@@ -11207,7 +11224,7 @@ export default function IronLionLayer004() {
       drawShadow(R.x, R.y + 2, 10, 4, 0.3);
       drawYouth({ ...R, wpn: R.drawnT > 0 ? R.wpn : null });
       if (R.drawnT > 0) R.drawnT -= 0.016;
-      if (R.muzzle > 0) { const fa = R.bang - Math.PI / 2 - TOPDOWN_FACE;
+      if (R.muzzle > 0) { const fa = R.bang;
         ctx.fillStyle = "rgba(255,214,120,0.9)"; ctx.beginPath(); ctx.arc(R.x + Math.cos(fa) * 16, R.y + Math.sin(fa) * 16, 4, 0, 6.283); ctx.fill(); }
       ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
       ctx.fillStyle = "rgba(159,197,232,0.9)"; ctx.fillText("RAMOS", R.x, R.y - 22); ctx.textAlign = "start";
@@ -11284,7 +11301,7 @@ export default function IronLionLayer004() {
       for (let k = 0; k < n; k++) {
         const a = Math.random() * 6.283;
         const sx = px + Math.cos(a) * DET.unit.from, sy = py + Math.sin(a) * DET.unit.from;
-        const m = kind === "swat" ? { k: "hh_sec_van", len: 128, w: 63 } : kind === "fire" ? { k: "fire_engine", len: 150, w: 60 }
+        const m = kind === "swat" ? PD_CARS2.swat : kind === "fire" ? PD_CARS2.fire
                 : kind === "ems" ? { k: "ambulance", len: 132, w: 56 } : PD_CARS.cruiser;
         const crewN = kind === "swat" ? 4 : 2;
         const car = { x: sx, y: sy, ang: 0, m, kind, pts: roadRoute(sx, sy, px, py).concat([[px + (k - 1) * 70, py + 80]]), i: 0,
@@ -11294,7 +11311,11 @@ export default function IronLionLayer004() {
         for (let c = 0; c < crewN; c++)
           car.crew.push({ x: sx, y: sy, vx: 0, vy: 0, anim: Math.random() * 6, jit: 1, state: "idle",
             rank: kind === "fire" ? (c ? DUTY_LT : DUTY_FF) : c ? DUTY_SGT : DUTY_PATROL, swat: kind === "swat",
-            o: copKits[(Math.random() * copKits.length) | 0], hp: 8, fireCd: Math.random(), seat: c, kind });
+            o: copKits[(Math.random() * copKits.length) | 0], hp: 8, fireCd: Math.random(), seat: c, kind,
+            // SWAT are drawn from their own plates: Carver leads, the rest are his team
+            yt: kind === "swat" ? (c === 0 ? "yt_carver" : "yt_swat_" + (1 + ((Math.random() * 8) | 0))) : null,
+            wpn: kind === "swat" ? "rifle_auto" : "beretta", bang: 0 });
+        if (kind === "swat") { car.order = "follow"; car.anchor = [px, py]; }
         g.backup.push(car);
       }
       g.scanner = 2.5;
@@ -11338,13 +11359,102 @@ export default function IronLionLayer004() {
             }
           }
           const a = (k / c.crew.length) * 6.283 + n;
-          const hx = g.inside ? c.x : g.p.x + Math.cos(a) * 110, hy = g.inside ? c.y + 30 : g.p.y + Math.sin(a) * 110;
+          let hx = g.inside ? c.x : g.p.x + Math.cos(a) * 110, hy = g.inside ? c.y + 30 : g.p.y + Math.sin(a) * 110;
+          /* CARVER'S ORDERS. A perimeter holds a wide ring where it was set; a raid stacks on the
+             target's door; the sniper takes a roof and stays there. */
+          if (c.kind === "swat" && c.order === "perimeter") { hx = c.anchor[0] + Math.cos(a) * 260; hy = c.anchor[1] + Math.sin(a) * 260; }
+          if (c.kind === "swat" && c.order === "raid" && c.raid) { hx = c.raid.door[0] + Math.cos(a) * 40; hy = c.raid.door[1] + Math.sin(a) * 40; }
+          if (c.kind === "swat" && u.onRoof) {
+            u.x = u.roof[0]; u.y = u.roof[1];
+            allyShoot(u, dt, 820, 6);
+            return;
+          }
           const dx = hx - u.x, dy = hy - u.y, d = Math.hypot(dx, dy);
           if (d > 12) { const sp = Math.min(DET.walk * 1.2, d * 4); u.vx = dx / d * sp; u.vy = dy / d * sp; u.x += u.vx * dt; u.y += u.vy * dt; collideBuildings(u, 11, false); u.state = "walk"; }
           else { u.vx = 0; u.vy = 0; u.state = "idle"; }
           u.anim += dt;
+          if (Math.hypot(u.vx, u.vy) > 10) u.bang = Math.atan2(u.vy, u.vx);
           if (c.kind === "patrol" || c.kind === "swat") allyShoot(u, dt, DET.unit.reach, c.kind === "swat" ? DET.unit.swatDmg : DET.unit.dmg);
         });
+        if (c.kind === "swat") stepRaid(c, dt);
+      }
+    }
+    /* THE RAID. The team stacks on the door and fights whoever is outside it; when the door is
+       clear they breach, and the men inside go down one at a time. A distro raided is off the
+       board -- the department's win, not a job that puts heat on Malcolm. */
+    function stepRaid(c, dt) {
+      const R = c.raid;
+      if (c.order !== "raid" || !R) return;
+      const at = c.crew.every((u) => Math.hypot(u.x - R.door[0], u.y - R.door[1]) < 90);
+      const S = R.site;
+      const outside = S ? S.guards.filter((q) => !q.indoor && q.hp > 0).length : 0;
+      if (S) S.alert = true;
+      if (!at || outside) return;
+      R.t = (R.t || 0) + dt;
+      if (S) {
+        if (R.t > 0.9) { R.t = 0; const q = S.guards.find((z) => z.indoor && z.hp > 0); if (q) q.hp = 0; }   // a man a beat, room by room
+        if (!S.guards.some((z) => z.hp > 0)) {
+          S.gone = 1; if (g.distro) delete g.distro[S.gang];
+          g.jobBanner = "SWAT \u00b7 " + DISTRO[S.kind].nm + " IS OFF THE BOARD";
+          g.jobNote = "Lt. Carver: premises secure. " + (GANG_LABEL[S.gang] || S.gang) + " just lost their " + DISTRO[S.kind].nm.toLowerCase() + ".";
+          c.order = "follow"; c.raid = null;
+        }
+      } else if (R.t > 5) {
+        g.jobBanner = "SWAT \u00b7 BUILDING CLEAR"; g.jobNote = "Lt. Carver: nobody home.";
+        c.order = "follow"; c.raid = null;
+      }
+    }
+    function raidTarget() {
+      let best = null, bd = 2200;
+      for (const S of guardSites()) {
+        if (!S.b || S.gone || S.tower) continue;
+        const d = Math.hypot(S.x - g.p.x, S.y - g.p.y);
+        if (d < bd) { bd = d; best = { site: S, b: S.b, label: DISTRO[S.kind].nm }; }
+      }
+      if (best) return best;
+      const c = getCell(clamp(Math.floor(g.p.x / PITCH), 0, N - 1), clamp(Math.floor(g.p.y / PITCH), 0, N - 1));
+      let nb = null; bd = 900;
+      for (const b of (c && c.blds) || []) { if (!b.door) continue; const dp = doorPoint(b), d = Math.hypot(dp[0] - g.p.x, dp[1] - g.p.y); if (d < bd) { bd = d; nb = b; } }
+      return nb ? { site: null, b: nb, label: (nb.name || nb.kind || "THE BUILDING").toUpperCase() } : null;
+    }
+    function nearCarver() {
+      for (const c of g.backup || []) if (c.kind === "swat" && c.phase === "on") {
+        const u = c.crew[0]; if (u && !g.inside && Math.hypot(u.x - g.p.x, u.y - g.p.y) < 90) return c;
+      }
+      return null;
+    }
+    G.carverFn = (id) => {
+      const c = nearCarver() || (g.backup || []).find((q) => q.kind === "swat" && q.phase === "on");
+      if (!c) return;
+      for (const u of c.crew) { u.onRoof = false; }
+      if (id === "follow") { c.order = "follow"; g.jobNote = "Lt. Carver: on you, detective."; }
+      else if (id === "perimeter") { c.order = "perimeter"; c.anchor = [g.p.x, g.p.y]; g.jobNote = "Lt. Carver: perimeter's up. Nobody in or out."; }
+      else if (id === "raid") {
+        const T = raidTarget();
+        if (!T) { g.jobNote = "Lt. Carver: give me a door, detective."; return; }
+        const dp = doorPoint(T.b), sd = T.b.door.side, o = sd === 0 ? [0, -1] : sd === 1 ? [1, 0] : sd === 2 ? [0, 1] : [-1, 0];
+        c.order = "raid"; c.raid = { site: T.site, b: T.b, door: [dp[0] + o[0] * 60, dp[1] + o[1] * 60], t: 0 };
+        g.jobNote = "Lt. Carver: stacking up on " + T.label + ".";
+      } else if (id === "sniper") {
+        // the nearest roof with a view, and one man on it
+        let best = null, bd = 800;
+        for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+          const cc = getCell(clamp(Math.floor(g.p.x / PITCH) + di, 0, N - 1), clamp(Math.floor(g.p.y / PITCH) + dj, 0, N - 1));
+          for (const b of (cc && cc.blds) || []) { const d = Math.hypot(b.x + b.w / 2 - g.p.x, b.y + b.h / 2 - g.p.y); if (d < bd) { bd = d; best = b; } }
+        }
+        const u = c.crew[1];
+        if (best && u) { u.onRoof = true; u.roof = [best.x + best.w / 2, best.y + best.h / 2]; g.jobNote = "Lt. Carver: sniper on the roof. He has your back."; }
+      } else if (id === "home") { c.life = 0; }
+      g.jobBanner = "SWAT";
+    };
+    /* The sniper stands on a roof, so he is drawn with the roofs, not under them. */
+    function drawSnipers() {
+      if (g.inside) return;
+      for (const c of g.backup || []) for (const u of c.crew) if (u.onRoof && c.phase === "on") {
+        drawShadow(u.x, u.y + 2, 10, 4, 0.3); drawYouth(u);
+        if (u.muzzle > 0) { ctx.fillStyle = "rgba(255,214,120,0.9)"; ctx.beginPath(); ctx.arc(u.x + Math.cos(u.bang) * 16, u.y + Math.sin(u.bang) * 16, 4, 0, 6.283); ctx.fill(); }
+        ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(159,197,232,0.9)"; ctx.fillText("SNIPER", u.x, u.y - 24); ctx.textAlign = "start";
       }
     }
     function drawBackup(view) {
@@ -11366,16 +11476,27 @@ export default function IronLionLayer004() {
         for (const u of c.crew) {
           drawShadow(u.x, u.y + 2, 10, 4, 0.3);
           const kind = c.kind === "fire" ? "duty" : "cop";
-          if (!drawActorTop(kind, u.rank, u, u.state)) { ctx.fillStyle = c.kind === "fire" ? "#a33" : "#1f2f55"; ctx.beginPath(); ctx.arc(u.x, u.y, 9, 0, 6.283); ctx.fill(); }
-          if (u.swat) { ctx.fillStyle = "#101216"; ctx.beginPath(); ctx.arc(u.x, u.y - 4, 7, 0, 6.283); ctx.fill(); }
-          if (u.muzzle > 0) { ctx.fillStyle = "rgba(255,214,120,0.9)"; ctx.beginPath(); ctx.arc(u.x, u.y - 14, 4, 0, 6.283); ctx.fill(); }
+          if (u.onRoof) continue;              // the sniper is drawn with the roofs
+          if (u.yt && drawYouth(u)) {
+            if (u.yt === "yt_carver") { ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
+              ctx.fillStyle = "rgba(159,197,232,0.9)"; ctx.fillText("LT. CARVER", u.x, u.y - 24); ctx.textAlign = "start"; }
+          } else if (!drawActorTop(kind, u.rank, u, u.state)) { ctx.fillStyle = c.kind === "fire" ? "#a33" : "#1f2f55"; ctx.beginPath(); ctx.arc(u.x, u.y, 9, 0, 6.283); ctx.fill(); }
+          if (u.drawnT > 0) u.drawnT -= 0.016;
+          if (u.muzzle > 0) { const fa = u.bang || 0; ctx.fillStyle = "rgba(255,214,120,0.9)"; ctx.beginPath(); ctx.arc(u.x + Math.cos(fa) * 16, u.y + Math.sin(fa) * 16, 4, 0, 6.283); ctx.fill(); }
         }
       }
     }
     /* THE THREE PANELS -- trunk, radio, and where Ramos should drive. One chooser, three menus. */
     function pickPanel(kind) {
       if (kind === "trunk") return { title: "THE TRUNK", opts: DET.trunk.map(([k, nm]) => ({ id: "wpn:" + k, label: nm })).concat([{ id: "close", label: "SHUT IT" }]) };
-      if (kind === "radio") return { title: "RADIO \u00b7 DISPATCH", opts: [
+      if (kind === "carver") {
+        const T = raidTarget();
+        return { title: "LT. CARVER \u00b7 SWAT", face: "assets/heroes/pt_carver.png", opts: [
+          { id: "carver:follow", label: "ON ME" }, { id: "carver:raid", label: T ? "RAID " + T.label : "RAID (NO TARGET)" },
+          { id: "carver:sniper", label: "SNIPER ON A ROOF" }, { id: "carver:perimeter", label: "SET A PERIMETER" },
+          { id: "carver:home", label: "STAND DOWN" }, { id: "close", label: "AS YOU WERE" }] };
+      }
+      if (kind === "radio") return { title: "RADIO \u00b7 DISPATCH", face: "assets/ui/ui_badge.png", opts: [
         { id: "radio:p1", label: "1 CAR" }, { id: "radio:p2", label: "2 CARS" }, { id: "radio:p3", label: "3 CARS" },
         { id: "radio:swat", label: "SWAT" }, { id: "radio:ems", label: "EMS" }, { id: "radio:fire", label: "FIRE" },
         { id: "radio:home", label: "STAND DOWN" }, { id: "close", label: "OFF" }] };
@@ -11389,6 +11510,7 @@ export default function IronLionLayer004() {
         g.rack = g.rack || []; if (g.rack.indexOf(k) < 0) g.rack.push(k);
         setHud((h) => ({ ...h, wpn: k, ammo: g.p.ammo, holstered: false }));
       } else if (id.startsWith("radio:")) G.radioFn(id.slice(6));
+      else if (id.startsWith("carver:")) G.carverFn(id.slice(7));
       else if (id.startsWith("drive:")) {
         const t = driveTargets().find((q) => q.id === id.slice(6)), v = activeVeh();
         if (t && v) { g.auto = { pts: roadRoute(v.x, v.y, t.x, t.y).concat([[t.x, t.y]]), i: 0 };
@@ -21490,6 +21612,8 @@ export default function IronLionLayer004() {
          someone rather than shooting them. `knock` is how hard the hit throws him -- only the
          shotguns have it, because a shotgun that does not move a man is just a loud pistol. */
       pistol_auto:   { rate: 0.34, range: 380, dmg: 2.4, spread: 0.10, kick: 2 },
+      // the department's Beretta: a little steadier and a little further than a street pistol
+      beretta:       { rate: 0.30, range: 420, dmg: 2.6, spread: 0.07, kick: 2 },
       revolver:      { rate: 0.72, range: 420, dmg: 4.2, spread: 0.06, kick: 5 },
       /* County law. A bolt gun is slow, accurate and it ends the argument at a distance no city
          weapon reaches -- which is the whole difference between the pass and Raven Hook. */
@@ -21507,7 +21631,7 @@ export default function IronLionLayer004() {
       rifle_auto:    { rate: 0.22, range: 620, dmg: 2.6, spread: 0.14, kick: 3 },
     };
     const WPN_SCALE = {
-      pistol_auto: 1.0, revolver: 1.05, smg_uzi: 1.15, smg_hk: 1.3,
+      pistol_auto: 1.0, beretta: 1.0, revolver: 1.05, smg_uzi: 1.15, smg_hk: 1.3,
       shotgun_short: 1.35, shotgun_long: 1.85, rifle_bolt: 2.0, rifle_auto: 1.85,
       bat: 1.5, knife: 0.85, grenade: 0.7, molotov: 0.75, katana: 1.7, machete: 1.5,
       katana2: 1.8, longsword: 1.6, tommy: 1.2, laser: 1.4,
@@ -21576,7 +21700,9 @@ export default function IronLionLayer004() {
       const w2 = WPN2[m.wpn], a2 = w2 && imgs.current.wpn2_atlas;
       const wr = (a2 && a2.width) ? w2 : WPN[m.wpn];
       const wa = (a2 && a2.width) ? a2 : imgs.current.weapon_atlas;
-      const im = wa && wa.width ? wa : imgs.current["wp_" + m.wpn];
+      /* A weapon that is not on the atlas has its own plate. Asking the atlas for it drew the
+         whole atlas in his hand. */
+      const im = wr && wa && wa.width ? wa : imgs.current["wp_" + m.wpn];
       if (!im || !im.width) return;
       const sw = wr ? wr[2] : im.width, sh = wr ? wr[3] : im.height;
       const gw = h * 0.22 * (WPN_SCALE[m.wpn] || 1), gh = gw * (sh / sw);
@@ -23073,7 +23199,7 @@ export default function IronLionLayer004() {
        every shot a decision rather than a loadout. Melee stays the default and always works. */
     const WPN_AMMO = { pistol_compact: 5, pistol_large: 6, pistol_saw: 4,
                        revolver_snub: 5, revolver_long: 6,
-                       pistol_auto: 7, revolver: 6, smg_uzi: 14, smg_hk: 16,
+                       pistol_auto: 7, beretta: 12, revolver: 6, smg_uzi: 14, smg_hk: 16,
                        shotgun_short: 2, shotgun_long: 5,
                        rifle_bolt: 4, rifle_auto: 12,
                        // swung or thrown: one use, no magazine
@@ -28474,6 +28600,7 @@ export default function IronLionLayer004() {
       drawClub();
       drawMarks();
       drawNeonFlats(view);
+      drawSnipers();
       drawDistros();
       drawChopPad();
       drawFly();
@@ -28617,6 +28744,7 @@ export default function IronLionLayer004() {
             atMalcolm: nearMalcolm(), caseObj: caseObjective(), detMode: !!g.detMode, malcolm: g.malcolmOpen ? malcolmPanel() : null,
             atTalk: !!nearTalk(), talk: g.talkTo ? talkPanel(g.talkTo) : null,
             atTrunk: nearTrunk(), canRadio: canRadio(), pick: g.pickOpen ? pickPanel(g.pickOpen) : null,
+            atCarver: !!nearCarver(),
             ramosCar: !!(g.detMode && inVehicle() && g.partner && g.partner.inCar), autoOn: !!g.auto,
             bookN: ((g.book && g.book.people) || []).length,
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
@@ -34828,6 +34956,8 @@ export default function IronLionLayer004() {
             style={{ marginTop: 12, padding: "11px 30px", border: "1px solid #6fa8dc",
               background: "rgba(10,11,14,0.72)", color: "#cfe0f2", fontSize: 11,
               letterSpacing: "0.26em", cursor: "pointer", userSelect: "none" }}>
+            <img src="assets/ui/ui_badge.png" alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+              style={{ height: 18, verticalAlign: "middle", marginRight: 10, imageRendering: "pixelated" }} />
             DETECTIVE MODE
           </div>
           {hud.hasSave && (
@@ -35370,7 +35500,11 @@ export default function IronLionLayer004() {
       {hud.pick && (
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 90,
           background: "linear-gradient(transparent, rgba(6,7,9,0.94) 22%)", padding: "40px 16px 22px", fontFamily: mono }}>
-          <div style={{ fontSize: 9, letterSpacing: "0.24em", color: "#6fa8dc" }}>{hud.pick.title}</div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            {hud.pick.face && <img src={hud.pick.face} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+              style={{ width: 44, height: 44, objectFit: "contain", imageRendering: "pixelated" }} />}
+            <div style={{ fontSize: 9, letterSpacing: "0.24em", color: "#6fa8dc" }}>{hud.pick.title}</div>
+          </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
             {hud.pick.opts.map((o) => (
               <div key={o.id} onClick={() => G.pickFn && G.pickFn(o.id)}
@@ -35619,6 +35753,10 @@ export default function IronLionLayer004() {
            without reading a word. Bound to a local so the width is never touched on a null. */
         const ic = imgs.current.wpn_icons;
         const r = hud.wpn && WPN_ICON[hud.wpn];
+        // no side-on icon for it: show its own plate
+        const own = hud.wpn && !r ? imgs.current["wp_" + hud.wpn] : null;
+        if (own && own.width) return (
+          <img src={own.src} alt="" style={{ marginTop: 6, height: 20, imageRendering: "pixelated", opacity: hud.holstered ? 0.4 : 1 }} />);
         if (!r || !ic || !ic.width) return null;
         const k = 0.55;
         return (
@@ -36221,6 +36359,7 @@ export default function IronLionLayer004() {
             {hud.atTalk && btn("TALK", "question", () => G.talkFn && G.talkFn(), null, !!hud.talk)}
             {hud.atTrunk && btn("TRUNK", "long guns", () => G.pickOpen && G.pickOpen("trunk"), null, false)}
             {hud.canRadio && btn("RADIO", "dispatch", () => G.pickOpen && G.pickOpen("radio"), null, false)}
+            {hud.atCarver && btn("CARVER", "swat orders", () => G.pickOpen && G.pickOpen("carver"), null, false)}
             {hud.ramosCar && btn("RAMOS", hud.autoOn ? "take the wheel" : "you drive",
               () => { if (G.current.auto) { G.current.auto = null; } else G.pickOpen && G.pickOpen("drive"); }, null, hud.autoOn)}
             {btn("BOOK", hud.bookOpen ? "shut it" : (hud.bookN || 0) + " names",
