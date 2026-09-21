@@ -1507,9 +1507,12 @@ const HENCH_POOL = {
   ice:   ["hx_ice_1", "hx_ice_2", "hx_ice_3", "hx_ice_4",
           "hx_ice_5", "hx_ice_6", "hx_ice_7"],
   // 1-2 and 5-6 are the mimes; 3-4 and 7-8 are the redheads. Four of each, on purpose.
-  /* Two plates, not eight. The Deuce do not dress up -- that is La Voz's affectation and the
-     opposite of how these two run a business. */
-  deuce: ["hx_deuce_1", "hx_deuce_2", "hx_deuce_3", "hx_deuce_4", "hx_deuce_5"],
+  /* Seven now. The Deuce do not dress up -- that is La Voz's affectation and the opposite of how
+     these two run a business -- but a regular is a man in his own clothes: 6 is the gold shirt,
+     7 is the black crew and the glasses. `hx_deuce_g1/g2` are NOT in this pool: they are the
+     hooded pair, and they only stand on a door -- see PLATE_GANGS.deuce.sec. */
+  deuce: ["hx_deuce_1", "hx_deuce_2", "hx_deuce_3", "hx_deuce_4", "hx_deuce_5",
+          "hx_deuce_6", "hx_deuce_7"],
   vozgirl: ["hx_voz_1", "hx_voz_2", "hx_voz_3", "hx_voz_4",
             "hx_voz_5", "hx_voz_6", "hx_voz_7", "hx_voz_8"],
 };
@@ -1521,6 +1524,8 @@ for (const v of VIL_CARS) VIL[v.k] = "assets/villains/" + v.k + ".png";
    is not a rogue, he is the man they send. Registered here so the plate loads; the ride object
    in the hunt already carries its own position and phase and now has a model to draw with. */
 VIL.vh_hale_truck = "assets/villains/vh_hale_truck.png";
+// the Deuce's security: the two hooded men, for doors and rooms rather than street corners
+for (const k of ["hx_deuce_g1", "hx_deuce_g2"]) VIL[k] = "assets/villains/" + k + ".png";
 /* ELEGY. Not in VILLAINS: she does not run jobs, she stands next to the man who does. The
    overhead plate is her at a scene; the standing one is for the den and the profiles. */
 /* THE DEUCE, in their own folder. Characters, the two street regulars, three cars and the
@@ -20050,7 +20055,8 @@ export default function IronLionLayer004() {
     const GANGRIDE = { wolves: "gang_wolves_ride" };
     const GANGTOP_ROWS = 10, GANGTOP_CELL = 46, GANGTOP_SCALE = 1.15;
     /* Which factions draw from flat plates rather than a framed sheet, and how many each has. */
-    const PLATE_GANGS = { deuce: { pre: "hx_deuce_", n: 5 }, kings: { pre: "hx_kings_", n: 20 } };
+    const PLATE_GANGS = { deuce: { pre: "hx_deuce_", n: 7, sec: ["hx_deuce_g1", "hx_deuce_g2"] },
+                         kings: { pre: "hx_kings_", n: 20 } };
     function drawGangTop(m, state) {
       let g0 = m && GANGTOP[m.gang];
       if (g0 && g0.wing && m.wing && g0.wing[m.wing]) g0 = g0.wing[m.wing];
@@ -20072,7 +20078,10 @@ export default function IronLionLayer004() {
              why the heroes and every rogue's crew move and these did not. A plate cropped at
              the hip gets both for free.
              This is the rule now -- see the note above drawYouth. */
-          const key = pg.pre + m.dz;
+          /* A man on a door is security, not a regular off a corner: the Deuce put their two
+             hooded men on distro rings and the tower's floors, and everyone else in the pool
+             on the street. */
+          const key = m.distroGuard && pg.sec ? pg.sec[(m.dz - 1) % pg.sec.length] : pg.pre + m.dz;
           if (imgs.current[key]) {
             m.yt = key; m.tall = 0.94;
             if (drawYouth(m)) return true;
@@ -29806,9 +29815,11 @@ export default function IronLionLayer004() {
              hench plate, which is exactly what they are. Picked off the guard's ring index so
              the two alternate around the circle instead of clustering. */
           if (gang === "deuce") {
-            /* Five types now, not two. Indexed off the ring and the post angle so the same man
-               is never standing next to himself, and it is stable frame to frame. */
-            const dim = imgs.current["hx_deuce_" + (1 + (((q.ring * 7 + (q.topAng * 5 | 0)) % 5) + 5) % 5)];
+            /* The security pair, alternating by ring so the same man is not stood next to
+               himself, and stable frame to frame. Only reached if drawGangTop could not draw
+               him -- normally he comes through drawYouth with legs like everyone else. */
+            const sec = ["hx_deuce_g1", "hx_deuce_g2"];
+            const dim = imgs.current[sec[(((q.ring * 7 + (q.topAng * 5 | 0)) % sec.length) + sec.length) % sec.length]];
             if (dim && dim.width) {
               const dh = 26, dw = dh * (dim.width / dim.height);
               ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.topAng || 0);
