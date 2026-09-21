@@ -1347,20 +1347,93 @@ const ID_TONES = ["light", "mid", "deep"];
    with mid skin, so the pool is thin in places until more pages land; `faceFor` widens its search
    rather than handing out a face that is not the person standing in front of you. */
 const ID_SHEETS = [
-  { key: "id_faces_1", cols: 6, rows: 4, who: [
+  { key: "id_faces_1", cols: 6, rows: 4, gang: false, who: [
     "m deep", "f deep", "m light", "m deep", "f light", "m deep",
     "m mid",  "f deep", "m deep",  "f mid",  "m deep",  "m light",
     "m deep", "m light", "f deep", "m mid",  "m deep",  "f deep",
     "f light", "m deep", "m light", "f deep", "m light", "m deep"] },
+  /* Twelve more pages. Sex was labelled by eye; the tone on each face was MEASURED off the lit
+     side of its own cheek and banded, which is why it agrees with the bodies in the street. "-"
+     is a cell with nothing in it. `gang` marks the pages of people who run with a crew -- the
+     card of a man a case is about should be able to look like one. */
+  { key: "id_faces_civ_a", cols: 8, rows: 4, gang: false, who: [
+    "f light", "m light", "f mid", "m light", "f light", "f light", "m light", "m deep",
+    "m light", "f light", "m light", "f light", "f light", "m light", "m deep", "m deep",
+    "f mid", "m light", "m light", "f light", "f mid", "m light", "m light", "m light",
+    "f light", "m light", "f light", "m light", "f light", "f light", "m light", "f light",] },
+  { key: "id_faces_civ_b", cols: 7, rows: 4, gang: false, who: [
+    "f light", "m light", "f light", "m light", "f light", "m light", "m deep",
+    "m light", "f light", "m light", "f light", "m light", "f light", "m light",
+    "f mid", "m light", "f light", "m light", "f light", "m light", "m deep",
+    "m light", "f mid", "m light", "f light", "m light", "f light", "f light",] },
+  { key: "id_faces_civ_c", cols: 7, rows: 4, gang: false, who: [
+    "m light", "f light", "m light", "m light", "m light", "f light", "m deep",
+    "m light", "m light", "f deep", "m light", "m light", "m mid", "f deep",
+    "m light", "m light", "f light", "m light", "m light", "m light", "f deep",
+    "m light", "f mid", "m mid", "m light", "m light", "f deep", "m deep",] },
+  { key: "id_faces_civ_d", cols: 7, rows: 4, gang: false, who: [
+    "f deep", "m light", "m light", "f mid", "f light", "m mid", "m mid",
+    "m light", "f light", "m light", "m deep", "f light", "m mid", "m mid",
+    "f light", "m light", "f deep", "m light", "f mid", "m mid", "m mid",
+    "m deep", "f light", "m light", "f light", "f light", "f deep", "f mid",] },
+  { key: "id_faces_civ_e", cols: 8, rows: 4, gang: false, who: [
+    "m light", "f light", "m light", "m light", "m light", "f light", "m light", "m deep",
+    "m light", "f deep", "m light", "f light", "m light", "f light", "f light", "m deep",
+    "m light", "f light", "m light", "m deep", "m light", "m light", "m deep", "m deep",
+    "m light", "f light", "m deep", "f mid", "m light", "f light", "m light", "m light",] },
+  { key: "id_faces_civ_f", cols: 8, rows: 4, gang: false, who: [
+    "f light", "f light", "m light", "m light", "m deep", "f light", "m light", "f deep",
+    "f light", "m light", "m light", "m deep", "m light", "f deep", "m light", "m deep",
+    "m light", "f light", "m light", "m light", "m light", "f deep", "f light", "m deep",
+    "m light", "m deep", "m light", "m light", "f light", "m deep", "m light", "m light",] },
+  { key: "id_faces_gang_a", cols: 8, rows: 4, gang: true, who: [
+    "m light", "f light", "-", "m light", "f light", "m light", "m light", "m light",
+    "m light", "f light", "m light", "m light", "m light", "f light", "m light", "m light",
+    "m light", "f light", "m light", "m light", "m light", "f light", "m light", "m light",
+    "m light", "f mid", "m light", "f light", "m mid", "m mid", "m light", "m light",] },
+  { key: "id_faces_gang_b", cols: 8, rows: 4, gang: true, who: [
+    "m deep", "m deep", "m deep", "m light", "m deep", "m light", "m light", "m deep",
+    "m deep", "f deep", "m deep", "f light", "m light", "m mid", "m light", "m light",
+    "m deep", "m deep", "m deep", "m deep", "m light", "m light", "m light", "m mid",
+    "m deep", "f deep", "m mid", "m light", "m light", "m deep", "m light", "m light",] },
+  { key: "id_faces_gang_c", cols: 8, rows: 4, gang: true, who: [
+    "m light", "f mid", "m light", "m light", "m deep", "m mid", "m light", "m deep",
+    "f light", "m light", "m deep", "f light", "m mid", "m light", "m light", "m deep",
+    "f light", "m light", "f light", "m deep", "m deep", "f light", "m light", "m deep",
+    "f mid", "m light", "f deep", "m light", "m light", "f light", "m deep", "m light",] },
+  { key: "id_faces_gang_d", cols: 8, rows: 4, gang: true, who: [
+    "m light", "m light", "m light", "m deep", "m deep", "m deep", "m light", "m deep",
+    "m light", "m mid", "m deep", "m deep", "f deep", "m light", "m deep", "m deep",
+    "m light", "f light", "m deep", "m deep", "m light", "m mid", "m deep", "m deep",
+    "m light", "m deep", "f deep", "m light", "m light", "m light", "m deep", "m light",] },
+  { key: "id_faces_gang_e", cols: 8, rows: 4, gang: true, who: [
+    "m light", "m light", "m mid", "m deep", "m mid", "m light", "m light", "m light",
+    "m light", "f light", "m mid", "m deep", "m deep", "m mid", "m light", "m light",
+    "m light", "m light", "m mid", "m light", "m deep", "m light", "m light", "m light",
+    "m light", "m deep", "m deep", "m mid", "m light", "m mid", "m deep", "m light",] },
+  { key: "id_faces_gang_f", cols: 6, rows: 4, gang: true, who: [
+    "m light", "m light", "m deep", "m light", "m light", "m light",
+    "m light", "m light", "m deep", "m light", "m light", "m light",
+    "m light", "m light", "m deep", "m light", "m light", "m light",
+    "m light", "m light", "m deep", "m light", "m light", "m light",] },
 ];
 const ID_ART = { id_card_blank: "assets/id/id_card_blank.png",
                  id_notebook: "assets/id/id_notebook.png" };
 for (const q of ID_SHEETS) ID_ART[q.key] = "assets/id/" + q.key + ".png";
-/* Every face that is this sex and this tone, as [sheet, index] pairs. */
-function facesFor(sex, tone) {
+/* MALCOLM and RAMOS. Cut at the hip like every other character, so drawYouth paints their legs
+   and swings an arm: they walk instead of sliding. */
+for (const k of ["yt_malcolm", "yt_ramos"]) ID_ART[k] = "assets/heroes/" + k + ".png";
+/* Every face that is this sex and this tone, as [sheet, index] pairs. `gang` picks which kind of
+   page: an ordinary pedestrian should not have a crew mugshot on his licence, and the man a case
+   is about should not look like a bank clerk. */
+function facesFor(sex, tone, gang) {
   const out = [];
-  for (const sh of ID_SHEETS)
-    sh.who.forEach((w, i) => { const [ws, wt] = w.split(" "); if (ws === sex && wt === tone) out.push([sh, i]); });
+  for (const sh of ID_SHEETS.filter((q) => !!q.gang === !!gang))
+    sh.who.forEach((w, i) => {
+      if (!w || w === "-") return;                       // an empty cell is not a face
+      const [ws, wt] = w.split(" ");
+      if (ws === sex && wt === tone) out.push([sh, i]);
+    });
   return out;
 }
 /* Ordinary people, not gang names -- those pools belong to the factions and are reserved. */
@@ -10126,7 +10199,7 @@ export default function IronLionLayer004() {
       const ft = 5, inch = (sex === "m" ? 5 : 1) + ((rr() * 8) | 0);
       const ave = AVE_NAMES[(rr() * AVE_NAMES.length) | 0];
       return (p.ident = {
-        sex, tone,
+        sex, tone, gang: !!(p.gang || p.distroGuard || p.crew),
         name: first + " " + last,
         dob: String(mo).padStart(2, "0") + "/" + String(dy).padStart(2, "0") + "/" + String(yr).slice(2),
         age: 1986 - yr,
@@ -10142,8 +10215,10 @@ export default function IronLionLayer004() {
        draw a silhouette. `id.face` is the roll, kept so the same man keeps the same photograph
        even after another page is added. */
     function faceOf(id) {
-      let pool = facesFor(id.sex, id.tone);
-      if (!pool.length) pool = ID_TONES.flatMap((t) => facesFor(id.sex, t));
+      const gg = !!id.gang;
+      let pool = facesFor(id.sex, id.tone, gg);
+      if (!pool.length) pool = facesFor(id.sex, id.tone, !gg);                 // the other kind of page
+      if (!pool.length) pool = ID_TONES.flatMap((t) => facesFor(id.sex, t, gg).concat(facesFor(id.sex, t, !gg)));
       pool = pool.filter(([sh]) => { const im = imgs.current[sh.key]; return im && im.width; });
       if (!pool.length) return null;
       return pool[Math.floor(id.face * pool.length) % pool.length];
@@ -24212,6 +24287,10 @@ export default function IronLionLayer004() {
       if (g.night < 0.05) return;
       for (const v of g.traffic) {
         if (v.dead) continue;     // parked and abandoned cars are not sitting there with the lights on
+        /* A car whose position has gone NaN for a frame takes the whole frame with it here:
+           createRadialGradient throws on a non-finite number, and this runs before the sentinel
+           that scrubs traffic gets its turn. Skip him; the sentinel will remove him. */
+        if (!Number.isFinite(v.x) || !Number.isFinite(v.y) || !Number.isFinite(v.ang)) continue;
         const fx = Math.cos(v.ang), fy = Math.sin(v.ang);
         const gx = v.x + fx * 44, gy = v.y + fy * 44;
         const gr = ctx.createRadialGradient(gx, gy, 5, gx, gy, 210);
