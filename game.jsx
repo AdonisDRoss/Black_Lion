@@ -1318,6 +1318,66 @@ for (const k of NF_HOUSES.concat(["nf_rochelle"], NN_KEYS)) NF_ART[k] = "assets/
 NF_ART.tx_blacktop = "assets/tex/tx_blacktop.png";
 for (const m of NFC_M) NF_ART[m.k] = "assets/nflats/" + m.k + ".png";
 for (const k of NF_FURN_KEYS) NF_ART[k] = "assets/nflats/" + k + ".png";
+/* ---------- STRAYS ----------
+   Twenty-four plates, twelve of each, in assets/animals/. Nothing in the game read them, so they
+   draw as a drawn dog or cat until the files land -- the system is what was missing, not the art.
+   They are NOT combat targets and never will be: they are furniture with a heartbeat, and the
+   only thing they do about you is leave. Cats go sooner, faster and further than dogs. */
+const ANIM = {
+  dog: { n: 12, pre: "an_dog_", h: 21, spd: [38, 34], flee: 130, sit: [1.4, 3.2], col: "#6b5842" },
+  cat: { n: 12, pre: "an_cat_", h: 14, spd: [58, 46], flee: 175, sit: [2.0, 4.0], col: "#4a4a50" },
+  max: 7, near: [620, 1500], cull: 2600, rate: 0.7,
+};
+/* ---------- WHO THEY ARE ----------
+   Every person on the street gets a card: a name, a date of birth, an address on one of this
+   city's own avenues, a height, and a face. It is built once, the first time anybody asks, and
+   kept on that pedestrian -- the same man is the same man for as long as he is loaded.
+   `sex` and `tone` are taken from what he already LOOKS like where the game knows it: the
+   procedural crowd is recoloured from CIV_SKIN, so its skin is known, and the drawn page with
+   the dresses on it is women. Where neither is known the card rolls, and that is the only case
+   where the face and the body can disagree.
+   Faces come off pages, one page per sex and tone, sliced by index like the civilian sheets --
+   a page of 24 faces is one file instead of 24. Until the pages exist the card draws the face
+   as a silhouette in that skin tone, so this works before the art does. */
+const ID_TONES = ["light", "mid", "deep"];
+/* A page is a grid of photographs and a list saying who each one is: "m deep", "f light". The
+   pages that exist are mixed rather than one page per sex and tone, so the sheet is read by this
+   manifest instead of by its file name -- which also means a new page is a file plus one line.
+   Read across, then down. Twelve of these twenty-four are men with deep skin and one is a woman
+   with mid skin, so the pool is thin in places until more pages land; `faceFor` widens its search
+   rather than handing out a face that is not the person standing in front of you. */
+const ID_SHEETS = [
+  { key: "id_faces_1", cols: 6, rows: 4, who: [
+    "m deep", "f deep", "m light", "m deep", "f light", "m deep",
+    "m mid",  "f deep", "m deep",  "f mid",  "m deep",  "m light",
+    "m deep", "m light", "f deep", "m mid",  "m deep",  "f deep",
+    "f light", "m deep", "m light", "f deep", "m light", "m deep"] },
+];
+const ID_ART = { id_card_blank: "assets/id/id_card_blank.png",
+                 id_notebook: "assets/id/id_notebook.png" };
+for (const q of ID_SHEETS) ID_ART[q.key] = "assets/id/" + q.key + ".png";
+/* Every face that is this sex and this tone, as [sheet, index] pairs. */
+function facesFor(sex, tone) {
+  const out = [];
+  for (const sh of ID_SHEETS)
+    sh.who.forEach((w, i) => { const [ws, wt] = w.split(" "); if (ws === sex && wt === tone) out.push([sh, i]); });
+  return out;
+}
+/* Ordinary people, not gang names -- those pools belong to the factions and are reserved. */
+const ID_NAMES = {
+  m: ["ALVIN", "BERNARD", "CALVIN", "DERRICK", "EDDIE", "FRANK", "GERALD", "HOWARD", "IRVIN",
+      "JEROME", "KEITH", "LAWRENCE", "MELVIN", "NORMAN", "OSCAR", "PERCY", "RANDALL", "STANLEY",
+      "TERRENCE", "VERNON", "WALTER", "CLIFFORD", "RUBEN", "SIDNEY"],
+  f: ["ARLENE", "BEVERLY", "CARMEN", "DOLORES", "EUNICE", "FRANCINE", "GLORIA", "HELEN", "IRENE",
+      "JANICE", "KATHLEEN", "LORRAINE", "MARCIA", "NADINE", "OLIVIA", "PATRICE", "ROSALIND",
+      "SHIRLEY", "THELMA", "VERA", "WANDA", "YVONNE", "CLAUDETTE", "MAXINE"],
+  l: ["ABBOTT", "BELL", "CARROLL", "DIXON", "ELLIS", "FOSTER", "GARRETT", "HOBBS", "INGRAM",
+      "JEFFRIES", "KEMP", "LOGAN", "MERCER", "NOLAN", "OWENS", "PARRISH", "QUINLAN", "RHODES",
+      "SUTTON", "TALBOT", "UNDERWOOD", "VOSS", "WHITFIELD", "YEARWOOD"],
+};
+const ANIM_ART = {};
+for (const kind of ["dog", "cat"])
+  for (let i = 1; i <= ANIM[kind].n; i++) ANIM_ART[ANIM[kind].pre + i] = "assets/animals/" + ANIM[kind].pre + i + ".png";
 const SC_ART = {};
 for (const k of SEWER_CAMP.keys) SC_ART[k] = "assets/sewer/" + k + ".png";
 /* WHAT EVERYONE ELSE SAYS ABOUT IT. Ordinary people, talking to each other, about Sky. How often it
@@ -8525,7 +8585,7 @@ export default function IronLionLayer004() {
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
                         "vn_drumkit_flip"];
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX, ...CITY2, ...DECO, ...CLUB, ...GYM_ART, ...SKY_ART, ...DW_ART, ...SC_ART, ...NF_ART };
+    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX, ...CITY2, ...DECO, ...CLUB, ...GYM_ART, ...SKY_ART, ...DW_ART, ...SC_ART, ...NF_ART, ...ANIM_ART, ...ID_ART };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -8923,7 +8983,7 @@ export default function IronLionLayer004() {
       items: [], bailers: [], heat: 0, suspicion: 0, detectives: null, detTimer: 0, detScene: null, pickupFlash: null, inside: null, floor: 0, insideT: 1, crime: null, crimeTimer: 6, scanner: 0, hurt: 0, stats: { saved: 0, lost: 0 }, night: 0, nightTarget: 0, shake: 0, t: 0, hint: 0,
       // TEST: travelAll unlocks every district on the den terminal. Set false to restore the
       // earned-unlock rule; the discovery logic underneath is untouched.
-      bootDen: true, title: true, titleT: 0, travelAll: true,
+      bootDen: true, title: true, titleT: 0, travelAll: true, animals: [],
       paused: false, cut: null, onRamp: null, rampH: 0, missions: [], lion: 100, lionOn: false, lionCd: 0, onFwy: false, deckCd: 0, seen: { hood: 1 }, travelOpen: false, travelSel: 0, refueling: false, ambulance: null, kingsTurfHeat: 100,
       /* The board is not a vehicle. `mode` stays "foot" the whole time you are on it -- you
          are still your own sprite, still shootable, still able to walk through a door -- so
@@ -10041,6 +10101,320 @@ export default function IronLionLayer004() {
         chance = SKY_STREET.ring * lvl;
       if (!(Math.random() < chance)) return null;
       return SKY_ADDICTS[(Math.random() * SKY_ADDICTS.length) | 0];
+    }
+    /* A stray, on a pavement somewhere off screen, walked in from there. Kept few on purpose:
+       seven in the world at once reads as a city with animals in it; twenty reads as a farm. */
+    /* HIS CARD. Built once and kept on him. Everything is rolled off one seed so the same man
+       gives the same name every time you stop him, and so a case can name a face. */
+    function identOf(p) {
+      if (!p) return null;
+      if (p.ident) return p.ident;
+      if (p.idSeed == null) p.idSeed = (Math.random() * 1e9) | 0;
+      let sd = p.idSeed;
+      const rr = () => { sd = (sd * 1103515245 + 12345) & 0x7fffffff; return sd / 0x7fffffff; };
+      const skin = p.civ && p.civ.skin;
+      // three bands off the seven-shade palette, by luminance
+      const tone = skin
+        ? (skin[0] * 0.3 + skin[1] * 0.6 + skin[2] * 0.1 > 180 ? "light"
+           : skin[0] * 0.3 + skin[1] * 0.6 + skin[2] * 0.1 > 110 ? "mid" : "deep")
+        : ID_TONES[(rr() * 3) | 0];
+      const sex = (p.civ && p.civ.sex) || (rr() < 0.5 ? "m" : "f");
+      const first = ID_NAMES[sex][(rr() * ID_NAMES[sex].length) | 0];
+      const last = ID_NAMES.l[(rr() * ID_NAMES.l.length) | 0];
+      const yr = 1921 + ((rr() * 47) | 0);
+      const mo = 1 + ((rr() * 12) | 0), dy = 1 + ((rr() * 28) | 0);
+      const ft = 5, inch = (sex === "m" ? 5 : 1) + ((rr() * 8) | 0);
+      const ave = AVE_NAMES[(rr() * AVE_NAMES.length) | 0];
+      return (p.ident = {
+        sex, tone,
+        name: first + " " + last,
+        dob: String(mo).padStart(2, "0") + "/" + String(dy).padStart(2, "0") + "/" + String(yr).slice(2),
+        age: 1986 - yr,
+        addr: (100 + ((rr() * 3400) | 0)) + " " + ave.toUpperCase() + (rr() < 0.5 ? " AVE" : " ST"),
+        hgt: ft + "'" + (inch > 11 ? 11 : inch) + '"',
+        no: "RH" + String((rr() * 9000000 + 1000000) | 0),
+        face: rr(),                       // resolved against the sheets when the card is drawn
+        skin: skin || [196, 150, 112],
+      });
+    }
+    /* The photograph for a card: one of the faces that IS this sex and tone. If the pages do not
+       have one yet it widens -- same sex, any tone -- and only then gives up and lets the card
+       draw a silhouette. `id.face` is the roll, kept so the same man keeps the same photograph
+       even after another page is added. */
+    function faceOf(id) {
+      let pool = facesFor(id.sex, id.tone);
+      if (!pool.length) pool = ID_TONES.flatMap((t) => facesFor(id.sex, t));
+      pool = pool.filter(([sh]) => { const im = imgs.current[sh.key]; return im && im.width; });
+      if (!pool.length) return null;
+      return pool[Math.floor(id.face * pool.length) % pool.length];
+    }
+    /* THE NOTEBOOK. Every card you have looked at, newest first, with where and when you stopped
+       him. It is the spine detective mode hangs off: a case will write its own pages into the
+       same book, and a name you wrote down weeks ago is what makes a witness statement mean
+       anything. Capped so a long session cannot grow it without end. */
+    function bookAdd(id, ped) {
+      g.book = g.book || { people: [], cases: [] };
+      if (g.book.people.some((q) => q.no === id.no)) return;
+      g.book.people.unshift({
+        no: id.no, name: id.name, sex: id.sex, tone: id.tone, face: id.face,
+        addr: id.addr, dob: id.dob, age: id.age, hgt: id.hgt,
+        where: crossStreet(g.p.x, g.p.y), night: (g.night || 0) > 0.45,
+      });
+      if (g.book.people.length > 60) g.book.people.length = 60;
+    }
+    function drawNotebook() {
+      if (!g.bookOpen) return;
+      const B = g.book || { people: [], cases: [] };
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = "rgba(6,7,9,0.80)"; ctx.fillRect(0, 0, W, H);
+      const PW = Math.min(420, W * 0.9), PH = Math.min(560, H * 0.84);
+      const x0 = (W - PW) / 2, y0 = (H - PH) / 2;
+      const pg = imgs.current.id_notebook;
+      if (pg && pg.width) ctx.drawImage(pg, x0, y0, PW, PH);
+      else {
+        ctx.fillStyle = "#cdc4ad"; ctx.fillRect(x0, y0, PW, PH);
+        ctx.fillStyle = "rgba(60,50,38,0.5)"; ctx.fillRect(x0, y0, PW, 3); ctx.fillRect(x0, y0 + PH - 3, PW, 3);
+        ctx.fillStyle = "rgba(120,40,40,0.35)"; ctx.fillRect(x0 + PW * 0.12, y0, 2, PH);
+        ctx.strokeStyle = "rgba(60,50,38,0.16)"; ctx.lineWidth = 1;
+        for (let ly = y0 + 54; ly < y0 + PH - 10; ly += 18) {
+          ctx.beginPath(); ctx.moveTo(x0 + 10, ly); ctx.lineTo(x0 + PW - 10, ly); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = "#2b2419";
+      ctx.font = "700 13px ui-monospace, monospace";
+      ctx.fillText("NOTEBOOK", x0 + PW * 0.16, y0 + 34);
+      ctx.font = "10px ui-monospace, monospace";
+      ctx.fillStyle = "rgba(43,36,25,0.65)";
+      const per = 5, pages = Math.max(1, Math.ceil(B.people.length / per));
+      g.bookPage = clamp(g.bookPage || 0, 0, pages - 1);
+      ctx.fillText(B.people.length + " NAMES \u00b7 PAGE " + (g.bookPage + 1) + "/" + pages, x0 + PW * 0.16, y0 + 50);
+      const slice = B.people.slice(g.bookPage * per, g.bookPage * per + per);
+      slice.forEach((q, i) => {
+        const ry = y0 + 76 + i * (PH - 110) / per;
+        const fh2 = (PH - 130) / per * 0.78, fw2 = fh2 * 0.86;
+        const shot = faceOf(q);
+        ctx.fillStyle = "#b9b3a2"; ctx.fillRect(x0 + PW * 0.16, ry, fw2, fh2);
+        if (shot) {
+          const [sh, fi] = shot, page2 = imgs.current[sh.key];
+          const fw = page2.width / sh.cols, fh = page2.height / sh.rows;
+          ctx.drawImage(page2, (fi % sh.cols) * fw, ((fi / sh.cols) | 0) * fh, fw, fh,
+                        x0 + PW * 0.16, ry, fw2, fh2);
+        }
+        const tx2 = x0 + PW * 0.16 + fw2 + 10;
+        ctx.fillStyle = "#2b2419"; ctx.font = "700 12px ui-monospace, monospace";
+        ctx.fillText(q.name, tx2, ry + 13);
+        ctx.font = "10px ui-monospace, monospace"; ctx.fillStyle = "rgba(43,36,25,0.8)";
+        ctx.fillText((q.sex === "m" ? "M" : "F") + " \u00b7 " + q.age + " \u00b7 " + q.hgt + " \u00b7 " + q.no, tx2, ry + 28);
+        ctx.fillText(q.addr, tx2, ry + 42);
+        ctx.fillStyle = "rgba(43,36,25,0.55)";
+        ctx.fillText("STOPPED " + q.where + (q.night ? " \u00b7 AFTER DARK" : ""), tx2, ry + 56);
+      });
+      if (!B.people.length) {
+        ctx.fillStyle = "rgba(43,36,25,0.6)"; ctx.font = "11px ui-monospace, monospace";
+        ctx.fillText("Nobody in it yet. Stop somebody and ask for their card.", x0 + PW * 0.16, y0 + 96);
+      }
+      ctx.fillStyle = "rgba(43,36,25,0.5)"; ctx.font = "9px ui-monospace, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(pages > 1 ? "TAP LEFT / RIGHT TO TURN THE PAGE" : "", W / 2, y0 + PH - 14);
+      ctx.fillText("TAP BOOK TO SHUT IT", W / 2, y0 + PH + 18);
+      ctx.textAlign = "start";
+      ctx.restore();
+    }
+    G.bookFn = () => {
+      g.bookOpen = !g.bookOpen;
+      if (g.bookOpen) g.idCard = null;
+      setHud((h) => ({ ...h, bookOpen: !!g.bookOpen, idOpen: false }));
+    };
+    G.bookPageFn = (d) => { g.bookPage = (g.bookPage || 0) + d; };
+    // the nearest person you could ask, on foot and close, standing still enough to be asked
+    function nearCiv() {
+      if (g.mode !== "foot" || g.inside || g.sewer || g.onTrain) return null;
+      let best = null, bd = 74;
+      for (const q of g.peds) {
+        if (!q || q.hp <= 0 || q.fly) continue;
+        const d = Math.hypot(q.x - g.p.x, q.y - g.p.y);
+        if (d < bd) { bd = d; best = q; }
+      }
+      return best;
+    }
+    /* THE CARD ITSELF, in screen space over the world. The blank is one plate and everything on
+       it is drawn: the photo off the page for his sex and tone, sliced by index, and the typed
+       lines. No plate: a drawn card and a silhouette in his own skin, which is enough to read. */
+    function drawIdCard() {
+      const c = g.idCard;
+      if (!c) return;
+      const id = c.id;
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const blankA = imgs.current.id_card_blank;
+      const CW = Math.min(380, W * 0.84);
+      // the card is whatever shape the card is; only fall back to a guess if it has not loaded
+      const CH = CW / (blankA && blankA.width ? blankA.width / blankA.height : 1.7);
+      const x0 = (W - CW) / 2, y0 = (H - CH) / 2;
+      ctx.fillStyle = "rgba(6,7,9,0.72)";
+      ctx.fillRect(0, 0, W, H);
+      const blank = blankA;
+      if (blank && blank.width) ctx.drawImage(blank, x0, y0, CW, CH);
+      else {
+        ctx.fillStyle = "#d9d3c2"; ctx.fillRect(x0, y0, CW, CH);
+        ctx.fillStyle = "#2f4f7a"; ctx.fillRect(x0, y0, CW, CH * 0.17);
+        ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.fillRect(x0, y0 + CH * 0.17, CW, 2);
+        ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 2; ctx.strokeRect(x0 + 1, y0 + 1, CW - 2, CH - 2);
+        ctx.fillStyle = "#e8e2d0"; ctx.font = "700 11px ui-monospace, monospace";
+        ctx.fillText("RAVEN HOOK \u00b7 STATE OF ILLINOIS", x0 + 10, y0 + CH * 0.11);
+      }
+      // the photograph
+      const px = x0 + CW * 0.075, py = y0 + CH * 0.33, pw = CW * 0.27, ph = pw * 1.16;
+      const shot = faceOf(id);
+      ctx.fillStyle = "#b9b3a2"; ctx.fillRect(px - 2, py - 2, pw + 4, ph + 4);
+      if (shot) {
+        const [sh, fi] = shot, page = imgs.current[sh.key];
+        const fw = page.width / sh.cols, fh = page.height / sh.rows;
+        ctx.drawImage(page, (fi % sh.cols) * fw, ((fi / sh.cols) | 0) * fh, fw, fh, px, py, pw, ph);
+      } else {
+        ctx.fillStyle = "#8f95a3"; ctx.fillRect(px, py, pw, ph);
+        const sk = `rgb(${id.skin[0]},${id.skin[1]},${id.skin[2]})`;
+        ctx.fillStyle = sk;
+        ctx.beginPath(); ctx.arc(px + pw / 2, py + ph * 0.36, pw * 0.26, 0, 6.283); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(px + pw / 2, py + ph * 0.95, pw * 0.40, ph * 0.34, 0, Math.PI, 0); ctx.fill();
+      }
+      // the typed lines
+      // the typed lines sit ON the card's ruled lines
+      const tx = px + pw + CW * 0.06;
+      ctx.font = "11px ui-monospace, monospace";
+      const rows = [["NAME", id.name], ["DOB", id.dob + "  (" + id.age + ")"],
+                    ["SEX/HGT", (id.sex === "m" ? "M" : "F") + "   " + id.hgt],
+                    ["ADDR", id.addr], ["NO.", id.no]];
+      rows.forEach(([k, v], i) => {
+        const ly = y0 + CH * 0.375 + i * CH * 0.128;
+        ctx.fillStyle = "rgba(29,31,36,0.50)"; ctx.fillText(k, tx, ly);
+        ctx.fillStyle = "#1d1f24";
+        ctx.font = i === 0 ? "700 12px ui-monospace, monospace" : "11px ui-monospace, monospace";
+        ctx.fillText(v, tx + CW * 0.17, ly);
+        ctx.font = "11px ui-monospace, monospace";
+      });
+      ctx.fillStyle = "rgba(232,217,181,0.6)";
+      ctx.font = "9px ui-monospace, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("TAP TO PUT IT BACK", W / 2, y0 + CH + 22);
+      ctx.textAlign = "start";
+      ctx.restore();
+    }
+    G.idFn = () => {
+      if (g.idCard) { g.idCard = null; g.paused = false; setHud((h) => ({ ...h, idOpen: false })); return; }
+      const q = nearCiv();
+      if (!q) return;
+      const id = identOf(q);
+      g.idCard = { ped: q, id };
+      bookAdd(id, q);                       // looked at is written down
+      q.say = 2.4; q.line = "ALL RIGHT, ALL RIGHT.";
+      setHud((h) => ({ ...h, idOpen: true }));
+    };
+    function spawnAnimal() {
+      const pv = inVehicle() ? activeVeh() : g.p;
+      if (!Number.isFinite(pv.x)) return;
+      const ang = Math.random() * 6.283, rad = ANIM.near[0] + Math.random() * (ANIM.near[1] - ANIM.near[0]);
+      const bi = clamp(Math.round((pv.x + Math.cos(ang) * rad) / PITCH), 0, N - 1);
+      const bj = clamp(Math.round((pv.y + Math.sin(ang) * rad) / PITCH), 0, N - 1);
+      const z = zoneOf(bi, bj);
+      if (z === "water" || z === "prison" || isSuper(z)) return;
+      const c = corner(bi, bj, (Math.random() * 4) | 0);
+      const kind = Math.random() < 0.55 ? "dog" : "cat";
+      const A = ANIM[kind];
+      g.animals.push({
+        kind, x: c[0] + (Math.random() - 0.5) * 60, y: c[1] + (Math.random() - 0.5) * 60,
+        vx: 0, vy: 0, ang: Math.random() * 6.283, anim: Math.random() * 6,
+        plate: A.pre + (1 + ((Math.random() * A.n) | 0)),
+        mode: "sit", timer: 0.5 + Math.random() * 2, spd: A.spd[0] + Math.random() * A.spd[1],
+        spook: 0,
+      });
+    }
+    function spookAnimals(x, y, r) {
+      for (const a of (g.animals || [])) {
+        if (Math.hypot(a.x - x, a.y - y) > r) continue;
+        a.mode = "run"; a.timer = 1.6 + Math.random() * 1.8; a.spook = 1;
+        a.ang = Math.atan2(a.y - y, a.x - x) + (Math.random() - 0.5) * 0.7;
+      }
+    }
+    function stepAnimals(dt) {
+      g.animals = g.animals || [];
+      const pv = inVehicle() ? activeVeh() : g.p;
+      if (!Number.isFinite(pv.x)) return;
+      // they do not follow you indoors, onto a roof or down a hole
+      if (!g.inside && !g.sewer && !g.roof && g.animals.length < ANIM.max && Math.random() < dt * ANIM.rate) spawnAnimal();
+      for (let i = g.animals.length - 1; i >= 0; i--) {
+        const a = g.animals[i], A = ANIM[a.kind];
+        if (Math.hypot(a.x - pv.x, a.y - pv.y) > ANIM.cull) { g.animals.splice(i, 1); continue; }
+        a.anim += dt;
+        a.timer -= dt;
+        a.spook = Math.max(0, a.spook - dt * 0.5);
+        // anything with an engine, and anybody on foot who gets too close
+        let fx = 0, fy = 0, near = 0;
+        const dP = Math.hypot(a.x - g.p.x, a.y - g.p.y);
+        if (!g.inside && dP < A.flee) { fx += a.x - g.p.x; fy += a.y - g.p.y; near = 1; }
+        for (const v of [g.car, g.moto, g.civ]) {
+          if (!v || !Number.isFinite(v.x)) continue;
+          const d = Math.hypot(a.x - v.x, a.y - v.y);
+          if (d < A.flee * 1.5 && Math.hypot(v.vx || 0, v.vy || 0) > 40) { fx += a.x - v.x; fy += a.y - v.y; near = 1; }
+        }
+        if (near) { a.mode = "run"; a.timer = Math.max(a.timer, 0.9); a.ang = Math.atan2(fy, fx); }
+        if (a.mode === "run") {
+          const sp = a.spd * (a.kind === "cat" ? 2.1 : 1.7);
+          a.x += Math.cos(a.ang) * sp * dt; a.y += Math.sin(a.ang) * sp * dt;
+          collideBuildings(a, 7, false);
+          if (a.timer <= 0) { a.mode = "sit"; a.timer = A.sit[0] + Math.random() * A.sit[1]; }
+          continue;
+        }
+        if (a.mode === "sit") {
+          if (a.timer <= 0) { a.mode = "walk"; a.timer = 1.4 + Math.random() * 3.4; a.ang = Math.random() * 6.283; }
+          continue;
+        }
+        // an amble: a few steps, a change of mind, a few more
+        a.x += Math.cos(a.ang) * a.spd * dt; a.y += Math.sin(a.ang) * a.spd * dt;
+        a.ang += (Math.random() - 0.5) * dt * 2.2;
+        collideBuildings(a, 7, false);
+        if (a.timer <= 0) { a.mode = "sit"; a.timer = A.sit[0] + Math.random() * A.sit[1]; }
+      }
+    }
+    function drawAnimals(view) {
+      if (g.inside || g.sewer || g.roof || !g.animals) return;
+      for (const a of g.animals) {
+        if (a.x < view.x0 - 60 || a.x > view.x1 + 60 || a.y < view.y0 - 60 || a.y > view.y1 + 60) continue;
+        const A = ANIM[a.kind];
+        drawShadow(a.x, a.y + 2, A.h * 0.42, A.h * 0.2, 0.28);
+        const im = imgs.current[a.plate];
+        // the trot: a small bob, quicker when he is running
+        const bob = Math.sin(a.anim * (a.mode === "run" ? 16 : 7)) * (a.mode === "sit" ? 0 : 1);
+        ctx.save();
+        ctx.translate(a.x, a.y + bob * 0.6);
+        ctx.rotate(a.ang + Math.PI / 2);
+        if (im && im.width) {
+          const h = A.h, w = h * (im.width / im.height);
+          ctx.drawImage(im, -w / 2, -h / 2, w, h);
+        } else {
+          /* No plate yet: a drawn animal rather than nothing. Body, head, tail, four feet --
+             at twenty units across that is all there is to see from above anyway. */
+          const L = A.h, Wb = L * 0.42;
+          ctx.fillStyle = A.col;
+          ctx.beginPath(); ctx.ellipse(0, 0, Wb / 2, L / 2, 0, 0, 6.283); ctx.fill();
+          ctx.beginPath(); ctx.arc(0, -L * 0.42, Wb * 0.42, 0, 6.283); ctx.fill();
+          ctx.strokeStyle = A.col; ctx.lineWidth = Math.max(1.2, L * 0.09);
+          ctx.beginPath(); ctx.moveTo(0, L * 0.45);
+          ctx.quadraticCurveTo(Wb * 0.5, L * 0.72, a.kind === "cat" ? Wb * 0.1 : Wb * 0.6, L * 0.9);
+          ctx.stroke();
+          // feet OUTSIDE the body, or they read as stripes painted down his back
+          ctx.fillStyle = "rgba(0,0,0,0.45)";
+          for (const [ox, oy, ph] of [[-1, -L * 0.20, 0], [1, -L * 0.20, 3.1],
+                                      [-1, L * 0.24, 3.1], [1, L * 0.24, 0]]) {
+            const step = a.mode === "sit" ? 0 : Math.sin(a.anim * (a.mode === "run" ? 16 : 7) + ph) * L * 0.07;
+            ctx.beginPath();
+            ctx.ellipse(ox * Wb * 0.60, oy + step, Math.max(0.9, L * 0.055), Math.max(1.2, L * 0.085), 0, 0, 6.283);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+      }
     }
     function spawnPed(cx, cy) {
       if (outfits.length < POOL && Math.random() < 0.35) makeOutfit();
@@ -13041,6 +13415,8 @@ export default function IronLionLayer004() {
       }
       x.putImageData(img, 0, 0);
       return { canvas: cv, top, eight,
+               // the shade he was actually painted, so his card is not a stranger's face
+               skin: pal[200], sex: null,
                face: top ? CIVTOP_FACE : 0, rows: CIVTOP_BUILDS,
                scale: CIVTOP_SCALE, lift: CIVTOP_LIFT, squash: 1 };
     }
@@ -13051,8 +13427,9 @@ export default function IronLionLayer004() {
        crowd's on-screen height, then the lift that puts the feet back on y+14.3. Page B is
        longer in the cell (aspect 0.86 against page A's 0.95) purely because of the dresses. */
     const CIVART_PAGES = [
-      { key: "civ_art_a", rows: 6, scale: 1.022, lift: -0.0362 },
-      { key: "civ_art_b", rows: 12, scale: 0.974, lift: 0.0158 },
+      { key: "civ_art_a", rows: 6, scale: 1.022, lift: -0.0362, sex: null },
+      // page B is the dresses -- the one page where the game knows
+      { key: "civ_art_b", rows: 12, scale: 0.974, lift: 0.0158, sex: "f" },
     ];
     function bakeCivArt() {
       const live = CIVART_PAGES.filter((p) => {
@@ -13084,6 +13461,7 @@ export default function IronLionLayer004() {
       }
       x.putImageData(img, 0, 0);
       return { canvas: cv, top: 1, face: TOPDOWN_FACE, rows: page.rows,
+               skin, sex: page.sex,                       // what this one was painted, for his card
                scale: page.scale, lift: page.lift, squash: CIV_SQUASH };
     }
     /* One place that turns a pool entry into a pedestrian's look, so the two spawn sites
@@ -13092,7 +13470,7 @@ export default function IronLionLayer004() {
       if (!civPool.length) return null;
       const bk = civPool[(Math.random() * civPool.length) | 0];
       if (!bk || !bk.canvas) return null;
-      return { canvas: bk.canvas, top: bk.top, eight: bk.eight,
+      return { canvas: bk.canvas, top: bk.top, eight: bk.eight, skin: bk.skin, sex: bk.sex,
                face: bk.face, rows: bk.rows, scale: bk.scale, lift: bk.lift,
                squash: bk.squash,
                build: (Math.random() * CIV_BUILDS) | 0, ang: 0, dir8: 0 };
@@ -13661,12 +14039,15 @@ export default function IronLionLayer004() {
       // car 0 is the front; each sits a car-length plus a coupling behind the last
       return elPos(g.train.d - k * (EL_CAR_LEN + EL_GAP));
     }
+    /* THE WAY UP, not the middle of the deck. This named the station from 150 of the platform's
+       centre -- which is under the deck, nowhere near a staircase -- so the prompt appeared while
+       you stood in the road and said nothing about how to get up there. It reads the stair feet
+       now, the same ones autoStairs climbs, so the name shows when you are at a way in. */
     function nearPlatform() {
       if (g.mode !== "foot" || g.inside || g.onTrain) return null;
-      for (const q of EL_STOPS) {
-        const p = elPos(q.d);
-        if (Math.hypot(g.p.x - p.x, g.p.y - p.y) < 150) return q;
-      }
+      for (let k = 0; k < EL_STOPS.length; k++)
+        for (const c of stairFeet(k))
+          if (Math.hypot(g.p.x - c[0], g.p.y - c[1]) < 74) return EL_STOPS[k];
       return null;
     }
     /* A door on EACH SIDE of every car. A train you can only board from one flank means half
@@ -19278,11 +19659,12 @@ export default function IronLionLayer004() {
       /* A loaded save replaces the state without a title clock, and if the title camera runs one
          more frame after that, NaN % 6 is NaN and legs[NaN] is nothing -- a one-frame error banner
          on Continue. Start the clock from zero whenever it is not a number. */
-      g.titleT = (Number.isFinite(g.titleT) ? g.titleT : 0) + (Number.isFinite(dt) ? dt : 0);
+      g.titleT = Math.max(0, (Number.isFinite(g.titleT) ? g.titleT : 0) + (Number.isFinite(dt) ? dt : 0));
       g.nightTarget = 1;
       const legs = [[9, 6], [12, 12], [14, 14], [3, 4], [2, 13], [19, 5]];
       const t = g.titleT * 0.075;
-      const seg = Math.floor(t) % legs.length, nxt = (seg + 1) % legs.length;
+      // wrapped both ways: a negative index is not a leg, it is a frame error banner
+      const seg = ((Math.floor(t) % legs.length) + legs.length) % legs.length, nxt = (seg + 1) % legs.length;
       const f = t - Math.floor(t), ease = f * f * (3 - 2 * f);
       const ax = SX(legs[seg][0]) + PITCH / 2, ay = SX(legs[seg][1]) + PITCH / 2;
       const bx = SX(legs[nxt][0]) + PITCH / 2, by = SX(legs[nxt][1]) + PITCH / 2;
@@ -25209,6 +25591,7 @@ export default function IronLionLayer004() {
     /* A gunshot scatters the street. People stood in the open through a firefight because
        nothing told them one was happening. */
     function scatter(x, y, r) {
+      spookAnimals(x, y, r * 1.2);           // a dog hears a shot further than a man reacts to one
       for (const p of g.peds) {
         const d = Math.hypot(p.x - x, p.y - y);
         if (d > r) continue;
@@ -26299,6 +26682,7 @@ export default function IronLionLayer004() {
         placeMarks();
         stepClub(dt);
         stepCamps(dt);
+        stepAnimals(dt);
         marksClamp();
         g.skyPush = onTop ? 1 : 0;
         g.sky = Math.max(0, Math.min(SKY.max,
@@ -26752,6 +27136,7 @@ export default function IronLionLayer004() {
          in; rain behind him is a wallpaper. Indoors it is skipped, because it is drawn on the
          world plane and there is a roof over you. */
       stepDog();
+      drawAnimals(view);
       drawStadium();
       drawClub();
       drawMarks();
@@ -26841,6 +27226,9 @@ export default function IronLionLayer004() {
       }
 
       drawMinimap();
+      // the card and the book are held up in front of everything, including the map
+      drawIdCard();
+      drawNotebook();
 
       hudTimer -= dt;
       if (hudTimer <= 0) {
@@ -26892,6 +27280,8 @@ export default function IronLionLayer004() {
             cab: g.cab ? g.cab.g : null,
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
             atLift: !!liftNear(), liftOpen: !!g.liftOpen,
+            atCiv: !!nearCiv(), idOpen: !!g.idCard, bookOpen: !!g.bookOpen,
+            bookN: ((g.book && g.book.people) || []).length,
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
             liftFloors: liftFloorsList(), liftCur: g.floor,
             lion: Math.round(g.lion), lionOn: !!g.lionOn, plain: !!g.plain,
@@ -26924,7 +27314,7 @@ export default function IronLionLayer004() {
                     ? { wait: EL_STOPS[g.onPlat].name
                           + (g.train && g.train.spd > 4 ? " \u00b7 TRAIN MOVING"
                              : g.train && g.train.wait > 0 ? " \u00b7 DOORS CLOSING" : "") }
-                    : (nearPlatform() ? { wait: nearPlatform().name } : null))),
+                    : (nearPlatform() ? { wait: nearPlatform().name + " \u00b7 STAIRS" } : null))),
             arrested: (g.arrested || 0) > 0,
             missingCount: ((window.__ironlion && window.__ironlion.missingAll) || []).length,
             missingSome: ((window.__ironlion && window.__ironlion.missingAll) || [])
@@ -33575,6 +33965,16 @@ export default function IronLionLayer004() {
           </div>
         </div>
       )}
+      {/* Turning pages: the left third goes back, the right third goes on. The book is drawn on
+          the canvas, so this is an invisible sheet over it rather than a row of buttons. */}
+      {hud.bookOpen && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 86, display: "flex" }}
+          onPointerDown={(e) => {
+            const f = e.clientX / (e.currentTarget.clientWidth || 1);
+            if (f < 0.33) G.bookPageFn && G.bookPageFn(-1);
+            else if (f > 0.67) G.bookPageFn && G.bookPageFn(1);
+          }} />
+      )}
       {hud.lockerOpen && (
         <div style={{ position: "absolute", inset: 0, zIndex: 84, background: "rgba(6,7,9,0.94)",
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
@@ -34337,6 +34737,10 @@ export default function IronLionLayer004() {
               () => G.strikeFn && G.strikeFn())}
             {hud.wpn && !hud.holstered && btn("TGT", hud.locked ? "next" : "lock on",
               () => G.cycleTargetFn && G.cycleTargetFn(), hud.locked)}
+            {btn("BOOK", hud.bookOpen ? "shut it" : (hud.bookN || 0) + " names",
+              () => G.bookFn && G.bookFn(), null, hud.bookOpen)}
+            {hud.atCiv && btn("ID", hud.idOpen ? "put back" : "ask for it",
+              () => G.idFn && G.idFn(), null, hud.idOpen)}
             {hud.wpn && btn(hud.holstered ? "DRAW" : "PUT UP",
               hud.holstered ? hud.wpn.replace(/_/g, " ") : "use hands",
               () => G.drawFn && G.drawFn())}
