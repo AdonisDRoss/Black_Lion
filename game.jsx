@@ -1448,6 +1448,29 @@ const ID_NAMES = {
       "JEFFRIES", "KEMP", "LOGAN", "MERCER", "NOLAN", "OWENS", "PARRISH", "QUINLAN", "RHODES",
       "SUTTON", "TALBOT", "UNDERWOOD", "VOSS", "WHITFIELD", "YEARWOOD"],
 };
+/* ---------- DETECTIVE MODE: THE SMALL CASES ----------
+   Malcolm hands you a case at the precinct. A case is a scene somewhere in the city, a witness
+   standing at it, evidence on the ground, and a man -- a real card, a real face -- somewhere
+   else, standing with two others who could pass for him. The scene points at the place; the
+   witness says what he looks like; you card the three of them and bring a name back. Right name,
+   case closed and paid. Wrong name, the case goes cold and Malcolm says so.
+   Everything here is rolled off the city's own streets and the ID system, so a case is never a
+   list of names in a vacuum: the people exist, they stand somewhere, and you can walk up to them. */
+const CASE = {
+  kinds: [
+    { k: "mugging",  nm: "MUGGING",  item: "a torn wallet, cash gone",       weapon: "a knife" },
+    { k: "breakin",  nm: "BREAK-IN", item: "a jimmied lock and a crowbar mark", weapon: "a pry bar" },
+    { k: "assault",  nm: "ASSAULT",  item: "a bloody handkerchief",          weapon: "a bottle" },
+    { k: "holdup",   nm: "HOLD-UP",  item: "a spent .38 casing",             weapon: "a revolver" },
+  ],
+  sceneR: [1500, 3600],        // how far the scene is from the precinct
+  hangR: [1800, 3800],         // how far the man is from the scene
+  decoys: 2,                   // people with him who could be him
+  pay: [160, 140],
+  pickR: 34,                   // how close you have to be to pick up a piece of evidence
+};
+// how a witness says it, never the palette's word
+const CASE_SKIN = { light: "fair", mid: "olive-to-brown", deep: "dark" };
 const ANIM_ART = {};
 for (const kind of ["dog", "cat"])
   for (let i = 1; i <= ANIM[kind].n; i++) ANIM_ART[ANIM[kind].pre + i] = "assets/animals/" + ANIM[kind].pre + i + ".png";
@@ -10231,6 +10254,7 @@ export default function IronLionLayer004() {
       g.book = g.book || { people: [], cases: [] };
       if (g.book.people.some((q) => q.no === id.no)) return;
       g.book.people.unshift({
+        at: Date.now(), gang: id.gang,
         no: id.no, name: id.name, sex: id.sex, tone: id.tone, face: id.face,
         addr: id.addr, dob: id.dob, age: id.age, hgt: id.hgt,
         where: crossStreet(g.p.x, g.p.y), night: (g.night || 0) > 0.45,
@@ -10262,7 +10286,29 @@ export default function IronLionLayer004() {
       ctx.font = "10px ui-monospace, monospace";
       ctx.fillStyle = "rgba(43,36,25,0.65)";
       const per = 5, pages = Math.max(1, Math.ceil(B.people.length / per));
-      g.bookPage = clamp(g.bookPage || 0, 0, pages - 1);
+      /* THE CASE PAGE comes first: page -1 when a case is open or the last one is on file. */
+      const caseLines = g.case ? g.case.lines : (B.cases && B.cases[0] ? B.cases[0].lines : null);
+      g.bookPage = clamp(g.bookPage == null ? (caseLines ? -1 : 0) : g.bookPage, caseLines ? -1 : 0, pages - 1);
+      if (g.bookPage === -1) {
+        ctx.fillStyle = "#2b2419"; ctx.font = "700 13px ui-monospace, monospace";
+        ctx.fillText(g.case && g.case.stage !== "done" ? "OPEN CASE" : "LAST CASE", x0 + PW * 0.16, y0 + PH * 0.10);
+        ctx.font = "11px ui-monospace, monospace";
+        let ly = y0 + PH * 0.16;
+        for (const t of caseLines) {
+          // wrap to the page
+          const words = t.split(" "); let row = "";
+          for (const w of words) {
+            if (ctx.measureText(row + w).width > PW * 0.74) { ctx.fillText(row, x0 + PW * 0.16, ly); ly += 17; row = ""; }
+            row += w + " ";
+          }
+          ctx.fillText(row, x0 + PW * 0.16, ly); ly += 24;
+        }
+        ctx.fillStyle = "rgba(43,36,25,0.5)"; ctx.font = "9px ui-monospace, monospace"; ctx.textAlign = "center";
+        ctx.fillText("TAP RIGHT FOR NAMES", W / 2, y0 + PH - 14);
+        ctx.fillText("TAP BOOK TO SHUT IT", W / 2, y0 + PH + 18); ctx.textAlign = "start";
+        ctx.restore();
+        return;
+      }
       ctx.fillText(B.people.length + " NAMES \u00b7 PAGE " + (g.bookPage + 1) + "/" + pages, x0 + PW * 0.16, y0 + 50);
       const slice = B.people.slice(g.bookPage * per, g.bookPage * per + per);
       slice.forEach((q, i) => {
@@ -10306,7 +10352,8 @@ export default function IronLionLayer004() {
     function nearCiv() {
       if (g.mode !== "foot" || g.inside || g.sewer || g.onTrain) return null;
       let best = null, bd = 74;
-      for (const q of g.peds) {
+      const pool = g.case && g.case.stage !== "done" ? g.peds.concat(g.case.people) : g.peds;
+      for (const q of pool) {
         if (!q || q.hp <= 0 || q.fly) continue;
         const d = Math.hypot(q.x - g.p.x, q.y - g.p.y);
         if (d < bd) { bd = d; best = q; }
@@ -10384,7 +10431,247 @@ export default function IronLionLayer004() {
       g.idCard = { ped: q, id };
       bookAdd(id, q);                       // looked at is written down
       q.say = 2.4; q.line = "ALL RIGHT, ALL RIGHT.";
+      // in a case, who you card matters
+      if (q.caseRole) {
+        q.carded = true;
+        if (q.caseRole === "witness") { caseLine(witnessSays(g.case)); q.line = "I SAW HIM. I'LL TELL YOU."; }
+        else q.line = q.caseRole === "perp" ? "WHAT'S THIS ABOUT?" : "I DON'T KNOW NOTHING.";
+      }
       setHud((h) => ({ ...h, idOpen: true }));
+    };
+    /* ---------------- DETECTIVE MODE ---------------- */
+    function precinctB() {
+      const cv = CIVIC.find((c) => c.key === "precinct_rh");
+      if (!cv) return null;
+      const c = getCell(cv.cell.i, cv.cell.j);
+      return (c.blds || []).find((b) => b.kind === "precinct") || null;
+    }
+    /* Malcolm and Ramos stand in the bullpen. Found once, off the plan, clear of desks. */
+    function detectives() {
+      if (g.dets) return g.dets;
+      const b = precinctB();
+      if (!b) return null;
+      const pl = buildingPlans(b)[0];
+      const room = pl.rooms.find((r) => r.k === "bullpen") || pl.rooms[0];
+      const m = freeIndoor(b, pl, (room.x0 + room.x1) / 2 - 20, (room.y0 + room.y1) / 2, room)
+             || [(room.x0 + room.x1) / 2, (room.y0 + room.y1) / 2];
+      const r2 = freeIndoor(b, pl, m[0] + 46, m[1] + 10, room) || [m[0] + 46, m[1] + 10];
+      g.dets = { b, f: 0,
+        malcolm: { x: m[0], y: m[1], vx: 0, vy: 0, yt: "yt_malcolm", jit: 1.06, anim: 0, bang: Math.PI / 2 },
+        ramos: { x: r2[0], y: r2[1], vx: 0, vy: 0, yt: "yt_ramos", jit: 0.98, anim: 1.3, bang: Math.PI } };
+      return g.dets;
+    }
+    function nearMalcolm() {
+      const D = detectives();
+      if (!D || g.inside !== D.b || g.floor !== D.f || g.mode !== "foot") return false;
+      return Math.hypot(g.p.x - D.malcolm.x, g.p.y - D.malcolm.y) < 70;
+    }
+    /* A person in a case: a civilian look, a card, and a job. They do not wander and they are
+       not in g.peds, so the ped cull cannot take them while you are across town. */
+    function casePerson(x, y, role, sex) {
+      let q = null;
+      for (let t = 0; t < 40; t++) {
+        q = { x, y, vx: 0, vy: 0, anim: Math.random() * 6, jit: 0.93 + Math.random() * 0.15,
+              civ: pickCiv(), caseRole: role, idSeed: (Math.random() * 1e9) | 0, mode: "idle" };
+        const id = identOf(q);
+        if (!sex || id.sex === sex) break;
+      }
+      return q;
+    }
+    function streetSpot(fromX, fromY, r0, r1) {
+      for (let t = 0; t < 30; t++) {
+        const a = Math.random() * 6.283, rad = r0 + Math.random() * (r1 - r0);
+        const bi = clamp(Math.round((fromX + Math.cos(a) * rad) / PITCH), 1, N - 2);
+        const bj = clamp(Math.round((fromY + Math.sin(a) * rad) / PITCH), 1, N - 2);
+        const z = zoneOf(bi, bj);
+        if (z === "water" || z === "prison" || isSuper(z)) continue;
+        const c = corner(bi, bj, (Math.random() * 4) | 0);
+        // nobody gets mugged on an expressway ramp: a case happens where people walk
+        if (/Expwy|Spur|Exit|Fwy|Hwy/i.test(crossStreet(c[0], c[1]))) continue;
+        /* Off the road and onto the pavement: a street corner is the middle of a junction, so
+           step in toward the block by about a pavement's width. */
+        const cx = SX(bi) + PITCH / 2, cy = SX(bj) + PITCH / 2;
+        const d = Math.hypot(cx - c[0], cy - c[1]) || 1;
+        // and never inside a building: step in less if the corner of a block is built right up
+        const inBld = (x, y) => [[bi, bj], [bi - 1, bj], [bi, bj - 1], [bi - 1, bj - 1]].some(([a, b2]) => {
+          const cc = getCell(a, b2);
+          return cc && (cc.blds || []).some((q) => x > q.x - 24 && x < q.x + q.w + 24 && y > q.y - 24 && y < q.y + q.h + 24);
+        });
+        for (const step of [150, 110, 80, 50]) {
+          const x = c[0] + (cx - c[0]) / d * step, y = c[1] + (cy - c[1]) / d * step;
+          if (!inBld(x, y)) return [x, y];
+        }
+      }
+      return null;
+    }
+    function startCase() {
+      const b = precinctB();
+      const P = b ? [b.x + b.w / 2, b.y + b.h / 2] : [g.p.x, g.p.y];
+      const K = CASE.kinds[(Math.random() * CASE.kinds.length) | 0];
+      const scene = streetSpot(P[0], P[1], CASE.sceneR[0], CASE.sceneR[1]);
+      if (!scene) return null;
+      const hang = streetSpot(scene[0], scene[1], CASE.hangR[0], CASE.hangR[1]);
+      if (!hang) return null;
+      const victim = { idSeed: (Math.random() * 1e9) | 0 };
+      identOf(victim);
+      const perp = casePerson(hang[0], hang[1], "perp");
+      const pid = identOf(perp);
+      const people = [perp];
+      // two who could be him: same sex, near him, NOT the same card
+      for (let k = 0; k < CASE.decoys; k++) {
+        const a = (k + 1) * 2.1;
+        people.push(casePerson(hang[0] + Math.cos(a) * 46, hang[1] + Math.sin(a) * 46, "decoy", pid.sex));
+      }
+      const witness = casePerson(scene[0] + 40, scene[1] - 26, "witness");
+      people.push(witness);
+      g.case = {
+        K, scene, hang, victim: victim.ident, perp, people, witness,
+        started: Date.now(), stage: "scene",
+        where: crossStreet(scene[0], scene[1]), hangWhere: crossStreet(hang[0], hang[1]),
+        ev: [
+          { x: scene[0] - 30, y: scene[1] + 18, n: 1, got: false,
+            text: "At the scene: " + K.item + "." },
+          { x: scene[0] + 8, y: scene[1] + 44, n: 2, got: false, lead: true,
+            text: "A matchbook, from a place on " + crossStreet(hang[0], hang[1]) + "." },
+        ],
+        lines: ["CASE: " + K.nm + " at " + crossStreet(scene[0], scene[1]) + ".",
+                "Victim: " + victim.ident.name + ", " + victim.ident.age + "."],
+      };
+      return g.case;
+    }
+    // what the witness says -- off the man's own card, rounded the way people round
+    function witnessSays(C) {
+      const id = identOf(C.perp);
+      const lo = Math.max(18, Math.floor((id.age - 4) / 5) * 5), hi = lo + 10;
+      return "Witness: " + (id.sex === "m" ? "a man" : "a woman") + ", " + CASE_SKIN[id.tone] +
+             ", " + lo + " to " + hi + ", about " + id.hgt + ". Ran off " +
+             (C.hang[0] > C.scene[0] ? "east" : "west") + ".";
+    }
+    function caseLine(t) {
+      const C = g.case; if (!C) return;
+      if (!C.lines.includes(t)) C.lines.push(t);
+      g.pickupFlash = { nm: "lift:" + (t.length > 46 ? t.slice(0, 44) + "\u2026" : t), t: 2.4 };
+    }
+    function stepCase(dt) {
+      const D = detectives();
+      if (D) { D.malcolm.anim += dt * 0.3; D.ramos.anim += dt * 0.3; }
+      // the car in the garage bay, once, and it stays
+      const b = precinctB();
+      if (b && !g.detCar && Math.hypot(g.p.x - (b.x + b.w), g.p.y - (b.y + b.h / 2)) < 2600) {
+        const x = b.x + b.w + 70, y = b.y + b.h * 0.34;
+        const v = { x, y, axis: "v", si: clamp(Math.round(x / PITCH), 0, N), dir: 1,
+                    k: clamp(Math.round(y / PITCH), 0, N), ang: Math.PI / 2, spd: 0, cruise: 0, brake: 0,
+                    m: { k: "hh_det", len: 124, w: 52 }, dead: 1, parked: 1, named: 1, detCar: 1 };
+        g.traffic.push(v); g.detCar = v;
+      }
+      const C = g.case;
+      if (!C || C.stage === "done") return;
+      if (g.mode === "foot" && !g.inside)
+        for (const e of C.ev) {
+          if (e.got || Math.hypot(g.p.x - e.x, g.p.y - e.y) > CASE.pickR) continue;
+          e.got = true;
+          caseLine(e.text);
+          if (e.lead) { C.lead = true; C.stage = "find"; }
+        }
+      if (C.stage === "find" && C.people.filter((q) => q.caseRole !== "witness").every((q) => q.carded)) C.stage = "name";
+    }
+    /* Where the case wants you, for the objective panel. */
+    function caseObjective() {
+      const C = g.case;
+      if (!C || C.stage === "done") return null;
+      const D = detectives();
+      const to = (x, y) => Math.round(Math.hypot(x - g.p.x, y - g.p.y) / 20.8);
+      if (C.stage === "scene") return { head: "CASE \u00b7 " + C.K.nm, n: to(C.scene[0], C.scene[1]) + "m",
+                                         sub: "GO TO THE SCENE \u00b7 " + C.where, x: C.scene[0], y: C.scene[1] };
+      if (C.stage === "find") return { head: "CASE \u00b7 FIND HIM", n: to(C.hang[0], C.hang[1]) + "m",
+                                        sub: "CARD THEM ALL \u00b7 " + C.hangWhere, x: C.hang[0], y: C.hang[1] };
+      if (D) { const bx = D.b.x + D.b.w / 2, by = D.b.y + D.b.h / 2;
+        return { head: "CASE \u00b7 NAME HIM", n: to(bx, by) + "m", sub: "BACK TO MALCOLM AT THE PRECINCT", x: bx, y: by }; }
+      return null;
+    }
+    function drawCase(view) {
+      const D = detectives();
+      if (D && g.inside === D.b && g.floor === D.f) {
+        for (const [q, nm] of [[D.malcolm, "MALCOLM"], [D.ramos, "RAMOS"]]) {
+          drawShadow(q.x, q.y + 2, 10, 4, 0.3);
+          drawYouth(q);
+          ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
+          ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText(nm, q.x, q.y - 22); ctx.textAlign = "start";
+        }
+      }
+      const C = g.case;
+      if (!C || C.stage === "done" || g.inside || g.sewer) return;
+      // the scene: tape corners, a chalk outline for the ones with a body, numbered tents
+      const [sx, sy] = C.scene;
+      if (sx > view.x0 - 200 && sx < view.x1 + 200 && sy > view.y0 - 200 && sy < view.y1 + 200) {
+        ctx.strokeStyle = "rgba(240,210,60,0.85)"; ctx.lineWidth = 3; ctx.setLineDash([10, 6]);
+        ctx.strokeRect(sx - 56, sy - 40, 112, 96); ctx.setLineDash([]);
+        if (C.K.k === "assault" || C.K.k === "mugging") {
+          ctx.strokeStyle = "rgba(240,240,236,0.7)"; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.ellipse(sx - 4, sy + 6, 9, 20, 0.4, 0, 6.283); ctx.stroke();
+          ctx.beginPath(); ctx.arc(sx - 12, sy - 14, 6, 0, 6.283); ctx.stroke();
+        }
+        for (const e of C.ev) {
+          if (e.got) continue;
+          ctx.fillStyle = "#f2c230"; ctx.beginPath();
+          ctx.moveTo(e.x, e.y - 9); ctx.lineTo(e.x + 8, e.y + 6); ctx.lineTo(e.x - 8, e.y + 6); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = "#1a1a1a"; ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center";
+          ctx.fillText(String(e.n), e.x, e.y + 4); ctx.textAlign = "start";
+        }
+      }
+      for (const q of C.people) {
+        if (q.x < view.x0 - 60 || q.x > view.x1 + 60 || q.y < view.y0 - 60 || q.y > view.y1 + 60) continue;
+        q.anim += 0.016;
+        drawShadow(q.x, q.y + 2, 9, 4, 0.3);
+        drawPed(q);
+      }
+    }
+    /* TALKING TO MALCOLM. The panel says what he says and offers what you can answer. */
+    function malcolmPanel() {
+      const C = g.case;
+      if (!C || C.stage === "done") {
+        const last = g.caseLast;
+        return { text: (last ? last + "\n\n" : "") + "Got one if you want it. Somebody got hurt and nobody's looking.",
+                 opts: [{ id: "take", label: "TAKE IT" }, { id: "close", label: "NOT NOW" }] };
+      }
+      if (C.stage === "scene" || C.stage === "find") {
+        return { text: C.stage === "scene"
+                   ? "It's at " + C.where + ". Look at the ground before you look at anybody."
+                   : "The matchbook puts him on " + C.hangWhere + ". Card everybody standing there. Then come tell me.",
+                 opts: [{ id: "close", label: "ON IT" }] };
+      }
+      // naming him: only people you carded after the case was opened
+      const picks = (g.book && g.book.people || []).filter((q) => q.at >= C.started).slice(0, 6);
+      return { text: "So. Who did it?",
+               opts: picks.map((q) => ({ id: "name:" + q.no, label: q.name })).concat([{ id: "close", label: "NOT YET" }]) };
+    }
+    G.malcolmFn = () => {
+      g.malcolmOpen = !g.malcolmOpen; g.paused = g.malcolmOpen;
+      setHud((h) => ({ ...h, malcolm: g.malcolmOpen ? malcolmPanel() : null }));
+    };
+    G.malcolmPick = (id) => {
+      const C = g.case;
+      if (id === "take") { startCase(); g.caseLast = null; }
+      else if (id.startsWith("name:") && C) {
+        const no = id.slice(5), right = identOf(C.perp).no === no;
+        const who = (g.book.people.find((q) => q.no === no) || {}).name || "him";
+        if (right) {
+          const pay = CASE.pay[0] + ((Math.random() * CASE.pay[1]) | 0);
+          g.p.cash = (g.p.cash || 0) + pay;
+          g.caseLast = who + ". That's the one. Good work. There's $" + pay + " in it.";
+          g.jobBanner = "CASE CLOSED"; g.jobNote = C.K.nm + " \u00b7 " + who + " \u00b7 $" + pay;
+        } else {
+          g.caseLast = who + "? No. Wrong man, and now the right one knows we're looking. It's cold.";
+          g.jobBanner = "CASE GONE COLD"; g.jobNote = "It was " + identOf(C.perp).name + ".";
+        }
+        C.lines.push(right ? "CLOSED: " + who + "." : "COLD: named " + who + ", wrong man.");
+        C.stage = "done";
+        g.book.cases = g.book.cases || []; g.book.cases.unshift({ title: C.K.nm, lines: C.lines.slice(), right });
+      }
+      if (id === "close" || id.startsWith("name:") || id === "take") {
+        g.malcolmOpen = false; g.paused = false;
+        setHud((h) => ({ ...h, malcolm: null }));
+      }
     };
     function spawnAnimal() {
       const pv = inVehicle() ? activeVeh() : g.p;
@@ -23938,7 +24225,7 @@ export default function IronLionLayer004() {
            it was spliced out of the list before you ever laid eyes on it. The art was fine and
            so was the push; the car was simply already gone. `crewCar` was exempted here for
            exactly this reason and his ride needed the same exemption. */
-        if (v.dead && !v.crewCar && !v.rogueRide) { v.deadT = (v.deadT || 0) + dt; if (v.deadT > 50 && away > 1400) { g.traffic.splice(n, 1); continue; } }
+        if (v.dead && !v.crewCar && !v.rogueRide && !v.detCar) { v.deadT = (v.deadT || 0) + dt; if (v.deadT > 50 && away > 1400) { g.traffic.splice(n, 1); continue; } }
         // an abandoned car is scenery now -- it holds position until it despawns
         if (v.dead) { v.spd = 0; v.brake = 1; continue; }
         if (v.fleeing > 0) v.fleeing -= dt;
@@ -26762,6 +27049,7 @@ export default function IronLionLayer004() {
         stepClub(dt);
         stepCamps(dt);
         stepAnimals(dt);
+        stepCase(dt);
         marksClamp();
         g.skyPush = onTop ? 1 : 0;
         g.sky = Math.max(0, Math.min(SKY.max,
@@ -27216,6 +27504,7 @@ export default function IronLionLayer004() {
          world plane and there is a roof over you. */
       stepDog();
       drawAnimals(view);
+      drawCase(view);
       drawStadium();
       drawClub();
       drawMarks();
@@ -27360,6 +27649,7 @@ export default function IronLionLayer004() {
             atConsole: nearConsole(), travelOpen: !!g.travelOpen, travelAll: !!g.travelAll,
             atLift: !!liftNear(), liftOpen: !!g.liftOpen,
             atCiv: !!nearCiv(), idOpen: !!g.idCard, bookOpen: !!g.bookOpen,
+            atMalcolm: nearMalcolm(), caseObj: caseObjective(), malcolm: g.malcolmOpen ? malcolmPanel() : null,
             bookN: ((g.book && g.book.people) || []).length,
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
             liftFloors: liftFloorsList(), liftCur: g.floor,
@@ -33013,6 +33303,8 @@ export default function IronLionLayer004() {
       W2.tow = () => G.towFn();                      // open the dog's destination list
       W2.sky = (n) => { const gg = G.current; if (n != null) gg.sky = n; return gg.sky; };
       W2.camp = () => G.campFn();                    // drop into the nearest sewer camp
+      W2.malcolm = () => { const gg = G.current, D = detectives(); if (!D) return "no precinct";
+        gg.inside = D.b; gg.floor = D.f; gg.p.x = D.malcolm.x + 50; gg.p.y = D.malcolm.y; return "in the bullpen"; };
       W2.ring = () => (G.current.deuceRing || 0);
       W2.reseed = () => { const gg = G.current; gg.distroAt = null; return true; };
       W2.pad = () => {                                // where the pad is, and how far off you are
@@ -33288,6 +33580,15 @@ export default function IronLionLayer004() {
               {hud.obj.sub}
             </div>
           )}
+        </div>
+      )}
+      {hud.caseObj && (
+        <div style={{ marginTop: 8, background: "rgba(10,11,14,0.78)",
+          borderLeft: "3px solid #6fa8dc", padding: "5px 9px", maxWidth: 300 }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.10em" }}>
+            {hud.caseObj.head}{hud.caseObj.n ? " \u00b7 " + hud.caseObj.n : ""}
+          </div>
+          <div style={{ fontSize: 9, letterSpacing: "0.08em", opacity: 0.62, marginTop: 2 }}>{hud.caseObj.sub}</div>
         </div>
       )}
       {hud.raid && (
@@ -34041,6 +34342,26 @@ export default function IronLionLayer004() {
             setHud((h) => ({ ...h, liftOpen: false })); }}
             style={{ marginTop: 12, fontSize: 9, opacity: 0.55, letterSpacing: "0.16em", cursor: "pointer" }}>
             CLOSE
+          </div>
+        </div>
+      )}
+      {/* MALCOLM. What he says, and what you can say back. */}
+      {hud.malcolm && (
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 90,
+          background: "linear-gradient(transparent, rgba(6,7,9,0.94) 22%)", padding: "40px 16px 22px",
+          fontFamily: mono }}>
+          <div style={{ fontSize: 9, letterSpacing: "0.24em", color: "#6fa8dc" }}>MALCOLM</div>
+          <div style={{ fontSize: 13, lineHeight: 1.5, color: "#e8d9b5", marginTop: 6, maxWidth: 560, whiteSpace: "pre-line" }}>
+            {hud.malcolm.text}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+            {hud.malcolm.opts.map((o) => (
+              <div key={o.id} onClick={() => G.malcolmPick && G.malcolmPick(o.id)}
+                style={{ padding: "9px 14px", border: "1px solid rgba(111,168,220,0.6)", cursor: "pointer",
+                  fontSize: 11, letterSpacing: "0.12em", color: "#e8d9b5", background: "rgba(12,13,17,0.9)" }}>
+                {o.label}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -34816,6 +35137,7 @@ export default function IronLionLayer004() {
               () => G.strikeFn && G.strikeFn())}
             {hud.wpn && !hud.holstered && btn("TGT", hud.locked ? "next" : "lock on",
               () => G.cycleTargetFn && G.cycleTargetFn(), hud.locked)}
+            {hud.atMalcolm && btn("MALCOLM", "talk", () => G.malcolmFn && G.malcolmFn(), null, !!hud.malcolm)}
             {btn("BOOK", hud.bookOpen ? "shut it" : (hud.bookN || 0) + " names",
               () => G.bookFn && G.bookFn(), null, hud.bookOpen)}
             {hud.atCiv && btn("ID", hud.idOpen ? "put back" : "ask for it",
