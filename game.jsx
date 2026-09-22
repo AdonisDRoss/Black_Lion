@@ -1471,6 +1471,8 @@ const EVIDENCE = {
   counterfeit: { nm: "FAKE BILLS",    lab: 90,  ramos: ["Paper's wrong. Somebody prints these and passes them somewhere."] },
   footprint:   { nm: "SHOE PRINT",    lab: 0,   ramos: ["Deep tread. You can read that one right here."] },
   matchbook:   { nm: "MATCHBOOK",     lab: 0,   lead: 1, ramos: ["People carry matches from where they drink."] },
+  phonebook:   { nm: "TORN PHONE-BOOK PAGE", lab: 0, lead: 1, ramos: ["A number circled in pen. Somebody wanted to find this address."] },
+  receipt:     { nm: "PAWN TICKET",   lab: 0,   lead: 1, ramos: ["He hocked something. Pawnbrokers remember faces."] },
 };
 const CASE_CRIMES = [
   { k: "mugging", nm: "MUGGING",  pool: ["prints", "fibres", "footprint", "matchbook", "dna"], hurt: 1, weapon: "a knife",    violent: 1 },
@@ -1478,7 +1480,16 @@ const CASE_CRIMES = [
   { k: "assault", nm: "ASSAULT",  pool: ["dna", "fibres", "footprint", "matchbook", "prints"], hurt: 1, weapon: "his fists",  violent: 1 },
   { k: "holdup",  nm: "HOLD-UP",  pool: ["ballistics", "prints", "counterfeit", "tyres", "footprint"], hurt: 0, weapon: "a revolver", violent: 1 },
 ];
+/* A CASE IS A TRAIL. Between the scene and the man there are one to three stops -- a bar off a
+   matchbook, an address off a torn phone-book page, a pawnshop off a ticket -- and somebody at each
+   who knows the next place, if you can get them to say it. */
+const LEAD_KIND = {
+  bar:     { item: "matchbook", nm: "THE BAR",       who: "BARTENDER",  find: "MATCHBOOK: from a bar on " },
+  address: { item: "phonebook", nm: "THE ADDRESS",   who: "ROOMMATE",   find: "PHONE-BOOK PAGE: a number circled, an address on " },
+  pawn:    { item: "receipt",   nm: "THE PAWNSHOP",  who: "PAWNBROKER", find: "PAWN TICKET: a shop on " },
+};
 const CASE = {
+  stops: [1, 3],             // how many places between the scene and the man
   sceneR: [1500, 3600], hangR: [1800, 3800], decoys: 2, pay: [160, 140], pickR: 34,
   evCount: 4,              // pieces on the ground at a scene
   onFile: 0.55,            // how often his prints are already in the system
@@ -10043,6 +10054,7 @@ export default function IronLionLayer004() {
          blast, the roar, the shockwave and the auto-aim all come through this function. */
       if (g.job && g.job.elegy && g.job.elegy.hp > 0) out.push(g.job.elegy);
       if (Array.isArray(g.club)) for (const q of g.club) if (q.hp > 0) out.push(q);
+      for (const b of g.bailers || []) if (b.fight && b.hp > 0) out.push(b);   // a driver who got out to fight
       /* THE MEN ON THE DOOR. Same one-line lesson as Elegy: they are hung off the distro site
          and not in any crew list, so without this they would be scenery you cannot shoot. */
       if (g.distroAt) for (const k in g.distroAt) {
@@ -10778,7 +10790,27 @@ export default function IronLionLayer004() {
         const ctr = pl2.props.find((q) => q.t === "pd_counter");
         if (ctr) sgt = { x: ctr.x + ctr.w / 2, y: ctr.y - 16, vx: 0, vy: 0, yt: "yt_sergeant", jit: 1.04, anim: 0.4, bang: -Math.PI / 2 };
       }
-      g.dets = { b, f, home: r2, sgt,
+      /* UNIFORMS AND THE CAPTAIN. Officers in the break room, the briefing room and the lobby,
+         one down in the task force room, and the captain in his office. Any of the uniforms can
+         go out with Malcolm -- two at most -- and be sent back. */
+      const staff = [];
+      if (b.pd) {
+        const put = (f2, roomK, fx, fy, rank, label) => {
+          const pl2 = buildingPlans(b)[f2], r = pl2.rooms.find((q) => q.k === roomK);
+          if (!r) return;
+          const pt = freeIndoor(b, pl2, r.x0 + (r.x1 - r.x0) * fx, r.y0 + (r.y1 - r.y0) * fy, r);
+          if (!pt) return;
+          staff.push({ x: pt[0], y: pt[1], hx: pt[0], hy: pt[1], f: f2, vx: 0, vy: 0, anim: Math.random() * 6, jit: 1,
+                       state: "idle", rank, label, o: copKits[(Math.random() * copKits.length) | 0], captain: rank === DUTY_CAPT });
+        };
+        const E0 = b.entry || 0;
+        put(E0, "breakroom", 0.35, 0.40, DUTY_PATROL); put(E0, "breakroom", 0.65, 0.40, DUTY_PATROL);
+        put(E0, "briefing", 0.40, 0.40, DUTY_SGT); put(E0, "briefing", 0.62, 0.72, DUTY_PATROL);
+        put(E0, "pdlobby", 0.72, 0.62, DUTY_PATROL);
+        put(E0, "captain", 0.52, 0.62, DUTY_CAPT, "CAPTAIN");
+        put(1, "taskforce", 0.80, 0.70, DUTY_PATROL);
+      }
+      g.dets = { b, f, home: r2, sgt, staff,
         malcolm: { x: m[0], y: m[1], vx: 0, vy: 0, yt: "yt_malcolm", jit: 1.06, anim: 0, bang: Math.PI / 2 },
         ramos: { x: r2[0], y: r2[1], vx: 0, vy: 0, yt: "yt_ramos", jit: 0.98, anim: 1.3, bang: Math.PI } };
       return g.dets;
@@ -10926,12 +10958,33 @@ export default function IronLionLayer004() {
         else if (q.caseRole === "decoy") q.know = ["alibi_good"];
       }
       C.cop.know = ["time", "beat", "dir"];
-      // the ground: a handful off the crime's own pool, always one thing that points somewhere
-      let pool = K.pool.slice().sort(() => Math.random() - 0.5).slice(0, CASE.evCount);
-      if (!pool.some((e) => EVIDENCE[e].lead || e === "counterfeit")) pool[pool.length - 1] = K.k === "holdup" ? "counterfeit" : "matchbook";
+      /* THE TRAIL: one to three stops, each somewhere new, each with somebody who knows the next. */
+      C.stops = []; C.leadIdx = -1;
+      let from = scene;
+      const nStops = CASE.stops[0] + ((Math.random() * (CASE.stops[1] - CASE.stops[0] + 1)) | 0);
+      for (let k = 0; k < nStops; k++) {
+        let sp = null;
+        for (let t = 0; t < 12 && !sp; t++) {
+          const c = streetSpot(from[0], from[1], 1100, 2600);
+          if (c && crossStreet(c[0], c[1]) !== crossStreet(scene[0], scene[1]) && crossStreet(c[0], c[1]) !== C.hangWhere) sp = c;
+        }
+        if (!sp) break;
+        const kind = cpick(Object.keys(LEAD_KIND));
+        const who = casePerson(sp[0] + 36, sp[1] - 10, "lead", null, C);
+        who.know = ["next"]; who.stopIdx = k;
+        C.people.push(who);
+        const stop = { x: sp[0], y: sp[1], kind, where: crossStreet(sp[0], sp[1]), who, visited: false };
+        // half the stops have something on the ground too
+        if (Math.random() < 0.5) stop.ev = cpick(["fibres", "prints", "dna"]);
+        C.stops.push(stop); from = sp;
+      }
+      // the ground: a handful off the crime's own pool, and the one thing that points at the first stop
+      let pool = K.pool.slice().filter((e) => !EVIDENCE[e].lead && e !== "counterfeit").sort(() => Math.random() - 0.5).slice(0, CASE.evCount - 1);
+      pool.push(C.stops.length ? LEAD_KIND[C.stops[0].kind].item : (K.k === "holdup" ? "counterfeit" : "matchbook"));
       C.ev = pool.map((t, k) => ({ t, n: k + 1, got: false,
         x: scene[0] - 40 + (k % 2) * 60 + (Math.random() - 0.5) * 16,
         y: scene[1] - 20 + ((k / 2) | 0) * 44 + (Math.random() - 0.5) * 12 }));
+      C.stops.forEach((st, k) => { if (st.ev) C.ev.push({ t: st.ev, n: C.ev.length + 1, got: false, stop: k, x: st.x - 30, y: st.y + 24 }); });
       C.lines.push("CASE: " + K.nm + " at " + C.where + ".",
                    "Victim: " + identOf(C.victim).name + ", " + identOf(C.victim).age + ".");
       /* THE CRIME SCENE UNIT parks at the kerb -- whichever side of the scene is clear of buildings. */
@@ -10975,15 +11028,30 @@ export default function IronLionLayer004() {
       if (key === "car") return "Got into " + (wrong ? cpick(CARS_SEEN) : C.perpCar) + ".";
       if (key === "weapon") return (id.sex === "m" ? "He" : "She") + " had " + C.K.weapon + ".";
       if (key === "time") return "Call came in about twenty minutes before you did.";
-      if (key === "beat") return Math.random() < 0.5
-        ? "Guys like this drink on " + C.hangWhere + ". Try there."
-        : "There's a regular on " + C.hangWhere + " who fits it. I can't give you a name.";
+      if (key === "beat") return "Somebody on this beat knows more than I do. Start where the evidence points.";
+      if (key === "next") {
+        const i = C.leadIdx + 1 < (C.stops || []).length ? C.leadIdx + 1 : -1;
+        return i >= 0 ? "Try " + LEAD_KIND[C.stops[i].kind].nm.toLowerCase() + " on " + C.stops[i].where + ". He goes there."
+                      : "You want him? He hangs on " + C.hangWhere + ". Didn't hear it from me.";
+      }
       if (key === "alibi_good") return cpick(["I was at my sister's. Ask her -- she'll tell you what we ate.",
         "Working the night shift at the plant. Clocked in, clocked out.", "Bowling. Six of us. We lost."]);
       if (key === "alibi_bad") return cpick(["Home. Alone. Watching the TV.", "Around. Walking. What's it to you?",
         "I don't remember. Maybe here."]);
       if (key === "alibi_bad2") return cpick(["I already told you where I was.", "Why you keep asking me that?"]);
       return "";
+    }
+    /* One step down the trail: the next stop if there is one, the man's corner if not. */
+    function revealNext(C) {
+      if (!C || C.lead) return;
+      if (C.leadIdx + 1 < (C.stops || []).length) {
+        C.leadIdx++;
+        const st = C.stops[C.leadIdx];
+        caseLine("LEAD: " + LEAD_KIND[st.kind].nm.toLowerCase() + " on " + st.where + ".");
+      } else {
+        C.lead = true;
+        caseLine("LEAD: he hangs on " + C.hangWhere + ".");
+      }
     }
     function caseLine(t, flash) {
       const C = g.case; if (!C) return;
@@ -11004,11 +11072,11 @@ export default function IronLionLayer004() {
       if (t === "ballistics") return "BALLISTICS: fired from " + C.K.weapon + ", a .38. Clean gun, never used before.";
       if (t === "fibres") return "FIBRES: from a " + C.perpClothes + ".";
       if (t === "tyres") return "TREAD: " + C.perpCar + ", worn front left.";
-      if (t === "counterfeit") { C.lead = true; return "FAKE BILLS: the same batch is being passed on " + C.hangWhere + "."; }
+      if (t === "counterfeit") { revealNext(C); return "FAKE BILLS: traced to where they're being passed."; }
       return "";
     }
     function stepCase(dt) {
-      stepPartner(dt); stepAutopilot(dt); stepBackup(dt);
+      stepPartner(dt); stepAutopilot(dt); stepBackup(dt); stepCasings(dt); stepSquad(dt);
       const D = detectives();
       if (g.detStart && D) {
         g.detStart = false;
@@ -11064,6 +11132,10 @@ export default function IronLionLayer004() {
       if (!C || C.stage === "done") return;
       for (const q of C.people) if (q.say > 0) q.say -= dt;
       if (!C.atScene && Math.hypot(g.p.x - C.scene[0], g.p.y - C.scene[1]) < 260) C.atScene = true;
+      const st0 = C.stops && C.leadIdx >= 0 ? C.stops[C.leadIdx] : null;
+      if (st0 && !st0.visited && !g.inside && Math.hypot(g.p.x - st0.x, g.p.y - st0.y) < 240) {
+        st0.visited = true; ramosSays("This is the place. Find the " + LEAD_KIND[st0.kind].who.toLowerCase() + ".");
+      }
       // walk over it and it is bagged
       if (g.mode === "foot" && !g.inside)
         for (const e of C.ev) {
@@ -11073,7 +11145,11 @@ export default function IronLionLayer004() {
           caseLine("BAGGED: " + E.nm + ".");
           ramosSays(cpick(E.ramos));
           if (!E.lab) {
-            if (e.t === "matchbook") { C.lead = true; caseLine("MATCHBOOK: from a bar on " + C.hangWhere + "."); }
+            if (E.lead) {
+              const st = C.stops && C.stops[0];
+              if (st && C.leadIdx < 0) { caseLine(LEAD_KIND[st.kind].find + st.where + "."); revealNext(C); }
+              else if (!st) { C.lead = true; caseLine("MATCHBOOK: from a bar on " + C.hangWhere + "."); }
+            }
             if (e.t === "footprint") caseLine("SHOE PRINT: a size that says " + (parseInt(identOf(C.perp).hgt) >= 6 ? "a big man" : "somebody not that big") + ".");
           } else C.bag.push(e.t);
         }
@@ -11091,8 +11167,8 @@ export default function IronLionLayer004() {
         if (C.idLeft <= 0) {
           const vid = identOf(C.victim);
           caseLine("CORONER: the body is " + vid.name + ", " + vid.age + ", of " + vid.addr + ".");
-          caseLine((vid.sex === "f" ? "Her people say she" : "His people say he") + " owed somebody on " + C.hangWhere + ".");
-          C.lead = true;
+          caseLine("CORONER: with a name, the family talks.");
+          revealNext(C);
         }
       }
       // only an OPEN case moves to naming -- once he is arrested this must not pull it back
@@ -11105,21 +11181,24 @@ export default function IronLionLayer004() {
       const to = (x, y) => Math.round(Math.hypot(x - g.p.x, y - g.p.y) / 20.8);
       const pend = C.lab.filter((L) => !L.done);
       const lab = pend.length ? " \u00b7 LAB " + pend.length + " (" + Math.ceil(Math.min(...pend.map((L) => L.left)) / 60) + "m)" : "";
-      if (!C.atScene) return { head: "CASE \u00b7 " + C.K.nm, n: to(C.scene[0], C.scene[1]) + "m", sub: "GO TO THE SCENE \u00b7 " + C.where };
+      if (!C.atScene) return { head: "CASE \u00b7 " + C.K.nm, n: to(C.scene[0], C.scene[1]) + "m", sub: "GO TO THE SCENE \u00b7 " + C.where, x: C.scene[0], y: C.scene[1] };
       if (C.stage === "custody" && D) {
         const bx = D.b.x + D.b.w / 2, by = D.b.y + D.b.h / 2;
-        return { head: "CASE \u00b7 INTERROGATE", n: (g.inside === D.b ? "B1" : to(bx, by) + "m"), sub: C.arrest.name + " \u00b7 HOLDING, B1" };
+        return { head: "CASE \u00b7 INTERROGATE", n: (g.inside === D.b ? "B1" : to(bx, by) + "m"), x: bx, y: by, sub: C.arrest.name + " \u00b7 HOLDING, B1" };
       }
       if (C.stage === "name" && D) {
         const S2 = contactSpot();
-        return { head: "CASE \u00b7 NAME HIM", n: to(S2.x, S2.y) + "m",
+        return { head: "CASE \u00b7 NAME HIM", n: to(S2.x, S2.y) + "m", x: S2.x, y: S2.y,
                  sub: (g.detMode ? "BACK TO RAMOS" : "BACK TO MALCOLM") + lab };
       }
       const got = C.ev.filter((e) => e.got).length;
       const morgue = C.unknownVictim && C.idLeft > 0 ? " \u00b7 MORGUE ID ~" + Math.ceil(C.idLeft / 60) + "m" : "";
-      if (!C.lead) return { head: "CASE \u00b7 WORK THE SCENE", n: got + "/" + C.ev.length,
+      const st = !C.lead && C.stops && C.leadIdx >= 0 ? C.stops[C.leadIdx] : null;
+      if (st) return { head: "CASE \u00b7 " + LEAD_KIND[st.kind].nm, n: to(st.x, st.y) + "m", x: st.x, y: st.y,
+        sub: st.where.toUpperCase() + " \u00b7 FIND THE " + LEAD_KIND[st.kind].who + lab + morgue };
+      if (!C.lead) return { head: "CASE \u00b7 WORK THE SCENE", n: got + "/" + C.ev.length, x: C.scene[0], y: C.scene[1],
         sub: "EVIDENCE \u00b7 WITNESSES \u00b7 THE BEAT COP" + (C.bag.length ? " \u00b7 " + C.bag.length + " BAGGED" : "") + lab + morgue };
-      return { head: "CASE \u00b7 " + C.hangWhere, n: to(C.hang[0], C.hang[1]) + "m",
+      return { head: "CASE \u00b7 " + C.hangWhere, n: to(C.hang[0], C.hang[1]) + "m", x: C.hang[0], y: C.hang[1],
         sub: "CARD THEM, TALK TO THEM" + (C.bag.length ? " \u00b7 " + C.bag.length + " BAGGED" : "") + lab };
     }
     function drawCase(view) {
@@ -11186,7 +11265,7 @@ export default function IronLionLayer004() {
         const EV_ART = { prints: "cs_glass", dna: "cs_blood", ballistics: "cs_casings", fibres: "cs_hanky",
                          tyres: "cs_tyres", counterfeit: "cs_wallet_b", footprint: "cs_footprints", matchbook: "cs_matchbook" };
         for (const e of C.ev) {
-          if (e.got) continue;
+          if (e.got || e.stop != null) continue;
           const ei = imgs.current[EV_ART[e.t]];
           if (ei && ei.width) { const ew = e.t === "tyres" || e.t === "footprint" ? 30 : 16, eh = ew * ei.height / ei.width;
             ctx.drawImage(ei, e.x + 6, e.y - eh / 2, ew, eh); }
@@ -11370,6 +11449,87 @@ export default function IronLionLayer004() {
       I.claim = CLAIMS[t2][(Math.random() * CLAIMS[t2].length) | 0];
       setHud((h) => ({ ...h, interro: interroPanel() }));
     };
+    /* Evidence at the trail's stops: a tent where the thing is. */
+    function drawTrailEvidence(view) {
+      const C = g.case;
+      if (!C || C.stage === "done" || g.inside) return;
+      for (const e of C.ev) {
+        if (e.got || e.stop == null || C.stops[e.stop] && e.stop > C.leadIdx) continue;
+        if (e.x < view.x0 - 40 || e.x > view.x1 + 40 || e.y < view.y0 - 40 || e.y > view.y1 + 40) continue;
+        const ti = imgs.current.cs_tent_small;
+        if (ti && ti.width) ctx.drawImage(ti, e.x - 8, e.y - 9, 16, 15);
+        else { ctx.fillStyle = "#f2c230"; ctx.fillRect(e.x - 6, e.y - 6, 12, 12); }
+        ctx.fillStyle = "#1a1a1a"; ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center";
+        ctx.fillText(String(e.n), e.x, e.y + 4); ctx.textAlign = "start";
+      }
+    }
+    /* THE BLUE ARROW: wherever the case wants him next. */
+    function drawCaseArrow() {
+      if (g.inside || g.sewer || g.title) return;
+      const O = caseObjective();
+      if (!O || !Number.isFinite(O.x)) return;
+      const me = inVehicle() ? activeVeh() : g.p;
+      const dx = O.x - me.x, dy = O.y - me.y, d = Math.hypot(dx, dy);
+      if (d < 90) return;
+      const a = Math.atan2(dy, dx), R = 124, ax = me.x + Math.cos(a) * R, ay = me.y + Math.sin(a) * R;
+      ctx.save(); ctx.translate(ax, ay); ctx.rotate(a);
+      ctx.fillStyle = "rgba(111,168,220,0.95)"; ctx.strokeStyle = "rgba(10,14,24,0.8)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(-9, -10); ctx.lineTo(-3, 0); ctx.lineTo(-9, 10); ctx.closePath();
+      ctx.stroke(); ctx.fill(); ctx.restore();
+      ctx.font = "700 10px system-ui, sans-serif"; ctx.fillStyle = "rgba(159,197,232,0.95)"; ctx.textAlign = "center";
+      ctx.fillText(Math.round(d / 20.8) + "m", ax, ay - 16); ctx.textAlign = "start";
+    }
+    /* THE SQUAD: up to two uniforms at Malcolm's back. They follow, ride along, fight what he
+       fights, and go back to the station when he sends them. */
+    const SQUAD_MAX = 2;
+    function nearStaff() {
+      const D = detectives();
+      if (!g.detMode || !D || g.inside !== D.b || g.mode !== "foot") return null;
+      let best = null, bd = 70;
+      for (const u of D.staff || []) if (!u.out && !u.captain && u.f === g.floor) {
+        const d = Math.hypot(u.x - g.p.x, u.y - g.p.y); if (d < bd) { bd = d; best = u; } }
+      return best;
+    }
+    function nearSquad() {
+      if (g.mode !== "foot") return null;
+      let best = null, bd = 70;
+      for (const u of g.squad || []) { const d = Math.hypot(u.x - g.p.x, u.y - g.p.y); if (d < bd) { bd = d; best = u; } }
+      return best;
+    }
+    G.recruitFn = () => {
+      const u = nearStaff(); g.squad = g.squad || [];
+      if (!u) return;
+      if (g.squad.length >= SQUAD_MAX) { g.pickupFlash = { nm: "lift:YOU'VE GOT TWO ALREADY", t: 1.6 }; return; }
+      u.out = true; u.fireCd = 1; u.wpn = "beretta"; u.inCar = false; u.bldOf = g.inside; u.floorOf = g.floor; u.walking = false;
+      g.squad.push(u);
+      g.pickupFlash = { nm: "lift:OFFICER \u00b7 WITH YOU, DETECTIVE", t: 1.8 };
+    };
+    G.dismissFn = () => {
+      const u = nearSquad(); if (!u) return;
+      g.squad = g.squad.filter((q) => q !== u);
+      u.out = false; u.x = u.hx; u.y = u.hy; u.inCar = false; u.vx = 0; u.vy = 0;
+      g.pickupFlash = { nm: "lift:OFFICER \u00b7 HEADING BACK", t: 1.6 };
+    };
+    function stepSquad(dt) {
+      const L = g.squad; if (!L || !L.length) return;
+      L.forEach((u, k) => {
+        if (inVehicle()) { const v = activeVeh(); if (!u.inCar && Math.hypot(u.x - v.x, u.y - v.y) < 420) u.inCar = true;
+          if (u.inCar) { u.x = v.x; u.y = v.y; } return; }
+        if (u.inCar) { u.inCar = false; u.x = g.p.x - 40 + k * 80; u.y = g.p.y + 40; }
+        if (u.floorOf !== g.floor || u.bldOf !== g.inside) { u.floorOf = g.floor; u.bldOf = g.inside; u.x = g.p.x - 40 + k * 80; u.y = g.p.y + 40; }
+        const tx = g.p.x - 50 + k * 100, ty = g.p.y + 56;
+        const dx = tx - u.x, dy = ty - u.y, d = Math.hypot(dx, dy);
+        if (d > 900) { u.x = tx; u.y = ty; }
+        if (!u.walking && d > 40) u.walking = true;
+        if (u.walking && d < 16) u.walking = false;
+        const want = u.walking ? Math.min(DET.walk * (d > 220 ? 1.7 : 1), d * 4) : 0;
+        const kk = Math.min(1, dt * 7);
+        u.vx += ((d > 0 ? dx / d * want : 0) - u.vx) * kk; u.vy += ((d > 0 ? dy / d * want : 0) - u.vy) * kk;
+        u.x += u.vx * dt; u.y += u.vy * dt; collideBuildings(u, 11, false);
+        u.state = Math.hypot(u.vx, u.vy) > 10 ? "walk" : "idle"; u.anim += dt;
+        allyShoot(u, dt, DET.unit.reach, DET.unit.dmg);
+      });
+    }
     /* THE SCENE'S PEOPLE, in the sorted body pass -- behind Malcolm or in front of him by where
        they stand, not painted over him. The witnesses, the victim, the officer, the CSU tech and
        Ramos all go through here. */
@@ -11396,6 +11556,15 @@ export default function IronLionLayer004() {
       }
       const R = g.partner;
       if (g.detMode && R && !R.inCar && (!g.inside || R.bldOf === g.inside)) out.push([R.y, 9, { __draw: drawPartner }]);
+      // the station's uniforms and the captain, and the two walking with Malcolm
+      const D0 = g.dets;
+      if (D0 && g.inside === D0.b) for (const u of D0.staff || []) if (!u.out && u.f === g.floor) out.push([u.y, 9, { __draw: () => {
+        u.anim += 0.012; drawShadow(u.x, u.y + 2, 10, 4, 0.3); drawCop(u);
+        if (u.label) { ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
+          ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText(u.label, u.x, u.y - 24); ctx.textAlign = "start"; } } }]);
+      for (const u of g.squad || []) if (!u.inCar && inView(u) && (!g.inside || u.bldOf === g.inside)) out.push([u.y, 9, { __draw: () => {
+        drawShadow(u.x, u.y + 2, 10, 4, 0.3); drawCop(u);
+        if (u.muzzle > 0) { ctx.fillStyle = "rgba(255,214,120,0.9)"; ctx.beginPath(); ctx.arc(u.x + Math.cos(u.bang || 0) * 16, u.y + Math.sin(u.bang || 0) * 16, 4, 0, 6.283); ctx.fill(); } } }]);
       if (g.inside && g.inside.dg) for (const o of dgPeople(g.inside)) out.push([o.y, 9, { __draw: () => {
         o.anim += 0.012;
         drawShadow(o.x, o.y + 2, 9, 4, 0.3);
@@ -11426,6 +11595,7 @@ export default function IronLionLayer004() {
       for (const cr of g.crews || []) if (cr.state === "hostile") for (const m of (cr.members || [])) if (m && m.hp > 0) out.push(m);
       for (const S of guardSites()) if (S.alert) for (const q of siteBodies(S)) if (q.hp > 0 && siteSees(S, q)) out.push(q);
       if (g.crime && g.crime.thugs) for (const t of g.crime.thugs) if (t && t.hp > 0) out.push(t);
+      for (const b of g.bailers || []) if (b.fight && b.hp > 0) out.push(b);
       return out;
     }
     /* A friendly shot: a real round, fired as the player's side so it hits their people and
@@ -11514,6 +11684,8 @@ export default function IronLionLayer004() {
       if (C && C.stage !== "done") {
         out.push({ id: "scene", label: "THE SCENE", x: C.scene[0], y: C.scene[1] });
         if (C.lead) out.push({ id: "hang", label: C.hangWhere.toUpperCase(), x: C.hang[0], y: C.hang[1] });
+        else if (C.stops && C.leadIdx >= 0) { const st = C.stops[C.leadIdx];
+          out.push({ id: "stop", label: LEAD_KIND[st.kind].nm + " \u00b7 " + st.where.toUpperCase(), x: st.x, y: st.y }); }
       }
       if (b) out.push({ id: "station", label: "THE STATION", x: b.x + b.w / 2, y: b.y + b.h + 120 });
       for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
@@ -11851,15 +12023,16 @@ export default function IronLionLayer004() {
       }
       return best;
     }
-    const ROLE_NM = { witness: "WITNESS", victim: "VICTIM", perp: "", decoy: "", cop: "OFFICER ON SCENE" };
+    const ROLE_NM = { witness: "WITNESS", victim: "VICTIM", perp: "", decoy: "", cop: "OFFICER ON SCENE", lead: "" };
     function talkPanel(q) {
       const C = g.case, t = q.tr, id = q.caseRole === "cop" ? null : identOf(q);
-      const title = (q.carded && id ? id.name : "") || ROLE_NM[q.caseRole] || "MAN ON THE CORNER";
+      const title = (q.carded && id ? id.name : "") || (q.caseRole === "lead" && C.stops[q.stopIdx] ? LEAD_KIND[C.stops[q.stopIdx].kind].who : "")
+                    || ROLE_NM[q.caseRole] || "MAN ON THE CORNER";
       const traits = q.caseRole === "cop" ? ["Beat cop. First on the scene."]
         : ["MOOD \u00b7 " + t.mood.toUpperCase(), "ATTITUDE \u00b7 " + t.attitude.toUpperCase(),
            "UNDER \u00b7 " + (t.influence === "sky" ? "SKY" : t.influence === "drunk" ? "DRINK" : "NOTHING YOU CAN SEE"),
            "LOOKS \u00b7 " + t.look.join(", ").toUpperCase()];
-      const left = (q.know || []).length;
+      const left = q.caseRole === "lead" && q.stopIdx > C.leadIdx ? 0 : (q.know || []).length;
       let opts;
       if (q.caseRole === "cop") {
         opts = [{ id: "ask:badge", label: left ? "WHAT HAVE YOU GOT" : "THAT'S ALL HE KNOWS" }];
@@ -11905,7 +12078,7 @@ export default function IronLionLayer004() {
           const who = q.caseRole === "cop" ? "BEAT COP" : (q.carded ? identOf(q).name : ROLE_NM[q.caseRole] || "HE");
           caseLine(who + ": " + said);
           if (q.caseRole === "witness" || q.caseRole === "victim") C.statements = (C.statements || 0) + 1;
-          if (key === "beat") C.lead = true;
+          if (key === "beat" || key === "next") revealNext(C);
           if (C.unknownVictim && C.idLeft > 0 && q.caseRole === "witness") C.idLeft -= DET.idWitness;
           if (shaky && q.caseRole !== "cop") ramosSays(q.tr.influence === "sky"
             ? "Look at her fingers. I wouldn't hang a case on anything she says."
@@ -11937,20 +12110,45 @@ export default function IronLionLayer004() {
       if (C.stage === "custody") return { who, text: C.arrest.name + "'s in holding on B1. Go get it out of him.",
         opts: [{ id: "close", label: "ON MY WAY" }] };
       const labDone = C.lab.filter((L) => L.done).length, labAll = C.lab.length;
+      if (g.detMode && g.ramosTip) { const t = g.ramosTip; g.ramosTip = null;
+        return { who, text: t, opts: [{ id: "tip", label: "ANYTHING ELSE?" }, { id: "close", label: "GOT IT" }] }; }
       const picks = (g.book && g.book.people || []).filter((q) => q.at >= C.started).slice(0, 6);
       const where = !C.atScene ? "It's at " + C.where + ". Talk to the officer there, he'll take anything you bag."
         : !C.lead ? "Work the scene. The ground, the people, the beat. Something will point somewhere."
         : "You've got a place: " + C.hangWhere + ". Card whoever's there. Talk to them.";
       const labLine = labAll ? " Lab's done " + labDone + " of " + labAll + "." : "";
       return { who, text: where + labLine + (picks.length ? "\n\nOr tell me who did it." : ""),
-               opts: picks.map((q) => ({ id: "name:" + q.no, label: q.name })).concat([{ id: "close", label: "NOT YET" }]) };
+               opts: (g.detMode ? [{ id: "tip", label: "ANY IDEAS?" }] : []).concat(
+                 picks.map((q) => ({ id: "name:" + q.no, label: q.name })), [{ id: "close", label: "NOT YET" }]) };
     }
     G.malcolmFn = () => {
       g.malcolmOpen = !g.malcolmOpen; g.paused = g.malcolmOpen;
       setHud((h) => ({ ...h, malcolm: g.malcolmOpen ? malcolmPanel() : null }));
     };
+    /* RAMOS'S READ on where the case stands and what to do about it -- the first thing that is
+       actually undone, in the order a detective would do them. */
+    function ramosTip(C) {
+      if (!C || C.stage === "done") return "Nothing open. Dispatch'll have something.";
+      if (C.stage === "custody") return C.arrest.name + "'s in holding. Get in that room, and bring your evidence.";
+      if (!C.atScene) return "Scene first. Everything starts at " + C.where + ".";
+      const left = C.ev.filter((e) => !e.got && (e.stop == null || e.stop <= C.leadIdx));
+      if (left.length) return "There's still evidence on the ground -- " + left.length + " piece" + (left.length > 1 ? "s" : "") + ". Walk the markers.";
+      if (C.bag.length) return "We're carrying " + C.bag.length + " bag" + (C.bag.length > 1 ? "s" : "") + ". Get them to the officer so the lab can start.";
+      const talked = C.people.some((q) => (q.caseRole === "witness" || q.caseRole === "victim") && q.tr && (q.tr.told || q.lastSaid));
+      if (!talked && !C.lead && C.leadIdx < 0) return "Nobody's been asked anything. The witnesses saw him -- pick your approach by how they look.";
+      const st = C.stops && C.leadIdx >= 0 && !C.lead ? C.stops[C.leadIdx] : null;
+      if (st && !st.visited) return "That points at " + LEAD_KIND[st.kind].nm.toLowerCase() + " on " + st.where + ". I can drive.";
+      if (st) return "The " + LEAD_KIND[st.kind].who.toLowerCase() + " knows where he goes. Work them -- and watch their mood.";
+      if (!C.lead) return "We need a place. The beat cop or the lab might give us one; DNA's slow, so work the street while it cooks.";
+      const uncarded = C.people.filter((q) => (q.caseRole === "perp" || q.caseRole === "decoy") && !q.carded).length;
+      if (uncarded) return "He's on " + C.hangWhere + " with " + (uncarded - 1 > 0 ? "a couple of others" : "somebody") + ". Card all of them. Look at their hands, their clothes.";
+      const pend = C.lab.filter((L) => !L.done).length;
+      if (pend) return "We could wait on the lab -- " + pend + " still cooking. Or pick him now if you're sure.";
+      return "We've got enough. Tell me who, and we'll bring him in.";
+    }
     G.malcolmPick = (id) => {
       const C = g.case;
+      if (id === "tip") { g.ramosTip = ramosTip(C); setHud((h) => ({ ...h, malcolm: malcolmPanel() })); return; }
       if (id === "take") { startCase(); g.caseLast = null; }
       else if (id.startsWith("name:") && C && g.detMode) {
         /* In detective mode a name is an ARREST: he goes to holding on B1 and you get it out of
@@ -12016,6 +12214,35 @@ export default function IronLionLayer004() {
         ctx.restore();
       }
       ctx.restore();
+    }
+    function stepCasings(dt) {
+      const L = g.casings; if (!L || !L.length) return;
+      for (let n = L.length - 1; n >= 0; n--) { L[n].t += dt; if (L[n].t > 300) L.splice(n, 1); }
+      if (!g.detMode || g.mode !== "foot") return;
+      for (let n = L.length - 1; n >= 0; n--) {
+        const c = L[n];
+        if (c.b !== (g.inside || null) || c.f !== (g.floor || 0)) continue;
+        if (Math.hypot(g.p.x - c.x, g.p.y - c.y) > 16) continue;
+        L.splice(n, 1);
+        const C = g.case;
+        if (c.own) g.pickupFlash = { nm: "lift:POLICE BRASS \u00b7 NOT EVIDENCE", t: 1.6 };
+        else if (C && C.stage !== "done" && C.stage !== "custody") {
+          const have = C.bag.includes("ballistics") || C.lab.some((q) => q.t === "ballistics");
+          if (!have) { C.bag.push("ballistics"); caseLine("BAGGED: SHELL CASING, picked up off the ground."); ramosSays("Brass. Ballistics can tell us the gun."); }
+          else g.pickupFlash = { nm: "lift:MORE BRASS \u00b7 SAME GUN, PROBABLY", t: 1.6 };
+        } else g.pickupFlash = { nm: "lift:A SHELL CASING \u00b7 NOBODY'S LOOKING FOR IT YET", t: 1.6 };
+      }
+    }
+    function drawCasings(view) {
+      const L = g.casings; if (!L || !L.length) return;
+      for (const c of L) {
+        if (c.b !== (g.inside || null) || c.f !== (g.floor || 0)) continue;
+        if (c.x < view.x0 || c.x > view.x1 || c.y < view.y0 || c.y > view.y1) continue;
+        ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot);
+        ctx.fillStyle = "#c9a24a"; ctx.fillRect(-2.5, -1.2, 5, 2.4);
+        ctx.fillStyle = "#7a5a1e"; ctx.fillRect(1.6, -1.2, 0.9, 2.4);
+        ctx.restore();
+      }
     }
     function spawnAnimal() {
       const pv = inVehicle() ? activeVeh() : g.p;
@@ -13983,6 +14210,7 @@ export default function IronLionLayer004() {
          by a branch I have misread -- which is what happened the last two times. */
       drawJobBoss();
       drawJobArrow();
+      drawCaseArrow();
       drawJobBanner();
       if (g.wireFx && Number.isFinite(g.wireFx.x0) && Number.isFinite(g.wireFx.y0)
           && Number.isFinite(g.wireFx.x1) && Number.isFinite(g.wireFx.y1)
@@ -24594,6 +24822,30 @@ export default function IronLionLayer004() {
     function wreckReaction(v, force, ux, uy) {
       if (v.bus) return;                       // a bus driver does not abandon the route
       if (v.fleeing > 0 || v.dead) return;     // already reacted to this crash
+      /* A POLICE CAR is driven by a cop, and a cop does not jump out and run like a civilian --
+         that was a random passer-by's look climbing out of a patrol car. They shrug a bump off;
+         outside detective mode, ramming one is still how you get their attention. */
+      const police = v.unit || v.beat || /cruiser|^pd_/.test((v.m && v.m.k) || "");
+      if (police) {
+        if (!g.detMode) { g.suspicion = Math.min(100, g.suspicion + 26); g.pursuit = Math.max(g.pursuit || 0, 26); g.copTimer = Math.min(g.copTimer || 99, 1.5); }
+        return;
+      }
+      /* A CIVILIAN, hit hard, does one of five things: gets out and runs, gets out swinging,
+         floors it and drives like a lunatic, freezes in the lane, or just keeps going. */
+      const hard0 = force > 300 || (v.hits || 0) >= 1 || (v.dmg || 0) > 0.5;
+      if (hard0) {
+        const r = Math.random();
+        if (r < 0.15) { v.hits = (v.hits || 0) + 1; return; }
+        if (r < 0.30) { v.hits = (v.hits || 0) + 1; v.dead = 1; v.spd = 0; v.unfreeze = 5 + Math.random() * 4; return; }
+        if (r < 0.55) { v.hits = (v.hits || 0) + 1; v.fleeing = 9 + Math.random() * 5; v.wild = v.fleeing;
+          v.cruise = 440; v.spd = Math.max(v.spd, 260); return; }
+        if (r < 0.72 && g.bailers.length < 8) {
+          v.hits = (v.hits || 0) + 1; v.dead = 1; v.spd = 0; v.brake = 1;
+          const o = victimKit.length ? victimKit[(Math.random() * victimKit.length) | 0] : null;
+          if (o) g.bailers.push({ x: v.x - uy * 26, y: v.y + ux * 26, vx: 0, vy: 0, anim: 0, life: 14, jit: 1, o, fight: true, hp: 5, hitCd: 0.8 });
+          return;
+        }
+      }
       const hard = force > 300 || (v.hits || 0) >= 1 || (v.dmg || 0) > 0.5;
       v.hits = (v.hits || 0) + 1;
       if (hard && g.bailers.length < 8) {
@@ -24618,11 +24870,28 @@ export default function IronLionLayer004() {
     }
 
     function stepBailers(dt) {
+      // frozen drivers come to; the ones driving like lunatics swerve
+      for (const v of g.traffic) {
+        if (v.unfreeze > 0) { v.unfreeze -= dt; if (v.unfreeze <= 0) { v.dead = 0; v.parked = 0; v.deadT = 0; } }
+        if (v.wild > 0) { v.wild -= dt; v.ang += Math.sin(performance.now() / 140 + v.x) * dt * 0.9; }
+      }
       for (let n = g.bailers.length - 1; n >= 0; n--) {
         const b = g.bailers[n];
         b.life -= dt;
-        if (b.life <= 0) { g.bailers.splice(n, 1); continue; }
+        if (b.life <= 0 || (b.fight && b.hp <= 0)) {
+          if (b.fight && b.hp <= 0) g.pickupFlash = { nm: "lift:HE'S DOWN", t: 1.2 };
+          g.bailers.splice(n, 1); continue;
+        }
         b.anim += dt * 8;
+        /* The one who gets out swinging: straight at him, a punch when close; when the fight goes
+           out of him (the last three seconds) he runs like the rest. */
+        if (b.fight && b.life > 3) {
+          const dx = g.p.x - b.x, dy = g.p.y - b.y, d = Math.hypot(dx, dy) || 1;
+          if (d > 24) { b.vx = dx / d * 140; b.vy = dy / d * 140; b.x += b.vx * dt; b.y += b.vy * dt; }
+          else { b.vx = 0; b.vy = 0; b.hitCd -= dt;
+            if (b.hitCd <= 0 && g.mode === "foot") { b.hitCd = 0.9; g.p.hp = Math.max(0, (g.p.hp || 10) - 1); g.shake = Math.max(g.shake, 4); sfxImpact(0.5); } }
+          continue;
+        }
         const sp = Math.hypot(b.vx, b.vy) || 1;
         // keep running in roughly the launch direction, decaying to a jog
         const want = Math.max(70, 185 * clamp(b.life / 9, 0, 1));
@@ -25709,7 +25978,7 @@ export default function IronLionLayer004() {
             wreckReaction(v, pcs * (heavy ? 1.45 : 1), ux, uy);
             // ram a patrol car and they come after you; outrun them and a detective picks
             // up the file instead -- the heat does not vanish, it changes hands
-            if (v.m && v.m.k === "cruiser") {
+            if (v.m && v.m.k === "cruiser" && !g.detMode) {
               g.suspicion = Math.min(100, g.suspicion + 26);
               g.pursuit = Math.max(g.pursuit || 0, 26);
               g.copScene = [pc.x, pc.y];
@@ -26737,7 +27006,18 @@ export default function IronLionLayer004() {
        These travel. 1100 units a second is fast enough to feel like a bullet and slow enough
        that at LION's time scale you can see it coming and step out of the line -- which is the
        whole reason the ability exists. */
+    /* BRASS. Every shot leaves a casing where the shooter stood -- on this floor of this building,
+       or on the street -- and they stay a few minutes. In detective mode Malcolm can pick them up:
+       at a case, a stranger's brass is ballistics evidence. */
+    function dropCasing(from, byPlayer) {
+      const L = (g.casings = g.casings || []);
+      if (L.length > 160) L.splice(0, L.length - 160);
+      const a = Math.random() * 6.283;
+      L.push({ x: from.x + Math.cos(a) * (10 + Math.random() * 12), y: from.y + Math.sin(a) * (10 + Math.random() * 12),
+               b: g.inside || null, f: g.floor || 0, t: 0, own: !!byPlayer, rot: Math.random() * 6.283 });
+    }
     function fireBullet(from, ang, spd, dmg, range, byPlayer, gang, knock) {
+      if (from && Number.isFinite(from.x)) dropCasing(from, byPlayer);
       (g.bullets = g.bullets || []).push({
         x: from.x, y: from.y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
         dmg, left: range, byPlayer: !!byPlayer, gang: gang || null, t: 0,
@@ -28662,6 +28942,7 @@ export default function IronLionLayer004() {
       }
       drawGround(view);
       if (!g.inside) drawMarkGround(view);
+      if (!g.inside) drawCasings(view);
       if (!g.inside) { drawLake(view); drawRiver(view); }   // over the ground, under everything that floats on it
       if (!g.inside && view.x1 > SX(PRISON.i0) - 900 && view.x0 < SX(PRISON.i1 + 1) + 900
         && view.y1 > SX(PRISON.j0) - 900 && view.y0 < SX(PRISON.j1 + 1) + 900) drawPrison();
@@ -28908,6 +29189,8 @@ export default function IronLionLayer004() {
       drawAnimals(view);
       drawUnitNumbers(view);
       drawCoroner();
+      drawTrailEvidence(view);
+      if (g.inside) drawCasings(view);
       drawBackup(view);
       drawCase(view);
       drawStadium();
@@ -29059,7 +29342,8 @@ export default function IronLionLayer004() {
             atTalk: !!nearTalk(), talk: g.talkTo ? talkPanel(g.talkTo) : null,
             atTrunk: nearTrunk(), canRadio: canRadio(), pick: g.pickOpen ? pickPanel(g.pickOpen) : null,
             atCarver: !!nearCarver(), atSuspect: nearSuspect(), interro: g.interro ? interroPanel() : null,
-            atComputer: nearComputer(),
+            atComputer: nearComputer(), objMin: !!g.objMin,
+            atStaff: !!nearStaff(), atSquad: !!nearSquad(), squadN: (g.squad || []).length,
             ramosCar: !!(g.detMode && inVehicle() && g.partner && g.partner.inCar), autoOn: !!g.auto,
             bookN: ((g.book && g.book.people) || []).length,
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
@@ -35000,7 +35284,14 @@ export default function IronLionLayer004() {
         pointerEvents: "none", opacity: hud.title ? 0 : 1 }}>
         <div style={{ fontSize: 11, letterSpacing: "0.22em", color: C.gold }}>IRON LION · RAVEN HOOK 1986</div>
         <div style={{ fontSize: 9, letterSpacing: "0.18em", opacity: 0.55, marginTop: 2 }}>{BUILD_TAG}</div>
-        <div style={{ marginTop: 10, fontSize: 12, background: "rgba(10,11,14,0.7)", border: "1px solid rgba(217,164,65,0.3)", padding: "6px 9px" }}>
+        {/* Fold the panel away when it is in the way; tap again to bring it back. */}
+        <div onClick={() => { const gg = G.current; gg.objMin = !gg.objMin; setHud((h) => ({ ...h, objMin: gg.objMin })); }}
+          style={{ pointerEvents: "auto", display: "inline-block", marginTop: 6, padding: "3px 10px", cursor: "pointer",
+            fontSize: 9, letterSpacing: "0.18em", color: C.gold, background: "rgba(10,11,14,0.7)", border: "1px solid rgba(217,164,65,0.35)" }}>
+          {hud.objMin ? "\u25b8 SHOW OBJECTIVES" : "\u25be HIDE"}
+        </div>
+        <div style={{ marginTop: 10, fontSize: 12, background: "rgba(10,11,14,0.7)", border: "1px solid rgba(217,164,65,0.3)", padding: "6px 9px",
+          display: hud.objMin ? "none" : "block" }}>
           <div style={{ letterSpacing: "0.06em" }}>{hud.place}</div>
           <div style={{ fontSize: 10, opacity: 0.7, marginTop: 3 }}>
             {/* "GRAND NATIONAL" was hardcoded, so every car in the city reported the same
@@ -35039,7 +35330,7 @@ export default function IronLionLayer004() {
             : hud.train.wait + " \u00b7 WAIT FOR THE TRAIN"}
         </div>
       )}
-      {hud.obj && (
+      {hud.obj && !hud.objMin && (
         <div style={{ marginTop: 8, background: "rgba(10,11,14,0.78)",
           borderLeft: "3px solid " + C.gold, padding: "5px 9px", maxWidth: 300 }}>
           <div style={{ fontSize: 8, letterSpacing: "0.26em", opacity: 0.5, color: C.gold }}>OBJECTIVE</div>
@@ -35053,7 +35344,7 @@ export default function IronLionLayer004() {
           )}
         </div>
       )}
-      {hud.caseObj && (
+      {hud.caseObj && !hud.objMin && (
         <div style={{ marginTop: 8, background: "rgba(10,11,14,0.78)",
           borderLeft: "3px solid #6fa8dc", padding: "5px 9px", maxWidth: 300 }}>
           <div style={{ fontSize: 11, letterSpacing: "0.10em" }}>
@@ -36727,6 +37018,8 @@ export default function IronLionLayer004() {
             {hud.atCarver && btn("CARVER", "swat orders", () => G.pickOpen && G.pickOpen("carver"), null, false)}
             {hud.atSuspect && !hud.interro && btn("QUESTION", "interview", () => G.interroFn && G.interroFn(), null, false)}
             {hud.atComputer && btn("TERMINAL", "travel \u00b7 files", () => G.pickOpen && G.pickOpen("computer"), null, false)}
+            {hud.atStaff && btn("RECRUIT", hud.squadN + "/2 with you", () => G.recruitFn && G.recruitFn(), null, false)}
+            {hud.atSquad && btn("DISMISS", "send back", () => G.dismissFn && G.dismissFn(), null, false)}
             {hud.ramosCar && btn("RAMOS", hud.autoOn ? "take the wheel" : "you drive",
               () => { if (G.current.auto) { G.current.auto = null; } else G.pickOpen && G.pickOpen("drive"); }, null, hud.autoOn)}
             {btn("BOOK", hud.bookOpen ? "shut it" : (hud.bookN || 0) + " names",
