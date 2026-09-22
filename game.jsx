@@ -198,7 +198,8 @@ const CARTOUGH = { coupe_green: 0.28, coupe_dgreen: 0.28,        // IRON MONTE
   luna: 0.55, vh_ecl_van: 0.45,                                  // hers
   vh_kuru_bike: 1.6, vh_mvp_atv: 0.7, vh_mons_rod: 0.9, vh_drive_van: 0.34,
   // the department's cars are built for it: Malcolm's hardest of all, the SWAT van a tank
-  pd_malcolm_car: 0.22, pd_cruiser: 0.30, pd_unmarked: 0.30, cruiser: 0.32, pd_swatvan: 0.16,
+  pd_malcolm_car: 0.22, pd_car_okafor: 0.28, pd_car_morrow: 0.28, pd_car_hayashi: 0.28, pd_car_delgado: 0.28,
+  pd_cruiser: 0.30, pd_unmarked: 0.30, cruiser: 0.32, pd_swatvan: 0.16,
   pd_csu: 0.40, pd_coroner: 0.40, pd_fire: 0.24 };
 const CARTHIRST = { sho_car: 2.0, kenny_truck: 2.0, ef_car: 1.3 };
 const carTough = (c) => (c && c.m && CARTOUGH[c.m.k]) || 1;
@@ -1533,6 +1534,27 @@ for (const k of DG_KEYS) PD_ART[k] = "assets/dg/" + k + ".png";
 for (let k = 1; k <= 8; k++) PD_ART["yt_dg_" + k] = "assets/heroes/yt_dg_" + k + ".png";
 for (let k = 1; k <= 5; k++) PD_ART["cs_chalk_" + k] = "assets/scene/cs_chalk_" + k + ".png";
 PD_ART.pd_computer = "assets/police/pd_computer.png";
+/* THE SQUAD ROOM: four more detectives, each with a speciality, a desk on B1 and a car in the lot.
+   Each will help once a case, in his own way. */
+const SQUAD4 = [
+  { id: "okafor",  nm: "DET. OKAFOR",  spec: "HOMICIDE",  room: ["office", 0], car: { k: "pd_car_okafor",  len: 120, w: 47.5 },
+    hi: "Twenty-two years in Homicide. Bodies tell you things, Malcolm, if you let them.",
+    help: "Let me sit on the coroner and read the scene for you." },
+  { id: "morrow",  nm: "DET. MORROW",  spec: "VICE",      room: ["office", 1], car: { k: "pd_car_morrow",  len: 120, w: 44.3 },
+    hi: "Vice. I know every bartender and bookie between here and the river.",
+    help: "I'll lean on the street. People will talk to you easier." },
+  { id: "hayashi", nm: "DET. HAYASHI", spec: "FORENSICS", room: ["office", 2], car: { k: "pd_car_hayashi", len: 120, w: 50.7 },
+    hi: "Burglary and forensics. I ran the lab for four years before they gave me a shield.",
+    help: "Give me what you've bagged. I can jump the lab's line." },
+  { id: "delgado", nm: "DET. DELGADO", spec: "ROBBERY",   room: ["taskforce", 0], car: { k: "pd_car_delgado", len: 120, w: 47.5 },
+    hi: "Robbery. The Barrio raised me -- they still call me Padre down there.",
+    help: "Let me ask around. Somebody always knows somebody." },
+];
+for (const d of SQUAD4) {
+  PD_ART["yt_" + d.id] = "assets/heroes/yt_" + d.id + ".png";
+  PD_ART["pt_" + d.id] = "assets/heroes/pt_" + d.id + ".png";
+  PD_ART[d.car.k] = "assets/police/" + d.car.k + ".png";
+}
 const DG_SOLID = { dg_espresso: 1, dg_grinders: 1, dg_display: 1, dg_shelf_cups: 1, dg_shelf_jars: 1, dg_fridge: 1,
                    dg_fridge2: 1, dg_longtable: 1, dg_table_round: 1, dg_table_round2: 1, dg_table_sq: 1,
                    dg_booth: 1, dg_booth2: 1, dg_cooler: 1, dg_rack: 1, dg_oven: 1, pd_computer: 1 };
@@ -10810,7 +10832,19 @@ export default function IronLionLayer004() {
         put(E0, "captain", 0.52, 0.62, DUTY_CAPT, "CAPTAIN");
         put(1, "taskforce", 0.80, 0.70, DUTY_PATROL);
       }
-      g.dets = { b, f, home: r2, sgt, staff,
+      // the four detectives: three in the offices beside Malcolm's, Delgado in the task force room
+      const four = [];
+      if (b.pd) {
+        const pl1 = buildingPlans(b)[1];
+        for (const d of SQUAD4) {
+          const rs = pl1.rooms.filter((q) => q.k === d.room[0]), r = rs[d.room[1]] || rs[0];
+          if (!r) continue;
+          const fy = d.room[0] === "taskforce" ? 0.30 : 0.72;
+          const pt = freeIndoor(b, pl1, (r.x0 + r.x1) / 2 + (d.room[0] === "taskforce" ? -60 : 0), r.y0 + (r.y1 - r.y0) * fy, r);
+          if (pt) four.push({ ...d, x: pt[0], y: pt[1], vx: 0, vy: 0, anim: Math.random() * 6, jit: 1, yt: "yt_" + d.id, bang: Math.PI / 2 });
+        }
+      }
+      g.dets = { b, f, home: r2, sgt, staff, four,
         malcolm: { x: m[0], y: m[1], vx: 0, vy: 0, yt: "yt_malcolm", jit: 1.06, anim: 0, bang: Math.PI / 2 },
         ramos: { x: r2[0], y: r2[1], vx: 0, vy: 0, yt: "yt_ramos", jit: 0.98, anim: 1.3, bang: Math.PI } };
       return g.dets;
@@ -11119,8 +11153,11 @@ export default function IronLionLayer004() {
         /* The two stalls in front of the door stay empty -- that is the walk from the lot to the
            door, and a cruiser in it sealed the entrance. The rest are nosed in, set back off the
            wall so no bumper is inside the building. */
-        [239, 299, 359].forEach((px, k) => park(px, 532, PD_CARS.cruiser, { unit: "0" + (k + 1) }));
-        [117, 175].forEach((px, k) => park(px, 646, PD_CARS.cruiser, { unit: "0" + (k + 4) }));
+        /* The squad's cars take the stalls: Okafor, Morrow and Hayashi along the building, Delgado
+           in the row below. One cruiser, 01, stays up top; the rest of the fleet lives in B2. */
+        [239, 299, 359].forEach((px, k) => park(px, 532, SQUAD4[k].car, { owner: SQUAD4[k].id }));
+        park(117, 646, SQUAD4[3].car, { owner: SQUAD4[3].id });
+        park(175, 646, PD_CARS.cruiser, { unit: "01" });
         g.detCar = park(417, 590, PD_CARS2.malcolm, {});
       }
       const C = g.case;
@@ -11479,6 +11516,40 @@ export default function IronLionLayer004() {
       ctx.font = "700 10px system-ui, sans-serif"; ctx.fillStyle = "rgba(159,197,232,0.95)"; ctx.textAlign = "center";
       ctx.fillText(Math.round(d / 20.8) + "m", ax, ay - 16); ctx.textAlign = "start";
     }
+    function nearDet() {
+      const D = g.dets;
+      if (!D || g.inside !== D.b || g.floor !== 1 || g.mode !== "foot") return null;
+      let best = null, bd = 72;
+      for (const d of D.four || []) { const dd = Math.hypot(d.x - g.p.x, d.y - g.p.y); if (dd < bd) { bd = dd; best = d; } }
+      return best;
+    }
+    /* Once a case, each of them does the thing he is good at. */
+    function detHelp(d) {
+      const C = g.case;
+      if (!C || C.stage === "done") return d.nm.slice(5) + ": Nothing open? Go see what dispatch has.";
+      C.helped = C.helped || {};
+      if (C.helped[d.id]) return d.nm.slice(5) + ": I've done what I can on this one, Malcolm.";
+      let said = "";
+      if (d.id === "okafor") {
+        if (C.unknownVictim && C.idLeft > 0) { C.idLeft -= 200; said = "I sat on the coroner. Your John Doe is next on the table."; }
+        else { const key = cpick(["age", "height", "clothes"]); said = "Read the scene photos. " + factText(C, key, false); }
+      } else if (d.id === "morrow") {
+        for (const q of C.people) if (q.tr && (q.caseRole === "witness" || q.caseRole === "lead" || q.caseRole === "victim")) {
+          q.tr.strikes = 0; if (q.tr.attitude === "hostile") q.tr.attitude = "nervous"; else if (q.tr.attitude !== "cooperative") q.tr.attitude = "cooperative"; }
+        said = "Made some calls. Your witnesses will be a lot friendlier now.";
+      } else if (d.id === "hayashi") {
+        const pend = C.lab.filter((L) => !L.done);
+        if (!pend.length) return "HAYASHI: Nothing at the lab yet. Bag it, send it in, then come see me.";
+        for (const L of pend) L.left *= 0.35;
+        said = "Pushed " + pend.length + " bag" + (pend.length > 1 ? "s" : "") + " to the front of the line.";
+      } else if (d.id === "delgado") {
+        if (C.lead) return "DELGADO: You already know where he is. Go get him.";
+        revealNext(C); said = "Asked around. Somebody knew somebody.";
+      }
+      C.helped[d.id] = true;
+      caseLine(d.nm.slice(5) + ": " + said);
+      return d.nm.slice(5) + ": " + said;
+    }
     /* THE SQUAD: up to two uniforms at Malcolm's back. They follow, ride along, fight what he
        fights, and go back to the station when he sends them. */
     const SQUAD_MAX = 2;
@@ -11558,6 +11629,11 @@ export default function IronLionLayer004() {
       if (g.detMode && R && !R.inCar && (!g.inside || R.bldOf === g.inside)) out.push([R.y, 9, { __draw: drawPartner }]);
       // the station's uniforms and the captain, and the two walking with Malcolm
       const D0 = g.dets;
+      if (D0 && g.inside === D0.b && g.floor === 1) for (const d of D0.four || []) out.push([d.y, 9, { __draw: () => {
+        d.anim += 0.012; drawShadow(d.x, d.y + 2, 10, 4, 0.3); drawYouth(d);
+        ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
+        // surname only: the offices are narrow and full names ran into each other
+        ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText(d.nm.slice(5), d.x, d.y - 24); ctx.textAlign = "start"; } }]);
       if (D0 && g.inside === D0.b) for (const u of D0.staff || []) if (!u.out && u.f === g.floor) out.push([u.y, 9, { __draw: () => {
         u.anim += 0.012; drawShadow(u.x, u.y + 2, 10, 4, 0.3); drawCop(u);
         if (u.label) { ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
@@ -11575,6 +11651,11 @@ export default function IronLionLayer004() {
     }
     // nobody walks through a witness: people at a scene, the officer and the tech push him back
     function sceneSolid() {
+      const D1 = g.dets;
+      if (D1 && g.inside === D1.b && g.floor === 1 && g.mode === "foot") for (const d of D1.four || []) {
+        const dx = g.p.x - d.x, dy = g.p.y - d.y, dd = Math.hypot(dx, dy), r = 20;
+        if (dd > 0.01 && dd < r) { g.p.x = d.x + dx / dd * r; g.p.y = d.y + dy / dd * r; }
+      }
       if (g.inside && g.inside.dg && g.mode === "foot") for (const o of dgPeople(g.inside)) {
         const dx = g.p.x - o.x, dy = g.p.y - o.y, d = Math.hypot(dx, dy), r = 20;
         if (d > 0.01 && d < r) { g.p.x = o.x + dx / d * r; g.p.y = o.y + dy / d * r; }
@@ -11929,6 +12010,14 @@ export default function IronLionLayer004() {
     /* THE THREE PANELS -- trunk, radio, and where Ramos should drive. One chooser, three menus. */
     function pickPanel(kind) {
       if (kind === "trunk") return { title: "THE TRUNK", opts: DET.trunk.map(([k, nm]) => ({ id: "wpn:" + k, label: nm })).concat([{ id: "close", label: "SHUT IT" }]) };
+      if (kind && kind.startsWith("det:")) {
+        const d = (g.dets && g.dets.four || []).find((q) => q.id === kind.slice(4));
+        if (!d) return { title: "", opts: [{ id: "close", label: "BACK" }] };
+        const C = g.case, open = C && C.stage !== "done", done = open && C.helped && C.helped[d.id];
+        return { title: d.nm + " \u00b7 " + d.spec, face: "assets/heroes/pt_" + d.id + ".png",
+          text: g.detSaid || (open && !done ? d.help : d.hi),
+          opts: (open && !done ? [{ id: "help:" + d.id, label: "HELP ME WITH THIS ONE" }] : []).concat([{ id: "close", label: "LATER" }]) };
+      }
       if (kind === "computer") return { title: "DET. MALCOLM \u00b7 TERMINAL", face: "assets/ui/ui_badge.png", opts: [
         { id: "open:travel", label: "FAST TRAVEL" }, { id: "open:files", label: "CASE FILES" }, { id: "close", label: "LOG OFF" }] };
       if (kind === "travel") return { title: "FAST TRAVEL", opts: travelTargets().map((t) => ({ id: "go:" + t.id, label: t.label })).concat([{ id: "close", label: "BACK" }]) };
@@ -11953,7 +12042,7 @@ export default function IronLionLayer004() {
         { id: "radio:home", label: "STAND DOWN" }, { id: "close", label: "OFF" }] };
       return { title: "RAMOS \u00b7 WHERE TO?", opts: driveTargets().map((t) => ({ id: "drive:" + t.id, label: t.label })).concat([{ id: "close", label: "I'LL DRIVE" }]) };
     }
-    G.pickOpen = (kind) => { g.pickOpen = kind; setHud((h) => ({ ...h, pick: pickPanel(kind) })); };
+    G.pickOpen = (kind) => { if (!(kind || "").startsWith("det:")) g.detSaid = null; g.pickOpen = kind; setHud((h) => ({ ...h, pick: pickPanel(kind) })); };
     G.pickFn = (id) => {
       if (id.startsWith("wpn:")) {
         const k = id.slice(4);
@@ -11963,6 +12052,10 @@ export default function IronLionLayer004() {
       } else if (id.startsWith("radio:")) G.radioFn(id.slice(6));
       else if (id.startsWith("carver:")) G.carverFn(id.slice(7));
       else if (id.startsWith("open:")) { g.fileText = null; G.pickOpen(id.slice(5)); return; }
+      else if (id.startsWith("help:")) {
+        const d = (g.dets.four || []).find((q) => q.id === id.slice(5));
+        g.detSaid = d ? detHelp(d) : null; G.pickOpen("det:" + id.slice(5)); return;
+      }
       else if (id.startsWith("go:")) G.travelTo(id.slice(3));
       else if (id.startsWith("file:")) {
         const k = id.slice(5), C = g.case, B = g.book || { cases: [] };
@@ -11974,7 +12067,7 @@ export default function IronLionLayer004() {
         if (t && v) { g.auto = { pts: roadRoute(v.x, v.y, t.x, t.y).concat([[t.x, t.y]]), i: 0 };
           const R = partner(); if (R) { R.say = 2.4; R.line = "I'VE GOT IT."; } }
       }
-      g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+      g.pickOpen = null; g.detSaid = null; setHud((h) => ({ ...h, pick: null }));
     };
     /* THE CORONER, by the table in the hospital basement. Says his piece when you come close. */
     function coronerAt(b) {
@@ -29344,6 +29437,7 @@ export default function IronLionLayer004() {
             atCarver: !!nearCarver(), atSuspect: nearSuspect(), interro: g.interro ? interroPanel() : null,
             atComputer: nearComputer(), objMin: !!g.objMin,
             atStaff: !!nearStaff(), atSquad: !!nearSquad(), squadN: (g.squad || []).length,
+            atDet: (() => { const d = nearDet(); return d ? { id: d.id, nm: d.nm.slice(5) } : null; })(),
             ramosCar: !!(g.detMode && inVehicle() && g.partner && g.partner.inCar), autoOn: !!g.auto,
             bookN: ((g.book && g.book.people) || []).length,
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
@@ -37020,6 +37114,7 @@ export default function IronLionLayer004() {
             {hud.atComputer && btn("TERMINAL", "travel \u00b7 files", () => G.pickOpen && G.pickOpen("computer"), null, false)}
             {hud.atStaff && btn("RECRUIT", hud.squadN + "/2 with you", () => G.recruitFn && G.recruitFn(), null, false)}
             {hud.atSquad && btn("DISMISS", "send back", () => G.dismissFn && G.dismissFn(), null, false)}
+            {hud.atDet && btn(hud.atDet.nm, "talk", () => G.pickOpen && G.pickOpen("det:" + hud.atDet.id), null, false)}
             {hud.ramosCar && btn("RAMOS", hud.autoOn ? "take the wheel" : "you drive",
               () => { if (G.current.auto) { G.current.auto = null; } else G.pickOpen && G.pickOpen("drive"); }, null, hud.autoOn)}
             {btn("BOOK", hud.bookOpen ? "shut it" : (hud.bookN || 0) + " names",
