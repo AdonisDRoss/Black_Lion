@@ -2894,7 +2894,7 @@ const ZONES = {
      NORTH END. West of Uptown, north of the hood -- a working neighbourhood, which is the one
      kind of place this map does not have. Kenny is sixty-one and a boxer and there is no ground
      on this map that is HIS; the gym goes here. */
-  northend: { i0: 0, i1: 5, j0: 0, j1: 2, super: false },
+  northend: { i0: 0, i1: 5, j0: 0, j1: 2, super: false },   // OLD TOWN -- see OLDTOWN below
   /* CIVIC. The second downtown, directly north of the terminal and south of Brennan ground, so
      it is squeezed between the trains and the Irish, which is how a civic quarter actually ends
      up where it is. Courthouse, city offices, the newspaper. */
@@ -3209,6 +3209,20 @@ const GAS_CELLS = [
      garage anyway. */
   { i: 3, j: 3 },
 ];
+/* ---------- OLD TOWN ----------
+   The oldest quarter, north of the hood and west of uptown, and the one part of Raven Hook that
+   was laid out before anybody drew a grid: every street in it runs to one great roundabout, and
+   the island in the middle of it has been a green with a monument on it since before the war.
+   The circle sits ON a crossroads (the corner of four blocks), so the four streets that meet
+   there are the ones already in the grid -- nothing new has to be cut for them to arrive. */
+const OLDTOWN = {
+  ci: 3, cj: 1,                 // the crossroads it is centred on
+  rOut: 600, rIn: 330,          // the outside of the carriageway, and the island
+  lanes: 2, laneW: 120,
+  cells: { i0: 0, i1: 5, j0: 0, j1: 2 },
+};
+const otCentre = () => [SX(OLDTOWN.ci), SX(OLDTOWN.cj)];
+const inOldTown = (i, j) => i >= OLDTOWN.cells.i0 && i <= OLDTOWN.cells.i1 && j >= OLDTOWN.cells.j0 && j <= OLDTOWN.cells.j1;
 const isGasCell = (i, j) => GAS_CELLS.some((gc) => gc.i === i && gc.j === j);
 /* ---------- the banks ----------
    One per parish, which is what makes a bank job a choice of WHICH bank rather than a trip
@@ -4517,6 +4531,16 @@ function getCell(i, j) {
   } else if (zone !== "city" || (type !== 3 && r() < 0.66))
     blds = genBuildings(zone, lx0 + 6, ly0 + 6, lx1 - 6, ly1 - 6, r, i, j);
   if (zone !== "city") walls = null;
+  /* THE CIRCLE. Old Town's roundabout sits on the crossroads of four blocks, so the corner of
+     each of them is carriageway -- anything the generator put there comes out, and the kerb of
+     the circle becomes the lot's edge. */
+  if (blds && inOldTown(i, j)) {
+    const [ocx, ocy] = otCentre(), R = OLDTOWN.rOut + 30;
+    blds = blds.filter((b) => {
+      const nx = clamp(ocx, b.x, b.x + b.w), ny = clamp(ocy, b.y, b.y + b.h);
+      return Math.hypot(ocx - nx, ocy - ny) > R;
+    });
+  }
   c = { i, j, x0, y0, x1, y1, lx0, ly0, lx1, ly1, type, det, walls, blds, zone,
         barriers: barriers.length ? barriers : null,
         piers: piers.length ? piers : null };
@@ -21674,7 +21698,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
          district, and the reason the L stops are the only entries exempt from it.
          The stadium is listed at its EDGE and not its centre: the middle of that zone is the
          field, and the field is the one part of it you are not allowed to stand on. */
-      { z: "northend",  name: "NORTH END",     i: 2,  j: 1 },
+      { z: "northend",  name: "OLD TOWN",      i: 2,  j: 1 },
       { z: "civic",     name: "CIVIC SQUARE",  i: 14, j: 5 },
       { z: "stadium",   name: "THE STADIUM",   i: 22, j: 5 },
       /* The Flats and the tower. `z` is neonflats for both, so one visit opens both -- they are
@@ -21684,7 +21708,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       { z: "neonflats", name: "DEUCE'S WILD",  i: 7,  j: 13, always: true },
       /* DIRECT. Every named place built this session, on the terminal from the start -- these
          are addresses, not discoveries. Kept in one block so the next one added is obvious. */
-      { z: "northend",  name: "NORTH END GYM",  i: 2,  j: 1,  always: true },
+      { z: "northend",  name: "OLD TOWN GYM",   i: 2,  j: 1,  always: true },
       { z: "neonflats", name: "THE SAFEHOUSE",  i: 7,  j: 13, always: true },
       { z: "civic",     name: "THE COURTHOUSE", i: 14, j: 5,  always: true },
       { z: "civic",     name: "THE CHRONICLE",  i: 15, j: 6,  always: true },
@@ -26730,6 +26754,45 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         v.brake = target < v.spd - 12 ? 1 : Math.max(0, v.brake - dt * 3);
         v.spd += clamp(target - v.spd, -430 * dt, 165 * dt);
         v.spd = Math.max(0, v.spd);
+        /* THE CIRCLE. A car that reaches Old Town's roundabout stops following its lane and
+           circulates -- anticlockwise, on one of the two lanes -- until it comes round to the
+           street it wants, and then it is put back on that lane and let go. Without this they
+           drove straight over the green and through the monument. */
+        {
+          const [ocx, ocy] = otCentre(), RO = OLDTOWN.rOut, RI = OLDTOWN.rIn;
+          const dcx = v.x - ocx, dcy = v.y - ocy, dc = Math.hypot(dcx, dcy);
+          if (!v.rb && dc < RO - 10 && dc > 20) {
+            const lane = RI + 48 + (Math.random() < 0.5 ? 0 : 62);
+            // where he is going: carry on the way he came, or take one of the other three
+            const inAng = Math.atan2(fy, fx);
+            const quarter = Math.round(inAng / (Math.PI / 2));
+            const turn = cpick([0, 0, 1, -1, 2]);
+            v.rb = { a: Math.atan2(dcy, dcx), lane, exit: ((quarter + turn) * Math.PI / 2 + 6.283 * 2) % 6.283, t: 0 };
+          }
+          if (v.rb) {
+            const R2 = v.rb;
+            R2.t += dt;
+            const spd = Math.max(90, Math.min(v.spd, 190));
+            R2.a += (spd / R2.lane) * dt;                       // anticlockwise
+            v.x = ocx + Math.cos(R2.a) * R2.lane; v.y = ocy + Math.sin(R2.a) * R2.lane;
+            v.ang = R2.a + Math.PI / 2;
+            v.spd = spd;
+            let da = R2.exit - R2.a; while (da > Math.PI) da -= 6.283; while (da < -Math.PI) da += 6.283;
+            if ((R2.t > 1.2 && Math.abs(da) < 0.16) || R2.t > 14) {
+              // back onto the street it wanted, pointing out of the circle
+              const ex = Math.cos(R2.exit), ey = Math.sin(R2.exit);
+              v.x = ocx + ex * (RO + 40); v.y = ocy + ey * (RO + 40);
+              v.ang = Math.atan2(ey, ex);
+              v.axis = Math.abs(ex) > Math.abs(ey) ? "h" : "v";
+              v.dir = (v.axis === "h" ? ex : ey) > 0 ? 1 : -1;
+              v.si = clamp(Math.round((v.axis === "h" ? v.y : v.x) / PITCH), 0, N);
+              v.k = clamp(Math.round((v.axis === "h" ? v.x : v.y) / PITCH), 0, N);
+              v.rb = null; v.rbCd = 3;
+            }
+            continue;
+          }
+          if (v.rbCd > 0) v.rbCd -= dt;
+        }
         v.x += fx * v.spd * dt; v.y += fy * v.spd * dt;
         v.rad = v.bus ? (v.m.w || 66) / 2 + 6 : 19;
 
@@ -27037,6 +27100,36 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
     }
 
     /* ---------- drawing ---------- */
+    /* OLD TOWN'S CIRCLE: carriageway, kerbs, lane paint and the green in the middle with its
+       monument. Drawn over the ground and under everything that stands on it. */
+    function drawRoundabout(view) {
+      const [cx, cy] = otCentre(), R = OLDTOWN.rOut, r = OLDTOWN.rIn;
+      if (view.x1 < cx - R - 60 || view.x0 > cx + R + 60 || view.y1 < cy - R - 60 || view.y0 > cy + R + 60) return;
+      ctx.save();
+      // carriageway
+      ctx.fillStyle = PF("lot", C.asphalt);
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.283); ctx.arc(cx, cy, r, 0, 6.283, true); ctx.fill();
+      // the kerbs
+      ctx.strokeStyle = "rgba(190,186,176,0.75)"; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.arc(cx, cy, R - 2, 0, 6.283); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, r + 2, 0, 6.283); ctx.stroke();
+      // the lane between the two circulating lanes, dashed
+      ctx.strokeStyle = "rgba(226,206,120,0.55)"; ctx.lineWidth = 3; ctx.setLineDash([26, 22]);
+      ctx.beginPath(); ctx.arc(cx, cy, (R + r) / 2, 0, 6.283); ctx.stroke(); ctx.setLineDash([]);
+      // the green, and the monument on it
+      ctx.fillStyle = PF("grass", "#2f4a2c");
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.283); ctx.fill();
+      ctx.fillStyle = "rgba(20,26,18,0.35)";
+      ctx.beginPath(); ctx.arc(cx, cy, r * 0.52, 0, 6.283); ctx.fill();
+      const mon = imgs.current.ct_ot_monument;
+      if (mon && mon.width) { const w = r * 0.9, h = w * mon.height / mon.width; ctx.drawImage(mon, cx - w / 2, cy - h / 2, w, h); }
+      else {
+        ctx.fillStyle = "#6d6a61"; ctx.beginPath(); ctx.arc(cx, cy, 34, 0, 6.283); ctx.fill();
+        ctx.fillStyle = "#87837a"; ctx.fillRect(cx - 9, cy - 96, 18, 96);
+        ctx.fillStyle = "#9a958a"; ctx.beginPath(); ctx.arc(cx, cy - 100, 13, 0, 6.283); ctx.fill();
+      }
+      ctx.restore();
+    }
     function drawGround(view) {
       const { x0, y0, x1, y1 } = view;
       vegQ = [];
@@ -29726,6 +29819,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         return;
       }
       drawGround(view);
+      if (!g.inside) drawRoundabout(view);
       if (!g.inside) drawMarkGround(view);
       if (!g.inside) drawCasings(view);
       if (!g.inside) { drawLake(view); drawRiver(view); }   // over the ground, under everything that floats on it
