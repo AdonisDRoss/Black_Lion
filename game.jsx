@@ -1508,6 +1508,28 @@ const BIG_CRIMES = {
 };
 const ESCALATE = { mugging: "armed_robbery", holdup: "armed_robbery", assault: "serial_assault", breakin: "burglary_ring" };
 const RIVAL = { chance: 0.6, decoys: 3, evidence: 5 };
+/* JUICE. What a detective has with the department: earned by doing the job, spent on getting the
+   department to do things for him. Nobody calls them points. */
+const JUICE = {
+  evidence: 2, statement: 2, handIn: 3, rights: 2, arrest: 10, confession: 25, guilty: 40, rival: 60, raid: 15, casing: 1,
+  cost: { detective: 25, swat: 30, p1: 6, p2: 12, p3: 18, ems: 5, fire: 5, rush: 10, car: 12, armor: 20, boost: 15 },
+};
+/* THE REST OF THE HOUSE. Dispatch, the evidence room, the CSI room and the motor pool. */
+const STAFF = [
+  { id: "sally",  nm: "SALLY O'CONNELL", role: "DISPATCH", f: 1, room: "taskforce", fx: 0.80, fy: 0.24, face: -Math.PI / 2,   // the desk sits above her; she works facing it
+    hi: "Detective! I mean -- Malcolm. Hi. Anything you need, you call it in and I'll find it." },
+  { id: "elias",  nm: "SGT. HAWK",      role: "EVIDENCE", f: 2, room: "evidence", fx: 0.5, fy: 0.62,
+    hi: "Two Bears. Thirty-one years, the last nine in this room. Everything that comes in goes on a shelf with a number." },
+  { id: "specs",  nm: "DET. MILLER",    role: "CSI", f: 1, room: "csiroom", fx: 0.5, fy: 0.62,
+    hi: "Miller. Specs, if you like -- everybody does. Give me something to run and I'll tell you what it's hiding." },
+  { id: "sparky", nm: "OFC. KOWALSKI",  role: "MOTOR POOL", f: 0, room: "pdgarage", fx: 0.22, fy: 0.72,
+    hi: "Sparky. If it's got wheels and the department owns it, it's mine. Bring it in dented, take it out straight." },
+];
+const SALLY_CALLS = [
+  "Unit's clear on your case, Malcolm. Just -- thought you'd want to know.",
+  "Nothing on the wire. You doing okay out there? ...Dispatch out.",
+  "I pulled the sheet on your man. Nothing you don't have, but I looked. For you.",
+];
 const CASE = {
   stops: [1, 3],             // how many places between the scene and the man
   sceneR: [1500, 3600], hangR: [1800, 3800], decoys: 2, pay: [160, 140], pickR: 34,
@@ -1553,6 +1575,8 @@ for (const k of DG_KEYS) PD_ART[k] = "assets/dg/" + k + ".png";
 for (let k = 1; k <= 8; k++) PD_ART["yt_dg_" + k] = "assets/heroes/yt_dg_" + k + ".png";
 for (let k = 1; k <= 5; k++) PD_ART["cs_chalk_" + k] = "assets/scene/cs_chalk_" + k + ".png";
 PD_ART.pd_computer = "assets/police/pd_computer.png";
+for (const t of ["sally", "elias", "specs", "sparky"]) {
+  PD_ART["yt_" + t] = "assets/heroes/yt_" + t + ".png"; PD_ART["pt_" + t] = "assets/heroes/pt_" + t + ".png"; }
 /* THE SQUAD ROOM: four more detectives, each with a speciality, a desk on B1 and a car in the lot.
    Each will help once a case, in his own way. */
 const SQUAD4 = [
@@ -1565,7 +1589,7 @@ const SQUAD4 = [
   { id: "hayashi", nm: "DET. HAYASHI", spec: "FORENSICS", room: ["office", 2], car: { k: "pd_car_hayashi", len: 120, w: 50.7 },
     hi: "Burglary and forensics. I ran the lab for four years before they gave me a shield.",
     help: "Give me what you've bagged. I can jump the lab's line." },
-  { id: "delgado", nm: "DET. DELGADO", spec: "ROBBERY",   room: ["taskforce", 0], car: { k: "pd_car_delgado", len: 120, w: 47.5 },
+  { id: "delgado", nm: "DET. DELGADO", spec: "ROBBERY",   room: ["delgadooffice", 0], car: { k: "pd_car_delgado", len: 120, w: 47.5 },
     hi: "Robbery. The Barrio raised me -- they still call me Padre down there.",
     help: "Let me ask around. Somebody always knows somebody." },
 ];
@@ -5006,13 +5030,19 @@ function makeFloor(b, f, rnd) {
   } else if (kind === "pd_garage") {
     hub = put(0, 0, GX - 1, GY - 1, "pdgarage");
   } else if (kind === "pd_lower") {
-    const mx = Math.round(GX * 0.5), oy = Math.round(GY * 0.4);
-    hub = put(0, 0, mx - 1, GY - 1, "taskforce");
-    // four offices along the top; the first, next to the task force, is Malcolm's
+    /* B1: the task force room with the dispatch desk, four offices along the top, the cells beside
+       them, and -- opposite the others, along the bottom -- Delgado's office, Ramos's office and
+       the CSI room. */
+    const mx = Math.round(GX * 0.52), oy = Math.round(GY * 0.40), by = Math.round(GY * 0.72);
+    hub = put(0, 0, mx - 1, by - 1, "taskforce");
     const cut = [mx, Math.round(mx + (GX - mx) * 0.25), Math.round(mx + (GX - mx) * 0.5), Math.round(mx + (GX - mx) * 0.75), GX];
     for (let k = 0; k < 4; k++) put(cut[k], 0, cut[k + 1] - 1, oy - 1, k === 0 ? "malcolmoffice" : "office");
-    const n = 4, cw2 = Math.max(1, Math.floor((GX - mx) / n));
-    for (let k = 0; k < n; k++) put(mx + k * cw2, oy, k === n - 1 ? GX - 1 : mx + (k + 1) * cw2 - 1, GY - 1, "cell");
+    const n = 3, cw2 = Math.max(1, Math.floor((GX - mx) / n));
+    for (let k = 0; k < n; k++) put(mx + k * cw2, oy, k === n - 1 ? GX - 1 : mx + (k + 1) * cw2 - 1, by - 1, "cell");
+    const b1 = Math.round(GX * 0.26), b2 = Math.round(GX * 0.52);
+    put(0, by, b1 - 1, GY - 1, "delgadooffice");
+    put(b1, by, b2 - 1, GY - 1, "ramosoffice");
+    put(b2, by, GX - 1, GY - 1, "csiroom");
   } else if (kind === "pd_main") {
     /* The break room is the corridor to the evidence room, the captain and the lift -- at 0.45 it
        came out 77 wide with a table in it and sealed half the floor. It is 0.40 to 0.62 now. */
@@ -5621,6 +5651,9 @@ function makeFloor(b, f, rnd) {
   const st = kind === "den" || kind === "dgfloor" || kind === "courtroom"   // one storey: no stairs going nowhere
     ? { x: -9999, y: -9999, w: 0, h: 0 }
     /* The hub rule puts the stair in the middle of the room, and the middle of a gym is the ring. */
+    : (kind === "pd_main" || kind === "pd_lower")
+    // along the west wall, not standing in the middle of the room in front of the door
+    ? { x: b.x + WT + 10, y: b.y + b.h * 0.60 - 19, w: 64, h: 38 }
     : kind === "pd_garage"
     ? { x: b.x + b.w * PD_B2.stair[0], y: b.y + b.h * PD_B2.stair[1],
         w: b.w * (PD_B2.stair[2] - PD_B2.stair[0]), h: b.h * (PD_B2.stair[3] - PD_B2.stair[1]) }
@@ -7137,14 +7170,24 @@ function makeFloor(b, f, rnd) {
       place("malcolmoffice", 0, 0.18, 0.82, "pd_files", 26, 34);
       place("taskforce", 0, 0.30, 0.46, "pd_desk", 58, 42);
       place("taskforce", 0, 0.72, 0.46, "pd_desk", 58, 42);
-      place("taskforce", 0, 0.20, 0.82, "pd_radio", 42, 34);
-      place("taskforce", 0, 0.62, 0.84, "pd_files", 34, 42);
+      // the dispatch desk, up by the offices -- and no filing cabinets standing in the hall
+      place("taskforce", 0, 0.80, 0.12, "pd_radio", 44, 34);
+      place("taskforce", 0, 0.80, 0.30, "pd_desk", 52, 38);
       for (let k = 0; k < 3; k++) {
         place("office", k, 0.5, 0.40, "pd_desk", 48, 36);
         place("office", k, 0.2, 0.80, "pd_files", 26, 34);
       }
+      // Delgado and Ramos, opposite the rest; and the CSI room
+      place("delgadooffice", 0, 0.34, 0.45, "pd_desk", 52, 38);
+      place("delgadooffice", 0, 0.78, 0.45, "pd_files", 28, 36);
+      place("ramosoffice", 0, 0.34, 0.45, "pd_desk", 52, 38);
+      place("ramosoffice", 0, 0.76, 0.12, "pd_mugboard", 44, 34, true);
+      place("csiroom", 0, 0.20, 0.42, "pd_prints", 34, 34);
+      place("csiroom", 0, 0.52, 0.42, "mg_xray", 42, 34);
+      place("csiroom", 0, 0.82, 0.44, "pd_evshelf", 40, 46);
+      place("csiroom", 0, 0.36, 0.82, "mg2_cart", 30, 34);
     } else {
-      place("pdlobby", 0, 0.55, 0.30, "pd_counter", 92, 36);
+      place("pdlobby", 0, 0.55, 0.18, "pd_counter", 92, 36);   // back off the door
       place("pdlobby", 0, 0.12, 0.62, "pd_bench_long", 14, 96);
       // briefing: the board and the podium at the front, the rows facing them
       place("briefing", 0, 0.30, 0.13, "pd_chalkboard", 50, 58);
@@ -7354,8 +7397,12 @@ function makeFloor(b, f, rnd) {
     const LW = 46, LH = 40, pad = 22;
     const shell = (w) => w.x <= b.x + 1 || w.y <= b.y + 1 || w.x + w.w >= b.x + b.w - 1 || w.y + w.h >= b.y + b.h - 1;
     const hits = (a, q, m) => a.x - m < q.x + q.w && q.x < a.x + a.w + m && a.y - m < q.y + q.h && q.y < a.y + a.h + m;
-    const cands = [["e", 0.5], ["e", 0.22], ["e", 0.78], ["w", 0.22], ["w", 0.78], ["n", 0.22], ["n", 0.78],
-                   ["s", 0.22], ["s", 0.78], ["w", 0.5], ["n", 0.5], ["s", 0.5]];
+    /* The station's hall is its west half, so try the west wall FIRST there: the default order put
+       the lift inside the captain's office and in among the cells. */
+    const cands = b && b.pd
+      ? [["w", 0.35], ["w", 0.22], ["w", 0.78], ["n", 0.22], ["s", 0.35], ["e", 0.5], ["e", 0.22], ["e", 0.78], ["n", 0.5], ["s", 0.5]]
+      : [["e", 0.5], ["e", 0.22], ["e", 0.78], ["w", 0.22], ["w", 0.78], ["n", 0.22], ["n", 0.78],
+         ["s", 0.22], ["s", 0.78], ["w", 0.5], ["n", 0.5], ["s", 0.5]];
     let lift = null;
     for (const [side, f2] of cands) {
       const box = side === "e" ? { x: b.x + b.w - WT - 2 - LW, y: b.y + b.h * f2 - LH / 2, w: LW, h: LH }
@@ -9564,10 +9611,13 @@ export default function IronLionLayer004() {
     const dCar = Math.hypot(g.p.x - g.car.x, g.p.y - g.car.y);
     const dMoto = Math.hypot(g.p.x - g.moto.x, g.p.y - g.moto.y);
     const dCiv = Math.hypot(g.p.x - g.civ.x, g.p.y - g.civ.y);
-    /* Malcolm does not drive the Lion's car or ride his bike: in detective mode those two are not
-       his, and pressing E beside his own unmarked car kept putting him in the Grand National. */
-    const carOK = !g.detMode && dCar < 170 && !g.car.sunk;
-    const motoOK = !g.detMode && dMoto < 150 && !g.moto.sunk;
+    /* Malcolm does not drive the Lion's CAR or ride his bike -- but the body he is driving lives in
+       that same slot, so blocking the slot outright left him locked out of his own unmarked car
+       the moment he stepped out of it. Blocked only while it still wears the Lion's own skin. */
+    const lionsCar = g.detMode && !g.car.skin && g.car !== g.detCar;
+    const lionsBike = g.detMode && !g.moto.skin;
+    const carOK = !lionsCar && dCar < 170 && !g.car.sunk;
+    const motoOK = !lionsBike && dMoto < 150 && !g.moto.sunk;
     const civOK = dCiv < 170 && !g.civ.sunk;
     // whichever is actually nearest among the ones in reach
     const opts = [];
@@ -10396,7 +10446,8 @@ export default function IronLionLayer004() {
       const offRoad = !onRoad(c.x, c.y);
       const OFFROAD_OK = { kenny_truck: 0.96, hp_truck: 0.94, vh_mvp_atv: 1.0 };
       const grassMul = !offRoad ? 1 : (OFFROAD_OK[c.m && c.m.k] || 0.62);
-      const boost = (g.turboT > 0 && c === (inVehicle() ? activeVeh() : null)) ? 1.15 : 1;
+      const boost = ((g.turboT > 0 && c === (inVehicle() ? activeVeh() : null)) ? 1.15 : 1) *
+                    (c === g.car && g.carBoost ? g.carBoost : 1);      // Kowalski's work
       const MAX = topSpeed * rough * (empty ? 0.16 : 1) * wreckMul * CS.s * grassMul * boost;
       // the named cars drink at double, which is the price of surviving a chase in one
       c.fuel = Math.max(0, c.fuel - dt * (0.14 + Math.abs(throttle) * 0.30) * carThirst(c));
@@ -10885,6 +10936,17 @@ export default function IronLionLayer004() {
       setHud((h) => ({ ...h, idOpen: true }));
     };
     /* ---------------- DETECTIVE MODE ---------------- */
+    /* Juice in, juice out. Every earn says what it was for. */
+    function juice(n, why) {
+      g.juice = Math.max(0, (g.juice || 0) + n);
+      if (n > 0) g.pickupFlash = { nm: "lift:+" + n + " JUICE \u00b7 " + why, t: 1.6 };
+      setHud((h) => ({ ...h, juice: g.juice }));
+    }
+    function spend(n, what) {
+      if ((g.juice || 0) < n) { g.pickupFlash = { nm: "lift:NOT ENOUGH JUICE \u00b7 " + what + " COSTS " + n, t: 2 }; return false; }
+      g.juice -= n; setHud((h) => ({ ...h, juice: g.juice }));
+      return true;
+    }
     function precinctB() {
       const cv = CIVIC.find((c) => c.key === "precinct_rh");
       if (!cv) return null;
@@ -10902,7 +10964,10 @@ export default function IronLionLayer004() {
       const room = pl.rooms.find((r) => r.k === "taskforce" || r.k === "bullpen") || pl.rooms[0];
       const m = freeIndoor(b, pl, (room.x0 + room.x1) / 2 - 20, (room.y0 + room.y1) / 2 + 20, room)
              || [(room.x0 + room.x1) / 2, (room.y0 + room.y1) / 2];
-      const r2 = freeIndoor(b, pl, m[0] + 46, m[1] + 10, room) || [m[0] + 46, m[1] + 10];
+      /* Ramos has her own office now, opposite the others; Malcolm's spot stays in his. */
+      let r2 = freeIndoor(b, pl, m[0] + 46, m[1] + 10, room) || [m[0] + 46, m[1] + 10];
+      const rOff = pl.rooms.find((q) => q.k === "ramosoffice");
+      if (rOff) r2 = freeIndoor(b, pl, (rOff.x0 + rOff.x1) / 2, rOff.y0 + (rOff.y1 - rOff.y0) * 0.72, rOff) || r2;
       /* The desk sergeant, behind the front counter on the street floor. */
       let sgt = null;
       if (b.pd) {
@@ -10937,12 +11002,23 @@ export default function IronLionLayer004() {
         for (const d of SQUAD4) {
           const rs = pl1.rooms.filter((q) => q.k === d.room[0]), r = rs[d.room[1]] || rs[0];
           if (!r) continue;
-          const fy = d.room[0] === "taskforce" ? 0.30 : 0.72;
-          const pt = freeIndoor(b, pl1, (r.x0 + r.x1) / 2 + (d.room[0] === "taskforce" ? -60 : 0), r.y0 + (r.y1 - r.y0) * fy, r);
+          const fy = d.room[0] === "delgadooffice" ? 0.72 : 0.72;
+          const pt = freeIndoor(b, pl1, (r.x0 + r.x1) / 2, r.y0 + (r.y1 - r.y0) * fy, r);
           if (pt) four.push({ ...d, x: pt[0], y: pt[1], vx: 0, vy: 0, anim: Math.random() * 6, jit: 1, yt: "yt_" + d.id, bang: Math.PI / 2 });
         }
       }
-      g.dets = { b, f, home: r2, sgt, staff, four,
+      /* THE HOUSE: Sally at the dispatch desk, Hawk in the evidence room, Miller in the CSI room,
+         Kowalski down in the garage. Each stands where his room puts him. */
+      const house = [];
+      if (b.pd) for (const t of STAFF) {
+        const plS = buildingPlans(b)[t.f], r = plS.rooms.find((q) => q.k === t.room);
+        if (!r) continue;
+        const pt = freeIndoor(b, plS, r.x0 + (r.x1 - r.x0) * t.fx, r.y0 + (r.y1 - r.y0) * t.fy, r);
+        if (!pt) continue;
+        house.push({ ...t, x: pt[0], y: pt[1], vx: 0, vy: 0, anim: Math.random() * 6, jit: 1, yt: "yt_" + t.id,
+                     bang: t.face != null ? t.face : Math.PI / 2 });
+      }
+      g.dets = { b, f, home: r2, sgt, staff, four, house,
         malcolm: { x: m[0], y: m[1], vx: 0, vy: 0, yt: "yt_malcolm", jit: 1.06, anim: 0, bang: Math.PI / 2 },
         ramos: { x: r2[0], y: r2[1], vx: 0, vy: 0, yt: "yt_ramos", jit: 0.98, anim: 1.3, bang: Math.PI } };
       return g.dets;
@@ -11243,8 +11319,26 @@ export default function IronLionLayer004() {
       }
     }
     G.gumballFn = () => { g.gumball = !g.gumball; setHud((h) => ({ ...h, gumball: g.gumball })); };
+    /* SALLY CALLS. Every so often dispatch comes up on the radio, and it is always her: her face on
+       the set, a word about the case or a job, and something she should probably keep to herself.
+       Ramos hears every one of them. */
+    function stepDispatch(dt) {
+      if (!g.detMode || g.inside) return;
+      g.radioT = (g.radioT == null ? 60 : g.radioT) - dt;
+      if (g.radioCall) { g.radioCall.t -= dt; if (g.radioCall.t <= 0) { g.radioCall = null; setHud((h) => ({ ...h, radioCall: null })); } }
+      if (g.radioT > 0 || g.radioCall) return;
+      g.radioT = 100 + Math.random() * 120;
+      const C = g.case;
+      let line = cpick(SALLY_CALLS);
+      if (C && C.stage !== "done" && Math.random() < 0.6) line = ramosTip(C);
+      else if (g.crime && g.crime.x != null) line = "All units -- " + (g.crime.label || "a call") + " near " + crossStreet(g.crime.x, g.crime.y) + ". You're closest, Malcolm.";
+      g.radioCall = { t: 7, line };
+      setHud((h) => ({ ...h, radioCall: { line } }));
+      const R = partner();
+      if (R && Math.random() < 0.45) { R.say = 3.4; R.line = cpick(["SHE ONLY CALLS WHEN YOU'RE ON.", "'YOU'RE CLOSEST, MALCOLM.' SURE.", "DISPATCH LOVES YOU, DETECTIVE."]); }
+    }
     function stepCase(dt) {
-      stepTrial(dt);
+      stepTrial(dt); stepDispatch(dt);
       stepPartner(dt); stepAutopilot(dt); stepBackup(dt); stepCasings(dt); stepSquad(dt); stepGumball(dt);
       const D = detectives();
       if (g.detStart && D) {
@@ -11321,6 +11415,7 @@ export default function IronLionLayer004() {
           e.got = true;
           const E = EVIDENCE[e.t];
           caseLine("BAGGED: " + E.nm + ".");
+          juice(JUICE.evidence, "EVIDENCE");
           ramosSays(cpick(E.ramos));
           if (!E.lab) {
             if (E.lead) {
@@ -11687,6 +11782,7 @@ export default function IronLionLayer004() {
         const pay = Math.round((CASE.pay[0] + CASE.pay[1] + 120) * (C.K.pay || 1));
         g.p.cash = (g.p.cash || 0) + pay;
         R.done = "GUILTY. WHITCOMB: \"That one's going on a poster, detective.\"";
+        juice(JUICE.guilty + (C.rival ? JUICE.rival : 0), C.rival ? "A RIVAL DOWN" : "A CONVICTION");
         g.jobBanner = "GUILTY \u00b7 " + A.name; g.jobNote = C.K.nm + " \u00b7 " + C.trial.judge.nm + " \u00b7 $" + pay;
         C.lines.push("VERDICT: GUILTY. " + A.name + ".");
         // a rival convicted is off the board for good
@@ -11784,7 +11880,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       if (R.i >= MIRANDA.length) {
         C.arrest.rights = true; g.rights = null;
         caseLine("RIGHTS READ: " + C.arrest.name + " was advised, and said " + (C.arrest.sex === "f" ? "she" : "he") + " understood.");
-        g.pickupFlash = { nm: "lift:RIGHTS READ", t: 1.8 };
+        g.pickupFlash = { nm: "lift:RIGHTS READ", t: 1.8 }; juice(JUICE.rights, "BY THE BOOK");
         setHud((h) => ({ ...h, rights: null }));
         return;
       }
@@ -11833,6 +11929,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         g.p.cash = (g.p.cash || 0) + pay;
         if (C.rival) { g.rivals = (g.rivals || []).filter((q) => q !== C.rival); C.lines.push("RIVAL CLOSED: " + A.name + " confessed."); }
         I.done = (A.sex === "f" ? "SHE" : "HE") + " TALKED.";
+        juice(JUICE.confession, "A CONFESSION");
         g.jobBanner = "CONFESSION \u00b7 CASE CLOSED"; g.jobNote = C.K.nm + " \u00b7 " + A.name + " \u00b7 $" + pay;
         g.caseLast = A.name + " gave it up. The captain signs off on $" + pay + ". Nice work, Malcolm.";
         C.lines.push("CONFESSED: " + A.name + ".");
@@ -11915,6 +12012,91 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       ctx.font = "700 10px system-ui, sans-serif"; ctx.fillStyle = "rgba(159,197,232,0.95)"; ctx.textAlign = "center";
       ctx.fillText(Math.round(d / 20.8) + "m", ax, ay - 16); ctx.textAlign = "start";
     }
+    function nearHouse() {
+      const D = g.dets;
+      if (!D || g.inside !== D.b || g.mode !== "foot") return null;
+      let best = null, bd = 74;
+      for (const u of D.house || []) if (u.f === g.floor) { const d = Math.hypot(u.x - g.p.x, u.y - g.p.y); if (d < bd) { bd = d; best = u; } }
+      return best;
+    }
+    /* Each of them does one useful thing. */
+    function housePanel(id) {
+      const u = (g.dets && g.dets.house || []).find((q) => q.id === id);
+      if (!u) return { title: "", opts: [{ id: "close", label: "BACK" }] };
+      const C = g.case, open = C && C.stage !== "done";
+      const opts = [];
+      const text = g.houseSaid || u.hi;
+      if (id === "elias") {
+        if (open && C.bag.length) opts.push({ id: "house:elias:in", label: "HAND IN " + C.bag.length + " BAG" + (C.bag.length > 1 ? "S" : "") });
+        if (open) opts.push({ id: "house:elias:what", label: "WHAT HAVE WE GOT?" });
+      } else if (id === "specs") {
+        if (open && C.lab.some((L) => !L.done)) opts.push({ id: "house:specs:rush", label: "RUSH ONE \u00b7 " + JUICE.cost.rush + " JUICE" });
+        if (open) opts.push({ id: "house:specs:read", label: "WHAT WILL IT TELL ME?" });
+      } else if (id === "sparky") {
+        opts.push({ id: "house:sparky:fix", label: "PATCH MY CAR UP" });
+        opts.push({ id: "house:sparky:fuel", label: "FILL THEM ALL UP" });
+        opts.push({ id: "house:sparky:armor", label: "ARMOUR \u00b7 " + JUICE.cost.armor + " JUICE" });
+        opts.push({ id: "house:sparky:boost", label: "MORE UNDER THE HOOD \u00b7 " + JUICE.cost.boost + " JUICE" });
+        opts.push({ id: "house:sparky:car", label: "A CAR FROM THE POOL \u00b7 " + JUICE.cost.car + " JUICE" });
+      } else if (id === "sally") {
+        opts.push({ id: "house:sally:tip", label: "ANYTHING ON THE WIRE?" });
+        if (open) opts.push({ id: "house:sally:sheet", label: "PULL THE SHEET ON MY MAN" });
+      }
+      return { title: u.nm + " \u00b7 " + u.role + " \u00b7 " + (g.juice || 0) + " JUICE", face: "assets/heroes/pt_" + u.id + ".png",
+               text, opts: opts.concat([{ id: "close", label: "THANKS" }]) };
+    }
+    G.replacementCar = () => {
+      const x = g.p.x + Math.cos(g.board.ang) * 150, y = g.p.y + Math.sin(g.board.ang) * 150;
+      const v = { x, y, axis: "v", si: clamp(Math.round(x / PITCH), 0, N), dir: 1, k: clamp(Math.round(y / PITCH), 0, N),
+                  ang: g.board.ang, spd: 0, cruise: 0, brake: 0, m: PD_CARS2.malcolm, dead: 1, parked: 1, named: 1, detCar: 1 };
+      g.traffic.push(v); g.detCar = v;
+      g.pickupFlash = { nm: "lift:KOWALSKI \u00b7 ONE OFF THE POOL, KEYS ARE IN IT", t: 2.6 };
+    };
+    G.housePick = (id) => {
+      const C = g.case, parts = id.split(":");
+      const who = parts[1], what = parts[2];
+      let said = null;
+      if (who === "elias") {
+        if (what === "in" && C && C.bag.length) {
+          for (const t of C.bag) C.lab.push({ t, left: EVIDENCE[t].lab, done: false });
+          caseLine("BOOKED IN: " + C.bag.map((t) => EVIDENCE[t].nm).join(", ") + " -- Sgt. Hawk, evidence room.");
+          juice(JUICE.handIn * C.bag.length, "EVIDENCE IN");
+          said = "Signed, numbered, on the shelf. The lab has them."; C.bag = [];
+        } else if (what === "what") {
+          const pend = C.lab.filter((L) => !L.done), done = C.lab.filter((L) => L.done);
+          said = (done.length ? done.length + " back from the lab. " : "") +
+                 (pend.length ? pend.length + " still cooking -- soonest is about " + Math.ceil(Math.min(...pend.map((L) => L.left)) / 60) + " minutes." : "Nothing pending.") +
+                 (C.bag.length ? " And you're still carrying " + C.bag.length + "." : "");
+        }
+      } else if (who === "specs") {
+        if (what === "rush") {
+          const pend = C.lab.filter((L) => !L.done);
+          if (!pend.length) said = "Nothing to rush.";
+          else if (spend(JUICE.cost.rush, "A RUSH")) {
+            pend.sort((a2, b2) => a2.left - b2.left)[0].left = 0.1;
+            said = "I'll put it under the scope myself. Give me a minute, not a morning.";
+          } else said = "You haven't got the juice for that, detective.";
+        } else if (what === "read") {
+          const all = C.ev.filter((e) => e.got).map((e) => e.t);
+          said = all.length ? all.map((t) => EVIDENCE[t].nm + " -> " + ({ prints: "a name, if he's been booked", dna: "a name, slowly", ballistics: "the gun",
+            fibres: "what he wore", tyres: "what he drove", counterfeit: "where the paper moves", footprint: "his size", matchbook: "where he drinks",
+            phonebook: "an address", receipt: "a pawnshop" }[t] || "something")).join(". ") + "."
+            : "Bring me something first.";
+        }
+      } else if (who === "sparky") {
+        if (what === "fix") { g.car.dmg = 0; g.car.hits = 0; if (g.detCar) g.detCar.dmg = 0; said = "Panels out, glass in. She's straight."; }
+        else if (what === "fuel") { for (const q of [g.car, g.moto, g.civ]) if (q) q.fuel = q.maxFuel || 100; said = "Topped off, all of them."; }
+        else if (what === "armor") { if (spend(JUICE.cost.armor, "ARMOUR")) { g.car.tough = Math.max(0.16, (g.car.tough || 0.4) * 0.55); said = "Plate in the doors, glass you can lean on. She'll take a beating now."; } else said = "Not without the juice."; }
+        else if (what === "boost") { if (spend(JUICE.cost.boost, "A BOOST")) { g.carBoost = 1.16; said = "Cam, carb and a little bottle in the boot. Don't tell the captain."; } else said = "Not without the juice."; }
+        else if (what === "car") { if (spend(JUICE.cost.car, "A CAR")) { G.replacementCar(); said = "Take that one. Bring it back with the doors on."; } else said = "Not without the juice."; }
+      } else if (who === "sally") {
+        if (what === "tip") said = C && C.stage !== "done" ? ramosTip(C) : cpick(SALLY_CALLS);
+        else if (what === "sheet") said = C && C.arrest ? "Your man's sheet is on your desk. And... be careful out there, Malcolm."
+          : "Bring me a name and I'll pull everything we have on him.";
+      }
+      g.houseSaid = said;
+      setHud((h) => ({ ...h, pick: housePanel(who) }));
+    };
     function nearDet() {
       const D = g.dets;
       if (!D || g.inside !== D.b || g.floor !== 1 || g.mode !== "foot") return null;
@@ -12028,6 +12210,10 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       if (g.detMode && R && !R.inCar && (!g.inside || R.bldOf === g.inside)) out.push([R.y, 9, { __draw: drawPartner }]);
       // the station's uniforms and the captain, and the two walking with Malcolm
       const D0 = g.dets;
+      if (D0 && g.inside === D0.b) for (const u of D0.house || []) if (u.f === g.floor) out.push([u.y, 9, { __draw: () => {
+        u.anim += 0.01; drawShadow(u.x, u.y + 2, 10, 4, 0.3); drawYouth(u);
+        ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText(u.nm, u.x, u.y - 24); ctx.textAlign = "start"; } }]);
       if (D0 && g.inside === D0.b && g.floor === 1) for (const d of D0.four || []) out.push([d.y, 9, { __draw: () => {
         d.anim += 0.012; drawShadow(d.x, d.y + 2, 10, 4, 0.3); drawYouth(d);
         ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
@@ -12038,7 +12224,8 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         if (u.label) { ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
           ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText(u.label, u.x, u.y - 24); ctx.textAlign = "start"; } } }]);
       for (const u of g.squad || []) if (!u.inCar && inView(u) && (!g.inside || u.bldOf === g.inside)) out.push([u.y, 9, { __draw: () => {
-        drawShadow(u.x, u.y + 2, 10, 4, 0.3); drawCop(u);
+        drawShadow(u.x, u.y + 2, 10, 4, 0.3);
+        if (u.yt) drawYouth(u); else drawCop(u);
         if (u.muzzle > 0) { ctx.fillStyle = "rgba(255,214,120,0.9)"; ctx.beginPath(); ctx.arc(u.x + Math.cos(u.bang || 0) * 16, u.y + Math.sin(u.bang || 0) * 16, 4, 0, 6.283); ctx.fill(); } } }]);
       const CB = courtB();
       if (CB && g.inside === CB) {
@@ -12277,11 +12464,17 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
     }
     G.radioFn = (id) => {
       const R = partner();
+      const price = { p1: JUICE.cost.p1, p2: JUICE.cost.p2, p3: JUICE.cost.p3, swat: JUICE.cost.swat,
+                      ems: JUICE.cost.ems, fire: JUICE.cost.fire, car: JUICE.cost.car }[id];
+      if (price && !spend(price, id.toUpperCase())) return;
       if (id === "p1") sendUnits("patrol", 1); else if (id === "p2") sendUnits("patrol", 2);
       else if (id === "p3") sendUnits("patrol", 3); else if (id === "swat") sendUnits("swat", 1);
       else if (id === "ems") { sendUnits("ems", 1); g.emsCall = true; }
       else if (id === "fire") sendUnits("fire", 1);
       else if (id === "home") for (const c of g.backup || []) c.life = 0;
+      else if (id === "car") G.replacementCar();
+      else if (id === "fuel") { for (const v of [g.car, g.moto, g.civ]) if (v) v.fuel = v.maxFuel || 100;
+        g.pickupFlash = { nm: "lift:KOWALSKI \u00b7 TOPPED OFF", t: 2 }; }
       const said = { p1: "ONE CAR, ON THE WAY.", p2: "TWO CARS ROLLING.", p3: "THREE CARS. HOLD TIGHT.",
                      swat: "SWAT IS WHEELS UP.", ems: "BUS IS ON ITS WAY.", fire: "ENGINE COMPANY RESPONDING.",
                      home: "ALL UNITS, STAND DOWN." }[id];
@@ -12350,6 +12543,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         if (R.t > 0.9) { R.t = 0; const q = S.guards.find((z) => z.indoor && z.hp > 0); if (q) q.hp = 0; }   // a man a beat, room by room
         if (!S.guards.some((z) => z.hp > 0)) {
           S.gone = 1; if (g.distro) delete g.distro[S.gang];
+          juice(JUICE.raid, "A RAID");
           g.jobBanner = "SWAT \u00b7 " + DISTRO[S.kind].nm + " IS OFF THE BOARD";
           g.jobNote = "Lt. Carver: premises secure. " + (GANG_LABEL[S.gang] || S.gang) + " just lost their " + DISTRO[S.kind].nm.toLowerCase() + ".";
           c.order = "follow"; c.raid = null;
@@ -12444,13 +12638,16 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
     /* THE THREE PANELS -- trunk, radio, and where Ramos should drive. One chooser, three menus. */
     function pickPanel(kind) {
       if (kind === "trunk") return { title: "THE TRUNK", opts: DET.trunk.map(([k, nm]) => ({ id: "wpn:" + k, label: nm })).concat([{ id: "close", label: "SHUT IT" }]) };
+      if (kind && kind.startsWith("house:")) return housePanel(kind.slice(6));
       if (kind && kind.startsWith("det:")) {
         const d = (g.dets && g.dets.four || []).find((q) => q.id === kind.slice(4));
         if (!d) return { title: "", opts: [{ id: "close", label: "BACK" }] };
         const C = g.case, open = C && C.stage !== "done", done = open && C.helped && C.helped[d.id];
         return { title: d.nm + " \u00b7 " + d.spec, face: "assets/heroes/pt_" + d.id + ".png",
           text: g.detSaid || (open && !done ? d.help : d.hi),
-          opts: (open && !done ? [{ id: "help:" + d.id, label: "HELP ME WITH THIS ONE" }] : []).concat([{ id: "close", label: "LATER" }]) };
+          opts: (open && !done ? [{ id: "help:" + d.id, label: "HELP ME WITH THIS ONE" }] : [])
+            .concat(d.out ? [] : [{ id: "hire:" + d.id, label: "RIDE WITH ME \u00b7 " + JUICE.cost.detective + " JUICE" }])
+            .concat([{ id: "close", label: "LATER" }]) };
       }
       if (kind === "computer") return { title: "DET. MALCOLM \u00b7 TERMINAL", face: "assets/ui/ui_badge.png", opts: [
         { id: "open:travel", label: "FAST TRAVEL" }, { id: "open:files", label: "CASE FILES" }, { id: "close", label: "LOG OFF" }] };
@@ -12470,9 +12667,13 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
           { id: "carver:sniper", label: "SNIPER ON A ROOF" }, { id: "carver:perimeter", label: "SET A PERIMETER" },
           { id: "carver:home", label: "STAND DOWN" }, { id: "close", label: "AS YOU WERE" }] };
       }
-      if (kind === "radio") return { title: "RADIO \u00b7 DISPATCH", face: "assets/ui/ui_badge.png", opts: [
-        { id: "radio:p1", label: "1 CAR" }, { id: "radio:p2", label: "2 CARS" }, { id: "radio:p3", label: "3 CARS" },
-        { id: "radio:swat", label: "SWAT" }, { id: "radio:ems", label: "EMS" }, { id: "radio:fire", label: "FIRE" },
+      if (kind === "radio") return { title: "RADIO \u00b7 DISPATCH \u00b7 " + (g.juice || 0) + " JUICE", face: "assets/heroes/pt_sally.png",
+        text: "SALLY: Go ahead, Malcolm. I've got you.",
+        opts: [
+        { id: "radio:p1", label: "1 CAR \u00b7 " + JUICE.cost.p1 }, { id: "radio:p2", label: "2 CARS \u00b7 " + JUICE.cost.p2 },
+        { id: "radio:p3", label: "3 CARS \u00b7 " + JUICE.cost.p3 }, { id: "radio:swat", label: "SWAT \u00b7 " + JUICE.cost.swat },
+        { id: "radio:ems", label: "EMS \u00b7 " + JUICE.cost.ems }, { id: "radio:fire", label: "FIRE \u00b7 " + JUICE.cost.fire },
+        { id: "radio:car", label: "A CAR FROM THE POOL \u00b7 " + JUICE.cost.car }, { id: "radio:fuel", label: "KOWALSKI: TOP ME OFF" },
         { id: "radio:home", label: "STAND DOWN" }, { id: "close", label: "OFF" }] };
       return { title: "RAMOS \u00b7 WHERE TO?", opts: driveTargets().map((t) => ({ id: "drive:" + t.id, label: t.label })).concat([{ id: "close", label: "I'LL DRIVE" }]) };
     }
@@ -12486,6 +12687,19 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       } else if (id.startsWith("radio:")) G.radioFn(id.slice(6));
       else if (id.startsWith("carver:")) G.carverFn(id.slice(7));
       else if (id.startsWith("open:")) { g.fileText = null; G.pickOpen(id.slice(5)); return; }
+      else if (id.startsWith("house:")) { G.housePick(id); return; }
+      else if (id.startsWith("hire:")) {
+        const d = (g.dets.four || []).find((q) => q.id === id.slice(5));
+        if (d && !d.out) {
+          g.squad = g.squad || [];
+          if (g.squad.length >= SQUAD_MAX) g.pickupFlash = { nm: "lift:YOU'VE GOT TWO ALREADY", t: 1.8 };
+          else if (spend(JUICE.cost.detective, "A DETECTIVE")) {
+            d.out = true; d.fireCd = 1; d.wpn = "beretta"; d.inCar = false; d.bldOf = g.inside; d.floorOf = g.floor; d.walking = false;
+            g.squad.push(d); g.detSaid = d.nm.slice(5) + ": Let's go to work.";
+          } else g.detSaid = "You haven't got the juice, Malcolm.";
+        }
+        G.pickOpen("det:" + id.slice(5)); return;
+      }
       else if (id.startsWith("help:")) {
         const d = (g.dets.four || []).find((q) => q.id === id.slice(5));
         g.detSaid = d ? detHelp(d) : null; G.pickOpen("det:" + id.slice(5)); return;
@@ -12592,6 +12806,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       if (idc === "hand") {
         for (const t of C.bag) C.lab.push({ t, left: EVIDENCE[t].lab, done: false });
         caseLine("SENT TO THE LAB: " + C.bag.map((t) => EVIDENCE[t].nm).join(", ") + ".");
+        juice(JUICE.handIn * C.bag.length, "EVIDENCE IN");
         q.lastSaid = "I'll run them in. The lab'll call when they've got something.";
         C.bag = [];
       } else if (idc.startsWith("ask:")) {
@@ -12608,7 +12823,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
           q.lastSaid = said;
           const who = q.caseRole === "cop" ? "BEAT COP" : (q.carded ? identOf(q).name : ROLE_NM[q.caseRole] || "HE");
           caseLine(who + ": " + said);
-          if (q.caseRole === "witness" || q.caseRole === "victim") C.statements = (C.statements || 0) + 1;
+          if (q.caseRole === "witness" || q.caseRole === "victim") { C.statements = (C.statements || 0) + 1; juice(JUICE.statement, "A STATEMENT"); }
           if (key === "beat" || key === "next") revealNext(C);
           if (C.unknownVictim && C.idLeft > 0 && q.caseRole === "witness") C.idLeft -= DET.idWitness;
           if (shaky && q.caseRole !== "cop") ramosSays(q.tr.influence === "sky"
@@ -12704,6 +12919,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         C.arrest = { no, name: bk.name || "HIM", sex: bk.sex || "m", isPerp: identOf(C.perp).no === no, q, at, rights: false };
         C.stage = "custody";
         C.lines.push("ARRESTED: " + (bk.name || "him") + ". Booked into holding on B1.");
+        juice(JUICE.arrest, "AN ARREST");
         g.jobBanner = "ARRESTED \u00b7 " + (bk.name || ""); g.jobNote = "Ramos: Read him his rights, then the interview room, B1.";
       }
       else if (id.startsWith("name:") && C) {
@@ -12796,7 +13012,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         if (c.own) g.pickupFlash = { nm: "lift:POLICE BRASS \u00b7 NOT EVIDENCE", t: 1.6 };
         else if (C && C.stage !== "done" && C.stage !== "custody") {
           const have = C.bag.includes("ballistics") || C.lab.some((q) => q.t === "ballistics");
-          if (!have) { C.bag.push("ballistics"); caseLine("BAGGED: SHELL CASING, picked up off the ground."); ramosSays("Brass. Ballistics can tell us the gun."); }
+          if (!have) { C.bag.push("ballistics"); caseLine("BAGGED: SHELL CASING, picked up off the ground."); ramosSays("Brass. Ballistics can tell us the gun."); juice(JUICE.casing, "BRASS"); }
           else g.pickupFlash = { nm: "lift:MORE BRASS \u00b7 SAME GUN, PROBABLY", t: 1.6 };
         } else g.pickupFlash = { nm: "lift:A SHELL CASING \u00b7 NOBODY'S LOOKING FOR IT YET", t: 1.6 };
       }
@@ -29918,6 +30134,8 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
             canGumball: !!(inVehicle() && vehModel(activeVeh()) && GUMBALL.cars[vehModel(activeVeh()).k]), gumball: !!g.gumball,
             atStaff: !!nearStaff(), atSquad: !!nearSquad(), squadN: (g.squad || []).length,
             atDet: (() => { const d = nearDet(); return d ? { id: d.id, nm: d.nm.slice(5) } : null; })(),
+            atHouse: (() => { const u = nearHouse(); return u ? { id: u.id, nm: u.nm } : null; })(),
+            juice: g.juice || 0, radioCall: g.radioCall ? { line: g.radioCall.line } : null,
             ramosCar: !!(g.detMode && inVehicle() && g.partner && g.partner.inCar), autoOn: !!g.auto,
             bookN: ((g.book && g.book.people) || []).length,
             travel: g.travelOpen ? travelList().map((t) => t.name) : null,
@@ -35865,6 +36083,9 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
             fontSize: 9, letterSpacing: "0.18em", color: C.gold, background: "rgba(10,11,14,0.7)", border: "1px solid rgba(217,164,65,0.35)" }}>
           {hud.objMin ? "\u25b8 SHOW OBJECTIVES" : "\u25be HIDE"}
         </div>
+        {hud.juice != null && !hud.objMin && (
+          <div style={{ marginTop: 6, fontSize: 10, letterSpacing: "0.18em", color: "#d9a441" }}>JUICE {hud.juice}</div>
+        )}
         <div style={{ marginTop: 10, fontSize: 12, background: "rgba(10,11,14,0.7)", border: "1px solid rgba(217,164,65,0.3)", padding: "6px 9px",
           display: hud.objMin ? "none" : "block" }}>
           <div style={{ letterSpacing: "0.06em" }}>{hud.place}</div>
@@ -36695,6 +36916,18 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
             setHud((h) => ({ ...h, liftOpen: false })); }}
             style={{ marginTop: 12, fontSize: 9, opacity: 0.55, letterSpacing: "0.16em", cursor: "pointer" }}>
             CLOSE
+          </div>
+        </div>
+      )}
+      {/* DISPATCH ON THE RADIO -- and it is always Sally. */}
+      {hud.radioCall && (
+        <div style={{ position: "absolute", right: 14, top: "26%", zIndex: 60, display: "flex", gap: 10, alignItems: "center",
+          background: "rgba(10,11,14,0.86)", border: "1px solid rgba(217,164,65,0.4)", padding: "8px 12px", maxWidth: 360, fontFamily: mono }}>
+          <img src="assets/heroes/pt_sally.png" alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+            style={{ width: 46, height: 46, borderRadius: "50%", imageRendering: "pixelated" }} />
+          <div>
+            <div style={{ fontSize: 8, letterSpacing: "0.22em", color: "#d9a441" }}>DISPATCH {"\u00b7"} SALLY</div>
+            <div style={{ fontSize: 11, lineHeight: 1.4, color: "#e8d9b5", marginTop: 3 }}>{hud.radioCall.line}</div>
           </div>
         </div>
       )}
@@ -37655,6 +37888,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
             {hud.atStaff && btn("RECRUIT", hud.squadN + "/2 with you", () => G.recruitFn && G.recruitFn(), null, false)}
             {hud.atSquad && btn("DISMISS", "send back", () => G.dismissFn && G.dismissFn(), null, false)}
             {hud.atDet && btn(hud.atDet.nm, "talk", () => G.pickOpen && G.pickOpen("det:" + hud.atDet.id), null, false)}
+            {hud.atHouse && btn(hud.atHouse.nm.split(" ").pop(), "talk", () => G.pickOpen && G.pickOpen("house:" + hud.atHouse.id), null, false)}
             {hud.ramosCar && btn("RAMOS", hud.autoOn ? "take the wheel" : "you drive",
               () => { if (G.current.auto) { G.current.auto = null; } else G.pickOpen && G.pickOpen("drive"); }, null, hud.autoOn)}
             {btn("BOOK", hud.bookOpen ? "shut it" : (hud.bookN || 0) + " names",
