@@ -1596,6 +1596,46 @@ const PD_SOLID = { mg_table: 1, mg2_table: 1, mg_drawers: 1, mg2_drawers: 1, mg_
    at once. A car's number is its parish and its slot -- 31 is the first car in parish 3 -- painted
    on the roof so it reads from above, the way a helicopter reads it. */
 const BEAT = { perParish: 5, chance: 0.22 };
+/* THE GUMBALL. The unmarked cars carry a magnetic red dome on the roof -- dark when it is just a
+   car, spinning red when he needs the road. Where on the roof it sits is a fraction of the body. */
+const vehModel = (v) => (v && (v.m || v.skin)) || null;
+/* THE COURT. Three judges, three Assistant Attorneys General and the District Attorney, each a
+   portrait and a hip-cut figure; the courtroom's fittings; the wood floor. A judge and a prosecutor
+   change the maths of a trial:
+     weak / strong / stat -- how much a piece of evidence, a hard one, and a witness statement is worth
+     start                -- where the jury leans before anybody speaks
+     strongX / crossX     -- the prosecutor's hand: forensics, or answering the defence */
+const JUDGES = [
+  { id: "oconnell", nm: "JUDGE O'CONNELL", note: "Iron Maggie. Weak evidence counts for little in her room.", weak: 0.6, strong: 1.0, stat: 0.6, start: 0 },
+  { id: "banks",    nm: "JUDGE BANKS",     note: "Patient. He lets a good witness carry a case.",            weak: 1.0, strong: 1.0, stat: 1.5, start: 6 },
+  { id: "voss",     nm: "JUDGE VOSS",      note: "Old guard, and they say the Vances own him. Only hard proof survives.", weak: 0.6, strong: 0.9, stat: 0.7, start: -15 },
+];
+const AAGS = [
+  { id: "price",   nm: "AAG PRICE",   note: "eats weak defences alive",       start: 8, strongX: 1.0, crossX: 1.0 },
+  { id: "ellison", nm: "AAG ELLISON", note: "lives and dies by the forensics", start: 0, strongX: 1.3, crossX: 1.0 },
+  { id: "ruiz",    nm: "AAG RUIZ",    note: "used to be a public defender",     start: 0, strongX: 1.0, crossX: 1.3 },
+];
+const TRIAL = { rounds: 6, clock: 14, guilty: 60, miss: 8, recall: 10, firm: 7 };
+const CT_KEYS = ["ct_bench", "ct_witness", "ct_jury", "ct_counsel", "ct_pew", "ct_rail_gate", "ct_rail_long", "ct_steno",
+                 "ct_evidence", "ct_easel", "ct_flag", "ct_podium"];
+const CT_SOLID = { ct_bench: 1, ct_witness: 1, ct_jury: 1, ct_counsel: 1, ct_pew: 1, ct_steno: 1, ct_evidence: 1, ct_podium: 1 };
+/* THE DEFENCE. Ace Sterling costs money, so only a defendant with money gets him -- a made man,
+   somebody on a crew's payroll, or one of the few citizens who can write that cheque. The rest
+   draw whoever the court appoints, and each makes a trial hard in a different way. */
+const DEFENSE = [
+  { id: "sterling",   nm: "ARTHUR 'ACE' STERLING", rich: 1, note: "The expensive one. The jury likes him.", start: -12, missX: 1.5, firmX: 1.0, strongX: 1.0 },
+  { id: "jenkins",    nm: "BRENDA 'BULL' JENKINS", note: "Fierce. She goes at the arrest itself.", start: -4, missX: 1.2, firmX: 0.7, strongX: 1.0, procMore: 1 },
+  { id: "washington", nm: "MARCUS 'THE BRAIN' WASHINGTON", note: "Meticulous. He picks holes in the lab work.", start: -6, missX: 1.0, firmX: 1.0, strongX: 0.8 },
+  { id: "rossi",      nm: "ISABELLA 'BELLA' ROSSI", note: "Strategic. She never gives you time to think.", start: -5, missX: 1.0, firmX: 1.0, strongX: 1.0, clock: 10 },
+];
+/* Registered under the lists themselves: up with the rest of the police art this ran before
+   CT_KEYS existed and threw on load. */
+for (const k of CT_KEYS) PD_ART[k] = "assets/court/" + k + ".png";
+for (const k of ["oconnell", "banks", "voss", "price", "ellison", "ruiz", "whitcomb",
+                 "sterling", "jenkins", "washington", "rossi"]) {
+  PD_ART["yt_" + k] = "assets/heroes/yt_" + k + ".png"; PD_ART["pt_" + k] = "assets/heroes/pt_" + k + ".png"; }
+const GUMBALL = { cars: { pd_malcolm_car: 1, pd_unmarked: 1, pd_car_okafor: 1, pd_car_morrow: 1, pd_car_hayashi: 1, pd_car_delgado: 1 },
+                  at: [-0.22, -0.06], r: 5, yieldR: 480 };
 /* ---------- MALCOLM'S KIT ----------
    Ramos walks with him, rides with him, drives when he asks and carries a service pistol. His car
    has a trunk and a radio. The radio brings one, two or three cars (two officers each), a SWAT van
@@ -1655,7 +1695,7 @@ for (let i = 1; i <= 51; i++) {
 const TEX = {};
 for (const k of ["tx_platform", "tx_track", "tx_terrazzo", "tx_deckplate",
                  "tx_lino", "tx_edgeline", "tx_el_station",
-                 "tx_gymfloor", "tx_gymmat", "tx_carpark", "tx_dancefloor", "tx_dg_floor"])
+                 "tx_gymfloor", "tx_gymmat", "tx_carpark", "tx_dancefloor", "tx_dg_floor", "tx_court_wood"])
   TEX[k] = "assets/tex/" + k + ".png";
 /* THE ROSTER'S OWN FOLDER. These eleven keys were scattered across assets/youth/ and
    assets/sov/ -- Eclipse's two lived with the Sovereign art for no reason other than the
@@ -4719,6 +4759,7 @@ function floorKind(b, f) {
      force room, and the street level -- the entry floor -- the lobby, briefing, evidence,
      captain, break room, lockers and bathrooms. */
   if (b.kind === "coffeeshop") return "dgfloor";
+  if (b.kind === "courthouse") return "courtroom";
   if (b.kind === "precinct" && b.pd) return f === 0 ? "pd_garage" : f === 1 ? "pd_lower" : "pd_main";
   if (b.kind === "precinct") return f === 0 ? "precinct" : "offices";
   if (b.kind === "cityhall") return f === 0 ? "cityhall" : "offices";
@@ -4928,6 +4969,8 @@ function makeFloor(b, f, rnd) {
        which is four small rooms rather than a venue -- you could not see the band from the
        bar. The furniture still zones it; the walls were the problem. */
     hub = put(0, 0, GX - 1, GY - 1, "vnstage");
+  } else if (kind === "courtroom") {
+    hub = put(0, 0, GX - 1, GY - 1, "court");
   } else if (kind === "dgfloor") {
     hub = put(0, 0, GX - 1, GY - 1, "dgcafe");
   } else if (kind === "morgue") {
@@ -5556,7 +5599,7 @@ function makeFloor(b, f, rnd) {
 
   /* --- stairwell in the hub (the den is single-storey, it gets no stair at all) --- */
   const hr = rect(rooms[hub]);
-  const st = kind === "den" || kind === "dgfloor"          // one storey: no stairs going nowhere
+  const st = kind === "den" || kind === "dgfloor" || kind === "courtroom"   // one storey: no stairs going nowhere
     ? { x: -9999, y: -9999, w: 0, h: 0 }
     /* The hub rule puts the stair in the middle of the room, and the middle of a gym is the ring. */
     : kind === "pd_garage"
@@ -5735,6 +5778,7 @@ function makeFloor(b, f, rnd) {
        carries its own tile size rather than taking the 604px marble scale. */
     if (kind === "gymfloor") { r.floorTex = "tx_gymfloor"; r.texTile = b.w / 3; }
     if (kind === "dgfloor") { r.floorTex = "tx_dg_floor"; r.texTile = 88; }
+    if (kind === "courtroom") { r.floorTex = "tx_court_wood"; r.texTile = 320; }
     if (b && b.nf && !r.floorTex)
       r.floorTex = r.k === "bath" ? "tx_lino" : f === 0 ? (b.rochelle ? "tx_marble" : "tx_tr_carpet") : "tx_terrazzo";
     // the tower's own finishes, per floor, as TOWER already said -- marble on the twins' floors stays
@@ -7107,6 +7151,34 @@ function makeFloor(b, f, rnd) {
       place("pdbath", 0, 0.5, 0.78, "sink", 20, 18);
       place("pdlobby", 0, 0.85, 0.72, "pd_prints", 32, 32);
     }
+  }
+  /* THE COURTROOM, laid out the way a courtroom is: the bench and its flags on the north wall
+     with the witness box beside it and the stenographer below; the jury down the east wall; the
+     evidence table and the easel on the west; the two counsel tables facing the bench; the rail
+     with its gate; and the pews down to the south door. The rails are not solid -- you walk the
+     gate -- and nothing stands in the aisle. */
+  if (kind === "courtroom") {
+    const hitR = (a2, q) => a2.x < q.x + q.w && q.x < a2.x + a2.w && a2.y < q.y + q.h && q.y < a2.y + a2.h;
+    const r = rect(rooms[0]);
+    const blocked = (q) => walls.some((w) => hitR(q, w)) || props.some((o) => hitR(q, o)) ||
+      doorMarks.some((d) => hitR(q, { x: d.x - 46, y: d.y - 46, w: 92, h: 92 }));
+    const place = (fx, fy, t, w, h, fixed) => {
+      const tx = r.x0 + (r.x1 - r.x0) * fx - w / 2, ty = r.y0 + (r.y1 - r.y0) * fy - h / 2;
+      if (fixed) { props.push({ x: tx, y: ty, w, h, t }); return; }
+      for (let rad = 0; rad <= 70; rad += 6) for (let a2 = 0; a2 < (rad ? 12 : 1); a2++) {
+        const q = { x: tx + Math.cos(a2 * 0.5236) * rad, y: ty + Math.sin(a2 * 0.5236) * rad, w, h, t };
+        if (q.x < r.x0 + WT + 2 || q.y < r.y0 + WT + 2 || q.x + w > r.x1 - WT - 2 || q.y + h > r.y1 - WT - 2) continue;
+        if (!blocked(q)) { props.push(q); return; }
+      }
+    };
+    place(0.50, 0.12, "ct_bench", 130, 58); place(0.35, 0.10, "ct_flag", 14, 42); place(0.65, 0.10, "ct_flag", 14, 42);
+    place(0.76, 0.14, "ct_witness", 52, 50); place(0.50, 0.33, "ct_steno", 60, 36); place(0.22, 0.15, "ct_podium", 30, 34);
+    place(0.89, 0.40, "ct_jury", 108, 58); place(0.11, 0.38, "ct_evidence", 80, 52); place(0.11, 0.56, "ct_easel", 44, 44);
+    place(0.34, 0.50, "ct_counsel", 84, 52); place(0.64, 0.50, "ct_counsel", 84, 52);
+    // the rail across the room, its gate on the aisle
+    const railY = 0.66;
+    place(0.50, railY, "ct_rail_gate", 150, 30, true); place(0.20, railY, "ct_rail_long", 150, 22, true); place(0.80, railY, "ct_rail_long", 150, 22, true);
+    for (let k = 0; k < 3; k++) { place(0.25, 0.75 + k * 0.08, "ct_pew", 170, 30); place(0.75, 0.75 + k * 0.08, "ct_pew", 170, 30); }
   }
   /* THE DAILY GRIND, furnished: the counter side along the back wall -- espresso, grinders, the
      donut case, the cup shelf and the fridges -- and the tables, booths and stools out front. */
@@ -9473,8 +9545,10 @@ export default function IronLionLayer004() {
     const dCar = Math.hypot(g.p.x - g.car.x, g.p.y - g.car.y);
     const dMoto = Math.hypot(g.p.x - g.moto.x, g.p.y - g.moto.y);
     const dCiv = Math.hypot(g.p.x - g.civ.x, g.p.y - g.civ.y);
-    const carOK = dCar < 170 && !g.car.sunk;
-    const motoOK = dMoto < 150 && !g.moto.sunk;
+    /* Malcolm does not drive the Lion's car or ride his bike: in detective mode those two are not
+       his, and pressing E beside his own unmarked car kept putting him in the Grand National. */
+    const carOK = !g.detMode && dCar < 170 && !g.car.sunk;
+    const motoOK = !g.detMode && dMoto < 150 && !g.moto.sunk;
     const civOK = dCiv < 170 && !g.civ.sunk;
     // whichever is actually nearest among the ones in reach
     const opts = [];
@@ -9545,6 +9619,11 @@ export default function IronLionLayer004() {
     }
     g.traffic.splice(g.traffic.indexOf(best), 1);
     g.mode = "car"; g.hint = 0;
+    /* His own car is now this body: the trunk, the radio and the gumball follow it here. And a
+       detective getting into a police car is not a car theft. */
+    const ownCar = best === g.detCar || (g.detMode && /cruiser|^pd_/.test((best.m && best.m.k) || ""));
+    if (best === g.detCar) g.detCar = g.car;
+    if (ownCar) return true;
     // people saw that -- though a man in plain clothes taking a car is just a car thief
     g.suspicion = Math.min(100, g.suspicion + (g.plain ? 5 : 12));
     G.current.pickupFlash = { nm: "took_a_car", t: 1.8 };
@@ -11109,8 +11188,27 @@ export default function IronLionLayer004() {
       if (t === "counterfeit") { revealNext(C); return "FAKE BILLS: traced to where they're being passed."; }
       return "";
     }
+    /* With the light on, the siren wails and the cars in front of him pull back and let him
+       through. Leaving an unmarked car -- or getting into anything else -- turns it off. */
+    function stepGumball(dt) {
+      const v = inVehicle() ? activeVeh() : null;
+      if (g.gumball && (!v || !vehModel(v) || !GUMBALL.cars[vehModel(v).k])) g.gumball = false;
+      if (!g.mySiren && g.gumball) g.mySiren = sirenVoice();
+      if (g.mySiren) updateSiren(g.mySiren, dt, 0, !!g.gumball && !g.paused);
+      if (!g.gumball || !v) return;
+      const sp = Math.hypot(v.vx || 0, v.vy || 0) || Math.abs(v.fwd || 0) || g.autoSpd || 0;
+      if (sp < 60) return;
+      const hx = Math.cos(v.ang), hy = Math.sin(v.ang);
+      for (const t of g.traffic) {
+        if (t === v || t.dead || t.bus) continue;
+        const dx = t.x - v.x, dy = t.y - v.y, ahead = dx * hx + dy * hy, side = Math.abs(dx * -hy + dy * hx);
+        if (ahead > 0 && ahead < GUMBALL.yieldR && side < 90) { t.spd = Math.min(t.spd, 40); t.yieldT = 2; }
+      }
+    }
+    G.gumballFn = () => { g.gumball = !g.gumball; setHud((h) => ({ ...h, gumball: g.gumball })); };
     function stepCase(dt) {
-      stepPartner(dt); stepAutopilot(dt); stepBackup(dt); stepCasings(dt); stepSquad(dt);
+      stepTrial(dt);
+      stepPartner(dt); stepAutopilot(dt); stepBackup(dt); stepCasings(dt); stepSquad(dt); stepGumball(dt);
       const D = detectives();
       if (g.detStart && D) {
         g.detStart = false;
@@ -11219,6 +11317,11 @@ export default function IronLionLayer004() {
       const pend = C.lab.filter((L) => !L.done);
       const lab = pend.length ? " \u00b7 LAB " + pend.length + " (" + Math.ceil(Math.min(...pend.map((L) => L.left)) / 60) + "m)" : "";
       if (!C.atScene) return { head: "CASE \u00b7 " + C.K.nm, n: to(C.scene[0], C.scene[1]) + "m", sub: "GO TO THE SCENE \u00b7 " + C.where, x: C.scene[0], y: C.scene[1] };
+      if (C.stage === "trial") {
+        const cb = courtB(); const dp = cb ? doorPoint(cb) : [0, 0];
+        return { head: "CASE \u00b7 TRIAL", n: g.inside === cb ? "IN COURT" : to(dp[0], dp[1]) + "m", x: dp[0], y: dp[1] + 40,
+                 sub: "THE COURTHOUSE \u00b7 " + (C.trial ? C.trial.judge.nm + " PRESIDING" : "") + " \u00b7 TAKE THE STAND" };
+      }
       if (C.stage === "custody" && D) {
         const bx = D.b.x + D.b.w / 2, by = D.b.y + D.b.h / 2;
         return { head: "CASE \u00b7 INTERROGATE", n: (g.inside === D.b ? "B1" : to(bx, by) + "m"), x: bx, y: by, sub: C.arrest.name + " \u00b7 HOLDING, B1" };
@@ -11365,6 +11468,179 @@ export default function IronLionLayer004() {
       if (g.partner) { g.partner.x = t.x + 40; g.partner.y = t.y + 26; g.partner.inCar = false; }
       g.pickupFlash = { nm: "lift:" + t.label, t: 2 };
     };
+    /* ---------------- THE COURT ----------------
+       The courthouse at 14,5. Its people stand where the room puts them -- the judge behind the
+       bench, the prosecutor at the left table, the defence at the right, the bailiff at his
+       podium, twelve in the jury box, a few in the pews, and the DA in the front row when there
+       is a trial. */
+    function courtB() {
+      const m = MARKS.find((q) => q.k === "ct_courthouse");
+      return m && m.b && m.b.kind === "courthouse" ? m.b : null;
+    }
+    function courtSpots(b) {
+      if (b.courtSpots) return b.courtSpots;
+      const pl = buildingPlans(b)[0], P = (t) => pl.props.filter((q) => q.t === t);
+      const bench = P("ct_bench")[0], wit = P("ct_witness")[0], tabs = P("ct_counsel").sort((a2, c) => a2.x - c.x),
+            jury = P("ct_jury")[0], pod = P("ct_podium")[0], pews = P("ct_pew");
+      const c = (q, dx, dy) => q ? [q.x + q.w / 2 + (dx || 0), q.y + q.h / 2 + (dy || 0)] : null;
+      return (b.courtSpots = {
+        judge: bench && [bench.x + bench.w / 2, bench.y + 8], witness: wit && [wit.x + wit.w / 2, wit.y + wit.h / 2 + 4],
+        pros: tabs[0] && c(tabs[0], -18, tabs[0].h / 2 + 16), pros2: tabs[0] && c(tabs[0], 20, tabs[0].h / 2 + 16),
+        def: tabs[1] && c(tabs[1], -18, tabs[1].h / 2 + 16), def2: tabs[1] && c(tabs[1], 20, tabs[1].h / 2 + 16),
+        bailiff: pod && c(pod, 0, pod.h / 2 + 14),
+        jury: jury ? [0, 1, 2, 3, 4, 5].map((k) => [jury.x + 16 + (k % 3) * ((jury.w - 32) / 2), jury.y + 14 + ((k / 3) | 0) * 22]) : [],
+        gallery: pews.slice(0, 4).map((q) => c(q, (Math.random() - 0.5) * 60, 4)),
+        da: pews[0] && c(pews[0], 40, -2),
+      });
+    }
+    function courtPeople(b) {
+      if (b.courtPpl) return b.courtPpl;
+      const S = courtSpots(b), ppl = [];
+      const civ = (xy, extra) => xy && ppl.push({ x: xy[0], y: xy[1], vx: 0, vy: 0, anim: Math.random() * 6, jit: 0.95, civ: pickCiv(), mode: "idle", ...extra });
+      for (const j of S.jury) civ(j, { juror: 1 });
+      for (const q of S.gallery) civ(q, {});
+      if (S.bailiff) ppl.push({ x: S.bailiff[0], y: S.bailiff[1], vx: 0, vy: 0, anim: 0, jit: 1, state: "idle", rank: DUTY_SGT, cop: 1, label: "BAILIFF" });
+      return (b.courtPpl = ppl);
+    }
+    /* Who sits where right now: a trial brings its own judge, prosecutor, defendant and the DA;
+       otherwise a judge on the bench and a prosecutor going over her notes. */
+    function courtCast(b) {
+      const S = courtSpots(b), C = g.case, T = C && (C.stage === "trial") && C.trial;
+      const judge = T ? T.judge : JUDGES[(Math.floor(Date.now() / 600000)) % 3];
+      const aag = T ? T.aag : AAGS[(Math.floor(Date.now() / 600000) + 1) % 3];
+      const cast = [];
+      const add = (xy, yt, label, bang) => xy && cast.push({ x: xy[0], y: xy[1], vx: 0, vy: 0, anim: 0, jit: 1.02, yt, label, bang: bang == null ? -Math.PI / 2 : bang });
+      add(S.judge, "yt_" + judge.id, judge.nm, Math.PI / 2);
+      add(S.pros, "yt_" + aag.id, aag.nm);
+      if (T) {
+        add(S.da, "yt_whitcomb", "DA WHITCOMB");
+        const q = C.arrest && C.arrest.q;
+        if (q && S.def) { q.x = S.def[0]; q.y = S.def[1]; cast.push({ ped: q, label: C.arrest.name }); }
+        add(S.def2, "yt_" + T.def.id, T.def.nm.replace(/ '[^']*'/, "").split(" ").pop());
+      }
+      return cast;
+    }
+    const RICH_CREWS = { deuce: 1, mob_old: 1, sec: 1, vance: 1 };
+    function richDefendant(C) {
+      const q = C.arrest && C.arrest.q;
+      if (q && (RICH_CREWS[q.gang] || RICH_CREWS[(q.crew || {}).gang])) return true;
+      const id = (C.arrest && C.arrest.no) || "";
+      let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+      return Math.abs(h) % 100 < 12;                    // a few citizens can write that cheque
+    }
+    function trialFor(C) {
+      if (!C.trial) {
+        const rich = richDefendant(C);
+        C.trial = { judge: JUDGES[(Math.random() * 3) | 0], aag: AAGS[(Math.random() * 3) | 0],
+                    def: rich ? DEFENSE[0] : DEFENSE[1 + ((Math.random() * 3) | 0)], rich };
+      }
+      return C.trial;
+    }
+    function sendToTrial(C, why) {
+      trialFor(C);
+      C.stage = "trial";
+      C.lines.push("TRIAL: " + C.arrest.name + ". " + C.trial.judge.nm + " presiding, " + C.trial.aag.nm + " for the People, " +
+                   C.trial.def.nm + " defending." + (C.trial.rich ? " He can afford him." : "") + (why ? " " + why : ""));
+      g.jobBanner = "SET FOR TRIAL \u00b7 " + C.trial.judge.nm;
+      g.jobNote = "The courthouse. Take the stand in the witness box.";
+    }
+    G.trialSendFn = () => { const C = g.case; if (C && C.stage === "custody") sendToTrial(C); };
+    function nearStand() {
+      const b = courtB(), C = g.case;
+      if (!b || g.inside !== b || g.mode !== "foot" || !C || C.stage !== "trial" || g.trialRun) return false;
+      const S = courtSpots(b); return !!S.witness && Math.hypot(g.p.x - S.witness[0], g.p.y - S.witness[1]) < 90;
+    }
+    /* THE STAND. The People ask, the defence attacks; every question on a clock. */
+    const TOPIC_Q = {
+      there: ["what put the defendant at the scene", "Nothing puts my client at that scene, does it, detective?"],
+      seen: ["what the witnesses told you", "Your witnesses never picked my client out, did they?"],
+      weapon: ["what the lab said about the weapon", "You never found a weapon on my client."],
+      clothes: ["what you found on the clothing", "Half this city owns a jacket like that."],
+      car: ["what the tyre marks told you", "Half this city drives that car."],
+      money: ["about the counterfeit bills", "My client never touched a counterfeit bill in his life."],
+      procedure: ["", "Isn't it true you arrested my client on a hunch, detective?"],
+    };
+    function startTrial() {
+      const C = g.case; if (!C || C.stage !== "trial") return;
+      const T = trialFor(C), J = T.judge, A = T.aag, D = T.def, held = evidenceHeld(C), inn = !C.arrest.isPerp;
+      const worth = (e) => e.id === "statements" ? e.s * J.stat : e.s >= INTERRO.strong ? e.s * J.strong * A.strongX * D.strongX : e.s * J.weak;
+      // 35 and a half-weight answer left a four-exhibit case unwinnable in front of Voss even
+      // when every answer was right; he should be hard, not impossible
+      let jury = inn ? 20 + J.start + D.start : 40 + held.reduce((a2, e) => a2 + worth(e), 0) * 0.4 + J.start + A.start + D.start;
+      jury = clamp(jury, 5, 80);
+      // alternate: the People lead, the defence attacks
+      const tops = held.map((e) => e.topic).filter((t, i, a2) => a2.indexOf(t) === i);
+      const qs = [];
+      for (let k = 0; k < TRIAL.rounds; k++) {
+        const direct = k % 2 === 0;
+        const proc = D.procMore ? ["procedure", "procedure", "procedure"] : ["procedure", "procedure"];
+        let t = direct ? (tops[(k / 2) % Math.max(1, tops.length) | 0] || "there")
+                       : cpick(tops.concat(proc, [cpick(["weapon", "car", "money", "clothes"])]));
+        qs.push({ direct, topic: TOPIC_Q[t] ? t : "there" });
+      }
+      g.trialRun = { jury, qs, i: 0, used: {}, held, worth, clock: D.clock || TRIAL.clock, t: D.clock || TRIAL.clock, reply: "", done: null };
+      const S = courtSpots(courtB()); if (S.witness) { g.p.x = S.witness[0]; g.p.y = S.witness[1]; }
+      setHud((h) => ({ ...h, trial: trialPanel() }));
+    }
+    function trialPanel() {
+      const R = g.trialRun, C = g.case; if (!R || !C) return null;
+      const T = C.trial, q = R.qs[Math.min(R.i, R.qs.length - 1)];
+      const who = q.direct ? T.aag.nm : T.def.nm;
+      const text = R.done ? R.done : q.direct ? who + ": Detective, tell the jury " + TOPIC_Q[q.topic][0] + "." : who + ": " + TOPIC_Q[q.topic][1];
+      const opts = R.done ? [{ id: "leave", label: "STEP DOWN" }]
+        : R.held.filter((e) => !R.used[e.id]).map((e) => ({ id: "ev:" + e.id, label: "EXHIBIT \u00b7 " + e.label + (e.s >= INTERRO.strong ? " \u2605" : "") }))
+            .concat([{ id: "firm", label: "STAND FIRM" }, { id: "recall", label: "I DON'T RECALL" }]);
+      return { title: "THE PEOPLE v. " + C.arrest.name, sub: T.judge.nm + " \u00b7 " + T.aag.nm + " v " + T.def.nm.replace(/'[^']*' /, ""),
+               face: "assets/heroes/pt_" + (R.done ? "whitcomb" : q.direct ? T.aag.id : T.def.id) + ".png",
+               jury: Math.round(R.jury), clock: R.done ? null : Math.ceil(R.t), q: R.i + 1, n: R.qs.length, text, reply: R.reply, opts };
+    }
+    function trialAnswer(id) {
+      const R = g.trialRun, C = g.case; if (!R || R.done || !C) return;
+      const q = R.qs[R.i], A = C.trial.aag, D = C.trial.def, inn = !C.arrest.isPerp, mult = q.direct ? 1 : A.crossX;
+      const haveTopic = R.held.some((e) => e.topic === q.topic);
+      let d = 0, reply = "";
+      if (id.startsWith("ev:")) {
+        const e = R.held.find((z) => z.id === id.slice(3)); R.used[e.id] = true;
+        // scaled: at full worth one strong exhibit pinned the jury at 100 by the second question
+        if (!inn && e.topic === q.topic) { d = R.worth(e) * mult * 0.7; reply = "The jury writes that down."; }
+        else { d = -TRIAL.miss * (q.direct ? 1 : D.missX); reply = inn ? "It doesn't fit him. Somebody in the jury box frowns." : "\"Objection -- relevance.\" \"Sustained.\""; }
+      } else if (id === "firm") {
+        if (q.topic === "procedure") { d = TRIAL.firm * mult * D.firmX; reply = "You don't blink. The defence moves on."; }
+        else if (!haveTopic) { d = 2; reply = "Steady. It doesn't win anything, but it doesn't lose anything."; }
+        else { d = -3; reply = "You had something for that, and you didn't use it."; }
+      } else { d = -TRIAL.recall; reply = "\"The detective doesn't recall.\" The defence lets that hang."; }
+      R.jury = clamp(R.jury + d, 0, 100); R.reply = reply;
+      R.i++; R.t = R.clock;
+      if (R.i >= R.qs.length) trialVerdict();
+      setHud((h) => ({ ...h, trial: trialPanel() }));
+    }
+    function trialVerdict() {
+      const R = g.trialRun, C = g.case, A = C.arrest, guilty = R.jury >= TRIAL.guilty;
+      if (guilty) {
+        const pay = CASE.pay[0] + CASE.pay[1] + 120;
+        g.p.cash = (g.p.cash || 0) + pay;
+        R.done = "GUILTY. WHITCOMB: \"That one's going on a poster, detective.\"";
+        g.jobBanner = "GUILTY \u00b7 " + A.name; g.jobNote = C.K.nm + " \u00b7 " + C.trial.judge.nm + " \u00b7 $" + pay;
+        C.lines.push("VERDICT: GUILTY. " + A.name + ".");
+      } else {
+        const perp = identOf(C.perp);
+        R.done = "NOT GUILTY." + (A.isPerp ? " He walks out the front door." : " And it wasn't him -- it was " + perp.name + ".");
+        g.jobBanner = "NOT GUILTY \u00b7 " + A.name; g.jobNote = A.isPerp ? "The jury wasn't convinced." : "It was " + perp.name + ".";
+        C.lines.push("VERDICT: NOT GUILTY. " + A.name + ".");
+      }
+      C.stage = "done"; C.doneAt = Date.now();
+      g.book.cases = g.book.cases || []; g.book.cases.unshift({ title: C.K.nm, lines: C.lines.slice(), right: guilty });
+    }
+    function stepTrial(dt) {
+      const R = g.trialRun; if (!R || R.done) return;
+      R.t -= dt;
+      if (R.t <= 0) trialAnswer("recall");     // the clock ran out: the jury heard nothing
+    }
+    G.trialFn = () => startTrial();
+    G.trialPick = (id) => {
+      if (id === "leave") { g.trialRun = null; setHud((h) => ({ ...h, trial: null })); return; }
+      trialAnswer(id);
+    };
     /* ---------------- THE INTERVIEW ROOM ----------------
        He is in holding on B1. A confession bar starts filled by what you can put on the table --
        15 for a piece of evidence, 30 for the strong kind (DNA, prints on file) -- and drains the
@@ -11382,7 +11658,10 @@ export default function IronLionLayer004() {
       money: ["FUNNY MONEY? NEVER SEEN IT."],
     };
     const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook: "there", ballistics: "weapon",
-                       fibres: "clothes", tyres: "car", counterfeit: "money" };
+                       fibres: "clothes", tyres: "car", counterfeit: "money",
+                       // the trail's other lead items are "he was there" evidence too; without these
+                       // the defence asked about `undefined` and the panel threw
+                       phonebook: "there", receipt: "there" };
     // what can go on the table: everything bagged and back from the lab, and what people said
     function evidenceHeld(C) {
       const out = [];
@@ -11391,7 +11670,7 @@ export default function IronLionLayer004() {
         const E = EVIDENCE[e.t], L = C.lab.find((l) => l.t === e.t);
         if (E.lab && !(L && L.done)) continue;          // still at the lab, or never handed in
         const strong = e.t === "dna" || (e.t === "prints" && C.onFile);
-        out.push({ id: e.t, label: E.nm, topic: EV_TOPIC[e.t], s: strong ? INTERRO.strong : INTERRO.weak });
+        out.push({ id: e.t, label: E.nm, topic: EV_TOPIC[e.t] || "there", s: strong ? INTERRO.strong : INTERRO.weak });
       }
       if (C.statements) out.push({ id: "statements", label: "STATEMENTS (" + C.statements + ")", topic: "seen", s: INTERRO.weak });
       return out;
@@ -11444,6 +11723,13 @@ export default function IronLionLayer004() {
         g.jobBanner = "CONFESSION \u00b7 CASE CLOSED"; g.jobNote = C.K.nm + " \u00b7 " + A.name + " \u00b7 $" + pay;
         g.caseLast = A.name + " gave it up. The captain signs off on $" + pay + ". Nice work, Malcolm.";
         C.lines.push("CONFESSED: " + A.name + ".");
+      } else if (A.isPerp) {
+        /* He did it and would not say so: the DA takes it to trial instead of letting it go. */
+        const P2 = A.sex === "f" ? "SHE" : "HE";
+        I.done = P2 + " LAWYERED UP. THE DA'S TAKING IT TO TRIAL.";
+        sendToTrial(C, "No confession.");
+        setHud((h) => ({ ...h, interro: interroPanel() }));
+        return;
       } else {
         const P2 = A.sex === "f" ? "SHE" : "HE";
         I.done = A.isPerp ? P2 + " LAWYERED UP." : P2 + " WALKS.";
@@ -11641,6 +11927,17 @@ export default function IronLionLayer004() {
       for (const u of g.squad || []) if (!u.inCar && inView(u) && (!g.inside || u.bldOf === g.inside)) out.push([u.y, 9, { __draw: () => {
         drawShadow(u.x, u.y + 2, 10, 4, 0.3); drawCop(u);
         if (u.muzzle > 0) { ctx.fillStyle = "rgba(255,214,120,0.9)"; ctx.beginPath(); ctx.arc(u.x + Math.cos(u.bang || 0) * 16, u.y + Math.sin(u.bang || 0) * 16, 4, 0, 6.283); ctx.fill(); } } }]);
+      const CB = courtB();
+      if (CB && g.inside === CB) {
+        for (const o of courtPeople(CB)) out.push([o.y, 9, { __draw: () => { o.anim += 0.01; drawShadow(o.x, o.y + 2, 9, 4, 0.3);
+          if (o.cop) { drawCop(o); ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "rgba(232,217,181,0.8)";
+            ctx.fillText(o.label, o.x, o.y - 22); ctx.textAlign = "start"; } else drawPed(o); } }]);
+        for (const c of courtCast(CB)) out.push([c.y || (c.ped && c.ped.y) || 0, 9, { __draw: () => {
+          const q = c.ped || c; drawShadow(q.x, q.y + 2, 10, 4, 0.3);
+          if (c.ped) { if (q.civ) drawPed(q); } else drawYouth(c);
+          ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = c.ped ? "rgba(255,180,140,0.9)" : "rgba(232,217,181,0.85)";
+          ctx.fillText(c.label, q.x, q.y - 24); ctx.textAlign = "start"; } }]);
+      }
       if (g.inside && g.inside.dg) for (const o of dgPeople(g.inside)) out.push([o.y, 9, { __draw: () => {
         o.anim += 0.012;
         drawShadow(o.x, o.y + 2, 9, 4, 0.3);
@@ -11769,6 +12066,7 @@ export default function IronLionLayer004() {
           out.push({ id: "stop", label: LEAD_KIND[st.kind].nm + " \u00b7 " + st.where.toUpperCase(), x: st.x, y: st.y }); }
       }
       if (b) out.push({ id: "station", label: "THE STATION", x: b.x + b.w / 2, y: b.y + b.h + 120 });
+      { const cb = courtB(); if (cb) { const dp = doorPoint(cb); out.push({ id: "court", label: "THE COURTHOUSE", x: dp[0], y: dp[1] + 70 }); } }
       for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
         const c = getCell(i, j), h = c && (c.blds || []).find((q) => q.kind === "hospital");
         if (h) { out.push({ id: "morgue", label: "THE MORGUE", x: h.x + h.w / 2, y: h.y + h.h + 120 }); i = N; break; }
@@ -12200,6 +12498,8 @@ export default function IronLionLayer004() {
                    : "Got one if you want it. Somebody got hurt and nobody's looking."),
                  opts: [{ id: "take", label: "TAKE IT" }, { id: "close", label: "NOT NOW" }] };
       }
+      if (C.stage === "trial") return { who, text: "Trial's set. " + (C.trial ? C.trial.judge.nm + " presiding -- " + C.trial.judge.note : "") + " Get to the courthouse and take the stand.",
+        opts: [{ id: "close", label: "ON MY WAY" }] };
       if (C.stage === "custody") return { who, text: C.arrest.name + "'s in holding on B1. Go get it out of him.",
         opts: [{ id: "close", label: "ON MY WAY" }] };
       const labDone = C.lab.filter((L) => L.done).length, labAll = C.lab.length;
@@ -12222,7 +12522,8 @@ export default function IronLionLayer004() {
        actually undone, in the order a detective would do them. */
     function ramosTip(C) {
       if (!C || C.stage === "done") return "Nothing open. Dispatch'll have something.";
-      if (C.stage === "custody") return C.arrest.name + "'s in holding. Get in that room, and bring your evidence.";
+      if (C.stage === "custody") return C.arrest.name + "'s in holding. Question him -- or if the evidence is strong, send it straight to trial.";
+      if (C.stage === "trial") return "Courthouse. On the stand, answer what they ask with the exhibit that fits. Stand firm when they attack the arrest.";
       if (!C.atScene) return "Scene first. Everything starts at " + C.where + ".";
       const left = C.ev.filter((e) => !e.got && (e.stop == null || e.stop <= C.leadIdx));
       if (left.length) return "There's still evidence on the ground -- " + left.length + " piece" + (left.length > 1 ? "s" : "") + ". Walk the markers.";
@@ -12297,6 +12598,32 @@ export default function IronLionLayer004() {
         const k = slots.findIndex((q) => !q || (!g.traffic.includes(q) && !policeCars().includes(q)));
         if (k >= 0) slots[k] = c;
         c.unit = String(g.parishNo[par]) + (k >= 0 ? k + 1 : 9);
+      }
+      // the gumball on every unmarked car in view -- traffic, and whatever he is driving
+      const mine = inVehicle() ? activeVeh() : null;
+      for (const v of mine ? g.traffic.concat([mine]) : g.traffic) {
+        const vm = vehModel(v);
+        if (!v || !vm || !GUMBALL.cars[vm.k] || !Number.isFinite(v.x)) continue;
+        if (v.x < view.x0 - 80 || v.x > view.x1 + 80 || v.y < view.y0 - 80 || v.y > view.y1 + 80) continue;
+        const lit = v === mine && g.gumball;
+        ctx.save(); ctx.translate(v.x, v.y); ctx.rotate((v.ang || 0) + Math.PI / 2);
+        const gx = (vm.w || 50) * GUMBALL.at[0], gy = (vm.len || 118) * GUMBALL.at[1];
+        if (lit) {
+          const t = performance.now() / 1000, pulse = 0.55 + 0.45 * Math.abs(Math.sin(t * 9));
+          // the red wash it throws on the road and the car
+          const wash = ctx.createRadialGradient(gx, gy, 2, gx, gy, 90);
+          wash.addColorStop(0, "rgba(255,40,40," + (0.34 * pulse).toFixed(3) + ")"); wash.addColorStop(1, "rgba(255,40,40,0)");
+          ctx.fillStyle = wash; ctx.beginPath(); ctx.arc(gx, gy, 90, 0, 6.283); ctx.fill();
+          // the beam turning inside the dome
+          const a = t * 11;
+          ctx.fillStyle = "rgba(255,90,80,0.35)"; ctx.beginPath(); ctx.moveTo(gx, gy);
+          ctx.arc(gx, gy, 46, a - 0.35, a + 0.35); ctx.closePath(); ctx.fill();
+        }
+        ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.beginPath(); ctx.arc(gx + 1, gy + 1.5, GUMBALL.r + 1, 0, 6.283); ctx.fill();
+        ctx.fillStyle = lit ? "#ff3b30" : "#6a1612"; ctx.beginPath(); ctx.arc(gx, gy, GUMBALL.r, 0, 6.283); ctx.fill();
+        ctx.fillStyle = lit ? "rgba(255,230,220,0.95)" : "rgba(255,180,170,0.35)";
+        ctx.beginPath(); ctx.arc(gx - 1.5, gy - 1.5, 1.6, 0, 6.283); ctx.fill();
+        ctx.restore();
       }
       for (const v of g.traffic.concat(policeCars())) {
         if (!v || !v.unit || !Number.isFinite(v.x)) continue;
@@ -19225,6 +19552,7 @@ export default function IronLionLayer004() {
        gym kit rather than as anonymous grey. */
     for (const k of GYM_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#5b544a"; }
     // the Daily Grind's fittings and Malcolm's computer
+    for (const k of CT_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#6b4a2e"; if (CT_SOLID[k]) SOLID_PROP[k] = 1; }
     for (const k of DG_KEYS.concat(["pd_computer"])) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#c9a24a"; if (DG_SOLID[k]) SOLID_PROP[k] = 1; }
     // the station, the morgue and the department's cars as props
     for (const k of PD_KEYS.concat(PD_KEYS2, MG_KEYS, CS_KEYS, Object.values(PD_CARS).map((c) => c.k))) {
@@ -29436,6 +29764,8 @@ export default function IronLionLayer004() {
             atTrunk: nearTrunk(), canRadio: canRadio(), pick: g.pickOpen ? pickPanel(g.pickOpen) : null,
             atCarver: !!nearCarver(), atSuspect: nearSuspect(), interro: g.interro ? interroPanel() : null,
             atComputer: nearComputer(), objMin: !!g.objMin,
+            atStand: nearStand(), trial: g.trialRun ? trialPanel() : null,
+            canGumball: !!(inVehicle() && vehModel(activeVeh()) && GUMBALL.cars[vehModel(activeVeh()).k]), gumball: !!g.gumball,
             atStaff: !!nearStaff(), atSquad: !!nearSquad(), squadN: (g.squad || []).length,
             atDet: (() => { const d = nearDet(); return d ? { id: d.id, nm: d.nm.slice(5) } : null; })(),
             ramosCar: !!(g.detMode && inVehicle() && g.partner && g.partner.inCar), autoOn: !!g.auto,
@@ -32544,7 +32874,8 @@ export default function IronLionLayer004() {
         kind: "gym", door: 0.5 },
       { k: "ct_walkup",     i: 1,  j: 0, w: 0.34, h: 0.22 },
       { k: "ct_store",      i: 4,  j: 1, w: 0.24, h: 0.18 },
-      { k: "ct_courthouse", i: 14, j: 5, w: 0.44, h: 0.30 },
+      // THE COURTHOUSE: one great room. The door is on the south, into the gallery.
+      { k: "ct_courthouse", i: 14, j: 5, w: 0.44, h: 0.30, kind: "courthouse", door: 0.5, doorSide: 2 },
       { k: "ct_offices",    i: 13, j: 4, w: 0.36, h: 0.26 },
       { k: "ct_chronicle",  i: 15, j: 6, w: 0.40, h: 0.26 },
       { k: "ct_policehq",   i: 12, j: 5, w: 0.38, h: 0.26 },
@@ -36217,6 +36548,36 @@ export default function IronLionLayer004() {
           </div>
         </div>
       )}
+      {/* THE STAND. Who is asking, the jury, the clock, and what you can say. */}
+      {hud.trial && (
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 91,
+          background: "linear-gradient(transparent, rgba(6,7,9,0.96) 14%)", padding: "30px 16px 18px", fontFamily: mono }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <img src={hud.trial.face} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+              style={{ width: 52, height: 52, objectFit: "cover", imageRendering: "pixelated", borderRadius: "50%" }} />
+            <div>
+              <div style={{ fontSize: 10, letterSpacing: "0.2em", color: "#e8c46a" }}>{hud.trial.title}</div>
+              <div style={{ fontSize: 9, letterSpacing: "0.14em", color: "rgba(232,217,181,0.6)", marginTop: 2 }}>
+                {hud.trial.sub}{hud.trial.clock != null ? "  \u00b7  QUESTION " + hud.trial.q + "/" + hud.trial.n + "  \u00b7  " + hud.trial.clock + "s" : ""}
+              </div>
+            </div>
+          </div>
+          <div style={{ marginTop: 8, height: 12, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(232,217,181,0.3)", maxWidth: 520, position: "relative" }}>
+            <div style={{ height: "100%", width: hud.trial.jury + "%", background: hud.trial.jury >= 60 ? "#6fd08c" : hud.trial.jury > 35 ? "#e8c46a" : "#e05a4a" }} />
+            <div style={{ position: "absolute", left: "60%", top: -3, bottom: -3, width: 2, background: "#e8d9b5" }} />
+          </div>
+          <div style={{ fontSize: 9, letterSpacing: "0.14em", color: "rgba(232,217,181,0.6)", marginTop: 4 }}>THE JURY {hud.trial.jury}% {"\u00b7"} GUILTY AT 60</div>
+          <div style={{ fontSize: 14, lineHeight: 1.45, color: "#e8d9b5", marginTop: 8, maxWidth: 580 }}>{hud.trial.text}</div>
+          {hud.trial.reply && <div style={{ fontSize: 11, color: "rgba(232,217,181,0.6)", marginTop: 4 }}>{hud.trial.reply}</div>}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+            {hud.trial.opts.map((o) => (
+              <div key={o.id} onClick={() => G.trialPick && G.trialPick(o.id)}
+                style={{ padding: "9px 12px", border: "1px solid rgba(232,196,106,0.6)", cursor: "pointer",
+                  fontSize: 11, letterSpacing: "0.08em", color: "#e8d9b5", background: "rgba(12,13,17,0.9)" }}>{o.label}</div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* THE INTERVIEW ROOM. His claim, the bar that is draining, and what you can put on the table. */}
       {hud.interro && (
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 91,
@@ -37006,6 +37367,12 @@ export default function IronLionLayer004() {
           (hud.mode !== "foot") ? 56 : null)}
         {(hud.mode !== "foot") ? (
           <>
+            {/* Malcolm's car controls: the radio, the gumball, and Ramos at the wheel. They lived in
+                the on-foot set only, so behind the wheel -- where they matter -- they were gone. */}
+            {hud.canRadio && btn("RADIO", "dispatch", () => G.pickOpen && G.pickOpen("radio"), null, false, 56)}
+            {hud.canGumball && btn("SIREN", hud.gumball ? "on" : "gumball", () => G.gumballFn && G.gumballFn(), null, hud.gumball, 56)}
+            {hud.ramosCar && btn("RAMOS", hud.autoOn ? "take wheel" : "you drive",
+              () => { if (G.current.auto) { G.current.auto = null; } else G.pickOpen && G.pickOpen("drive"); }, null, hud.autoOn, 56)}
             {btn("REV", "reverse",
               () => { input.current.reverse = true; },
               () => { input.current.reverse = false; }, null, 56)}
@@ -37109,8 +37476,11 @@ export default function IronLionLayer004() {
             {hud.atTalk && btn("TALK", "question", () => G.talkFn && G.talkFn(), null, !!hud.talk)}
             {hud.atTrunk && btn("TRUNK", "long guns", () => G.pickOpen && G.pickOpen("trunk"), null, false)}
             {hud.canRadio && btn("RADIO", "dispatch", () => G.pickOpen && G.pickOpen("radio"), null, false)}
+            {hud.canGumball && btn("SIREN", hud.gumball ? "on" : "gumball", () => G.gumballFn && G.gumballFn(), null, hud.gumball)}
             {hud.atCarver && btn("CARVER", "swat orders", () => G.pickOpen && G.pickOpen("carver"), null, false)}
             {hud.atSuspect && !hud.interro && btn("QUESTION", "interview", () => G.interroFn && G.interroFn(), null, false)}
+            {hud.atSuspect && !hud.interro && btn("TRIAL", "skip to court", () => G.trialSendFn && G.trialSendFn(), null, false)}
+            {hud.atStand && !hud.trial && btn("STAND", "testify", () => G.trialFn && G.trialFn(), null, false)}
             {hud.atComputer && btn("TERMINAL", "travel \u00b7 files", () => G.pickOpen && G.pickOpen("computer"), null, false)}
             {hud.atStaff && btn("RECRUIT", hud.squadN + "/2 with you", () => G.recruitFn && G.recruitFn(), null, false)}
             {hud.atSquad && btn("DISMISS", "send back", () => G.dismissFn && G.dismissFn(), null, false)}
