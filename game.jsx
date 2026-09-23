@@ -1679,6 +1679,21 @@ const PD_SOLID = { mg_table: 1, mg2_table: 1, mg_drawers: 1, mg2_drawers: 1, mg_
    at once. A car's number is its parish and its slot -- 31 is the first car in parish 3 -- painted
    on the roof so it reads from above, the way a helicopter reads it. */
 const BEAT = { perParish: 5, chance: 0.22 };
+/* THE ROSTER. Every uniform in Raven Hook is a name on a list, and the list is a real department:
+   mostly white, then black and Latino, and a few Asian officers. A name is drawn when an officer
+   first appears and handed back when he is killed or carried off -- and it does not come round
+   again for half an hour, because that man is in a bed or a box. */
+const COP_POOL = {
+  white:  { w: 46, first: ["JOHN", "MIKE", "DENNIS", "BRIAN", "GARY", "KEITH", "RUSS", "DALE", "WAYNE", "CRAIG", "NEIL", "PHIL", "SEAN", "MARIE", "JANET", "KAREN"],
+            last: ["SULLIVAN", "KOWALSKI", "NOVAK", "BRENNAN", "HALL", "WHITAKER", "DOYLE", "MERCER", "LINDGREN", "PRICE", "BAKER", "STRAND", "KELLY", "VOSS"] },
+  black:  { w: 24, first: ["DARNELL", "ANDRE", "MARCUS", "TERRENCE", "OTIS", "CURTIS", "JEROME", "LEON", "DELLA", "YVONNE", "ROSA"],
+            last: ["WASHINGTON", "COLE", "BANKS", "DIXON", "GAINES", "PRYOR", "MOSLEY", "TATE", "HOLLIS", "REESE"] },
+  latino: { w: 22, first: ["LUIS", "HECTOR", "RAMON", "JAVIER", "OSCAR", "RAUL", "MARISOL", "ELENA", "CARMEN"],
+            last: ["REYES", "ORTIZ", "MORENO", "SALAZAR", "DELGADO", "VARGAS", "CASTRO", "QUINTANA"] },
+  asian:  { w: 8,  first: ["KENJI", "DAVID", "ANNA", "HENRY", "GRACE", "SAM"],
+            last: ["LEE", "TRAN", "OKADA", "CHEN", "YAMADA", "PARK", "FONG"] },
+};
+const COP_REST = 1800;                 // half an hour before a name comes round again
 /* THE GUMBALL. The unmarked cars carry a magnetic red dome on the roof -- dark when it is just a
    car, spinning red when he needs the road. Where on the roof it sits is a fraction of the body. */
 const vehModel = (v) => (v && (v.m || v.skin)) || null;
@@ -7339,8 +7354,22 @@ function makeFloor(b, f, rnd) {
       place("captain", 0, 0.88, 0.22, "pd_flag", 14, 48);
       place("captain", 0, 0.12, 0.28, "pd_trophy", 26, 50);
       place("captain", 0, 0.85, 0.80, "pd_gunrack", 38, 46);
-      place("breakroom", 0, 0.22, 0.14, "pd_snacks", 34, 52);
-      place("breakroom", 0, 0.78, 0.14, "pd_fridge", 30, 50);
+      /* The generic furnisher drops a freezer and a cooker in here as well, which is the white
+         unit that stood beside the station's own. They come out, and the two that stay go in
+         opposite top corners. */
+      {
+        const r0 = rooms.find((q) => q.k === "breakroom");
+        if (r0) {
+          const q0 = rect(r0);
+          for (let n = props.length - 1; n >= 0; n--) {
+            const o = props[n];
+            if (!["freezer", "cooker", "locker"].includes(o.t)) continue;
+            if (o.x + o.w > q0.x0 && o.x < q0.x1 && o.y + o.h > q0.y0 && o.y < q0.y1) props.splice(n, 1);
+          }
+        }
+      }
+      place("breakroom", 0, 0.12, 0.12, "pd_snacks", 34, 52);
+      place("breakroom", 0, 0.88, 0.12, "pd_fridge", 30, 50);
       place("breakroom", 0, 0.5, 0.52, "pd_roundtable", 64, 64);
       place("breakroom", 0, 0.5, 0.86, "pd_coffee", 36, 40);
       place("lockerroom", 0, 0.5, 0.25, "pd_lockers", 52, 52);
@@ -8823,10 +8852,12 @@ export default function IronLionLayer004() {
         /* A track may sit in assets/ or in assets/music/ -- try the second if the first is not
            there, so a file dropped in either place plays. */
         let res = await fetch(src);
+        // a track may be dropped in assets/, assets/music/ or assets/audio/ -- try all three
         if (!res.ok && !def.data && /^assets\/[^/]+\.mp3$/.test(def.url)) {
-          const alt = def.url.replace("assets/", "assets/music/");
-          const r2 = await fetch(alt).catch(() => null);
-          if (r2 && r2.ok) res = r2;
+          for (const dir of ["assets/music/", "assets/audio/"]) {
+            const r2 = await fetch(def.url.replace("assets/", dir)).catch(() => null);
+            if (r2 && r2.ok) { res = r2; break; }
+          }
         }
         if (!res.ok) throw new Error("http " + res.status);
         const arr = await res.arrayBuffer();
@@ -11452,6 +11483,32 @@ export default function IronLionLayer004() {
         warAction(k);
       }
     }
+    /* A name off the roster, and what happens to it when the man wearing it goes down. */
+    function copName() {
+      const R = (g.roster = g.roster || { out: {}, resting: {} });
+      const now = Date.now();
+      for (const [k, t] of Object.entries(R.resting)) if (now > t) delete R.resting[k];
+      const groups = Object.entries(COP_POOL);
+      const total = groups.reduce((a, [, q]) => a + q.w, 0);
+      for (let t = 0; t < 40; t++) {
+        let r = Math.random() * total, pick = groups[0];
+        for (const gq of groups) { r -= gq[1].w; if (r <= 0) { pick = gq; break; } }
+        const [race, pool] = pick;
+        const nm = pool.first[(Math.random() * pool.first.length) | 0] + " " + pool.last[(Math.random() * pool.last.length) | 0];
+        if (R.out[nm] || R.resting[nm]) continue;
+        R.out[nm] = race;
+        return { nm, race };
+      }
+      return { nm: "OFFICER", race: "white" };
+    }
+    function copDown(u, why) {
+      if (!u || !u.nm) return;
+      const R = (g.roster = g.roster || { out: {}, resting: {} });
+      delete R.out[u.nm];
+      R.resting[u.nm] = Date.now() + COP_REST * 1000;     // he is not back tonight
+      if (g.detMode) radioSay((why === "hurt" ? "Officer down -- " : "We lost ") + u.nm + ". They're off the board.");
+      u.nm = null;
+    }
     function precinctB() {
       const cv = CIVIC.find((c) => c.key === "precinct_rh");
       if (!cv) return null;
@@ -11478,7 +11535,9 @@ export default function IronLionLayer004() {
       if (b.pd) {
         const pl2 = buildingPlans(b)[b.entry || 0];
         const ctr = pl2.props.find((q) => q.t === "pd_counter");
-        if (ctr) sgt = { x: ctr.x + ctr.w / 2, y: ctr.y - 16, vx: 0, vy: 0, yt: "yt_sergeant", jit: 1.04, anim: 0.4, bang: -Math.PI / 2 };
+        // behind his own counter, facing the door he is supposed to be watching
+        if (ctr) sgt = { x: ctr.x + ctr.w / 2, y: ctr.y + ctr.h + 14, vx: 0, vy: 0, yt: "yt_sergeant",
+                         jit: 1.04, anim: 0.4, bang: -Math.PI / 2, nm: "DESK SGT. LEE" };
       }
       /* UNIFORMS AND THE CAPTAIN. Officers in the break room, the briefing room and the lobby,
          one down in the task force room, and the captain in his office. Any of the uniforms can
@@ -11711,7 +11770,7 @@ export default function IronLionLayer004() {
       for (let k = 0; k < CASE.witnesses; k++) C.people.push(onRing(k + 1, CASE.witnesses + 3, "witness"));
       const nCrowd = CASE.crowd[0] + ((Math.random() * (CASE.crowd[1] - CASE.crowd[0] + 1)) | 0);
       for (let k = 0; k < nCrowd; k++) { const q = onRing(k, nCrowd, "crowd"); q.know = []; C.people.push(q); }
-      C.cop = { x: scene[0] + 40, y: scene[1] + 30, vx: 0, vy: 0, anim: 0, jit: 1, state: "idle",
+      C.cop = { ...copName(), x: scene[0] + 40, y: scene[1] + 30, vx: 0, vy: 0, anim: 0, jit: 1, state: "idle",
                 caseRole: "cop", tr: { mood: "calm", attitude: "cooperative", influence: "none", look: ["uniform"], strikes: 0, told: 0 } };
       // who knows what: the facts are keys, read off his card when they are said
       const know = ["sex", "age", "height", "clothes", "dir", "car", "weapon"];
@@ -12067,7 +12126,7 @@ export default function IronLionLayer004() {
         const q = D.sgt;
         drawShadow(q.x, q.y + 2, 10, 4, 0.3); drawYouth(q);
         ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
-        ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText("DESK SGT", q.x, q.y - 22); ctx.textAlign = "start";
+        ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText(q.nm || "DESK SGT", q.x, q.y - 22); ctx.textAlign = "start";
       }
       if (C && C.stage === "custody" && C.arrest && C.arrest.at && D && g.inside === D.b && g.floor === (D.b.pd ? 1 : 0)) {
         const q = C.arrest.q; q.x = C.arrest.at[0]; q.y = C.arrest.at[1];
@@ -12835,6 +12894,8 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       if (!u) return;
       if (g.squad.length >= SQUAD_MAX) { g.pickupFlash = { nm: "lift:YOU'VE GOT TWO ALREADY", t: 1.6 }; return; }
       u.out = true; u.fireCd = 1; u.wpn = "beretta"; u.inCar = false; u.bldOf = g.inside; u.floorOf = g.floor; u.walking = false;
+      if (!u.nm) Object.assign(u, copName());
+      u.hp = 8;                                   // he can be hurt out there, and he has a name to lose
       g.squad.push(u);
       g.pickupFlash = { nm: "lift:OFFICER \u00b7 WITH YOU, DETECTIVE", t: 1.8 };
     };
@@ -12846,6 +12907,11 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
     };
     function stepSquad(dt) {
       const L = g.squad; if (!L || !L.length) return;
+      /* A man who goes down hands his name back to the roster and is carried off. */
+      for (let n = L.length - 1; n >= 0; n--) {
+        const u = L[n];
+        if (u.hp != null && u.hp <= 0) { copDown(u, "hurt"); u.out = false; u.hp = null; L.splice(n, 1); }
+      }
       L.forEach((u, k) => {
         if (inVehicle()) { const v = activeVeh(); if (!u.inCar && Math.hypot(u.x - v.x, u.y - v.y) < 420) u.inCar = true;
           if (u.inCar) { u.x = v.x; u.y = v.y; } return; }
@@ -12894,6 +12960,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       if (g.detMode && R && !R.inCar && (!g.inside || R.bldOf === g.inside)) out.push([R.y, 9, { __draw: drawPartner }]);
       // the station's uniforms and the captain, and the two walking with Malcolm
       const D0 = g.dets;
+      if (D0 && g.inside === D0.b) for (const u of D0.staff || []) if (!u.nm && !u.captain) Object.assign(u, copName());
       if (D0 && g.inside === D0.b) for (const u of D0.house || []) if (u.f === g.floor) out.push([u.y, 9, { __draw: () => {
         u.anim += 0.01; drawShadow(u.x, u.y + 2, 10, 4, 0.3); drawYouth(u);
         ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center";
@@ -12905,11 +12972,14 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText(d.nm.slice(5), d.x, d.y - 24); ctx.textAlign = "start"; } }]);
       if (D0 && g.inside === D0.b) for (const u of D0.staff || []) if (!u.out && u.f === g.floor) out.push([u.y, 9, { __draw: () => {
         u.anim += 0.012; drawShadow(u.x, u.y + 2, 10, 4, 0.3); drawCop(u);
-        if (u.label) { ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
-          ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText(u.label, u.x, u.y - 24); ctx.textAlign = "start"; } } }]);
+        const tag = u.label || u.nm;
+        if (tag) { ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
+          ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText(tag, u.x, u.y - 24); ctx.textAlign = "start"; } } }]);
       for (const u of g.squad || []) if (!u.inCar && inView(u) && (!g.inside || u.bldOf === g.inside)) out.push([u.y, 9, { __draw: () => {
         drawShadow(u.x, u.y + 2, 10, 4, 0.3);
         if (u.yt) drawYouth(u); else drawCop(u);
+        if (u.nm) { ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
+          ctx.fillStyle = "rgba(180,200,232,0.9)"; ctx.fillText(u.nm, u.x, u.y - 24); ctx.textAlign = "start"; }
         if (u.muzzle > 0) { ctx.fillStyle = "rgba(255,214,120,0.9)"; ctx.beginPath(); ctx.arc(u.x + Math.cos(u.bang || 0) * 16, u.y + Math.sin(u.bang || 0) * 16, 4, 0, 6.283); ctx.fill(); } } }]);
       // the man on the corner who will talk
       if (g.gwar && !g.inside && g.detMode) for (const t of Object.values(g.gwar.turfs)) {
