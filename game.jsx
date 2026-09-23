@@ -1724,6 +1724,7 @@ const GUMBALL = { cars: { pd_malcolm_car: 1, pd_unmarked: 1, pd_car_okafor: 1, p
    has a trunk and a radio. The radio brings one, two or three cars (two officers each), a SWAT van
    (four), an ambulance or a fire crew. */
 const DET = {
+  park: 150,               // how far short of the address she stops, so the car is at the kerb
   follow: 64, walk: 150, reach: 380, dmg: 3, fireCd: [0.9, 0.6],
   drive: 300, arrive: 26,
   trunk: [["beretta", "BERETTA"], ["shotgun_long", "SHOTGUN"], ["rifle_auto", "RIFLE"]],
@@ -11015,9 +11016,12 @@ export default function IronLionLayer004() {
     G.bookPageFn = (d) => { g.bookPage = (g.bookPage || 0) + d; };
     // the nearest person you could ask, on foot and close, standing still enough to be asked
     function nearCiv() {
-      if (g.mode !== "foot" || g.inside || g.sewer || g.onTrain) return null;
+      if (g.mode !== "foot" || g.sewer || g.onTrain) return null;
+      const C = g.case, sceneHere = C && C.inB && g.inside === C.inB && g.floor === C.inF;
+      // indoors he can only card the people standing in the scene he is standing in
+      if (g.inside && !sceneHere) return null;
       let best = null, bd = 74;
-      const pool = g.case && g.case.stage !== "done" ? g.peds.concat(g.case.people) : g.peds;
+      const pool = C && C.stage !== "done" ? (g.inside ? C.people : g.peds.concat(C.people)) : (g.inside ? [] : g.peds);
       for (const q of pool) {
         if (!q || q.hp <= 0 || q.fly) continue;
         const d = Math.hypot(q.x - g.p.x, q.y - g.p.y);
@@ -11116,7 +11120,7 @@ export default function IronLionLayer004() {
     const turfKey = (ti, tj) => ti + "," + tj;
     const turfOf = (x, y) => [Math.floor(x / PITCH / WAR.side), Math.floor(y / PITCH / WAR.side)];
     function warInit() {
-      if (g.war) return g.war;
+      if (g.gwar) return g.gwar;
       const T = Math.ceil(N / WAR.side), turfs = {};
       for (let ti = 0; ti < T; ti++) for (let tj = 0; tj < T; tj++)
         turfs[turfKey(ti, tj)] = { ti, tj, owner: null, crews: [], heat: 0, dens: [], defend: 0, intel: {} };
@@ -11143,7 +11147,7 @@ export default function IronLionLayer004() {
           for (let q = 0; q < n; q++) t.crews.push({ rank: warRank() });
         }
       }
-      return (g.war = { turfs, gangs, turn: 0, t: 0, log: [] });
+      return (g.gwar = { turfs, gangs, turn: 0, t: 0, log: [] });
     }
     // a made-up name for a seat nobody has written yet, stable for the life of the game
     function warName(k, n) {
@@ -11160,22 +11164,22 @@ export default function IronLionLayer004() {
       for (let k = 0; k < 4; k++) { a += WAR.rankOdds[k]; if (r < a) return k + 1; }
       return 1;
     }
-    const turfsOf = (k) => Object.values(g.war.turfs).filter((t) => t.owner === k);
+    const turfsOf = (k) => Object.values(g.gwar.turfs).filter((t) => t.owner === k);
     const crewPower = (t) => t.crews.reduce((a, c) => a + c.rank * 1.6, 0) * (1 + t.defend * 0.25);
     function warLog(line) {
-      const W = g.war; W.log.unshift({ turn: W.turn, line });
+      const W = g.gwar; W.log.unshift({ turn: W.turn, line });
       if (W.log.length > 60) W.log.length = 60;
     }
     function warNeighbours(t) {
       const out = [];
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const n = g.war.turfs[turfKey(t.ti + dx, t.tj + dy)];
+        const n = g.gwar.turfs[turfKey(t.ti + dx, t.tj + dy)];
         if (n) out.push(n);
       }
       return out;
     }
     function warAction(k) {
-      const W = g.war, G = W.gangs[k], mine = turfsOf(k);
+      const W = g.gwar, G = W.gangs[k], mine = turfsOf(k);
       if (!mine.length) return;
       const headless = G.seats.filter((q) => q.state === "free").length < 2;   // nobody to give the order
       const targets = [];
@@ -11288,7 +11292,7 @@ export default function IronLionLayer004() {
     /* Money comes off the dens every second, not on the turn: a house that is running is running
        whether or not it is its owner's turn. Heat comes with it. */
     function warIncome(dt) {
-      const W = g.war;
+      const W = g.gwar;
       for (const t of Object.values(W.turfs)) {
         if (!t.owner) continue;
         const G = W.gangs[t.owner]; if (!G) continue;
@@ -11322,8 +11326,8 @@ export default function IronLionLayer004() {
       return (t.snitchAt = { x: sp[0], y: sp[1], civ: pickCiv(), anim: Math.random() * 6, jit: 0.98, vx: 0, vy: 0 });
     }
     function nearSnitch() {
-      if (!g.war || g.inside || g.mode !== "foot" || !g.detMode) return null;
-      for (const t of Object.values(g.war.turfs)) {
+      if (!g.gwar || g.inside || g.mode !== "foot" || !g.detMode) return null;
+      for (const t of Object.values(g.gwar.turfs)) {
         if (!t.snitch || t.told) continue;
         const sp = snitchSpot(t);
         if (Math.hypot(g.p.x - sp.x, g.p.y - sp.y) < 80) return t;
@@ -11332,7 +11336,7 @@ export default function IronLionLayer004() {
     }
     G.snitchFn = () => {
       const t = nearSnitch(); if (!t) return;
-      const G2 = g.war.gangs[t.owner];
+      const G2 = g.gwar.gangs[t.owner];
       t.told = true;
       if (!G2) { bookNote("A corner on " + turfName(t) + ": nobody is running it. He wanted twenty dollars for that."); return; }
       const hidden = G2.seats.filter((q) => !q.known);
@@ -11347,8 +11351,8 @@ export default function IronLionLayer004() {
     /* A HOUSE THAT IS WIDE OPEN shows itself: the bag of whatever it sells, sitting over the turf
        it is on, so Malcolm can see what he is about to take off them. */
     function drawBustMarks(view) {
-      if (!g.war || g.inside || !g.detMode) return;
-      for (const t of Object.values(g.war.turfs)) {
+      if (!g.gwar || g.inside || !g.detMode) return;
+      for (const t of Object.values(g.gwar.turfs)) {
         if (!t.bust || !t.dens.length) continue;
         const cx = (t.ti * WAR.side + WAR.side / 2) * PITCH, cy = (t.tj * WAR.side + WAR.side / 2) * PITCH;
         if (cx < view.x0 - 200 || cx > view.x1 + 200 || cy < view.y0 - 200 || cy > view.y1 + 200) continue;
@@ -11361,8 +11365,8 @@ export default function IronLionLayer004() {
       }
     }
     function nearBust() {
-      if (!g.war || g.inside || !g.detMode) return null;
-      for (const t of Object.values(g.war.turfs)) {
+      if (!g.gwar || g.inside || !g.detMode) return null;
+      for (const t of Object.values(g.gwar.turfs)) {
         if (!t.bust) continue;
         const c = [(t.ti * WAR.side + WAR.side / 2) * PITCH, (t.tj * WAR.side + WAR.side / 2) * PITCH];
         if (Math.hypot(g.p.x - c[0], g.p.y - c[1]) < WAR.side * PITCH * 0.5) return t;
@@ -11376,7 +11380,7 @@ export default function IronLionLayer004() {
       const seized = t.dens.slice();
       t.dens = []; t.heat *= 0.3; t.bust = false; t.bustT = 0;
       if (t.crews.length > 1) t.crews.length = Math.max(1, t.crews.length - 2);
-      const G2 = g.war.gangs[gang];
+      const G2 = g.gwar.gangs[gang];
       if (G2) { G2.cash = Math.max(0, G2.cash - 4000);
         const hidden = G2.seats.filter((q) => !q.known);
         if (hidden.length && Math.random() < 0.6) { const q = hidden[hidden.length - 1]; q.known = true;
@@ -11391,7 +11395,7 @@ export default function IronLionLayer004() {
       g.jobNote = (GANG_LABEL[gang] || "Somebody") + " just lost a " + (seized.length ? DRUGS[seized[0].drug].nm.toLowerCase() + " house." : "house.");
     };
     function stepWar(dt) {
-      const W = g.war || warInit();
+      const W = g.gwar || warInit();
       warIncome(dt);
       W.t += dt;
       if (W.t < WAR.turnEvery) return;
@@ -12226,7 +12230,7 @@ export default function IronLionLayer004() {
     function gomezPanel(id) {
       const q = gomezPeople().find((z) => z.id === id);
       if (!q) return { title: "", opts: [{ id: "close", label: "BACK" }] };
-      const W2 = g.war, G = W2 && W2.gangs.gomez;
+      const W2 = g.gwar, G = W2 && W2.gangs.gomez;
       const known = G ? G.seats.filter((z) => z.known).length : 0;
       return { title: q.nm + " \u00b7 " + q.role, face: "assets/heroes/pt_" + q.id + ".png",
                text: g.gzSaid || q.hi,
@@ -12238,7 +12242,7 @@ export default function IronLionLayer004() {
     G.gomezPick = (id) => {
       const [, who, what] = id.split(":");
       const q = gomezPeople().find((z) => z.id === who);
-      const G2 = g.war && g.war.gangs.gomez;
+      const G2 = g.gwar && g.gwar.gangs.gomez;
       let said = null;
       if (what === "ask") said = {
         hector: "We own buildings on this circle and we have done since my father. What the tenants do is their business.",
@@ -12908,7 +12912,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         if (u.yt) drawYouth(u); else drawCop(u);
         if (u.muzzle > 0) { ctx.fillStyle = "rgba(255,214,120,0.9)"; ctx.beginPath(); ctx.arc(u.x + Math.cos(u.bang || 0) * 16, u.y + Math.sin(u.bang || 0) * 16, 4, 0, 6.283); ctx.fill(); } } }]);
       // the man on the corner who will talk
-      if (g.war && !g.inside && g.detMode) for (const t of Object.values(g.war.turfs)) {
+      if (g.gwar && !g.inside && g.detMode) for (const t of Object.values(g.gwar.turfs)) {
         if (!t.snitch || t.told) continue;
         const sp = snitchSpot(t);
         if (!inView(sp)) continue;
@@ -13080,7 +13084,11 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
     function driveTargets() {
       const out = [], C = g.case, b = precinctB();
       if (C && C.stage !== "done") {
-        out.push({ id: "scene", label: "THE SCENE", x: C.scene[0], y: C.scene[1] });
+        // an indoor scene is a door, not a room: driving to the room means driving into the wall
+        if (C.inB) { const dp = doorPoint(C.inB), sd = C.inB.door.side,
+          o = sd === 0 ? [0, -1] : sd === 1 ? [1, 0] : sd === 2 ? [0, 1] : [-1, 0];
+          out.push({ id: "scene", label: "THE SCENE", x: dp[0] + o[0] * 140, y: dp[1] + o[1] * 140 });
+        } else out.push({ id: "scene", label: "THE SCENE", x: C.scene[0], y: C.scene[1] });
         if (C.lead) out.push({ id: "hang", label: C.hangWhere.toUpperCase(), x: C.hang[0], y: C.hang[1] });
         else if (C.stops && C.leadIdx >= 0) { const st = C.stops[C.leadIdx];
           out.push({ id: "stop", label: LEAD_KIND[st.kind].nm + " \u00b7 " + st.where.toUpperCase(), x: st.x, y: st.y }); }
@@ -13099,7 +13107,11 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       if (!inVehicle()) { g.auto = null; return; }
       const v = activeVeh(), [tx, ty] = A.pts[A.i];
       const dx = tx - v.x, dy = ty - v.y, d = Math.hypot(dx, dy);
-      if (d < DET.arrive) {
+      /* THE LAST LEG. She used to drive to the point itself, which is the scene -- so she parked
+         on top of an outdoor one and, when it was indoors, drove at the wall. The last point is
+         pulled back onto the road and she stops short of it. */
+      const last = A.i >= A.pts.length - 1;
+      if (d < (last ? DET.park || 150 : DET.arrive)) {
         A.i++;
         if (A.i >= A.pts.length) {
           g.auto = null; v.vx = 0; v.vy = 0; v.fwd = 0;
@@ -13589,8 +13601,10 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       if (C.stage === "custody") return { who, text: C.arrest.name + "'s in holding on B1. Go get it out of him.",
         opts: [{ id: "close", label: "ON MY WAY" }] };
       const labDone = C.lab.filter((L) => L.done).length, labAll = C.lab.length;
-      if (g.detMode && g.ramosTip) { const t = g.ramosTip; g.ramosTip = null;
-        return { who, text: t, opts: [{ id: "tip", label: "ANYTHING ELSE?" }, { id: "close", label: "GOT IT" }] }; }
+      /* HER READ STAYS UP until he answers it. Clearing the tip as the panel was built meant the
+         next redraw -- which happens immediately -- threw the text away before it could be read. */
+      if (g.detMode && g.ramosTip)
+        return { who, text: g.ramosTip, opts: [{ id: "tip", label: "ANYTHING ELSE?" }, { id: "close", label: "GOT IT" }] };
       const picks = (g.book && g.book.people || []).filter((q) => q.at >= C.started).slice(0, 6);
       const where = !C.atScene ? "It's at " + C.where + ". Talk to the officer there, he'll take anything you bag."
         : !C.lead ? "Work the scene. The ground, the people, the beat. Something will point somewhere."
@@ -13633,6 +13647,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
     G.malcolmPick = (id) => {
       const C = g.case;
       if (id === "tip") { g.ramosTip = ramosTip(C); setHud((h) => ({ ...h, malcolm: malcolmPanel() })); return; }
+      g.ramosTip = null;                       // anything else he taps puts her read away
       if (id === "take") { startCase(); g.caseLast = null; }
       else if (id.startsWith("name:") && C && g.detMode) {
         /* In detective mode a name is an ARREST: he goes to holding on B1 and you get it out of
@@ -16493,6 +16508,23 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         compBase: g.compBase == null ? null : g.compBase,
         comp: g.comp ? { met: g.comp.met, seen: !!g.comp.seen, out: !!g.comp.out,
                          earned: !!g.comp.earned, hits: g.comp.hits || 0 } : null,
+        /* THE DETECTIVE'S SIDE. Everything he has earned or written down, and the state of the
+           gang war -- stripped to plain numbers, because a turf holds live references (the man
+           on the corner, his look) that must not go anywhere near JSON. */
+        juice: g.juice || 0,
+        rivals: (g.rivals || []).map((r) => ({ no: r.no, name: r.name, sex: r.sex, idSeed: r.idSeed, tier: r.tier, next: r.next })),
+        notes: ((g.book && g.book.notes) || []).slice(0, 60),
+        cases: ((g.book && g.book.cases) || []).slice(0, 12).map((c) => ({ title: c.title, right: !!c.right, lines: (c.lines || []).slice(0, 40) })),
+        capPraise: !!g.capPraise, carBoost: g.carBoost || 0, carTough: g.car ? g.car.tough : null,
+        gwar: g.gwar ? {
+          turn: g.gwar.turn,
+          turfs: Object.values(g.gwar.turfs).map((t) => ({ ti: t.ti, tj: t.tj, owner: t.owner, heat: Math.round(t.heat),
+            defend: t.defend || 0, snitch: !!t.snitch, told: !!t.told, bust: !!t.bust,
+            crews: t.crews.map((c) => c.rank), dens: t.dens.map((d) => ({ drug: d.drug, level: d.level })) })),
+          gangs: Object.entries(g.gwar.gangs).map(([k, G2]) => ({ k, cash: Math.round(G2.cash), up: G2.up, down: G2.down || 0,
+            seats: G2.seats.map((q) => ({ title: q.title, name: q.name, state: q.state, t: q.t, known: !!q.known })) })),
+          log: g.gwar.log.slice(0, 20),
+        } : null,
       };
     }
     function saveGame() {
@@ -16538,6 +16570,34 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       }
       if (o.compBase != null) g.compBase = o.compBase;
       if (o.comp) { g.compSave = o.comp; }
+      // the detective's side
+      g.juice = o.juice || 0;
+      g.rivals = (o.rivals || []).slice();
+      g.capPraise = !!o.capPraise;
+      if (o.carBoost) g.carBoost = o.carBoost;
+      if (o.carTough != null && g.car) g.car.tough = o.carTough;
+      g.book = g.book || { people: [], cases: [] };
+      if (o.notes) g.book.notes = o.notes.slice();
+      if (o.cases) g.book.cases = o.cases.slice();
+      /* The war is rebuilt from scratch and then the saved numbers are laid back over it, so the
+         live parts (the corner, the crews' objects) are fresh and everything earned is kept. */
+      if (o.gwar) {
+        const W = warInit();
+        W.turn = o.gwar.turn || 0;
+        W.log = (o.gwar.log || []).slice();
+        for (const t of o.gwar.turfs || []) {
+          const q = W.turfs[t.ti + "," + t.tj]; if (!q) continue;
+          q.owner = t.owner || null; q.heat = t.heat || 0; q.defend = t.defend || 0;
+          q.snitch = !!t.snitch; q.told = !!t.told; q.bust = !!t.bust; q.snitchAt = null;
+          q.crews = (t.crews || []).map((rank) => ({ rank }));
+          q.dens = (t.dens || []).map((d) => ({ drug: d.drug, level: d.level }));
+        }
+        for (const G2 of o.gwar.gangs || []) {
+          const T = W.gangs[G2.k]; if (!T) continue;
+          T.cash = G2.cash || 0; T.up = G2.up || T.up; T.down = G2.down || 0;
+          if (G2.seats) G2.seats.forEach((q, i) => { if (T.seats[i]) T.seats[i] = { ...T.seats[i], ...q }; });
+        }
+      }
       return true;
     }
     function clearSave() {
@@ -36757,7 +36817,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         return out;
       };
       W2.war = () => {                                // the board, for a human who wants to look
-        const W = g.war; if (!W) return "not started";
+        const W = g.gwar; if (!W) return "not started";
         const rows = Object.entries(W.gangs).map(([k, G]) => {
           const ts = Object.values(W.turfs).filter((t) => t.owner === k);
           return { gang: GANG_LABEL[k] || k, turfs: ts.length, cash: Math.round(G.cash),
