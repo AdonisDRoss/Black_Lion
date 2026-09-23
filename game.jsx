@@ -1614,6 +1614,8 @@ const GOMEZ_CREW = ["yt_gm1", "yt_gm2", "yt_gm3", "yt_gm4"];
 for (const q of GOMEZ) { PD_ART["yt_" + q.id] = "assets/heroes/yt_" + q.id + ".png"; PD_ART["pt_" + q.id] = "assets/heroes/pt_" + q.id + ".png"; }
 for (let k = 1; k <= 4; k++) { PD_ART["yt_gm" + k] = "assets/heroes/yt_gm" + k + ".png"; PD_ART["pt_gm" + k] = "assets/heroes/pt_gm" + k + ".png"; }
 PD_ART.ct_gomez = "assets/city/ct_gomez.png";
+PD_ART.pd_warboard = "assets/city/pd_warboard.png";
+PD_ART.pd_warboard_wall = "assets/city/pd_warboard_wall.png";
 PD_ART.gm_car = "assets/police/gm_car.png";
 for (const t of ["sally", "elias", "specs", "sparky"]) {
   PD_ART["yt_" + t] = "assets/heroes/yt_" + t + ".png"; PD_ART["pt_" + t] = "assets/heroes/pt_" + t + ".png"; }
@@ -1683,6 +1685,13 @@ const BEAT = { perParish: 5, chance: 0.22 };
    mostly white, then black and Latino, and a few Asian officers. A name is drawn when an officer
    first appears and handed back when he is killed or carried off -- and it does not come round
    again for half an hour, because that man is in a bed or a box. */
+const COP_TONE = { white: "pale", latino: "tan", black: "brown", asian: "tan" };
+const COP_PLATES = [];
+for (const sex of ["m", "f"]) for (const tone of ["mask", "pale", "tan", "brown", "dark"])
+  COP_PLATES.push("cop_" + sex + "_" + tone);
+/* Registered here, UNDER the list: up with the rest of the art this ran before COP_PLATES
+   existed and threw on load. */
+for (const k of COP_PLATES) PD_ART[k] = "assets/heroes/" + k + ".png";
 const COP_POOL = {
   white:  { w: 46, first: ["JOHN", "MIKE", "DENNIS", "BRIAN", "GARY", "KEITH", "RUSS", "DALE", "WAYNE", "CRAIG", "NEIL", "PHIL", "SEAN", "MARIE", "JANET", "KAREN"],
             last: ["SULLIVAN", "KOWALSKI", "NOVAK", "BRENNAN", "HALL", "WHITAKER", "DOYLE", "MERCER", "LINDGREN", "PRICE", "BAKER", "STRAND", "KELLY", "VOSS"] },
@@ -1693,7 +1702,9 @@ const COP_POOL = {
   asian:  { w: 8,  first: ["KENJI", "DAVID", "ANNA", "HENRY", "GRACE", "SAM"],
             last: ["LEE", "TRAN", "OKADA", "CHEN", "YAMADA", "PARK", "FONG"] },
 };
-const COP_REST = 1800;                 // half an hour before a name comes round again
+const COP_REST = 300;                  /* five minutes before a name comes round again. The roster
+                                          holds 448 names, so the force cannot be emptied -- but a
+                                          man you got killed is off the street for a while. */
 /* THE GUMBALL. The unmarked cars carry a magnetic red dome on the roof -- dark when it is just a
    car, spinning red when he needs the road. Where on the roof it sits is a fraction of the body. */
 const vehModel = (v) => (v && (v.m || v.skin)) || null;
@@ -2615,6 +2626,16 @@ const inPrison = (i, j) => i >= PRISON.i0 && i <= PRISON.i1 && j >= PRISON.j0 &&
 const PRISON_CELL = { i: 16, j: 23 };
 const PITCH = 1500;           // 71 m between street centrelines
 const AVE_EVERY = 4;          // every 4th line is a wide avenue
+/* THE LIGHTS. One clock for the whole city: north-south runs, then amber, then east-west, then
+   amber again. A car reads the phase for the axis it is on and stops at the line. */
+const LIGHTS = { green: 7.5, amber: 1.8, get cycle() { return (this.green + this.amber) * 2; } };
+const lightPhase = (t) => {
+  const c = LIGHTS.cycle, x = ((t % c) + c) % c;
+  if (x < LIGHTS.green) return { ns: "green", ew: "red" };
+  if (x < LIGHTS.green + LIGHTS.amber) return { ns: "amber", ew: "red" };
+  if (x < LIGHTS.green * 2 + LIGHTS.amber) return { ns: "red", ew: "green" };
+  return { ns: "red", ew: "amber" };
+};
 const SW = 64;                // 3 m pavement
 // The expressway is an overlay above the grid, not a member of it, so this no longer
 // special-cases any line: every street beneath a viaduct is an ordinary street.
@@ -2678,7 +2699,9 @@ function rampList() {
     // corridors in the same place with opposite orientation, which is what made the level
     // flip as you drove: whichever one rampAt happened to return decided your height.
     if (FWY_H.indexOf(k) >= 0) continue;
-    const kerb = halfW(k) + 6;                       // stop at the edge of the cross street
+    /* CLEAR OF THE STREET. +6 put the foot of the ramp on the pavement and its apron bled into
+       the carriageway of the cross street; a ramp now lands beyond the far kerb. */
+    const kerb = halfW(k) + SW + 18;
     for (const side of [1, -1]) {
       // Start in the middle of the OUTER LANE, not at the parapet. Beginning at the edge put
       // half the corridor outside the carriageway, so joining or leaving snapped you sideways
@@ -2691,7 +2714,7 @@ function rampList() {
   }
   for (const L of FWY_H) for (const k of FWY_RAMPS) {
     if (FWY_V.indexOf(k) >= 0) continue;
-    const kerb = halfW(k) + 6;
+    const kerb = halfW(k) + SW + 18;
     for (const side of [1, -1]) {
       const edge = SX(L) + side * (FWY_HW - LANE_W / 2);
       const foot = SX(L) + side * (FWY_HW + RAMP_SPREAD);
@@ -3317,15 +3340,24 @@ const DRUGS = {
 /* Who holds what at the start, and what they sell. Old Town is left to the Gomez family -- their
    art is not in yet, so their turfs sit with them and they play like anybody else. */
 const WAR_GANGS = {
-  kings:     { drugs: ["stone", "leaf"], home: [1, 4], seats: 4 },
-  wolves:    { drugs: ["stone"], home: [4, 6], seats: 3 },
-  mob_young: { drugs: ["diamond", "stone"], home: [7, 8], seats: 4 },
-  mob_old:   { drugs: ["diamond"], home: [9, 5], seats: 5 },
-  chi:       { drugs: ["diamond", "leaf"], home: [13, 7], seats: 4 },
-  irish:     { drugs: ["stone", "diamond"], home: [14, 2], seats: 4 },
-  barrio:    { drugs: ["leaf"], home: [3, 9], seats: 3 },
-  brack:     { drugs: ["leaf", "stone"], home: [11, 11], seats: 3 },
-  sec:       { drugs: ["diamond"], home: [17, 9], seats: 3 },
+  kings:     { drugs: ["stone", "leaf"], home: [1, 4], seats: 3,
+               names: ["ANDRE COLE", "MARCUS 'BOOK' GAINES", "DEVON PRYOR"] },
+  wolves:    { drugs: ["stone"], home: [4, 6], seats: 3,
+               names: ["TORQUE HALLERAN", "WIRE MALLOY", "JUNE 'HAMMER' STRAND"] },
+  mob_young: { drugs: ["diamond", "stone"], home: [7, 8], seats: 3,
+               names: ["SAL RIZZO", "CARMINE FOSS", "NICKY AMATO"] },
+  mob_old:   { drugs: ["diamond"], home: [9, 5], seats: 3,
+               names: ["DON MATTEO VESCARI", "PAOLO 'THE CLERK' NOVAK", "ENZO CASTELLANO"] },
+  chi:       { drugs: ["diamond", "leaf"], home: [13, 7], seats: 3,
+               names: ["MRS LILY FONG", "HENRY CHEN", "ANNA PARK"] },
+  irish:     { drugs: ["stone", "diamond"], home: [14, 2], seats: 3,
+               names: ["DECLAN BRENNAN", "FR. EAMON DOYLE", "COLM KANE"] },
+  barrio:    { drugs: ["leaf"], home: [3, 9], seats: 3,
+               names: ["ESTELA MORENO", "RAUL QUINTANA", "MARISOL VARGAS"] },
+  brack:     { drugs: ["leaf", "stone"], home: [11, 11], seats: 3,
+               names: ["CURTIS BRACKEN", "WADE TILLMAN", "ELLIS BRACKEN"] },
+  sec:       { drugs: ["diamond"], home: [17, 9], seats: 3,
+               names: ["DEL HOLLIS", "MAJ. RUTH KELLER", "SIMON VOSS"] },
   /* OLD TOWN. A family, not a street crew: heat rises slowest on their ground and they answer
      wars rather than start them. */
   gomez:     { drugs: ["stone", "leaf"], home: [3, 2], seats: 3, quiet: 1, patient: 1,
@@ -7325,6 +7357,7 @@ function makeFloor(b, f, rnd) {
       // the dispatch desk, up by the offices -- and no filing cabinets standing in the hall
       place("taskforce", 0, 0.80, 0.12, "pd_radio", 44, 34);
       place("taskforce", 0, 0.80, 0.30, "pd_desk", 52, 38);
+      place("taskforce", 0, 0.30, 0.10, "pd_warboard", 76, 56);     // the war, chalked up
       for (let k = 0; k < 3; k++) {
         place("office", k, 0.5, 0.40, "pd_desk", 48, 36);
         place("office", k, 0.2, 0.80, "pd_files", 26, 34);
@@ -11484,6 +11517,18 @@ export default function IronLionLayer004() {
       }
     }
     /* A name off the roster, and what happens to it when the man wearing it goes down. */
+    /* A UNIFORM off his own plate, picked by who he is: the sheet is drawn once per skin tone and
+       per sex, so a roster name and a body match. Falls back to the old drawn cop. */
+    function drawCopPlate(u) {
+      const tone = COP_TONE[u.race || "white"] || "pale";
+      const key = "cop_" + (u.sex === "f" ? "f" : "m") + "_" + (u.race === "black" && Math.random() < 0 ? "dark" : tone);
+      const im = imgs.current[key];
+      if (!im || !im.width) { drawCop(u); return; }
+      const h = 34 * (u.jit || 1), w = h * im.width / im.height;
+      ctx.save(); ctx.translate(u.x, u.y); ctx.rotate((u.bang || Math.PI / 2) - Math.PI / 2);
+      ctx.drawImage(im, -w / 2, -h * 0.62, w, h);
+      ctx.restore();
+    }
     function copName() {
       const R = (g.roster = g.roster || { out: {}, resting: {} });
       const now = Date.now();
@@ -12731,6 +12776,31 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       ctx.font = "700 10px system-ui, sans-serif"; ctx.fillStyle = "rgba(159,197,232,0.95)"; ctx.textAlign = "center";
       ctx.fillText(Math.round(d / 20.8) + "m", ax, ay - 16); ctx.textAlign = "start";
     }
+    /* THE BOARD. Chalked up in the task force room: who holds what, where it is hot, and every
+       name Malcolm has pulled out of somebody. The war is invisible otherwise. */
+    function nearBoard() {
+      const D = g.dets;
+      if (!D || g.inside !== D.b || g.floor !== 1 || g.mode !== "foot") return null;
+      const pl = buildingPlans(D.b)[1], b = pl.props.find((q) => q.t === "pd_warboard");
+      if (!b) return null;
+      return Math.hypot(g.p.x - (b.x + b.w / 2), g.p.y - (b.y + b.h + 16)) < 80 ? b : null;
+    }
+    function boardPanel() {
+      const W2 = g.gwar;
+      if (!W2) return { title: "THE BOARD", text: "Nothing chalked up yet.", opts: [{ id: "close", label: "BACK" }] };
+      const rows = Object.entries(W2.gangs).map(([k, G2]) => {
+        const ts = Object.values(W2.turfs).filter((t) => t.owner === k);
+        return { k, nm: GANG_LABEL[k] || k, turfs: ts.length,
+                 heat: Math.round(ts.reduce((a, t) => a + t.heat, 0)),
+                 dens: ts.reduce((a, t) => a + t.dens.length, 0),
+                 known: G2.seats.filter((q) => q.known).map((q) => q.title + " " + q.name),
+                 down: G2.seats.filter((q) => q.state !== "free").map((q) => q.name + " (" + q.state + ")") };
+      }).sort((a, b2) => b2.turfs - a.turfs);
+      const hot = Object.values(W2.turfs).filter((t) => t.snitch && !t.told).map((t) => turfName(t));
+      const busts = Object.values(W2.turfs).filter((t) => t.bust).map((t) => turfName(t));
+      return { title: "THE BOARD \u00b7 TURN " + W2.turn, face: "assets/ui/ui_badge.png",
+               rows, hot, busts, opts: [{ id: "close", label: "BACK" }] };
+    }
     function nearHouse() {
       const D = g.dets;
       if (!D || g.inside !== D.b || g.mode !== "foot") return null;
@@ -12971,13 +13041,13 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         // surname only: the offices are narrow and full names ran into each other
         ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText(d.nm.slice(5), d.x, d.y - 24); ctx.textAlign = "start"; } }]);
       if (D0 && g.inside === D0.b) for (const u of D0.staff || []) if (!u.out && u.f === g.floor) out.push([u.y, 9, { __draw: () => {
-        u.anim += 0.012; drawShadow(u.x, u.y + 2, 10, 4, 0.3); drawCop(u);
+        u.anim += 0.012; drawShadow(u.x, u.y + 2, 10, 4, 0.3); drawCopPlate(u);
         const tag = u.label || u.nm;
         if (tag) { ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
           ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText(tag, u.x, u.y - 24); ctx.textAlign = "start"; } } }]);
       for (const u of g.squad || []) if (!u.inCar && inView(u) && (!g.inside || u.bldOf === g.inside)) out.push([u.y, 9, { __draw: () => {
         drawShadow(u.x, u.y + 2, 10, 4, 0.3);
-        if (u.yt) drawYouth(u); else drawCop(u);
+        if (u.yt) drawYouth(u); else drawCopPlate(u);
         if (u.nm) { ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
           ctx.fillStyle = "rgba(180,200,232,0.9)"; ctx.fillText(u.nm, u.x, u.y - 24); ctx.textAlign = "start"; }
         if (u.muzzle > 0) { ctx.fillStyle = "rgba(255,214,120,0.9)"; ctx.beginPath(); ctx.arc(u.x + Math.cos(u.bang || 0) * 16, u.y + Math.sin(u.bang || 0) * 16, 4, 0, 6.283); ctx.fill(); } } }]);
@@ -13165,6 +13235,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       }
       if (b) out.push({ id: "station", label: "THE STATION", x: b.x + b.w / 2, y: b.y + b.h + 120 });
       { const cb = courtB(); if (cb) { const dp = doorPoint(cb); out.push({ id: "court", label: "THE COURTHOUSE", x: dp[0], y: dp[1] + 70 }); } }
+      { const gb = gomezB(); if (gb) { const dp = doorPoint(gb); out.push({ id: "manor", label: "THE GOMEZ MANOR", x: dp[0], y: dp[1] + 80 }); } }
       for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
         const c = getCell(i, j), h = c && (c.blds || []).find((q) => q.kind === "hospital");
         if (h) { out.push({ id: "morgue", label: "THE MORGUE", x: h.x + h.w / 2, y: h.y + h.h + 120 }); i = N; break; }
@@ -13174,7 +13245,8 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
     function stepAutopilot(dt) {
       const A = g.auto;
       if (!A) return;
-      if (!inVehicle()) { g.auto = null; return; }
+      g.canAimDriving = true;                 // she has the wheel; his hands are free
+      if (!inVehicle()) { g.auto = null; g.canAimDriving = false; return; }
       const v = activeVeh(), [tx, ty] = A.pts[A.i];
       const dx = tx - v.x, dy = ty - v.y, d = Math.hypot(dx, dy);
       /* THE LAST LEG. She used to drive to the point itself, which is the scene -- so she parked
@@ -13547,6 +13619,8 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       }
       return best;
     }
+    // a height like 5'11" as plain inches, so two of them can be compared
+    const hgtIn = (h) => { const m = /(\d+)'(\d+)/.exec(h || ""); return m ? +m[1] * 12 + +m[2] : 68; };
     const ROLE_NM = { witness: "WITNESS", victim: "VICTIM", perp: "", decoy: "", cop: "OFFICER ON SCENE", lead: "",
                       crowd: "ONLOOKER", csu: "CRIME SCENE UNIT" };
     function talkPanel(q) {
@@ -13595,10 +13669,17 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         if (!C.csuSaid) {
           const id = identOf(C.perp);
           if (C.K.hurt) {
+            /* A HEIGHT IS A NUMBER, and it has to be the same number that is on the man's card --
+               "about the victim's height" told Malcolm nothing he could check. */
             const hrs = 2 + ((Math.random() * 7) | 0);
+            const vid = identOf(C.victim), vh = hgtIn(vid.hgt), ph = hgtIn(id.hgt);
+            const rel = ph - vh;
+            const call = rel >= 3 ? "taller than the victim by a good three inches or more"
+                       : rel <= -3 ? "shorter than the victim, three inches at least"
+                       : "the victim's height, give or take an inch";
             C.csuSaid = "Cause: " + cpick(["blunt force, back of the head", "sharp force, three wounds", "gunshot, close range",
               "strangulation -- there are marks on the throat"]) + ". Time of death between " + hrs + " and " + (hrs + 2) +
-              " hours ago. Whoever did it was " + (parseInt(id.hgt) >= 6 ? "taller than the victim" : "about the victim's height") + ", by the angle.";
+              " hours ago. The victim is " + vid.hgt + ". By the angle, whoever did it was " + call + ".";
           } else {
             C.csuSaid = "Point of entry: " + cpick(["the back window, jimmied with something flat", "the side door -- the lock's been drilled",
               "the roof hatch. He knew it was there", "the front, with a key or something close enough to one"]) +
@@ -20775,6 +20856,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
     // the Daily Grind's fittings and Malcolm's computer
     for (const k of OT_PROPS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#5b5f58";
       if (["ot_kiosk", "ot_stall", "ot_fountain", "ot_bench", "ot_trough", "ot_cart"].includes(k)) SOLID_PROP[k] = 1; }
+    for (const k of ["pd_warboard", "pd_warboard_wall"]) { PROP_ART[k] = k; PROP_COL[k] = "#2f3a33"; SOLID_PROP[k] = 1; }
     for (const k of CT_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#6b4a2e"; if (CT_SOLID[k]) SOLID_PROP[k] = 1; }
     for (const k of DG_KEYS.concat(["pd_computer"])) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#c9a24a"; if (DG_SOLID[k]) SOLID_PROP[k] = 1; }
     // the station, the morgue and the department's cars as props
@@ -26232,7 +26314,10 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       // a strike thrown inside the Lion's minute lands with everything behind it; a punch
       // thrown in a jacket and jeans does not
       const lionHit = (g.lionOn ? 2 : 1) * (g.plain ? 0.55 : 1);
-      if (g.mode !== "foot" || g.p.atkCd > 0) return;
+      /* HANDS FREE. With Ramos driving, Malcolm is a passenger with a gun -- he can lock on and
+         fire out of the window. On foot as before; at the wheel himself, no. */
+      const riding = g.auto && inVehicle() && g.p.wpn && !g.p.holstered;
+      if ((g.mode !== "foot" && !riding) || g.p.atkCd > 0) return;
       /* MAXINE'S STRIKE IS THE WHIP. Nothing was gating her out of melee -- she was throwing
          the same bare-handed punch as everyone else, at the same reach, which on a woman built
          to stay out of arm's reach reads as the button doing nothing. She has a whip on her
@@ -26520,7 +26605,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       // frozen drivers come to; the ones driving like lunatics swerve
       for (const v of g.traffic) {
         if (v.unfreeze > 0) { v.unfreeze -= dt; if (v.unfreeze <= 0) { v.dead = 0; v.parked = 0; v.deadT = 0; } }
-        if (v.wild > 0) { v.wild -= dt; v.ang += Math.sin(performance.now() / 140 + v.x) * dt * 0.9; }
+        if (v.wild > 0) { v.wild -= dt; v.ang += Math.sin(performance.now() / 140 + v.x) * dt * 0.35; }
       }
       for (let n = g.bailers.length - 1; n >= 0; n--) {
         const b = g.bailers[n];
@@ -27546,6 +27631,21 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
 
         // red light
         let target = v.cruise;
+        /* THE JUNCTION. Where the next crossing is on this car's axis, and whether it may go.
+           Without this they drove through every intersection at once and piled into each other. */
+        if (!v.rb && !v.fleeing && !v.bus) {
+          const ph = lightPhase(g.t || 0);
+          const mine = v.axis === "h" ? ph.ew : ph.ns;
+          const pos = v.axis === "h" ? v.x : v.y;
+          const idx = v.dir > 0 ? Math.ceil(pos / PITCH) : Math.floor(pos / PITCH);
+          const line = idx * PITCH - v.dir * (halfW(idx) + 26);
+          const gap = (line - pos) * v.dir;
+          if (mine !== "green" && gap > -10 && gap < 170) {
+            // amber: only stop if there is room to stop in
+            if (mine === "red" || gap > 60) target = Math.min(target, Math.max(0, gap * 1.6 - 20));
+          }
+          v.atLight = mine !== "green" && gap > -10 && gap < 170;
+        }
         if (v.bus) {
           if (v.hold > 0) { v.hold -= dt; target = 0; }
           else if (v.served !== v.k) {
@@ -27633,6 +27733,18 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         }
         v.x += fx * v.spd * dt; v.y += fy * v.spd * dt;
         v.rad = v.bus ? (v.m.w || 66) / 2 + 6 : 19;
+        /* A CAR IS NOT A GHOST. Traffic never tested the buildings, so a swerve, a shunt or a
+           turn could put one straight through a wall; and a car that has been sitting still in
+           the road for ten seconds with nobody in front of it is a pile-up, so it is recycled. */
+        if (!v.bus && !v.parked) collideBuildings(v, 20, true);
+        if (v.spd < 12 && !v.atLight && !v.dead && !v.parked) {
+          v.stuck = (v.stuck || 0) + dt;
+          if (v.stuck > 10) {
+            const far = Math.hypot(v.x - pc.x, v.y - pc.y) > 900;
+            if (far) { v.dead = 1; v.deadT = 99; }        // culled out of sight and respawned elsewhere
+            else { v.stuck = 0; v.spd = 40; v.fleeing = Math.max(v.fleeing || 0, 1.2); }
+          }
+        } else v.stuck = 0;
 
         // shunt against whatever the player is driving
         const cdx = v.x - pc.x, cdy = v.y - pc.y;
@@ -27973,6 +28085,29 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         if (q.x < view.x0 - 40 || q.x > view.x1 + 40 || q.y < view.y0 - 40 || q.y > view.y1 + 40) continue;
         const im = imgs.current[q.t];
         if (im && im.width) ctx.drawImage(im, q.x - q.w / 2, q.y - q.h / 2, q.w, q.h);
+      }
+    }
+    /* THE SIGNALS at every junction in view: a head on each approach, three lamps, the live one
+       lit. Drawn with the street furniture, under everything that stands on the road. */
+    function drawLights(view) {
+      if (g.inside) return;
+      const ph = lightPhase(g.t || 0);
+      const i0 = Math.max(1, Math.floor(view.x0 / PITCH)), i1 = Math.min(N, Math.ceil(view.x1 / PITCH));
+      const j0 = Math.max(1, Math.floor(view.y0 / PITCH)), j1 = Math.min(N, Math.ceil(view.y1 / PITCH));
+      if ((i1 - i0) * (j1 - j0) > 40) return;                       // zoomed right out: not worth it
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+        const cx = SX(i), cy = SX(j), hw = halfW(i) + 18, hh = halfW(j) + 18;
+        for (const [ox, oy, axis] of [[-hw, -hh, "ns"], [hw, hh, "ns"], [hw, -hh, "ew"], [-hw, hh, "ew"]]) {
+          const x = cx + ox, y = cy + oy, st = axis === "ns" ? ph.ns : ph.ew;
+          ctx.fillStyle = "rgba(18,20,24,0.95)"; ctx.fillRect(x - 7, y - 17, 14, 34);
+          const lamps = [["#e05a4a", "red"], ["#e8c46a", "amber"], ["#6fd08c", "green"]];
+          lamps.forEach(([col, nm], k) => {
+            const on = st === nm;
+            ctx.fillStyle = on ? col : "rgba(255,255,255,0.10)";
+            ctx.beginPath(); ctx.arc(x, y - 9 + k * 9, 3.6, 0, 6.283); ctx.fill();
+            if (on) { ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.arc(x, y - 9 + k * 9, 9, 0, 6.283); ctx.fill(); ctx.globalAlpha = 1; }
+          });
+        }
       }
     }
     function drawRoundabout(view) {
@@ -30942,7 +31077,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       drawUnitNumbers(view);
       drawCoroner();
       drawTrailEvidence(view);
-      if (!g.inside) { drawOldTownProps(view); drawBustMarks(view); }
+      if (!g.inside) { drawOldTownProps(view); drawLights(view); drawBustMarks(view); }
       if (g.inside) drawCasings(view);
       drawBackup(view);
       drawCase(view);
@@ -31104,6 +31239,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
             atDet: (() => { const d = nearDet(); return d ? { id: d.id, nm: d.nm.slice(5) } : null; })(),
             atHouse: (() => { const u = nearHouse(); return u ? { id: u.id, nm: u.nm } : null; })(),
             atGomez: (() => { const q = nearGomez(); return q ? { id: q.id, nm: q.nm.split(" ")[0] } : null; })(),
+            atBoard: !!nearBoard(), board: g.boardOpen ? boardPanel() : null,
             atSnitch: !!nearSnitch(), atBust: (() => { const t = nearBust(); return t ? turfName(t) : null; })(),
             juice: g.juice || 0, radioCall: g.radioCall ? { line: g.radioCall.line } : null,
             ramosCar: !!(g.detMode && inVehicle() && g.partner && g.partner.inCar), autoOn: !!g.auto,
@@ -34282,7 +34418,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       /* OLD TOWN. Five landmarks on the streets that run to the circle, and tenements filling the
          blocks around them -- each sized off its own plate so nothing is stretched. */
       { k: "ct_ot_church", id: "ot_church", i: 2, j: 1, w: 0.280, h: 0.406, ox: -0.10, oy: -0.06, kind: "church", door: 0.5, doorSide: 2, clear: true },
-      { k: "ct_gomez", id: "ot_gomez", i: 2, j: 2, w: 0.307, h: 0.585, ox: 0.10, oy: -0.16,
+      { k: "ct_gomez", id: "ot_gomez", i: 2, j: 2, w: 0.313, h: 0.220, ox: 0.10, oy: -0.16,
         kind: "gomezhouse", door: 0.5, doorSide: 2, clear: true, floors: 1 },
       { k: "ct_ot_market", id: "ot_market", i: 4, j: 2, w: 0.267, h: 0.401, ox: 0.16, oy: -0.02, kind: "market", door: 0.5, doorSide: 2, clear: true },
       { k: "ct_ot_tavern", id: "ot_tavern", i: 2, j: 2, w: 0.267, h: 0.355, ox: -0.08, oy: 0.06, kind: "tavern", door: 0.42, doorSide: 2, clear: true },
@@ -37927,6 +38063,28 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
           </div>
         </div>
       )}
+      {/* THE BOARD in the task force room. */}
+      {hud.board && (
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, top: 0, zIndex: 93,
+          background: "rgba(6,7,9,0.94)", padding: "26px 18px", fontFamily: mono, overflowY: "auto" }}
+          onClick={() => { const gg = G.current; gg.boardOpen = false; setHud((h) => ({ ...h, board: null })); }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.24em", color: "#e8c46a" }}>{hud.board.title}</div>
+          <div style={{ marginTop: 12 }}>
+            {hud.board.rows.map((r) => (
+              <div key={r.k} style={{ marginBottom: 9, borderLeft: "3px solid " + (r.turfs ? "#d9a441" : "rgba(120,110,90,0.4)"), paddingLeft: 9 }}>
+                <div style={{ fontSize: 12, color: "#e8d9b5" }}>
+                  {r.nm} {"\u00b7"} {r.turfs} TURF{r.turfs === 1 ? "" : "S"} {"\u00b7"} {r.dens} HOUSE{r.dens === 1 ? "" : "S"} {"\u00b7"} HEAT {r.heat}
+                </div>
+                {r.known.map((n) => <div key={n} style={{ fontSize: 10, color: "#9fc5e8" }}>{n}</div>)}
+                {r.down.map((n) => <div key={n} style={{ fontSize: 10, color: "#e05a4a" }}>{n}</div>)}
+              </div>
+            ))}
+          </div>
+          {!!hud.board.hot.length && <div style={{ fontSize: 10, color: "#e8c46a", marginTop: 8 }}>SOMEBODY WILL TALK: {hud.board.hot.join("  \u00b7  ")}</div>}
+          {!!hud.board.busts.length && <div style={{ fontSize: 10, color: "#e05a4a", marginTop: 4 }}>WIDE OPEN: {hud.board.busts.join("  \u00b7  ")}</div>}
+          <div style={{ fontSize: 9, letterSpacing: "0.2em", color: "rgba(232,217,181,0.5)", marginTop: 16 }}>TAP ANYWHERE TO CLOSE</div>
+        </div>
+      )}
       {/* THE RIGHTS, read one line at a time. */}
       {hud.rights && (
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 92,
@@ -38771,6 +38929,11 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
             {hud.canGumball && btn("SIREN", hud.gumball ? "on" : "gumball", () => G.gumballFn && G.gumballFn(), null, hud.gumball, 56)}
             {hud.ramosCar && btn("RAMOS", hud.autoOn ? "take wheel" : "you drive",
               () => { if (G.current.auto) { G.current.auto = null; } else G.pickOpen && G.pickOpen("drive"); }, null, hud.autoOn, 56)}
+            {/* she has the wheel: he can take aim and fire out of the window */}
+            {hud.autoOn && hud.wpn && !hud.holstered && btn("TGT", hud.locked ? "next" : "lock on",
+              () => G.cycleTargetFn && G.cycleTargetFn(), hud.locked, 56)}
+            {hud.autoOn && hud.wpn && !hud.holstered && btn("FIRE", "out the window",
+              () => G.strikeFn && G.strikeFn(), null, false, 56)}
             {btn("REV", "reverse",
               () => { input.current.reverse = true; },
               () => { input.current.reverse = false; }, null, 56)}
@@ -38886,6 +39049,8 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
             {hud.atDet && btn(hud.atDet.nm, "talk", () => G.pickOpen && G.pickOpen("det:" + hud.atDet.id), null, false)}
             {hud.atHouse && btn(hud.atHouse.nm.split(" ").pop(), "talk", () => G.pickOpen && G.pickOpen("house:" + hud.atHouse.id), null, false)}
             {hud.atGomez && btn(hud.atGomez.nm, "talk", () => G.pickOpen && G.pickOpen("gomez:" + hud.atGomez.id), null, false)}
+            {hud.atBoard && btn("BOARD", "the war", () => { const gg = G.current; gg.boardOpen = !gg.boardOpen;
+              setHud((h) => ({ ...h, board: gg.boardOpen ? boardPanel() : null })); }, null, !!hud.board)}
             {hud.atSnitch && btn("SNITCH", "hear him out", () => G.snitchFn && G.snitchFn(), null, false)}
             {hud.atBust && btn("BUST", JUICE.cost.swat + " juice", () => G.bustFn && G.bustFn(), null, false)}
             {hud.ramosCar && btn("RAMOS", hud.autoOn ? "take the wheel" : "you drive",
