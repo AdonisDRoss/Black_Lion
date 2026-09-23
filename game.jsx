@@ -1592,7 +1592,29 @@ const OT_PLATES = ["ct_ot_church", "ct_ot_market", "ct_ot_tavern", "ct_ot_pawn",
 const OT_PROPS = ["ot_lamp", "ot_fountain", "ot_stall", "ot_trough", "ot_bollards", "ot_kiosk", "ot_bench", "ot_pigeons", "ot_crates", "ot_cart"];
 for (const k of OT_PLATES) PD_ART[k] = "assets/city/" + k + ".png";
 for (const k of OT_PROPS) PD_ART[k] = "assets/oldtown/" + k + ".png";
+// what the houses sell, bagged and loose
+for (const k of ["stone", "leaf", "diamond"]) {
+  PD_ART["dr_" + k] = "assets/drugs/dr_" + k + ".png";
+  PD_ART["dr_" + k + "_bag"] = "assets/drugs/dr_" + k + "_bag.png";
+}
 PD_ART.yt_captain = "assets/heroes/yt_captain.png"; PD_ART.pt_captain = "assets/heroes/pt_captain.png";
+/* THE GOMEZ FAMILY of Old Town: Hector and his younger brother Arty, Arty's sons Theo and Leo,
+   Vaskov who does the talking for them, and four men who stand around the house. */
+const GOMEZ = [
+  { id: "hector", nm: "HECTOR GOMEZ", role: "THE OLDER BROTHER", room: "gzoffice", fx: 0.5, fy: 0.38,
+    hi: "Sit down, detective. My brother's people talk too much and my sons talk too little. What is it you want?" },
+  { id: "vaskov", nm: "VASKOV", role: "UNDERBOSS", room: "gzhall", fx: 0.30, fy: 0.55,
+    hi: "The family has no comment. That is the comment. Write it down properly." },
+  { id: "arty", nm: "ARTY GOMEZ", role: "THE YOUNGER BROTHER", room: "gzparlour", fx: 0.5, fy: 0.5,
+    hi: "Hector talks like a bank manager. I'm the one who has to go and see people." },
+  { id: "theo", nm: "THEO GOMEZ", role: "ARTY'S SON", room: "gzparlour", fx: 0.26, fy: 0.68, hi: "My uncle's inside. I'm not." },
+  { id: "leo", nm: "LEO GOMEZ", role: "ARTY'S SON", room: "gzhall", fx: 0.70, fy: 0.70, hi: "You want something, you go through Vaskov." },
+];
+const GOMEZ_CREW = ["yt_gm1", "yt_gm2", "yt_gm3", "yt_gm4"];
+for (const q of GOMEZ) { PD_ART["yt_" + q.id] = "assets/heroes/yt_" + q.id + ".png"; PD_ART["pt_" + q.id] = "assets/heroes/pt_" + q.id + ".png"; }
+for (let k = 1; k <= 4; k++) { PD_ART["yt_gm" + k] = "assets/heroes/yt_gm" + k + ".png"; PD_ART["pt_gm" + k] = "assets/heroes/pt_gm" + k + ".png"; }
+PD_ART.ct_gomez = "assets/city/ct_gomez.png";
+PD_ART.gm_car = "assets/police/gm_car.png";
 for (const t of ["sally", "elias", "specs", "sparky"]) {
   PD_ART["yt_" + t] = "assets/heroes/yt_" + t + ".png"; PD_ART["pt_" + t] = "assets/heroes/pt_" + t + ".png"; }
 /* THE SQUAD ROOM: four more detectives, each with a speciality, a desk on B1 and a car in the lot.
@@ -3288,7 +3310,10 @@ const WAR_GANGS = {
   barrio:    { drugs: ["leaf"], home: [3, 9], seats: 3 },
   brack:     { drugs: ["leaf", "stone"], home: [11, 11], seats: 3 },
   sec:       { drugs: ["diamond"], home: [17, 9], seats: 3 },
-  gomez:     { drugs: ["stone", "leaf"], home: [3, 2], seats: 4 },    // OLD TOWN
+  /* OLD TOWN. A family, not a street crew: heat rises slowest on their ground and they answer
+     wars rather than start them. */
+  gomez:     { drugs: ["stone", "leaf"], home: [3, 2], seats: 3, quiet: 1, patient: 1,
+               names: ["HECTOR GOMEZ", "VASKOV", "ARTY GOMEZ"] },
 };
 /* THE SEATS. The boss is the man the city already knows (LEADERS); under him sit an underboss and
    a captain, and Malcolm knows none of them until somebody tells him or he proves it. A leader who
@@ -4906,6 +4931,7 @@ function floorKind(b, f) {
      captain, break room, lockers and bathrooms. */
   if (b.kind === "coffeeshop") return "dgfloor";
   if (b.kind === "courthouse") return "courtroom";
+  if (b.kind === "gomezhouse") return "gzhouse";
   if (b.kind === "precinct" && b.pd) return f === 0 ? "pd_garage" : f === 1 ? "pd_lower" : "pd_main";
   if (b.kind === "precinct") return f === 0 ? "precinct" : "offices";
   if (b.kind === "cityhall") return f === 0 ? "cityhall" : "offices";
@@ -5115,6 +5141,12 @@ function makeFloor(b, f, rnd) {
        which is four small rooms rather than a venue -- you could not see the band from the
        bar. The furniture still zones it; the walls were the problem. */
     hub = put(0, 0, GX - 1, GY - 1, "vnstage");
+  } else if (kind === "gzhouse") {
+    // the hall inside the front door, the parlour off it, and Hector's office at the back
+    const my = Math.round(GY * 0.52), mx = Math.round(GX * 0.54);
+    hub = put(0, my, GX - 1, GY - 1, "gzhall");
+    put(0, 0, mx - 1, my - 1, "gzoffice");
+    put(mx, 0, GX - 1, my - 1, "gzparlour");
   } else if (kind === "courtroom") {
     hub = put(0, 0, GX - 1, GY - 1, "court");
   } else if (kind === "dgfloor") {
@@ -5751,7 +5783,7 @@ function makeFloor(b, f, rnd) {
 
   /* --- stairwell in the hub (the den is single-storey, it gets no stair at all) --- */
   const hr = rect(rooms[hub]);
-  const st = kind === "den" || kind === "dgfloor" || kind === "courtroom"   // one storey: no stairs going nowhere
+  const st = kind === "den" || kind === "dgfloor" || kind === "courtroom" || kind === "gzhouse"   // one storey: no stairs going nowhere
     ? { x: -9999, y: -9999, w: 0, h: 0 }
     /* The hub rule puts the stair in the middle of the room, and the middle of a gym is the ring. */
     : (kind === "pd_main" || kind === "pd_lower")
@@ -5934,6 +5966,7 @@ function makeFloor(b, f, rnd) {
     if (kind === "gymfloor") { r.floorTex = "tx_gymfloor"; r.texTile = b.w / 3; }
     if (kind === "dgfloor") { r.floorTex = "tx_dg_floor"; r.texTile = 88; }
     if (kind === "courtroom") { r.floorTex = "tx_court_wood"; r.texTile = 320; }
+    if (kind === "gzhouse") { r.floorTex = "tx_court_wood"; r.texTile = 240; }
     if (b && b.nf && !r.floorTex)
       r.floorTex = r.k === "bath" ? "tx_lino" : f === 0 ? (b.rochelle ? "tx_marble" : "tx_tr_carpet") : "tx_terrazzo";
     // the tower's own finishes, per floor, as TOWER already said -- marble on the twins' floors stays
@@ -7316,6 +7349,19 @@ function makeFloor(b, f, rnd) {
       place("pdbath", 0, 0.5, 0.78, "sink", 20, 18);
       place("pdlobby", 0, 0.85, 0.72, "pd_prints", 32, 32);
     }
+  }
+  /* THE GOMEZ HOUSE: a desk in the office at the back, a parlour off the hall, and the hall
+     itself inside the front door. */
+  if (kind === "gzhouse") {
+    const put2 = (roomK, fx, fy, t, w, h) => {
+      const rr = rooms.find((q) => q.k === roomK); if (!rr) return;
+      const q = rect(rr);
+      props.push({ x: q.x0 + (q.x1 - q.x0) * fx - w / 2, y: q.y0 + (q.y1 - q.y0) * fy - h / 2, w, h, t });
+    };
+    put2("gzoffice", 0.5, 0.58, "pd_captdesk", 86, 46); put2("gzoffice", 0.20, 0.30, "pd_files", 28, 36);
+    put2("gzoffice", 0.80, 0.28, "pd_trophy", 26, 30);
+    put2("gzparlour", 0.28, 0.32, "dg_sofa", 70, 38); put2("gzparlour", 0.72, 0.30, "dg_table", 40, 34);
+    put2("gzhall", 0.20, 0.30, "dg_counter", 60, 34); put2("gzhall", 0.80, 0.34, "pd_bench_long", 60, 26);
   }
   /* THE COURTROOM, laid out the way a courtroom is: the bench and its flags on the north wall
      with the witness box beside it and the stenographer below; the jury down the east wall; the
@@ -11079,10 +11125,10 @@ export default function IronLionLayer004() {
         // the boss is the name the city knows; the two under him are made up and kept quiet
         const boss = (LEADERS[k] && LEADERS[k].name) || GANG_LABEL[k] || k;
         const seats = WAR_SEATS.map((title, n) => ({
-          title, name: n === 0 ? boss : warName(k, n), state: "free", t: 0, known: false,
+          title, name: (def.names && def.names[n]) || (n === 0 ? boss : warName(k, n)), state: "free", t: 0, known: false,
         }));
         gangs[k] = { k, cash: 4000 + ((Math.random() * 3000) | 0), drugs: def.drugs.slice(),
-                     up: { crews: 0, ranks: 0, quiet: 0 }, intel: {}, seats };
+                     up: { crews: 0, ranks: 0, quiet: def.quiet ? 2 : 0 }, intel: {}, seats, patient: !!def.patient };
         // a home turf and the two next to it, so nobody starts with less than three
         const [hi, hj] = def.home;
         const home = [Math.min(T - 1, Math.floor(hi / WAR.side)), Math.min(T - 1, Math.floor(hj / WAR.side))];
@@ -11157,7 +11203,9 @@ export default function IronLionLayer004() {
       // what a gang does: rich and next to somebody -> attack; hot -> sit still; otherwise build and sell
       const r = Math.random();
       let act = "sell";
-      if (canAttack && r < (hot ? 0.18 : 0.42) * (headless ? 0.4 : 1)) act = "attack";
+      // the patient ones answer a war, they do not open one
+      const answering = G.patient ? mine.some((t) => t.heat > 20 || t.defend > 0) : true;
+      if (canAttack && answering && r < (hot ? 0.18 : 0.42) * (headless ? 0.4 : 1) * (G.patient ? 0.5 : 1)) act = "attack";
       else if (G.cash >= WAR.cost.den && denless.length && r < 0.62) act = "den";
       else if (targets.length && G.cash >= WAR.cost.plot && r < 0.74) act = "plot";
       else if (hot && r < 0.86) act = "defend";
@@ -11296,6 +11344,22 @@ export default function IronLionLayer004() {
     };
     /* THE HOUSE. When a turf runs too hot the address is on the street, and Malcolm can put SWAT
        through the door -- for juice, because the department does not hand out a tactical team. */
+    /* A HOUSE THAT IS WIDE OPEN shows itself: the bag of whatever it sells, sitting over the turf
+       it is on, so Malcolm can see what he is about to take off them. */
+    function drawBustMarks(view) {
+      if (!g.war || g.inside || !g.detMode) return;
+      for (const t of Object.values(g.war.turfs)) {
+        if (!t.bust || !t.dens.length) continue;
+        const cx = (t.ti * WAR.side + WAR.side / 2) * PITCH, cy = (t.tj * WAR.side + WAR.side / 2) * PITCH;
+        if (cx < view.x0 - 200 || cx > view.x1 + 200 || cy < view.y0 - 200 || cy > view.y1 + 200) continue;
+        const drug = t.dens[0].drug, im = imgs.current["dr_" + drug + "_bag"] || imgs.current["dr_" + drug];
+        const bob = Math.sin(performance.now() / 500) * 4;
+        if (im && im.width) { const w = 40, h = w * im.height / im.width; ctx.drawImage(im, cx - w / 2, cy - h - 10 + bob, w, h); }
+        ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(226,200,120,0.95)";
+        ctx.fillText(DRUGS[drug].nm + " HOUSE", cx, cy + 14 + bob); ctx.textAlign = "start";
+      }
+    }
     function nearBust() {
       if (!g.war || g.inside || !g.detMode) return null;
       for (const t of Object.values(g.war.turfs)) {
@@ -11309,6 +11373,7 @@ export default function IronLionLayer004() {
       const t = nearBust(); if (!t) return;
       if (!spend(JUICE.cost.swat, "A TACTICAL TEAM")) return;
       const gang = t.owner;
+      const seized = t.dens.slice();
       t.dens = []; t.heat *= 0.3; t.bust = false; t.bustT = 0;
       if (t.crews.length > 1) t.crews.length = Math.max(1, t.crews.length - 2);
       const G2 = g.war.gangs[gang];
@@ -11317,9 +11382,13 @@ export default function IronLionLayer004() {
         if (hidden.length && Math.random() < 0.6) { const q = hidden[hidden.length - 1]; q.known = true;
           bookNote(GANG_LABEL[gang] + " \u00b7 " + q.title + ": " + q.name + " -- off the house on " + turfName(t) + "."); } }
       warLog("SWAT went through the door on " + turfName(t) + " -- Malcolm's call");
-      g.p.cash = (g.p.cash || 0) + 300;
+      const took = seized.map((d) => DRUGS[d.drug].nm).filter((v, i, a2) => a2.indexOf(v) === i).join(", ");
+      const worth = seized.reduce((a2, d) => a2 + WAR.income[d.drug] * d.level * 8, 0);
+      bookNote("BUST: " + turfName(t) + " -- " + (took || "an empty house") + " off " + (GANG_LABEL[gang] || "nobody") + ", $" + Math.round(worth) + " off the street.");
+      g.p.cash = (g.p.cash || 0) + 200 + Math.round(worth * 0.08);
       juice(JUICE.raid, "A BUST");
-      g.jobBanner = "BUST \u00b7 " + turfName(t); g.jobNote = (GANG_LABEL[gang] || "Somebody") + " just lost a house.";
+      g.jobBanner = "BUST \u00b7 " + turfName(t);
+      g.jobNote = (GANG_LABEL[gang] || "Somebody") + " just lost a " + (seized.length ? DRUGS[seized[0].drug].nm.toLowerCase() + " house." : "house.");
     };
     function stepWar(dt) {
       const W = g.war || warInit();
@@ -12121,6 +12190,85 @@ export default function IronLionLayer004() {
        bench, the prosecutor at the left table, the defence at the right, the bailiff at his
        podium, twelve in the jury box, a few in the pews, and the DA in the front row when there
        is a trial. */
+    /* THE HOUSE ON THE CIRCLE. The family stand in their rooms, four men stand about, and the
+       black car is in the courtyard. Malcolm can walk in and talk to any of them -- they are
+       under no obligation to tell him a thing. */
+    function gomezB() {
+      const m = MARKS.find((q) => q.id === "ot_gomez");
+      return m && m.b ? m.b : null;
+    }
+    function gomezPeople() {
+      const b = gomezB(); if (!b) return [];
+      if (b.gzPpl) return b.gzPpl;
+      const pl = buildingPlans(b)[0], out = [];
+      for (const q of GOMEZ) {
+        const r = pl.rooms.find((z) => z.k === q.room); if (!r) continue;
+        const pt = freeIndoor(b, pl, r.x0 + (r.x1 - r.x0) * q.fx, r.y0 + (r.y1 - r.y0) * q.fy, r);
+        if (!pt) continue;
+        out.push({ ...q, x: pt[0], y: pt[1], vx: 0, vy: 0, anim: Math.random() * 6, jit: 1.02, yt: "yt_" + q.id, bang: Math.PI / 2 });
+      }
+      // four of the crew, spread through the rooms
+      pl.rooms.forEach((r, k) => {
+        const pt = freeIndoor(b, pl, r.x0 + (r.x1 - r.x0) * (k % 2 ? 0.78 : 0.22), r.y0 + (r.y1 - r.y0) * 0.80, r);
+        if (pt) out.push({ id: "gm" + (k % 4 + 1), nm: "", crew: 1, x: pt[0], y: pt[1], vx: 0, vy: 0,
+                           anim: Math.random() * 6, jit: 1, yt: GOMEZ_CREW[k % 4], bang: Math.PI / 2 });
+      });
+      return (b.gzPpl = out);
+    }
+    function nearGomez() {
+      const b = gomezB();
+      if (!b || g.inside !== b || g.mode !== "foot") return null;
+      let best = null, bd = 74;
+      for (const q of gomezPeople()) { if (q.crew) continue;
+        const d = Math.hypot(q.x - g.p.x, q.y - g.p.y); if (d < bd) { bd = d; best = q; } }
+      return best;
+    }
+    function gomezPanel(id) {
+      const q = gomezPeople().find((z) => z.id === id);
+      if (!q) return { title: "", opts: [{ id: "close", label: "BACK" }] };
+      const W2 = g.war, G = W2 && W2.gangs.gomez;
+      const known = G ? G.seats.filter((z) => z.known).length : 0;
+      return { title: q.nm + " \u00b7 " + q.role, face: "assets/heroes/pt_" + q.id + ".png",
+               text: g.gzSaid || q.hi,
+               opts: [{ id: "gz:" + q.id + ":ask", label: "ASK ABOUT THE FAMILY" },
+                      { id: "gz:" + q.id + ":press", label: "PRESS HIM" }]
+                 .concat(known ? [{ id: "gz:" + q.id + ":name", label: "SAY A NAME YOU'VE GOT" }] : [])
+                 .concat([{ id: "close", label: "LEAVE IT" }]) };
+    }
+    G.gomezPick = (id) => {
+      const [, who, what] = id.split(":");
+      const q = gomezPeople().find((z) => z.id === who);
+      const G2 = g.war && g.war.gangs.gomez;
+      let said = null;
+      if (what === "ask") said = {
+        hector: "We own buildings on this circle and we have done since my father. What the tenants do is their business.",
+        vaskov: "A family is a word on a police board. Here it is dinner on a Sunday.",
+        arty: "Ask Hector. He likes questions. I like being left alone.",
+        theo: "I run the yard. That's all I do.",
+        leo: "You've been to the Red Lion? Everybody talks in there. Nobody says anything.",
+      }[who];
+      else if (what === "press") {
+        said = {
+          hector: "You can press. I've been pressed by better, in worse rooms, in a worse decade.",
+          vaskov: "Press away, detective. I was pressed by men with no paperwork at all.",
+          arty: "Careful. Hector's polite. I'm the other one.",
+          theo: "I've got nothing to give you.",
+          leo: "Try it with my father. See what you get.",
+        }[who];
+        if (G2 && Math.random() < 0.25) {
+          const hidden = G2.seats.filter((z) => !z.known);
+          if (hidden.length) { const seat = hidden[hidden.length - 1]; seat.known = true;
+            said += " ...I'll tell you this and nothing else: " + seat.name + " is not somebody you talk to. That is who you have.";
+            bookNote("GOMEZ \u00b7 " + seat.title + ": " + seat.name + " -- let slip in the house on the circle.");
+            juice(JUICE.statement * 2, "HE SLIPPED"); }
+        }
+      } else if (what === "name") {
+        const seat = G2 && G2.seats.find((z) => z.known);
+        said = seat ? "You say " + seat.name + " like it means something. It means a man goes home earlier than you do." : "You haven't got a name.";
+      }
+      g.gzSaid = said;
+      setHud((h) => ({ ...h, pick: gomezPanel(who) }));
+    };
     function courtB() {
       const m = MARKS.find((q) => q.k === "ct_courthouse");
       return m && m.b && m.b.kind === "courthouse" ? m.b : null;
@@ -12768,6 +12916,11 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
           ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "rgba(226,200,120,0.9)";
           ctx.fillText("WANTS TO TALK", sp.x, sp.y - 22); ctx.textAlign = "start"; } }]);
       }
+      const GB = gomezB();
+      if (GB && g.inside === GB) for (const q of gomezPeople()) out.push([q.y, 9, { __draw: () => {
+        q.anim += 0.01; drawShadow(q.x, q.y + 2, 10, 4, 0.3); drawYouth(q);
+        if (q.nm) { ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center";
+          ctx.fillStyle = "rgba(232,217,181,0.85)"; ctx.fillText(q.nm, q.x, q.y - 24); ctx.textAlign = "start"; } } }]);
       const CB = courtB();
       if (CB && g.inside === CB) {
         // everything already put in front of the jury, laid out on the evidence table
@@ -13182,6 +13335,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
     /* THE THREE PANELS -- trunk, radio, and where Ramos should drive. One chooser, three menus. */
     function pickPanel(kind) {
       if (kind === "trunk") return { title: "THE TRUNK", opts: DET.trunk.map(([k, nm]) => ({ id: "wpn:" + k, label: nm })).concat([{ id: "close", label: "SHUT IT" }]) };
+      if (kind && kind.startsWith("gomez:")) return gomezPanel(kind.slice(6));
       if (kind && kind.startsWith("house:")) return housePanel(kind.slice(6));
       if (kind && kind.startsWith("det:")) {
         const d = (g.dets && g.dets.four || []).find((q) => q.id === kind.slice(4));
@@ -13221,7 +13375,8 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         { id: "radio:home", label: "STAND DOWN" }, { id: "close", label: "OFF" }] };
       return { title: "RAMOS \u00b7 WHERE TO?", opts: driveTargets().map((t) => ({ id: "drive:" + t.id, label: t.label })).concat([{ id: "close", label: "I'LL DRIVE" }]) };
     }
-    G.pickOpen = (kind) => { if (!(kind || "").startsWith("det:")) g.detSaid = null; g.pickOpen = kind; setHud((h) => ({ ...h, pick: pickPanel(kind) })); };
+    G.pickOpen = (kind) => { if (!(kind || "").startsWith("gomez:")) g.gzSaid = null;
+      if (!(kind || "").startsWith("det:")) g.detSaid = null; g.pickOpen = kind; setHud((h) => ({ ...h, pick: pickPanel(kind) })); };
     G.pickFn = (id) => {
       if (id.startsWith("wpn:")) {
         const k = id.slice(4);
@@ -13231,6 +13386,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       } else if (id.startsWith("radio:")) G.radioFn(id.slice(6));
       else if (id.startsWith("carver:")) G.carverFn(id.slice(7));
       else if (id.startsWith("open:")) { g.fileText = null; G.pickOpen(id.slice(5)); return; }
+      else if (id.startsWith("gz:")) { G.gomezPick(id); return; }
       else if (id.startsWith("house:")) { G.housePick(id); return; }
       else if (id.startsWith("hire:")) {
         const d = (g.dets.four || []).find((q) => q.id === id.slice(5));
@@ -30656,7 +30812,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       drawUnitNumbers(view);
       drawCoroner();
       drawTrailEvidence(view);
-      if (!g.inside) drawOldTownProps(view);
+      if (!g.inside) { drawOldTownProps(view); drawBustMarks(view); }
       if (g.inside) drawCasings(view);
       drawBackup(view);
       drawCase(view);
@@ -30817,6 +30973,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
             atStaff: !!nearStaff(), atSquad: !!nearSquad(), squadN: (g.squad || []).length,
             atDet: (() => { const d = nearDet(); return d ? { id: d.id, nm: d.nm.slice(5) } : null; })(),
             atHouse: (() => { const u = nearHouse(); return u ? { id: u.id, nm: u.nm } : null; })(),
+            atGomez: (() => { const q = nearGomez(); return q ? { id: q.id, nm: q.nm.split(" ")[0] } : null; })(),
             atSnitch: !!nearSnitch(), atBust: (() => { const t = nearBust(); return t ? turfName(t) : null; })(),
             juice: g.juice || 0, radioCall: g.radioCall ? { line: g.radioCall.line } : null,
             ramosCar: !!(g.detMode && inVehicle() && g.partner && g.partner.inCar), autoOn: !!g.auto,
@@ -33995,6 +34152,8 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       /* OLD TOWN. Five landmarks on the streets that run to the circle, and tenements filling the
          blocks around them -- each sized off its own plate so nothing is stretched. */
       { k: "ct_ot_church", id: "ot_church", i: 2, j: 1, w: 0.280, h: 0.406, ox: -0.10, oy: -0.06, kind: "church", door: 0.5, doorSide: 2, clear: true },
+      { k: "ct_gomez", id: "ot_gomez", i: 2, j: 2, w: 0.307, h: 0.585, ox: 0.10, oy: -0.16,
+        kind: "gomezhouse", door: 0.5, doorSide: 2, clear: true, floors: 1 },
       { k: "ct_ot_market", id: "ot_market", i: 4, j: 2, w: 0.267, h: 0.401, ox: 0.16, oy: -0.02, kind: "market", door: 0.5, doorSide: 2, clear: true },
       { k: "ct_ot_tavern", id: "ot_tavern", i: 2, j: 2, w: 0.267, h: 0.355, ox: -0.08, oy: 0.06, kind: "tavern", door: 0.42, doorSide: 2, clear: true },
       { k: "ct_ot_pawn",   id: "ot_pawn",   i: 3, j: 2, w: 0.253, h: 0.210, ox: 0.10, oy: 0.10, kind: "pawn", door: 0.5, doorSide: 2, clear: true },
@@ -38596,6 +38755,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
             {hud.atSquad && btn("DISMISS", "send back", () => G.dismissFn && G.dismissFn(), null, false)}
             {hud.atDet && btn(hud.atDet.nm, "talk", () => G.pickOpen && G.pickOpen("det:" + hud.atDet.id), null, false)}
             {hud.atHouse && btn(hud.atHouse.nm.split(" ").pop(), "talk", () => G.pickOpen && G.pickOpen("house:" + hud.atHouse.id), null, false)}
+            {hud.atGomez && btn(hud.atGomez.nm, "talk", () => G.pickOpen && G.pickOpen("gomez:" + hud.atGomez.id), null, false)}
             {hud.atSnitch && btn("SNITCH", "hear him out", () => G.snitchFn && G.snitchFn(), null, false)}
             {hud.atBust && btn("BUST", JUICE.cost.swat + " juice", () => G.bustFn && G.bustFn(), null, false)}
             {hud.ramosCar && btn("RAMOS", hud.autoOn ? "take the wheel" : "you drive",
