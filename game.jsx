@@ -1640,6 +1640,35 @@ for (const d of SQUAD4) {
   PD_ART["pt_" + d.id] = "assets/heroes/pt_" + d.id + ".png";
   PD_ART[d.car.k] = "assets/police/" + d.car.k + ".png";
 }
+/* THE SQUAD'S SIZE. Their plates read a size bigger than Malcolm, Ramos and Sally standing in
+   the same room; 0.88 brings them into line. It rides on the object, so a detective who is
+   hired to ride along keeps it. */
+const SQUAD_TALL = 0.88;
+/* THE LEADERSHIP. Every crew's three seats as people you can see: boss, underboss, captain,
+   in WAR_SEATS order. Plates are hip-cut (the plate rule), so drawYouth gives them legs and they
+   can walk. The number is `tall`, solved off SHOULDER WIDTH rather than plate height -- the
+   sheets came in three different proportions (the Kings, Wolves and young-mob sheets are more
+   overhead), and sizing by height made the Wolves half again as broad as everyone else. */
+const LEADER_ART = {
+  kings: [["yt_ld_kings_boss", 0.99], ["yt_ld_kings_under", 0.99], ["yt_ld_kings_capt", 0.98]],
+  wolves: [["yt_ld_wolves_boss", 0.85], ["yt_ld_wolves_under", 0.89], ["yt_ld_wolves_capt", 0.89]],
+  mob_young: [["yt_ld_mob_young_boss", 0.98], ["yt_ld_mob_young_under", 0.97], ["yt_ld_mob_young_capt", 0.94]],
+  mob_old: [["yt_ld_mob_old_boss", 0.94], ["yt_ld_mob_old_under", 1.18], ["yt_ld_mob_old_capt", 0.86]],
+  chi: [["yt_ld_chi_boss", 0.94], ["yt_ld_chi_under", 1.0], ["yt_ld_chi_capt", 0.98]],
+  irish: [["yt_ld_irish_boss", 1.0], ["yt_ld_irish_under", 1.04], ["yt_ld_irish_capt", 0.98]],
+  barrio: [["yt_ld_barrio_boss", 0.98], ["yt_ld_barrio_under", 1.03], ["yt_ld_barrio_capt", 0.98]],
+  brack: [["yt_ld_brack_boss", 1.0], ["yt_ld_brack_under", 0.96], ["yt_ld_brack_capt", 1.03]],
+  sec: [["yt_ld_sec_boss", 0.99], ["yt_ld_sec_under", 0.98], ["yt_ld_sec_capt", 1.0]],
+};
+/* Where each seat stands relative to the leader's spot, and how they move about it. */
+/* Measured in the running game beside the street crews and Malcolm: at the shoulder-width
+   numbers alone they read about three quarters size. One multiplier, so the per-plate numbers
+   stay about the plates. */
+const LEADER_SCALE = 1.3;
+const LEADER_POSE = [[0, 0], [38, 22], [-36, 26]];
+const LEADER_WALK = { speed: 30, roam: 70, rest: [2, 6], face: 170, wake: 1600 };
+// registration goes UNDER the list -- the CT_KEYS / COP_PLATES trap
+for (const k in LEADER_ART) for (const [yt] of LEADER_ART[k]) PD_ART[yt] = "assets/leaders/" + yt + ".png";
 const DG_SOLID = { dg_espresso: 1, dg_grinders: 1, dg_display: 1, dg_shelf_cups: 1, dg_shelf_jars: 1, dg_fridge: 1,
                    dg_fridge2: 1, dg_longtable: 1, dg_table_round: 1, dg_table_round2: 1, dg_table_sq: 1,
                    dg_booth: 1, dg_booth2: 1, dg_cooler: 1, dg_rack: 1, dg_oven: 1, pd_computer: 1 };
@@ -2692,8 +2721,15 @@ const RAMP_WALL = 16;
 function rampList() {
   if (rampList._c) return rampList._c;
   const out = [];
-  const add = (ax, ay, bx, by) => out.push({ ax, ay, bx, by });
+  /* `vert` is the orientation of the FREEWAY LEG the ramp leaves, and `L` is that leg's
+     centreline. It used to be worked out from the ramp's own slope -- but a diamond ramp runs
+     430 out and only 338 along, so every ramp off a north-south leg read as east-west and the
+     other way round. The parapet cut, its collision and the gap markings all filter on `vert`,
+     so all 96 ramps met a solid parapet: you could see the slip road and never drive onto it. */
+  let legV = true, legL = 0;
+  const add = (ax, ay, bx, by) => out.push({ ax, ay, bx, by, vert: legV, L: legL });
   for (const L of FWY_V) for (const k of FWY_RAMPS) {
+    legV = true; legL = SX(L);
     // Never build a diamond where two freeway legs cross. The interchange handles that, and
     // a ramp there lands on top of the other leg's ramp running the opposite way -- two
     // corridors in the same place with opposite orientation, which is what made the level
@@ -2713,6 +2749,7 @@ function rampList() {
     }
   }
   for (const L of FWY_H) for (const k of FWY_RAMPS) {
+    legV = false; legL = SX(L);
     if (FWY_V.indexOf(k) >= 0) continue;
     const kerb = halfW(k) + SW + 18;
     for (const side of [1, -1]) {
@@ -2727,15 +2764,12 @@ function rampList() {
     r.len = Math.hypot(dx, dy);
     r.ux = dx / r.len; r.uy = dy / r.len;             // deck -> street
     r.nx = -r.uy; r.ny = r.ux;
-    r.vert = Math.abs(dy) > Math.abs(dx);
-    // the point where the lane leaves the carriageway -- the parapet has to open here, not
-    // at the ramp's start, because the ramp now begins inside the deck
+    // the point where the lane's centreline crosses the deck edge -- the parapet opens here,
+    // not at the ramp's start, because the ramp begins inside the carriageway
     let gx = r.bx, gy = r.by;
-    for (let t = 0; t <= 1; t += 0.01) {
+    for (let t = 0; t <= 1; t += 0.005) {
       const x = r.ax + dx * t, y = r.ay + dy * t;
-      const off = r.vert ? Math.abs(x - Math.round(x / PITCH) * PITCH)
-                         : Math.abs(y - Math.round(y / PITCH) * PITCH);
-      if (off >= FWY_HW) { gx = x; gy = y; break; }
+      if (Math.abs((r.vert ? x : y) - r.L) >= FWY_HW) { gx = x; gy = y; break; }
     }
     r.gx = gx; r.gy = gy;
   }
@@ -3369,6 +3403,10 @@ const WAR_GANGS = {
    the seat below him moves up. */
 const WAR_SEATS = ["BOSS", "UNDERBOSS", "CAPTAIN"];
 const WAR_HOSP = 6;               // turns in a bed
+/* WHAT THE WAR DOES TO MALCOLM. A turf taken leaves a body, and that body is his next case; a
+   crew he keeps hurting hits back at his case rather than at him; and a crew whose three seats are
+   all in Kestrel State stops existing. */
+const WAR_HIT = { grudgeBust: 3, grudgeArrest: 2, retaliate: 5, cool: 0.04 };
 const WAR_ATTACKS = [
   { id: "hit",     nm: "hit the crew",   crewDmg: 2.0, denDmg: 0,   heat: 1.0 },
   { id: "bomb",    nm: "bombed a den",   crewDmg: 0.6, denDmg: 1,   heat: 1.6 },
@@ -11310,6 +11348,12 @@ export default function IronLionLayer004() {
           const dis = distroInTurf(to);
           warLog(GANG_LABEL[k] + " took " + turfName(to) + " off " + (GANG_LABEL[to.wasOwner] || "nobody") + " -- " + plan.nm +
                  (dis ? ", and the " + DISTRO[dis].nm.toLowerCase() + " with it" : ""));
+          /* Somebody died holding that corner, and in the morning it is a case on his desk. */
+          if (to.wasOwner && to.wasOwner !== k) {
+            W.pending = W.pending || [];
+            if (W.pending.length < 4) W.pending.push({ gang: k, lost: to.wasOwner, ti: to.ti, tj: to.tj,
+              where: turfName(to), kind: plan.id === "bomb" || plan.id === "carbomb" ? "arson" : "murder", t: Date.now() });
+          }
         } else {
           const losses = Math.max(1, Math.round(send.length * 0.5));
           from.crews.splice(0, losses);
@@ -11437,6 +11481,43 @@ export default function IronLionLayer004() {
       }
       return null;
     }
+    function grudge(gang, n) {
+      if (!gang || !g.gwar || !g.gwar.gangs[gang]) return;
+      const G2 = g.gwar.gangs[gang];
+      G2.grudge = (G2.grudge || 0) + n;
+    }
+    /* THEY HIT BACK, and they hit the case rather than the detective: a witness who was going to
+       talk does not, a corner goes quiet, or his car is opened up in the street. */
+    function stepGrudge(dt) {
+      const W = g.gwar; if (!W || !g.detMode) return;
+      for (const G2 of Object.values(W.gangs)) {
+        if (!G2.grudge) continue;
+        G2.grudge = Math.max(0, G2.grudge - WAR_HIT.cool * dt);
+        if (G2.grudge < WAR_HIT.retaliate || Math.random() > dt * 0.04) continue;
+        G2.grudge = 0;
+        const C = g.case, roll = Math.random();
+        if (C && C.stage !== "done" && roll < 0.45) {
+          const w = C.people.filter((q) => q.caseRole === "witness" && (q.know || []).length);
+          if (w.length) {
+            const q = w[(Math.random() * w.length) | 0];
+            q.know = []; q.tr.attitude = "hostile"; q.tr.mood = "afraid";
+            caseLine("A WITNESS HAS STOPPED TALKING. Somebody got to them first.");
+            radioSay("Your witness on " + C.where + " just withdrew the statement, Malcolm. Word came down.");
+            continue;
+          }
+        }
+        if (roll < 0.75) {
+          const hot = Object.values(W.turfs).filter((t) => t.snitch && !t.told);
+          if (hot.length) { const t = hot[(Math.random() * hot.length) | 0]; t.told = true; t.snitch = false;
+            warLog("the man on " + turfName(t) + " has changed his mind about talking");
+            radioSay("That corner on " + turfName(t) + " has gone quiet. He's not talking now."); continue; }
+        }
+        const v = g.detCar;
+        if (v) { v.dmg = Math.min(1, (v.dmg || 0) + 0.45); g.shake = Math.max(g.shake, 8);
+          radioSay("Somebody put a brick through your car on " + crossStreet(v.x, v.y) + ". Or worse. Go and look at it.");
+          warLog("somebody opened up Malcolm's car"); }
+      }
+    }
     G.bustFn = () => {
       const t = nearBust(); if (!t) return;
       if (!spend(JUICE.cost.swat, "A TACTICAL TEAM")) return;
@@ -11450,6 +11531,7 @@ export default function IronLionLayer004() {
         if (hidden.length && Math.random() < 0.6) { const q = hidden[hidden.length - 1]; q.known = true;
           bookNote(GANG_LABEL[gang] + " \u00b7 " + q.title + ": " + q.name + " -- off the house on " + turfName(t) + "."); } }
       warLog("SWAT went through the door on " + turfName(t) + " -- Malcolm's call");
+      grudge(gang, WAR_HIT.grudgeBust);
       const took = seized.map((d) => DRUGS[d.drug].nm).filter((v, i, a2) => a2.indexOf(v) === i).join(", ");
       const worth = seized.reduce((a2, d) => a2 + WAR.income[d.drug] * d.level * 8, 0);
       bookNote("BUST: " + turfName(t) + " -- " + (took || "an empty house") + " off " + (GANG_LABEL[gang] || "nobody") + ", $" + Math.round(worth) + " off the street.");
@@ -11460,7 +11542,7 @@ export default function IronLionLayer004() {
     };
     function stepWar(dt) {
       const W = g.gwar || warInit();
-      warIncome(dt);
+      warIncome(dt); stepGrudge(dt);
       W.t += dt;
       if (W.t < WAR.turnEvery) return;
       W.t = 0; W.turn++;
@@ -11613,7 +11695,7 @@ export default function IronLionLayer004() {
           if (!r) continue;
           const fy = d.room[0] === "delgadooffice" ? 0.72 : 0.72;
           const pt = freeIndoor(b, pl1, (r.x0 + r.x1) / 2, r.y0 + (r.y1 - r.y0) * fy, r);
-          if (pt) four.push({ ...d, x: pt[0], y: pt[1], vx: 0, vy: 0, anim: Math.random() * 6, jit: 1, yt: "yt_" + d.id, bang: Math.PI / 2 });
+          if (pt) four.push({ ...d, x: pt[0], y: pt[1], vx: 0, vy: 0, anim: Math.random() * 6, jit: 1, tall: SQUAD_TALL, yt: "yt_" + d.id, bang: Math.PI / 2 });
         }
       }
       /* THE HOUSE: Sally at the dispatch desk, Hawk in the evidence room, Miller in the CSI room,
@@ -11732,10 +11814,20 @@ export default function IronLionLayer004() {
       const P = b ? [b.x + b.w / 2, b.y + b.h / 2] : [g.p.x, g.p.y];
       /* HIS TURN. If a rival is on file, most of what dispatch has is him, and it is bigger than
          the last one. */
+      /* THE WAR'S OWN CASES come first: if a crew took a corner off somebody since he last had a
+         case, that killing is the one dispatch hands him. */
+      const W0 = g.gwar, warCase = W0 && W0.pending && W0.pending.length ? W0.pending.shift() : null;
       const rival = (g.rivals || []).length && Math.random() < RIVAL.chance
         ? g.rivals[(Math.random() * g.rivals.length) | 0] : null;
-      const K = rival ? BIG_CRIMES[rival.next] || BIG_CRIMES.armed_robbery : cpick(CASE_CRIMES);
+      const K = rival ? BIG_CRIMES[rival.next] || BIG_CRIMES.armed_robbery
+              : warCase ? (CASE_CRIMES.find((q) => q.k === (warCase.kind === "arson" ? "holdup" : "assault")) || cpick(CASE_CRIMES))
+              : cpick(CASE_CRIMES);
       let scene = streetSpot(P[0], P[1], CASE.sceneR[0], CASE.sceneR[1]);
+      if (warCase) {                                  // on the corner that changed hands
+        const c = [(warCase.ti * WAR.side + WAR.side / 2) * PITCH, (warCase.tj * WAR.side + WAR.side / 2) * PITCH];
+        const sp = streetSpot(c[0], c[1], 60, 900);
+        if (sp) scene = sp;
+      }
       /* SOME CRIMES HAPPEN INDOORS. A break-in is in somebody's front room and a bank job is on
          the bank floor -- the scene, the tape, the markers and everybody standing about are in
          there, and the van waits at the door outside. */
@@ -11860,6 +11952,12 @@ export default function IronLionLayer004() {
       C.lines.push("CASE: " + K.nm + " at " + C.where + ".",
                    "Victim: " + identOf(C.victim).name + ", " + identOf(C.victim).age + ".");
       if (rival) C.lines.push("RAMOS: This is " + rival.name + " again. He walked on us once.");
+      if (warCase) {
+        C.warCase = warCase;
+        C.lines.push("RAMOS: This corner changed hands two nights ago. " + (GANG_LABEL[warCase.gang] || "Somebody") +
+                     " took it off " + (GANG_LABEL[warCase.lost] || "somebody") + ". That's your body.");
+        radioSay("Your case is off the " + (GANG_LABEL[warCase.gang] || "street") + " thing on " + warCase.where + ", Malcolm.");
+      }
       /* THE CRIME SCENE UNIT parks at the kerb -- whichever side is clear of buildings, and for an
          indoor scene, at the door of the place. */
       const vanAt = inB ? (() => { const dp = doorPoint(inB), sd = inB.door.side,
@@ -12547,6 +12645,10 @@ export default function IronLionLayer004() {
         g.p.cash = (g.p.cash || 0) + pay;
         R.done = "GUILTY. WHITCOMB: \"That one's going on a poster, detective.\"";
         juice(JUICE.guilty + (C.rival ? JUICE.rival : 0), C.rival ? "A RIVAL DOWN" : "A CONVICTION");
+        if (C.warCase && g.gwar) { const G3 = g.gwar.gangs[C.warCase.gang];
+          if (G3) { G3.cash = Math.max(0, G3.cash - 6000);
+            for (const t of Object.values(g.gwar.turfs)) if (t.owner === C.warCase.gang) t.heat += 8;
+            warLog("a conviction off " + C.warCase.where + " cost " + (GANG_LABEL[C.warCase.gang] || "them") + " money and quiet"); } }
         g.jobBanner = "GUILTY \u00b7 " + A.name; g.jobNote = C.K.nm + " \u00b7 " + C.trial.judge.nm + " \u00b7 $" + pay;
         C.lines.push("VERDICT: GUILTY. " + A.name + ".");
         // a rival convicted is off the board for good
@@ -12560,7 +12662,28 @@ export default function IronLionLayer004() {
         if (A.isPerp) { makeRival(C); g.jobBanner = "HE WALKED \u00b7 " + A.name; }
         C.lines.push("VERDICT: NOT GUILTY. " + A.name + ".");
       }
+      /* A CONVICTION IS A SEAT. If the man in the dock is one of a crew's three, he goes to
+         Kestrel State -- and when all three are inside, that crew is finished. */
+      if (g.gwar) for (const [k, G3] of Object.entries(g.gwar.gangs)) {
+        const seat = G3.seats.find((q) => q.name === A.name && q.state !== "prison");
+        if (!seat) continue;
+        if (guilty) {
+          seat.state = "prison"; seat.known = true;
+          warLog(seat.name + " went to Kestrel State -- " + GANG_LABEL[k]);
+          bookNote(GANG_LABEL[k] + " \u00b7 " + seat.title + ": " + seat.name + " -- convicted, Kestrel State.");
+          grudge(k, WAR_HIT.grudgeArrest * 2);
+          if (G3.seats.every((q) => q.state === "prison")) {
+            for (const t of Object.values(g.gwar.turfs)) if (t.owner === k) { t.owner = null; t.crews = []; t.dens = []; }
+            G3.cash = 0; G3.down = 0;
+            warLog(GANG_LABEL[k] + " is finished -- every seat in a cell, every corner open");
+            g.jobBanner = GANG_LABEL[k] + " IS FINISHED";
+            g.jobNote = "Three seats in Kestrel State. Their corners are nobody's now.";
+            juice(JUICE.rival * 2, "A CREW BROKEN");
+          }
+        }
+      }
       C.stage = "done"; C.doneAt = Date.now();
+      g.book = g.book || { people: [], cases: [] };   // the notebook is not always built yet
       g.book.cases = g.book.cases || []; g.book.cases.unshift({ title: C.K.nm, lines: C.lines.slice(), right: guilty });
     }
     function stepTrial(dt) {
@@ -12714,6 +12837,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         C.lines.push(A.isPerp ? "WALKED: " + A.name + ", no confession." : "RELEASED: " + A.name + ". It was " + perp.name + ".");
       }
       C.stage = "done"; C.doneAt = Date.now();
+      g.book = g.book || { people: [], cases: [] };   // the notebook is not always built yet
       g.book.cases = g.book.cases || []; g.book.cases.unshift({ title: C.K.nm, lines: C.lines.slice(), right: confessed });
       setHud((h) => ({ ...h, interro: interroPanel() }));
     }
@@ -13832,6 +13956,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         C.lines.push(right ? "CLOSED: " + who + "." : "COLD: named " + who + ", wrong man.");
         C.stage = "done"; C.doneAt = Date.now();
         const D = detectives(); if (D) { D.ramos.out = null; D.ramos.x = D.home[0]; D.ramos.y = D.home[1]; }
+        g.book = g.book || { people: [], cases: [] };   // the notebook is not always built yet
         g.book.cases = g.book.cases || []; g.book.cases.unshift({ title: C.K.nm, lines: C.lines.slice(), right });
       }
       if (id === "close" || id.startsWith("name:") || id === "take") {
@@ -22036,10 +22161,76 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
        court at a fixed spot in their own quarter, they can be approached, and they say the
        line that explains which side they are on. That is what turns the war from a table of
        alignments into politics the player has met. */
+    /* The leadership on its feet. Each crew with LEADER_ART gets three walkers, one per seat,
+       built the first time anybody asks and kept in g.ldCrew. A seat that is in a hospital bed
+       or Kestrel State (g.gwar) is simply not standing there. */
+    function leaderHome(L) { return [SX(L.where.i) + PITCH / 2, SX(L.where.j) + PITCH / 2]; }
+    function leaderCrew(k) {
+      g.ldCrew = g.ldCrew || {};
+      if (g.ldCrew[k]) return g.ldCrew[k];
+      const [hx, hy] = leaderHome(LEADERS[k]);
+      return (g.ldCrew[k] = LEADER_ART[k].map(([yt, tall], n) => {
+        const o = { seat: n, key: k, yt, tall: tall * LEADER_SCALE, jit: 1, x: hx + LEADER_POSE[n][0], y: hy + LEADER_POSE[n][1],
+                    vx: 0, vy: 0, anim: Math.random() * 6, bang: Math.PI / 2, tgt: null,
+                    wait: 1 + Math.random() * 4 };
+        // a spot inside a building is pushed out onto the pavement, and that is his home
+        collideBuildings(o, 12, false);
+        o.hx = o.x; o.hy = o.y;
+        return o;
+      }));
+    }
+    function seatFree(k, n) {
+      const S2 = g.gwar && g.gwar.gangs[k] && g.gwar.gangs[k].seats[n];
+      return !S2 || S2.state === "free";
+    }
+    function seatKnown(k, n) {
+      const S2 = g.gwar && g.gwar.gangs[k] && g.gwar.gangs[k].seats[n];
+      return n === 0 || !!(S2 && S2.known);
+    }
+    function stepLeaders(dt) {
+      if (g.inside) return;
+      for (const k in LEADER_ART) {
+        if (!LEADERS[k]) continue;
+        const [hx, hy] = leaderHome(LEADERS[k]);
+        if (Math.hypot(g.p.x - hx, g.p.y - hy) > LEADER_WALK.wake) continue;
+        for (const m of leaderCrew(k)) {
+          if (!seatFree(k, m.seat)) continue;
+          const dp = Math.hypot(g.p.x - m.x, g.p.y - m.y);
+          if (m.tgt) {
+            const dx = m.tgt[0] - m.x, dy = m.tgt[1] - m.y, d = Math.hypot(dx, dy);
+            if (d < 4) { m.tgt = null; m.vx = 0; m.vy = 0; m.wait = LEADER_WALK.rest[0] + Math.random() * (LEADER_WALK.rest[1] - LEADER_WALK.rest[0]); }
+            else {
+              m.vx = dx / d * LEADER_WALK.speed; m.vy = dy / d * LEADER_WALK.speed;
+              const bx = m.x + m.vx * dt, by = m.y + m.vy * dt;
+              m.x = bx; m.y = by; collideBuildings(m, 12, false);
+              // a wall in the way: stop here and pick again later rather than grind on it
+              if (Math.abs(m.x - bx) + Math.abs(m.y - by) > 0.01) { m.tgt = null; m.vx = 0; m.vy = 0; m.wait = 1; }
+              m.anim += dt * 6; m.bang = Math.atan2(m.vy, m.vx);
+            }
+          } else {
+            m.wait -= dt;
+            // a man walking up to them gets looked at, and nobody wanders off mid-conversation
+            if (dp < LEADER_WALK.face && g.mode === "foot") { m.bang = Math.atan2(g.p.y - m.y, g.p.x - m.x); m.wait = Math.max(m.wait, 0.5); }
+            else if (m.wait <= 0) {
+              const a = Math.random() * 6.283, r = LEADER_WALK.roam * Math.sqrt(Math.random());
+              m.tgt = [m.hx + Math.cos(a) * r, m.hy + Math.sin(a) * r];
+            }
+          }
+        }
+      }
+    }
     function leaderList() {
       const out = [];
       for (const k in LEADERS) {
         const L = LEADERS[k];
+        if (LEADER_ART[k]) {
+          // whoever is running the crew is the one you talk to -- the boss, or the next seat down
+          const m = leaderCrew(k).find((q) => seatFree(k, q.seat));
+          if (!m) continue;
+          const nm = m.seat === 0 ? L.name : (g.gwar ? g.gwar.gangs[k].seats[m.seat].name : L.name);
+          out.push({ key: k, ...L, name: nm, x: m.x, y: m.y, walker: m });
+          continue;
+        }
         out.push({ key: k, ...L, x: SX(L.where.i) + PITCH / 2, y: SX(L.where.j) + PITCH / 2 });
       }
       return out;
@@ -22055,6 +22246,26 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       for (const L of leaderList()) {
         if (L.x < view.x0 - 200 || L.x > view.x1 + 200) continue;
         if (L.y < view.y0 - 200 || L.y > view.y1 + 200) continue;
+        if (LEADER_ART[L.key]) {
+          for (const m of leaderCrew(L.key)) {
+            if (!seatFree(L.key, m.seat)) continue;
+            drawShadow(m.x, m.y + 2, 10, 4, 0.3);
+            if (!drawYouth(m)) { ctx.fillStyle = "#2c2f36"; ctx.fillRect(m.x - 8, m.y - 12, 16, 22); }
+            // the name only over a seat Malcolm has learned; the boss everybody knows
+            if (seatKnown(L.key, m.seat) && g.gwar) {
+              ctx.font = "8px ui-monospace, monospace"; ctx.textAlign = "center";
+              ctx.fillStyle = "rgba(0,0,0,0.55)";
+              const nm = g.gwar.gangs[L.key].seats[m.seat].name;
+              const tw = ctx.measureText(nm).width;
+              ctx.fillRect(m.x - tw / 2 - 3, m.y - 38, tw + 6, 11);
+              ctx.fillStyle = GANG_COL[L.key] || "#e8d9b5"; ctx.fillText(nm, m.x, m.y - 29.5);
+              ctx.textAlign = "start";
+            }
+          }
+          const side = L.side === "old" ? "#7fb0ef" : L.side === "young" ? "#ef7a6c" : "#8cf08c";
+          ctx.fillStyle = side; ctx.fillRect(L.x - 2, L.y - 48, 4, 4);
+          continue;
+        }
         // whichever sheet suits them; the crowd atlas covers anyone without one
         const skin = L.key === "mob_young" ? "vy_boss"
           : L.key === "mob_old" ? "vo_oldman"
@@ -30614,6 +30825,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         stepClub(dt);
         stepCamps(dt);
         stepAnimals(dt);
+        stepLeaders(dt);
         stepCase(dt);
         marksClamp();
         g.skyPush = onTop ? 1 : 0;
