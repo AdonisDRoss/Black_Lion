@@ -1473,21 +1473,46 @@ const EVIDENCE = {
   footprint:   { nm: "SHOE PRINT",    lab: 0,   ramos: ["Deep tread. You can read that one right here."] },
   matchbook:   { nm: "MATCHBOOK",     lab: 0,   lead: 1, ramos: ["People carry matches from where they drink."] },
   phonebook:   { nm: "TORN PHONE-BOOK PAGE", lab: 0, lead: 1, ramos: ["A number circled in pen. Somebody wanted to find this address."] },
-  receipt:     { nm: "PAWN TICKET",   lab: 0,   lead: 1, ramos: ["He hocked something. Pawnbrokers remember faces."] },
+  receipt:     { nm: "RECEIPT",       lab: 0,   lead: 1, ramos: ["He bought something, or hocked it. Whoever was at the counter remembers faces."] },
+  // more of what a scene gives up, so two cases do not bag the same five things
+  glass:       { nm: "BROKEN GLASS",  lab: 120, ramos: ["He came through the window. There's skin on this edge."] },
+  bottle:      { nm: "BOTTLE",        lab: 400, ramos: ["Somebody drank this waiting. Lips leave more than you'd think."] },
+  dropgun:     { nm: "DROPPED GUN",   lab: 40,  ramos: ["He dropped it running. Serial number's filed, but not deep enough."] },
+  toolmarks:   { nm: "TOOL MARKS",    lab: 60,  ramos: ["Pry marks. The lab can match that to the tool if we find it."] },
+  paint:       { nm: "PAINT TRANSFER", lab: 80, ramos: ["He scraped something getting away. That's a car colour."] },
+  lock:        { nm: "PICKED LOCK",   lab: 0,   ramos: ["Picked, not forced. That's a pro, and there aren't many."] },
 };
 const CASE_CRIMES = [
   { k: "mugging", nm: "MUGGING",  pool: ["prints", "fibres", "footprint", "matchbook", "dna"], hurt: 1, weapon: "a knife",    violent: 1 },
   { k: "breakin", nm: "BREAK-IN", pool: ["prints", "footprint", "fibres", "tyres", "matchbook"], hurt: 0, weapon: "a pry bar", violent: 0 },
   { k: "assault", nm: "ASSAULT",  pool: ["dna", "fibres", "footprint", "matchbook", "prints"], hurt: 1, weapon: "his fists",  violent: 1 },
-  { k: "holdup",  nm: "HOLD-UP",  pool: ["ballistics", "prints", "counterfeit", "tyres", "footprint"], hurt: 0, weapon: "a revolver", violent: 1 },
+  { k: "holdup",  nm: "HOLD-UP",  pool: ["ballistics", "prints", "counterfeit", "tyres", "footprint", "dropgun"], hurt: 0, weapon: "a revolver", violent: 1 },
+  /* CREW JOBS. `crew` is how many men did it. You take them one at a time: each one you put away
+     gives up the next, at a real address, and the last one closes the crew -- and if the crew
+     belongs to a gang in the war, the whole thing goes up as a RICO case (CREW_CASE). */
+  { k: "store_robbery", nm: "STORE ROBBERY", crew: 2, pool: ["ballistics", "prints", "glass", "footprint", "bottle", "counterfeit"],
+    hurt: 0, weapon: "a sawn-off", violent: 1 },
+  { k: "armored_car", nm: "ARMOURED CAR JOB", crew: 3, pool: ["ballistics", "tyres", "paint", "dropgun", "fibres", "toolmarks"],
+    hurt: 1, weapon: "automatics", violent: 1 },
+  { k: "bank_robbery", nm: "BANK ROBBERY", crew: 4, pool: ["ballistics", "prints", "dna", "tyres", "toolmarks", "lock", "counterfeit"],
+    hurt: 1, weapon: "shotguns and automatics", violent: 1, atBank: 1 },
 ];
+const CREW_CASE = {
+  // what a crew calls itself when it is not a gang's
+  names: ["the Sunday crew", "the Lindell boys", "the Harbor crew", "the Ninth Street crew", "the Carlisle outfit", "the Pike crew"],
+  gangShare: 0.5,               // how often a crew job turns out to be a war gang's people
+  payPer: 1.0,                  // each member's conviction pays like a case of its own
+  ricoPay: 2400, ricoJuice: 60, // the last one, when it is a gang's crew
+  gaveUp: ["He gave up the next one in the room. Didn't even make me ask twice.",
+           "Name and a place. Said he wasn't going down alone.", "The lawyer wanted a deal. I took the name."],
+};
 /* A CASE IS A TRAIL. Between the scene and the man there are one to three stops -- a bar off a
    matchbook, an address off a torn phone-book page, a pawnshop off a ticket -- and somebody at each
    who knows the next place, if you can get them to say it. */
 const LEAD_KIND = {
-  bar:     { item: "matchbook", nm: "THE BAR",       who: "BARTENDER",  find: "MATCHBOOK: from a bar on " },
-  address: { item: "phonebook", nm: "THE ADDRESS",   who: "ROOMMATE",   find: "PHONE-BOOK PAGE: a number circled, an address on " },
-  pawn:    { item: "receipt",   nm: "THE PAWNSHOP",  who: "PAWNBROKER", find: "PAWN TICKET: a shop on " },
+  bar:     { item: "matchbook", nm: "THE BAR",       who: "BARTENDER",  find: "MATCHBOOK: from ", kinds: "bar" },
+  address: { item: "phonebook", nm: "THE ADDRESS",   who: "ROOMMATE",   find: "PHONE-BOOK PAGE: a number circled -- ", kinds: "home" },
+  pawn:    { item: "receipt",   nm: "THE SHOP",      who: "SHOPKEEPER", find: "RECEIPT: from ", kinds: "shop" },
 };
 /* A GUILTY MAN WHO BEATS YOU IN COURT IS YOURS NOW. He goes on file as a rival, and what he does
    next is bigger than what he did: an assault becomes a serial assault and then serial killings, a
@@ -4840,6 +4865,54 @@ function onRoad(x, y) {
   const i = clamp(Math.round(x / PITCH), 0, N), j = clamp(Math.round(y / PITCH), 0, N);
   return Math.abs(x - SX(i)) < halfW(i) || Math.abs(y - SX(j)) < halfW(j);
 }
+/* EVERY BUILDING HAS AN ADDRESS. The number and street come from the door: the street the door
+   opens onto, and how far along the block it sits -- odd numbers on the north and west sides,
+   even on the south and east, a hundred to a block, like a real city. So "1142 Arden Ave" is a
+   door you can walk up to, and two tips never disagree about where a place is. */
+function addressOf(b) {
+  if (!b || !b.door) return null;
+  if (b.addr) return b.addr;
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2, i = Math.floor(cx / PITCH), j = Math.floor(cy / PITCH);
+  const sd = b.door.side;
+  let num, street;
+  if (sd === 0 || sd === 2) {
+    const f = clamp((cx - SX(i)) / PITCH, 0, 0.99), n0 = i * 100 + Math.round(f * 96) + 2;
+    num = sd === 0 ? (n0 | 1) : (n0 & ~1);
+    street = ordinal((sd === 0 ? j : j + 1) + 2) + " St";
+  } else {
+    const f = clamp((cy - SX(j)) / PITCH, 0, 0.99), n0 = j * 100 + Math.round(f * 96) + 2;
+    num = sd === 3 ? (n0 | 1) : (n0 & ~1);
+    street = AVE_NAMES[(sd === 1 ? i + 1 : i) % AVE_NAMES.length] + " Ave";
+  }
+  return (b.addr = num + " " + street);
+}
+/* What kind of place a lead can send you to, by building kind. */
+const PLACE_KINDS = {
+  bar:  ["bar", "bar2", "tavern", "nightclub", "pub"],
+  shop: ["pawn", "gunshop", "storefront", "store", "shophouse", "market", "fastfood", "coffeeshop", "ristorante", "cafe"],
+  home: ["house", "walkup", "apt", "apartments", "house_u", "tower_flats"],
+};
+const BAR_NAMES = ["The Rusty Nail", "Doyle's", "The Anchor", "Sal's Lounge", "The Blue Lamp", "Mickey's", "The Last Call",
+  "The Owl", "Rudy's Tap", "The Copper Pot", "Lucky Seven", "The Night Owl", "Corrigan's", "The Dry Dock"];
+const SHOP_NAMES = ["Goldman Pawn & Loan", "Ace Pawn", "Kwik Stop", "Arden Liquors", "Marrow Market", "Lucky Dollar",
+  "Frank's Hardware", "Corner Deli", "Second Chance Pawn", "Nite Owl Grocery"];
+// the group a building REALLY is, from its kind -- a name never comes from what a tip wanted
+function placeGroup(b) {
+  for (const g2 in PLACE_KINDS) if (PLACE_KINDS[g2].indexOf(b.kind) >= 0) return g2;
+  return null;
+}
+function placeName(b) {
+  if (b.placeNm !== undefined) return b.placeNm;
+  const h = Math.abs(Math.round(b.x * 7 + b.y * 13)), grp = placeGroup(b);
+  b.placeNm = grp === "bar" ? BAR_NAMES[h % BAR_NAMES.length] : grp === "shop" ? SHOP_NAMES[h % SHOP_NAMES.length] : null;
+  return b.placeNm;
+}
+const PLACE_NOUN = { house: "house", house_u: "house", walkup: "walk-up", apt: "apartment building", apartments: "apartment building",
+  tower_flats: "flats", office: "office building", warehouse: "warehouse", garage: "garage", shophouse: "shophouse" };
+function placeLabel(b) {
+  const nm = placeName(b), ad = addressOf(b);
+  return nm ? nm + ", " + ad : "the " + (PLACE_NOUN[b.kind] || "building") + " at " + ad;
+}
 function ordinal(n) {
   const s = ["th", "st", "nd", "rd"], v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
@@ -7493,11 +7566,11 @@ function makeFloor(b, f, rnd) {
       place("taskforce", 0, 0.30, 0.10, "pd_warboard", 76, 56);     // the war, chalked up
       for (let k = 0; k < 3; k++) {
         place("office", k, 0.5, 0.40, "pd_desk", 48, 36);
-        place("office", k, 0.2, 0.80, "pd_files", 26, 34);
+        place("office", k, 0.2, 0.14, "pd_files", 26, 34);      // on the front wall, not out by the hall
       }
       // Delgado and Ramos, opposite the rest; and the CSI room
       place("delgadooffice", 0, 0.34, 0.45, "pd_desk", 52, 38);
-      place("delgadooffice", 0, 0.78, 0.45, "pd_files", 28, 36);
+      place("delgadooffice", 0, 0.78, 0.14, "pd_files", 28, 36);
       place("ramosoffice", 0, 0.34, 0.45, "pd_desk", 52, 38);
       place("ramosoffice", 0, 0.76, 0.12, "pd_mugboard", 44, 34, true);
       place("csiroom", 0, 0.20, 0.42, "pd_prints", 34, 34);
@@ -7534,8 +7607,9 @@ function makeFloor(b, f, rnd) {
           }
         }
       }
-      place("breakroom", 0, 0.12, 0.12, "pd_snacks", 34, 52);
-      place("breakroom", 0, 0.88, 0.12, "pd_fridge", 30, 50);
+      // the snack machine and the fridge side by side against the left of the back wall
+      place("breakroom", 0, 0.08, 0.12, "pd_snacks", 34, 52);
+      place("breakroom", 0, 0.08, 0.40, "pd_fridge", 30, 50);
       place("breakroom", 0, 0.5, 0.52, "pd_roundtable", 64, 64);
       place("breakroom", 0, 0.5, 0.86, "pd_coffee", 36, 40);
       place("lockerroom", 0, 0.5, 0.25, "pd_lockers", 52, 52);
@@ -7544,6 +7618,16 @@ function makeFloor(b, f, rnd) {
       place("pdbath", 0, 0.7, 0.25, "pd_toilet", 18, 32);
       place("pdbath", 0, 0.5, 0.78, "sink", 20, 18);
       place("pdlobby", 0, 0.85, 0.72, "pd_prints", 32, 32);
+      /* NO CABINETS IN THE HALL. The generic furnisher stood filing cabinets along the corridor
+         outside the detectives' offices; the offices keep theirs on the front wall. */
+      for (const r0 of rooms.filter((q) => q.k === "hall" || q.k === "corridor")) {
+        const q0 = rect(r0);
+        for (let n = props.length - 1; n >= 0; n--) {
+          const o = props[n];
+          if (!/file|cabinet|filing|shelf/.test(o.t)) continue;
+          if (o.x + o.w > q0.x0 && o.x < q0.x1 && o.y + o.h > q0.y0 && o.y < q0.y1) props.splice(n, 1);
+        }
+      }
     }
   }
   /* THE GOMEZ HOUSE: a desk in the office at the back, a parlour off the hall, and the hall
@@ -11285,11 +11369,11 @@ export default function IronLionLayer004() {
     // the nearest person you could ask, on foot and close, standing still enough to be asked
     function nearCiv() {
       if (g.mode !== "foot" || g.sewer || g.onTrain) return null;
-      const C = g.case, sceneHere = C && C.inB && g.inside === C.inB && g.floor === C.inF;
-      // indoors he can only card the people standing in the scene he is standing in
-      if (g.inside && !sceneHere) return null;
+      const C = g.case;
+      // each of the case's people is in one place -- the room you are in, or the street
       let best = null, bd = 74;
-      const pool = C && C.stage !== "done" ? (g.inside ? C.people : g.peds.concat(C.people)) : (g.inside ? [] : g.peds);
+      const mine = C && C.stage !== "done" ? C.people.filter(caseHere) : [];
+      const pool = g.inside ? mine : g.peds.concat(mine);
       for (const q of pool) {
         if (!q || q.hp <= 0 || q.fly) continue;
         const d = Math.hypot(q.x - g.p.x, q.y - g.p.y);
@@ -11944,6 +12028,83 @@ export default function IronLionLayer004() {
       w -= t.strikes * 10;
       return clamp(Math.round(w), 3, 95);
     }
+    /* ---------- REAL PLACES ----------
+       A lead sends you to a building that exists: a bar, a shop, somebody's house -- by name and
+       address -- with the man INSIDE it, or out back behind it. Nobody is told "the bar" and then
+       stands in a field. */
+    function caseHere(q) { return q && (q.inB ? (g.inside === q.inB && g.floor === (q.inF || 0)) : !g.inside); }
+    function backOf(b) {
+      const sd = b.door.side, cx = b.x + b.w / 2, cy = b.y + b.h / 2, o = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+      for (const s2 of [(sd + 2) % 4, (sd + 1) % 4, (sd + 3) % 4]) {
+        const x = cx + o[s2][0] * (b.w / 2 + 46), y = cy + o[s2][1] * (b.h / 2 + 46);
+        const c = getCell(clamp(Math.floor(x / PITCH), 0, N - 1), clamp(Math.floor(y / PITCH), 0, N - 1));
+        if (!(c && (c.blds || []).some((q) => x > q.x - 14 && x < q.x + q.w + 14 && y > q.y - 14 && y < q.y + q.h + 14))) return [x, y];
+      }
+      return null;
+    }
+    function realPlace(group, from, r0, r1, avoid) {
+      const fi = Math.floor(from[0] / PITCH), fj = Math.floor(from[1] / PITCH), R = Math.ceil(r1 / PITCH) + 1;
+      const tryKinds = (kinds) => {
+        const cands = [];
+        for (let di = -R; di <= R; di++) for (let dj = -R; dj <= R; dj++) {
+          const i = fi + di, j = fj + dj; if (i < 0 || j < 0 || i >= N || j >= N) continue;
+          for (const b of (getCell(i, j).blds || [])) {
+            if (!b.door || b.perimeter || b.capPlate || b.fis || b.pd || b.landmark) continue;
+            if (kinds && kinds.indexOf(b.kind) < 0) continue;
+            if (!kinds && ["den", "precinct", "hospital", "courthouse", "cityhall", "bank", "prison", "vance", "silo", "barn"].indexOf(b.kind) >= 0) continue;
+            if (avoid && avoid.indexOf(b) >= 0) continue;
+            if (leaderSiteList().some((S) => S.b === b)) continue;          // not a gang boss's base
+            const d = Math.hypot(b.x + b.w / 2 - from[0], b.y + b.h / 2 - from[1]);
+            if (d >= r0 && d <= r1) cands.push(b);
+          }
+        }
+        while (cands.length) {
+          const b = cands.splice((Math.random() * cands.length) | 0, 1)[0];
+          const f = b.entry || 0, pl = buildingPlans(b)[f];
+          if (!pl || !pl.rooms || !pl.rooms.length) continue;
+          const room = pl.rooms[(Math.random() * pl.rooms.length) | 0];
+          const pt = freeIndoor(b, pl, (room.x0 + room.x1) / 2, (room.y0 + room.y1) / 2, room);
+          if (!pt) continue;
+          return { b, f, pl, x: pt[0], y: pt[1], door: doorPoint(b), back: backOf(b), addr: addressOf(b), nm: placeName(b),
+                   group: placeGroup(b) || "home", label: placeLabel(b) };
+        }
+        return null;
+      };
+      return tryKinds(PLACE_KINDS[group]) || tryKinds(null);
+    }
+    // n standing points inside a place, spread round its spot
+    function placeSpot(P, k) {
+      const a = k * 2.1, pt = freeIndoor(P.b, P.pl, P.x + Math.cos(a) * 48, P.y + Math.sin(a) * 48, null);
+      return pt || [P.x, P.y];
+    }
+    /* A CREW, ONE AT A TIME. Each member put away gives up the next; the last one closes it. */
+    function crewAdvance(C, name) {
+      const W = C && C.crew; if (!W || W.closed) return;
+      W.names.push(name);
+      if (W.idx + 1 < W.n) {
+        g.crewNext = { K: C.K, crew: { ...W, idx: W.idx + 1, names: W.names.slice() },
+                       from: C.hangPl ? [C.hangPl.x, C.hangPl.y] : C.hang, gave: name };
+        g.jobNote = (W.idx + 1) + " OF " + W.n + " \u00b7 " + name + " gave up the next man.";
+        return;
+      }
+      W.closed = 1;
+      const pay = CREW_CASE.ricoPay * (W.gang ? 1 : 0.5) * W.n / 4;
+      g.p.cash = (g.p.cash || 0) + Math.round(pay);
+      juice(CREW_CASE.ricoJuice, W.gang ? "A RICO CASE" : "A CREW PUT AWAY");
+      g.jobBanner = W.gang ? "RICO \u00b7 " + (GANG_LABEL[W.gang] || W.label).toUpperCase() : "CREW CLOSED \u00b7 " + W.label.toUpperCase();
+      let note = W.n + " men, " + C.K.nm.toLowerCase() + ": " + W.names.join(", ") + ".";
+      /* RICO. A gang's crew convicted as an enterprise takes somebody from the top with it: the
+         underboss goes to Kestrel State on the conspiracy, and every corner they hold gets hot. */
+      if (W.gang && g.gwar && g.gwar.gangs[W.gang]) {
+        const G3 = g.gwar.gangs[W.gang], seat = G3.seats[1];
+        if (seat && seat.state !== "prison") { seat.state = "prison"; seat.known = true; note += " RICO took " + seat.name + " with them."; }
+        G3.cash = Math.max(0, (G3.cash || 0) - 12000);
+        for (const t of Object.values(g.gwar.turfs)) if (t.owner === W.gang) t.heat += 20;
+        warLog("RICO: " + (GANG_LABEL[W.gang] || W.gang) + " lost a crew and " + (seat ? seat.name : "a seat") + " to the feds");
+      }
+      g.jobNote = note + " $" + Math.round(pay);
+      bookNote((W.gang ? "RICO \u00b7 " : "CREW \u00b7 ") + note);
+    }
     function casePerson(x, y, role, sex, C) {
       let q = null;
       for (let t = 0; t < 40; t++) {
@@ -11977,7 +12138,7 @@ export default function IronLionLayer004() {
       }
       return null;
     }
-    function startCase() {
+    function startCase(cont) {
       const b = precinctB();
       const P = b ? [b.x + b.w / 2, b.y + b.h / 2] : [g.p.x, g.p.y];
       /* HIS TURN. If a rival is on file, most of what dispatch has is him, and it is bigger than
@@ -11987,7 +12148,7 @@ export default function IronLionLayer004() {
       const W0 = g.gwar, warCase = W0 && W0.pending && W0.pending.length ? W0.pending.shift() : null;
       const rival = (g.rivals || []).length && Math.random() < RIVAL.chance
         ? g.rivals[(Math.random() * g.rivals.length) | 0] : null;
-      const K = rival ? BIG_CRIMES[rival.next] || BIG_CRIMES.armed_robbery
+      const K = cont ? cont.K : rival ? BIG_CRIMES[rival.next] || BIG_CRIMES.armed_robbery
               : warCase ? (CASE_CRIMES.find((q) => q.k === (warCase.kind === "arson" ? "holdup" : "assault")) || cpick(CASE_CRIMES))
               : cpick(CASE_CRIMES);
       let scene = streetSpot(P[0], P[1], CASE.sceneR[0], CASE.sceneR[1]);
@@ -12002,8 +12163,14 @@ export default function IronLionLayer004() {
       let inB = null, inF = 0;
       const INDOOR_KINDS = { breakin: ["house", "walkup", "apt", "apartments", "shophouse", "store"],
                              burglary_ring: ["house", "walkup", "apt", "apartments", "store"],
-                             bank_job: ["bank"] };
-      if (INDOOR_KINDS[K.k] && scene) {
+                             bank_job: ["bank"], store_robbery: PLACE_KINDS.shop };
+      /* THE NEXT MAN IN A CREW. His "scene" is where the last one said he'd be: a real place, and
+         the people there who saw him come and go. */
+      if (cont) {
+        const P0 = realPlace(Math.random() < 0.5 ? "bar" : "home", cont.from, 900, 4200);
+        if (P0) { inB = P0.b; inF = P0.f; scene = [P0.x, P0.y]; cont.place = P0; }
+      }
+      if (!cont && INDOOR_KINDS[K.k] && scene) {
         const want = INDOOR_KINDS[K.k];
         let best = null, bd = 2400;
         for (let di = -2; di <= 2 && !inB; di++) for (let dj = -2; dj <= 2; dj++) {
@@ -12022,7 +12189,7 @@ export default function IronLionLayer004() {
         }
       }
       // a bank job happens at a bank, not on a corner
-      if (K.atBank && !inB) {
+      if (K.atBank && !inB && !cont) {
         const bk = BANK_CELLS.map((q) => { const c = getCell(q.i, q.j); const bb = c && (c.blds || []).find((z) => z.kind === "bank"); return bb ? [bb, q] : null; }).filter(Boolean);
         if (bk.length) { const [bb, meta] = bk[(Math.random() * bk.length) | 0]; const dp = doorPoint(bb);
           scene = [dp[0], dp[1] + 70]; }
@@ -12038,8 +12205,12 @@ export default function IronLionLayer004() {
             crossStreet(h2[0], h2[1]) !== crossStreet(scene[0], scene[1])) hang = h2;
       }
       if (!hang) return null;
-      const C = { K, rival, big: !!rival, scene, hang, inB, inF, started: Date.now(), stage: "open", lead: false,
-                  where: crossStreet(scene[0], scene[1]), hangWhere: crossStreet(hang[0], hang[1]),
+      /* WHERE HE HANGS is a building: a bar he drinks in or the place he sleeps. */
+      const hangPl = realPlace(Math.random() < 0.55 ? "bar" : "home", hang, 600, 3000, inB ? [inB] : null);
+      if (hangPl) hang = hangPl.door;
+      const C = { K, rival, hangPl, big: !!rival, scene, hang, inB, inF, started: Date.now(), stage: "open", lead: false,
+                  where: cont && cont.place ? cont.place.label : inB ? placeLabel(inB) : crossStreet(scene[0], scene[1]),
+                  hangWhere: hangPl ? hangPl.label : crossStreet(hang[0], hang[1]),
                   bag: [], lab: [], lines: [], atScene: false,
                   onFile: rival ? true : Math.random() < CASE.onFile };   // a rival has been booked before
       g.case = C;
@@ -12056,6 +12227,23 @@ export default function IronLionLayer004() {
       for (let k = 0; k < (rival ? RIVAL.decoys : CASE.decoys); k++) {
         const a = (k + 1) * 2.1;
         C.people.push(casePerson(hang[0] + Math.cos(a) * 46, hang[1] + Math.sin(a) * 46, "decoy", pid.sex, C));
+      }
+      // into the place: inside with the others, or out the back of it
+      if (hangPl) {
+        const back = hangPl.back && Math.random() < 0.3;
+        C.hangBack = back;
+        if (back) C.hangWhere += " -- out back";
+        C.people.forEach((q, k) => {
+          if (back) { q.x = hangPl.back[0] + Math.cos(k * 2.1) * 38; q.y = hangPl.back[1] + Math.sin(k * 2.1) * 38; q.inB = null; }
+          else { const pt = placeSpot(hangPl, k); q.x = pt[0]; q.y = pt[1]; q.inB = hangPl.b; q.inF = hangPl.f; }
+        });
+      }
+      /* A CREW. Who they are is decided now; you meet them one at a time. */
+      if (cont) C.crew = cont.crew;
+      else if ((K.crew || 1) > 1) {
+        const gangs = g.gwar ? Object.keys(g.gwar.gangs).filter((k2) => LEADERS[k2]) : [];
+        const gk = gangs.length && Math.random() < CREW_CASE.gangShare ? gangs[(Math.random() * gangs.length) | 0] : null;
+        C.crew = { n: K.crew, idx: 0, names: [], gang: gk, label: gk ? (GANG_LABEL[gk] || gk) + " crew" : cpick(CREW_CASE.names) };
       }
       /* EVERYBODY STANDS OUTSIDE THE TAPE. The victim, the three who saw something and the crowd
          that always gathers are on a ring beyond the cordon; only the officer and the tech are
@@ -12092,22 +12280,25 @@ export default function IronLionLayer004() {
       const SP = (K.stops || CASE.stops);
       const nStops = SP[0] + ((Math.random() * (SP[1] - SP[0] + 1)) | 0);
       for (let k = 0; k < nStops; k++) {
-        let sp = null;
-        for (let t = 0; t < 12 && !sp; t++) {
-          const c = streetSpot(from[0], from[1], 1100, 2600);
-          const w = c && crossStreet(c[0], c[1]);
-          // and not a street the trail already uses: three stops all reading "Ferrit & 11th" is no trail
-          if (w && w !== crossStreet(scene[0], scene[1]) && w !== C.hangWhere && !C.stops.some((q) => q.where === w)) sp = c;
-        }
-        if (!sp) break;
-        const kind = cpick(Object.keys(LEAD_KIND));
-        const who = casePerson(sp[0] + 36, sp[1] - 10, "lead", null, C);
+        // a real bar, pawnshop or house, never one the trail has already used -- and the lead is
+        // whatever the building turned out to be, so a "bar" is always a bar
+        const used = C.stops.map((q) => q.b).concat(hangPl ? [hangPl.b] : [], inB ? [inB] : []);
+        const P = realPlace(LEAD_KIND[cpick(Object.keys(LEAD_KIND))].kinds, from, 1000, 3000, used);
+        if (!P) break;
+        const kind = P.group === "bar" ? "bar" : P.group === "shop" ? "pawn" : "address";
+        const wp = placeSpot(P, 0);
+        const who = casePerson(wp[0], wp[1], "lead", null, C);
+        who.inB = P.b; who.inF = P.f;
         who.know = ["next"]; who.stopIdx = k;
         C.people.push(who);
-        const stop = { x: sp[0], y: sp[1], kind, where: crossStreet(sp[0], sp[1]), who, visited: false };
-        // half the stops have something on the ground too
-        if (Math.random() < 0.5) stop.ev = cpick(["fibres", "prints", "dna"]);
-        C.stops.push(stop); from = sp;
+        const stop = { x: P.door[0], y: P.door[1], b: P.b, kind, where: P.label, who, visited: false };
+        // half the stops have something to find too -- inside, or out the back by the bins
+        if (Math.random() < 0.5) {
+          stop.ev = cpick(["fibres", "prints", "dna", "bottle", "glass", "toolmarks"]);
+          if (P.back && Math.random() < 0.5) stop.evAt = [P.back[0], P.back[1], null, 0];
+          else { const ep = placeSpot(P, 3); stop.evAt = [ep[0], ep[1], P.b, P.f]; }
+        }
+        C.stops.push(stop); from = [P.x, P.y];
       }
       // the ground: a handful off the crime's own pool, and the one thing that points at the first stop
       let pool = K.pool.slice().filter((e) => !EVIDENCE[e].lead && e !== "counterfeit").sort(() => Math.random() - 0.5)
@@ -12116,8 +12307,20 @@ export default function IronLionLayer004() {
       C.ev = pool.map((t, k) => ({ t, n: k + 1, got: false,
         x: scene[0] - 40 + (k % 2) * 60 + (Math.random() - 0.5) * 16,
         y: scene[1] - 20 + ((k / 2) | 0) * 44 + (Math.random() - 0.5) * 12 }));
-      C.stops.forEach((st, k) => { if (st.ev) C.ev.push({ t: st.ev, n: C.ev.length + 1, got: false, stop: k, x: st.x - 30, y: st.y + 24 }); });
-      C.lines.push("CASE: " + K.nm + " at " + C.where + ".",
+      C.stops.forEach((st, k) => { if (st.ev) C.ev.push({ t: st.ev, n: C.ev.length + 1, got: false, stop: k,
+        x: st.evAt ? st.evAt[0] : st.x - 30, y: st.evAt ? st.evAt[1] : st.y + 24, inB: st.evAt ? st.evAt[2] : null, inF: st.evAt ? st.evAt[3] : 0 }); });
+      // everybody who was not put somewhere is where the scene is
+      for (const q of C.people) if (q.inB === undefined) { q.inB = inB || null; q.inF = inF; }
+      if (C.crew) {
+        const W = C.crew;
+        C.lines.push("CREW: " + W.n + " men did this -- " + W.label + ". This is number " + (W.idx + 1) + ".");
+        if (cont && cont.gave) C.lines.push(cont.gave + " gave him up: " + C.where + ".");
+      }
+      /* The next man in a crew has no victim of his own: the place is where he was last seen, and
+         the one who would have been the victim is somebody there who saw him. */
+      if (cont) { C.victim.caseRole = "witness"; C.victim.know = ["sex", "age", "clothes", "dir"].sort(() => Math.random() - 0.5).slice(0, 3);
+        C.lines.push("CREW CASE: " + K.nm + " -- the next man. Last seen at " + C.where + "."); }
+      else C.lines.push("CASE: " + K.nm + " at " + C.where + ".",
                    "Victim: " + identOf(C.victim).name + ", " + identOf(C.victim).age + ".");
       if (rival) C.lines.push("RAMOS: This is " + rival.name + " again. He walked on us once.");
       if (warCase) {
@@ -12150,7 +12353,7 @@ export default function IronLionLayer004() {
       if (D && !g.detMode) { D.ramos.out = [scene[0] + 20, scene[1] + 70]; }
       /* NO ID ON THE VICTIM. Some of the ones who got hurt did not get up: no card, a body for the
          morgue, and the coroner's clock. DNA, prints and witnesses all take time off it. */
-      if (K.noId || (K.hurt && Math.random() < 0.35)) {
+      if (!cont && (K.noId || (K.hurt && Math.random() < 0.35))) {
         C.unknownVictim = true; C.idLeft = DET.idBase;
         C.victim.caseRole = "body"; C.people = C.people.filter((q) => q !== C.victim);
         C.bodyAt = [C.victim.x, C.victim.y];
@@ -12192,10 +12395,10 @@ export default function IronLionLayer004() {
       if (C.leadIdx + 1 < (C.stops || []).length) {
         C.leadIdx++;
         const st = C.stops[C.leadIdx];
-        caseLine("LEAD: " + LEAD_KIND[st.kind].nm.toLowerCase() + " on " + st.where + ".");
+        caseLine("LEAD: " + LEAD_KIND[st.kind].nm.toLowerCase() + " -- " + st.where + ".");
       } else {
         C.lead = true;
-        caseLine("LEAD: he hangs on " + C.hangWhere + ".");
+        caseLine("LEAD: he hangs at " + C.hangWhere + ".");
       }
     }
     /* Anything Malcolm is told that is not about one case -- a snitch on a corner, a name off the
@@ -12338,6 +12541,13 @@ export default function IronLionLayer004() {
       if (C && C.van && C.stage === "done" && Date.now() - (C.doneAt || 0) > 90000) {
         const vi = g.traffic.indexOf(C.van); if (vi >= 0) g.traffic.splice(vi, 1); C.van = null;
       }
+      if (g.crewNext && (!g.case || g.case.stage === "done")) {
+        const n2 = g.crewNext; g.crewNext = null;
+        const prev = g.case;
+        startCase(n2);
+        if (g.case === prev) { n2.tries = (n2.tries || 0) + 1; if (n2.tries < 20) g.crewNext = n2; }
+        else { g.jobBanner = "CREW \u00b7 " + (n2.crew.idx + 1) + " OF " + n2.crew.n; radioSay(cpick(CREW_CASE.gaveUp)); }
+      }
       sceneSolid();
       stepInterro(dt);
       if (!C || C.stage === "done") return;
@@ -12352,12 +12562,13 @@ export default function IronLionLayer004() {
       const atScene = C.inB ? (g.inside === C.inB && g.floor === C.inF) : !g.inside;
       if (!C.atScene && atScene && Math.hypot(g.p.x - C.scene[0], g.p.y - C.scene[1]) < 260) C.atScene = true;
       const st0 = C.stops && C.leadIdx >= 0 ? C.stops[C.leadIdx] : null;
-      if (st0 && !st0.visited && !g.inside && Math.hypot(g.p.x - st0.x, g.p.y - st0.y) < 240) {
+      if (st0 && !st0.visited && ((st0.b && g.inside === st0.b) || (!g.inside && Math.hypot(g.p.x - st0.x, g.p.y - st0.y) < 240))) {
         st0.visited = true; ramosSays("This is the place. Find the " + LEAD_KIND[st0.kind].who.toLowerCase() + ".");
       }
       // walk over it and it is bagged
-      if (g.mode === "foot" && atScene)
+      if (g.mode === "foot")
         for (const e of C.ev) {
+          if (e.stop != null ? !caseHere(e) : !atScene) continue;
           if (e.got || Math.hypot(g.p.x - e.x, g.p.y - e.y) > CASE.pickR) continue;
           e.got = true;
           const E = EVIDENCE[e.t];
@@ -12368,7 +12579,7 @@ export default function IronLionLayer004() {
             if (E.lead) {
               const st = C.stops && C.stops[0];
               if (st && C.leadIdx < 0) { caseLine(LEAD_KIND[st.kind].find + st.where + "."); revealNext(C); }
-              else if (!st) { C.lead = true; caseLine("MATCHBOOK: from a bar on " + C.hangWhere + "."); }
+              else if (!st) { C.lead = true; caseLine("MATCHBOOK: " + C.hangWhere + "."); }
             }
             if (e.t === "footprint") caseLine("SHOE PRINT: a size that says " + (parseInt(identOf(C.perp).hgt) >= 6 ? "a big man" : "somebody not that big") + ".");
           } else C.bag.push(e.t);
@@ -12819,6 +13030,7 @@ export default function IronLionLayer004() {
             warLog("a conviction off " + C.warCase.where + " cost " + (GANG_LABEL[C.warCase.gang] || "them") + " money and quiet"); } }
         g.jobBanner = "GUILTY \u00b7 " + A.name; g.jobNote = C.K.nm + " \u00b7 " + C.trial.judge.nm + " \u00b7 $" + pay;
         C.lines.push("VERDICT: GUILTY. " + A.name + ".");
+        crewAdvance(C, A.name);
         // a rival convicted is off the board for good
         if (C.rival) { g.rivals = (g.rivals || []).filter((q) => q !== C.rival);
           g.jobBanner = "RIVAL DOWN \u00b7 " + A.name;
@@ -12883,8 +13095,11 @@ export default function IronLionLayer004() {
     /* What a piece of evidence looks like, on the ground and later on the court's table. */
 const EV_ICON = { prints: "cs_glass", dna: "cs_blood", ballistics: "cs_casings", fibres: "cs_hanky", tyres: "cs_tyres",
                   counterfeit: "cs_wallet_b", footprint: "cs_footprints", matchbook: "cs_matchbook",
-                  phonebook: "cs_wallet_a", receipt: "cs_matchbook", statements: "id_notebook" };
-const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook: "there", ballistics: "weapon",
+                  phonebook: "cs_wallet_a", receipt: "cs_matchbook", statements: "id_notebook",
+                  glass: "cs_glass", bottle: "cs_bottle", dropgun: "cs_revolver", toolmarks: "cs_crowbar",
+                  paint: "cs_tyres", lock: "cs_lock" };
+const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "there", dropgun: "weapon", paint: "car",
+                   prints: "there", dna: "there", footprint: "there", matchbook: "there", ballistics: "weapon",
                        fibres: "clothes", tyres: "car", counterfeit: "money",
                        // the trail's other lead items are "he was there" evidence too; without these
                        // the defence asked about `undefined` and the panel threw
@@ -13041,9 +13256,10 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
     /* Evidence at the trail's stops: a tent where the thing is. */
     function drawTrailEvidence(view) {
       const C = g.case;
-      if (!C || C.stage === "done" || g.inside) return;   // the trail's stops are always outdoors
+      if (!C || C.stage === "done") return;
       for (const e of C.ev) {
         if (e.got || e.stop == null || C.stops[e.stop] && e.stop > C.leadIdx) continue;
+        if (!caseHere(e)) continue;              // inside the place, or out back behind it
         if (e.x < view.x0 - 40 || e.x > view.x1 + 40 || e.y < view.y0 - 40 || e.y > view.y1 + 40) continue;
         const ti = imgs.current.cs_tent_small;
         if (ti && ti.width) ctx.drawImage(ti, e.x - 8, e.y - 9, 16, 15);
@@ -13300,9 +13516,12 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       const C = g.case;
       // the scene's people are wherever the scene is: on the street, or in the room it happened in
       const here = C && (C.inB ? (g.inside === C.inB && g.floor === C.inF) : !g.inside);
-      const live = C && here && !(C.stage === "done" && Date.now() - (C.doneAt || 0) > 90000) && !g.sewer;
-      if (live) {
-        for (const q of C.people) if (inView(q)) out.push([q.y, 9, { __draw: () => {
+      const live = C && !(C.stage === "done" && Date.now() - (C.doneAt || 0) > 90000) && !g.sewer;
+      if (live) for (const q of C.people) if (!here && caseHere(q) && inView(q)) out.push([q.y, 9, { __draw: () => {
+          q.anim += 0.016; drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawPed(q);
+          if (q.say > 0 && q.line) bubble(q.x, q.y, q.line); } }]);
+      if (live && here) {
+        for (const q of C.people) if (caseHere(q) && inView(q)) out.push([q.y, 9, { __draw: () => {
           q.anim += 0.016; drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawPed(q);
           if (q.say > 0 && q.line) bubble(q.x, q.y, q.line); } }]);
         if (inView(C.cop)) out.push([C.cop.y, 9, { __draw: () => {
@@ -13414,9 +13633,9 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       }
       const C = g.case;
       if (!C || g.mode !== "foot") return;
-      if (C.inB ? !(g.inside === C.inB && g.floor === C.inF) : !!g.inside) return;
+      const sceneIn = C.inB ? (g.inside === C.inB && g.floor === C.inF) : !g.inside;
       if (C.stage === "done" && Date.now() - (C.doneAt || 0) > 90000) return;
-      for (const q of C.people.concat([C.cop, C.tech]).filter(Boolean)) {
+      for (const q of C.people.filter(caseHere).concat(sceneIn ? [C.cop, C.tech] : []).filter(Boolean)) {
         const dx = g.p.x - q.x, dy = g.p.y - q.y, d = Math.hypot(dx, dy), r = 22;
         if (d > 0.01 && d < r) { g.p.x = q.x + dx / d * r; g.p.y = q.y + dy / d * r; }
       }
@@ -13914,9 +14133,9 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
     function nearTalk() {
       const C = g.case;
       if (!C || C.stage === "done" || g.mode !== "foot") return null;
-      if (C.inB ? g.inside !== C.inB : !!g.inside) return null;
+      const sceneIn = C.inB ? g.inside === C.inB : !g.inside;
       let best = null, bd = CASE.talkR;
-      for (const q of C.people.concat([C.cop], C.tech ? [C.tech] : [])) {
+      for (const q of C.people.filter(caseHere).concat(sceneIn ? [C.cop] : [], sceneIn && C.tech ? [C.tech] : [])) {
         const d = Math.hypot(q.x - g.p.x, q.y - g.p.y);
         if (d < bd) { bd = d; best = q; }
       }
@@ -14133,6 +14352,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
           g.jobBanner = "CASE GONE COLD"; g.jobNote = "It was " + identOf(C.perp).name + ".";
         }
         C.lines.push(right ? "CLOSED: " + who + "." : "COLD: named " + who + ", wrong man.");
+        if (right) crewAdvance(C, who);
         C.stage = "done"; C.doneAt = Date.now();
         const D = detectives(); if (D) { D.ramos.out = null; D.ramos.x = D.home[0]; D.ramos.y = D.home[1]; }
         g.book = g.book || { people: [], cases: [] };   // the notebook is not always built yet
