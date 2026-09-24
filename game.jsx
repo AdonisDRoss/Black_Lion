@@ -1524,7 +1524,7 @@ const STAFF = [
     hi: "Detective! I mean -- Malcolm. Hi. Anything you need, you call it in and I'll find it." },
   { id: "elias",  nm: "SGT. HAWK",      role: "EVIDENCE", f: 2, room: "evidence", fx: 0.5, fy: 0.62,
     hi: "Two Bears. Thirty-one years, the last nine in this room. Everything that comes in goes on a shelf with a number." },
-  { id: "specs",  nm: "DET. MILLER",    role: "CSI", f: 1, room: "csiroom", fx: 0.5, fy: 0.62,
+  { id: "specs",  nm: "DET. MILLER",    role: "CSI", tall: 0.8, f: 1, room: "csiroom", fx: 0.5, fy: 0.62,
     hi: "Miller. Specs, if you like -- everybody does. Give me something to run and I'll tell you what it's hiding." },
   { id: "sparky", nm: "OFC. KOWALSKI",  role: "MOTOR POOL", f: 0, room: "pdgarage", fx: 0.22, fy: 0.72,
     hi: "Sparky. If it's got wheels and the department owns it, it's mine. Bring it in dented, take it out straight." },
@@ -1643,7 +1643,10 @@ for (const d of SQUAD4) {
 /* THE SQUAD'S SIZE. Their plates read a size bigger than Malcolm, Ramos and Sally standing in
    the same room; 0.88 brings them into line. It rides on the object, so a detective who is
    hired to ride along keeps it. */
-const SQUAD_TALL = 0.88;
+const SQUAD_TALL = 0.76;       // 0.88 still read big beside Malcolm; measured down again
+/* The house staff whose plates came in large: the CSI (Miller), the CSU tech at the scenes and
+   the desk sergeant. Sally, Hawk and Kowalski were right and keep 1. */
+const STAFF_TALL = 0.8;
 /* THE LEADERSHIP. Every crew's three seats as people you can see: boss, underboss, captain,
    in WAR_SEATS order. Plates are hip-cut (the plate rule), so drawYouth gives them legs and they
    can walk. The number is `tall`, solved off SHOULDER WIDTH rather than plate height -- the
@@ -1667,8 +1670,39 @@ const LEADER_ART = {
 const LEADER_SCALE = 1.3;
 const LEADER_POSE = [[0, 0], [38, 22], [-36, 26]];
 const LEADER_WALK = { speed: 30, roam: 70, rest: [2, 6], face: 170, wake: 1600 };
+/* WHERE THE LEADERSHIP LIVES, AND WHAT IT TAKES TO GET TO THEM. The boss holds the MAIN BASE --
+   the biggest room of the biggest building on his crew's HQ block (LEADERS[].where) -- and the
+   underboss and captain each hold a HIDEOUT on a block the crew owns in the war. Every one of
+   them sits inside a guarded site that fights through siteFight like a distro.
+   LEVELS: every man on a leadership site is level 4, the underboss and captain level 5, the
+   boss level 6. A level is hit points (hpAt) and, for the men, how hard and how often they shoot.
+   Take both seats under him down and the boss stops sitting in the base: he is found in a bar or
+   a shop on his turf instead, with whatever men he has left pulled in round him. */
+const RACE_BUST = {
+  life: 240,                    // how long a street race runs before they all go home
+  hitR: 70, hitSpd: 150, hits: 2,   // two hard hits (or six glancing ones) stop a car
+  runs: 0.55,                   // the share who run rather than stand by the car
+  runSpd: 118, escape: 1500, reach: 70,
+  court: 0.9,                   // a racing charge is the easy case: 90% before a word is said
+  plates: ["yt_bro", "yt_walkman", "yt_band", "yt_skater"],
+};
+const LEADER_SITE = {
+  lvl: { men: 4, seat: 5, boss: 6 },
+  men: [10, 7],                 // on the boss's base, on a hideout
+  seatHp: 3.2,                  // a seat is this many times a man of his own level
+  hpPer: 0.45,                  // hit points per level over 1, as a share of RAID.guardHp
+  wake: 1500,                   // built and fought only when you are this close
+  fight: { spot: 250, spotIn: 330, reach: 380, shooters: 6, cd: [1.05, 0.95], dmg: 4.4,
+           advance: 170, hold: 100, speed: 74, calm: 26 },
+  hangout: ["bar", "store", "cafe", "coffeeshop", "fastfood", "ristorante", "gunshop"],
+};
+const hpAt = (lvl) => RAID.guardHp * (1 + LEADER_SITE.hpPer * (lvl - 1));
 // registration goes UNDER the list -- the CT_KEYS / COP_PLATES trap
 for (const k in LEADER_ART) for (const [yt] of LEADER_ART[k]) PD_ART[yt] = "assets/leaders/" + yt + ".png";
+/* KOWALSKI'S TOW TRUCK. Call the motor pool on the radio and he drives out in it, and whatever
+   you are driving (or parked beside) gets fixed and filled when he reaches it. */
+PD_ART.pd_tow = "assets/police/pd_tow.png";
+const TOW = { m: { k: "pd_tow", len: 150, w: 52 }, reach: 260, cost: 6 };
 const DG_SOLID = { dg_espresso: 1, dg_grinders: 1, dg_display: 1, dg_shelf_cups: 1, dg_shelf_jars: 1, dg_fridge: 1,
                    dg_fridge2: 1, dg_longtable: 1, dg_table_round: 1, dg_table_round2: 1, dg_table_sq: 1,
                    dg_booth: 1, dg_booth2: 1, dg_cooler: 1, dg_rack: 1, dg_oven: 1, pd_computer: 1 };
@@ -2588,6 +2622,67 @@ function lakeDepth(x, y) {
   if (d <= 0) return 0;
   return clamp(d / 900, 0, 1);                     // shallow at the beach, deep further out
 }
+
+/* ---------- THE MAP, DRAWN FROM THE WORLD ----------
+   The painted atlas was fitted to the world by two expressway lines and an affine stretch, so
+   everything between them drifted -- blocks, water, districts all off by a street or more. This
+   is built once from the real thing instead: water from waterDepth, district colour from zoneOf,
+   every street at its real width, every building's real footprint, the expressway and its ramps.
+   It cannot disagree with the game because it IS the game's geometry. */
+const MAP_ZONE_COL = {
+  downtown: "#3e4658", city: "#3e4658", hood: "#4a4434", industrial: "#463d38", park: "#2e4a32",
+  projects: "#4f403c", terminal: "#39424c", uptown: "#37506a", chinatown: "#5c2c28", irish: "#2e4c36",
+  barrio: "#664a28", cemetery: "#2a3828", northend: "#4a4038", civic: "#40485a", stadium: "#3a4a3e",
+  neonflats: "#583a4c", neon: "#583a4c", county: "#34402c", kestrel: "#3a3e36", mountain: "#3a3a36",
+};
+function mapBase() {
+  if (mapBase._c) return mapBase._c;
+  const S = 1024, span = SX(N), k = S / span;
+  const cv = document.createElement("canvas"); cv.width = S; cv.height = S;
+  const x = cv.getContext("2d");
+  const cell = S / N;
+  // district ground, one cell at a time
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+    x.fillStyle = MAP_ZONE_COL[zoneOf(i, j)] || (i >= CITY_N || j >= CITY_N ? "#34402c" : "#3a3f48");
+    x.fillRect(i * cell, j * cell, cell + 1, cell + 1);
+  }
+  // water, sampled
+  const step = 4;
+  for (let py = 0; py < S; py += step) for (let px = 0; px < S; px += step) {
+    const d = waterDepth((px + step / 2) / k, (py + step / 2) / k);
+    if (d > 0) { x.fillStyle = d > 0.5 ? "#1c3448" : "#28465c"; x.fillRect(px, py, step, step); }
+  }
+  // streets at their real widths
+  x.fillStyle = "#1d1e22";
+  for (let i = 0; i <= N; i++) {
+    const w = Math.max(1.2, halfW(i) * 2 * k);
+    x.fillRect(SX(i) * k - w / 2, 0, w, S);
+    x.fillRect(0, SX(i) * k - w / 2, S, w);
+  }
+  // every building's footprint
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+    const c = getCell(i, j);
+    for (const b of (c && c.blds) || []) {
+      x.fillStyle = "rgba(14,15,18,0.55)";
+      x.fillRect(b.x * k, b.y * k, Math.max(1, b.w * k), Math.max(1, b.h * k));
+    }
+  }
+  // the expressway and its ramps
+  x.fillStyle = "#8d8a80";
+  for (const i of FWY_V) x.fillRect((SX(i) - FWY_HW) * k, 0, FWY_HW * 2 * k, S);
+  for (const j of FWY_H) x.fillRect(0, (SX(j) - FWY_HW) * k, S, FWY_HW * 2 * k);
+  x.strokeStyle = "#8d8a80"; x.lineWidth = Math.max(1.5, RAMP_HW * 2 * k);
+  for (const r of rampList()) { x.beginPath(); x.moveTo(r.ax * k, r.ay * k); x.lineTo(r.bx * k, r.by * k); x.stroke(); }
+  x.fillStyle = "rgba(40,40,44,0.8)";
+  for (const i of FWY_V) x.fillRect(SX(i) * k - 0.6, 0, 1.2, S);
+  for (const j of FWY_H) x.fillRect(0, SX(j) * k - 0.6, S, 1.2);
+  return (mapBase._c = cv);
+}
+/* Map icons. Drawn shapes until the art exists; each is one plate at assets/map/<key>.png. */
+const MAP_ICONS = ["mi_base", "mi_hideout", "mi_hangout", "mi_distro", "mi_den", "mi_precinct", "mi_hospital",
+                   "mi_court", "mi_morgue", "mi_you", "mi_case", "mi_race"];
+// registered UNDER the list, again
+for (const k of MAP_ICONS) PD_ART[k] = "assets/map/" + k + ".png";
 function waterDepth(x, y) {
   const lake = lakeDepth(x, y);
   const d = Math.abs(y - riverCentre(x));
@@ -8980,11 +9075,17 @@ export default function IronLionLayer004() {
       else if (zone === "chinatown") want = "chinatown";
       else if (zone === "uptown") want = "uptown";
       else if (zone === "farm" || zone === "town") want = "county";
-      MUS.want = want;
+      // MUS.want belongs to the chooser's hold-before-switching; writing it here every frame
+      // reset that hold, so a district track could never commit.
       // Retry every tick until it is actually playing. Decoding a 400KB track takes a moment,
       // and the first musicPlay call always fails because the buffer is still in flight --
       // firing only on a change of intent meant the track loaded and then sat there unused.
-      if (MUS.cur !== MUS.want) musicPlay(MUS.want);
+      /* THIS ONLY OWNS THE TITLE NOW. It ran every frame and played its own idea of the track
+         (drive / chase / title) whenever that differed from what was on -- while the 1.5 s
+         chooser in the step played det, the zone track, a job's theme. Two deciders, one
+         speaker: in DETECTIVE MODE it kept pulling det.mp3 back off. The chooser decides
+         everything past the title screen; this keeps the title and the volume. */
+      if (title && MUS.cur !== "title") musicPlay("title");
       if (MUS.gain) {
         // sit under the effects: quieter indoors, and well down while sirens are going
         let v = paused ? 0.12 : indoors ? 0.22 : chase ? 0.44 : 0.38;
@@ -9154,24 +9255,76 @@ export default function IronLionLayer004() {
          two axes get different scales -- that is fine, because nothing on top of it is
          painted. Every dot is still computed from world coordinates, so the markers stay
          exact even where the drawing wanders. */
-      const atlas = imgs.current.map_atlas;
       let painted = false;
-      if (atlas && atlas.width) {
-        // measured on the source art: vertical expressways at 409/797 px, horizontal at
-        // 132/509, against world FWY_V [12,20] and FWY_H [1,12]
-        const IW = 1024;
-        const asx = (797 - 409) / (SX(20) - SX(12)), aox = 409 - SX(12) * asx;
-        const asy = (509 - 132) / (SX(12) - SX(1)), aoy = 132 - SX(1) * asy;
-        // the world rectangle the whole image covers
-        const wx0 = (0 - aox) / asx, wx1 = (IW - aox) / asx;
-        const wy0 = (0 - aoy) / asy, wy1 = (IW - aoy) / asy;
-        const [dx0, dy0] = P(wx0, wy0);
-        const [dx1, dy1] = P(wx1, wy1);
-        x.save();
-        x.beginPath(); x.rect(ox, oy, span * k, span * k); x.clip();
-        x.drawImage(atlas, dx0, dy0, dx1 - dx0, dy1 - dy0);
+      {
+        const base = mapBase();
+        x.save(); x.imageSmoothingEnabled = true;
+        x.drawImage(base, ox, oy, span * k, span * k);
         x.restore();
         painted = true;
+      }
+      /* WHO HOLDS WHAT. The war's turfs washed in their crew's colour, borders between owners,
+         and each crew's name once, on its largest holding. Open ground is left bare. */
+      const GW = g && g.gwar;
+      if (GW) {
+        const T = GW.turfs, side = WAR.side * PITCH;
+        const own = (ti, tj) => (T[ti + "," + tj] || {}).owner || null;   // turfKey lives in the game scope
+        const count = {};
+        for (const t of Object.values(T)) {
+          if (!t.owner) continue;
+          count[t.owner] = (count[t.owner] || 0) + 1;
+          const [ax, ay] = P(t.ti * side, t.tj * side), [bx, by] = P((t.ti + 1) * side, (t.tj + 1) * side);
+          x.fillStyle = (GANG_COL[t.owner] || "#999") + "55";
+          x.fillRect(ax, ay, bx - ax, by - ay);
+          x.strokeStyle = GANG_COL[t.owner] || "#999"; x.lineWidth = 2;
+          const edge = (dx, dy, x0, y0, x1, y1) => { if (own(t.ti + dx, t.tj + dy) !== t.owner) {
+            x.beginPath(); x.moveTo(x0, y0); x.lineTo(x1, y1); x.stroke(); } };
+          edge(0, -1, ax, ay, bx, ay); edge(0, 1, ax, by, bx, by); edge(-1, 0, ax, ay, ax, by); edge(1, 0, bx, ay, bx, by);
+          if (t.heat > (WAR.heat ? WAR.heat.bust : 1e9)) { x.fillStyle = "rgba(255,90,70,0.9)"; x.fillRect(bx - 7, ay + 3, 4, 4); }
+        }
+        // the name on each crew's turf nearest its HQ
+        x.font = "700 9px ui-monospace, monospace"; x.textAlign = "center";
+        for (const gk in count) {
+          const L = LEADERS[gk]; const hq = L ? [L.where.i, L.where.j] : null;
+          let best = null, bd = 1e9;
+          for (const t of Object.values(T)) if (t.owner === gk) {
+            const d = hq ? Math.hypot(t.ti - hq[0] / WAR.side, t.tj - hq[1] / WAR.side) : 0;
+            if (d < bd) { bd = d; best = t; }
+          }
+          if (!best) continue;
+          const [cx, cy] = P((best.ti + 0.5) * side, (best.tj + 0.5) * side);
+          const lab = (GANG_LABEL[gk] || gk).replace(/^THE /, "");
+          x.fillStyle = "rgba(0,0,0,0.65)"; const tw = x.measureText(lab).width;
+          x.fillRect(cx - tw / 2 - 3, cy - 8, tw + 6, 12);
+          x.fillStyle = GANG_COL[gk] || "#fff"; x.fillText(lab, cx, cy + 1);
+        }
+        x.textAlign = "start";
+        // the leadership Malcolm has placed: base, hideout, and where a boss drinks now
+        const icon = (key, wx, wy, col, shape) => {
+          const [px, py] = P(wx, wy), im = imgs.current[key];
+          if (im && im.width) { x.drawImage(im, px - 8, py - 8, 16, 16); return; }
+          x.fillStyle = col; x.strokeStyle = "#fff"; x.lineWidth = 1.3; x.beginPath();
+          if (shape === "star") { for (let q = 0; q < 10; q++) { const r = q % 2 ? 3 : 7, a = q * 0.628 - 1.571; x.lineTo(px + Math.cos(a) * r, py + Math.sin(a) * r); } }
+          else if (shape === "diamond") { x.moveTo(px, py - 6); x.lineTo(px + 6, py); x.lineTo(px, py + 6); x.lineTo(px - 6, py); }
+          else x.rect(px - 5, py - 5, 10, 10);
+          x.closePath(); x.fill(); x.stroke();
+        };
+        for (const gk in (g.ldSites || {})) for (const S of g.ldSites[gk]) {
+          if (!S || S.gone) continue;
+          const seat = GW.gangs[gk] && GW.gangs[gk].seats[S.seat];
+          if (S.seat !== 0 && !(seat && seat.known)) continue;       // a hideout nobody has given up
+          icon(S.seat === 0 ? (S.moved ? "mi_hangout" : "mi_base") : "mi_hideout", S.x, S.y,
+               GANG_COL[gk] || "#fff", S.seat === 0 ? "star" : "diamond");
+        }
+        // the places a detective drives to, the distros you have found, the case, a race, and you
+        icon("mi_precinct", SX(8) + PITCH / 2, SX(11) + PITCH / 2, "#3f7cff", "box");
+        icon("mi_court", SX(14) + PITCH / 2, SX(5) + PITCH / 2, "#b08850", "box");
+        for (const dk in (g.distroAt || {})) { const D = g.distroAt[dk];
+          if (D && D.found && !D.gone) icon("mi_distro", D.x, D.y, GANG_COL[dk] || "#fff", "diamond"); }
+        if (g.race && g.race.x != null) icon("mi_race", g.race.x, g.race.y, "#fff", "box");
+        if (g.case && g.case.stage !== "done" && g.case.scene) icon("mi_case", g.case.scene[0], g.case.scene[1], "#8fd0e0", "diamond");
+        { const pv = g.mode !== "foot" ? (g.mode === "car" ? g.car : g.mode === "moto" ? g.moto : g.civ) || g.p : g.p;
+          icon("mi_you", pv.x, pv.y, "#3f7cff", "diamond"); }
       }
       /* The district table drives the LABELS, which draw whether or not the artwork loaded.
          It has to live outside the fallback wrapper -- putting it inside narrowed its scope
@@ -9420,7 +9573,8 @@ export default function IronLionLayer004() {
        its bonnet at the top and the bed at the bottom -- nose-UP, like every other car -- so
        this list was turning a correct plate round, and every pickup in the city drove boot-first. */
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
-                        "vn_drumkit_flip"];
+                        "vn_drumkit_flip",
+                        "pd_counter"];   // the front of the desk faces the door, not the wall
 
     const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX, ...CITY2, ...DECO, ...CLUB, ...GYM_ART, ...SKY_ART, ...DW_ART, ...SC_ART, ...NF_ART, ...ANIM_ART, ...ID_ART, ...PD_ART };
     /* ---------- CUT_MAP ----------
@@ -10005,10 +10159,13 @@ export default function IronLionLayer004() {
        are stood beside was always closer than the man you were talking to, so E entered the
        car every time -- the roster prompt was on screen and unreachable. A person you are
        facing outranks a door handle. */
+    // the leadership sit indoors now: E at a seated man talks to him wherever he is
+    if (g.mode === "foot" && g.inside && G.leaderFn && G.leaderFn()) return;
     if (g.mode === "foot" && g.inside && G.swapFn && G.swapFn()) return;
     if (g.mode === "foot" && g.inside) {
       if (mountNearest()) return;
     }
+    if (!g.inside && g.mode === "foot" && G.racerFn && G.racerFn()) return;
     if (!g.inside && g.mode === "foot" && G.leaderFn && G.leaderFn()) return;
     if (!g.inside && g.mode === "foot" && G.fireHouseFn && G.fireHouseFn()) return;
     if (!g.inside && g.mode === "foot" && G.sewerFn && G.sewerFn()) return;
@@ -10496,6 +10653,8 @@ export default function IronLionLayer004() {
         const S = g.towerSites[f];
         for (const q of siteBodies(S)) if (q.hp > 0 && siteSees(S, q)) out.push(q);
       }
+      // the leadership's sites: same rule, and without it the bosses were scenery
+      for (const S of leaderSiteList()) for (const q of siteBodies(S)) if (q.hp > 0 && siteSees(S, q)) out.push(q);
       for (const cr of (g.crews || [])) {
         if (cr.indoor ? (cr.indoor !== g.inside || cr.indoorFloor !== g.floor) : g.inside) continue;
         for (const m of (cr.members || [])) if (m && m.hp > 0) out.push(m);
@@ -11022,10 +11181,16 @@ export default function IronLionLayer004() {
       const B = g.book || { people: [], cases: [] };
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      const PW = Math.min(400, W * 0.62), PH = Math.min(560, H * 0.86);
+      /* READABLE. The text is scaled with the page: Z is 1.3 by default and 1.75 when the page is
+         BIG (the ⤢ tab beside CLOSE, the one new control), which also brings the book to the
+         middle of the screen and makes it as large as the screen allows. */
+      const Z = g.bookBig ? 1.75 : 1.3;
+      const PW = g.bookBig ? Math.min(W * 0.94, 400 * Z) : Math.min(400 * Z * 0.85, W * 0.7),
+            PH = g.bookBig ? H - 56 : Math.min(560 * Z * 0.85, H * 0.86);
+      const fz = (n, bold) => (bold ? "700 " : "") + Math.round(n * Z) + "px ui-monospace, monospace";
       ctx.fillStyle = "rgba(6,7,9,0.35)"; ctx.fillRect(0, 0, W, H);
       // on the right, so the street stays in view on the left while you read
-      const x0 = W - PW - 14, y0 = (H - PH) / 2;
+      const x0 = g.bookBig ? (W - PW) / 2 : W - PW - 14, y0 = g.bookBig ? 42 : (H - PH) / 2;   // room for the tabs
       g.bookBox = [x0 / W, y0 / H, PW / W, PH / H];
       const pg = imgs.current.id_notebook;
       if (pg && pg.width) ctx.drawImage(pg, x0, y0, PW, PH);
@@ -11039,13 +11204,13 @@ export default function IronLionLayer004() {
         }
       }
       ctx.fillStyle = "#2b2419";
-      ctx.font = "700 13px ui-monospace, monospace";
+      ctx.font = fz(13, 1);
       const TOP = y0 + PH * 0.14;          // clear of the spiral binding
       // any negative page is a written page with its own heading -- "NOTEBOOK" printed over it
       ctx.fillText((g.bookPage || 0) < 0 ? "" : "NOTEBOOK", x0 + PW * 0.16, TOP);
-      ctx.font = "10px ui-monospace, monospace";
+      ctx.font = fz(10);
       ctx.fillStyle = "rgba(43,36,25,0.65)";
-      const per = 5, pages = Math.max(1, Math.ceil(B.people.length / per));
+      const per = g.bookBig ? 5 : 4, pages = Math.max(1, Math.ceil(B.people.length / per));
       /* THE WRITTEN PAGES come first, and there can be many of them: a long case used to spill off
          the bottom of one page and the oldest lines were simply lost. The case is cut into pages
          of seven lines, then whatever he has been told by snitches, and the arrows walk the lot. */
@@ -11058,29 +11223,29 @@ export default function IronLionLayer004() {
       g.bookPage = clamp(g.bookPage == null ? lo : g.bookPage, lo, pages - 1);
       if (g.bookPage < 0) {
         const paper = papers[papers.length + g.bookPage], part = papers.filter((q) => q.title === paper.title);
-        ctx.fillStyle = "#2b2419"; ctx.font = "700 13px ui-monospace, monospace";
+        ctx.fillStyle = "#2b2419"; ctx.font = fz(13, 1);
         ctx.fillText(paper.title + (part.length > 1 ? "  " + (part.indexOf(paper) + 1) + "/" + part.length : ""), x0 + PW * 0.16, TOP);
-        ctx.font = "11px ui-monospace, monospace";
-        let ly = TOP + 26;
+        ctx.font = fz(11);
+        let ly = TOP + 26 * Z;
         for (const t of paper.lines) {
           // wrap to the page
           const words = t.split(" "); let row = "";
           for (const w of words) {
-            if (ctx.measureText(row + w).width > PW * 0.74) { ctx.fillText(row, x0 + PW * 0.16, ly); ly += 17; row = ""; }
+            if (ctx.measureText(row + w).width > PW * 0.76) { ctx.fillText(row, x0 + PW * 0.16, ly); ly += 17 * Z; row = ""; }
             row += w + " ";
           }
-          ctx.fillText(row, x0 + PW * 0.16, ly); ly += 24;
+          ctx.fillText(row, x0 + PW * 0.16, ly); ly += 24 * Z;
         }
-        ctx.fillStyle = "rgba(43,36,25,0.5)"; ctx.font = "9px ui-monospace, monospace"; ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(43,36,25,0.5)"; ctx.font = fz(9); ctx.textAlign = "center";
         ctx.fillText("\u2039 \u203a  " + (papers.length + pages) + " PAGES", x0 + PW / 2, y0 + PH - 14);
         ctx.fillText("", x0 + PW / 2, y0 + PH + 18); ctx.textAlign = "start";
         ctx.restore();
         return;
       }
-      ctx.fillText(B.people.length + " NAMES \u00b7 PAGE " + (g.bookPage + 1) + "/" + pages, x0 + PW * 0.16, TOP + 16);
+      ctx.fillText(B.people.length + " NAMES \u00b7 PAGE " + (g.bookPage + 1) + "/" + pages, x0 + PW * 0.16, TOP + 16 * Z);
       const slice = B.people.slice(g.bookPage * per, g.bookPage * per + per);
       slice.forEach((q, i) => {
-        const ry = TOP + 30 + i * (PH - (TOP - y0) - 70) / per;
+        const ry = TOP + 30 * Z + i * (PH - (TOP - y0) - 70) / per;
         const fh2 = (PH - 130) / per * 0.78, fw2 = fh2 * 0.86;
         const shot = faceOf(q);
         ctx.fillStyle = "#b9b3a2"; ctx.fillRect(x0 + PW * 0.16, ry, fw2, fh2);
@@ -11090,20 +11255,20 @@ export default function IronLionLayer004() {
           ctx.drawImage(page2, (fi % sh.cols) * fw, ((fi / sh.cols) | 0) * fh, fw, fh,
                         x0 + PW * 0.16, ry, fw2, fh2);
         }
-        const tx2 = x0 + PW * 0.16 + fw2 + 10;
-        ctx.fillStyle = "#2b2419"; ctx.font = "700 12px ui-monospace, monospace";
-        ctx.fillText(q.name, tx2, ry + 13);
-        ctx.font = "10px ui-monospace, monospace"; ctx.fillStyle = "rgba(43,36,25,0.8)";
-        ctx.fillText((q.sex === "m" ? "M" : "F") + " \u00b7 " + q.age + " \u00b7 " + q.hgt + " \u00b7 " + q.no, tx2, ry + 28);
-        ctx.fillText(q.addr, tx2, ry + 42);
+        const tx2 = x0 + PW * 0.16 + fw2 + 10 * Z;
+        ctx.fillStyle = "#2b2419"; ctx.font = fz(12, 1);
+        ctx.fillText(q.name, tx2, ry + 13 * Z);
+        ctx.font = fz(10); ctx.fillStyle = "rgba(43,36,25,0.8)";
+        ctx.fillText((q.sex === "m" ? "M" : "F") + " \u00b7 " + q.age + " \u00b7 " + q.hgt + " \u00b7 " + q.no, tx2, ry + 28 * Z);
+        ctx.fillText(q.addr, tx2, ry + 42 * Z);
         ctx.fillStyle = "rgba(43,36,25,0.55)";
-        ctx.fillText("STOPPED " + q.where + (q.night ? " \u00b7 AFTER DARK" : ""), tx2, ry + 56);
+        ctx.fillText("STOPPED " + q.where + (q.night ? " \u00b7 AFTER DARK" : ""), tx2, ry + 56 * Z);
       });
       if (!B.people.length) {
-        ctx.fillStyle = "rgba(43,36,25,0.6)"; ctx.font = "11px ui-monospace, monospace";
+        ctx.fillStyle = "rgba(43,36,25,0.6)"; ctx.font = fz(11);
         ctx.fillText("Nobody in it yet. Stop somebody and ask for their card.", x0 + PW * 0.16, y0 + 96);
       }
-      ctx.fillStyle = "rgba(43,36,25,0.5)"; ctx.font = "9px ui-monospace, monospace";
+      ctx.fillStyle = "rgba(43,36,25,0.5)"; ctx.font = fz(9);
       ctx.textAlign = "center";
       ctx.fillText(pages > 1 ? "\u2039  \u203a  TO TURN THE PAGE" : "", x0 + PW / 2, y0 + PH - 14);
       ctx.fillText("", x0 + PW / 2, y0 + PH + 18);
@@ -11116,6 +11281,7 @@ export default function IronLionLayer004() {
       setHud((h) => ({ ...h, bookOpen: !!g.bookOpen, idOpen: false }));
     };
     G.bookPageFn = (d) => { g.bookPage = (g.bookPage || 0) + d; };
+    G.bookBigFn = () => { g.bookBig = !g.bookBig; };
     // the nearest person you could ask, on foot and close, standing still enough to be asked
     function nearCiv() {
       if (g.mode !== "foot" || g.sewer || g.onTrain) return null;
@@ -11663,8 +11829,10 @@ export default function IronLionLayer004() {
         const pl2 = buildingPlans(b)[b.entry || 0];
         const ctr = pl2.props.find((q) => q.t === "pd_counter");
         // behind his own counter, facing the door he is supposed to be watching
-        if (ctr) sgt = { x: ctr.x + ctr.w / 2, y: ctr.y + ctr.h + 14, vx: 0, vy: 0, yt: "yt_sergeant",
-                         jit: 1.04, anim: 0.4, bang: -Math.PI / 2, nm: "DESK SGT. LEE" };
+        /* BEHIND the desk -- the wall side -- and facing the front door, which is south. He was
+           on the public side with his back to the door, looking at his own counter. */
+        if (ctr) sgt = { x: ctr.x + ctr.w / 2, y: ctr.y - 12, vx: 0, vy: 0, yt: "yt_sergeant",
+                         jit: 1, tall: STAFF_TALL, anim: 0.4, bang: Math.PI / 2, nm: "DESK SGT. LEE" };
       }
       /* UNIFORMS AND THE CAPTAIN. Officers in the break room, the briefing room and the lobby,
          one down in the task force room, and the captain in his office. Any of the uniforms can
@@ -11974,7 +12142,7 @@ export default function IronLionLayer004() {
         g.traffic.push(C.van);
         // the tech works INSIDE the tape at the markers, not in among the witnesses
         C.tech = { caseRole: "csu", know: [], tr: { mood: "calm", attitude: "cooperative", influence: "none", look: ["gloves"], strikes: 0, told: 0 },
-                   x: scene[0] - 34, y: scene[1] + 34, vx: 0, vy: 0, yt: "yt_csu", jit: 0.97, anim: 0.7, bang: -Math.PI / 2 };
+                   x: scene[0] - 34, y: scene[1] + 34, vx: 0, vy: 0, yt: "yt_csu", jit: 0.97, tall: 0.8, anim: 0.7, bang: -Math.PI / 2 };
         break;
       }
       // Ramos goes out to it
@@ -13418,9 +13586,9 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       for (let k = 0; k < n; k++) {
         const a = Math.random() * 6.283;
         const sx = px + Math.cos(a) * DET.unit.from, sy = py + Math.sin(a) * DET.unit.from;
-        const m = kind === "swat" ? PD_CARS2.swat : kind === "fire" ? PD_CARS2.fire
+        const m = kind === "tow" ? TOW.m : kind === "swat" ? PD_CARS2.swat : kind === "fire" ? PD_CARS2.fire
                 : kind === "ems" ? { k: "ambulance", len: 132, w: 56 } : PD_CARS.cruiser;
-        const crewN = kind === "swat" ? 4 : 2;
+        const crewN = kind === "swat" ? 4 : kind === "tow" ? 1 : 2;
         const car = { x: sx, y: sy, ang: 0, m, kind, pts: roadRoute(sx, sy, px, py).concat([[px + (k - 1) * 70, py + 80]]), i: 0,
                       phase: "enroute", life: DET.unit.stay, crew: [] };
         g.parishNo = g.parishNo || {};
@@ -13430,7 +13598,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
             rank: kind === "fire" ? (c ? DUTY_LT : DUTY_FF) : c ? DUTY_SGT : DUTY_PATROL, swat: kind === "swat",
             o: copKits[(Math.random() * copKits.length) | 0], hp: 8, fireCd: Math.random(), seat: c, kind,
             // SWAT are drawn from their own plates: Carver leads, the rest are his team
-            yt: kind === "swat" ? (c === 0 ? "yt_carver" : "yt_swat_" + (1 + ((Math.random() * 8) | 0))) : null,
+            yt: kind === "swat" ? (c === 0 ? "yt_carver" : "yt_swat_" + (1 + ((Math.random() * 8) | 0))) : kind === "tow" ? "yt_sparky" : null,
             wpn: kind === "swat" ? "rifle_auto" : "beretta", bang: 0 });
         if (kind === "swat") { car.order = "follow"; car.anchor = [px, py]; }
         g.backup.push(car);
@@ -13448,8 +13616,10 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       else if (id === "fire") sendUnits("fire", 1);
       else if (id === "home") for (const c of g.backup || []) c.life = 0;
       else if (id === "car") G.replacementCar();
-      else if (id === "fuel") { for (const v of [g.car, g.moto, g.civ]) if (v) v.fuel = v.maxFuel || 100;
-        g.pickupFlash = { nm: "lift:KOWALSKI \u00b7 TOPPED OFF", t: 2 }; }
+      else if (id === "fuel") {
+        if (!spend(TOW.cost, "THE TOW TRUCK")) return;
+        sendUnits("tow", 1); g.towCall = true;
+        g.pickupFlash = { nm: "lift:KOWALSKI \u00b7 ROLLING. SIT TIGHT.", t: 2.4 }; }
       const said = { p1: "ONE CAR, ON THE WAY.", p2: "TWO CARS ROLLING.", p3: "THREE CARS. HOLD TIGHT.",
                      swat: "SWAT IS WHEELS UP.", ems: "BUS IS ON ITS WAY.", fire: "ENGINE COMPANY RESPONDING.",
                      home: "ALL UNITS, STAND DOWN." }[id];
@@ -13470,6 +13640,15 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         if (c.life <= 0) { L.splice(n, 1); continue; }
         // on scene: the officers hold a ring round him and shoot what shoots at him
         c.crew.forEach((u, k) => {
+          if (c.kind === "tow" && g.towCall) {
+            const v = inVehicle() ? activeVeh() : g.detCar;
+            if (v && Math.hypot(u.x - v.x, u.y - v.y) < TOW.reach) {
+              g.towCall = false;
+              for (const q of [g.car, g.moto, g.civ, g.detCar]) if (q) { q.fuel = q.maxFuel || 100; q.dmg = 0; q.hits = 0; }
+              g.pickupFlash = { nm: "lift:KOWALSKI \u00b7 FIXED AND FILLED", t: 2.4 };
+              c.life = Math.min(c.life, 20);          // he does not stay for the shooting
+            }
+          }
           if (c.kind === "ems") {
             if (g.emsCall && Math.hypot(u.x - g.p.x, u.y - g.p.y) < 240) {
               g.emsCall = false; g.p.hp = g.p.maxHp || 10;
@@ -13649,7 +13828,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         { id: "radio:p1", label: "1 CAR \u00b7 " + JUICE.cost.p1 }, { id: "radio:p2", label: "2 CARS \u00b7 " + JUICE.cost.p2 },
         { id: "radio:p3", label: "3 CARS \u00b7 " + JUICE.cost.p3 }, { id: "radio:swat", label: "SWAT \u00b7 " + JUICE.cost.swat },
         { id: "radio:ems", label: "EMS \u00b7 " + JUICE.cost.ems }, { id: "radio:fire", label: "FIRE \u00b7 " + JUICE.cost.fire },
-        { id: "radio:car", label: "A CAR FROM THE POOL \u00b7 " + JUICE.cost.car }, { id: "radio:fuel", label: "KOWALSKI: TOP ME OFF" },
+        { id: "radio:car", label: "A CAR FROM THE POOL \u00b7 " + JUICE.cost.car }, { id: "radio:fuel", label: "MOTOR POOL \u00b7 TOW TRUCK \u00b7 " + TOW.cost },
         { id: "radio:home", label: "STAND DOWN" }, { id: "close", label: "OFF" }] };
       return { title: "RAMOS \u00b7 WHERE TO?", opts: driveTargets().map((t) => ({ id: "drive:" + t.id, label: t.label })).concat([{ id: "close", label: "I'LL DRIVE" }]) };
     }
@@ -22224,11 +22403,13 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       for (const k in LEADERS) {
         const L = LEADERS[k];
         if (LEADER_ART[k]) {
-          // whoever is running the crew is the one you talk to -- the boss, or the next seat down
-          const m = leaderCrew(k).find((q) => seatFree(k, q.seat));
-          if (!m) continue;
-          const nm = m.seat === 0 ? L.name : (g.gwar ? g.gwar.gangs[k].seats[m.seat].name : L.name);
-          out.push({ key: k, ...L, name: nm, x: m.x, y: m.y, walker: m });
+          // each seated man is somebody you can walk up to, on his floor, while nobody is shooting
+          for (const S of ((g.ldSites && g.ldSites[k]) || [])) {
+            if (!S || S.gone || S.alert || S.boss.hp <= 0) continue;
+            if (g.inside !== S.b || g.floor !== S.f) continue;
+            const nm = g.gwar.gangs[k].seats[S.seat].name;
+            out.push({ key: k, ...L, name: nm, title: L.title + " \u00b7 " + WAR_SEATS[S.seat], x: S.boss.x, y: S.boss.y, site: S });
+          }
           continue;
         }
         out.push({ key: k, ...L, x: SX(L.where.i) + PITCH / 2, y: SX(L.where.j) + PITCH / 2 });
@@ -22236,8 +22417,9 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       return out;
     }
     function nearLeader() {
-      if (g.inside || inVehicle()) return null;
+      if (inVehicle()) return null;
       for (const L of leaderList()) {
+        if (!L.site && g.inside) continue;       // a street spot is not in the room you are in
         if (Math.hypot(g.p.x - L.x, g.p.y - L.y) < 120) return L;
       }
       return null;
@@ -22246,7 +22428,8 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       for (const L of leaderList()) {
         if (L.x < view.x0 - 200 || L.x > view.x1 + 200) continue;
         if (L.y < view.y0 - 200 || L.y > view.y1 + 200) continue;
-        if (LEADER_ART[L.key]) {
+        if (LEADER_ART[L.key]) continue;          // they are indoors on their sites now
+        if (false) {
           for (const m of leaderCrew(L.key)) {
             if (!seatFree(L.key, m.seat)) continue;
             drawShadow(m.x, m.y + 2, 10, 4, 0.3);
@@ -23034,7 +23217,87 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
           });
         }
       }
-      g.scanner = 2.5;
+      /* NO ALERT. A race used to ring the scanner like a crime in progress; it is just something
+         that is happening in the city now, and you either come across it or you do not. For a
+         detective it is not an invitation at all: the field is already running when you find it,
+         and it is a thing to stop. */
+      if (g.detMode) { g.race.state = "street"; g.race.life = RACE_BUST.life; g.race.spectators = []; }
+    }
+    /* ---------- RACING, FROM THE OTHER SIDE ----------
+       In detective mode the three run the course round and round until the clock goes. Put your
+       car into one hard enough and it stops; the driver gets out and either runs or stands by his
+       car. Catch him on foot and E cuffs him: booked for racing, into holding, on the notebook --
+       and the case against him is the easy kind (RACE_BUST.court). */
+    function racerNear() {
+      const R = g.race;
+      if (!R || R.state !== "street" || g.mode !== "foot" || g.inside) return null;
+      for (const rv of R.rivals) if (rv.drv && !rv.drv.cuffed && !rv.drv.gone &&
+        Math.hypot(g.p.x - rv.drv.x, g.p.y - rv.drv.y) < RACE_BUST.reach) return rv;
+      return null;
+    }
+    G.racerFn = () => {
+      const rv = racerNear();
+      if (!rv) return false;
+      rv.drv.cuffed = 1;
+      g.book = g.book || { people: [], cases: [] }; g.book.notes = g.book.notes || [];
+      g.book.notes.unshift("RACING: " + rv.name + " -- booked, holding on B1. Court is a formality.");
+      g.racePris = g.racePris || []; g.racePris.push({ name: rv.name, court: RACE_BUST.court });
+      juice(JUICE.arrest, "A RACER");
+      g.jobBanner = "ARRESTED \u00b7 " + rv.name; g.jobNote = "Street racing. He'll be in holding when you want him in front of a judge.";
+      return true;
+    };
+    function stepStreetRace(dt, R) {
+      R.life -= dt;
+      const pv = inVehicle() ? activeVeh() : null;
+      const spd = pv ? Math.hypot(pv.vx || 0, pv.vy || 0) : 0;
+      let live = 0;
+      for (const rv of R.rivals) {
+        if (rv.drv) {
+          const d = rv.drv;
+          if (d.cuffed || d.gone) continue;
+          live++;
+          const dx = d.x - g.p.x, dy = d.y - g.p.y, dd = Math.hypot(dx, dy) || 1;
+          if (d.run) {
+            // off down the pavement, away from you, and gone if you let him get far enough
+            d.vx = dx / dd * RACE_BUST.runSpd; d.vy = dy / dd * RACE_BUST.runSpd;
+            d.x += d.vx * dt; d.y += d.vy * dt; collideBuildings(d, 10, false);
+            d.anim += dt * 9;
+            if (dd > RACE_BUST.escape) { d.gone = 1; g.jobNote = rv.name + " got away on foot."; }
+          } else { d.vx = d.vy = 0; d.bang = Math.atan2(-dy, -dx); }
+          continue;
+        }
+        live++;
+        if (rv.stopped) continue;
+        // round and round the course
+        if (!R.cps.length) continue;
+        const c = R.cps[rv.at % R.cps.length];
+        const a = Math.atan2(c.y - rv.y, c.x - rv.x);
+        let da = a - rv.ang;
+        while (da > Math.PI) da -= Math.PI * 2;
+        while (da < -Math.PI) da += Math.PI * 2;
+        rv.ang += clamp(da, -2.3 * dt, 2.3 * dt);
+        rv.spd = Math.min(rv.top, rv.spd + 200 * dt);
+        rv.x += Math.cos(rv.ang) * rv.spd * dt; rv.y += Math.sin(rv.ang) * rv.spd * dt;
+        if (Math.hypot(rv.x - c.x, rv.y - c.y) < 210) rv.at++;
+        // RAMMED: your car into his, hard enough, and he is done
+        rv.hitCd = Math.max(0, (rv.hitCd || 0) - dt);
+        // one contact is one hit: without the cooldown a single shunt counted every frame it lasted
+        if (pv && rv.hitCd <= 0 && Math.hypot(pv.x - rv.x, pv.y - rv.y) < RACE_BUST.hitR) {
+          rv.hitCd = 0.7;
+          rv.hits = (rv.hits || 0) + (spd > RACE_BUST.hitSpd ? 1 : 0.34);
+          rv.spd *= 0.4; pv.vx *= 0.5; pv.vy *= 0.5; g.shake = Math.max(g.shake || 0, 7);
+          if (rv.hits >= RACE_BUST.hits) {
+            rv.stopped = 1; rv.spd = 0;
+            const side = rv.ang + Math.PI / 2;
+            rv.drv = { x: rv.x + Math.cos(side) * 40, y: rv.y + Math.sin(side) * 40, vx: 0, vy: 0, anim: 0,
+                       run: Math.random() < RACE_BUST.runs, yt: RACE_BUST.plates[(Math.random() * RACE_BUST.plates.length) | 0], jit: 1 };
+            g.jobBanner = rv.name + (rv.drv.run ? " IS RUNNING" : " IS OUT OF THE CAR");
+            g.jobNote = rv.drv.run ? "On foot -- get after him." : "He's standing by his car. Go and get him.";
+          }
+        }
+      }
+      if (R.life <= 0 && !R.rivals.some((rv) => rv.drv && !rv.drv.cuffed && !rv.drv.gone)) g.race = null;
+      else if (!live) g.race = null;
     }
 
     /* You do not just drive over a start line any more: somebody runs these. The organiser
@@ -23077,6 +23340,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       }
       const R = g.race;
       const pv = inVehicle() ? activeVeh() : g.p;
+      if (R.state === "street") { stepStreetRace(dt, R); return; }
       if (R.state === "called") {
         R.life -= dt;
         if (R.life <= 0) g.race = null;
@@ -23234,6 +23498,16 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         ctx.textAlign = "start";
         ctx.restore();
       };
+      // a driver out of his car: running, standing, or cuffed and waiting for the wagon
+      for (const rv of (R.rivals || [])) {
+        const d = rv.drv;
+        if (!d || d.gone || g.inside) continue;
+        drawShadow(d.x, d.y + 2, 9, 4, 0.3);
+        if (!drawYouth(d)) { ctx.fillStyle = d.cuffed ? "#5a6a8a" : "#b8a070"; ctx.fillRect(d.x - 6, d.y - 9, 12, 18); }
+        ctx.font = "700 9px ui-monospace, monospace"; ctx.textAlign = "center";
+        ctx.fillStyle = d.cuffed ? "#8fd0e0" : "#ffd27a";
+        ctx.fillText(d.cuffed ? "CUFFED" : rv.name, d.x, d.y - 24); ctx.textAlign = "start";
+      }
       // the rivals, in the cars that suit their drivers
       for (const rv of (R.rivals || [])) {
         if (rv.done || !Number.isFinite(rv.x)) continue;
@@ -27715,7 +27989,8 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       if (MUS.tick <= 0) {
         MUS.tick = 1.5;
         // a chase and the boss both override the district; nothing else does
-        if (g.boss && (!g.boss.roof || g.roof === g.boss.roof)) musicPlay("boss");
+        if (g.title) { /* the title screen's own track -- musicUpdate plays it */ }
+        else if (g.boss && (!g.boss.roof || g.roof === g.boss.roof)) musicPlay("boss");
         else if (g.detMode) musicPlay("det");
         /* Not inside the venue. A chase happening in the street is not audible over a band
            twelve feet away, and having the gig cut out because a squad car went past the door
@@ -30825,7 +31100,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         stepClub(dt);
         stepCamps(dt);
         stepAnimals(dt);
-        stepLeaders(dt);
+        stepLeaderSites(dt);
         stepCase(dt);
         marksClamp();
         g.skyPush = onTop ? 1 : 0;
@@ -31621,7 +31896,10 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
                 dist: Math.round(Math.hypot(pv2.x - st.x, pv2.y - st.y) / 21) };
             })(),
             onRamp: !!g.onRamp, rampH: Math.round((g.rampH || 0) * 100),
-            onFwy: !!g.onFwy, ramp: inVehicle() && !g.onFwy && inRampGap(activeVeh().x, activeVeh().y),
+            onFwy: !!g.onFwy,
+            // a car-park ramp in reach: the E button says so, instead of offering to get out
+            garage: inVehicle() && !g.inside && !!(G.denDoorFn && G.denDoorFn()),
+            ramp: inVehicle() && !g.onFwy && inRampGap(activeVeh().x, activeVeh().y),
             night: g.nightTarget > 0.5, nearCar, peds: g.peds.length,
             hp: g.p.hp, saved: g.stats.saved, lost: g.stats.lost,
             stamina: g.p.stamina, maxStamina: g.p.maxStamina, cash: g.p.cash, skill: g.p.skill,
@@ -31701,7 +31979,9 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         const pos = b.rampPos != null ? b.rampPos : 0.5;
         const rx = side === 0 || side === 2 ? b.x + b.w * pos : side === 1 ? b.x + b.w : b.x;
         const ry = side === 0 ? b.y : side === 2 ? b.y + b.h : b.y + b.h * pos;
-        if (Math.abs(v.x - rx) > 110 || Math.abs(v.y - ry) > 130) continue;
+        /* 130 deep was measured from the wall, and the station's lot stops a car about 140 off
+           it -- the ramp was there and just out of reach. */
+        if (Math.abs(v.x - rx) > 120 || Math.abs(v.y - ry) > 190) continue;
         const inV = side === 0 ? [0, 1] : side === 2 ? [0, -1] : side === 1 ? [-1, 0] : [1, 0];
         // inside, the car comes down where the floor's own ramp is drawn
         const ix = b.rampIn != null && (side === 0 || side === 2) ? b.x + b.w * b.rampIn : rx;
@@ -34045,6 +34325,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       const out = [];
       for (const k in (g.distroAt || {})) { const S = g.distroAt[k]; if (S && !S.gone) out.push(S); }
       for (const f in (g.towerSites || {})) out.push(g.towerSites[f]);
+      for (const S of leaderSiteList()) out.push(S);
       return out;
     }
     const siteBodies = (S) => (S.boss ? S.guards.concat([S.boss]) : S.guards);
@@ -34054,14 +34335,16 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       return q.indoor ? hereIn : !g.inside;
     }
     function siteFight(S, dt) {
-      const F = SITE_FIGHT, px = g.p.x, py = g.p.y;
+      const F = S.fight || SITE_FIGHT, px = g.p.x, py = g.p.y;
       const bodies = siteBodies(S).filter((q) => q.hp > 0);
       if (!bodies.length) return;
       const vis = bodies.filter((q) => siteSees(S, q));
       // who has seen him, and who has been hurt
       if (!S.alert && g.mode === "foot") {
         for (const q of bodies) if (q.hp0 && q.hp < q.hp0 - 0.01) { S.alert = true; break; }
-        if (!S.alert) for (const q of vis)
+        /* A detective walking into a boss's base is not a reason to shoot a cop. In DETECTIVE
+           MODE a leadership site only goes hot when somebody is hurt -- you can walk in and talk. */
+        if (!S.alert && !(S.ld && g.detMode)) for (const q of vis)
           if (Math.hypot(q.x - px, q.y - py) < (q.indoor ? F.spotIn : F.spot)) { S.alert = true; break; }
         if (S.alert) S.calmT = 0;
       }
@@ -34350,6 +34633,146 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
         g.jobNote = "Off " + (GANG_LABEL[victim] || victim) + ". Nobody called the police.";
       }
     }
+    /* ---------- THE LEADERSHIP'S SITES ----------
+       g.ldSites[gang] = [boss base, underboss hideout, captain hideout], each a guarded site
+       in the tower/distro shape ({ b, f, x, y, guards, boss }) so siteFight, combatTargets,
+       drawDistros and guardSites all take it without knowing it is new. */
+    function leaderSiteList() {
+      const out = [];
+      for (const k in (g.ldSites || {})) for (const S of g.ldSites[k]) if (S && !S.gone) out.push(S);
+      return out;
+    }
+    // the blocks a crew holds in the war, HQ block first, as cells
+    function crewCells(k) {
+      const L = LEADERS[k], out = [[L.where.i, L.where.j]];
+      if (g.gwar) for (const t of Object.values(g.gwar.turfs)) {
+        if (t.owner !== k) continue;
+        for (let di = 0; di < WAR.side; di++) for (let dj = 0; dj < WAR.side; dj++) {
+          const i = t.ti * WAR.side + di, j = t.tj * WAR.side + dj;
+          if (i < N && j < N && !(i === L.where.i && j === L.where.j)) out.push([i, j]);
+        }
+      }
+      return out;
+    }
+    const takenB = (b) => leaderSiteList().some((S) => S.b === b) ||
+      Object.values(g.distroAt || {}).some((S) => S && S.b === b);
+    // a building on one of these cells that nobody else is using, in its biggest room
+    function siteIn(cells, kinds, seed) {
+      const order = cells.slice(0, 1).concat(cells.slice(1).sort((a, b) =>
+        ((a[0] * 31 + a[1] * 17 + seed) % 13) - ((b[0] * 31 + b[1] * 17 + seed) % 13)));
+      for (const [i, j] of order) {
+        const c = getCell(i, j);
+        if (!c || !c.blds) continue;
+        for (const b of c.blds.slice().sort((a, b2) => b2.w * b2.h - a.w * a.h)) {
+          if (!b.door || b.perimeter || b.capPlate || b.landmark || b.fis || takenB(b)) continue;
+          if (kinds ? kinds.indexOf(b.kind) < 0
+                    : ["silo", "barn", "den", "club", "tower", "precinct", "hospital", "cityhall", "courthouse", "bank", "vance"].indexOf(b.kind) >= 0) continue;
+          const f = b.entry || 0, pl = buildingPlans(b)[f];
+          if (!pl || !pl.rooms.length) continue;
+          const room = pl.rooms.slice().sort((a, r2) => (r2.x1 - r2.x0) * (r2.y1 - r2.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))[0];
+          const pt = freeIndoor(b, pl, (room.x0 + room.x1) / 2, (room.y0 + room.y1) / 2, room);
+          if (pt) return { b, f, x: pt[0], y: pt[1], i, j };
+        }
+      }
+      return null;
+    }
+    function manSite(S, nMen) {
+      const pl = buildingPlans(S.b)[S.f], lv = LEADER_SITE.lvl.men, hp = hpAt(lv);
+      const gk = S.gang.startsWith("mob") ? "mob" : S.gang;
+      const keep = (S.guards || []).filter((q) => q.hp > 0);
+      S.guards = [];
+      for (let q = 0; q < nMen; q++) {
+        const a = (q / nMen) * 6.283, r = 52 + (q % 2) * 40;
+        const gp = freeIndoor(S.b, pl, S.x + Math.cos(a) * r, S.y + Math.sin(a) * r, null);
+        if (!gp) continue;
+        const old = keep[q];
+        S.guards.push({ x: gp[0], y: gp[1], vx: 0, vy: 0, hp: old ? old.hp : hp, hp0: hp, lvl: lv,
+          gang: gk, wing: S.gang === "mob_old" ? "old" : null, distroGuard: 1, ring: q % 3, indoor: 1,
+          stun: 0, topAng: null, anim: Math.random() * 9 });
+      }
+    }
+    function buildLeaderSite(k, seat, at) {
+      const art = LEADER_ART[k][seat], lv = seat === 0 ? LEADER_SITE.lvl.boss : LEADER_SITE.lvl.seat;
+      const hp = hpAt(lv) * LEADER_SITE.seatHp;
+      const S = { ld: 1, gang: k, seat, b: at.b, f: at.f, x: at.x, y: at.y, i: at.i, j: at.j, guards: [], alert: false,
+                  fight: LEADER_SITE.fight,
+                  boss: { x: at.x, y: at.y, vx: 0, vy: 0, hp, hp0: hp, lvl: lv, gang: k.startsWith("mob") ? "mob" : k,
+                          indoor: 1, stun: 0, topAng: null, yt: art[0], tall: art[1] * LEADER_SCALE, jit: 1,
+                          anim: 0, bang: Math.PI / 2, ax: at.x, ay: at.y, seatOf: k } };
+      manSite(S, LEADER_SITE.men[seat === 0 ? 0 : 1]);
+      return S;
+    }
+    function stepLeaderSites(dt) {
+      if (!g.gwar) return;
+      g.ldSites = g.ldSites || {};
+      for (const k in LEADER_ART) {
+        const L = LEADERS[k]; if (!L || !g.gwar.gangs[k]) continue;
+        const hx = SX(L.where.i) + PITCH / 2, hy = SX(L.where.j) + PITCH / 2;
+        // built once, the first time you come within reach of the HQ block
+        if (!g.ldSites[k]) {
+          if (Math.hypot(g.p.x - hx, g.p.y - hy) > LEADER_SITE.wake * 2.2) continue;
+          const cells = crewCells(k), out = [];
+          for (let seat = 0; seat < 3; seat++) {
+            const at = seat === 0 ? siteIn(cells.slice(0, 1), null, 0) || siteIn(cells, null, 0)
+                                  : siteIn(cells.slice(1).length ? cells.slice(1) : cells, null, seat * 7);
+            out.push(at ? buildLeaderSite(k, seat, at) : null);
+            g.ldSites[k] = out;          // so takenB sees the ones already placed
+          }
+        }
+        const G2 = g.gwar.gangs[k];
+        for (const S of g.ldSites[k]) {
+          if (!S) continue;
+          const seat = G2.seats[S.seat];
+          // a seat in a hospital bed or in Kestrel State is not in his chair
+          S.gone = !seat || seat.state !== "free" || S.boss.hp <= 0;
+          if (S.boss.hp <= 0 && !S.downed) {
+            S.downed = 1;
+            if (seat && seat.state === "free") { seat.state = "hospital"; seat.t = WAR_HOSP * 2; }
+            g.jobBanner = (seat ? seat.name : "HE") + " IS DOWN";
+            g.jobNote = GANG_LABEL[k] + " \u00b7 " + (WAR_SEATS[S.seat] || "") + " in the county hospital";
+          }
+          if (seat && seat.state === "free" && S.downed) {       // back out of the hospital
+            S.downed = 0; S.boss.hp = S.boss.hp0; S.gone = false;
+          }
+          if (S.gone) continue;
+          if (Math.hypot(g.p.x - S.x, g.p.y - S.y) > LEADER_SITE.wake) continue;
+          siteFight(S, dt);
+          // at ease: a little pacing round his spot, only while you are on his floor to see it
+          const B = S.boss;
+          if (!S.alert && g.inside === S.b && g.floor === S.f && B.hp > 0) {
+            B.wait = (B.wait == null ? 2 : B.wait) - dt;
+            if (!B.tgt && B.wait <= 0) {
+              const a = Math.random() * 6.283, r = 18 + Math.random() * 40;
+              B.tgt = [B.ax + Math.cos(a) * r, B.ay + Math.sin(a) * r];
+            }
+            if (B.tgt) {
+              const dx = B.tgt[0] - B.x, dy = B.tgt[1] - B.y, d = Math.hypot(dx, dy);
+              if (d < 3) { B.tgt = null; B.vx = B.vy = 0; B.wait = 2 + Math.random() * 4; }
+              else {
+                B.vx = dx / d * 26; B.vy = dy / d * 26;
+                const px = B.x, py = B.y;
+                B.x += B.vx * dt; B.y += B.vy * dt; collideBuildings(B, 12, false);
+                if (Math.abs(B.x - px - B.vx * dt) + Math.abs(B.y - py - B.vy * dt) > 0.5) { B.tgt = null; B.vx = B.vy = 0; B.wait = 1; }
+                B.anim += dt * 6; B.bang = Math.atan2(B.vy, B.vx);
+              }
+            } else if (Math.hypot(g.p.x - B.x, g.p.y - B.y) < 200) B.bang = Math.atan2(g.p.y - B.y, g.p.x - B.x);
+          } else if (S.alert) { B.vx = B.vy = 0; B.bang = Math.atan2(g.p.y - B.y, g.p.x - B.x); }
+        }
+        // BOTH SEATS UNDER HIM DOWN: the boss leaves the base for a bar or a shop on his turf
+        const base = g.ldSites[k][0];
+        if (base && !base.moved && [1, 2].every((n) => G2.seats[n].state !== "free")) {
+          const at = siteIn(crewCells(k), LEADER_SITE.hangout, 3);
+          if (at) {
+            base.moved = 1;
+            base.b = at.b; base.f = at.f; base.x = at.x; base.y = at.y; base.i = at.i; base.j = at.j;
+            Object.assign(base.boss, { x: at.x, y: at.y, ax: at.x, ay: at.y, tgt: null });
+            manSite(base, Math.max(4, base.guards.filter((q) => q.hp > 0).length));
+            base.alert = false;
+            g.jobNote = LEADERS[k].name + " is not sitting in his base any more. He drinks where his people can see him.";
+          }
+        }
+      }
+    }
     function drawDistros() {
       /* The tower's rooms are sites too and draw through exactly the same loop: guards, facing,
          muzzle flash. What differs is the man in the middle -- a boss plate and a name, not the
@@ -34357,6 +34780,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
       const list = [];
       for (const gang in (g.distroAt || {})) list.push([gang, g.distroAt[gang]]);
       for (const f in (g.towerSites || {})) list.push(["deuce", g.towerSites[f]]);
+      for (const S of leaderSiteList()) list.push([S.gang, S]);
       for (const [gang, S] of list) {
         if (!S || S.gone || !Number.isFinite(S.x)) continue;
         if (Math.hypot(g.p.x - S.x, g.p.y - S.y) > 900) continue;
@@ -34416,6 +34840,22 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
             ctx.textAlign = "center";
             ctx.fillText(DISTRO[S.kind].nm, S.x0, S.y0 - 22);
             ctx.textAlign = "left";
+          }
+          continue;
+        }
+        if (S.ld) {
+          const B = S.boss;
+          if (B.hp > 0 && (!g.inside || (S.b && g.inside === S.b && g.floor === S.f))) {
+            drawShadow(B.x, B.y + 3, 12, 5, 0.36);
+            if (!drawYouth(B)) { ctx.fillStyle = GANG_COL[S.gang] || "#e8c46a"; ctx.fillRect(B.x - 8, B.y - 11, 16, 22); }
+            const G2 = g.gwar && g.gwar.gangs[S.gang], seat = G2 && G2.seats[S.seat];
+            const nm = seat && (S.seat === 0 || seat.known) ? seat.name : "?";
+            ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center";
+            ctx.fillStyle = GANG_COL[S.gang] || "#e8c46a";
+            ctx.fillText(nm + " \u00b7 L" + B.lvl, B.x, B.y - 30);
+            ctx.textAlign = "left";
+            ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(B.x - 18, B.y - 26, 36, 3);
+            ctx.fillStyle = "#e05a4a"; ctx.fillRect(B.x - 18, B.y - 26, 36 * clamp(B.hp / B.hp0, 0, 1), 3);
           }
           continue;
         }
@@ -38461,10 +38901,11 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
           right: (1 - hud.bookBox[0] - hud.bookBox[2]) * 100 + "%",
           top: "calc(" + hud.bookBox[1] * 100 + "% - 32px)", fontFamily: mono }}>
           {[["\u2039", () => G.bookPageFn && G.bookPageFn(-1)], ["\u203a", () => G.bookPageFn && G.bookPageFn(1)],
+            ["\u2922", () => G.bookBigFn && G.bookBigFn()],
             ["CLOSE \u2715", () => G.bookFn && G.bookFn()]].map(([t, fn], i) => (
             <div key={i} onClick={fn}
               style={{ padding: "5px 12px", background: "rgba(43,36,25,0.92)", color: "#f0e6cf", cursor: "pointer",
-                fontSize: i < 2 ? 15 : 11, lineHeight: "18px", letterSpacing: "0.14em", border: "1px solid #8a7a5a" }}>{t}</div>
+                fontSize: i < 3 ? 15 : 11, lineHeight: "18px", letterSpacing: "0.14em", border: "1px solid #8a7a5a" }}>{t}</div>
           ))}
         </div>
       )}
@@ -39276,7 +39717,7 @@ const EV_TOPIC = { prints: "there", dna: "there", footprint: "there", matchbook:
               () => G.drawFn && G.drawFn())}
           </>
         )}
-        {btn("E", (hud.mode !== "foot") ? "exit" : hud.inside ? "door/stairs" : "enter", () => doAction(), null, null, hud.mode !== "foot" ? 56 : 68)}
+        {btn("E", (hud.mode !== "foot") ? (hud.garage ? "garage" : "exit") : hud.inside ? "door/stairs" : "enter", () => doAction(), null, null, hud.mode !== "foot" ? 56 : 68)}
       </div>
 
       <div style={{
