@@ -1769,6 +1769,155 @@ const PD_SOLID = { mg_table: 1, mg2_table: 1, mg_drawers: 1, mg2_drawers: 1, mg_
    at once. A car's number is its parish and its slot -- 31 is the first car in parish 3 -- painted
    on the roof so it reads from above, the way a helicopter reads it. */
 const BEAT = { perParish: 5, chance: 0.22 };
+/* THE NEW CAST. Hip-cut civilians, each with his own ID photograph off the same page, so the man
+   you card is the face on his card. `tall` is solved off shoulder width against the rest of the
+   street; these sheets are drawn a little more front-on, so their plates run tall. Page 1 of 16:
+   white men. Add a page = the plates and pt_ photos in assets/civ/ plus lines here. */
+const CIV_CAST = [
+  ["dockworker", "m", "light", 1.45], ["busdriver", "m", "light", 1.4], ["retiree", "m", "light", 1.38],
+  ["mechanic", "m", "light", 1.44], ["barfly", "m", "light", 1.36], ["mailman", "m", "light", 1.42],
+  ["exec", "m", "light", 1.46], ["varsity", "m", "light", 1.36], ["punk", "m", "light", 1.44],
+  ["salesman", "m", "light", 1.46], ["jogger", "m", "light", 1.34], ["priest", "m", "light", 1.38],
+].map(([k, sex, tone, tall]) => ({ k, yt: "yt_cv_" + k, face: "pt_cv_" + k, sex, tone, tall }))
+/* PAGE 2: the 16 x 8 sheet, 128 people. The photographs on that sheet do not belong to the
+   bodies above them (the generator shuffled them), so these carry NO photo of their own: the
+   card draws one off the regular face pages by sex and skin tone. Sex is by row as the sheet
+   was asked for, checked by eye on the mixed rows; tone is measured off the figure. */
+.concat([
+  ["p2_1_1", "m", "mid", 1.17],
+  ["p2_1_2", "m", "light", 1.19],
+  ["p2_1_3", "m", "deep", 1.15],
+  ["p2_1_4", "m", "light", 1.22],
+  ["p2_1_5", "m", "mid", 1.15],
+  ["p2_1_6", "m", "mid", 1.17],
+  ["p2_1_7", "m", "deep", 1.24],
+  ["p2_1_8", "m", "mid", 1.13],
+  ["p2_1_9", "m", "light", 1.26],
+  ["p2_1_10", "m", "deep", 1.17],
+  ["p2_1_11", "m", "light", 1.17],
+  ["p2_1_12", "m", "mid", 1.29],
+  ["p2_1_13", "m", "mid", 1.11],
+  ["p2_1_14", "m", "mid", 1.27],
+  ["p2_1_15", "m", "mid", 1.18],
+  ["p2_1_16", "m", "deep", 1.22],
+  ["p2_2_1", "m", "deep", 1.12],
+  ["p2_2_2", "m", "mid", 1.14],
+  ["p2_2_3", "m", "deep", 1.04],
+  ["p2_2_4", "m", "mid", 1.12],
+  ["p2_2_5", "m", "mid", 1.17],
+  ["p2_2_6", "m", "deep", 1.1],
+  ["p2_2_7", "m", "light", 1.12],
+  ["p2_2_8", "m", "light", 1.12],
+  ["p2_2_9", "m", "mid", 1.15],
+  ["p2_2_10", "m", "mid", 1.17],
+  ["p2_2_11", "m", "mid", 1.17],
+  ["p2_2_12", "m", "mid", 1.14],
+  ["p2_2_13", "m", "mid", 1.12],
+  ["p2_2_14", "m", "deep", 1.17],
+  ["p2_2_15", "m", "mid", 1.12],
+  ["p2_2_16", "m", "deep", 1.2],
+  ["p2_3_1", "m", "mid", 1.4],
+  ["p2_3_2", "m", "mid", 1.43],
+  ["p2_3_3", "m", "mid", 1.4],
+  ["p2_3_4", "m", "mid", 1.4],
+  ["p2_3_5", "m", "deep", 1.34],
+  ["p2_3_6", "m", "deep", 1.4],
+  ["p2_3_7", "m", "deep", 1.32],
+  ["p2_3_8", "m", "deep", 1.34],
+  ["p2_3_9", "m", "deep", 1.43],
+  ["p2_3_10", "m", "mid", 1.45],
+  ["p2_3_11", "m", "mid", 1.51],
+  ["p2_3_12", "m", "light", 1.42],
+  ["p2_3_13", "m", "mid", 1.45],
+  ["p2_3_14", "m", "mid", 1.42],
+  ["p2_3_15", "m", "deep", 1.34],
+  ["p2_3_16", "m", "mid", 1.42],
+  ["p2_4_1", "f", "light", 1.31],
+  ["p2_4_2", "f", "light", 1.34],
+  ["p2_4_3", "f", "light", 1.29],
+  ["p2_4_4", "f", "light", 1.31],
+  ["p2_4_5", "f", "light", 1.29],
+  ["p2_4_6", "f", "light", 1.4],
+  ["p2_4_7", "f", "light", 1.34],
+  ["p2_4_8", "f", "mid", 1.19],
+  ["p2_4_9", "f", "light", 1.31],
+  ["p2_4_10", "f", "light", 1.29],
+  ["p2_4_11", "f", "light", 1.37],
+  ["p2_4_12", "f", "light", 1.49],
+  ["p2_4_13", "f", "light", 1.4],
+  ["p2_4_14", "f", "light", 1.46],
+  ["p2_4_15", "f", "light", 1.4],
+  ["p2_4_16", "f", "light", 1.53],
+  ["p2_5_1", "f", "light", 1.5],
+  ["p2_5_2", "f", "mid", 1.4],
+  ["p2_5_3", "f", "light", 1.49],
+  ["p2_5_4", "f", "light", 1.53],
+  ["p2_5_5", "f", "light", 1.53],
+  ["p2_5_6", "f", "light", 1.23],
+  ["p2_5_7", "f", "mid", 1.5],
+  ["p2_5_8", "f", "deep", 1.4],
+  ["p2_5_9", "f", "mid", 1.37],
+  ["p2_5_10", "f", "mid", 1.37],
+  ["p2_5_11", "f", "mid", 1.37],
+  ["p2_5_12", "f", "light", 1.43],
+  ["p2_5_13", "f", "mid", 1.37],
+  ["p2_5_14", "f", "mid", 1.4],
+  ["p2_5_15", "f", "mid", 1.49],
+  ["p2_5_16", "f", "mid", 1.5],
+  ["p2_6_1", "f", "light", 1.25],
+  ["p2_6_2", "f", "light", 1.16],
+  ["p2_6_3", "f", "mid", 1.03],
+  ["p2_6_4", "f", "light", 1.08],
+  ["p2_6_5", "f", "light", 1.11],
+  ["p2_6_6", "f", "light", 1.22],
+  ["p2_6_7", "f", "light", 1.11],
+  ["p2_6_8", "f", "light", 1.09],
+  ["p2_6_9", "f", "mid", 1.07],
+  ["p2_6_10", "f", "mid", 1.08],
+  ["p2_6_11", "f", "mid", 1.11],
+  ["p2_6_12", "f", "light", 1.2],
+  ["p2_6_13", "f", "mid", 1.11],
+  ["p2_6_14", "f", "mid", 1.06],
+  ["p2_6_15", "f", "mid", 1.1],
+  ["p2_6_16", "f", "light", 1.1],
+  ["p2_7_1", "m", "mid", 1.37],
+  ["p2_7_2", "f", "light", 1.4],
+  ["p2_7_3", "m", "mid", 1.4],
+  ["p2_7_4", "f", "mid", 1.52],
+  ["p2_7_5", "f", "mid", 1.37],
+  ["p2_7_6", "m", "light", 1.55],
+  ["p2_7_7", "m", "deep", 1.46],
+  ["p2_7_8", "m", "mid", 1.4],
+  ["p2_7_9", "f", "light", 1.43],
+  ["p2_7_10", "m", "mid", 1.43],
+  ["p2_7_11", "m", "mid", 1.4],
+  ["p2_7_12", "m", "mid", 1.46],
+  ["p2_7_13", "m", "mid", 1.37],
+  ["p2_7_14", "m", "deep", 1.37],
+  ["p2_7_15", "f", "mid", 1.53],
+  ["p2_7_16", "f", "mid", 1.49],
+  ["p2_8_1", "m", "mid", 1.2],
+  ["p2_8_2", "m", "deep", 1.28],
+  ["p2_8_3", "f", "mid", 1.13],
+  ["p2_8_4", "f", "light", 1.22],
+  ["p2_8_5", "m", "light", 1.18],
+  ["p2_8_6", "f", "light", 1.17],
+  ["p2_8_7", "m", "mid", 1.08],
+  ["p2_8_8", "f", "light", 1.28],
+  ["p2_8_9", "m", "mid", 1.17],
+  ["p2_8_10", "m", "mid", 1.25],
+  ["p2_8_11", "f", "mid", 1.25],
+  ["p2_8_12", "f", "mid", 1.22],
+  ["p2_8_13", "f", "mid", 1.4],
+  ["p2_8_14", "m", "mid", 1.15],
+  ["p2_8_15", "f", "mid", 1.26],
+  ["p2_8_16", "m", "mid", 1.19]
+].map(([k, sex, tone, tall]) => ({ k, yt: "yt_cv_" + k, face: null, sex, tone, tall })));
+const CIV_CAST_SHARE = 0.7;       // of the street crowd, how many are drawn from the cast
+for (const c of CIV_CAST) { PD_ART[c.yt] = "assets/civ/" + c.yt + ".png"; if (c.face) PD_ART[c.face] = "assets/civ/" + c.face + ".png"; }
+/* Old Town's own police: the older cruiser (the chase units' plate), no numbers on the roof,
+   inside this radius of the circle. Their station is still to be built. */
+const OLDTOWN_PD = { r: 2.6 * 1500, m: { k: "cruiser", len: 108, w: 45.3 } };
 /* THE ROSTER. Every uniform in Raven Hook is a name on a list, and the list is a real department:
    mostly white, then black and Latino, and a few Asian officers. A name is drawn when an officer
    first appears and handed back when he is killed or carried off -- and it does not come round
@@ -11209,11 +11358,11 @@ export default function IronLionLayer004() {
       const rr = () => { sd = (sd * 1103515245 + 12345) & 0x7fffffff; return sd / 0x7fffffff; };
       const skin = p.civ && p.civ.skin;
       // three bands off the seven-shade palette, by luminance
-      const tone = skin
+      const tone = p.cast ? p.cast.tone : skin
         ? (skin[0] * 0.3 + skin[1] * 0.6 + skin[2] * 0.1 > 180 ? "light"
            : skin[0] * 0.3 + skin[1] * 0.6 + skin[2] * 0.1 > 110 ? "mid" : "deep")
         : ID_TONES[(rr() * 3) | 0];
-      const sex = (p.civ && p.civ.sex) || (rr() < 0.5 ? "m" : "f");
+      const sex = (p.cast && p.cast.sex) || (p.civ && p.civ.sex) || (rr() < 0.5 ? "m" : "f");
       const first = ID_NAMES[sex][(rr() * ID_NAMES[sex].length) | 0];
       const last = ID_NAMES.l[(rr() * ID_NAMES.l.length) | 0];
       const yr = 1921 + ((rr() * 47) | 0);
@@ -11229,6 +11378,7 @@ export default function IronLionLayer004() {
         hgt: ft + "'" + (inch > 11 ? 11 : inch) + '"',
         no: "RH" + String((rr() * 9000000 + 1000000) | 0),
         face: rr(),                       // resolved against the sheets when the card is drawn
+        castFace: p.cast ? p.cast.face : null, // a cast member's own photograph, off his own page
         skin: skin || [196, 150, 112],
       });
     }
@@ -11237,6 +11387,7 @@ export default function IronLionLayer004() {
        draw a silhouette. `id.face` is the roll, kept so the same man keeps the same photograph
        even after another page is added. */
     function faceOf(id) {
+      if (id.castFace) { const im = imgs.current[id.castFace]; if (im && im.width) return [{ key: id.castFace, cols: 1, rows: 1 }, 0]; }
       const gg = !!id.gang;
       let pool = facesFor(id.sex, id.tone, gg);
       if (!pool.length) pool = facesFor(id.sex, id.tone, !gg);                 // the other kind of page
@@ -11254,7 +11405,7 @@ export default function IronLionLayer004() {
       if (g.book.people.some((q) => q.no === id.no)) return;
       g.book.people.unshift({
         at: Date.now(), gang: id.gang,
-        no: id.no, name: id.name, sex: id.sex, tone: id.tone, face: id.face,
+        no: id.no, name: id.name, sex: id.sex, tone: id.tone, face: id.face, castFace: id.castFace,
         addr: id.addr, dob: id.dob, age: id.age, hgt: id.hgt,
         where: crossStreet(g.p.x, g.p.y), night: (g.night || 0) > 0.45,
       });
@@ -13724,7 +13875,27 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     /* THE ROAD HOME. Street lines are the cell boundaries; a route is along the street he is
        on, down the cross street nearest the target, and along to the corner nearest it --
        two turns, and never through a building. */
+    /* ON THE RIGHT-HAND LANE. The route was the streets' centrelines, so Ramos -- and every car
+       dispatch sent -- drove down the painted line. Each leg is moved over to its own lane, and
+       each corner is where the two lanes cross. */
     function roadRoute(x0, y0, x1, y1) {
+      const P = roadRouteC(x0, y0, x1, y1).filter((p, k, A) => !k || Math.hypot(p[0] - A[k - 1][0], p[1] - A[k - 1][1]) > 1);
+      if (P.length < 2) return P;
+      const segOff = (a, b) => {
+        const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+        const onV = Math.abs(ux) < Math.abs(uy);
+        const hw = onV ? halfW(clamp(Math.round(a[0] / PITCH), 0, N)) : halfW(clamp(Math.round(a[1] / PITCH), 0, N));
+        return [-uy * hw * LANE, ux * hw * LANE];
+      };
+      const out = [];
+      for (let k = 0; k < P.length; k++) {
+        const o1 = k > 0 ? segOff(P[k - 1], P[k]) : null, o2 = k < P.length - 1 ? segOff(P[k], P[k + 1]) : null;
+        const ox = (o1 ? o1[0] : 0) + (o2 ? o2[0] : 0), oy = (o1 ? o1[1] : 0) + (o2 ? o2[1] : 0);
+        out.push([P[k][0] + ox, P[k][1] + oy]);
+      }
+      return out;
+    }
+    function roadRouteC(x0, y0, x1, y1) {
       const iA = clamp(Math.round(x0 / PITCH), 0, N), jA = clamp(Math.round(y0 / PITCH), 0, N);
       const iT = clamp(Math.round(x1 / PITCH), 0, N), jT = clamp(Math.round(y1 / PITCH), 0, N);
       const onV = Math.abs(x0 - SX(iA)) < Math.abs(y0 - SX(jA));
@@ -14576,7 +14747,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
            figures that came in with the FIS office and have never been used for anything. */
         yt: isTrailerCell(bi, bj) ? TC_RES[(Math.random() * TC_RES.length) | 0]
           : isPortCell(bi, bj) ? ["fis_ped_1", "fis_ped_2", "fis_ped_3"][(Math.random() * 3) | 0]
-          : sky,
+          : sky || undefined,
         sky: !!sky,
         jit: 0.93 + Math.random() * 0.15,
         // they shuffle. Half the pace of the street is the whole of the tell at a distance
@@ -14584,6 +14755,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         anim: Math.random() * 6.28, mode: "walk", timer: 0,
         idlePose: Math.random() < 0.45 ? "bag" : "talk",
       });
+      // one of the cast, if his plate has loaded: body and ID photo come as a pair
+      { const q = g.peds[g.peds.length - 1];
+        if (!q.yt && Math.random() < CIV_CAST_SHARE) {
+          const c = CIV_CAST[(Math.random() * CIV_CAST.length) | 0], im = imgs.current[c.yt];
+          if (im && im.width) { q.yt = c.yt; q.tall = c.tall; q.cast = c; q.jit = 1; }
+        } }
     }
 
     /* Kids at the park. They are ordinary civilians for now -- the youth sheet failed its own
@@ -25742,6 +25919,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     /* One entry point for everything the player can be caught doing. `always` is for things
        loud enough that being seen is beside the point -- a gunshot carries. */
     function witnessed(x, y, level, always) {
+      if (g.detMode) return;            // he IS the police
       if (g.inside && !always) return;
       if (!always && !copsWatching(x, y)) return;
       /* Who they saw. The Lion in the mask and Darius in plain clothes are two different men
@@ -25754,6 +25932,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       escalatePolice(x, y, level);
     }
     function escalatePolice(x, y, level) {
+      if (g.detMode) return;
       const want = level >= 2 ? 4 : level >= 1 ? 2 : 1;
       if (!g.police) dispatchPolice(x, y);
       g.policeMore = g.policeMore || [];
@@ -27489,6 +27668,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
     /* ---------- traffic ---------- */
     const LANE = 0.46;
+    const TRAFFIC_LANE = { look: 90, plan: 300 };
     function laneX(i, dir) { return SX(i) - dir * halfW(i) * LANE; }
     function laneY(j, dir) { return SX(j) + dir * halfW(j) * LANE; }
 
@@ -27502,7 +27682,26 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const ph = (g.t + off) % 17;
       return axis === "v" ? ph < 8 : ph >= 8.6 && ph < 16.6;
     }
-    function chooseTurn(v) {
+    /* A TURN IS DECIDED BEFORE THE CORNER. The choice used to be made the instant a car reached
+       the middle of the junction, so nothing could signal it. Now it is planned ~300 out
+       (planTurn), the blinker runs from there, and chooseTurn applies the plan at the corner. */
+    function planTurn(v) {
+      if (v.plan || v.bus) return;
+      const keep = { axis: v.axis, si: v.si, dir: v.dir, k: v.k };
+      chooseTurn(v, true);
+      v.plan = { axis: v.axis, si: v.si, dir: v.dir, k: v.k };
+      Object.assign(v, keep);
+      // which way: the cross product of where he is going and where he will go (y is down)
+      const o = v.axis === "v" ? [0, v.dir] : [v.dir, 0], n2 = v.plan.axis === "v" ? [0, v.plan.dir] : [v.plan.dir, 0];
+      const cr = o[0] * n2[1] - o[1] * n2[0];
+      v.sig = cr > 0 ? 1 : cr < 0 ? -1 : 0;
+    }
+    function chooseTurn(v, dry) {
+      if (!dry && v.plan) {
+        Object.assign(v, v.plan); v.plan = null;
+        v.sigT = v.sig ? 1.4 : 0;           // keep blinking through the turn itself
+        return;
+      }
       const I = v.axis === "v" ? v.si : v.k;
       const J = v.axis === "v" ? v.k : v.si;
       const cand = [];
@@ -27996,7 +28195,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (k >= 0) {
             g.parishNo = g.parishNo || {};
             if (!g.parishNo[par]) g.parishNo[par] = Object.keys(g.parishNo).length + 1;
-            v.m = PD_CARS.cruiser; v.unit = String(g.parishNo[par]) + (k + 1); v.beat = par;
+            /* OLD TOWN keeps the old cars: the unnumbered cruisers, its own department's. */
+            const ot = otCentre(), inOT = Math.hypot(v.x - ot[0], v.y - ot[1]) < OLDTOWN_PD.r;
+            if (inOT) { v.m = OLDTOWN_PD.m; v.unit = null; v.otBeat = 1; }
+            else { v.m = PD_CARS.cruiser; v.unit = String(g.parishNo[par]) + (k + 1); }
+            v.beat = par;
             slots[k] = v;
           }
         }
@@ -28327,9 +28530,19 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const dx = tx - v.x, dy = ty - v.y;
         const d = Math.hypot(dx, dy);
         if (d < 26) { chooseTurn(v); if (v.bus) v.served = -1; continue; }
+        if (d < TRAFFIC_LANE.plan) planTurn(v);
+        if (v.sigT > 0) { v.sigT -= dt; if (v.sigT <= 0 && !v.plan) v.sig = 0; }
 
-        // steer
-        let want = Math.atan2(dy, dx);
+        /* STAY IN THE LANE. It used to aim straight at the next junction's lane point, so after
+           every turn it drove a long diagonal across the middle of the road to get there. Now it
+           aims at a point a little ahead ON its own lane line, which pulls it into the lane in
+           a car length or two and keeps it there. */
+        let want;
+        if (d > TRAFFIC_LANE.look) {
+          const lx = v.axis === "v" ? tx : v.x + v.dir * TRAFFIC_LANE.look;
+          const ly = v.axis === "v" ? v.y + v.dir * TRAFFIC_LANE.look : ty;
+          want = Math.atan2(ly - v.y, lx - v.x);
+        } else want = Math.atan2(dy, dx);
         let diff = ((want - v.ang + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
         const rate = 2.3 * clamp(v.spd / 130, 0.25, 1);
         v.ang += clamp(diff, -rate * dt, rate * dt);
@@ -28549,6 +28762,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           ctx.fillStyle = "rgba(255,64,42,0.8)";
           ctx.fillRect(-w * 0.34, L * 0.43, w * 0.22, 5);
           ctx.fillRect(w * 0.12, L * 0.43, w * 0.22, 5);
+        }
+        // THE BLINKER: amber, front and back corner on the side he is turning to, on and off
+        if (v.sig && Math.floor(performance.now() / 330) % 2) {
+          const sx2 = v.sig > 0 ? w * 0.36 : -w * 0.36 - 6;
+          ctx.fillStyle = "rgba(255,176,40,0.95)";
+          ctx.fillRect(sx2, -L * 0.47, 6, 6); ctx.fillRect(sx2, L * 0.41, 6, 6);
+          ctx.fillStyle = "rgba(255,176,40,0.22)";
+          ctx.beginPath(); ctx.arc(sx2 + 3, -L * 0.47 + 3, 9, 0, 6.283); ctx.fill();
         }
         /* A rig is a cab and a trailer, coupled. The trailer is drawn first and BEHIND, in the
            vehicle's own rotated frame, so it swings with the cab rather than sitting on top of
@@ -31320,6 +31541,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         stepClub(dt);
         stepCamps(dt);
         stepAnimals(dt);
+        /* A DETECTIVE IS NEVER WANTED. Every police behaviour in the game -- patrols chasing,
+           roadblocks, units opening fire, the duty cops -- keys off g.heat, and nine different
+           things raise it (a witnessed shot, a rammed cruiser, a raided distro, a race...).
+           A tester was shot by his own department in detective mode. Rather than guard nine
+           doors, the one thing they all read is held at zero while Malcolm is on the job. */
+        if (g.detMode) {
+          if ((g.heat || 0) > 0 || g.wantedT) { g.heat = 0; g.wantedT = 0; g.wantedAs = null; g.copFrom = null; g.chaseT = 0; }
+          for (const v of g.traffic) if (v.patrol && v.chasing) v.chasing = 0;
+        }
         stepLeaderSites(dt);
         stepCase(dt);
         marksClamp();
