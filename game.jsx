@@ -1647,16 +1647,16 @@ for (const t of ["sally", "elias", "specs", "sparky"]) {
 /* THE SQUAD ROOM: four more detectives, each with a speciality, a desk on B1 and a car in the lot.
    Each will help once a case, in his own way. */
 const SQUAD4 = [
-  { id: "okafor",  nm: "DET. OKAFOR",  spec: "HOMICIDE",  room: ["office", 0], car: { k: "pd_car_okafor",  len: 120, w: 47.5 },
+  { id: "okafor", tall: 0.84,  nm: "DET. OKAFOR",  spec: "HOMICIDE",  room: ["office", 0], car: { k: "pd_car_okafor",  len: 120, w: 47.5 },
     hi: "Twenty-two years in Homicide. Bodies tell you things, Malcolm, if you let them.",
     help: "Let me sit on the coroner and read the scene for you." },
-  { id: "morrow",  nm: "DET. MORROW",  spec: "VICE",      room: ["office", 1], car: { k: "pd_car_morrow",  len: 120, w: 44.3 },
+  { id: "morrow", tall: 0.9,  nm: "DET. MORROW",  spec: "VICE",      room: ["office", 1], car: { k: "pd_car_morrow",  len: 120, w: 44.3 },
     hi: "Vice. I know every bartender and bookie between here and the river.",
     help: "I'll lean on the street. People will talk to you easier." },
-  { id: "hayashi", nm: "DET. HAYASHI", spec: "FORENSICS", room: ["office", 2], car: { k: "pd_car_hayashi", len: 120, w: 50.7 },
+  { id: "hayashi", tall: 0.96, nm: "DET. HAYASHI", spec: "FORENSICS", room: ["office", 2], car: { k: "pd_car_hayashi", len: 120, w: 50.7 },
     hi: "Burglary and forensics. I ran the lab for four years before they gave me a shield.",
     help: "Give me what you've bagged. I can jump the lab's line." },
-  { id: "delgado", nm: "DET. DELGADO", spec: "ROBBERY",   room: ["delgadooffice", 0], car: { k: "pd_car_delgado", len: 120, w: 47.5 },
+  { id: "delgado", nm: "DET. DELGADO", spec: "ROBBERY", tall: 0.81,   room: ["delgadooffice", 0], car: { k: "pd_car_delgado", len: 120, w: 47.5 },
     hi: "Robbery. The Barrio raised me -- they still call me Padre down there.",
     help: "Let me ask around. Somebody always knows somebody." },
 ];
@@ -1669,6 +1669,9 @@ for (const d of SQUAD4) {
    the same room; 0.88 brings them into line. It rides on the object, so a detective who is
    hired to ride along keeps it. */
 const SQUAD_TALL = 0.76;       // 0.88 still read big beside Malcolm; measured down again
+/* The four were RE-CUT from Donny's detective sheet, all four the same way (hip line, hands kept,
+   Delgado's whole face this time). Each carries his own `tall`, solved off shoulder width to a
+   29-unit span -- a touch under the leadership's 33 -- so they sit beside Malcolm and Sally. */
 /* The house staff whose plates came in large: the CSI (Miller), the CSU tech at the scenes and
    the desk sergeant. Sally, Hawk and Kowalski were right and keep 1. */
 const STAFF_TALL = 0.8;
@@ -5575,8 +5578,13 @@ function makeFloor(b, f, rnd) {
     hub = put(0, 0, mx - 1, by - 1, "taskforce");
     const cut = [mx, Math.round(mx + (GX - mx) * 0.25), Math.round(mx + (GX - mx) * 0.5), Math.round(mx + (GX - mx) * 0.75), GX];
     for (let k = 0; k < 4; k++) put(cut[k], 0, cut[k + 1] - 1, oy - 1, k === 0 ? "malcolmoffice" : "office");
-    const n = 3, cw2 = Math.max(1, Math.floor((GX - mx) / n));
-    for (let k = 0; k < n; k++) put(mx + k * cw2, oy, k === n - 1 ? GX - 1 : mx + (k + 1) * cw2 - 1, by - 1, "cell");
+    /* Under the offices: two more offices, then ONE big holding cell -- a bench round the walls,
+       no bunks. It is still k "cell" (holdingSpot and the arrests look for that); `holding`
+       tells the furnisher it is the tank, not a one-man cell. */
+    const c1 = Math.round(mx + (GX - mx) * 0.25), c2b = Math.round(mx + (GX - mx) * 0.5);
+    put(mx, oy, c1 - 1, by - 1, "pdoffice");
+    put(c1, oy, c2b - 1, by - 1, "pdoffice");
+    if (put(c2b, oy, GX - 1, by - 1, "cell") >= 0) rooms[rooms.length - 1].holding = 1;
     const b1 = Math.round(GX * 0.26), b2 = Math.round(GX * 0.52);
     put(0, by, b1 - 1, GY - 1, "delgadooffice");
     put(b1, by, b2 - 1, GY - 1, "ramosoffice");
@@ -7047,6 +7055,13 @@ function makeFloor(b, f, rnd) {
         P(q2.x1 - pad - 26, q2.y1 - pad - 28, 26, 28, "safe");
         break;
       case "cell": {
+        if (r.holding) {
+          // the tank: benches along the back and one side, a pan in the far corner, no bunks
+          P(q2.x0 + pad, q2.y0 + 8, Math.min(W2 - pad * 2 - 30, 120), 18, "bench");
+          P(q2.x0 + 8, q2.y0 + 34, 18, Math.min(90, H2 - 60), "bench");
+          P(q2.x1 - pad - 18, q2.y1 - pad - 20, 18, 20, "toilet");
+          break;
+        }
         // a bunk against the back wall and a pan in the corner. Nothing else fits and
         // nothing else should.
         const bw2 = Math.min(56, W2 - 14);
@@ -7708,7 +7723,11 @@ function makeFloor(b, f, rnd) {
       place("malcolmoffice", 0, 0.5, 0.10, "pd_caseboard", 50, 32, true);
       place("malcolmoffice", 0, 0.18, 0.82, "pd_files", 26, 34);
       place("taskforce", 0, 0.30, 0.46, "pd_desk", 58, 42);
-      place("taskforce", 0, 0.72, 0.46, "pd_desk", 58, 42);
+      // (the second task-force desk, beside Sally's dispatch desk, is gone: one too many)
+      place("pdoffice", 0, 0.5, 0.40, "pd_desk", 48, 36);
+      place("pdoffice", 0, 0.2, 0.14, "pd_files", 26, 34);
+      place("pdoffice", 1, 0.5, 0.40, "pd_desk", 48, 36);
+      place("pdoffice", 1, 0.2, 0.14, "pd_files", 26, 34);
       // the dispatch desk, up by the offices -- and no filing cabinets standing in the hall
       place("taskforce", 0, 0.80, 0.12, "pd_radio", 44, 34);
       place("taskforce", 0, 0.80, 0.30, "pd_desk", 52, 38);
@@ -12098,7 +12117,7 @@ export default function IronLionLayer004() {
           if (!r) continue;
           const fy = d.room[0] === "delgadooffice" ? 0.72 : 0.72;
           const pt = freeIndoor(b, pl1, (r.x0 + r.x1) / 2, r.y0 + (r.y1 - r.y0) * fy, r);
-          if (pt) four.push({ ...d, x: pt[0], y: pt[1], vx: 0, vy: 0, anim: Math.random() * 6, jit: 1, tall: SQUAD_TALL, yt: "yt_" + d.id, bang: Math.PI / 2 });
+          if (pt) four.push({ ...d, x: pt[0], y: pt[1], vx: 0, vy: 0, anim: Math.random() * 6, jit: 1, tall: d.tall || SQUAD_TALL, yt: "yt_" + d.id, bang: Math.PI / 2 });
         }
       }
       /* THE HOUSE: Sally at the dispatch desk, Hawk in the evidence room, Miller in the CSI room,
