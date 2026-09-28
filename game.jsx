@@ -2008,7 +2008,8 @@ for (const k of CT_KEYS) PD_ART[k] = "assets/court/" + k + ".png";
 for (const k of ["oconnell", "banks", "voss", "price", "ellison", "ruiz", "whitcomb",
                  "sterling", "jenkins", "washington", "rossi"]) {
   PD_ART["yt_" + k] = "assets/heroes/yt_" + k + ".png"; PD_ART["pt_" + k] = "assets/heroes/pt_" + k + ".png"; }
-const GUMBALL = { cars: { pd_malcolm_car: 1, pd_unmarked: 1, pd_car_okafor: 1, pd_car_morrow: 1, pd_car_hayashi: 1, pd_car_delgado: 1 },
+const GUMBALL = { cars: { pd_malcolm_car: 1, pd_unmarked: 1, pd_car_okafor: 1, pd_car_morrow: 1, pd_car_hayashi: 1, pd_car_delgado: 1,
+                        pd_car_alonzo: 1, pd_car_kearney: 1 },   // the gang desk and the cold-case desk too
                   at: [-0.22, -0.06], r: 5, yieldR: 480 };
 /* ---------- MALCOLM'S KIT ----------
    Ramos walks with him, rides with him, drives when he asks and carries a service pistol. His car
@@ -2956,16 +2957,22 @@ const PRISON_CELL = { i: 16, j: 23 };
    fractions of the walled box (PRISON_BOX) and sizes are in cells, so the whole campus moves
    together. The hub keeps kind "prison" -- the old building's plans and everything the story
    hangs off it (the gate, the blocks, Don Matteo's cell upstairs). */
-const PRISON_BOX = { x0: 15 * 1500 + 120, y0: 23 * 1500 + 120, x1: 19 * 1500 - 120, y1: 26 * 1500 - 120 };
+/* TIGHTER: the wall pulled in so the buildings stand close and the open ground is the yard's. */
+const PRISON_BOX = { x0: 15 * 1500 + 560, y0: 23 * 1500 + 420, x1: 19 * 1500 - 560, y1: 26 * 1500 - 420 };
+/* THE YARD, as fractions of the box: fenced on all four sides with one gate in its top fence. */
+const PRISON_YARD = { u0: 0.05, v0: 0.64, u1: 0.37, v1: 0.97, gate: 150, fence: 12 };
+let MARKS_REF = [];
+const MARKS_REF_SET = (a) => (MARKS_REF = a);           // drawPrison reads the marks through this
+const inPrisonGrounds = (x, y) => x > PRISON_BOX.x0 - 160 && x < PRISON_BOX.x1 + 160 && y > PRISON_BOX.y0 - 160 && y < PRISON_BOX.y1 + 160;
 const PRISON_CAMPUS = [
   // k (roof plate)       u     v     w     h     kind            floors door side  extra
   ["pr_roof_cafe",      0.50, 0.16, 0.42, 0.45, "prisoncafe",    1, 0.5, 2, { name: "KESTREL STATE -- MESS HALL" }],
   ["pr_roof_hub",       0.50, 0.42, 0.50, 0.49, "prison",        2, 0.5, 2, { prison: 1, name: "KESTREL STATE" }],
-  ["pr_roof_wing",      0.20, 0.27, 0.80, 0.42, "prisonwing",    1, 0.5, 1, { wing: "A", name: "A BLOCK" }],
-  ["pr_roof_wing",      0.20, 0.52, 0.80, 0.42, "prisonwing",    1, 0.5, 1, { wing: "B", name: "B BLOCK" }],
-  ["pr_roof_wing",      0.80, 0.27, 0.80, 0.42, "prisonwing",    1, 0.5, 3, { wing: "C", name: "C BLOCK" }],
-  ["pr_roof_wing",      0.80, 0.52, 0.80, 0.42, "prisonwing",    1, 0.5, 3, { wing: "D", name: "D BLOCK" }],
-  ["pr_roof_wing",      0.80, 0.80, 0.80, 0.42, "prisonwing",    1, 0.5, 3, { wing: "W", name: "WOMEN'S BLOCK", women: 1 }],
+  ["pr_roof_wing",      0.20, 0.27, 0.80, 0.42, "prisonwing",    2, 0.5, 2, { wing: "A", name: "A BLOCK" }],
+  ["pr_roof_wing",      0.20, 0.52, 0.80, 0.42, "prisonwing",    2, 0.5, 2, { wing: "B", name: "B BLOCK" }],
+  ["pr_roof_wing",      0.80, 0.27, 0.80, 0.42, "prisonwing",    2, 0.5, 2, { wing: "C", name: "C BLOCK" }],
+  ["pr_roof_wing",      0.80, 0.52, 0.80, 0.42, "prisonwing",    2, 0.5, 2, { wing: "D", name: "D BLOCK" }],
+  ["pr_roof_wing",      0.80, 0.80, 0.80, 0.42, "prisonwing",    2, 0.5, 2, { wing: "W", name: "WOMEN'S BLOCK", women: 1 }],
   ["pr_roof_infirmary", 0.50, 0.62, 0.46, 0.26, "prisoninf",     1, 0.5, 0, { name: "INFIRMARY" }],
   ["pr_roof_library",   0.45, 0.80, 0.38, 0.36, "prisonlib",     1, 0.5, 0, { name: "LIBRARY" }],
   ["pr_roof_chapel",    0.58, 0.80, 0.30, 0.46, "prisonchapel",  1, 0.5, 2, { name: "CHAPEL" }],
@@ -3414,9 +3421,10 @@ const CONTRABAND = {
   stamps: { nm: "ROLL OF STAMPS", sev: 0, cur: 1 },
   book:   { nm: "HOLLOWED-OUT BOOK", sev: 1 },
   gun:    { nm: "SMUGGLED PISTOL", sev: 6 },
+  pkg:    { nm: "THE GANG'S PACKAGE", sev: 3 },
 };
 // every contraband item has its own icon: assets/prison/ci_<item>.png
-for (const k in CONTRABAND) PD_ART["ci_" + k] = "assets/prison/ci_" + k + ".png";
+for (const k in CONTRABAND) PD_ART["ci_" + k] = "assets/prison/ci_" + (k === "pkg" ? "heroin" : k) + ".png";
 /* WHERE THINGS HIDE: any of these props in a campus building is a stash spot. */
 const STASH_PROPS = { bed: 1, toilet: 1, sink: 1, pr_bookshelf: 1, pr_washers: 1, pr_bench: 1, pr_desk: 1, pr_table: 1, pr_servingline: 1 };
 const STASH = { reach: 44, seed: 0.28, patR: 64, patChance: 0.45, patCd: 40, perSev: 6,
@@ -3446,6 +3454,38 @@ const PRISON_PROTECT = { own: 60, bought: 320 };
 const RACE_BLOCK = { W: "A", B: "B", L: "C", A: "D" };
 const RACE_TONE = { W: "light", B: "deep", L: "mid", A: "mid" };
 const THREAT_NM = ["", "LOW", "MEDIUM", "HIGH"];
+/* PROVE YOURSELF. A shot caller will not take a stranger. Three steps: show him you can get a
+   blade; carry his package to a cell in another block and stash it without being patted down on
+   the way; pay the table its tribute. Then you ride with them (g.pgang), and their bought guards
+   look the other way for you too. */
+const JOIN_STEPS = [
+  { k: "blade", say: "Anybody can talk. Get yourself a blade and show me.", need: ["shank", "pencil", "razor", "zipgun", "gun"] },
+  { k: "carry", say: "Take this to {blk} block. Stash it in a cell up there -- mattress, pan, wherever. Don't get patted down." },
+  { k: "tribute", say: "Last thing. The table eats first. Ten packs.", packs: 10 },
+];
+/* STORE STOCK: what each store man has on his shelf, and how many; he restocks each morning. */
+const STORE_STOCK = { shank: [0, 2], pencil: [1, 4], razor: [0, 3], pills: [1, 5], weed: [1, 5], heroin: [0, 2], hooch: [1, 6], stamps: [2, 8], book: [0, 2], zipgun: [0, 1], cash: [0, 3] };
+/* EVERY PRISONER IS SOMEBODY. The first time Kestrel is looked at, each intake-page inmate is given a
+   life of his own and keeps it: a name, a number, a block and a CELL, a charge, a sentence, a release
+   year, a gang or none. Same man, same cell, same record, every visit. Names are drawn from these by
+   race and sex, seeded off the plate so they never change. */
+const KESTREL_NAMES = {
+  Wm: [["Dale","Ray","Curtis","Wayne","Gary","Donnie","Earl","Rick","Terry","Bobby","Clint","Vince"], ["Hollis","Pruitt","Kowalski","Brandt","Mahoney","Dwyer","Sutter","Kerr","Lambert","Voight","Tate","Gorman"]],
+  Bm: [["Marcus","Tyrone","Leon","Darnell","Calvin","Otis","Reggie","Dwayne","Andre","Lamont","Cedric","Maurice"], ["Washington","Pryor","Gaines","Hollins","Tate","Brooks","Ellison","Freeman","Mabry","Jeffries","Coleman","Rhodes"]],
+  Lm: [["Luis","Hector","Ramon","Ernesto","Javier","Miguel","Ruben","Arturo","Felipe","Chuy","Tomas","Raul"], ["Delgado","Ortega","Salazar","Mendoza","Rios","Fuentes","Cardenas","Ibarra","Zamora","Navarro","Reyes","Pena"]],
+  Am: [["Kenny","David","Johnny","Danny","Henry","Tommy","Eddie","Vincent","Sam","Paul","Frankie","Ray"], ["Chan","Wong","Lau","Ng","Leung","Cheung","Ho","Tang","Kwan","Yip","Chow","Lam"]],
+  Wf: [["Darlene","Brenda","Tammy","Sherry","Donna","Rhonda","Kim","Lisa","Peggy","Carla","Dawn","Joyce"], ["Pruitt","Kovac","Hale","Rourke","Madsen","Riggs","Doyle","Brandt","Sykes","Farrell","Lusk","Meeks"]],
+  Bf: [["Bernadette","Denise","Yvonne","Tasha","Gloria","Keisha","Rochelle","Bernice","Lorraine","Vanessa","Doreen","Wanda"], ["Cole","Mabry","Greer","Hollins","Pryor","Tate","Rhodes","Freeman","Brooks","Jeffries","Ellison","Gaines"]],
+  Lf: [["Graciela","Rosa","Marisol","Yolanda","Lupe","Carmen","Esperanza","Alma","Dolores","Nena","Lety","Brenda"], ["Ruiz","Ortega","Salazar","Rios","Fuentes","Ibarra","Zamora","Navarro","Reyes","Pena","Mendoza","Cardenas"]],
+  Af: [["Jenny","Grace","Susie","Linda","Amy","Helen","Joyce","Lily","Anna","Rose","Wendy","May"], ["Chan","Wong","Lau","Ng","Leung","Cheung","Ho","Tang","Kwan","Yip","Chow","Lam"]],
+};
+const khash = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; };
+const KESTREL_FILL = 0.72;      // share of a block's open cells the roster holds; the rest wait for Malcolm's arrests
+/* SENTENCES: a year inside is SENTENCE.dayPerYear game days (a game day is 24 real minutes). Parole
+   comes at `parole` of the term. A leader's seat comes back to his gang when he walks out. */
+const PRISON_SENTENCE = { dayPerYear: 1, parole: 0.5 };   // (SENTENCE is the court's table)
+const KESTREL_CHARGES = ["ARMED ROBBERY", "ASSAULT", "NARCOTICS", "BURGLARY", "MANSLAUGHTER", "AUTO THEFT", "FRAUD", "EXTORTION", "ARSON", "RECEIVING STOLEN GOODS"];
+const KESTREL_TERMS = ["2 YEARS", "3 YEARS", "5 YEARS", "8 YEARS", "12 YEARS", "20 YEARS", "25 TO LIFE"];
 const GANG_BLOCK = { kings: "B", barrio: "C", gomez: "C", brack: "A", irish: "A", sec: "A", wolves: "A",
                      mob_young: "A", mob_old: "A", chi: "D", deuce: "B" };
 const TONE_BLOCK = { light: "A", deep: "B", mid: "C" };
@@ -5881,7 +5921,7 @@ function floorKind(b, f) {
   /* Ground floor is where visitors and inmates meet; upstairs is where the place is run from.
      Don Matteo is on the ground floor because that is where w5 puts the player. */
   if (b.kind === "prison") return f === 0 ? "cellblock" : "wardenwing";
-  if (b.kind === "prisonwing") return "cellrow";
+  if (b.kind === "prisonwing") return "cellrow";                 // both tiers
   if (b.kind === "prisoncafe") return "pcafe";
   if (b.kind === "prisonlib") return "plib";
   if (b.kind === "prisonchapel") return "pchapel";
@@ -6228,9 +6268,13 @@ function makeFloor(b, f, rnd) {
   } else if (kind === "cellrow") {
     /* A CELL BLOCK WING: one cell a column, a row down each side, the tier between them. The
        door is on the end wall, into the tier. Each cell gets a bunk, a pan, a sink and a desk. */
-    const a2 = Math.max(1, Math.floor(GY * 0.36));
+    const a2 = Math.max(1, Math.floor(GY * 0.36)), mid = Math.floor(GX / 2);
     hub = put(0, a2, GX - 1, GY - a2 - 1, "tier");
-    for (let x = 1; x < GX - 1; x++) { put(x, 0, x, a2 - 1, "pcell"); put(x, GY - a2, x, GY - 1, "pcell"); }
+    for (let x = 1; x < GX - 1; x++) {
+      if (put(x, 0, x, a2 - 1, "pcell") >= 0) rooms[rooms.length - 1].floorTex = "tx_concrete";
+      if (x === mid) { put(x, GY - a2, x, GY - 1, "tierdoor"); continue; }     // the way in from the south door
+      if (put(x, GY - a2, x, GY - 1, "pcell") >= 0) rooms[rooms.length - 1].floorTex = "tx_concrete";
+    }
     put(0, 0, 0, a2 - 1, "pcloset"); put(GX - 1, 0, GX - 1, a2 - 1, "pcloset");
     put(0, GY - a2, 0, GY - 1, "pshower"); put(GX - 1, GY - a2, GX - 1, GY - 1, "pguard");
   } else if (kind === "pcafe") {
@@ -7616,11 +7660,28 @@ function makeFloor(b, f, rnd) {
         P(q2.x1 - pad - 26, q2.y1 - pad - 28, 26, 28, "safe");
         break;
       case "pcell": {
-        // bunk against the back wall, desk beside it, pan and sink by the bars
-        P(q2.x0 + 5, q2.y0 + 6, Math.min(26, W2 - 30), Math.min(56, H2 - 40), "bed");
-        P(q2.x1 - 24, q2.y0 + 6, 20, 18, "pr_desk");
-        P(q2.x1 - 22, q2.y1 - 24, 18, 18, "toilet");
-        P(q2.x0 + 6, q2.y1 - 22, 16, 14, "sink");
+        /* The back wall is the one away from the tier: top-row cells open downward, bottom-row cells
+           upward. Bunk full size down the left of the back, the desk at a desk's size on the right
+           of the back, pan and sink on the side walls by the bars. The door stays clear. */
+        const topRow = r.gy0 === 0, bw = Math.min(40, W2 * 0.46), bl = Math.min(70, H2 * 0.5);
+        const by = topRow ? q2.y0 + 5 : q2.y1 - 5 - bl;
+        P(q2.x0 + 4, by, bw, bl, "bed");
+        const dw = Math.min(34, W2 - bw - 12), dh = 26;
+        P(q2.x1 - 4 - dw, topRow ? q2.y0 + 6 : q2.y1 - 6 - dh, dw, dh, "pr_desk");
+        const fy = topRow ? q2.y0 + bl + 14 : q2.y1 - bl - 14 - 18;
+        P(q2.x1 - 4 - 18, fy, 18, 18, "toilet");
+        P(q2.x1 - 4 - 16, topRow ? fy + 24 : fy - 20, 16, 14, "sink");
+        break;
+      }
+      case "tier": {
+        /* THE COMMON AREA in the middle of the tier: a couch facing the TV, two card tables with their
+           chairs. Free time happens here. */
+        P(cx - 70, cy - 18, 90, 34, "sofa");
+        P(cx - 50, cy - 70, 50, 26, "tv");
+        for (const ox of [120, 230]) {
+          P(cx + ox - 26, cy - 26, 52, 52, "cardtable");
+          P(cx + ox - 12, cy - 50, 24, 20, "chair"); P(cx + ox - 12, cy + 30, 24, 20, "chair");
+        }
         break;
       }
       case "pchow": {
@@ -8895,6 +8956,12 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     const B = PRISON_BOX, WT2 = 28, gap = 300, gx = (B.x0 + B.x1) / 2;
     const segs = [[B.x0, B.y0, gx - gap / 2 - B.x0, WT2], [gx + gap / 2, B.y0, B.x1 - gx - gap / 2, WT2],
                   [B.x0, B.y1 - WT2, B.x1 - B.x0, WT2], [B.x0, B.y0, WT2, B.y1 - B.y0], [B.x1 - WT2, B.y0, WT2, B.y1 - B.y0]];
+    {
+      const Y = PRISON_YARD, bw = B.x1 - B.x0, bh = B.y1 - B.y0;
+      const yx0 = B.x0 + bw * Y.u0, yy0 = B.y0 + bh * Y.v0, yx1 = B.x0 + bw * Y.u1, yy1 = B.y0 + bh * Y.v1, gm = (yx0 + yx1) / 2;
+      segs.push([yx0, yy0, gm - Y.gate / 2 - yx0, Y.fence], [gm + Y.gate / 2, yy0, yx1 - gm - Y.gate / 2, Y.fence],
+                [yx0, yy1, yx1 - yx0, Y.fence], [yx0, yy0, Y.fence, yy1 - yy0], [yx1, yy0, Y.fence, yy1 - yy0 + Y.fence]);
+    }
     const cx0 = SX(i), cy0 = SX(j), cx1 = SX(i + 1), cy1 = SX(j + 1);
     for (const [x, y, w2, h2] of segs) {
       const X0 = Math.max(x, cx0), Y0 = Math.max(y, cy0), X1 = Math.min(x + w2, cx1), Y1 = Math.min(y + h2, cy1);
@@ -11032,8 +11099,14 @@ export default function IronLionLayer004() {
     // the leadership sit indoors now: E at a seated man talks to him wherever he is
     if (g.mode === "foot" && g.inside && G.leaderFn && G.leaderFn()) return;
     if (g.mode === "foot" && g.inside && g.inside.inPrison && g.prisonMode) {
-      const sm = ((G.prisonFolkFn && G.prisonFolkFn()) || []).find((q) => q.store && Math.hypot(q.x - g.p.x, q.y - g.p.y) < 70);
-      if (sm) { g.storeMan = sm; G.pickOpen("pstore"); return; }
+      const F = (G.prisonFolkFn && G.prisonFolkFn()) || [];
+      // whoever is NEAREST: the store man or a shot caller
+      const dd = (q) => Math.hypot(q.x - g.p.x, q.y - g.p.y);
+      const who = F.filter((q) => (q.store && dd(q) < 70) || (q.shot && !q.queen && dd(q) < 80)).sort((a, b2) => dd(a) - dd(b2))[0];
+      if (who && who.store) { g.storeMan = who; g.storeSaid = null; G.pickOpen("pstore"); return; }
+      if (who && who.shot) { g.shotCaller = who; g.gangSaid = null; G.pickOpen("pgang"); return; }
+      // a hiding place: the stash menu
+      if (G.stashOpenFn && G.stashOpenFn()) return;
     }
     if (g.mode === "foot" && g.inside && g.inside.inPrison && G.stashFn && G.stashFn()) return;
     if (g.mode === "foot" && g.inside && G.swapFn && G.swapFn()) return;
@@ -13024,6 +13097,18 @@ export default function IronLionLayer004() {
       return pt || [P.x, P.y];
     }
     /* A CREW, ONE AT A TIME. Each member put away gives up the next; the last one closes it. */
+    /* RELEASES. Once a game day, anybody whose time is up walks out: parole at SENTENCE.parole of the
+       term if his threat is low, the full term otherwise. His cell is vacant again. */
+    function kestrelReleases() {
+      const out = [];
+      g.convicts = (g.convicts || []).filter((q) => {
+        const yrs = q.years || 5, served = (g.day || 0) - (q.inDay || 0);
+        const due = yrs * PRISON_SENTENCE.dayPerYear * (q.threat === 3 ? 1 : PRISON_SENTENCE.parole);
+        if (served >= due) { out.push(q.name); return false; }
+        return true;
+      });
+      if (out.length) { g.jobNote = "RELEASED FROM KESTREL: " + out.join(", ") + "."; bookNote("RELEASED: " + out.join(", ")); g.pfolk = null; }
+    }
     function sendToKestrel(C, name) {
       const P = C.perp; if (!P) return;
       const id = identOf(P), gk = C.crew && C.crew.gang;
@@ -13032,7 +13117,8 @@ export default function IronLionLayer004() {
       if (g.convicts.some((q) => q.name === name)) return;
       g.convicts.push({ name, block, yt: P.yt || null, face: P.castFace || (P.cast && P.cast.face) || null,
                         charge: (C.K.nm || "FELONY").toUpperCase(), sentence: C.K.violent ? "12 YEARS" : "4 YEARS",
-                        release: String(1986 + (C.K.violent ? 12 : 4)), gang: gk ? GANG_LABEL[gk] : null });
+                        release: String(1986 + (C.K.violent ? 12 : 4)), gang: gk ? GANG_LABEL[gk] : null,
+                        years: C.K.violent ? 12 : 4, inDay: g.day || 0, threat: C.K.violent ? 3 : 2 });
       if (g.pfolk) g.pfolk = null;                 // the block is rebuilt with him in it
     }
     function crewAdvance(C, name) {
@@ -13509,12 +13595,17 @@ export default function IronLionLayer004() {
            wall so no bumper is inside the building. */
         /* The squad's cars take the stalls: Okafor, Morrow and Hayashi along the building, Delgado
            in the row below. One cruiser, 01, stays up top; the rest of the fleet lives in B2. */
-        [239, 299, 359].forEach((px, k) => park(px, 532, SQUAD4[k].car, { owner: SQUAD4[k].id }));
-        park(117, 646, SQUAD4[3].car, { owner: SQUAD4[3].id });
-        park(177, 646, SQUAD4[4].car, { owner: SQUAD4[4].id });     // Alonzo's Monte Carlo, beside Delgado
-        park(237, 646, SQUAD4[5].car, { owner: SQUAD4[5].id });     // Kearney's, beside his
-        park(175, 646, PD_CARS.cruiser, { unit: "01" });
-        g.detCar = park(417, 590, PD_CARS2.malcolm, {});
+        /* ASSIGNED STALLS, one car to each and each one labelled: the three senior detectives along
+           the building, the gang desk and cold cases in the row below with Delgado, cruiser 01 at the
+           end of that row, Malcolm in his own. (01 used to sit on top of Alonzo's car.) */
+        g.stalls = [];
+        const stall = (px, py, m, extra, label) => { const v = park(px, py, m, extra); g.stalls.push({ x: v.x, y: v.y, w: m.w, len: m.len, label }); return v; };
+        [239, 299, 359].forEach((px, k) => stall(px, 532, SQUAD4[k].car, { owner: SQUAD4[k].id }, SQUAD4[k].nm));
+        stall(117, 646, SQUAD4[3].car, { owner: SQUAD4[3].id }, SQUAD4[3].nm);
+        stall(177, 646, SQUAD4[4].car, { owner: SQUAD4[4].id }, SQUAD4[4].nm);
+        stall(237, 646, SQUAD4[5].car, { owner: SQUAD4[5].id }, SQUAD4[5].nm);
+        stall(297, 646, PD_CARS.cruiser, { unit: "01" }, "UNIT 01");
+        g.detCar = stall(417, 590, PD_CARS2.malcolm, {}, "DET. MALCOLM");
       }
       const C = g.case;
       if (C && C.van && C.stage === "done" && Date.now() - (C.doneAt || 0) > 90000) {
@@ -15131,11 +15222,37 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           { id: "carver:home", label: "STAND DOWN" }, { id: "close", label: "AS YOU WERE" }] };
       }
       if (kind === "pstore") {
-        const sm = g.storeMan, nm = sm && sm.name ? sm.name : "THE STORE MAN";
-        return { title: nm.toUpperCase() + " \u00b7 " + (g.pcigs || 0) + " PACKS", face: sm && sm.castFace ? "assets/prison/" + sm.castFace + ".png" : null,
+        const sm = g.storeMan, nm = sm && sm.name ? sm.name : "THE STORE MAN", st = storeStock(sm);
+        return { title: nm.toUpperCase() + " \u00b7 YOU HAVE " + (g.pcigs || 0) + " PACKS", face: sm && sm.castFace ? "assets/prison/" + sm.castFace + ".png" : null,
           text: g.storeSaid || "You got packs, I got whatever you need. Don't tell me what it's for.",
-          opts: Object.keys(PRISON_STORE).map((k) => ({ id: "pstore:" + k, label: CONTRABAND[k].nm + " \u00b7 " + PRISON_STORE[k] + " PACKS" }))
+          opts: Object.keys(PRISON_STORE).filter((k) => st[k] > 0)
+            .map((k) => ({ id: "pstore:" + k, icon: "assets/prison/ci_" + k + ".png", label: CONTRABAND[k].nm + " \u00b7 " + PRISON_STORE[k] + " PACKS \u00b7 " + st[k] + " LEFT" }))
             .concat([{ id: "close", label: "NOTHING TODAY" }]) };
+      }
+      if (kind === "pgang") {
+        const q = g.shotCaller, k = q && q.shot, G5 = k && PRISON_GANGS[k], M = g.pmission;
+        const opts = [];
+        let said = g.gangSaid;
+        if (g.pgang === k) said = said || "You're with us. Keep your head down and your blade close.";
+        else if (g.pgang) said = said || "You already sit at somebody's table. Walk away.";
+        else if (!M || M.gang !== k) { said = said || G5.about; opts.push({ id: "pgang:join", label: "I WANT IN" }); }
+        else {
+          said = said || JOIN_STEPS[M.step].say.replace("{blk}", M.blk);
+          if (M.step === 0 && (g.pinv || []).some((it) => JOIN_STEPS[0].need.indexOf(it) >= 0)) opts.push({ id: "pgang:blade", label: "HERE'S A BLADE" });
+          if (M.step === 2) opts.push({ id: "pgang:pay", label: "TEN PACKS \u00b7 YOU HAVE " + (g.pcigs || 0) });
+          opts.push({ id: "pgang:quit", label: "I'M OUT" });
+        }
+        return { title: (q.name || "").toUpperCase() + " \u00b7 " + G5.nm, face: q.castFace ? "assets/prison/" + q.castFace + ".png" : null,
+          text: said, opts: opts.concat([{ id: "close", label: "LATER" }]) };
+      }
+      if (kind === "pstash") {
+        const S = g.stashAtNow; if (!S) return null;
+        const here = stashAt(S.key), inv = g.pinv || [];
+        return { title: "HIDING PLACE \u00b7 " + S.what.toUpperCase(), face: null,
+          text: here.length ? "Something's already in here." : "Empty. Nobody's using it.",
+          opts: here.map((it, n) => ({ id: "pstash:take:" + n, icon: PD_ART["ci_" + it], label: "TAKE " + CONTRABAND[it].nm }))
+            .concat(inv.map((it, n) => ({ id: "pstash:hide:" + n, icon: PD_ART["ci_" + it], label: "HIDE " + CONTRABAND[it].nm })))
+            .concat([{ id: "close", label: "LEAVE IT" }]) };
       }
       if (kind === "radio") return { title: "RADIO \u00b7 DISPATCH \u00b7 " + (g.juice || 0) + " JUICE", face: "assets/heroes/pt_sally.png",
         text: "SALLY: Go ahead, Malcolm. I've got you.",
@@ -15157,10 +15274,21 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         setHud((h) => ({ ...h, wpn: k, ammo: g.p.ammo, holstered: false }));
       } else if (id.startsWith("radio:")) G.radioFn(id.slice(6));
       else if (id.startsWith("pstore:")) {
-        const k = id.slice(7), price = PRISON_STORE[k];
-        if ((g.pcigs || 0) >= price) { g.pcigs -= price; (g.pinv = g.pinv || []).push(k); g.storeSaid = CONTRABAND[k].nm.toLowerCase() + ". Hide it good."; }
+        const k = id.slice(7), price = PRISON_STORE[k], st = storeStock(g.storeMan);
+        if (!(st[k] > 0)) g.storeSaid = "Sold out. Tomorrow.";
+        else if ((g.pcigs || 0) >= price) { g.pcigs -= price; st[k]--; (g.pinv = g.pinv || []).push(k); g.storeSaid = CONTRABAND[k].nm.toLowerCase() + ". Hide it good."; }
         else g.storeSaid = "That's " + price + " packs. You got " + (g.pcigs || 0) + ". Come back.";
         G.pickOpen("pstore"); return;
+      }
+      else if (id.startsWith("pgang:")) { prisonGangPick(id.slice(6)); G.pickOpen("pgang"); return; }
+      else if (id.startsWith("pstash:")) {
+        const [, what, n] = id.split(":"), S = g.stashAtNow, here = stashAt(S.key), inv = (g.pinv = g.pinv || []);
+        if (what === "take" && here[+n]) inv.push(here.splice(+n, 1)[0]);
+        else if (what === "hide" && inv[+n]) { const it = inv.splice(+n, 1)[0]; here.push(it);
+          // the gang's package, stashed in the block he named: the carry is done
+          if (it === "pkg" && g.pmission && g.pmission.step === 1 && g.inside && g.inside.pwing === g.pmission.blk) {
+            g.pmission.step = 2; here.pop(); g.jobBanner = "PACKAGE DELIVERED"; g.jobNote = "Go back and see " + PRISON_GANGS[g.pmission.gang].boss.name + "."; } }
+        G.pickOpen("pstash"); return;
       }
       else if (id.startsWith("carver:")) G.carverFn(id.slice(7));
       else if (id.startsWith("open:")) { g.fileText = null; G.pickOpen(id.slice(5)); return; }
@@ -15686,6 +15814,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         anim: Math.random() * 6.28, mode: "walk", timer: 0,
         idlePose: Math.random() < 0.45 ? "bag" : "talk",
       });
+      // nobody walks the prison grounds but the people who live and work there
+      { const q = g.peds[g.peds.length - 1]; if (q && inPrisonGrounds(q.x, q.y)) { g.peds.pop(); return; } }
       // one of the cast, if his plate has loaded: body and ID photo come as a pair
       { const q = g.peds[g.peds.length - 1];
         if (!q.yt && Math.random() < CIV_CAST_SHARE) {
@@ -16628,22 +16758,45 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.fillStyle = PF("dirt", "#6a5a44");
       ctx.fillRect(b.x0 + W2 * 0.5 - 90, SX(PRISON.j0) - 400, 180, b.y0 - SX(PRISON.j0) + 400 + 60);
       // THE YARD: bottom left, the court, the track, the iron pile, the stands, the tables
-      const yx = b.x0 + W2 * 0.06, yy = b.y0 + H2 * 0.66, yw = W2 * 0.30, yh = H2 * 0.30;
+      /* PATHS: a concrete walk from every building's door to the hub's, the only way across the
+         grounds. Everything that is not path, yard or building is dirt behind the wall. */
+      const hubM = MARKS_REF.find((m) => m.prisonMark && m.prisonMark.prison);
+      if (hubM && hubM.b && hubM.b.door) {
+        const hd = doorPoint(hubM.b);
+        ctx.fillStyle = PF("walk", "#8a8680");
+        for (const m of MARKS_REF) {
+          if (!m.prisonMark || !m.b || !m.b.door || m === hubM) continue;
+          const d0 = doorPoint(m.b), wv = 64;
+          ctx.fillRect(Math.min(d0[0], hd[0]) - wv / 2, d0[1] - wv / 2, Math.abs(d0[0] - hd[0]) + wv, wv);   // across
+          ctx.fillRect(hd[0] - wv / 2, Math.min(d0[1], hd[1]) - wv / 2, wv, Math.abs(d0[1] - hd[1]) + wv);   // up to the hub
+        }
+        // and the walk from the gate to the hub
+        ctx.fillRect(b.x0 + W2 * 0.5 - 40, b.y0, 80, hd[1] - b.y0 + 30);
+      }
+      // THE YARD (PRISON_YARD): the one open place, fenced all round, its gate in the top fence
+      const Y = PRISON_YARD, yx = b.x0 + W2 * Y.u0, yy = b.y0 + H2 * Y.v0, yw = W2 * (Y.u1 - Y.u0), yh = H2 * (Y.v1 - Y.v0);
       ctx.fillStyle = "#5c5c58"; ctx.fillRect(yx, yy, yw, yh);
-      for (const [k, gx, gy] of [["yd_grass_1", 0.15, 0.2], ["yd_grass_2", 0.8, 0.85], ["yd_grass_3", 0.55, 0.1], ["yd_grass_5", 0.9, 0.4]])
-        prop(k, yx + yw * gx, yy + yh * gy, 90);
-      prop("yd_court", yx + yw * 0.22, yy + yh * 0.52, Math.min(yw * 0.38, 420));
-      prop("yd_track", yx + yw * 0.70, yy + yh * 0.28, 300);
-      prop("yd_weights", yx + yw * 0.62, yy + yh * 0.72, 230);
-      prop("yd_bleachers", yx + yw * 0.44, yy + yh * 0.12, 220);
-      prop("yd_picnic_a", yx + yw * 0.86, yy + yh * 0.66, 110);
-      prop("yd_picnic_b", yx + yw * 0.86, yy + yh * 0.90, 110);
-      prop("yd_handball", yx + yw * 0.46, yy + yh * 0.94, 260);
-      prop("yd_shack", yx + yw * 0.95, yy + yh * 0.08, 120);
-      prop("yd_phone", yx + yw * 0.40, yy + yh * 0.62, 34);
-      // the yard's own fence, a run along its inner edges
-      for (let x = yx + 60; x < yx + yw - 60; x += 150) prop("yd_fence", x, yy - 18, 150);
-      for (let y = yy + 60; y < yy + yh - 60; y += 150) prop("yd_fence", yx + yw + 18, y, 150, Math.PI / 2);
+      for (const [k, gx, gy] of [["yd_grass_1", 0.08, 0.15], ["yd_grass_2", 0.9, 0.9], ["yd_grass_5", 0.92, 0.35]])
+        prop(k, yx + yw * gx, yy + yh * gy, 80);
+      prop("yd_court", yx + yw * 0.2, yy + yh * 0.52, Math.min(yw * 0.34, 380));
+      // THE TRACK: four quarter pieces round one centre make the loop, the iron pile in the middle
+      { const im = imgs.current.yd_track, tcx = yx + yw * 0.66, tcy = yy + yh * 0.5, tw = Math.min(yw * 0.26, yh * 0.46);
+        if (im && im.width) {
+          const th = tw * im.height / im.width;
+          for (let k = 0; k < 4; k++) { ctx.save(); ctx.translate(tcx, tcy); ctx.rotate(k * Math.PI / 2); ctx.drawImage(im, -tw, -th, tw, th); ctx.restore(); }
+        }
+        prop("yd_weights", tcx, tcy, tw * 0.9);
+      }
+      prop("yd_bleachers", yx + yw * 0.42, yy + yh * 0.1, 200);
+      prop("yd_picnic_a", yx + yw * 0.92, yy + yh * 0.12, 100);
+      prop("yd_handball", yx + yw * 0.42, yy + yh * 0.93, 240);
+      prop("yd_phone", yx + yw * 0.05, yy + yh * 0.9, 32);
+      // the fence, drawn where the solid fence is (PRISON_YARD.fence; the generator walls it)
+      const fenceRun = (x0, y0, x1, y1) => { const L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.round(L / 150));
+        for (let q = 0; q < n; q++) prop("yd_fence", x0 + (x1 - x0) * (q + 0.5) / n, y0 + (y1 - y0) * (q + 0.5) / n, L / n, Math.atan2(y1 - y0, x1 - x0)); };
+      const gm = yx + yw / 2;
+      fenceRun(yx, yy, gm - Y.gate / 2, yy); fenceRun(gm + Y.gate / 2, yy, yx + yw, yy);
+      fenceRun(yx, yy + yh, yx + yw, yy + yh); fenceRun(yx, yy, yx, yy + yh); fenceRun(yx + yw, yy, yx + yw, yy + yh);
       // towers on the corners and the middle of the long walls; the gate over the gap
       for (const [tx, ty] of [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1], [b.x0, b.y0 + H2 / 2], [b.x1, b.y0 + H2 / 2]])
         prop("pr_roof_tower", tx, ty, 110);
@@ -27902,14 +28055,21 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const pool = INMATE_CAST.filter((c) => (b.pwomen ? c.sex === "f" && !/^p9_/.test(c.k) : c.sex === "m" && c.race === race))
                                .sort(() => Math.random() - 0.5);
       // one off the intake pages, as himself: his plate, his mugshot, his number, his threat
+      /* HIS CELL IS HIS. The roster says who lives in this cell; the hour says whether he is in it.
+         Returns true whenever the cell belongs to somebody (in or out), so nobody generic fills it. */
+      const R = kestrelRoster()[b.pwing] || {};
       const castInmate = (r, cellN) => {
-        const c = pool.shift(); if (!c) return false;
-        add(r, c.yt, { convict: 1, castFace: c.face, name: c.name || undefined, tall: c.tall, threat: c.threat, tone: RACE_TONE[c.race],
-          gangIn: Math.random() < 0.6 ? (Object.keys(PRISON_GANGS).find((k) => PRISON_GANGS[k].block === RACE_BLOCK[c.race]) || null) : null,
-          inmate: { no: c.no, block: b.pwing || "GEN", cell: cellN, threat: c.threat,
-                    charge: pick(["ARMED ROBBERY", "ASSAULT", "NARCOTICS", "BURGLARY", "MANSLAUGHTER", "AUTO THEFT", "FRAUD"]),
-                    sentence: pick(["3 YEARS", "5 YEARS", "8 YEARS", "12 YEARS", "25 TO LIFE"]), release: String(1987 + ((Math.random() * 12) | 0)) } });
+        const rec = R[cellN]; if (!rec) return false;
+        if (khash(rec.c.k + ph) >= inCell) return true;              // out: at chow, at work, on the yard
+        addRecord(r, rec);
         return true;
+      };
+      const addRecord = (r, rec) => {
+        const c = rec.c;
+        add(r, c.yt, { convict: 1, castFace: c.face, name: rec.name, tall: c.tall, threat: c.threat, tone: RACE_TONE[c.race],
+          cast: { sex: c.sex, tone: RACE_TONE[c.race] }, gangIn: rec.gang,
+          inmate: { no: rec.no, block: rec.block, cell: rec.cell, threat: c.threat, charge: rec.charge, sentence: rec.sentence,
+                    release: rec.release, gang: rec.gang ? PRISON_GANGS[rec.gang].nm : null } });
       };
       const folk = [], pick = (a) => a[(Math.random() * a.length) | 0];
       const add = (r, yt, extra) => {
@@ -27922,66 +28082,59 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (const r of pl.rooms) {
         if (r.k === "pcell") {
           cellNo++;
-          // the block's shot caller keeps the first cell, and he is in it whatever the hour
-          // THE WOMEN'S BLOCK: a shot caller for each of the four gangs in its first four cells
-          if (b.pwomen) {
-            const qk = Object.keys(PRISON_QUEENS)[cellNo - 1];
-            const W5 = PR_PEOPLE.women;
-            if (qk) { const Q = PRISON_QUEENS[qk], own = INMATE_CAST.find((c) => c.k === Q.own), pl2 = own ? [own.yt, own.face] : W5[Q.plate];
-              add(r, pl2[0], { convict: 1, shot: qk, queen: 1, name: Q.name, castFace: pl2[1], tall: own ? own.tall : 1.3, threat: 3,
-                inmate: { no: Q.no, block: "W", cell: cellNo, charge: "CONSPIRACY", sentence: "15 YEARS", release: "1994", gang: PRISON_GANGS[qk].nm, threat: 3 } });
-              continue; }
-            // the women Malcolm put away, in the cells after the four
-            if (!roster) roster = prisonRoster("W").slice();
-            if (roster.length) { const R0 = roster.shift(), js = R0.yt ? jumpsuit(R0.yt) : null, pl3 = W5[(Math.random() * W5.length) | 0];
-              add(r, js || pl3[0], { convict: 1, name: R0.name, castFace: R0.face || (js ? null : pl3[1]), tall: R0.tall || 1.3,
-                inmate: { no: String(1000 + ((Math.random() * 8999) | 0)), block: "W", cell: cellNo, charge: R0.charge, sentence: R0.sentence,
-                          release: R0.release, gang: R0.gang || null } });
-              continue; }
-            if (Math.random() < inCell && castInmate(r, cellNo)) continue;
-            if (Math.random() < inCell) { const pl2 = W5[(Math.random() * W5.length) | 0];
-              add(r, pl2[0], { convict: 1, castFace: pl2[1], female: 1, gangIn: Math.random() < 0.5 ? cpick(Object.keys(PRISON_GANGS)) : null,
-                inmate: { no: String(1000 + ((Math.random() * 8999) | 0)), block: "W", cell: cellNo,
-                          charge: pick(["NARCOTICS", "FRAUD", "ASSAULT", "SHOPLIFTING", "SOLICITATION"]), sentence: pick(["2 YEARS", "4 YEARS", "7 YEARS"]),
-                          release: String(1987 + ((Math.random() * 8) | 0)) } }); }
+          /* WHOSE CELL. Downstairs cell 1 is the shot caller's (his bodyguard on the tier outside),
+             2 is the bodyguard's own, 3 the store man's; in the women's block 1-4 are the four
+             queens. Every other cell, on both tiers, belongs to somebody on the roster -- or it is
+             VACANT, and the people Malcolm puts away fill the vacancies in order. An empty cell
+             stays empty: nobody generic is invented to fill it. */
+          const up = g.floor === 1, key = up ? cellNo + 24 : cellNo;
+          if (!up && b.pwomen && cellNo <= 4) {
+            const qk = Object.keys(PRISON_QUEENS)[cellNo - 1], W5 = PR_PEOPLE.women;
+            const Q = PRISON_QUEENS[qk], own = INMATE_CAST.find((c) => c.k === Q.own), pl2 = own ? [own.yt, own.face] : W5[Q.plate];
+            add(r, pl2[0], { convict: 1, shot: qk, queen: 1, name: Q.name, castFace: pl2[1], tall: own ? own.tall : 1.3, threat: 3,
+              inmate: { no: Q.no, block: "W", cell: cellNo, charge: "CONSPIRACY", sentence: "15 YEARS", release: "1994", gang: PRISON_GANGS[qk].nm, threat: 3 } });
             continue;
           }
-          // THE STORE MAN keeps the third cell and sells out of it for packs
-          if (boss && cellNo === 3 && !b.pwomen) { const c = pool.shift();
-            if (c) { add(r, c.yt, { convict: 1, store: 1, castFace: c.face, name: c.name || undefined, tall: c.tall, threat: c.threat, tone: RACE_TONE[c.race],
-              inmate: { no: c.no, block: b.pwing, cell: cellNo, threat: c.threat, charge: "FRAUD", sentence: "6 YEARS", release: "1990" } }); continue; } }
-          // the men and women Malcolm put here, and the gangs' jailed seats, in the next cells
-          if (!roster) roster = prisonRoster(b.pwing).slice();
-          if (boss && roster.length) { const R0 = roster.shift();
-            const js = R0.yt ? jumpsuit(R0.yt) : null;
-            add(r, js || pick(PR_PEOPLE.inmate), { convict: 1, name: R0.name, castFace: R0.face || null, tall: R0.tall || 1.3,
-              inmate: { no: R0.no || String(1000 + ((Math.random() * 8999) | 0)), block: b.pwing, cell: cellNo, charge: R0.charge || "FELONY",
-                        sentence: R0.sentence || "5 YEARS", release: R0.release || "1991", gang: R0.gang || null } });
-            continue; }
-          if (pg && !boss && PRISON_GUARDS[pg]) {
-            // his bodyguard stands on the tier right outside the first cell
+          if (!up && !b.pwomen && pg && cellNo === 1) {
             const BG = PRISON_GUARDS[pg], tier = pl.rooms.find((q) => q.k === "tier");
-            if (tier) { const pt2 = freeIndoor(b, pl, (r.x0 + r.x1) / 2, r.y1 + 30, tier);
+            if (BG && tier) { const pt2 = freeIndoor(b, pl, (r.x0 + r.x1) / 2, r.y1 + 30, tier);
               if (pt2) folk.push({ x: pt2[0], y: pt2[1], vx: 0, vy: 0, anim: 0, jit: 1, yt: BG.yt, tall: BG.tall, bang: -Math.PI / 2,
                 convict: 1, bodyguard: pg, name: BG.name, castFace: BG.face, threat: 3, cast: { sex: "m", tone: "mid" }, gangIn: pg,
                 inmate: { no: BG.no, block: b.pwing, cell: 2, charge: "AGGRAVATED ASSAULT", sentence: "LIFE", release: "--", gang: PRISON_GANGS[pg].nm, threat: 3 } }); }
-          }
-          if (pg && !boss) { boss = true; const B = PRISON_GANGS[pg].boss;
+            boss = true; const B = PRISON_GANGS[pg].boss;
             add(r, "yt_inm_" + B.no, { convict: 1, shot: pg, name: B.name, castFace: "pt_inm_" + B.no, tall: 1.2,
               inmate: { no: B.no, block: b.pwing, cell: cellNo, charge: "ORGANISED CRIME", sentence: "LIFE", release: "--", gang: PRISON_GANGS[pg].nm, threat: 3 } });
-            continue; }
-          if (Math.random() < inCell && castInmate(r, cellNo)) continue;
-          if (Math.random() < inCell) add(r, pick(PR_PEOPLE.inmate), { convict: 1, pwing: b.pwing, gangIn: pg && Math.random() < 0.6 ? pg : null,
-            inmate: { no: String(1000 + ((Math.random() * 8999) | 0)), block: b.pwing || "GEN", cell: cellNo,
-                      charge: pick(["ARMED ROBBERY", "ASSAULT", "NARCOTICS", "BURGLARY", "MANSLAUGHTER", "AUTO THEFT"]),
-                      sentence: pick(["3 YEARS", "5 YEARS", "8 YEARS", "12 YEARS", "25 TO LIFE"]), release: String(1987 + ((Math.random() * 12) | 0)) } });
+            continue;
+          }
+          if (!up && !b.pwomen && cellNo === 2) continue;           // the bodyguard's cell: he is on the tier
+          if (!up && !b.pwomen && cellNo === 3 && R[3]) { const rec = R[3], c = rec.c;
+            add(r, c.yt, { convict: 1, store: 1, castFace: c.face, name: rec.name, tall: c.tall, threat: c.threat, tone: RACE_TONE[c.race],
+              cast: { sex: c.sex, tone: RACE_TONE[c.race] },
+              inmate: { no: rec.no, block: rec.block, cell: 3, threat: c.threat, charge: "FRAUD", sentence: rec.sentence, release: rec.release } }); continue; }
+          if (castInmate(r, key)) continue;
+          // a vacancy: whoever the vacancy map gives it to (in orange), or it waits empty
+          if (!roster) roster = vacancyMap(b.pwing);
+          if (roster[key]) { const R0 = roster[key], js = R0.yt ? jumpsuit(R0.yt) : null;
+            add(r, js || (b.pwomen ? PR_PEOPLE.women[0][0] : pick(PR_PEOPLE.inmate)), { convict: 1, name: R0.name, castFace: R0.face || null, tall: R0.tall || 1.3, threat: 3,
+              inmate: { no: R0.no || String(1000 + ((khash(R0.name) * 8999) | 0)), block: b.pwing, cell: up ? "U" + cellNo : cellNo,
+                        charge: R0.charge || "FELONY", sentence: R0.sentence || "5 YEARS", release: R0.release || "1991", gang: R0.gang || null, threat: 3 } });
+          }
+          continue;
         }
         else if (r.k === "tier") for (let n = 0; n < PRISON_POP.tierGuards; n++) {
           const gk = b.pwomen ? pick(PR_PEOPLE.guardW) : pick(PR_PEOPLE.guard);
           add(r, gk, { guard: 1, tall: GUARD_TALL[gk] || 1.3, castFace: GUARD_FACE[gk] ? GUARD_FACE[gk][0] : null,
                        cast: { sex: b.pwomen ? "f" : "m", tone: GUARD_FACE[gk] ? GUARD_FACE[gk][1] : "mid" } });
         }
-        else if (r.k === "pchow") { for (let n = 0; n < chowN; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 }); add(r, pick(PR_PEOPLE.guard), { guard: 1 }); }
+        else if (r.k === "pchow") {
+          // the ones out of their cells for this meal, off every block's roster, as themselves
+          const K = kestrelRoster(), out = [];
+          // the men's mess: the women's block eats on its own
+          for (const blk in K) if (blk !== "W") for (const cn in K[blk]) { const rec = K[blk][cn]; if (khash(rec.c.k + ph) >= inCell) out.push(rec); }
+          out.sort((a, b2) => khash(a.c.k + "chow") - khash(b2.c.k + "chow"));
+          out.slice(0, chowN).forEach((rec) => addRecord(r, rec));
+          add(r, pick(PR_PEOPLE.guard), { guard: 1 });
+        }
         else if (r.k === "plibrary") for (let n = 0; n < PRISON_POP.lib; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 });
         else if (r.k === "pchapelroom") for (let n = 0; n < PRISON_POP.chapel; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 });
         else if (r.k === "pward") { for (let n = 0; n < PRISON_POP.ward; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 }); add(r, PR_PEOPLE.nurse, {}); }
@@ -28016,6 +28169,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.p.x = pt[0]; g.p.y = pt[1]; g.p.vx = 0; g.p.vy = 0; g.cam.x = pt[0]; g.cam.y = pt[1];
       g.p.wpn = null; g.p.holstered = true; g.rack = [];
       g.clock = CLOCK.start; g.pinv = []; g.pcigs = 20; g.pskill = 0; g.pgang = null; g.pfolk = null;
+      g.job = null; g.pmission = null;                              // no street jobs in here
+      g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y));
       g.jobBanner = "KESTREL STATE \u00b7 " + wb.name; g.jobNote = "7:00 count. Nobody knows who you are. Yet.";
     }
     /* ---------- THE STASH ----------
@@ -28024,6 +28179,45 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        hide the worst thing you are carrying. In PRISON MODE the guards pat you down on the tier:
        what is on you is found and taken, and the worst of it decides your hours in the hole.
        Stashed is safe, until somebody searches the spot. */
+    function prisonGangPick(what) {
+      const q = g.shotCaller, k = q && q.shot; if (!k) return;
+      const blocks = ["A", "B", "C", "D"].filter((x) => x !== PRISON_GANGS[k].block);
+      if (what === "join") { g.pmission = { gang: k, step: 0, blk: blocks[(Math.random() * blocks.length) | 0] }; g.gangSaid = null; }
+      else if (what === "quit") { g.pmission = null; g.gangSaid = "Then don't come round here again."; }
+      else if (what === "blade" && g.pmission) {
+        const inv = g.pinv || [], n = inv.findIndex((it) => JOIN_STEPS[0].need.indexOf(it) >= 0);
+        if (n >= 0) { inv.splice(n, 1); g.pmission.step = 1; inv.push("pkg"); g.gangSaid = JOIN_STEPS[1].say.replace("{blk}", g.pmission.blk); }
+      } else if (what === "pay" && g.pmission && g.pmission.step === 2) {
+        if ((g.pcigs || 0) >= JOIN_STEPS[2].packs) {
+          g.pcigs -= JOIN_STEPS[2].packs; g.pgang = k; g.pmission = null;
+          g.gangSaid = "Welcome to " + PRISON_GANGS[k].nm + ". Nobody touches you now without touching us.";
+          g.jobBanner = "YOU'RE WITH " + PRISON_GANGS[k].nm;
+        } else g.gangSaid = "Ten packs. Come back when you have them.";
+      }
+    }
+    function storeStock(sm) {
+      g.storeStock = g.storeStock || {};
+      const key = (sm && sm.inmate ? sm.inmate.no : "x") + ":" + (g.day || 0);        // restocked every morning
+      if (!g.storeStock[key]) { const st = {}; for (const k in STORE_STOCK) { const [a, b2] = STORE_STOCK[k];
+        st[k] = a + ((khash(key + k) * (b2 - a + 1)) | 0); } g.storeStock[key] = st; }
+      return g.storeStock[key];
+    }
+    G.stashOpenFn = () => {
+      const q = nearStash(); if (!q) return false;
+      const what = q.o.t === "bed" ? "the mattress" : q.o.t === "toilet" ? "behind the pan" : q.o.t === "sink" ? "under the sink"
+        : /shelf/.test(q.o.t) ? "the shelf" : /washers/.test(q.o.t) ? "the machine" : "underneath";
+      g.stashAtNow = { key: q.key, what }; G.pickOpen("pstash"); return true;
+    };
+    function prisonObjective() {
+      const M = g.pmission;
+      if (g.hole) return { head: "THE HOLE", sub: Math.ceil(g.hole.left / 60) + " hours to go." };
+      if (g.pgang) return { head: "YOU RIDE WITH " + PRISON_GANGS[g.pgang].nm, sub: "Their guards look the other way for you." };
+      if (!M) return { head: "SURVIVE KESTREL", sub: "Every block has a shot caller. Talk to one if you want a table to sit at." };
+      const S = JOIN_STEPS[M.step];
+      if (M.step === 0) return { head: PRISON_GANGS[M.gang].nm + " \u00b7 GET A BLADE", sub: "Buy one off a store man, or find one stashed. Bring it to " + PRISON_GANGS[M.gang].boss.name + "." };
+      if (M.step === 1) return { head: PRISON_GANGS[M.gang].nm + " \u00b7 CARRY THE PACKAGE", sub: "Stash it in a cell in " + M.blk + " block." };
+      return { head: PRISON_GANGS[M.gang].nm + " \u00b7 TRIBUTE", sub: "Ten packs to " + PRISON_GANGS[M.gang].boss.name + "." };
+    }
     function stashSpots() {
       const b = g.inside; if (!b || !b.inPrison) return [];
       const pl = buildingPlans(b)[g.floor]; if (!pl) return [];
@@ -28095,6 +28289,52 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const run = dt * 40;
       g.hole.left -= run; g.clock = ((g.clock || 0) + run) % 1440;
       if (g.hole.left <= 0) { g.hole = null; g.pickupFlash = { nm: "lift:OUT OF THE HOLE", t: 2 }; }
+    }
+    function kestrelRoster() {
+      if (g.kestrel) return g.kestrel;
+      const K = {}, used = {};
+      for (const q in PRISON_GANGS) { used[PRISON_GANGS[q].boss.name] = 1; }
+      for (const blk of ["A", "B", "C", "D", "W"]) {
+        const race = Object.keys(RACE_BLOCK).find((k) => RACE_BLOCK[k] === blk);
+        const pool = INMATE_CAST.filter((c) => (blk === "W" ? c.sex === "f" && !/^p9_/.test(c.k) : c.sex === "m" && c.race === race))
+          .sort((a, b2) => khash(a.k) - khash(b2.k));
+        const pg = Object.keys(PRISON_GANGS).find((k) => PRISON_GANGS[k].block === blk);
+        K[blk] = {};
+        /* THE CELLS: two tiers of 24. Reserved downstairs: 1-3 (men: shot caller, bodyguard, store man)
+           or 1-4 (women: the queens). Of the rest, KESTREL_FILL are given to the roster, spread
+           through the block by a fixed shuffle; the others are VACANT for the people Malcolm sends. */
+        const first = blk === "W" ? 5 : 4, cells = [];
+        for (let n = first; n <= 48; n++) cells.push(n);
+        cells.sort((x, y) => khash(blk + x) - khash(blk + y));
+        const fill = (blk === "W" ? [] : [3]).concat(cells.slice(0, Math.floor(cells.length * KESTREL_FILL)).sort((x, y) => x - y));
+        g.kestrelReserve = g.kestrelReserve || [];
+        let ci = 0;
+        for (const c of pool) {
+          if (ci >= fill.length) { g.kestrelReserve.push(c); continue; }      // no cell: the reserve, for later
+          const cell = fill[ci++];
+          const h = (n) => khash(c.k + ":" + n), N = KESTREL_NAMES[c.race + c.sex] || KESTREL_NAMES.Wm;
+          // no two men in Kestrel share a name: re-draw until this one is free
+          let name = c.name, tries = 0;
+          while (!name || used[name]) { name = N[0][(h(1 + tries * 7) * N[0].length) | 0] + " " + N[1][(h(2 + tries * 7) * N[1].length) | 0]; if (++tries > 40) { name += " " + c.no; break; } }
+          used[name] = 1;
+          const gang = blk === "W" ? (h(3) < 0.5 ? Object.keys(PRISON_GANGS)[(h(4) * 4) | 0] : null) : (pg && h(3) < 0.6 ? pg : null);
+          const t = (h(5) * KESTREL_TERMS.length) | 0;
+          // a block holds 24 on the floor; past that is the upper tier ("U3"), which is the next thing to build
+          K[blk][cell] = { c, name, no: c.no, block: blk, cell: cell > 24 ? "U" + (cell - 24) : cell, gang, charge: KESTREL_CHARGES[(h(6) * KESTREL_CHARGES.length) | 0],
+                           sentence: KESTREL_TERMS[t], release: t === KESTREL_TERMS.length - 1 ? "--" : String(1987 + ((h(7) * (t + 3)) | 0)) };
+        }
+      }
+      return (g.kestrel = K);
+    }
+    /* WHO IS IN THE VACANT CELLS: the block's vacancies in order, given first to the people Malcolm
+       sent (in the order they came), then to the war's jailed seats. The same answer on both tiers
+       and every visit, until somebody walks out. */
+    function vacancyMap(blk) {
+      const R = kestrelRoster()[blk] || {}, reserved = blk === "W" ? 4 : 3, vac = [];
+      for (let n = reserved + 1; n <= 48; n++) if (!R[n] && !(blk !== "W" && n === 2)) vac.push(n);
+      const people = prisonRoster(blk), map = {};
+      people.forEach((q, n) => { if (vac[n] != null) map[vac[n]] = q; });
+      return map;
     }
     G.prisonFolkFn = () => prisonFolk();     // for the key handler, which lives outside this scope
     function drawPrisonFolk() {
@@ -29971,6 +30211,68 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     /* Diamond aprons, each drawn in its own rotated frame so a diagonal lane still gets
        square markings and parallel kerbs. Shading runs light at the deck to dark at the
        foot -- the climb cue, with no z axis to work with. */
+    /* THE LOT'S PAINT, AND THE WAY INTO THE GARAGE. Each assigned stall has its lines and its
+       name painted at the head of it. Every car park's ramp gets a painted box and chevrons on the
+       ground outside -- "POLICE GARAGE · E" at the station -- that light up when you are in reach
+       in a car; inside, the way back out is marked the same way. */
+    function drawLotPaint(view) {
+      if (g.inside) return;
+      ctx.save();
+      for (const S of (g.stalls || [])) {
+        if (S.x < view.x0 - 200 || S.x > view.x1 + 200 || S.y < view.y0 - 200 || S.y > view.y1 + 200) continue;
+        const w = S.w + 14, L = S.len + 16;
+        ctx.strokeStyle = "rgba(236,226,196,0.75)"; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(S.x - w / 2, S.y + L / 2); ctx.lineTo(S.x - w / 2, S.y - L / 2); ctx.lineTo(S.x + w / 2, S.y - L / 2); ctx.lineTo(S.x + w / 2, S.y + L / 2); ctx.stroke();
+        ctx.font = "700 9px ui-monospace, monospace"; ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(0,0,0,0.55)"; const tw = ctx.measureText(S.label).width;
+        ctx.fillRect(S.x - tw / 2 - 3, S.y - L / 2 - 14, tw + 6, 12);
+        ctx.fillStyle = "#f2d27a"; ctx.fillText(S.label, S.x, S.y - L / 2 - 5);
+      }
+      ctx.restore();
+    }
+    function garageMouth(b) {
+      const side = b.rampSide != null ? b.rampSide : (TOWER.back.dy < 0 ? 0 : 2);
+      const pos = b.rampPos != null ? b.rampPos : 0.5;
+      const rx = side === 0 || side === 2 ? b.x + b.w * pos : side === 1 ? b.x + b.w : b.x;
+      const ry = side === 0 ? b.y : side === 2 ? b.y + b.h : b.y + b.h * pos;
+      const inV = side === 0 ? [0, 1] : side === 2 ? [0, -1] : side === 1 ? [-1, 0] : [1, 0];
+      const ix = b.rampIn != null && (side === 0 || side === 2) ? b.x + b.w * b.rampIn : rx;
+      return { rx, ry, inV, ix };
+    }
+    function drawChevronSign(x, y, dir, label, lit) {
+      const a = Math.atan2(dir[1], dir[0]);
+      ctx.save(); ctx.translate(x, y);
+      ctx.fillStyle = lit ? "rgba(242,190,60,0.30)" : "rgba(242,190,60,0.12)";
+      ctx.strokeStyle = lit ? "rgba(255,214,90,0.95)" : "rgba(236,210,140,0.6)"; ctx.lineWidth = 3;
+      ctx.fillRect(-60, -60, 120, 120); ctx.strokeRect(-60, -60, 120, 120);
+      ctx.rotate(a);
+      const pulse = lit ? (Math.sin(performance.now() / 180) + 1) / 2 : 0;
+      for (let k = 0; k < 3; k++) {
+        ctx.strokeStyle = "rgba(255,214,90," + (0.35 + 0.65 * (lit ? ((k / 3 + pulse) % 1) : 0.4)) + ")"; ctx.lineWidth = 6;
+        const o = -30 + k * 26; ctx.beginPath(); ctx.moveTo(o - 12, -22); ctx.lineTo(o + 10, 0); ctx.lineTo(o - 12, 22); ctx.stroke();
+      }
+      ctx.restore();
+      ctx.save(); ctx.font = "700 11px ui-monospace, monospace"; ctx.textAlign = "center";
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(x - tw / 2 - 5, y + 66, tw + 10, 16);
+      ctx.fillStyle = lit ? "#ffd65a" : "#e8d9b5"; ctx.fillText(label, x, y + 78); ctx.restore();
+    }
+    function drawGarageSigns(view) {
+      const inCar = inVehicle();
+      for (const m of MARKS) {
+        const b = m.b; if (!b || !b.carpark) continue;
+        const G2 = garageMouth(b), out = [-G2.inV[0], -G2.inV[1]];
+        if (!g.inside) {
+          const x = G2.rx + out[0] * 120, y = G2.ry + out[1] * 120;
+          if (x < view.x0 - 300 || x > view.x1 + 300 || y < view.y0 - 300 || y > view.y1 + 300) continue;
+          const lit = inCar && !!(G.denDoorFn && G.denDoorFn());
+          drawChevronSign(x, y, G2.inV, (b.pd ? "POLICE GARAGE" : "PARKING") + " \u00b7 E", lit);
+        } else if (g.inside === b && g.floor === 0) {
+          const x = G2.ix + G2.inV[0] * 110, y = G2.ry + G2.inV[1] * 110;
+          drawChevronSign(x, y, out, "EXIT RAMP \u00b7 E", inCar && Math.hypot((activeVeh() || g.p).x - x, (activeVeh() || g.p).y - y) < 200);
+        }
+      }
+    }
     function drawRamps(view) {
       for (const r of rampList()) {
         const mx = (r.ax + r.bx) / 2, my = (r.ay + r.by) / 2;
@@ -32733,8 +33035,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         stepClub(dt);
         stepCamps(dt);
         stepAnimals(dt);
-        g.clock = ((g.clock == null ? CLOCK.start : g.clock) + dt * CLOCK.rate) % 1440;
+        { const before = g.clock == null ? CLOCK.start : g.clock;
+          g.clock = (before + dt * CLOCK.rate) % 1440;
+          if (g.clock < before) { g.day = (g.day || 0) + 1; kestrelReleases(); } }
         stepPatDown(dt); stepHole(dt);
+        // anybody who has wandered onto the prison grounds from the street is walked back off
+        if ((g.pedCullT = (g.pedCullT || 0) - dt) <= 0) { g.pedCullT = 2; g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y)); }
         if (g.prisonStart) startPrisonMode();
         { const hv = inVehicle() ? activeVeh() : null; if (hv && hv.m && hv.m.lowrider) stepHydro(hv, dt); }
         /* A DETECTIVE IS NEVER WANTED. Every police behaviour in the game -- patrols chasing,
@@ -32987,7 +33293,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.inside) drawInterior(g.inside, g.floor, g.insideT);
       drawHeldRogues();
       // staff, customers and anyone robbing them, on top of the floor and its furniture
-      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); }
+      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); drawGarageSigns({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); }
       drawComp();
       drawThrown();
       drawBlood();
@@ -33149,6 +33455,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (g.fireFloor === 0) drawFireRoofs(view);
         drawGasRoofs(view);
         drawRamps(view);
+        drawLotPaint(view); drawGarageSigns(view);
         drawViaduct(view);
         // deck traffic belongs on top of the viaduct, whichever level the player is on
         drawFwyTraffic();
@@ -33598,7 +33905,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             hunt: !!(g.fisHunt && g.fisHunt.on),
             roarCd: g.roarCd || 0,
             locked: !!(g.lockOn && g.lockOn.hp > 0),
-            obj: jobObjective(),
+            obj: g.prisonMode ? prisonObjective() : jobObjective(),
             crime: g.crime ? { place: g.crime.place, result: g.crime.result,
               code: g.crime.code, label: g.crime.label,
               cond: g.crime.type && g.crime.type.bleed ? Math.max(0, Math.round(g.crime.cond)) : null,
@@ -36661,7 +36968,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        came out four times the size of everything around it. These are fractions of a cell now
        and they land between 240 and 660, which is the range the rest of the city lives in.
        The courthouse and the works are the widest because they should be. */
-    const MARKS = PRISON_CAMPUS.map(([k, u, v, w, h, kind, floors, door, doorSide, extra]) => {
+    const MARKS = MARKS_REF_SET(PRISON_CAMPUS.map(([k, u, v, w, h, kind, floors, door, doorSide, extra]) => {
       const x = PRISON_BOX.x0 + u * (PRISON_BOX.x1 - PRISON_BOX.x0), y = PRISON_BOX.y0 + v * (PRISON_BOX.y1 - PRISON_BOX.y0);
       const i = Math.floor(x / PITCH), j = Math.floor(y / PITCH);
       return { k, i, j, w, h, ox: (x - SX(i)) / PITCH - 0.5, oy: (y - SX(j)) / PITCH - 0.5, kind, floors, door, doorSide,
@@ -36759,7 +37066,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       { k: "ct_church",     i: 3,  j: 2, w: 0.22, h: 0.18 },
       { k: "ct_walkup",     i: 4,  j: 0, w: 0.34, h: 0.22 },
       { k: "ct_works",      i: 16, j: 7, w: 0.44, h: 0.28 },
-    ]);
+    ]));
     /* THE GYM FLOOR moved indoors: GYM_FIT, GYM_SOLID and GYM_RING sit at module level and
        makeFloor lays them out for kind "gymfloor". The street overlay and its clamp are gone --
        both were keyed to the cell corner rather than to the building, so once the mark became a
@@ -38029,6 +38336,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return [(c.lx0 + c.lx1) / 2, (c.ly0 + c.ly1) / 2];
     }
     function callJob(force) {
+      if (g.prisonMode) return;                         // inside, the city's jobs are somebody else's problem
       if (g.job && g.job.phase !== "done") return;
       /* Anyone in a cell is not on the street. Without this the same man is in two places and
          the loop stops meaning anything. If they are ALL held, the city gets its quiet spell,
@@ -40535,7 +40843,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             {hud.pick.opts.map((o) => (
               <div key={o.id} onClick={() => G.pickFn && G.pickFn(o.id)}
                 style={{ padding: "9px 12px", border: "1px solid rgba(111,168,220,0.6)", cursor: "pointer",
-                  fontSize: 11, letterSpacing: "0.10em", color: "#e8d9b5", background: "rgba(12,13,17,0.9)" }}>{o.label}</div>
+                  fontSize: 11, letterSpacing: "0.10em", color: "#e8d9b5", background: "rgba(12,13,17,0.9)",
+                  display: "flex", alignItems: "center", gap: 8 }}>
+                {o.icon && <img src={o.icon} alt="" style={{ width: 24, height: 24, imageRendering: "pixelated" }} />}
+                <span>{o.label}</span></div>
             ))}
           </div>
         </div>
