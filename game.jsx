@@ -1665,6 +1665,14 @@ const SQUAD4 = [
     car: { k: "pd_car_alonzo", len: 124, w: 48.5, lowrider: 1 },     // hydraulics, on a detective's car
     hi: "Narcotics. Every crew in this city sells something, Malcolm, and I know who they buy it from.",
     help: "Tell me whose corner it is and I'll tell you where they keep the product." },
+  /* COLD CASES. Kearney works the files nobody closed: the evidence is already booked and back
+     from the lab; what is missing is the people, who have moved on, moved house, got old. She
+     is good at it and she is in debt -- a gambler, into one of the crews for more than she makes
+     (g.kearney.owes). She is not dirty, exactly: she just never pulls a file that would hurt them. */
+  { id: "kearney", nm: "DET. KEARNEY", spec: "COLD CASES", tall: 0.92, room: ["pdoffice", 1],
+    car: { k: "pd_car_kearney", len: 118, w: 52 },
+    hi: "Cold cases. Every box in here is somebody who got away with it. For now.",
+    help: "Pull a file with me. The evidence is all in -- we just have to find the people." },
 ];
 for (const d of SQUAD4) {
   PD_ART["yt_" + d.id] = "assets/heroes/yt_" + d.id + ".png";
@@ -2966,17 +2974,489 @@ const PRISON_CAMPUS = [
    everyone else, and the women's block on its own. Who is housed where decides who is in it. */
 const PRISON_WING_TONE = { A: "light", B: "deep", C: "mid", D: "mid", W: null };
 const PRISON_POP = { cell: 0.85, tierGuards: 2, chow: 8, lib: 3, chapel: 3, ward: 2 };
+/* THE GANGS INSIDE. Each is the outside's gang behind the wall, and it is only as strong as the
+   money and product its patrons can push through the visiting room: prisonGangPower() reads the
+   patrons' cash in the war. A strong gang inside turns out harder men when they get out.
+   `lang` is what they talk among themselves; a man with `english` will talk to anybody. */
+const PRISON_GANGS = {
+  crown:    { nm: "THE OLD CROWN", block: "B", patrons: ["kings"], lang: "en", col: "#e8c46a",
+              about: "The Kings' first leadership -- the men Andre Cole took the crown from when they went away.",
+              boss: { no: "4521", name: "Clarence \"Deacon\" Cole", english: 1, note: "Andre's uncle. Built the Kings." } },
+  eternos:  { nm: "LOS ETERNOS", block: "C", patrons: ["barrio"], lang: "es", col: "#e07a3c",
+              about: "La Perla behind the wall. 'The Eternal Ones' -- you are in for life, in here and out there.",
+              boss: { no: "7761", name: "Rafael \"Rafa\" Ortega", english: 1, note: "The voice of the table. El Viejo speaks through him." } },
+  covenant: { nm: "THE IRON COVENANT", block: "A", patrons: ["brack", "irish", "sec"], lang: "en", col: "#9aa7b8",
+              about: "A purist crew. Bracken money, Irish muscle, and friends in city hall who keep their files clean.",
+              boss: { no: "9033", name: "Dale \"Preacher\" Hutchins", english: 1, note: "Talks scripture. Means something else." } },
+  jade:     { nm: "THE JADE LOTUS", block: "D", patrons: ["chi"], lang: "yue", col: "#5fbf8f",
+              about: "The Fongs' people inside. Cantonese at the table; English for everyone else.",
+              boss: { no: "1298", name: "Danny Wu", english: 1, note: "Mrs Fong's nephew. Keeps the books." } },
+};
+const PRISON_TALK = {
+  es:  ["\u00bfQu\u00e9 miras?", "No es asunto tuyo, g\u00fcero.", "Aqu\u00ed mandamos nosotros.", "Siempre. Para siempre."],
+  yue: ["\u4f60\u60f3\u9ede\u5440\uff1f", "\u5514\u95dc\u4f60\u4e8b\u3002", "\u5feb\u5572\u884c\u958b\u3002"],
+  en:  ["Keep walking.", "You lost, new fish?", "Mind your business."],
+};
+/* THE CLOCK. One game minute per real second -- a day is 24 minutes -- starting at 7:00 AM so the
+   first thing that happens is the morning count. The prison runs off it; the city can later. */
+const CLOCK = { start: 7 * 60, rate: 1 };
+const PRISON_DAY = [
+  [0, "LOCKDOWN", "cells"], [7 * 60, "7:00 HEAD COUNT", "cells"], [7 * 60 + 30, "BREAKFAST", "chow"],
+  [8 * 60 + 30, "WORK / FREE TIME", "work"], [11 * 60 + 30, "LUNCH", "chow"], [12 * 60 + 30, "YARD / FREE TIME", "work"],
+  [16 * 60, "4:00 HEAD COUNT", "cells"], [17 * 60, "DINNER", "chow"], [18 * 60, "REC / VISITING", "work"],
+  [21 * 60, "9:00 HEAD COUNT", "cells"], [21 * 60 + 30, "LIGHTS OUT", "cells"],
+];
+const prisonPhase = (min) => { let p = PRISON_DAY[0]; for (const q of PRISON_DAY) if (min >= q[0]) p = q; return p; };
+const clockText = (min) => { const h = Math.floor(min / 60) % 24, m = Math.floor(min % 60);
+  return ((h + 11) % 12 + 1) + ":" + String(m).padStart(2, "0") + (h < 12 ? " AM" : " PM"); };
 const PR_PROPS = ["pr_bench", "pr_servingline", "pr_bookshelf", "pr_table", "pr_weightbench", "pr_hoop", "pr_bleachers",
                   "pr_washers", "pr_platepress", "pr_visitbooth", "pr_desk", "pr_clock"];
 const PR_ROOFS = ["pr_roof_hub", "pr_roof_wing", "pr_roof_cafe", "pr_roof_chapel", "pr_roof_library", "pr_roof_infirmary",
                   "pr_roof_tower", "pr_roof_gate", "pr_roof_wall", "pr_wall_long"];
 const YD_KEYS = ["yd_court", "yd_track", "yd_weights", "yd_bleachers", "yd_picnic_a", "yd_picnic_b", "yd_fence", "yd_fence_corner",
                  "yd_shack", "yd_handball", "yd_phone", "yd_pole", "yd_flood", "yd_grass_1", "yd_grass_2", "yd_grass_3", "yd_grass_4", "yd_grass_5"];
-const PR_PEOPLE = { guard: ["yt_pr_guard_1", "yt_pr_guard_2", "yt_pr_guard_3", "yt_pr_guard_4"],
+/* THE GUARDS: the first four, plus eight off the guard sheets (two sergeants with clipboards, two
+   heavy officers with batons, two rookies, two old hands). Their woman officer works the women's
+   block (guardW). The sheets' mugshots did not match their bodies, so guards carry no photo. */
+const GUARD_TALL = { yt_gd_0_0: 1.47, yt_gd_0_1: 1.32, yt_gd_0_2: 1.6, yt_gd_0_3: 1.71, yt_gd_1_0: 1.53, yt_gd_1_1: 1.34,
+                     yt_gd_1_2: 1.72, yt_gd_1_4: 1.75, yt_gd_1_3: 1.84,
+                     yt_gw_0: 1.77, yt_gw_1: 1.51, yt_gw_2: 1.55, yt_gw_3: 1.87, yt_gw_4: 1.78 };
+/* The women officers off IMG_4062 came with photos that DO match (the row under them): card one and
+   that is her face. [plate, photo, tone] */
+const GUARD_FACE = { yt_gw_0: ["pt_gw_0", "deep"], yt_gw_1: ["pt_gw_1", "deep"], yt_gw_2: ["pt_gw_2", "mid"],
+                     yt_gw_3: ["pt_gw_3", "mid"], yt_gw_4: ["pt_gw_4", "light"] };
+const PR_PEOPLE = { guard: ["yt_pr_guard_1", "yt_pr_guard_2", "yt_pr_guard_3", "yt_pr_guard_4",
+                            "yt_gd_0_0", "yt_gd_0_1", "yt_gd_0_2", "yt_gd_0_3", "yt_gd_1_0", "yt_gd_1_1", "yt_gd_1_2", "yt_gd_1_4"],
+                    guardW: ["yt_gd_1_3", "yt_gw_0", "yt_gw_1", "yt_gw_2", "yt_gw_3", "yt_gw_4"],
                     inmate: ["yt_pr_inmate_1", "yt_pr_inmate_2", "yt_pr_inmate_3", "yt_pr_inmate_4", "yt_pr_inmate_5",
                              "yt_pr_inmate_6", "yt_pr_inmate_7", "yt_pr_inmate_8", "yt_pr_inmate_9"],
-                    nurse: "yt_pr_nurse", warden: "yt_pr_warden" };
+                    nurse: "yt_pr_nurse", warden: "yt_pr_warden",
+                    // the women's block, in orange: plate, photo, skin tone
+                    women: [["yt_wm_1", "pt_wm_1", "light"], ["yt_wm_2", "pt_wm_2", "deep"], ["yt_wm_3", "pt_wm_3", "mid"], ["yt_wm_4", "pt_wm_4", "mid"]] };
+/* THE WOMEN'S BLOCK has all four gangs in it, each with her own shot caller -- a woman who answers
+   to the man in his block and runs her side of the women's. Until their own art comes in they
+   wear the women's plates (`plate`, an index into PR_PEOPLE.women). */
+const PRISON_QUEENS = {
+  crown:    { name: "Loretta \"Mother\" Cole", plate: 1, no: "86-0412", own: "p9_0" },
+  eternos:  { name: "Graciela \"La Madrina\" Ruiz", plate: 2, no: "86-0975", own: "p9_1" },
+  covenant: { name: "Darlene Pruitt", plate: 0, no: "86-1130", own: "p9_2" },
+  jade:     { name: "Mei-Ling \"Auntie\" Chan", plate: 3, no: "86-0258", own: "p9_3" },
+};
+/* Which block an outside gang's people are sent to when they go down. */
+/* THE INTAKE PAGES: 44 inmates, each a body and his own mugshot off the same quarter of a page.
+   [key, race B/L/A/W, sex, clothing, inmate no, name|null, tall]. RACE_BLOCK houses them; the
+   CLOTHING is the threat level -- blue denim general population, grey medium, orange high -- and
+   it shows on the card. (The last four are the women's shot callers, PRISON_QUEENS.) */
+const INMATE_CAST = [
+  ["p0_0", "B", "m", "blue", "43901", "J. Davis", 1.09],
+  ["p0_1", "L", "m", "orange", "71234", "M. Rodriguez", 1.23],
+  ["p0_2", "A", "m", "blue", "15876", "K. Lee", 1.18],
+  ["p0_3", "W", "m", "blue", "23009", "S. Miller", 1.2],
+  ["p1_0", "B", "m", "blue", "11486", "R. Jackson", 1.93],
+  ["p1_1", "L", "m", "blue", "11487", "M. Garcia", 1.86],
+  ["p1_2", "W", "m", "blue", "11490", "S. Clark", 1.9],
+  ["p1_3", "B", "m", "blue", "11491", "K. Thomas", 1.83],
+  ["p1_4", "A", "m", "blue", "11488", "T. Wang", 1.9],
+  ["p1_5", "W", "m", "blue", "11489", "D. Miller", 1.75],
+  ["p1_6", "L", "m", "blue", "11492", "J. Rodriguez", 1.87],
+  ["p1_7", "A", "m", "blue", "11493", "L. Chen", 1.82],
+  ["p2_0", "B", "m", "blue", "8601", "J. Davis", 1.23],
+  ["p2_1", "L", "m", "grey", "8602", "R. Rodriguez", 1.2],
+  ["p2_2", "A", "m", "grey", "8603", "L. Chen", 1.28],
+  ["p2_3", "W", "m", "orange", "8604", "D. Miller", 1.24],
+  ["p3_0", "B", "m", "blue", "4081", "J. Adams", 0.95],
+  ["p3_1", "L", "m", "blue", "5923", "L. Ramirez", 0.95],
+  ["p3_2", "A", "m", "blue", "7315", "K. Tanaka", 1.17],
+  ["p3_3", "W", "m", "blue", "2199", "M. O'Neill", 1.08],
+  ["p4_0", "B", "m", "blue", "1034", null, 1.06],
+  ["p4_1", "L", "m", "blue", "5872", null, 1.09],
+  ["p4_2", "A", "m", "blue", "8911", null, 1.04],
+  ["p4_3", "W", "m", "blue", "2001", null, 1.16],
+  ["p5_0", "W", "m", "blue", "00123", "James Connolly", 1.11],
+  ["p5_1", "L", "m", "blue", "00251", "Rafael Gonzalez", 1.15],
+  ["p5_2", "A", "m", "blue", "00389", "Liu Wei", 1.1],
+  ["p5_3", "B", "m", "blue", "00455", "David Ajayi", 1.01],
+  ["p6_0", "B", "f", "grey", "7421", null, 1.57],
+  ["p6_1", "L", "f", "grey", "9104", null, 1.55],
+  ["p6_2", "A", "f", "grey", "5568", null, 1.86],
+  ["p6_3", "W", "f", "grey", "3372", null, 1.45],
+  ["p7_0", "B", "f", "orange", "71928", null, 1.76],
+  ["p7_1", "L", "f", "orange", "48511", null, 1.92],
+  ["p7_2", "A", "f", "orange", "31094", null, 1.87],
+  ["p7_3", "W", "f", "orange", "62450", null, 1.75],
+  ["p8_0", "B", "f", "orange", "49871", "L. Williams", 1.75],
+  ["p8_1", "L", "f", "orange", "31209", "M. Sanchez", 1.66],
+  ["p8_2", "A", "f", "orange", "76543", "Y. Chen", 1.75],
+  ["p8_3", "W", "f", "orange", "10982", "S. O'Neill", 1.78],
+  ["p9_0", "B", "f", "blue", "86-0412", "Loretta \"Mother\" Cole", 1.32],
+  ["p9_1", "L", "f", "blue", "86-0975", "Graciela \"La Madrina\" Ruiz", 1.3],
+  ["p9_2", "W", "f", "blue", "86-1130", "Darlene Pruitt", 1.33],
+  ["p9_3", "A", "f", "blue", "86-0258", "Mei-Ling \"Auntie\" Chan", 1.35],
+  // intake pages, second batch (92)
+  ["q0_0", "W", "f", "blue", "3000", null, 1.23],
+  ["q0_1", "W", "f", "grey", "3001", null, 1.2],
+  ["q0_2", "W", "f", "grey", "3002", null, 1.21],
+  ["q0_3", "W", "f", "orange", "3003", null, 1.22],
+  ["q1_0", "B", "m", "blue", "3004", null, 1.39],
+  ["q1_1", "B", "m", "orange", "3005", null, 1.18],
+  ["q1_2", "B", "m", "grey", "3006", null, 1.32],
+  ["q1_3", "B", "m", "blue", "3007", null, 1.25],
+  ["q1_4", "B", "m", "grey", "3008", null, 1.33],
+  ["q1_5", "B", "m", "grey", "3009", null, 1.04],
+  ["q1_6", "B", "m", "blue", "3010", null, 1.1],
+  ["q1_7", "B", "m", "grey", "3011", null, 1.11],
+  ["q1_8", "B", "m", "grey", "3012", null, 1.07],
+  ["q2_0", "B", "m", "grey", "3013", null, 0.93],
+  ["q2_1", "B", "m", "orange", "3014", null, 0.97],
+  ["q2_2", "B", "m", "blue", "3015", null, 0.95],
+  ["q2_3", "B", "m", "grey", "3016", null, 1.0],
+  ["q2_4", "B", "m", "grey", "3017", null, 0.95],
+  ["q2_5", "B", "m", "blue", "3018", null, 0.91],
+  ["q2_6", "B", "m", "orange", "3019", null, 0.9],
+  ["q2_7", "B", "m", "grey", "3020", null, 0.93],
+  ["q2_8", "B", "m", "grey", "3021", null, 0.93],
+  ["q2_9", "B", "m", "grey", "3022", null, 0.9],
+  ["q3_0", "B", "m", "blue", "3023", null, 1.45],
+  ["q3_1", "L", "m", "grey", "3024", null, 1.51],
+  ["q3_2", "A", "m", "orange", "3025", null, 1.6],
+  ["q3_3", "W", "m", "blue", "3026", null, 1.51],
+  ["q3_4", "B", "f", "grey", "3027", null, 1.65],
+  ["q3_5", "L", "f", "orange", "3028", null, 1.49],
+  ["q3_6", "A", "f", "blue", "3029", null, 1.52],
+  ["q3_7", "W", "f", "grey", "3030", null, 1.51],
+  ["q3_8", "B", "m", "orange", "3031", null, 1.29],
+  ["q3_9", "W", "m", "blue", "3032", null, 1.44],
+  ["q4_0", "B", "m", "grey", "3033", null, 1.03],
+  ["q4_1", "B", "m", "blue", "3034", null, 1.16],
+  ["q4_2", "B", "m", "orange", "3035", null, 1.18],
+  ["q4_3", "B", "m", "grey", "3036", null, 0.96],
+  ["q4_4", "B", "m", "blue", "3037", null, 1.19],
+  ["q4_5", "B", "m", "orange", "3038", null, 1.15],
+  ["q4_6", "B", "m", "grey", "3039", null, 0.9],
+  ["q4_7", "B", "m", "blue", "3040", null, 1.08],
+  ["q4_8", "B", "m", "orange", "3041", null, 1.05],
+  ["q4_9", "B", "m", "grey", "3042", null, 1.01],
+  ["q5_0", "B", "m", "orange", "3043", null, 1.49],
+  ["q5_1", "L", "m", "blue", "3044", null, 1.42],
+  ["q5_2", "A", "m", "grey", "3045", null, 1.54],
+  ["q5_3", "W", "m", "orange", "3046", null, 1.43],
+  ["q5_4", "B", "f", "grey", "3047", null, 1.59],
+  ["q5_5", "L", "f", "orange", "3048", null, 1.43],
+  ["q5_6", "L", "m", "blue", "3049", null, 1.36],
+  ["q5_7", "W", "f", "grey", "3050", null, 1.52],
+  ["q5_8", "B", "m", "orange", "3051", null, 1.28],
+  ["q5_9", "W", "f", "blue", "3052", null, 1.33],
+  ["q6_0", "L", "m", "blue", "3053", null, 1.28],
+  ["q6_1", "L", "m", "orange", "3054", null, 1.05],
+  ["q6_2", "L", "m", "grey", "3055", null, 1.09],
+  ["q6_3", "L", "m", "blue", "3056", null, 0.98],
+  ["q6_4", "L", "m", "orange", "3057", null, 1.26],
+  ["q6_5", "L", "m", "grey", "3058", null, 1.03],
+  ["q6_6", "L", "m", "blue", "3059", null, 1.1],
+  ["q6_7", "L", "m", "orange", "3060", null, 1.07],
+  ["q6_8", "L", "m", "grey", "3061", null, 0.93],
+  ["q6_9", "L", "m", "blue", "3062", null, 0.99],
+  ["q7_0", "L", "m", "blue", "3063", null, 1.06],
+  ["q7_1", "L", "m", "grey", "3064", null, 0.95],
+  ["q7_2", "L", "m", "orange", "3065", null, 0.92],
+  ["q7_3", "L", "m", "grey", "3066", null, 0.99],
+  ["q7_4", "L", "m", "blue", "3067", null, 1.03],
+  ["q7_5", "L", "m", "orange", "3068", null, 0.98],
+  ["q7_6", "L", "m", "blue", "3069", null, 0.97],
+  ["q7_7", "L", "m", "grey", "3070", null, 1.02],
+  ["q7_8", "L", "m", "orange", "3071", null, 0.91],
+  ["q7_9", "L", "m", "grey", "3072", null, 0.91],
+  ["q8_0", "L", "m", "orange", "3073", null, 1.7],
+  ["q8_1", "L", "m", "grey", "3074", null, 1.46],
+  ["q8_2", "L", "m", "blue", "3075", null, 1.17],
+  ["q8_3", "L", "m", "blue", "3076", null, 1.49],
+  ["q8_4", "L", "m", "blue", "3077", null, 1.14],
+  ["q8_5", "L", "m", "grey", "3078", null, 1.66],
+  ["q8_6", "L", "m", "orange", "3079", null, 1.52],
+  ["q8_7", "L", "m", "blue", "3080", null, 1.34],
+  ["q9_0", "L", "m", "orange", "3081", null, 1.8],
+  ["q9_1", "L", "m", "grey", "3082", null, 1.28],
+  ["q9_2", "L", "m", "blue", "3083", null, 1.38],
+  ["q9_3", "L", "m", "orange", "3084", null, 1.69],
+  ["q9_4", "L", "m", "grey", "3085", null, 1.82],
+  ["q9_5", "L", "m", "blue", "3086", null, 1.39],
+  ["q9_6", "L", "m", "orange", "3087", null, 1.74],
+  ["q9_7", "L", "m", "grey", "3088", null, 1.36],
+  ["q9_8", "L", "m", "blue", "3089", null, 1.69],
+  ["q9_9", "L", "m", "blue", "3090", null, 1.7],
+  ["q9_10", "L", "m", "orange", "3091", null, 1.65],
+  // intake pages, third batch (135)
+  ["r0_0", "L", "f", "blue", "5000", null, 1.51],
+  ["r0_1", "L", "f", "grey", "5001", null, 1.58],
+  ["r0_2", "L", "f", "orange", "5002", null, 1.51],
+  ["r0_3", "L", "f", "blue", "5003", null, 1.52],
+  ["r0_4", "L", "f", "orange", "5004", null, 1.55],
+  ["r0_5", "L", "f", "grey", "5005", null, 1.58],
+  ["r0_6", "L", "f", "grey", "5006", null, 1.52],
+  ["r0_7", "L", "f", "blue", "5007", null, 1.52],
+  ["r0_8", "L", "f", "blue", "5008", null, 1.46],
+  ["r0_9", "L", "f", "orange", "5009", null, 1.53],
+  ["r0_10", "L", "f", "grey", "5010", null, 1.35],
+  ["r0_11", "L", "f", "blue", "5011", null, 1.52],
+  ["r1_0", "L", "f", "blue", "5012", null, 1.32],
+  ["r1_1", "L", "f", "grey", "5013", null, 1.25],
+  ["r1_2", "L", "f", "orange", "5014", null, 1.09],
+  ["r1_3", "L", "f", "orange", "5015", null, 1.58],
+  ["r1_4", "L", "f", "grey", "5016", null, 1.09],
+  ["r1_5", "L", "f", "orange", "5017", null, 1.32],
+  ["r1_6", "L", "f", "grey", "5018", null, 1.11],
+  ["r1_7", "L", "f", "blue", "5019", null, 1.24],
+  ["r1_8", "L", "f", "grey", "5020", null, 1.14],
+  ["r1_9", "L", "f", "orange", "5021", null, 1.19],
+  ["r2_0", "A", "f", "blue", "5022", null, 1.49],
+  ["r2_1", "A", "f", "grey", "5023", null, 1.38],
+  ["r2_2", "A", "f", "orange", "5024", null, 1.44],
+  ["r2_3", "A", "f", "blue", "5025", null, 1.49],
+  ["r2_4", "A", "f", "grey", "5026", null, 1.42],
+  ["r2_5", "A", "f", "orange", "5027", null, 1.4],
+  ["r2_6", "A", "f", "blue", "5028", null, 1.37],
+  ["r2_7", "A", "f", "grey", "5029", null, 1.37],
+  ["r2_8", "A", "f", "orange", "5030", null, 1.41],
+  ["r2_9", "A", "f", "blue", "5031", null, 1.25],
+  ["r3_0", "L", "f", "blue", "5032", null, 1.33],
+  ["r3_1", "L", "f", "grey", "5033", null, 1.41],
+  ["r3_2", "L", "f", "grey", "5034", null, 1.38],
+  ["r3_3", "L", "f", "blue", "5035", null, 1.3],
+  ["r3_4", "L", "f", "orange", "5036", null, 1.22],
+  ["r3_5", "A", "f", "grey", "5037", null, 0.56],
+  ["r3_6", "A", "f", "grey", "5038", null, 0.55],
+  ["r3_7", "A", "f", "grey", "5039", null, 0.71],
+  ["r4_0", "L", "f", "orange", "5040", null, 1.16],
+  ["r4_1", "L", "f", "blue", "5041", null, 1.14],
+  ["r4_2", "L", "f", "grey", "5042", null, 1.15],
+  ["r4_3", "L", "f", "orange", "5043", null, 1.08],
+  ["r4_4", "L", "f", "blue", "5044", null, 1.12],
+  ["r4_5", "L", "f", "grey", "5045", null, 0.97],
+  ["r4_6", "L", "f", "grey", "5046", null, 0.92],
+  ["r4_7", "L", "f", "blue", "5047", null, 0.85],
+  ["r4_8", "L", "f", "grey", "5048", null, 0.82],
+  ["r4_9", "L", "f", "grey", "5049", null, 0.93],
+  ["r5_0", "W", "f", "grey", "5050", null, 1.23],
+  ["r5_1", "W", "f", "orange", "5051", null, 1.27],
+  ["r5_2", "W", "f", "blue", "5052", null, 1.26],
+  ["r5_3", "W", "f", "grey", "5053", null, 1.3],
+  ["r5_4", "W", "f", "orange", "5054", null, 1.13],
+  ["r5_5", "W", "f", "grey", "5055", null, 1.14],
+  ["r5_6", "W", "f", "grey", "5056", null, 1.08],
+  ["r5_7", "W", "f", "orange", "5057", null, 1.15],
+  ["r5_8", "W", "f", "blue", "5058", null, 1.14],
+  ["r6_0", "W", "f", "orange", "5059", null, 1.35],
+  ["r6_1", "W", "f", "blue", "5060", null, 1.29],
+  ["r6_2", "W", "f", "grey", "5061", null, 1.4],
+  ["r6_3", "W", "f", "orange", "5062", null, 1.31],
+  ["r6_4", "W", "f", "blue", "5063", null, 1.29],
+  ["r6_5", "W", "f", "grey", "5064", null, 1.31],
+  ["r6_6", "W", "f", "orange", "5065", null, 1.26],
+  ["r6_7", "W", "f", "blue", "5066", null, 1.26],
+  ["r6_8", "W", "f", "grey", "5067", null, 1.3],
+  ["r6_9", "W", "f", "orange", "5068", null, 1.27],
+  ["r7_0", "W", "m", "grey", "5069", null, 0.99],
+  ["r7_1", "W", "m", "orange", "5070", null, 0.95],
+  ["r7_2", "W", "m", "blue", "5071", null, 1.24],
+  ["r7_3", "W", "m", "grey", "5072", null, 0.95],
+  ["r7_4", "W", "m", "orange", "5073", null, 1.34],
+  ["r7_5", "W", "m", "blue", "5074", null, 1.15],
+  ["r7_6", "W", "m", "grey", "5075", null, 1.05],
+  ["r7_7", "W", "m", "orange", "5076", null, 0.91],
+  ["r7_8", "W", "m", "blue", "5077", null, 0.92],
+  ["r7_9", "W", "m", "grey", "5078", null, 1.2],
+  ["r8_0", "W", "m", "blue", "5079", null, 1.32],
+  ["r8_1", "W", "m", "blue", "5080", null, 1.32],
+  ["r8_2", "W", "m", "grey", "5081", null, 1.33],
+  ["r8_3", "W", "m", "grey", "5082", null, 1.32],
+  ["r8_4", "W", "m", "grey", "5083", null, 1.37],
+  ["r8_5", "W", "m", "orange", "5084", null, 1.38],
+  ["r8_6", "W", "m", "orange", "5085", null, 1.38],
+  ["r8_7", "W", "m", "blue", "5086", null, 1.5],
+  ["r8_8", "W", "m", "grey", "5087", null, 1.54],
+  ["r8_9", "W", "m", "orange", "5088", null, 1.54],
+  ["r8_10", "W", "m", "blue", "5089", null, 1.5],
+  ["r8_11", "W", "m", "blue", "5090", null, 1.53],
+  ["r8_12", "W", "m", "orange", "5091", null, 1.51],
+  ["r8_13", "W", "m", "orange", "5092", null, 1.5],
+  ["r9_0", "W", "m", "blue", "5093", null, 1.06],
+  ["r9_1", "W", "m", "blue", "5094", null, 1.14],
+  ["r9_2", "W", "m", "grey", "5095", null, 1.12],
+  ["r9_3", "W", "m", "grey", "5096", null, 1.23],
+  ["r9_4", "W", "m", "orange", "5097", null, 1.28],
+  ["r9_5", "W", "m", "blue", "5098", null, 1.15],
+  ["r9_6", "W", "m", "grey", "5099", null, 1.22],
+  ["r9_7", "W", "m", "orange", "5100", null, 1.22],
+  ["r9_8", "W", "m", "orange", "5101", null, 1.31],
+  ["r9_9", "W", "m", "orange", "5102", null, 1.24],
+  ["r10_0", "A", "m", "blue", "5103", null, 1.08],
+  ["r10_1", "A", "m", "blue", "5104", null, 0.94],
+  ["r10_2", "A", "m", "grey", "5105", null, 1.13],
+  ["r10_3", "A", "m", "orange", "5106", null, 1.05],
+  ["r10_4", "A", "m", "blue", "5107", null, 1.09],
+  ["r10_5", "A", "m", "grey", "5108", null, 1.09],
+  ["r10_6", "A", "m", "orange", "5109", null, 1.07],
+  ["r10_7", "A", "m", "blue", "5110", null, 1.08],
+  ["r10_8", "A", "m", "grey", "5111", null, 1.07],
+  ["r10_9", "A", "m", "orange", "5112", null, 1.07],
+  ["r11_0", "A", "m", "orange", "5113", null, 1.1],
+  ["r11_1", "A", "m", "grey", "5114", null, 1.0],
+  ["r11_2", "A", "m", "blue", "5115", null, 0.99],
+  ["r11_3", "A", "m", "orange", "5116", null, 1.02],
+  ["r11_4", "A", "m", "blue", "5117", null, 1.13],
+  ["r11_5", "A", "m", "grey", "5118", null, 1.05],
+  ["r11_6", "A", "m", "orange", "5119", null, 1.01],
+  ["r11_7", "A", "m", "grey", "5120", null, 1.0],
+  ["r11_8", "A", "m", "blue", "5121", null, 1.09],
+  ["r11_9", "A", "m", "orange", "5122", null, 1.01],
+  ["r12_0", "A", "m", "orange", "5123", null, 0.82],
+  ["r12_1", "A", "m", "blue", "5124", null, 0.8],
+  ["r12_2", "A", "m", "grey", "5125", null, 0.82],
+  ["r12_3", "A", "m", "orange", "5126", null, 0.83],
+  ["r12_4", "A", "m", "blue", "5127", null, 0.79],
+  ["r12_5", "A", "m", "grey", "5128", null, 0.8],
+  ["r12_6", "A", "m", "orange", "5129", null, 0.8],
+  ["r12_7", "A", "m", "blue", "5130", null, 0.81],
+  ["r12_8", "A", "m", "grey", "5131", null, 0.77],
+  ["r12_9", "A", "m", "orange", "5132", null, 0.82],
+  // intake pages, fourth batch (63)
+  ["s0_0", "A", "f", "grey", "7000", null, 1.26],
+  ["s0_1", "A", "f", "blue", "7001", null, 1.29],
+  ["s0_2", "A", "f", "orange", "7002", null, 1.27],
+  ["s0_3", "A", "f", "grey", "7003", null, 1.21],
+  ["s0_4", "A", "f", "blue", "7004", null, 1.26],
+  ["s1_0", "A", "f", "orange", "7005", null, 1.62],
+  ["s1_1", "A", "f", "grey", "7006", null, 1.38],
+  ["s1_2", "A", "f", "blue", "7007", null, 1.48],
+  ["s1_3", "A", "f", "blue", "7008", null, 1.41],
+  ["s1_4", "A", "f", "blue", "7009", null, 1.41],
+  ["s1_5", "A", "f", "grey", "7010", null, 1.33],
+  ["s1_6", "A", "f", "blue", "7011", null, 1.38],
+  ["s1_7", "A", "f", "blue", "7012", null, 1.32],
+  ["s2_0", "B", "m", "blue", "7013", null, 1.6],
+  ["s2_1", "L", "m", "orange", "7014", null, 1.6],
+  ["s2_2", "A", "m", "grey", "7015", null, 1.57],
+  ["s2_3", "W", "m", "blue", "7016", null, 1.61],
+  ["s2_4", "B", "f", "orange", "7017", null, 1.93],
+  ["s2_5", "A", "f", "grey", "7018", null, 1.84],
+  ["s2_6", "A", "f", "orange", "7019", null, 1.7],
+  ["s2_7", "A", "f", "blue", "7020", null, 1.79],
+  ["s2_8", "A", "f", "grey", "7021", null, 1.59],
+  ["s2_9", "A", "f", "grey", "7022", null, 1.7],
+  ["s2_10", "L", "m", "grey", "7023", null, 1.59],
+  ["s2_11", "A", "m", "orange", "7024", null, 1.51],
+  ["s2_12", "W", "m", "blue", "7025", null, 1.61],
+  ["s2_13", "W", "f", "grey", "7026", null, 1.8],
+  ["s2_14", "A", "f", "grey", "7027", null, 1.69],
+  ["s2_15", "A", "f", "grey", "7028", null, 1.74],
+  ["s2_16", "A", "f", "orange", "7029", null, 1.77],
+  ["s2_17", "A", "f", "blue", "7030", null, 1.72],
+  ["s2_18", "A", "f", "grey", "7031", null, 1.91],
+  ["s2_19", "A", "f", "grey", "7032", null, 1.73],
+  ["s3_0", "B", "f", "orange", "7033", null, 1.52],
+  ["s3_1", "B", "f", "grey", "7034", null, 1.54],
+  ["s3_2", "B", "f", "blue", "7035", null, 1.66],
+  ["s3_3", "B", "f", "grey", "7036", null, 1.52],
+  ["s3_4", "B", "f", "grey", "7037", null, 1.52],
+  ["s3_5", "B", "f", "grey", "7038", null, 1.28],
+  ["s3_6", "B", "f", "grey", "7039", null, 1.52],
+  ["s3_7", "B", "f", "grey", "7040", null, 1.39],
+  ["s3_8", "B", "f", "blue", "7041", null, 1.47],
+  ["s3_9", "B", "f", "orange", "7042", null, 1.43],
+  ["s4_0", "B", "f", "orange", "7043", null, 1.38],
+  ["s4_1", "B", "f", "grey", "7044", null, 1.31],
+  ["s4_2", "B", "f", "blue", "7045", null, 1.53],
+  ["s4_3", "B", "f", "grey", "7046", null, 1.33],
+  ["s4_4", "B", "f", "grey", "7047", null, 1.39],
+  ["s4_5", "B", "f", "blue", "7048", null, 1.33],
+  ["s4_6", "B", "f", "grey", "7049", null, 1.32],
+  ["s4_7", "B", "f", "orange", "7050", null, 1.32],
+  ["s4_8", "B", "f", "blue", "7051", null, 1.39],
+  ["s4_9", "B", "f", "grey", "7052", null, 1.32],
+  ["s5_0", "B", "m", "blue", "7053", null, 1.35],
+  ["s5_1", "L", "m", "grey", "7054", null, 1.29],
+  ["s5_2", "A", "m", "orange", "7055", null, 1.4],
+  ["s5_3", "W", "m", "blue", "7056", null, 1.32],
+  ["s5_4", "B", "m", "grey", "7057", null, 1.21],
+  ["s5_5", "L", "f", "orange", "7058", null, 1.48],
+  ["s5_6", "A", "f", "grey", "7059", null, 1.48],
+  ["s5_7", "W", "f", "blue", "7060", null, 1.53],
+  ["s5_8", "B", "f", "orange", "7061", null, 1.43],
+  ["s5_9", "L", "f", "grey", "7062", null, 1.37]
+].map(([k, race, sex, cloth, no, name, tall]) => ({ k, yt: "yt_in_" + k, face: "pt_in_" + k, race, sex, cloth, no, name, tall,
+  threat: cloth === "orange" ? 3 : cloth === "grey" ? 2 : 1 }));
+// two sheets printed the same name on two different men: the second one gets a name of his own
+{ const seen = {}; for (const c of INMATE_CAST) { if (c.name && seen[c.name]) c.name = null; else if (c.name) seen[c.name] = 1; } }
+/* THE BODYGUARDS. Each gang's shot caller has one, the hardest men in Kestrel: they stand by his
+   cell and are built to beat you. Tomás and Teo Varga are twins who work for opposite tables. */
+const PRISON_GUARDS = {
+  covenant: { yt: "yt_bg_covenant", face: "pt_bg_covenant", name: "Walt \"Tank\" Krantz", no: "0001", tall: 1.55 },
+  eternos:  { yt: "yt_bg_eternos",  face: "pt_bg_eternos",  name: "Tom\u00e1s Varga", no: "0002", tall: 1.6 },
+  jade:     { yt: "yt_bg_jade",     face: "pt_bg_jade",     name: "Teo Varga", no: "0003", tall: 1.6 },
+  crown:    { yt: "yt_bg_crown",    face: "pt_bg_crown",    name: "Moses \"Mountain\" Greer", no: "0004", tall: 1.7 },
+};
+/* CONTRABAND. `sev` is how bad it is to be caught with it; the hole is `sev` x STASH.perSev hours.
+   `cur` marks what passes for money inside. */
+const CONTRABAND = {
+  cigs:   { nm: "CARTON OF CIGARETTES", sev: 0, cur: 1 },
+  cash:   { nm: "FOLDED BILLS", sev: 1, cur: 1 },
+  pills:  { nm: "PILLS IN A SOCK", sev: 2 },
+  hooch:  { nm: "BAG OF HOOCH", sev: 1 },
+  razor:  { nm: "MELTED-IN RAZOR", sev: 2 },
+  shank:  { nm: "SHANK", sev: 3 },
+  zipgun: { nm: "ZIP GUN", sev: 5 },
+  // off the contraband sheet
+  pencil: { nm: "SHARPENED PENCIL", sev: 2 },
+  weed:   { nm: "BAG OF WEED", sev: 1 },
+  heroin: { nm: "BALLOON OF HEROIN", sev: 3 },
+  stamps: { nm: "ROLL OF STAMPS", sev: 0, cur: 1 },
+  book:   { nm: "HOLLOWED-OUT BOOK", sev: 1 },
+  gun:    { nm: "SMUGGLED PISTOL", sev: 6 },
+};
+// every contraband item has its own icon: assets/prison/ci_<item>.png
+for (const k in CONTRABAND) PD_ART["ci_" + k] = "assets/prison/ci_" + k + ".png";
+/* WHERE THINGS HIDE: any of these props in a campus building is a stash spot. */
+const STASH_PROPS = { bed: 1, toilet: 1, sink: 1, pr_bookshelf: 1, pr_washers: 1, pr_bench: 1, pr_desk: 1, pr_table: 1, pr_servingline: 1 };
+const STASH = { reach: 44, seed: 0.28, patR: 64, patChance: 0.45, patCd: 40, perSev: 6,
+                find: 0.9, skillCut: 0.08, skillMax: 5 };   // a pat-down finds what is on you 90%, less 8% a level of skill
+/* THE STORE: one man a block sells out of his cell for packs of cigarettes. */
+const PRISON_STORE = { shank: 12, pencil: 5, razor: 6, pills: 8, weed: 5, heroin: 14, hooch: 4, stamps: 3, book: 7, zipgun: 45, cash: 10 };
+/* ---------- THE ECONOMY INSIDE ----------
+   Real money in Kestrel is the gang's drug. Each outside patron sends a share of its product
+   inside (PRISON_ECON.send, AI-chosen: more when it is flush); product sold inside pays a
+   fraction of what it pays on the street (`insidePay`). The more a prison gang moves, the more
+   HEAT its block draws -- and heat is shakedowns: guards turn the block's cells over and clear
+   its stashes. A gang can BUY GUARDS: each one bought takes a share off every shakedown and
+   pat-down that would land on its people. Gangs short of product buy it off gangs with too much
+   (`trade`), at a markup, in cigarettes and cash. */
+const PRISON_ECON = {
+  tick: 20,                         // seconds of the war clock between prison turns
+  send: [0.04, 0.18],               // share of a patron's product sent inside, poor .. flush
+  flush: 20000,                     // patron cash at which it sends the most
+  insidePay: 0.35,                  // a unit sells for this share of its street price inside
+  demand: 60,                       // units the whole campus will buy a tick
+  heatPerUnit: 0.6, heatDecay: 6, shakeAt: 40,     // heat, and the level a shakedown is likely at
+  guardCost: 4000, guardCut: 0.2, guardMax: 3,     // buy a guard; each cuts the odds 20%; three at most
+  trade: { markup: 1.4, want: 20 },                // below `want` units a gang buys from a gang above it
+};
+// a jailed seat's protection, per seat per prison turn: his own people, or bought from a stranger
+const PRISON_PROTECT = { own: 60, bought: 320 };
+const RACE_BLOCK = { W: "A", B: "B", L: "C", A: "D" };
+const RACE_TONE = { W: "light", B: "deep", L: "mid", A: "mid" };
+const THREAT_NM = ["", "LOW", "MEDIUM", "HIGH"];
+const GANG_BLOCK = { kings: "B", barrio: "C", gomez: "C", brack: "A", irish: "A", sec: "A", wolves: "A",
+                     mob_young: "A", mob_old: "A", chi: "D", deuce: "B" };
+const TONE_BLOCK = { light: "A", deep: "B", mid: "C" };
 // the prison, registered UNDER its lists
+for (const k in PRISON_GANGS) { const n = PRISON_GANGS[k].boss.no;
+  PD_ART["yt_inm_" + n] = "assets/prison/yt_inm_" + n + ".png"; PD_ART["pt_inm_" + n] = "assets/prison/pt_inm_" + n + ".png"; }
+PD_ART.id_card_prison = "assets/ui/id_card_prison.png";
+for (const k in PRISON_GUARDS) { const B = PRISON_GUARDS[k]; PD_ART[B.yt] = "assets/prison/" + B.yt + ".png"; PD_ART[B.face] = "assets/prison/" + B.face + ".png"; }
+PD_ART.yt_pr_player = "assets/prison/yt_pr_player.png"; PD_ART.pt_pr_player = "assets/prison/pt_pr_player.png";
+for (const c of INMATE_CAST) { PD_ART[c.yt] = "assets/prison/" + c.yt + ".png"; PD_ART[c.face] = "assets/prison/" + c.face + ".png"; }
+for (const k of PR_PEOPLE.guard.concat(PR_PEOPLE.guardW)) PD_ART[k] = "assets/prison/" + k + ".png";
+for (const k in GUARD_FACE) PD_ART[GUARD_FACE[k][0]] = "assets/prison/" + GUARD_FACE[k][0] + ".png";
+for (const [p1, p2] of PR_PEOPLE.women) { PD_ART[p1] = "assets/prison/" + p1 + ".png"; PD_ART[p2] = "assets/prison/" + p2 + ".png"; }
 for (const k of PR_PROPS.concat(PR_ROOFS, YD_KEYS, PR_PEOPLE.guard, PR_PEOPLE.inmate, [PR_PEOPLE.nurse, PR_PEOPLE.warden]))
   PD_ART[k] = "assets/prison/" + k + ".png";
 const PITCH = 1500;           // 71 m between street centrelines
@@ -10545,6 +11025,11 @@ export default function IronLionLayer004() {
        facing outranks a door handle. */
     // the leadership sit indoors now: E at a seated man talks to him wherever he is
     if (g.mode === "foot" && g.inside && G.leaderFn && G.leaderFn()) return;
+    if (g.mode === "foot" && g.inside && g.inside.inPrison && g.prisonMode) {
+      const sm = ((G.prisonFolkFn && G.prisonFolkFn()) || []).find((q) => q.store && Math.hypot(q.x - g.p.x, q.y - g.p.y) < 70);
+      if (sm) { g.storeMan = sm; G.pickOpen("pstore"); return; }
+    }
+    if (g.mode === "foot" && g.inside && g.inside.inPrison && G.stashFn && G.stashFn()) return;
     if (g.mode === "foot" && g.inside && G.swapFn && G.swapFn()) return;
     if (g.mode === "foot" && g.inside) {
       if (mountNearest()) return;
@@ -11675,7 +12160,8 @@ export default function IronLionLayer004() {
       // each of the case's people is in one place -- the room you are in, or the street
       let best = null, bd = 74;
       const mine = C && C.stage !== "done" ? C.people.filter(caseHere) : [];
-      const pool = g.inside ? mine : g.peds.concat(mine);
+      const inmates = g.inside && g.inside.inPrison ? (prisonFolk() || []).filter((q) => q.convict || q.guard) : [];
+      const pool = g.inside ? mine.concat(inmates) : g.peds.concat(mine);
       for (const q of pool) {
         if (!q || q.hp <= 0 || q.fly) continue;
         const d = Math.hypot(q.x - g.p.x, q.y - g.p.y);
@@ -11686,9 +12172,42 @@ export default function IronLionLayer004() {
     /* THE CARD ITSELF, in screen space over the world. The blank is one plate and everything on
        it is drawn: the photo off the page for his sex and tone, sliced by index, and the typed
        lines. No plate: a drawn card and a silhouette in his own skin, which is enough to read. */
+    /* THE PRISON CARD: Kestrel's own template, the mugshot in its box and the typed lines on its
+       ruled lines (fractions of the card, measured off the plate). */
+    function drawPrisonCard(c) {
+      const im = imgs.current.id_card_prison, id = c.id, I = c.inmate;
+      const CW = Math.min(420, W * 0.9), CH = CW / (im && im.width ? im.width / im.height : 1.79);
+      const x0 = (W - CW) / 2, y0 = (H - CH) / 2;
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = "rgba(6,7,9,0.72)"; ctx.fillRect(0, 0, W, H);
+      if (im && im.width) ctx.drawImage(im, x0, y0, CW, CH);
+      else { ctx.fillStyle = "#d4d6d8"; ctx.fillRect(x0, y0, CW, CH); ctx.fillStyle = "#34324a"; ctx.fillRect(x0, y0, CW, CH * 0.17); }
+      const px = x0 + CW * 0.043, py = y0 + CH * 0.225, pw = CW * 0.26, ph = CH * 0.535;
+      const shot = faceOf(id);
+      if (shot) { const [sh, fi] = shot, pg = imgs.current[sh.key]; const fw = pg.width / sh.cols, fh = pg.height / sh.rows;
+        ctx.drawImage(pg, (fi % sh.cols) * fw, ((fi / sh.cols) | 0) * fh, fw, fh, px, py, pw, ph); }
+      const f = Math.max(9, Math.round(CW * 0.028));
+      ctx.fillStyle = "#1d1f24";
+      const at = (fx, fy, t, bold) => { ctx.font = (bold ? "700 " : "") + f + "px ui-monospace, monospace"; ctx.fillText(t, x0 + CW * fx, y0 + CH * fy); };
+      at(0.475, 0.285, (id.name || "").toUpperCase(), 1);
+      at(0.585, 0.375, I.no);
+      at(0.49, 0.465, I.block + " BLOCK"); at(0.815, 0.465, String(I.cell || "--"));
+      at(0.515, 0.555, I.charge);
+      at(0.57, 0.645, I.sentence);
+      at(0.655, 0.735, I.release);
+      if (I.threat) { const tc = ["", "#2f5f9a", "#6a6a6a", "#d2641e"][I.threat];
+        ctx.fillStyle = tc; ctx.font = "700 " + Math.round(f * 0.85) + "px ui-monospace, monospace";
+        ctx.fillText("THREAT: " + THREAT_NM[I.threat], x0 + CW * 0.045, y0 + CH * 0.87); }
+      if (I.gang) { ctx.fillStyle = "#8a1e1e"; ctx.font = "700 " + Math.round(f * 0.85) + "px ui-monospace, monospace";
+        ctx.fillText("AFFILIATION: " + I.gang, x0 + CW * 0.045, y0 + CH * 0.815); }
+      ctx.fillStyle = "rgba(232,217,181,0.6)"; ctx.font = "9px ui-monospace, monospace"; ctx.textAlign = "center";
+      ctx.fillText("TAP TO PUT IT BACK", W / 2, y0 + CH + 22); ctx.textAlign = "start";
+      ctx.restore();
+    }
     function drawIdCard() {
       const c = g.idCard;
       if (!c) return;
+      if (c.inmate) { drawPrisonCard(c); return; }
       const id = c.id;
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -11751,7 +12270,9 @@ export default function IronLionLayer004() {
       const q = nearCiv();
       if (!q) return;
       const id = identOf(q);
-      g.idCard = { ped: q, id };
+      if (q.name) id.name = q.name;
+      if (q.castFace) id.castFace = q.castFace;
+      g.idCard = { ped: q, id, inmate: q.inmate || null };
       bookAdd(id, q);                       // looked at is written down
       q.say = 2.4; q.line = "ALL RIGHT, ALL RIGHT.";
       // in a case, a card is a name you can bring Malcolm -- the talking is its own thing
@@ -11975,8 +12496,95 @@ export default function IronLionLayer004() {
     }
     // the war's gangs, not the Deuce: the twins never deal with a city detective
     const ALONZO_GANGS = (k) => k !== "deuce";
+    function prisonEcon(dt) {
+      const W = g.gwar, E = PRISON_ECON;
+      const S = (g.pecon = g.pecon || {});
+      for (const k in PRISON_GANGS) S[k] = S[k] || { stock: 0, cash: 0, heat: 0, guards: 0, sold: 0, shakes: 0 };
+      g.peconT = (g.peconT || 0) + dt;
+      if (g.peconT < E.tick) return;
+      const t = g.peconT; g.peconT = 0;
+      // 1. the patrons send product in: a share of what their houses make, more when flush
+      for (const k in PRISON_GANGS) {
+        for (const pk of PRISON_GANGS[k].patrons) {
+          const G = W.gangs[pk]; if (!G) continue;
+          let rate = 0;
+          // the corners pay product even before there is a house on them
+          for (const tf of Object.values(W.turfs)) if (tf.owner === pk) { rate += WAR.street; for (const d of tf.dens) rate += WAR.income[d.drug] * d.level; }
+          const share = E.send[0] + (E.send[1] - E.send[0]) * clamp((G.cash || 0) / E.flush, 0, 1);
+          const val = rate * t * share;
+          if (val <= 0) continue;
+          G.cash = Math.max(0, G.cash - val);          // what goes inside is not sold outside
+          S[k].stock += val / 10;
+        }
+      }
+      // 2. prison gangs short of product buy it off the gang with the most
+      const ks = Object.keys(PRISON_GANGS);
+      for (const k of ks) {
+        const me = S[k]; if (me.stock >= E.trade.want) continue;
+        const sel = ks.filter((o) => o !== k && S[o].stock > E.trade.want).sort((a, b2) => S[b2].stock - S[a].stock)[0];
+        if (!sel) continue;
+        const qty = Math.min(E.trade.want - me.stock, S[sel].stock - E.trade.want);
+        const price = qty * 10 * E.insidePay * E.trade.markup;
+        if (qty <= 0 || me.cash < price) continue;
+        me.cash -= price; S[sel].cash += price; me.stock += qty; S[sel].stock -= qty;
+        me.traded = (me.traded || 0) + qty;
+      }
+      payProtection(t);
+      // 3. sell inside, draw heat; 4. shakedowns; 5. buy guards with the proceeds
+      for (const k of ks) {
+        const me = S[k];
+        const sold = Math.min(me.stock, E.demand / ks.length);
+        me.stock -= sold; me.sold += sold; me.cash += sold * 10 * E.insidePay;
+        me.heat = Math.max(0, me.heat + sold * E.heatPerUnit - E.heatDecay);
+        const odds = clamp((me.heat - E.shakeAt) / E.shakeAt, 0, 0.8) * (1 - me.guards * E.guardCut);
+        if (Math.random() < odds) {
+          me.shakes++; me.stock *= 0.7; me.heat *= 0.4;
+          // the block is turned over: every stash in it is emptied
+          const blk = PRISON_GANGS[k].block;
+          for (const key of Object.keys(g.stash || {})) {
+            const bb = campusWing(blk); if (bb && key.startsWith((bb.x | 0) + "," + (bb.y | 0) + ",")) g.stash[key] = [];
+          }
+          if (g.prisonMode) { g.jobBanner = "SHAKEDOWN \u00b7 " + blk + " BLOCK"; g.jobNote = "The guards turned the cells over. " + PRISON_GANGS[k].nm + " lost product."; }
+        }
+        if (me.guards < E.guardMax && me.heat > E.shakeAt * 0.6 && me.cash > E.guardCost * (me.guards + 1)) {
+          me.cash -= E.guardCost * (me.guards + 1); me.guards++;
+        }
+      }
+    }
+    /* WHO PROTECTS A JAILED LEADER. A gang with its own table inside (it is a patron) has its own
+       people watching him, for a small fee. Everybody else buys protection off whichever gang runs
+       the block he is housed in -- and pays for it, a lot more, every prison turn. */
+    function protectorOf(gk) {
+      const own = Object.keys(PRISON_GANGS).find((k) => PRISON_GANGS[k].patrons.indexOf(gk) >= 0);
+      if (own) return { k: own, own: true };
+      const blk = GANG_BLOCK[gk] || "A";
+      const k2 = Object.keys(PRISON_GANGS).find((k) => PRISON_GANGS[k].block === blk);
+      return k2 ? { k: k2, own: false } : null;
+    }
+    function payProtection(t) {
+      const W = g.gwar, S = g.pecon; if (!W || !S) return;
+      for (const gk in W.gangs) {
+        const G = W.gangs[gk], jailed = G.seats.filter((q) => q.state === "prison").length;
+        if (!jailed) continue;
+        const P = protectorOf(gk); if (!P) continue;
+        const fee = jailed * (P.own ? PRISON_PROTECT.own : PRISON_PROTECT.bought) * (t / PRISON_ECON.tick);
+        const paid = Math.min(G.cash || 0, fee);
+        G.cash -= paid; S[P.k].cash += paid;
+        G.protectPaid = (G.protectPaid || 0) + paid;
+        if (paid < fee && !P.own) G.unprotected = (G.unprotected || 0) + 1;   // behind on it: the seat is exposed
+        else G.unprotected = 0;
+      }
+    }
+    function campusWing(blk) {
+      for (let i = PRISON.i0; i <= PRISON.i1; i++) for (let j = PRISON.j0; j <= PRISON.j1; j++) {
+        const b2 = (getCell(i, j).blds || []).find((q) => q.kind === "prisonwing" && q.pwing === blk);
+        if (b2) return b2;
+      }
+      return null;
+    }
     function warIncome(dt) {
       alonzoMarket(dt);
+      prisonEcon(dt);
       const W = g.gwar;
       for (const t of Object.values(W.turfs)) {
         if (!t.owner) continue;
@@ -12410,6 +13018,17 @@ export default function IronLionLayer004() {
       return pt || [P.x, P.y];
     }
     /* A CREW, ONE AT A TIME. Each member put away gives up the next; the last one closes it. */
+    function sendToKestrel(C, name) {
+      const P = C.perp; if (!P) return;
+      const id = identOf(P), gk = C.crew && C.crew.gang;
+      const block = id.sex === "f" ? "W" : gk && GANG_BLOCK[gk] ? GANG_BLOCK[gk] : TONE_BLOCK[id.tone] || "D";
+      g.convicts = g.convicts || [];
+      if (g.convicts.some((q) => q.name === name)) return;
+      g.convicts.push({ name, block, yt: P.yt || null, face: P.castFace || (P.cast && P.cast.face) || null,
+                        charge: (C.K.nm || "FELONY").toUpperCase(), sentence: C.K.violent ? "12 YEARS" : "4 YEARS",
+                        release: String(1986 + (C.K.violent ? 12 : 4)), gang: gk ? GANG_LABEL[gk] : null });
+      if (g.pfolk) g.pfolk = null;                 // the block is rebuilt with him in it
+    }
     function crewAdvance(C, name) {
       const W = C && C.crew; if (!W || W.closed) return;
       W.names.push(name);
@@ -12887,6 +13506,7 @@ export default function IronLionLayer004() {
         [239, 299, 359].forEach((px, k) => park(px, 532, SQUAD4[k].car, { owner: SQUAD4[k].id }));
         park(117, 646, SQUAD4[3].car, { owner: SQUAD4[3].id });
         park(177, 646, SQUAD4[4].car, { owner: SQUAD4[4].id });     // Alonzo's Monte Carlo, beside Delgado
+        park(237, 646, SQUAD4[5].car, { owner: SQUAD4[5].id });     // Kearney's, beside his
         park(175, 646, PD_CARS.cruiser, { unit: "01" });
         g.detCar = park(417, 590, PD_CARS2.malcolm, {});
       }
@@ -13383,6 +14003,7 @@ export default function IronLionLayer004() {
             warLog("a conviction off " + C.warCase.where + " cost " + (GANG_LABEL[C.warCase.gang] || "them") + " money and quiet"); } }
         g.jobBanner = "GUILTY \u00b7 " + A.name; g.jobNote = C.K.nm + " \u00b7 " + C.trial.judge.nm + " \u00b7 $" + pay;
         C.lines.push("VERDICT: GUILTY. " + A.name + ".");
+        sendToKestrel(C, A.name);
         crewAdvance(C, A.name);
         // a rival convicted is off the board for good
         if (C.rival) { g.rivals = (g.rivals || []).filter((q) => q !== C.rival);
@@ -13830,8 +14451,36 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       bookNote("ALONZO: " + said);
       return "ALONZO: " + said;
     }
+    /* A COLD CASE: an ordinary case, then aged. Everything was bagged and has come back from the
+       lab; the witnesses and the victim have moved -- each to a real address you have to find
+       them at; the year is on the file. Never one that leads to the crew she owes. */
+    function coldCase() {
+      if (g.case && g.case.stage !== "done") return "KEARNEY: Close what's on your desk first, Malcolm. The dead can wait. They're good at it.";
+      const K = g.kearney || (g.kearney = { owes: (() => { const ks = g.gwar ? Object.keys(g.gwar.gangs).filter((k) => LEADERS[k]) : []; return ks.length ? cpick(ks) : null; })(), done: 0 });
+      let C = null;
+      for (let t = 0; t < 8 && !C; t++) {
+        g.case = null; startCase();
+        C = g.case;
+        if (C && C.crew && C.crew.gang && C.crew.gang === K.owes) { C = null; }   // that file stays in the box
+      }
+      if (!C) { g.case = null; return "KEARNEY: Nothing I can hand you today. Try me later."; }
+      const year = 1971 + ((Math.random() * 11) | 0);
+      C.cold = year;
+      C.lines = ["COLD CASE (" + year + "): " + C.K.nm + " at " + C.where + ". Never closed."];
+      for (const e of C.ev) { e.got = true; C.lab.push({ t: e.t, left: 0, done: true }); }
+      for (const q of C.people) {
+        if (q.caseRole !== "witness" && q.caseRole !== "victim") continue;
+        const P = realPlace("home", C.scene, 700, 4000);
+        if (!P) continue;
+        const pt = placeSpot(P, 0); q.x = pt[0]; q.y = pt[1]; q.inB = P.b; q.inF = P.f;
+        C.lines.push((q.caseRole === "victim" ? "Victim" : "A witness") + " moved: " + P.label + ".");
+      }
+      K.done++;
+      return "KEARNEY: " + year + ". Everything we bagged is back from the lab and on your desk. The people aren't where they were -- the file has where they went. Go knock.";
+    }
     function detHelp(d) {
       if (d.id === "alonzo") return alonzoHelp();
+      if (d.id === "kearney") return coldCase();
       const C = g.case;
       if (!C || C.stage === "done") return d.nm.slice(5) + ": Nothing open? Go see what dispatch has.";
       C.helped = C.helped || {};
@@ -14169,9 +14818,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           o = sd === 0 ? [0, -1] : sd === 1 ? [1, 0] : sd === 2 ? [0, 1] : [-1, 0];
           out.push({ id: "scene", label: "THE SCENE", x: dp[0] + o[0] * 140, y: dp[1] + o[1] * 140 });
         } else out.push({ id: "scene", label: "THE SCENE", x: C.scene[0], y: C.scene[1] });
-        if (C.lead) out.push({ id: "hang", label: C.hangWhere.toUpperCase(), x: C.hang[0], y: C.hang[1] });
-        else if (C.stops && C.leadIdx >= 0) { const st = C.stops[C.leadIdx];
-          out.push({ id: "stop", label: LEAD_KIND[st.kind].nm + " \u00b7 " + st.where.toUpperCase(), x: st.x, y: st.y }); }
+        /* EVERY ADDRESS THE CASE HAS GIVEN YOU -- each stop you have been pointed at (visited or
+           not) and where he hangs once you know it -- out front of its door, never into the wall. */
+        const front = (bb, fx, fy) => { if (!bb || !bb.door) return [fx, fy]; const dp = doorPoint(bb), sd = bb.door.side,
+          o = sd === 0 ? [0, -1] : sd === 1 ? [1, 0] : sd === 2 ? [0, 1] : [-1, 0]; return [dp[0] + o[0] * 140, dp[1] + o[1] * 140]; };
+        (C.stops || []).forEach((st, k) => { if (k > C.leadIdx) return; const [x, y] = front(st.b, st.x, st.y);
+          out.push({ id: "stop" + k, label: LEAD_KIND[st.kind].nm + " \u00b7 " + st.where.toUpperCase(), x, y }); });
+        if (C.lead) { const [x, y] = front(C.hangPl && C.hangPl.b, C.hang[0], C.hang[1]);
+          out.push({ id: "hang", label: C.hangWhere.toUpperCase(), x, y }); }
       }
       if (b) out.push({ id: "station", label: "THE STATION", x: b.x + b.w / 2, y: b.y + b.h + 120 });
       { const cb = courtB(); if (cb) { const dp = doorPoint(cb); out.push({ id: "court", label: "THE COURTHOUSE", x: dp[0], y: dp[1] + 70 }); } }
@@ -14470,6 +15124,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           { id: "carver:sniper", label: "SNIPER ON A ROOF" }, { id: "carver:perimeter", label: "SET A PERIMETER" },
           { id: "carver:home", label: "STAND DOWN" }, { id: "close", label: "AS YOU WERE" }] };
       }
+      if (kind === "pstore") {
+        const sm = g.storeMan, nm = sm && sm.name ? sm.name : "THE STORE MAN";
+        return { title: nm.toUpperCase() + " \u00b7 " + (g.pcigs || 0) + " PACKS", face: sm && sm.castFace ? "assets/prison/" + sm.castFace + ".png" : null,
+          text: g.storeSaid || "You got packs, I got whatever you need. Don't tell me what it's for.",
+          opts: Object.keys(PRISON_STORE).map((k) => ({ id: "pstore:" + k, label: CONTRABAND[k].nm + " \u00b7 " + PRISON_STORE[k] + " PACKS" }))
+            .concat([{ id: "close", label: "NOTHING TODAY" }]) };
+      }
       if (kind === "radio") return { title: "RADIO \u00b7 DISPATCH \u00b7 " + (g.juice || 0) + " JUICE", face: "assets/heroes/pt_sally.png",
         text: "SALLY: Go ahead, Malcolm. I've got you.",
         opts: [
@@ -14489,6 +15150,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         g.rack = g.rack || []; if (g.rack.indexOf(k) < 0) g.rack.push(k);
         setHud((h) => ({ ...h, wpn: k, ammo: g.p.ammo, holstered: false }));
       } else if (id.startsWith("radio:")) G.radioFn(id.slice(6));
+      else if (id.startsWith("pstore:")) {
+        const k = id.slice(7), price = PRISON_STORE[k];
+        if ((g.pcigs || 0) >= price) { g.pcigs -= price; (g.pinv = g.pinv || []).push(k); g.storeSaid = CONTRABAND[k].nm.toLowerCase() + ". Hide it good."; }
+        else g.storeSaid = "That's " + price + " packs. You got " + (g.pcigs || 0) + ". Come back.";
+        G.pickOpen("pstore"); return;
+      }
       else if (id.startsWith("carver:")) G.carverFn(id.slice(7));
       else if (id.startsWith("open:")) { g.fileText = null; G.pickOpen(id.slice(5)); return; }
       else if (id.startsWith("gz:")) { G.gomezPick(id); return; }
@@ -14781,7 +15448,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           g.jobBanner = "CASE GONE COLD"; g.jobNote = "It was " + identOf(C.perp).name + ".";
         }
         C.lines.push(right ? "CLOSED: " + who + "." : "COLD: named " + who + ", wrong man.");
-        if (right) crewAdvance(C, who);
+        if (right) { sendToKestrel(C, who); crewAdvance(C, who); }
         C.stage = "done"; C.doneAt = Date.now();
         const D = detectives(); if (D) { D.ramos.out = null; D.ramos.x = D.home[0]; D.ramos.y = D.home[1]; }
         g.book = g.book || { people: [], cases: [] };   // the notebook is not always built yet
@@ -27175,32 +27842,263 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     /* THE CAMPUS POPULATION. Built for a building and floor the moment you walk into it: an inmate
        in most cells (the block decides his colour -- the blocks are segregated), guards on the
        tier, a mess hall at chow, a few in the library and the chapel, a nurse on the ward. */
+    /* THE ORANGE JUMPSUIT. Anybody who goes down is drawn in one: his own plate, recoloured once
+       and cached as "js_<plate>". Skin (warm, R > G > B) and hair and outlines (dark) are kept;
+       everything else -- the clothes -- takes the orange at its own brightness, so the folds
+       and the shading survive. A brown leather jacket reads as skin and stays brown; that is
+       the price of doing it without a mask. */
+    function jumpsuit(key) {
+      const k2 = "js_" + key, done = imgs.current[k2];
+      if (done) return k2;
+      const im = imgs.current[key];
+      if (!im || !im.width) return null;
+      const cv = document.createElement("canvas"); cv.width = im.width; cv.height = im.height;
+      const c2 = cv.getContext("2d"); c2.drawImage(im, 0, 0);
+      const D = c2.getImageData(0, 0, cv.width, cv.height), p = D.data;
+      for (let n = 0; n < p.length; n += 4) {
+        if (p[n + 3] < 10) continue;
+        const r = p[n], gg = p[n + 1], b2 = p[n + 2], L = r * 0.3 + gg * 0.59 + b2 * 0.11;
+        if (L < 55) continue;                                          // hair, outline, shadow
+        // skin: warm and not too saturated -- a red tracksuit is R > G > B too, but its green is far lower
+        if (r > gg && gg > b2 && r - b2 > 28 && r > 80 && gg > r * 0.45) continue;
+        const t = Math.min(1.35, L / 112);
+        p[n] = Math.min(255, 245 * t); p[n + 1] = Math.min(255, 118 * t); p[n + 2] = Math.min(255, 30 * t);
+      }
+      c2.putImageData(D, 0, 0);
+      imgs.current[k2] = cv;
+      return k2;
+    }
+    // who Malcolm has put away, and the war's seats in Kestrel: they are in there, in orange
+    function prisonRoster(block) {
+      const out = [];
+      for (const q of (g.convicts || [])) if (q.block === block) out.push(q);
+      if (g.gwar) for (const k in g.gwar.gangs) {
+        if (GANG_BLOCK[k] !== block || !LEADER_ART[k]) continue;
+        const P = protectorOf(k);
+        g.gwar.gangs[k].seats.forEach((st, n) => { if (st.state === "prison") out.push({ name: st.name, yt: LEADER_ART[k][n][0],
+          tall: LEADER_ART[k][n][1] * LEADER_SCALE, charge: "RACKETEERING (RICO)", sentence: "20 YEARS",
+          gang: GANG_LABEL[k] + (P ? " \u00b7 " + (P.own ? "HIS OWN: " : "PROTECTED BY ") + PRISON_GANGS[P.k].nm : "") }); });
+      }
+      return out;
+    }
     function prisonFolk() {
       const b = g.inside;
       if (!b || !b.inPrison || b.prison) return null;
-      if (g.pfolk && g.pfolk.b === b && g.pfolk.f === g.floor) return g.pfolk.folk;
+      const ph = prisonPhase(g.clock || CLOCK.start)[2];
+      if (g.pfolk && g.pfolk.b === b && g.pfolk.f === g.floor && g.pfolk.ph === ph) return g.pfolk.folk;
       const pl = buildingPlans(b)[g.floor]; if (!pl) return null;
+      // where the day puts them: in their cells at count, in the mess hall at chow, spread out otherwise
+      const inCell = ph === "cells" ? PRISON_POP.cell : ph === "chow" ? 0.08 : 0.3;
+      const chowN = ph === "chow" ? PRISON_POP.chow * 2 : ph === "work" ? 2 : 0;
+      const pg = Object.keys(PRISON_GANGS).find((k) => PRISON_GANGS[k].block === b.pwing);
+      let cellNo = 0, boss = false, roster = null;
+      const race = Object.keys(RACE_BLOCK).find((k) => RACE_BLOCK[k] === b.pwing);
+      const pool = INMATE_CAST.filter((c) => (b.pwomen ? c.sex === "f" && !/^p9_/.test(c.k) : c.sex === "m" && c.race === race))
+                               .sort(() => Math.random() - 0.5);
+      // one off the intake pages, as himself: his plate, his mugshot, his number, his threat
+      const castInmate = (r, cellN) => {
+        const c = pool.shift(); if (!c) return false;
+        add(r, c.yt, { convict: 1, castFace: c.face, name: c.name || undefined, tall: c.tall, threat: c.threat, tone: RACE_TONE[c.race],
+          gangIn: Math.random() < 0.6 ? (Object.keys(PRISON_GANGS).find((k) => PRISON_GANGS[k].block === RACE_BLOCK[c.race]) || null) : null,
+          inmate: { no: c.no, block: b.pwing || "GEN", cell: cellN, threat: c.threat,
+                    charge: pick(["ARMED ROBBERY", "ASSAULT", "NARCOTICS", "BURGLARY", "MANSLAUGHTER", "AUTO THEFT", "FRAUD"]),
+                    sentence: pick(["3 YEARS", "5 YEARS", "8 YEARS", "12 YEARS", "25 TO LIFE"]), release: String(1987 + ((Math.random() * 12) | 0)) } });
+        return true;
+      };
       const folk = [], pick = (a) => a[(Math.random() * a.length) | 0];
       const add = (r, yt, extra) => {
         const pt = freeIndoor(b, pl, (r.x0 + r.x1) / 2 + (Math.random() - 0.5) * 20, (r.y0 + r.y1) / 2 + (Math.random() - 0.5) * 20, r);
+        // an inmate's card knows he is a man in a men's block, a woman in the women's, and his block's colour
+        const cast = extra && extra.convict ? { sex: b.pwomen ? "f" : "m", tone: extra.tone || PRISON_WING_TONE[b.pwing] || "mid" } : undefined;
         if (pt) folk.push({ x: pt[0], y: pt[1], vx: 0, vy: 0, anim: Math.random() * 6, jit: 1, tall: 1.3, yt,
-                            bang: Math.random() * 6.28, ...extra });
+                            bang: Math.random() * 6.28, cast, ...extra });
       };
       for (const r of pl.rooms) {
-        if (r.k === "pcell" && Math.random() < PRISON_POP.cell) add(r, pick(PR_PEOPLE.inmate), { convict: 1, pwing: b.pwing });
-        else if (r.k === "tier") for (let n = 0; n < PRISON_POP.tierGuards; n++) add(r, pick(PR_PEOPLE.guard), { guard: 1 });
-        else if (r.k === "pchow") { for (let n = 0; n < PRISON_POP.chow; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 }); add(r, pick(PR_PEOPLE.guard), { guard: 1 }); }
+        if (r.k === "pcell") {
+          cellNo++;
+          // the block's shot caller keeps the first cell, and he is in it whatever the hour
+          // THE WOMEN'S BLOCK: a shot caller for each of the four gangs in its first four cells
+          if (b.pwomen) {
+            const qk = Object.keys(PRISON_QUEENS)[cellNo - 1];
+            const W5 = PR_PEOPLE.women;
+            if (qk) { const Q = PRISON_QUEENS[qk], own = INMATE_CAST.find((c) => c.k === Q.own), pl2 = own ? [own.yt, own.face] : W5[Q.plate];
+              add(r, pl2[0], { convict: 1, shot: qk, queen: 1, name: Q.name, castFace: pl2[1], tall: own ? own.tall : 1.3, threat: 3,
+                inmate: { no: Q.no, block: "W", cell: cellNo, charge: "CONSPIRACY", sentence: "15 YEARS", release: "1994", gang: PRISON_GANGS[qk].nm, threat: 3 } });
+              continue; }
+            // the women Malcolm put away, in the cells after the four
+            if (!roster) roster = prisonRoster("W").slice();
+            if (roster.length) { const R0 = roster.shift(), js = R0.yt ? jumpsuit(R0.yt) : null, pl3 = W5[(Math.random() * W5.length) | 0];
+              add(r, js || pl3[0], { convict: 1, name: R0.name, castFace: R0.face || (js ? null : pl3[1]), tall: R0.tall || 1.3,
+                inmate: { no: String(1000 + ((Math.random() * 8999) | 0)), block: "W", cell: cellNo, charge: R0.charge, sentence: R0.sentence,
+                          release: R0.release, gang: R0.gang || null } });
+              continue; }
+            if (Math.random() < inCell && castInmate(r, cellNo)) continue;
+            if (Math.random() < inCell) { const pl2 = W5[(Math.random() * W5.length) | 0];
+              add(r, pl2[0], { convict: 1, castFace: pl2[1], female: 1, gangIn: Math.random() < 0.5 ? cpick(Object.keys(PRISON_GANGS)) : null,
+                inmate: { no: String(1000 + ((Math.random() * 8999) | 0)), block: "W", cell: cellNo,
+                          charge: pick(["NARCOTICS", "FRAUD", "ASSAULT", "SHOPLIFTING", "SOLICITATION"]), sentence: pick(["2 YEARS", "4 YEARS", "7 YEARS"]),
+                          release: String(1987 + ((Math.random() * 8) | 0)) } }); }
+            continue;
+          }
+          // THE STORE MAN keeps the third cell and sells out of it for packs
+          if (boss && cellNo === 3 && !b.pwomen) { const c = pool.shift();
+            if (c) { add(r, c.yt, { convict: 1, store: 1, castFace: c.face, name: c.name || undefined, tall: c.tall, threat: c.threat, tone: RACE_TONE[c.race],
+              inmate: { no: c.no, block: b.pwing, cell: cellNo, threat: c.threat, charge: "FRAUD", sentence: "6 YEARS", release: "1990" } }); continue; } }
+          // the men and women Malcolm put here, and the gangs' jailed seats, in the next cells
+          if (!roster) roster = prisonRoster(b.pwing).slice();
+          if (boss && roster.length) { const R0 = roster.shift();
+            const js = R0.yt ? jumpsuit(R0.yt) : null;
+            add(r, js || pick(PR_PEOPLE.inmate), { convict: 1, name: R0.name, castFace: R0.face || null, tall: R0.tall || 1.3,
+              inmate: { no: R0.no || String(1000 + ((Math.random() * 8999) | 0)), block: b.pwing, cell: cellNo, charge: R0.charge || "FELONY",
+                        sentence: R0.sentence || "5 YEARS", release: R0.release || "1991", gang: R0.gang || null } });
+            continue; }
+          if (pg && !boss && PRISON_GUARDS[pg]) {
+            // his bodyguard stands on the tier right outside the first cell
+            const BG = PRISON_GUARDS[pg], tier = pl.rooms.find((q) => q.k === "tier");
+            if (tier) { const pt2 = freeIndoor(b, pl, (r.x0 + r.x1) / 2, r.y1 + 30, tier);
+              if (pt2) folk.push({ x: pt2[0], y: pt2[1], vx: 0, vy: 0, anim: 0, jit: 1, yt: BG.yt, tall: BG.tall, bang: -Math.PI / 2,
+                convict: 1, bodyguard: pg, name: BG.name, castFace: BG.face, threat: 3, cast: { sex: "m", tone: "mid" }, gangIn: pg,
+                inmate: { no: BG.no, block: b.pwing, cell: 2, charge: "AGGRAVATED ASSAULT", sentence: "LIFE", release: "--", gang: PRISON_GANGS[pg].nm, threat: 3 } }); }
+          }
+          if (pg && !boss) { boss = true; const B = PRISON_GANGS[pg].boss;
+            add(r, "yt_inm_" + B.no, { convict: 1, shot: pg, name: B.name, castFace: "pt_inm_" + B.no, tall: 1.2,
+              inmate: { no: B.no, block: b.pwing, cell: cellNo, charge: "ORGANISED CRIME", sentence: "LIFE", release: "--", gang: PRISON_GANGS[pg].nm, threat: 3 } });
+            continue; }
+          if (Math.random() < inCell && castInmate(r, cellNo)) continue;
+          if (Math.random() < inCell) add(r, pick(PR_PEOPLE.inmate), { convict: 1, pwing: b.pwing, gangIn: pg && Math.random() < 0.6 ? pg : null,
+            inmate: { no: String(1000 + ((Math.random() * 8999) | 0)), block: b.pwing || "GEN", cell: cellNo,
+                      charge: pick(["ARMED ROBBERY", "ASSAULT", "NARCOTICS", "BURGLARY", "MANSLAUGHTER", "AUTO THEFT"]),
+                      sentence: pick(["3 YEARS", "5 YEARS", "8 YEARS", "12 YEARS", "25 TO LIFE"]), release: String(1987 + ((Math.random() * 12) | 0)) } });
+        }
+        else if (r.k === "tier") for (let n = 0; n < PRISON_POP.tierGuards; n++) {
+          const gk = b.pwomen ? pick(PR_PEOPLE.guardW) : pick(PR_PEOPLE.guard);
+          add(r, gk, { guard: 1, tall: GUARD_TALL[gk] || 1.3, castFace: GUARD_FACE[gk] ? GUARD_FACE[gk][0] : null,
+                       cast: { sex: b.pwomen ? "f" : "m", tone: GUARD_FACE[gk] ? GUARD_FACE[gk][1] : "mid" } });
+        }
+        else if (r.k === "pchow") { for (let n = 0; n < chowN; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 }); add(r, pick(PR_PEOPLE.guard), { guard: 1 }); }
         else if (r.k === "plibrary") for (let n = 0; n < PRISON_POP.lib; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 });
         else if (r.k === "pchapelroom") for (let n = 0; n < PRISON_POP.chapel; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 });
         else if (r.k === "pward") { for (let n = 0; n < PRISON_POP.ward; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 }); add(r, PR_PEOPLE.nurse, {}); }
-        else if (r.k === "pguard") add(r, pick(PR_PEOPLE.guard), { guard: 1 });
+        else if (r.k === "pguard") { const gk = b.pwomen ? pick(PR_PEOPLE.guardW) : pick(PR_PEOPLE.guard); add(r, gk, { guard: 1, tall: GUARD_TALL[gk] || 1.3, castFace: GUARD_FACE[gk] ? GUARD_FACE[gk][0] : null,
+          cast: { sex: b.pwomen ? "f" : "m", tone: GUARD_FACE[gk] ? GUARD_FACE[gk][1] : "mid" } }); }
       }
-      g.pfolk = { b, f: g.floor, folk };
+      g.pfolk = { b, f: g.floor, folk, ph };
       return folk;
     }
+    /* PRISON MODE. You are inmate #0001, nobody, in a cell in whichever block has room, at the
+       7:00 count. No car, no badge, no gun -- a carton of cigarettes, which is money in here. */
+    function startPrisonMode() {
+      g.prisonStart = false;
+      const wings = [];
+      for (let i = PRISON.i0; i <= PRISON.i1; i++) for (let j = PRISON.j0; j <= PRISON.j1; j++)
+        for (const b2 of (getCell(i, j).blds || [])) if (b2.kind === "prisonwing" && !b2.pwomen) wings.push(b2);
+      if (!wings.length) { g.prisonStart = true; return; }           // not generated yet: next frame
+      const wb = cpick(wings);
+      const pl = buildingPlans(wb)[0], cells = pl.rooms.filter((r) => r.k === "pcell");
+      const r = cells[cells.length - 1];
+      const pt = freeIndoor(wb, pl, (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, r) || [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2];
+      g.prisonMode = true; g.detMode = false; g.mode = "foot"; g.inside = wb; g.floor = 0; g.insideT = 1;
+      g.p.x = pt[0]; g.p.y = pt[1]; g.p.vx = 0; g.p.vy = 0; g.cam.x = pt[0]; g.cam.y = pt[1];
+      g.p.wpn = null; g.p.holstered = true; g.rack = [];
+      g.clock = CLOCK.start; g.pinv = []; g.pcigs = 20; g.pskill = 0; g.pgang = null; g.pfolk = null;
+      g.jobBanner = "KESTREL STATE \u00b7 " + wb.name; g.jobNote = "7:00 count. Nobody knows who you are. Yet.";
+    }
+    /* ---------- THE STASH ----------
+       Every bed, pan, sink, shelf, washer, bench and table in the campus is a hiding place, and
+       some already hold another man's stash. E by one: take what is there -- or, if it is empty,
+       hide the worst thing you are carrying. In PRISON MODE the guards pat you down on the tier:
+       what is on you is found and taken, and the worst of it decides your hours in the hole.
+       Stashed is safe, until somebody searches the spot. */
+    function stashSpots() {
+      const b = g.inside; if (!b || !b.inPrison) return [];
+      const pl = buildingPlans(b)[g.floor]; if (!pl) return [];
+      return (pl.props || []).map((o, n) => ({ o, n, key: (b.x | 0) + "," + (b.y | 0) + "," + g.floor + "," + n }))
+        .filter((q) => STASH_PROPS[q.o.t]);
+    }
+    function stashAt(key) {
+      g.stash = g.stash || {};
+      if (!(key in g.stash)) g.stash[key] = Math.random() < STASH.seed ? [cpick(Object.keys(CONTRABAND).concat(["cigs", "cigs", "cash", "hooch"]))] : [];
+      return g.stash[key];
+    }
+    function nearStash() {
+      let best = null, bd = STASH.reach;
+      for (const q of stashSpots()) {
+        const cx = q.o.x + q.o.w / 2, cy = q.o.y + q.o.h / 2;
+        const d = Math.max(0, Math.hypot(g.p.x - cx, g.p.y - cy) - Math.max(q.o.w, q.o.h) / 2);
+        if (d < bd) { bd = d; best = q; }
+      }
+      return best;
+    }
+    G.stashFn = () => {
+      if (g.mode !== "foot") return false;
+      const q = nearStash(); if (!q) return false;
+      const here = stashAt(q.key), inv = (g.pinv = g.pinv || []);
+      const what = q.o.t === "bed" ? "the mattress" : q.o.t === "toilet" ? "behind the pan" : q.o.t === "sink" ? "under the sink"
+        : /shelf/.test(q.o.t) ? "the shelf" : /washers/.test(q.o.t) ? "the machine" : "underneath";
+      if (here.length) {
+        const it = here.shift();
+        if (it === "cigs") { g.pcigs = (g.pcigs || 0) + 10; g.pickupFlash = { nm: "lift:TEN PACKS \u00b7 FROM " + what.toUpperCase(), t: 2.2 }; return true; }
+        inv.push(it);
+        g.pickupFlash = { nm: "lift:" + CONTRABAND[it].nm + " \u00b7 FROM " + what.toUpperCase(), t: 2.2 };
+      } else if (inv.some((it) => CONTRABAND[it].sev > 0)) {
+        // only what can get you the hole goes in the hide; your smokes are money, you keep them
+        inv.sort((a, b2) => CONTRABAND[b2].sev - CONTRABAND[a].sev);
+        const it = inv.shift(); here.push(it);
+        g.pickupFlash = { nm: "lift:" + CONTRABAND[it].nm + " \u00b7 STASHED " + (q.o.t === "bed" ? "IN " : "") + what.toUpperCase(), t: 2.2 };
+      } else g.pickupFlash = { nm: "lift:NOTHING " + (q.o.t === "bed" ? "IN " : "") + what.toUpperCase(), t: 1.6 };
+      return true;
+    }
+    function stepPatDown(dt) {
+      if (!g.prisonMode || !g.inside || !g.inside.inPrison || g.hole) return;
+      g.patCd = Math.max(0, (g.patCd || 0) - dt);
+      if (g.patCd > 0) return;
+      const F = prisonFolk() || [];
+      const gd = F.find((q) => q.guard && Math.hypot(q.x - g.p.x, q.y - g.p.y) < STASH.patR);
+      if (!gd) return;
+      g.patCd = STASH.patCd;
+      if (Math.random() > STASH.patChance) return;
+      const inv = g.pinv || [], bad = inv.filter((it) => CONTRABAND[it].sev > 0);
+      if (!bad.length) { g.pickupFlash = { nm: "lift:PATTED DOWN \u00b7 CLEAN", t: 1.8 }; return; }
+      /* THE SKILL. Carrying past a pat-down and getting away with it teaches you how; a gang with
+         guards on its payroll gets looked at less hard. */
+      const bought = g.pgang && g.pecon && g.pecon[g.pgang] ? g.pecon[g.pgang].guards : 0;
+      const find = STASH.find - (g.pskill || 0) * STASH.skillCut - bought * PRISON_ECON.guardCut;
+      if (Math.random() > find) {
+        g.pskill = Math.min(STASH.skillMax, (g.pskill || 0) + 1);
+        g.pickupFlash = { nm: "lift:PATTED DOWN \u00b7 HE MISSED IT \u00b7 SKILL " + g.pskill, t: 2 };
+        return;
+      }
+      const worst = Math.max(...bad.map((it) => CONTRABAND[it].sev));
+      const hours = worst * STASH.perSev + (bad.length - 1) * 2;
+      g.pinv = inv.filter((it) => CONTRABAND[it].sev === 0);         // they leave you your smokes
+      g.hole = { left: hours * 60, hours, why: bad.map((it) => CONTRABAND[it].nm).join(", ") };
+      g.jobBanner = "THE HOLE \u00b7 " + hours + " HOURS"; g.jobNote = "Found on you: " + g.hole.why + ".";
+    }
+    // the hole: the clock runs fast, you sit in the dark, and then you are back on your tier
+    function stepHole(dt) {
+      if (!g.hole) return;
+      const run = dt * 40;
+      g.hole.left -= run; g.clock = ((g.clock || 0) + run) % 1440;
+      if (g.hole.left <= 0) { g.hole = null; g.pickupFlash = { nm: "lift:OUT OF THE HOLE", t: 2 }; }
+    }
+    G.prisonFolkFn = () => prisonFolk();     // for the key handler, which lives outside this scope
     function drawPrisonFolk() {
       const F = prisonFolk(); if (!F) return;
-      for (const q of F) { drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q); }
+      for (const q of F) {
+        drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q);
+        /* A GANG MAN SPEAKS HIS OWN LANGUAGE to you -- unless he is one who talks to everybody
+           (the shot callers have `english`). Walk up to one and he says something. */
+        const d = Math.hypot(q.x - g.p.x, q.y - g.p.y);
+        if (d < 70 && (q.shot || q.gangIn)) {
+          const G5 = PRISON_GANGS[q.shot || q.gangIn];
+          if (!q.line || q.lineT < performance.now()) {
+            q.line = q.shot ? G5.boss.name.split(" ")[0] + ": " + (G5.lang === "en" ? cpick(PRISON_TALK.en) : "You want to talk to " + G5.nm + ", you talk to me.")
+                            : cpick(PRISON_TALK[G5.lang] || PRISON_TALK.en);
+            q.lineT = performance.now() + 4000;
+          }
+          bubble(q.x, q.y, q.line);
+        }
+      }
     }
     function drawShopFolk() {
       const S = g.shop;
@@ -29767,6 +30665,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          of falling back to drawKing the way this guard was written to. */
       /* DETECTIVE MODE: you are Malcolm. His plate, the same torso-and-procedural-legs path as
          every other character, so he walks and swings an arm like them. */
+      // PRISON MODE: you are the man on the intake page
+      const conv = g.prisonMode ? imgs.current.yt_pr_player : null;
+      if (conv && conv.width) {
+        drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
+        drawYouth({ x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1, tall: 1.0, yt: "yt_pr_player", bang: g.board.ang,
+                    swing: Math.max(g.p.atk || 0, g.p.punT || 0), swingDur: (g.p.punT || 0) > 0 ? (g.p.punDur || 0.18) : 0.26,
+                    move: (g.p.punT || 0) > 0 ? (g.p.punMove || "jab") : "swing" });
+        return;
+      }
       const malc = g.detMode ? imgs.current.yt_malcolm : null;
       if (malc && malc.width) {
         drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
@@ -31811,6 +32718,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         stepClub(dt);
         stepCamps(dt);
         stepAnimals(dt);
+        g.clock = ((g.clock == null ? CLOCK.start : g.clock) + dt * CLOCK.rate) % 1440;
+        stepPatDown(dt); stepHole(dt);
+        if (g.prisonStart) startPrisonMode();
         { const hv = inVehicle() ? activeVeh() : null; if (hv && hv.m && hv.m.lowrider) stepHydro(hv, dt); }
         /* A DETECTIVE IS NEVER WANTED. Every police behaviour in the game -- patrols chasing,
            roadblocks, units opening fire, the duty cops -- keys off g.heat, and nine different
@@ -32381,6 +33291,26 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       drawMinimap();
       // the card and the book are held up in front of everything, including the map
       drawIdCard();
+      if (g.inside && g.inside.inPrison || (g.p.x > PRISON_BOX.x0 && g.p.x < PRISON_BOX.x1 && g.p.y > PRISON_BOX.y0 && g.p.y < PRISON_BOX.y1)) {
+        const ph2 = prisonPhase(g.clock || CLOCK.start);
+        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.font = "700 12px ui-monospace, monospace"; ctx.textAlign = "center";
+        // the items show as icons underneath; the words are only the packs (and the items when not in prison mode)
+        const inv2 = g.prisonMode ? [(g.pcigs || 0) + " PACKS"] : (g.pinv || []).map((it) => CONTRABAND[it].nm.split(" ").pop());
+        const t = g.hole ? "THE HOLE \u00b7 " + Math.ceil(g.hole.left / 60) + " HOURS LEFT"
+          : clockText(g.clock || CLOCK.start) + "  \u00b7  " + ph2[1] + (inv2.length ? "  \u00b7  ON YOU: " + inv2.join(", ") : "");
+        if (g.hole) { ctx.fillStyle = "rgba(0,0,0,0.88)"; ctx.fillRect(0, 0, W, H); }
+        // what is on you, as the things themselves
+        if (!g.hole && (g.pinv || []).length) {
+          const its = g.pinv.slice(0, 10), sz = 26, x0 = W / 2 - (its.length * (sz + 4)) / 2;
+          its.forEach((it, n) => { const im = imgs.current["ci_" + it];
+            ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(x0 + n * (sz + 4), 84, sz, sz);
+            if (im && im.width) ctx.drawImage(im, x0 + n * (sz + 4) + 1, 85, sz - 2, sz - 2); });
+        }
+        const tw = ctx.measureText(t).width;
+        ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(W / 2 - tw / 2 - 10, 58, tw + 20, 22);
+        ctx.fillStyle = "#e8d9b5"; ctx.fillText(t, W / 2, 74); ctx.textAlign = "start"; ctx.restore();
+      }
       drawNotebook();
 
       hudTimer -= dt;
@@ -38896,6 +39826,18 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             <img src="assets/ui/ui_badge.png" alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
               style={{ height: 18, verticalAlign: "middle", marginRight: 10, imageRendering: "pixelated" }} />
             DETECTIVE MODE
+          </div>
+          {/* PRISON MODE: its own start. A clean prisoner, not the saved city. */}
+          <div
+            onClick={() => {
+              const gg = G.current;
+              gg.title = false; gg.nightTarget = 0; gg.bootDen = false; gg.prisonStart = true;
+              setHud((h) => ({ ...h, title: false }));
+            }}
+            style={{ marginTop: 12, padding: "11px 30px", border: "1px solid #d2641e",
+              background: "rgba(10,11,14,0.72)", color: "#f2d2b8", fontSize: 11,
+              letterSpacing: "0.26em", cursor: "pointer", userSelect: "none" }}>
+            PRISON MODE
           </div>
           {hud.hasSave && (
             /* Starting over has to be deliberate. The button above always picks the save up if
