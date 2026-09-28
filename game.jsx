@@ -1659,6 +1659,12 @@ const SQUAD4 = [
   { id: "delgado", nm: "DET. DELGADO", spec: "ROBBERY", tall: 0.81,   room: ["delgadooffice", 0], car: { k: "pd_car_delgado", len: 120, w: 47.5 },
     hi: "Robbery. The Barrio raised me -- they still call me Padre down there.",
     help: "Let me ask around. Somebody always knows somebody." },
+  /* THE GANG DESK. Two new detectives who work the crews and their product, in the two new
+     offices under the task force row. Alonzo first; the second chair waits for its man. */
+  { id: "alonzo", nm: "DET. ALONZO", spec: "VICE / NARCOTICS", tall: 1.26, room: ["pdoffice", 0],
+    car: { k: "pd_car_alonzo", len: 124, w: 48.5, lowrider: 1 },     // hydraulics, on a detective's car
+    hi: "Narcotics. Every crew in this city sells something, Malcolm, and I know who they buy it from.",
+    help: "Tell me whose corner it is and I'll tell you where they keep the product." },
 ];
 for (const d of SQUAD4) {
   PD_ART["yt_" + d.id] = "assets/heroes/yt_" + d.id + ".png";
@@ -1920,6 +1926,16 @@ const CIV_CAST_SHARE = 0.7;       // of the street crowd, how many are drawn fro
 for (const c of CIV_CAST) { PD_ART[c.yt] = "assets/civ/" + c.yt + ".png"; if (c.face) PD_ART[c.face] = "assets/civ/" + c.face + ".png"; }
 /* Old Town's own police: the older cruiser (the chase units' plate), no numbers on the roof,
    inside this radius of the circle. Their station is still to be built. */
+/* ALONZO IS FOR SALE. One gang at a time has him on the payroll: it pays him a share of every
+   dollar its houses bring in (`rate`, taken straight out of the gang's cash), and in return he
+   never gives up that gang -- not its stashes, not its people. Every so often the gangs bid: the
+   more he has cost a gang (its `grudge`, one point each time he gives it up) and the more cash it
+   is sitting on, the more it offers. Beat the current rate by `edge` and he changes sides.
+   None of this is shown. What Malcolm sees is a detective who is very helpful about some crews
+   and has nothing at all on one of them. */
+const ALONZO_PAY = { min: 0.06, max: 0.24, base: 0.08, perGrudge: 0.025, perCash: 0.03, cashUnit: 20000,   // gangs hold a few thousand
+                     every: 120, edge: 1.12, floor: 1500 };
+const HYDRO = { lift: 0.07, hopLift: 0.1, hop: 0.45, rate: 2.2, aiHop: 0.004 };
 const OLDTOWN_PD = { r: 2.6 * 1500, m: { k: "cruiser", len: 108, w: 45.3 } };
 /* THE ROSTER. Every uniform in Raven Hook is a name on a list, and the list is a real department:
    mostly white, then black and Latino, and a few Asian officers. A name is drawn when an officer
@@ -1980,6 +1996,7 @@ const DEFENSE = [
 /* Registered under the lists themselves: up with the rest of the police art this ran before
    CT_KEYS existed and threw on load. */
 for (const k of CT_KEYS) PD_ART[k] = "assets/court/" + k + ".png";
+
 for (const k of ["oconnell", "banks", "voss", "price", "ellison", "ruiz", "whitcomb",
                  "sterling", "jenkins", "washington", "rossi"]) {
   PD_ART["yt_" + k] = "assets/heroes/yt_" + k + ".png"; PD_ART["pt_" + k] = "assets/heroes/pt_" + k + ".png"; }
@@ -2925,6 +2942,43 @@ const inPrison = (i, j) => i >= PRISON.i0 && i <= PRISON.i1 && j >= PRISON.j0 &&
    wing -- it is where two arcs meet, and `zone === "prison"` returned NO BUILDINGS AT ALL, so
    there has never been anything on the ground to walk into. */
 const PRISON_CELL = { i: 16, j: 23 };
+/* ---------- KESTREL STATE, REBUILT AS A CAMPUS ----------
+   Every building is a real block with its roof plate on top (the MARKS trick: the plate IS the
+   roof, the block underneath gives it walls, a door, an interior and collision). Positions are
+   fractions of the walled box (PRISON_BOX) and sizes are in cells, so the whole campus moves
+   together. The hub keeps kind "prison" -- the old building's plans and everything the story
+   hangs off it (the gate, the blocks, Don Matteo's cell upstairs). */
+const PRISON_BOX = { x0: 15 * 1500 + 120, y0: 23 * 1500 + 120, x1: 19 * 1500 - 120, y1: 26 * 1500 - 120 };
+const PRISON_CAMPUS = [
+  // k (roof plate)       u     v     w     h     kind            floors door side  extra
+  ["pr_roof_cafe",      0.50, 0.16, 0.42, 0.45, "prisoncafe",    1, 0.5, 2, { name: "KESTREL STATE -- MESS HALL" }],
+  ["pr_roof_hub",       0.50, 0.42, 0.50, 0.49, "prison",        2, 0.5, 2, { prison: 1, name: "KESTREL STATE" }],
+  ["pr_roof_wing",      0.20, 0.27, 0.80, 0.42, "prisonwing",    1, 0.5, 1, { wing: "A", name: "A BLOCK" }],
+  ["pr_roof_wing",      0.20, 0.52, 0.80, 0.42, "prisonwing",    1, 0.5, 1, { wing: "B", name: "B BLOCK" }],
+  ["pr_roof_wing",      0.80, 0.27, 0.80, 0.42, "prisonwing",    1, 0.5, 3, { wing: "C", name: "C BLOCK" }],
+  ["pr_roof_wing",      0.80, 0.52, 0.80, 0.42, "prisonwing",    1, 0.5, 3, { wing: "D", name: "D BLOCK" }],
+  ["pr_roof_wing",      0.80, 0.80, 0.80, 0.42, "prisonwing",    1, 0.5, 3, { wing: "W", name: "WOMEN'S BLOCK", women: 1 }],
+  ["pr_roof_infirmary", 0.50, 0.62, 0.46, 0.26, "prisoninf",     1, 0.5, 0, { name: "INFIRMARY" }],
+  ["pr_roof_library",   0.45, 0.80, 0.38, 0.36, "prisonlib",     1, 0.5, 0, { name: "LIBRARY" }],
+  ["pr_roof_chapel",    0.58, 0.80, 0.30, 0.46, "prisonchapel",  1, 0.5, 2, { name: "CHAPEL" }],
+];
+/* The blocks are segregated, as Kestrel was in 1986: A white, B Black, C Latino, D Asian and
+   everyone else, and the women's block on its own. Who is housed where decides who is in it. */
+const PRISON_WING_TONE = { A: "light", B: "deep", C: "mid", D: "mid", W: null };
+const PRISON_POP = { cell: 0.85, tierGuards: 2, chow: 8, lib: 3, chapel: 3, ward: 2 };
+const PR_PROPS = ["pr_bench", "pr_servingline", "pr_bookshelf", "pr_table", "pr_weightbench", "pr_hoop", "pr_bleachers",
+                  "pr_washers", "pr_platepress", "pr_visitbooth", "pr_desk", "pr_clock"];
+const PR_ROOFS = ["pr_roof_hub", "pr_roof_wing", "pr_roof_cafe", "pr_roof_chapel", "pr_roof_library", "pr_roof_infirmary",
+                  "pr_roof_tower", "pr_roof_gate", "pr_roof_wall", "pr_wall_long"];
+const YD_KEYS = ["yd_court", "yd_track", "yd_weights", "yd_bleachers", "yd_picnic_a", "yd_picnic_b", "yd_fence", "yd_fence_corner",
+                 "yd_shack", "yd_handball", "yd_phone", "yd_pole", "yd_flood", "yd_grass_1", "yd_grass_2", "yd_grass_3", "yd_grass_4", "yd_grass_5"];
+const PR_PEOPLE = { guard: ["yt_pr_guard_1", "yt_pr_guard_2", "yt_pr_guard_3", "yt_pr_guard_4"],
+                    inmate: ["yt_pr_inmate_1", "yt_pr_inmate_2", "yt_pr_inmate_3", "yt_pr_inmate_4", "yt_pr_inmate_5",
+                             "yt_pr_inmate_6", "yt_pr_inmate_7", "yt_pr_inmate_8", "yt_pr_inmate_9"],
+                    nurse: "yt_pr_nurse", warden: "yt_pr_warden" };
+// the prison, registered UNDER its lists
+for (const k of PR_PROPS.concat(PR_ROOFS, YD_KEYS, PR_PEOPLE.guard, PR_PEOPLE.inmate, [PR_PEOPLE.nurse, PR_PEOPLE.warden]))
+  PD_ART[k] = "assets/prison/" + k + ".png";
 const PITCH = 1500;           // 71 m between street centrelines
 const AVE_EVERY = 4;          // every 4th line is a wide avenue
 /* THE LIGHTS. One clock for the whole city: north-south runs, then amber, then east-west, then
@@ -5345,6 +5399,11 @@ function floorKind(b, f) {
   /* Ground floor is where visitors and inmates meet; upstairs is where the place is run from.
      Don Matteo is on the ground floor because that is where w5 puts the player. */
   if (b.kind === "prison") return f === 0 ? "cellblock" : "wardenwing";
+  if (b.kind === "prisonwing") return "cellrow";
+  if (b.kind === "prisoncafe") return "pcafe";
+  if (b.kind === "prisonlib") return "plib";
+  if (b.kind === "prisonchapel") return "pchapel";
+  if (b.kind === "prisoninf") return "pinf";
   /* The Kestrel gets its own plan rather than the generic venue floor: you come in at the top
      of the steps, cross a lobby, and the room opens out in front of you. */
   /* The Kestrel climbs: machines on the ground where anyone can walk in, cards on two, and the
@@ -5684,6 +5743,26 @@ function makeFloor(b, f, rnd) {
     put(Math.round(GX * 0.30) + 1, 0, Math.round(GX * 0.58), top, "laundry");
     put(Math.round(GX * 0.58) + 1, 0, Math.round(GX * 0.80), top, "yard");
     put(Math.round(GX * 0.80) + 1, 0, GX - 1, top, "visiting");
+  } else if (kind === "cellrow") {
+    /* A CELL BLOCK WING: one cell a column, a row down each side, the tier between them. The
+       door is on the end wall, into the tier. Each cell gets a bunk, a pan, a sink and a desk. */
+    const a2 = Math.max(1, Math.floor(GY * 0.36));
+    hub = put(0, a2, GX - 1, GY - a2 - 1, "tier");
+    for (let x = 1; x < GX - 1; x++) { put(x, 0, x, a2 - 1, "pcell"); put(x, GY - a2, x, GY - 1, "pcell"); }
+    put(0, 0, 0, a2 - 1, "pcloset"); put(GX - 1, 0, GX - 1, a2 - 1, "pcloset");
+    put(0, GY - a2, 0, GY - 1, "pshower"); put(GX - 1, GY - a2, GX - 1, GY - 1, "pguard");
+  } else if (kind === "pcafe") {
+    const k2 = Math.max(1, Math.round(GY * 0.22));
+    hub = put(0, k2, GX - 1, GY - 1, "pchow");
+    put(0, 0, GX - 1, k2 - 1, "pkitchen");
+  } else if (kind === "plib") {
+    hub = put(0, 0, GX - 1, GY - 1, "plibrary");
+  } else if (kind === "pchapel") {
+    hub = put(0, 0, GX - 1, GY - 1, "pchapelroom");
+  } else if (kind === "pinf") {
+    const o2 = Math.max(1, Math.round(GX * 0.28));
+    hub = put(o2, 0, GX - 1, GY - 1, "pward");
+    put(0, 0, o2 - 1, GY - 1, "pnurse");
   } else if (kind === "wardenwing") {
     /* Upstairs is administration, plus the one cell that is not a cell. Don Matteo has run the
        family from in here for years and the room says so -- it is on the floor the staff use,
@@ -6399,7 +6478,7 @@ function makeFloor(b, f, rnd) {
         const n = clamp(Math.round((wide ? W2 : H2) / 120), 2, 5);
         if (wide) runX(q2, q2.y1 - pad - 34, n, 56, 34, kit.booth, pad);
         else runY(q2, q2.x1 - pad - 34, n, 34, 56, kit.booth, pad);
-        P(cx - 26, cy - 16, 52, 32, kit.table);
+        P(cx - 38, cy - 36, 76, 72, kit.table);     // a four-top reads as one at 76x72, not 52x32
         // stools face the counter, which is the wall this room shares with the servers' side
         if (wide) runX(q2, q2.y0 + 4, n + 1, 18, 18, kit.stool, pad);
         else runY(q2, q2.x0 + 4, n + 1, 18, 18, kit.stool, pad);
@@ -7054,6 +7133,42 @@ function makeFloor(b, f, rnd) {
         else runY(q2, q2.x0 + pad, 3, 28, 34, "evidence", pad);
         P(q2.x1 - pad - 26, q2.y1 - pad - 28, 26, 28, "safe");
         break;
+      case "pcell": {
+        // bunk against the back wall, desk beside it, pan and sink by the bars
+        P(q2.x0 + 5, q2.y0 + 6, Math.min(26, W2 - 30), Math.min(56, H2 - 40), "bed");
+        P(q2.x1 - 24, q2.y0 + 6, 20, 18, "pr_desk");
+        P(q2.x1 - 22, q2.y1 - 24, 18, 18, "toilet");
+        P(q2.x0 + 6, q2.y1 - 22, 16, 14, "sink");
+        break;
+      }
+      case "pchow": {
+        const cols = clamp(Math.floor((W2 - 20) / 110), 1, 5), rows = clamp(Math.floor((H2 - 20) / 90), 1, 5);
+        for (let a3 = 0; a3 < cols; a3++) for (let b3 = 0; b3 < rows; b3++)
+          P(q2.x0 + 14 + a3 * ((W2 - 28) / cols) + 6, q2.y0 + 14 + b3 * ((H2 - 28) / rows) + 6, 86, 58, "pr_table");
+        P(q2.x1 - 40, q2.y0 + 8, 30, 30, "pr_clock");
+        break;
+      }
+      case "pkitchen":
+        P(q2.x0 + 12, q2.y1 - 40, Math.min(W2 - 24, 220), 34, "pr_servingline");
+        break;
+      case "plibrary": {
+        for (let x3 = q2.x0 + 10; x3 < q2.x1 - 70; x3 += 74) P(x3, q2.y0 + 8, 68, 46, "pr_bookshelf");
+        P(cx - 45, cy - 30, 90, 62, "pr_table");
+        P(q2.x1 - 70, q2.y1 - 56, 62, 46, "pr_desk");
+        break;
+      }
+      case "pchapelroom": {
+        P(cx - 34, q2.y0 + 12, 68, 40, "pr_desk");
+        for (let y3 = q2.y0 + 80; y3 < q2.y1 - 30; y3 += 40) { P(q2.x0 + 12, y3, (W2 - 40) / 2, 24, "pr_bench"); P(cx + 8, y3, (W2 - 40) / 2, 24, "pr_bench"); }
+        break;
+      }
+      case "pward": {
+        for (let x3 = q2.x0 + 12; x3 < q2.x1 - 50; x3 += 64) P(x3, q2.y0 + 10, 40, 64, "bed");
+        break;
+      }
+      case "pnurse": P(q2.x0 + 8, q2.y0 + 10, 62, 46, "pr_desk"); break;
+      case "pguard": P(q2.x0 + 6, q2.y0 + 8, Math.min(62, W2 - 12), 40, "pr_desk"); break;
+      case "pshower": P(q2.x0 + 6, q2.y0 + 8, 18, 14, "sink"); P(q2.x0 + 6, q2.y1 - 24, 18, 18, "toilet"); break;
       case "cell": {
         if (r.holding) {
           // the tank: benches along the back and one side, a pan in the far corner, no bunks
@@ -7264,10 +7379,10 @@ function makeFloor(b, f, rnd) {
           const ns = clamp(Math.floor(W2 / 44), 3, 8);
           for (let i2 = 0; i2 < ns; i2++)
             P(q2.x0 + pad + (W2 - pad * 2) * ((i2 + 0.5) / ns) - 11, q2.y0 + 64, 22, 22, "stool");
-          const nt = clamp(ns - 2, 1, 4);
+          const nt = clamp(Math.floor((W2 - pad * 2) / 96), 1, 4);      // four-tops, full size
           for (let i2 = 0; i2 < nt; i2++)
-            P(q2.x0 + pad + (W2 - pad * 2) * ((i2 + 0.5) / nt) - 24, q2.y1 - pad - 46,
-              48, 46, "cafetable");
+            P(q2.x0 + pad + (W2 - pad * 2) * ((i2 + 0.5) / nt) - 36, q2.y1 - pad - 70,
+              72, 70, "cafetable");
         }
         // only the venue's bar is staffed; every other bar in the city keeps its own furniture
         if (kind === "bandvenue") P(cx - 12, cy - 19, 24, 38, "st_bar");
@@ -7786,6 +7901,20 @@ function makeFloor(b, f, rnd) {
       place("pdbath", 0, 0.7, 0.25, "pd_toilet", 18, 32);
       place("pdbath", 0, 0.5, 0.78, "sink", 20, 18);
       place("pdlobby", 0, 0.85, 0.72, "pd_prints", 32, 32);
+      /* THE THREE DETECTIVES' OFFICES keep the cabinet on the back wall; the one the generic
+         furnisher stood in the middle, by the doorway, goes. And the mug board, which the
+         tidy-up had shoved into the doorway at the bottom of the task-force room, hangs on that
+         wall a little to the left of it. */
+      for (const r0 of rooms.filter((q) => q.k === "office")) {
+        const q0 = rect(r0), mid = q0.y0 + (q0.y1 - q0.y0) * 0.3;
+        for (let n = props.length - 1; n >= 0; n--) {
+          const o = props[n];
+          if (!/cab|file/.test(o.t)) continue;
+          if (o.x + o.w / 2 > q0.x0 && o.x + o.w / 2 < q0.x1 && o.y > mid && o.y < q0.y1) props.splice(n, 1);
+        }
+      }
+      { const tf = rooms.find((q) => q.k === "taskforce"), mb = props.find((o) => o.t === "pd_mugboard");
+        if (tf && mb) { const q0 = rect(tf); mb.x = q0.x0 + (q0.x1 - q0.x0) * 0.45 - mb.w / 2; mb.y = q0.y1 - mb.h - 4; mb.wall = true; } }
       /* NO CABINETS IN THE HALL. The generic furnisher stood filing cabinets along the corridor
          outside the detectives' offices; the offices keep theirs on the front wall. */
       for (const r0 of rooms.filter((q) => q.k === "hall" || q.k === "corridor")) {
@@ -8030,6 +8159,21 @@ function makeFloor(b, f, rnd) {
       props.push(lift);
     }
   }
+  /* B1's last word, AFTER the generic furnisher and the tidy pass (which is where the middle
+     cabinets come from and where the mug board got shoved into the doorway): */
+  if (b && b.pd && kind === "pd_lower") {
+    for (const r0 of rooms.filter((q) => q.k === "office")) {
+      const q0 = rect(r0), mid = q0.y0 + (q0.y1 - q0.y0) * 0.3;
+      for (let n = props.length - 1; n >= 0; n--) {
+        const o = props[n];
+        if (/cab|file/.test(o.t) && o.x + o.w / 2 > q0.x0 && o.x + o.w / 2 < q0.x1 && o.y > mid && o.y < q0.y1) props.splice(n, 1);
+      }
+    }
+    const tf = rooms.find((q) => q.k === "taskforce"), mb = props.find((o) => o.t === "pd_mugboard");
+    if (tf && mb) { const q0 = rect(tf); mb.x = q0.x0 + (q0.x1 - q0.x0) * 0.45 - mb.w / 2; mb.y = q0.y1 - mb.h - WT - 2; }
+    // and only one of them: a second copy was standing in the doorway itself
+    for (let n = props.length - 1; n >= 0; n--) if (props[n].t === "pd_mugboard" && props[n] !== mb) props.splice(n, 1);
+  }
   const inProps = props.filter((p) =>
     p.x >= b.x + WT && p.y >= b.y + WT &&
     p.x + p.w <= b.x + b.w - WT && p.y + p.h <= b.y + b.h - WT);
@@ -8263,35 +8407,22 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
       ? true
       : waterDepth(b.x + b.w / 2, b.y + b.h / 2) < 0.08);
   if (zone === "prison") {
-    // one block, filling most of the cell, with a yard round it
-    if (i !== PRISON_CELL.i || j !== PRISON_CELL.j) return out;
-    /* A perimeter wall, as four thin blocks with a gap at the gate. It was drawn as scenery and
-       nothing collided with it, so pedestrians strolled through the fence and out the far side
-       of a maximum security prison. A wall the world does not know about is a picture. */
-    const WT2 = 26, gapW = LW * 0.16;
-    const px0 = lx0 + LW * 0.08, px1 = lx1 - LW * 0.08;
-    const py0 = ly0 + LH * 0.10, py1 = ly1 - LH * 0.10;
-    const wall = (x, y, w2, h2) => {
-      const b2 = mkB(x, y, w2, h2, 1, "wall", rnd, key);
+    /* THE WALL, round the whole campus, each cell keeping the pieces that fall inside it (so
+       collision finds them wherever you are standing). The gate is a gap in the north wall.
+       The buildings are not generated here: they are landmarks (PRISON_CAMPUS in MARKS). */
+    const B = PRISON_BOX, WT2 = 28, gap = 300, gx = (B.x0 + B.x1) / 2;
+    const segs = [[B.x0, B.y0, gx - gap / 2 - B.x0, WT2], [gx + gap / 2, B.y0, B.x1 - gx - gap / 2, WT2],
+                  [B.x0, B.y1 - WT2, B.x1 - B.x0, WT2], [B.x0, B.y0, WT2, B.y1 - B.y0], [B.x1 - WT2, B.y0, WT2, B.y1 - B.y0]];
+    const cx0 = SX(i), cy0 = SX(j), cx1 = SX(i + 1), cy1 = SX(j + 1);
+    for (const [x, y, w2, h2] of segs) {
+      const X0 = Math.max(x, cx0), Y0 = Math.max(y, cy0), X1 = Math.min(x + w2, cx1), Y1 = Math.min(y + h2, cy1);
+      if (X1 - X0 < 1 || Y1 - Y0 < 1) continue;
+      const b2 = mkB(X0, Y0, X1 - X0, Y1 - Y0, 1, "wall", rnd, key);
       b2.perimeter = true; b2.tone = 0.1; b2.retail = false; b2.arch = null;
       b2.door = null; b2.noEnter = true;
       out.push(b2);
-    };
-    wall(px0, py0, px1 - px0, WT2);                                  // back
-    wall(px0, py0, WT2, py1 - py0);                                  // left
-    wall(px1 - WT2, py0, WT2, py1 - py0);                            // right
-    wall(px0, py1 - WT2, (px1 - px0 - gapW) / 2, WT2);               // front, west of the gate
-    wall(px0 + (px1 - px0 + gapW) / 2, py1 - WT2,
-         (px1 - px0 - gapW) / 2, WT2);                               // front, east of the gate
-    const bw = LW * 0.74, bh = LH * 0.62;
-    const b = mkB(lx0 + (LW - bw) / 2, ly0 + (LH - bh) / 2, bw, bh, 2, "prison", rnd, key);
-    b.name = "KESTREL STATE";
-    b.tone = 0.12; b.retail = false; b.arch = null; b.eatery = false;
-    b.landmark = false; b.prison = true;
-    faceDoor(b, lx0, ly0, lx1, ly1, rnd);
-    b.door = { side: 2, pos: 0.5 };          // the gate faces the approach road
-    out.push(b);
-    return dryOut(out);
+    }
+    return out;
   }
   if (zone === "park" || zone === "cemetery" || zone === "skate") return out;
   if (zone === "mountain") {
@@ -9825,8 +9956,8 @@ export default function IronLionLayer004() {
        its bonnet at the top and the bed at the bottom -- nose-UP, like every other car -- so
        this list was turning a correct plate round, and every pickup in the city drove boot-first. */
     const ROTATE_180 = ["coupe_green", "coupe_dgreen", "st_racer_a", "st_racer_b",
-                        "vn_drumkit_flip",
-                        "pd_counter"];   // the front of the desk faces the door, not the wall
+                        "vn_drumkit_flip"];
+// (pd_counter came OFF this list: Donny wants the desk the way it was drawn, the sergeant behind it)
 
     const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX, ...CITY2, ...DECO, ...CLUB, ...GYM_ART, ...SKY_ART, ...DW_ART, ...SC_ART, ...NF_ART, ...ANIM_ART, ...ID_ART, ...PD_ART };
     /* ---------- CUT_MAP ----------
@@ -10258,6 +10389,7 @@ export default function IronLionLayer004() {
       if (k === "e") doAction();
       if (k === "f" && G.strikeFn) G.strikeFn();
       if (k === "n") G.current.nightTarget = G.current.nightTarget > 0.5 ? 0 : 1;
+      if (k === "h" && G.hydroFn) G.hydroFn();          // hydraulics, in a lowrider
       if (k === "-" || k === "_") G.zoomStep && G.zoomStep(-0.15);
       if (k === "=" || k === "+") G.zoomStep && G.zoomStep(0.15);
     };
@@ -11819,7 +11951,32 @@ export default function IronLionLayer004() {
     }
     /* Money comes off the dens every second, not on the turn: a house that is running is running
        whether or not it is its owner's turn. Heat comes with it. */
+    function alonzoMarket(dt) {
+      const W = g.gwar; if (!W) return;
+      const A = (g.alonzo = g.alonzo || { boss: null, rate: 0, earned: 0, grudge: {}, bidT: 20 });
+      A.bidT -= dt;
+      if (A.bidT > 0) return;
+      A.bidT = ALONZO_PAY.every;
+      let best = null, bestRate = 0;
+      for (const k in W.gangs) {
+        if (!LEADERS[k] || !ALONZO_GANGS(k)) continue;
+        const G = W.gangs[k];
+        if ((G.cash || 0) < ALONZO_PAY.floor) continue;
+        const offer = clamp(ALONZO_PAY.base + (A.grudge[k] || 0) * ALONZO_PAY.perGrudge
+                            + (G.cash / ALONZO_PAY.cashUnit) * ALONZO_PAY.perCash, ALONZO_PAY.min, ALONZO_PAY.max);
+        if (offer > bestRate) { bestRate = offer; best = k; }
+      }
+      if (!best) return;
+      // the man who has him keeps him unless somebody beats him by the edge
+      if (!A.boss || (best !== A.boss && bestRate > A.rate * ALONZO_PAY.edge)) {
+        A.boss = best; A.rate = bestRate;
+        if (best) A.grudge[best] = 0;                   // bought and paid for: the slate is clean
+      } else if (best === A.boss) A.rate = Math.max(A.rate, bestRate);
+    }
+    // the war's gangs, not the Deuce: the twins never deal with a city detective
+    const ALONZO_GANGS = (k) => k !== "deuce";
     function warIncome(dt) {
+      alonzoMarket(dt);
       const W = g.gwar;
       for (const t of Object.values(W.turfs)) {
         if (!t.owner) continue;
@@ -11830,6 +11987,11 @@ export default function IronLionLayer004() {
         for (const d of t.dens) cash += WAR.income[d.drug] * d.level;
         const push = t.push > 0 ? 1.8 : 1;
         G.cash += cash * dt * push;          // leaf 20, stone 30, diamond 45, sky 100 -- per second, per level
+        // the gang that owns Alonzo pays him his share of every dollar the houses make
+        if (g.alonzo && g.alonzo.boss === t.owner) {
+          const cut = cash * dt * push * g.alonzo.rate;
+          G.cash -= cut; g.alonzo.earned += cut;
+        }
         t.heat += WAR.heat.den * dt * 0.25 * t.dens.length * push * (1 - G.up.quiet * 0.2);
         if (t.push > 0) t.push -= dt;
       }
@@ -12286,6 +12448,17 @@ export default function IronLionLayer004() {
       rollTraits(q, role, C);
       return q;
     }
+    /* ON THE GROUND. inBld only knows a cell's ordinary buildings; a scene could still land on a
+       landmark's roof, a car park, the expressway deck or a ramp -- somewhere you cannot walk
+       to. The real collision is asked instead: if it would push a man standing there, he
+       cannot stand there. (Outdoors, whatever room Malcolm happens to be in.) */
+    function groundOK(x, y) {
+      if (onDeckV(x) || onDeckH(y) || rampAt(x, y)) return false;
+      const keep = g.inside, kf = g.floor; g.inside = null; g.floor = 0;
+      const probe = { x, y, vx: 0, vy: 0 };
+      try { collideBuildings(probe, 16, false); } finally { g.inside = keep; g.floor = kf; }
+      return Math.hypot(probe.x - x, probe.y - y) < 0.5;
+    }
     function streetSpot(fromX, fromY, r0, r1) {
       for (let t = 0; t < 30; t++) {
         const a = Math.random() * 6.283, rad = r0 + Math.random() * (r1 - r0);
@@ -12303,7 +12476,7 @@ export default function IronLionLayer004() {
         });
         for (const step of [150, 110, 80, 50]) {
           const x = c[0] + (cx - c[0]) / d * step, y = c[1] + (cy - c[1]) / d * step;
-          if (!inBld(x, y)) return [x, y];
+          if (!inBld(x, y) && groundOK(x, y)) return [x, y];
         }
       }
       return null;
@@ -12361,8 +12534,17 @@ export default function IronLionLayer004() {
       // a bank job happens at a bank, not on a corner
       if (K.atBank && !inB && !cont) {
         const bk = BANK_CELLS.map((q) => { const c = getCell(q.i, q.j); const bb = c && (c.blds || []).find((z) => z.kind === "bank"); return bb ? [bb, q] : null; }).filter(Boolean);
-        if (bk.length) { const [bb, meta] = bk[(Math.random() * bk.length) | 0]; const dp = doorPoint(bb);
-          scene = [dp[0], dp[1] + 70]; }
+        /* INSIDE THE BANK -- it is a bank robbery, the witnesses are the tellers and the line.
+           It used to be the door plus 70 SOUTH, which for a bank whose door faces north or east
+           is 70 units into the building: the scene sat on the roof where nobody could reach it.
+           If the bank has no floor to stand on, out front along the door's own facing. */
+        if (bk.length) { const [bb] = bk[(Math.random() * bk.length) | 0];
+          const f0 = bb.entry || 0, pl0 = buildingPlans(bb)[f0];
+          const rm = pl0 && pl0.rooms.length ? pl0.rooms.slice().sort((a, c) => (c.x1 - c.x0) * (c.y1 - c.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))[0] : null;
+          const pt = rm && freeIndoor(bb, pl0, (rm.x0 + rm.x1) / 2, (rm.y0 + rm.y1) / 2, rm);
+          if (pt) { scene = pt; inB = bb; inF = f0; }
+          else { const dp = doorPoint(bb), o = [[0, -1], [1, 0], [0, 1], [-1, 0]][bb.door.side];
+                 scene = [dp[0] + o[0] * 70, dp[1] + o[1] * 70]; } }
       }
       if (!scene) return null;
       /* The distance is rolled and THEN snapped to a street corner, and the snap can land right
@@ -12704,6 +12886,7 @@ export default function IronLionLayer004() {
            in the row below. One cruiser, 01, stays up top; the rest of the fleet lives in B2. */
         [239, 299, 359].forEach((px, k) => park(px, 532, SQUAD4[k].car, { owner: SQUAD4[k].id }));
         park(117, 646, SQUAD4[3].car, { owner: SQUAD4[3].id });
+        park(177, 646, SQUAD4[4].car, { owner: SQUAD4[4].id });     // Alonzo's Monte Carlo, beside Delgado
         park(175, 646, PD_CARS.cruiser, { unit: "01" });
         g.detCar = park(417, 590, PD_CARS2.malcolm, {});
       }
@@ -13511,6 +13694,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       } else if (id === "sally") {
         opts.push({ id: "house:sally:tip", label: "ANYTHING ON THE WIRE?" });
         if (open) opts.push({ id: "house:sally:sheet", label: "PULL THE SHEET ON MY MAN" });
+        /* RUN A NAME: anybody on the case Malcolm has carded, one run each. */
+        if (open) C.people.forEach((q, n) => {
+          if (q.carded && !q.ran && opts.length < 7) opts.push({ id: "house:sally:run:" + n, label: "RUN " + identOf(q).name.toUpperCase() });
+        });
       }
       return { title: u.nm + " \u00b7 " + u.role + " \u00b7 " + (g.juice || 0) + " JUICE", face: "assets/heroes/pt_" + u.id + ".png",
                text, opts: opts.concat([{ id: "close", label: "THANKS" }]) };
@@ -13522,6 +13709,20 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.traffic.push(v); g.detCar = v;
       g.pickupFlash = { nm: "lift:KOWALSKI \u00b7 ONE OFF THE POOL, KEYS ARE IN IT", t: 2.6 };
     };
+    /* What the files say about a name. The man who did it has a record that fits the job; a decoy
+       has a record, but for the wrong things; everybody else is a citizen or near enough. It is a
+       lean, not an answer: two in five perps have a clean sheet, like real life. */
+    function sallySheet(C, q) {
+      const I = identOf(q), nm = I.name, crime = (C.K.nm || "").toLowerCase();
+      const small = ["a DUI in '83", "unpaid tickets", "a bar fight, no charges", "disorderly, '81", "nothing -- a library card"];
+      if (q.caseRole === "perp") {
+        if (Math.random() < 0.4) return nm + " comes back clean. Doesn't mean much -- some of them just never got caught.";
+        return nm + ": two priors, both " + (C.K.violent ? "armed" : "property") + ". Did eighteen months at Kestrel. Known to drink at " + (C.hangWhere || "a bar on his side of town") + ".";
+      }
+      if (q.caseRole === "decoy") return nm + ": " + cpick(["a possession charge, dropped", "receiving stolen goods, '82", "a string of bad cheques", "an assault charge, pled down"]) + ". Nothing like a " + crime + ".";
+      if (q.caseRole === "victim") return nm + " is a citizen. " + cpick(small) + ". Works, pays rent.";
+      return nm + ": " + cpick(small) + ".";
+    }
     G.housePick = (id) => {
       const C = g.case, parts = id.split(":");
       const who = parts[1], what = parts[2];
@@ -13582,6 +13783,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (what === "tip") said = C && C.stage !== "done" ? ramosTip(C) : cpick(SALLY_CALLS);
         else if (what === "sheet") said = C && C.arrest ? "Your man's sheet is on your desk. And... be careful out there, Malcolm."
           : "Bring me a name and I'll pull everything we have on him.";
+        else if (what === "run" && C) {
+          const q = C.people[+parts[3]];
+          if (q) { q.ran = 1; said = sallySheet(C, q); caseLine("SHEET: " + said); }
+        }
       }
       g.houseSaid = said;
       setHud((h) => ({ ...h, pick: housePanel(who) }));
@@ -13594,7 +13799,39 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return best;
     }
     /* Once a case, each of them does the thing he is good at. */
+    /* ALONZO knows where the crews keep their product. On a gang crew case he gives up where the
+       crew's underboss sits; otherwise he puts the nearest distro you have not found on the map.
+       Once every few minutes -- informants need time. */
+    function alonzoHelp() {
+      const C = g.case, now = Date.now();
+      if (g.alonzoT && now - g.alonzoT < 240000) return "ALONZO: My people need a few minutes, Malcolm. Come back.";
+      const A = g.alonzo || { boss: null, grudge: {} };
+      if (C && C.stage !== "done" && C.crew && C.crew.gang && C.crew.gang === A.boss) {
+        g.alonzoT = now;       // the stonewall -- and the only tell there is
+        return "ALONZO: " + cpick(["That's not my side of town. Try Delgado.", "Nothing on that crew. They keep it tight.",
+          "I've got nobody inside that one, Malcolm. Sorry."]);
+      }
+      if (C && C.stage !== "done" && C.crew && C.crew.gang && g.gwar && g.gwar.gangs[C.crew.gang]) {
+        const gk = C.crew.gang, seat = g.gwar.gangs[gk].seats[1], S = g.ldSites && g.ldSites[gk] && g.ldSites[gk][1];
+        A.grudge[gk] = (A.grudge[gk] || 0) + 1;
+        seat.known = true; g.alonzoT = now;
+        const said = "That job's " + (GANG_LABEL[gk] || gk) + ". Their underboss is " + seat.name +
+          (S && S.b ? ", sits at " + placeLabel(S.b) : "") + ". Take the crew and you can take him with it.";
+        caseLine("ALONZO: " + said); return "ALONZO: " + said;
+      }
+      let best = null, bd = 1e9;
+      for (const k in (g.distroAt || {})) { const S = g.distroAt[k];
+        if (!S || S.found || S.gone || !S.b || k === A.boss) continue;       // never his own people
+        const dd = Math.hypot(S.x - g.p.x, S.y - g.p.y); if (dd < bd) { bd = dd; best = [k, S]; } }
+      if (!best) return "ALONZO: You've found every stash I know about. Street's quiet -- for now.";
+      const [k, S] = best; S.found = true; g.alonzoT = now;
+      A.grudge[k] = (A.grudge[k] || 0) + 1;
+      const said = (GANG_LABEL[k] || k) + " are moving product out of " + placeLabel(S.b) + ". It's on your map.";
+      bookNote("ALONZO: " + said);
+      return "ALONZO: " + said;
+    }
     function detHelp(d) {
+      if (d.id === "alonzo") return alonzoHelp();
       const C = g.case;
       if (!C || C.stage === "done") return d.nm.slice(5) + ": Nothing open? Go see what dispatch has.";
       C.helped = C.helped || {};
@@ -13789,26 +14026,28 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (o.say > 0) { o.say -= 0.016; bubble(o.x, o.y, o.line); } } }]);
     }
     // nobody walks through a witness: people at a scene, the officer and the tech push him back
+    /* NOBODY BLOCKS A DOOR. A body you walk into steps aside: most of the overlap moves HIM (and
+       the walls keep him in the room), only a little moves you. It used to be all you, so a
+       witness or a detective standing in a doorway sealed the room. */
+    function shove(q, r) {
+      const dx = g.p.x - q.x, dy = g.p.y - q.y, d = Math.hypot(dx, dy);
+      if (!(d > 0.01 && d < r)) return;
+      const o = r - d;
+      q.x -= dx / d * o * 0.85; q.y -= dy / d * o * 0.85;
+      collideBuildings(q, 10, false);
+      g.p.x += dx / d * o * 0.15; g.p.y += dy / d * o * 0.15;
+    }
     function sceneSolid() {
       const D1 = g.dets;
       const C0 = g.case;
       if (C0 && C0.inB && !(g.inside === C0.inB && g.floor === C0.inF)) { /* the scene is indoors and he is not in it */ }
-      if (D1 && g.inside === D1.b && g.floor === 1 && g.mode === "foot") for (const d of D1.four || []) {
-        const dx = g.p.x - d.x, dy = g.p.y - d.y, dd = Math.hypot(dx, dy), r = 20;
-        if (dd > 0.01 && dd < r) { g.p.x = d.x + dx / dd * r; g.p.y = d.y + dy / dd * r; }
-      }
-      if (g.inside && g.inside.dg && g.mode === "foot") for (const o of dgPeople(g.inside)) {
-        const dx = g.p.x - o.x, dy = g.p.y - o.y, d = Math.hypot(dx, dy), r = 20;
-        if (d > 0.01 && d < r) { g.p.x = o.x + dx / d * r; g.p.y = o.y + dy / d * r; }
-      }
+      if (D1 && g.inside === D1.b && g.floor === 1 && g.mode === "foot") for (const d of D1.four || []) shove(d, 20);
+      if (g.inside && g.inside.dg && g.mode === "foot") for (const o of dgPeople(g.inside)) shove(o, 20);
       const C = g.case;
       if (!C || g.mode !== "foot") return;
       const sceneIn = C.inB ? (g.inside === C.inB && g.floor === C.inF) : !g.inside;
       if (C.stage === "done" && Date.now() - (C.doneAt || 0) > 90000) return;
-      for (const q of C.people.filter(caseHere).concat(sceneIn ? [C.cop, C.tech] : []).filter(Boolean)) {
-        const dx = g.p.x - q.x, dy = g.p.y - q.y, d = Math.hypot(dx, dy), r = 22;
-        if (d > 0.01 && d < r) { g.p.x = q.x + dx / d * r; g.p.y = q.y + dy / d * r; }
-      }
+      for (const q of C.people.filter(caseHere).concat(sceneIn ? [C.cop, C.tech] : []).filter(Boolean)) shove(q, 22);
     }
     /* ---------- TALKING ---------- */
     /* ---------------- MALCOLM'S KIT ---------------- */
@@ -15697,112 +15936,55 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                x1: SX(PRISON.i1 + 1) - 120, y1: SX(PRISON.j1 + 1) - 120 };
     }
     function drawPrison() {
-      const b = prisonBox();
-      const W2 = b.x1 - b.x0, H2 = b.y1 - b.y0;
-      let seed = 917;
-      const rr = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+      /* THE GROUND UNDER THE CAMPUS. The buildings are real now (landmarks with their roofs on),
+         so this only lays the dirt outside, the concrete inside the wall, the yard and the things
+         that stand on it, the gate, the towers and the lights. Nothing here is a building. */
+      const b = PRISON_BOX, W2 = b.x1 - b.x0, H2 = b.y1 - b.y0;
       const prop = (k, x, y, w, rot) => {
         const im = imgs.current[k];
         if (!im || !im.width) return;
         const h = w * (im.height / im.width);
-        if (rot) {
-          ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
-          ctx.drawImage(im, -w / 2, -h / 2, w, h); ctx.restore();
-        } else ctx.drawImage(im, x - w / 2, y - h / 2, w, h);
+        if (rot) { ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.drawImage(im, -w / 2, -h / 2, w, h); ctx.restore(); }
+        else ctx.drawImage(im, x - w / 2, y - h / 2, w, h);
       };
-
-      // ---- ground: dead grass outside, concrete yard inside ----
       ctx.fillStyle = PF("prisondirt", "#565340");
-      ctx.fillRect(b.x0 - 120, b.y0 - 120, W2 + 240, H2 + 240);
+      ctx.fillRect(b.x0 - 140, b.y0 - 140, W2 + 280, H2 + 280);
       ctx.fillStyle = PF("prisonyard", "#6a6a66");
-      ctx.fillRect(b.x0 + 180, b.y0 + 180, W2 - 360, H2 - 360);
-
-      // ---- the cell blocks: three long wings off a central spine ----
-      const bw = W2 * 0.16;
-      for (let k = 0; k < 3; k++) {
-        const bx = b.x0 + W2 * (0.24 + k * 0.24);
-        ctx.fillStyle = "rgba(0,0,0,0.42)";
-        ctx.fillRect(bx + 8, b.y0 + 268, bw, H2 * 0.44);
-        ctx.fillStyle = "#8d8a80";
-        ctx.fillRect(bx, b.y0 + 260, bw, H2 * 0.44);
-        ctx.fillStyle = "rgba(255,255,255,0.08)";
-        ctx.fillRect(bx, b.y0 + 260, bw, 8);
-        // roof vents
-        ctx.fillStyle = "rgba(0,0,0,0.22)";
-        for (let q = 40; q < H2 * 0.44 - 30; q += 70) ctx.fillRect(bx + bw * 0.3, b.y0 + 260 + q, bw * 0.4, 16);
-      }
-      // the administration block across the north end
-      ctx.fillStyle = "rgba(0,0,0,0.40)";
-      ctx.fillRect(b.x0 + W2 * 0.20 + 8, b.y0 + 178, W2 * 0.62, 78);
-      ctx.fillStyle = "#7f7c74";
-      ctx.fillRect(b.x0 + W2 * 0.20, b.y0 + 170, W2 * 0.62, 78);
-
-      // ---- exercise yard along the south, with the court and its fittings ----
-      const yx = b.x0 + W2 * 0.22, yy = b.y1 - H2 * 0.30;
-      ctx.fillStyle = "#5f5f5c";
-      ctx.fillRect(yx, yy, W2 * 0.56, H2 * 0.22);
-      prop("pz_10", yx + 40, yy + H2 * 0.11, 70);          // basketball hoop
-      prop("pz_10", yx + W2 * 0.56 - 40, yy + H2 * 0.11, 70);
-      prop("pz_11", yx + W2 * 0.28, yy + 30, 80);          // pull-up frame
-      prop("pz_09", yx + W2 * 0.30, yy + H2 * 0.19, 90);   // bench
-      prop("pz_09", yx + W2 * 0.44, yy + H2 * 0.19, 90);
-
-      // ---- perimeter: double fence with razor wire, drawn as tiled sections ----
-      const fenceRun = (x0, y0, x1, y1, vert) => {
-        const im = imgs.current.pz_01;
-        if (!im || !im.width) {
-          ctx.strokeStyle = "rgba(150,150,146,0.8)"; ctx.lineWidth = 8;
-          ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-          return;
-        }
-        const seg = 190, h = seg * (im.height / im.width);
-        const len = Math.hypot(x1 - x0, y1 - y0);
-        for (let q = 0; q < len; q += seg - 4) {
-          const t = q / len;
-          const px = x0 + (x1 - x0) * t, py = y0 + (y1 - y0) * t;
-          ctx.save(); ctx.translate(px, py);
-          if (vert) ctx.rotate(Math.PI / 2);
-          ctx.drawImage(im, 0, -h / 2, Math.min(seg, len - q), h);
-          ctx.restore();
-        }
-      };
-      for (const inset of [0, 62]) {
-        fenceRun(b.x0 + inset, b.y0 + inset, b.x1 - inset, b.y0 + inset, false);
-        fenceRun(b.x0 + inset, b.y1 - inset, b.x1 - inset, b.y1 - inset, false);
-        fenceRun(b.x0 + inset, b.y0 + inset, b.x0 + inset, b.y1 - inset, true);
-        fenceRun(b.x1 - inset, b.y0 + inset, b.x1 - inset, b.y1 - inset, true);
-      }
-      // watchtowers on the corners
-      for (const [tx, ty] of [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1]])
-        prop("pz_00", tx, ty, 96);
-      // floodlight masts down the long sides
-      for (let q = 0.25; q < 1; q += 0.25) {
-        prop("pz_07", b.x0 - 40, b.y0 + H2 * q, 44);
-        prop("pz_07", b.x1 + 40, b.y0 + H2 * q, 44);
-      }
-      // the vehicle gate and guardhouse on the north approach
-      prop("pz_06", b.x0 + W2 * 0.5, b.y0 - 10, 220);
-      // the prison bus and a transport van parked inside the sally port
-      prop("pz_03", b.x0 + W2 * 0.5 - 90, b.y0 + 120, 60);
-      prop("pz_04", b.x0 + W2 * 0.5 + 20, b.y0 + 120, 58);
-
-      // the approach road, north to the county road
+      ctx.fillRect(b.x0, b.y0, W2, H2);
+      // the approach road, north to the county road, through the gate
       ctx.fillStyle = PF("dirt", "#6a5a44");
-      ctx.fillRect(b.x0 + W2 * 0.5 - 70, SX(PRISON.j0) - 400, 140, 420);
-
+      ctx.fillRect(b.x0 + W2 * 0.5 - 90, SX(PRISON.j0) - 400, 180, b.y0 - SX(PRISON.j0) + 400 + 60);
+      // THE YARD: bottom left, the court, the track, the iron pile, the stands, the tables
+      const yx = b.x0 + W2 * 0.06, yy = b.y0 + H2 * 0.66, yw = W2 * 0.30, yh = H2 * 0.30;
+      ctx.fillStyle = "#5c5c58"; ctx.fillRect(yx, yy, yw, yh);
+      for (const [k, gx, gy] of [["yd_grass_1", 0.15, 0.2], ["yd_grass_2", 0.8, 0.85], ["yd_grass_3", 0.55, 0.1], ["yd_grass_5", 0.9, 0.4]])
+        prop(k, yx + yw * gx, yy + yh * gy, 90);
+      prop("yd_court", yx + yw * 0.22, yy + yh * 0.52, Math.min(yw * 0.38, 420));
+      prop("yd_track", yx + yw * 0.70, yy + yh * 0.28, 300);
+      prop("yd_weights", yx + yw * 0.62, yy + yh * 0.72, 230);
+      prop("yd_bleachers", yx + yw * 0.44, yy + yh * 0.12, 220);
+      prop("yd_picnic_a", yx + yw * 0.86, yy + yh * 0.66, 110);
+      prop("yd_picnic_b", yx + yw * 0.86, yy + yh * 0.90, 110);
+      prop("yd_handball", yx + yw * 0.46, yy + yh * 0.94, 260);
+      prop("yd_shack", yx + yw * 0.95, yy + yh * 0.08, 120);
+      prop("yd_phone", yx + yw * 0.40, yy + yh * 0.62, 34);
+      // the yard's own fence, a run along its inner edges
+      for (let x = yx + 60; x < yx + yw - 60; x += 150) prop("yd_fence", x, yy - 18, 150);
+      for (let y = yy + 60; y < yy + yh - 60; y += 150) prop("yd_fence", yx + yw + 18, y, 150, Math.PI / 2);
+      // towers on the corners and the middle of the long walls; the gate over the gap
+      for (const [tx, ty] of [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1], [b.x0, b.y0 + H2 / 2], [b.x1, b.y0 + H2 / 2]])
+        prop("pr_roof_tower", tx, ty, 110);
+      prop("pr_roof_gate", b.x0 + W2 * 0.5, b.y0 + 30, 330);
+      // floodlight masts
+      for (let q = 0.2; q < 1; q += 0.3) { prop("yd_flood", b.x0 + 60, b.y0 + H2 * q, 50); prop("yd_flood", b.x1 - 60, b.y0 + H2 * q, 50); }
       // searchlights sweeping after dark
       if (g.night > 0.3) {
-        for (const [tx, ty, ph] of [[b.x0, b.y0, 0], [b.x1, b.y1, 2.1]]) {
+        for (const [tx, ty, ph] of [[b.x0, b.y0, 0], [b.x1, b.y1, 2.1], [b.x1, b.y0, 4.0]]) {
           const a2 = g.t * 0.5 + ph;
-          const lg = ctx.createRadialGradient(tx, ty, 20, tx, ty, 620);
-          lg.addColorStop(0, "rgba(255,244,210,0.16)");
-          lg.addColorStop(1, "rgba(255,244,210,0)");
-          ctx.save();
-          ctx.translate(tx, ty); ctx.rotate(a2);
-          ctx.fillStyle = lg;
-          ctx.beginPath(); ctx.moveTo(0, 0);
-          ctx.arc(0, 0, 620, -0.22, 0.22); ctx.closePath(); ctx.fill();
-          ctx.restore();
+          const lg = ctx.createRadialGradient(tx, ty, 20, tx, ty, 700);
+          lg.addColorStop(0, "rgba(255,244,210,0.16)"); lg.addColorStop(1, "rgba(255,244,210,0)");
+          ctx.save(); ctx.translate(tx, ty); ctx.rotate(a2); ctx.fillStyle = lg;
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 700, -0.22, 0.22); ctx.closePath(); ctx.fill(); ctx.restore();
         }
       }
     }
@@ -21578,6 +21760,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (["ot_kiosk", "ot_stall", "ot_fountain", "ot_bench", "ot_trough", "ot_cart"].includes(k)) SOLID_PROP[k] = 1; }
     for (const k of ["pd_warboard", "pd_warboard_wall"]) { PROP_ART[k] = k; PROP_COL[k] = "#2f3a33"; SOLID_PROP[k] = 1; }
     for (const k of CT_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#6b4a2e"; if (CT_SOLID[k]) SOLID_PROP[k] = 1; }
+    for (const k of PR_PROPS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#5a5c60"; if (k !== "pr_clock") SOLID_PROP[k] = 1; }
     for (const k of DG_KEYS.concat(["pd_computer"])) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#c9a24a"; if (DG_SOLID[k]) SOLID_PROP[k] = 1; }
     // the station, the morgue and the department's cars as props
     for (const k of PD_KEYS.concat(PD_KEYS2, MG_KEYS, CS_KEYS, Object.values(PD_CARS).map((c) => c.k))) {
@@ -22082,8 +22265,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
     // La Perla run old-school lowriders; the Chinatown crews run 80s street racers and bikes
     // lp_02..05 are the oxblood hop sequence: flat, lift, hop, settle
-    const LP_RIDES = [{ k: "lp_00", len: 118, w: 44 }, { k: "lp_01", len: 118, w: 43 },
-                      { k: "lp_02", len: 118, w: 43, hop: ["lp_02", "lp_03", "lp_04", "lp_05"] }];
+    const LP_RIDES = [{ k: "lp_00", len: 118, w: 44, lowrider: 1 }, { k: "lp_01", len: 118, w: 43, lowrider: 1 },
+                      { k: "lp_02", len: 118, w: 43, lowrider: 1, hop: ["lp_02", "lp_03", "lp_04", "lp_05"] }];
     const CH_RIDES = [{ k: "rc_00", len: 106, w: 46 }, { k: "rc_01", len: 106, w: 46 },
                       { k: "rc_02", len: 106, w: 47 },
                       { k: "rc_03", len: 58, w: 22 }, { k: "rc_04", len: 58, w: 22 }];
@@ -26989,6 +27172,36 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (S.rob.thugs.every((t) => t.hp <= 0)) { S.rob = null; S.robT = 60 + Math.random() * 90; }
       }
     }
+    /* THE CAMPUS POPULATION. Built for a building and floor the moment you walk into it: an inmate
+       in most cells (the block decides his colour -- the blocks are segregated), guards on the
+       tier, a mess hall at chow, a few in the library and the chapel, a nurse on the ward. */
+    function prisonFolk() {
+      const b = g.inside;
+      if (!b || !b.inPrison || b.prison) return null;
+      if (g.pfolk && g.pfolk.b === b && g.pfolk.f === g.floor) return g.pfolk.folk;
+      const pl = buildingPlans(b)[g.floor]; if (!pl) return null;
+      const folk = [], pick = (a) => a[(Math.random() * a.length) | 0];
+      const add = (r, yt, extra) => {
+        const pt = freeIndoor(b, pl, (r.x0 + r.x1) / 2 + (Math.random() - 0.5) * 20, (r.y0 + r.y1) / 2 + (Math.random() - 0.5) * 20, r);
+        if (pt) folk.push({ x: pt[0], y: pt[1], vx: 0, vy: 0, anim: Math.random() * 6, jit: 1, tall: 1.3, yt,
+                            bang: Math.random() * 6.28, ...extra });
+      };
+      for (const r of pl.rooms) {
+        if (r.k === "pcell" && Math.random() < PRISON_POP.cell) add(r, pick(PR_PEOPLE.inmate), { convict: 1, pwing: b.pwing });
+        else if (r.k === "tier") for (let n = 0; n < PRISON_POP.tierGuards; n++) add(r, pick(PR_PEOPLE.guard), { guard: 1 });
+        else if (r.k === "pchow") { for (let n = 0; n < PRISON_POP.chow; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 }); add(r, pick(PR_PEOPLE.guard), { guard: 1 }); }
+        else if (r.k === "plibrary") for (let n = 0; n < PRISON_POP.lib; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 });
+        else if (r.k === "pchapelroom") for (let n = 0; n < PRISON_POP.chapel; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 });
+        else if (r.k === "pward") { for (let n = 0; n < PRISON_POP.ward; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 }); add(r, PR_PEOPLE.nurse, {}); }
+        else if (r.k === "pguard") add(r, pick(PR_PEOPLE.guard), { guard: 1 });
+      }
+      g.pfolk = { b, f: g.floor, folk };
+      return folk;
+    }
+    function drawPrisonFolk() {
+      const F = prisonFolk(); if (!F) return;
+      for (const q of F) { drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q); }
+    }
     function drawShopFolk() {
       const S = g.shop;
       if (!S) return;
@@ -28549,6 +28762,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const dx = tx - v.x, dy = ty - v.y;
         const d = Math.hypot(dx, dy);
         if (d < 26) { chooseTurn(v); if (v.bus) v.served = -1; continue; }
+        if (v.m.lowrider) {
+          v.hydT = v.spd < 8 ? 1 : 0;
+          if (v.spd < 8 && !(v.hopT > 0) && Math.random() < HYDRO.aiHop) v.hopT = HYDRO.hop;
+          stepHydro(v, dt);
+        }
         if (d < TRAFFIC_LANE.plan) planTurn(v);
         if (v.sigT > 0) { v.sigT -= dt; if (v.sigT <= 0 && !v.plan) v.sig = 0; }
 
@@ -28763,6 +28981,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (const v of g.traffic) {
         // a parked lowrider works its hydraulics every so often -- the sheet ships the frames
         let key = v.m.k;
+        if (v.m.lowrider && v.dead && !v.m.hop) {
+          // parked: sits up, and every so often hops for whoever is watching
+          v.hydT = 1; if (!(v.hopT > 0) && Math.random() < 0.002) v.hopT = HYDRO.hop;
+          stepHydro(v, 0.016);
+        }
         if (v.m.hop && v.dead) {
           v.hopT = (v.hopT || Math.random() * 9) + 0.016;
           const cyc = v.hopT % 9;
@@ -29709,7 +29932,35 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
     /* Draws a body plate strip by strip with its crush profile applied. Called from inside
        an already translated+rotated context, with +y running toward the tail. */
+    /* HYDRAULICS. A lowrider's body is drawn a little bigger the higher it sits -- from above,
+       nearer the camera -- while its shadow stays on the road, so the gap between them is the
+       lift. A hop is a quick spike on top of that. `hyd` eases to `hydT` (0 slammed, 1 lifted). */
+    function stepHydro(v, dt) {
+      v.hyd = (v.hyd || 0) + clamp((v.hydT || 0) - (v.hyd || 0), -dt * HYDRO.rate, dt * HYDRO.rate);
+      if (v.hopT > 0) v.hopT -= dt;
+    }
+    function hydroLift(v) {
+      const h = v.hopT > 0 ? Math.sin((1 - v.hopT / HYDRO.hop) * Math.PI) * HYDRO.hopLift : 0;
+      return (v.hyd || 0) * HYDRO.lift + h;
+    }
+    G.hydroFn = () => {
+      const v = inVehicle() ? activeVeh() : null;
+      if (!v || !v.m || !v.m.lowrider) return;
+      const moving = Math.hypot(v.vx || 0, v.vy || 0) > 20 || Math.abs(v.spd || 0) > 20;
+      if (!v.hydT) v.hydT = 1;                       // down -> up
+      else if (!moving) v.hopT = HYDRO.hop;          // up and stopped -> hop
+      else v.hydT = 0;                               // up and rolling -> slam it
+    };
     function drawBody(im, w, L, v) {
+      if (!im || !im.height) return;
+      if (v && v.m && v.m.lowrider && (v.hyd > 0.01 || v.hopT > 0)) {
+        const s2 = 1 + hydroLift(v);
+        ctx.save(); ctx.scale(s2, s2); ctx.translate(0, -hydroLift(v) * 18);
+        drawBodyRaw(im, w, L, v); ctx.restore(); return;
+      }
+      drawBodyRaw(im, w, L, v);
+    }
+    function drawBodyRaw(im, w, L, v) {
       if (!im || !im.height) return;
       if (!v || !v.crush || v.dmg < 0.02) { ctx.drawImage(im, -w / 2, -L / 2, w, L); return; }
       const sh = im.height / CRUSH_N;
@@ -31560,6 +31811,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         stepClub(dt);
         stepCamps(dt);
         stepAnimals(dt);
+        { const hv = inVehicle() ? activeVeh() : null; if (hv && hv.m && hv.m.lowrider) stepHydro(hv, dt); }
         /* A DETECTIVE IS NEVER WANTED. Every police behaviour in the game -- patrols chasing,
            roadblocks, units opening fire, the duty cops -- keys off g.heat, and nine different
            things raise it (a witnessed shot, a rammed cruiser, a raided distro, a race...).
@@ -31810,7 +32062,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.inside) drawInterior(g.inside, g.floor, g.insideT);
       drawHeldRogues();
       // staff, customers and anyone robbing them, on top of the floor and its furniture
-      if (g.inside && g.insideT > 0.5) drawShopFolk();
+      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); }
       drawComp();
       drawThrown();
       drawBlood();
@@ -32368,6 +32620,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             onFwy: !!g.onFwy,
             // a car-park ramp in reach: the E button says so, instead of offering to get out
             garage: inVehicle() && !g.inside && !!(G.denDoorFn && G.denDoorFn()),
+            lowrider: inVehicle() && !!(activeVeh() && activeVeh().m && activeVeh().m.lowrider),
+            hydUp: inVehicle() && !!(activeVeh() && activeVeh().hydT),
             ramp: inVehicle() && !g.onFwy && inRampGap(activeVeh().x, activeVeh().y),
             night: g.nightTarget > 0.5, nearCar, peds: g.peds.length,
             hp: g.p.hp, saved: g.stats.saved, lost: g.stats.lost,
@@ -35462,7 +35716,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        came out four times the size of everything around it. These are fractions of a cell now
        and they land between 240 and 660, which is the range the rest of the city lives in.
        The courthouse and the works are the widest because they should be. */
-    const MARKS = [
+    const MARKS = PRISON_CAMPUS.map(([k, u, v, w, h, kind, floors, door, doorSide, extra]) => {
+      const x = PRISON_BOX.x0 + u * (PRISON_BOX.x1 - PRISON_BOX.x0), y = PRISON_BOX.y0 + v * (PRISON_BOX.y1 - PRISON_BOX.y0);
+      const i = Math.floor(x / PITCH), j = Math.floor(y / PITCH);
+      return { k, i, j, w, h, ox: (x - SX(i)) / PITCH - 0.5, oy: (y - SX(j)) / PITCH - 0.5, kind, floors, door, doorSide,
+               clear: true, id: k + "_" + (extra.wing || kind), prisonMark: extra };
+    }).concat([
       /* kind + door: a mark defaulted to "store", so the gym was a shop with shelves in it.
          The door is centred so you walk in facing the ring steps. */
       { k: "ct_gym",        i: 2,  j: 1, w: 0.32, h: 0.24, ox: -0.26, oy: -0.24, floors: 2,
@@ -35555,7 +35814,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       { k: "ct_church",     i: 3,  j: 2, w: 0.22, h: 0.18 },
       { k: "ct_walkup",     i: 4,  j: 0, w: 0.34, h: 0.22 },
       { k: "ct_works",      i: 16, j: 7, w: 0.44, h: 0.28 },
-    ];
+    ]);
     /* THE GYM FLOOR moved indoors: GYM_FIT, GYM_SOLID and GYM_RING sit at module level and
        makeFloor lays them out for kind "gymfloor". The street overlay and its clamp are gone --
        both were keyed to the cell corner rather than to the building, so once the mark became a
@@ -35645,6 +35904,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (m.carpark) b.carpark = true;
         if (m.pd) { b.pd = true; b.pdArt = true; b.rampIn = PD_B2.ramp; }
         if (m.dg) { b.dg = true; b.name = "THE DAILY GRIND"; }
+        if (m.prisonMark) { const X = m.prisonMark; b.name = X.name; b.pwing = X.wing || null; b.pwomen = !!X.women;
+          b.inPrison = true; if (X.prison) b.prison = true; }
         /* The lot's west fence is solid -- the one you could see and walk through. In the plate's
            own pixels (786 x 708): x 9..42, from the building line to the bottom. */
         if (m.pd && b.plateRect) {
@@ -40049,6 +40310,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                 the on-foot set only, so behind the wheel -- where they matter -- they were gone. */}
             {hud.canRadio && btn("RADIO", "dispatch", () => G.pickOpen && G.pickOpen("radio"), null, false, 56)}
             {hud.canGumball && btn("SIREN", hud.gumball ? "on" : "gumball", () => G.gumballFn && G.gumballFn(), null, hud.gumball, 56)}
+            {hud.lowrider && btn("HYDRO", hud.hydUp ? "hop / slam" : "lift it", () => G.hydroFn && G.hydroFn(), null, hud.hydUp, 56)}
             {hud.ramosCar && btn("RAMOS", hud.autoOn ? "take wheel" : "you drive",
               () => { if (G.current.auto) { G.current.auto = null; } else G.pickOpen && G.pickOpen("drive"); }, null, hud.autoOn, 56)}
             {/* she has the wheel: he can take aim and fire out of the window */}
@@ -40160,6 +40422,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             {hud.atTrunk && btn("TRUNK", "long guns", () => G.pickOpen && G.pickOpen("trunk"), null, false)}
             {hud.canRadio && btn("RADIO", "dispatch", () => G.pickOpen && G.pickOpen("radio"), null, false)}
             {hud.canGumball && btn("SIREN", hud.gumball ? "on" : "gumball", () => G.gumballFn && G.gumballFn(), null, hud.gumball)}
+            {hud.lowrider && btn("HYDRO", hud.hydUp ? "hop / slam" : "lift it", () => G.hydroFn && G.hydroFn(), null, hud.hydUp)}
             {hud.atCarver && btn("CARVER", "swat orders", () => G.pickOpen && G.pickOpen("carver"), null, false)}
             {hud.needRights && !hud.rights && btn("RIGHTS", "read them", () => G.rightsFn && G.rightsFn(), null, false)}
             {hud.atSuspect && !hud.interro && btn("QUESTION", "interview", () => G.interroFn && G.interroFn(), null, false)}
