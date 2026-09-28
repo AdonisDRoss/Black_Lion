@@ -2973,6 +2973,8 @@ const PRISON_CAMPUS = [
 /* The blocks are segregated, as Kestrel was in 1986: A white, B Black, C Latino, D Asian and
    everyone else, and the women's block on its own. Who is housed where decides who is in it. */
 const PRISON_WING_TONE = { A: "light", B: "deep", C: "mid", D: "mid", W: null };
+/* THE WARDEN. His office is upstairs in the hub, next to the records room and the guard post. */
+const PRISON_WARDEN = { name: "Warden Everett Crane" };
 const PRISON_POP = { cell: 0.85, tierGuards: 2, chow: 8, lib: 3, chapel: 3, ward: 2 };
 /* THE GANGS INSIDE. Each is the outside's gang behind the wall, and it is only as strong as the
    money and product its patrons can push through the visiting room: prisonGangPower() reads the
@@ -9641,6 +9643,8 @@ function doorPoint(b) {
 }
 
 export default function IronLionLayer004() {
+  // the missing-files list: its own state, so the HUD's per-frame refresh cannot close it
+  const [missOpen, setMissOpen] = useState(false);
   const canvasRef = useRef(null);
   const imgs = useRef({});
   const G = useRef(null);
@@ -10786,6 +10790,8 @@ export default function IronLionLayer004() {
            like the feature was never built, and has cost several rounds of looking in the wrong
            place. The HUD says the count; the console says which. */
         (g0.missingAll = g0.missingAll || []).push(k);
+        // and the exact file path it looked for, every one of them, for the full list
+        (g0.missingPaths = g0.missingPaths || []).push(all[k]);
         /* And the PATH of the first failure. The console has always logged this, but there is
            no console on a phone, so "161 assets missing" told you the count and gave you no
            way to tell a wrong FOLDER from a missing FILE. One is a five-second fix and the
@@ -27883,7 +27889,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function prisonFolk() {
       const b = g.inside;
-      if (!b || !b.inPrison || b.prison) return null;
+      if (!b || !b.inPrison) return null;
       const ph = prisonPhase(g.clock || CLOCK.start)[2];
       if (g.pfolk && g.pfolk.b === b && g.pfolk.f === g.floor && g.pfolk.ph === ph) return g.pfolk.folk;
       const pl = buildingPlans(b)[g.floor]; if (!pl) return null;
@@ -27979,6 +27985,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (r.k === "plibrary") for (let n = 0; n < PRISON_POP.lib; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 });
         else if (r.k === "pchapelroom") for (let n = 0; n < PRISON_POP.chapel; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 });
         else if (r.k === "pward") { for (let n = 0; n < PRISON_POP.ward; n++) add(r, pick(PR_PEOPLE.inmate), { convict: 1 }); add(r, PR_PEOPLE.nurse, {}); }
+        /* THE HUB. Downstairs: the gate, the old blocks, chow, the laundry, the yard door and the
+           visiting room; upstairs, the warden in his office and a guard on the post. Don Matteo's
+           cell is left alone -- the story puts him there itself. */
+        else if (r.k === "gate") for (let n = 0; n < 2; n++) add(r, pick(PR_PEOPLE.guard), { guard: 1, tall: 1.3 });
+        else if (/^block/.test(r.k)) { for (let n = 0; n < 3; n++) if (Math.random() < inCell + 0.2) castInmate(r, ++cellNo) || add(r, pick(PR_PEOPLE.inmate), { convict: 1 }); }
+        else if (r.k === "laundry" && ph === "work") for (let n = 0; n < 3; n++) castInmate(r, ++cellNo) || add(r, pick(PR_PEOPLE.inmate), { convict: 1 });
+        else if (r.k === "visiting") add(r, pick(PR_PEOPLE.guard), { guard: 1, tall: 1.3 });
+        else if (r.k === "warden") add(r, PR_PEOPLE.warden, { warden: 1, name: PRISON_WARDEN.name, tall: 1.3, cast: { sex: "m", tone: "light" } });
+        else if (r.k === "guardpost" || r.k === "records") add(r, pick(PR_PEOPLE.guard), { guard: 1, tall: 1.3 });
         else if (r.k === "pguard") { const gk = b.pwomen ? pick(PR_PEOPLE.guardW) : pick(PR_PEOPLE.guard); add(r, gk, { guard: 1, tall: GUARD_TALL[gk] || 1.3, castFace: GUARD_FACE[gk] ? GUARD_FACE[gk][0] : null,
           cast: { sex: b.pwomen ? "f" : "m", tone: GUARD_FACE[gk] ? GUARD_FACE[gk][1] : "mid" } }); }
       }
@@ -39622,8 +39637,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         </div>
       )}
       {hud.missingCount > 0 && (
-            <div style={{ fontSize: 9, marginTop: 3, color: "#ff9a5a", letterSpacing: "0.10em" }}>
-              {hud.missingCount} ASSETS MISSING · {hud.missingSome}
+            <div onClick={() => setMissOpen((v) => !v)}
+              style={{ fontSize: 9, marginTop: 3, color: "#ff9a5a", letterSpacing: "0.10em", cursor: "pointer", pointerEvents: "auto" }}>
+              {hud.missingCount} ASSETS MISSING · TAP FOR THE FILE NAMES · {hud.missingSome}
               {hud.missingPath && (
                 <div style={{ marginTop: 2, color: "#ffbe7a" }}>
                   LOOKED IN: {hud.missingPath}
@@ -39631,6 +39647,25 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               )}
             </div>
           )}
+          {missOpen && (() => {
+            const paths = ((window.__ironlion && window.__ironlion.missingPaths) || []).slice().sort();
+            return (
+              <div onClick={(e) => e.stopPropagation()}
+                style={{ position: "fixed", left: "5%", top: "8%", width: "90%", height: "80%", zIndex: 999, pointerEvents: "auto",
+                  background: "rgba(8,9,12,0.96)", border: "1px solid #d2641e", padding: 12, display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8, color: "#ffbe7a", fontSize: 11, letterSpacing: "0.12em" }}>
+                  <span style={{ flex: 1 }}>{paths.length} MISSING FILES -- EXACT PATHS FROM THE REPO ROOT</span>
+                  <span onClick={() => { try { navigator.clipboard.writeText(paths.join("\n")); } catch (e) {} }}
+                    style={{ border: "1px solid #ffbe7a", padding: "4px 10px", cursor: "pointer" }}>COPY ALL</span>
+                  <span onClick={() => setMissOpen(false)}
+                    style={{ border: "1px solid #ffbe7a", padding: "4px 10px", cursor: "pointer" }}>CLOSE</span>
+                </div>
+                <textarea readOnly value={paths.join("\n")}
+                  style={{ flex: 1, width: "100%", background: "#0e0f12", color: "#e8d9b5", border: "1px solid #333",
+                    fontFamily: "ui-monospace, monospace", fontSize: 11, lineHeight: "15px", resize: "none" }} />
+              </div>
+            );
+          })()}
           {hud.hudCrash && (
             <div style={{ fontSize: 9, marginTop: 2, color: "#ff6a5a" }}>
               HUD ERROR: {hud.hudCrash}
