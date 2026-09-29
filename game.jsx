@@ -11316,6 +11316,8 @@ export default function IronLionLayer004() {
       const mate = F.filter((q) => q.crew && dd(q) < 70).sort((a, b2) => dd(a) - dd(b2))[0];
       if (mate && (!who || dd(mate) < dd(who))) { g.crewMate = mate.crew; G.pickOpen("crew"); return; }
       if (who && who.warden) { g.jobSaid = null; G.pickOpen("pjobs"); return; }
+      const fol = (g.pfol || []).filter((f) => f.b === g.inside && f.f === g.floor && dd(f) < 55).sort((a, b2) => dd(a) - dd(b2))[0];
+      if (fol && !who) { if (fol.crew) { g.crewMate = fol.crew; G.pickOpen("crew"); } else { g.talkTo = fol; g.inmateSaid = null; G.pickOpen("inmate"); } return; }
       if (!who) {   // any other man: talk to him (a card table close by wins -- you came to play)
         const man = F.filter((q) => q.convict && !q.guard && !q.store && !q.shot && !q.crew && !q.down && dd(q) < 55).sort((a, b2) => dd(a) - dd(b2))[0];
         if (man && !(G.cardsFn && G.cardsFn())) { g.talkTo = man; g.inmateSaid = null; G.pickOpen("inmate"); return; }
@@ -15493,7 +15495,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function drawBackup(view) {
       if (g.inside) return;
-      if (g.prisonMode) drawPrisonFx();
+      if (g.prisonMode) { drawFollowers(); drawPrisonFx(); }
       drawK9();
       for (const c of g.backup || []) {
         const im = imgs.current[c.m.k];
@@ -15562,7 +15564,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const C = CREW.find((q) => q.id === g.crewMate); if (!C) return null;
         return { title: C.name.toUpperCase() + " \u00b7 YOUR PEOPLE", face: "assets/crew/" + C.face + ".png",
           text: g.crewSaid || C.line,
-          opts: [{ id: "crewx:out", label: "WHAT HAPPENS WHEN WE GET OUT?" }, { id: "close", label: "LATER" }] };
+          opts: [{ id: "crewx:out", label: "WHAT HAPPENS WHEN WE GET OUT?" },
+                 (g.pfol || []).some((f) => f.crew === C.id) ? { id: "crewx:stay", label: "STAY HERE" } : { id: "crewx:follow", label: "WITH ME" },
+                 { id: "close", label: "LATER" }] };
       }
       if (kind === "console") return { title: "THE CONSOLE \u00b7 PICK A CARTRIDGE", face: null,
         text: "Home. Door locked, radio off. One game.",
@@ -15665,6 +15669,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("inm:")) { G.inmatePick(id.slice(4)); G.pickOpen("inmate"); return; }
       else if (id.startsWith("pc:")) { G.pcPick(id.slice(3)); if (g.pc) G.pickOpen("pcards"); return; }
       else if (id.startsWith("pocket:")) { G.pocketUse(id.slice(7)); if (g.pickOpen) G.pickOpen("pockets"); return; }
+      else if (id === "crewx:follow" || id === "crewx:stay") { const q = (prisonFolk() || []).find((x) => x.crew === g.crewMate);
+        if (q) { if (id === "crewx:follow") folStart(q); else folStop(q); } g.crewSaid = id === "crewx:follow" ? "Lead the way." : "I'll hold it down here."; G.pickOpen("crew"); g.crewSaid = null; return; }
       else if (id.startsWith("crewx:")) { g.crewSaid = "Out there? I've got a car and I owe you. You call, I come."; G.pickOpen("crew"); g.crewSaid = null; return; }
       else if (id.startsWith("carver:")) G.carverFn(id.slice(7));
       else if (id.startsWith("open:")) { g.fileText = null; G.pickOpen(id.slice(5)); return; }
@@ -28624,7 +28630,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.prisonMode = true; g.detMode = false; g.mode = "foot"; g.inside = wb; g.floor = 0; g.insideT = 1;
       g.p.x = pt[0]; g.p.y = pt[1]; g.p.vx = 0; g.p.vy = 0; g.cam.x = pt[0]; g.cam.y = pt[1];
       g.p.wpn = null; g.p.holstered = true; g.rack = [];
-      g.clock = CLOCK.start; g.pinv = []; g.pcigs = 20; g.pskill = STASH.skillMax; g.pdebt = null; g.pc = null; g.pday = 0; g.prel = {}; g.pmine = []; g.pheat = {};   // hide skill maxed for now (Donny)
+      g.clock = CLOCK.start; g.pinv = []; g.pcigs = 20; g.pskill = STASH.skillMax; g.pdebt = null; g.pc = null; g.pday = 0; g.prel = {}; g.pmine = []; g.pheat = {}; g.pfol = [];   // hide skill maxed for now (Donny)
       g.pgang = null; g.pfolk = null;
       g.job = null; g.pmission = null;                              // no street jobs in here
       g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y));
@@ -29476,6 +29482,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (hasT(R, "PROUD")) { R.disp -= 15; R.respect = Math.max(0, R.respect - 10); g.inmateSaid = "You'll regret that."; }
         else if (hasT(R, "COWARD")) { R.disp += 6; g.inmateSaid = "Alright, alright. We're cool."; }
         else { R.disp -= 8; g.inmateSaid = "Noted."; } }
+      else if (a === "follow") { folStart(q); g.inmateSaid = g.inmateSaid || "Right behind you."; }
+      else if (a === "stay") { folStop(q); g.inmateSaid = "I'll be around."; }
       else if (a === "recruit") {
         if (g.pgang || relDisp(R) < PREL.recruit + (hasT(R, "LOYAL") ? 10 : 0)) { g.inmateSaid = "Not yet."; return; }
         R.mine = 1; (g.pmine = g.pmine || []).push(relKey(q));
@@ -29493,12 +29501,57 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if ((g.pcigs || 0) > 0) opts.push({ id: "inm:gift", label: "GIVE HIM A PACK", icon: "assets/prison/ci_cigs.png" });
       opts.push({ id: "inm:threat", label: "THREATEN HIM" });
       if (!R.mine && !g.pgang && d >= PREL.recruit) opts.push({ id: "inm:recruit", label: "RUN WITH ME" });
+      if (R.mine) opts.push((g.pfol || []).some((f) => f.key === relKey(q)) ? { id: "inm:stay", label: "STAY HERE" } : { id: "inm:follow", label: "WITH ME" });
       opts.push({ id: "close", label: "LEAVE" });
       const who = known ? (q.name || "INMATE").toUpperCase() : "INMATE #" + ((q.inmate && q.inmate.no) || "?");
       const gline = R.mine ? "WITH YOU" : R.gang || "NO GANG";
       return { title: who + " \u00b7 " + gline, face: q.castFace ? "assets/prison/" + q.castFace + ".png" : null,
         text: "\u201c" + said + "\u201d  " + (tone === "friend" ? "FRIEND" : tone === "enemy" ? "ENEMY" : "NEUTRAL") + " " + d + " \u00b7 FEAR " + R.fear + " \u00b7 RESPECT " + R.respect
           + (known ? " \u00b7 " + R.traits.join(", ") : ""), opts };
+    }
+
+    /* ---------- YOUR PEOPLE WALK WITH YOU (layer 431) ----------
+       A recruit (or one of the crew) told WITH ME follows you -- a step behind, floor to floor,
+       building to building -- until a count sends every man to his cell, or you tell him STAY.
+       When someone comes at you (q.angry), your people go for him: each blow is PFOL.every apart,
+       PFOL.hits put him down. Drawn from a copy (the folk list rebuilds), the original hidden. */
+    const PFOL = { gap: 34, spd: 150, reach: 28, every: 1.0, hits: 3, sight: 300, max: 4 };
+    function folStart(q) {
+      const L = (g.pfol = g.pfol || []);
+      const k = relKey(q); if (L.some((f) => f.key === k)) return;
+      if (L.length >= PFOL.max) { g.inmateSaid = "You've got enough people on you."; return; }
+      L.push({ ...q, key: k, x: q.x, y: q.y, vx: 0, vy: 0, b: g.inside, f: g.floor, cd: 0, lag: 0, angry: 0, down: 0 });
+    }
+    function folStop(q) { const k = relKey(q); g.pfol = (g.pfol || []).filter((f) => f.key !== k); }
+    function stepFollowers(dt) {
+      const L = g.pfol; if (!L || !L.length) return;
+      if (!g.prisonMode || prisonPhase(g.clock || CLOCK.start)[2] === "cells" || g.hole) { g.pfol = []; return; }
+      const F = g.inside ? prisonFolk() || [] : [];
+      L.forEach((f, i) => {
+        if (f.b !== g.inside || f.f !== g.floor) { f.lag += dt; if (f.lag > 1.5) { f.b = g.inside; f.f = g.floor; f.lag = 0;
+          f.x = g.p.x - Math.cos(g.board.ang) * 60; f.y = g.p.y - Math.sin(g.board.ang) * 60; } return; }
+        // the man coming at you, nearest to YOU
+        const foe = F.filter((q) => q.angry && !q.down && Math.hypot(q.x - g.p.x, q.y - g.p.y) < PFOL.sight)
+          .sort((a, b) => Math.hypot(a.x - f.x, a.y - f.y) - Math.hypot(b.x - f.x, b.y - f.y))[0];
+        let tx, ty;
+        if (foe) { tx = foe.x; ty = foe.y; }
+        else { const a = g.board.ang + Math.PI + (i - (L.length - 1) / 2) * 0.6; tx = g.p.x + Math.cos(a) * PFOL.gap * (1 + (i >> 1) * 0.6); ty = g.p.y + Math.sin(a) * PFOL.gap * (1 + (i >> 1) * 0.6); }
+        const dx = tx - f.x, dy = ty - f.y, d = Math.hypot(dx, dy);
+        const stop = foe ? PFOL.reach : 6;
+        if (d > stop) { const sp = Math.min(PFOL.spd * (d > 200 ? 1.6 : 1), d / dt); f.x += dx / d * sp * dt; f.y += dy / d * sp * dt; f.vx = dx / d * sp; f.vy = dy / d * sp; f.anim = (f.anim || 0) + dt; f.bang = Math.atan2(dy, dx); }
+        else { f.vx = 0; f.vy = 0; }
+        f.cd -= dt;
+        if (foe && d <= PFOL.reach + 4 && f.cd <= 0) { f.cd = PFOL.every; foe.fhits = (foe.fhits || 0) + 1;
+          if (foe.fhits >= PFOL.hits) { foe.down = 1; relViolence(F, foe); g.pickupFlash = { nm: "lift:" + (f.name || "YOUR MAN").toUpperCase() + " PUT HIM DOWN", t: 1.8 }; } }
+      });
+    }
+    function drawFollowers() {
+      for (const f of g.pfol || []) {
+        if (f.b !== g.inside || f.f !== g.floor) continue;
+        drawShadow(f.x, f.y + 2, 9, 4, 0.3); drawYouth(f);
+        ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(8,10,8,0.85)"; ctx.fillStyle = "#6fe07a";
+        const nm = (f.name || "").toUpperCase(); ctx.strokeText(nm, f.x, f.y - 30); ctx.fillText(nm, f.x, f.y - 30); ctx.textAlign = "start";
+      }
     }
     function kestrelRoster() {
       if (g.kestrel) return g.kestrel;
@@ -29558,6 +29611,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const F = prisonFolk(); if (!F) return;
       for (const q of F) {
         if (g.pc && g.pc.names && g.pc.names[q.name || q.yt] && g.pc.b === g.inside) continue;   // he is at the card table
+        if (g.pfol && g.pfol.length && (q.convict || q.crew) && g.pfol.some((f) => f.key === relKey(q))) continue;   // he is walking with you
         if (q.down) {   // put down: flat on the floor, blood under him
           ctx.fillStyle = "rgba(120,10,10,0.55)"; ctx.beginPath(); ctx.ellipse(q.x + 4, q.y + 4, 16, 9, 0.3, 0, 6.3); ctx.fill();
           ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(1.4); ctx.translate(-q.x, -q.y); drawYouth(q); ctx.restore(); continue; }
@@ -34272,7 +34326,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         { const before = g.clock == null ? CLOCK.start : g.clock;
           g.clock = (before + dt * CLOCK.rate) % 1440;
           if (g.clock < before) { g.day = (g.day || 0) + 1; kestrelReleases(); } }
-        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt();
+        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt);
         // anybody who has wandered onto the prison grounds from the street is walked back off
         if ((g.pedCullT = (g.pedCullT || 0) - dt) <= 0) { g.pedCullT = 2; g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y)); }
         if (g.prisonStart) startPrisonMode();
@@ -34527,7 +34581,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.inside) drawInterior(g.inside, g.floor, g.insideT);
       drawHeldRogues();
       // staff, customers and anyone robbing them, on top of the floor and its furniture
-      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); drawCellDoors(); drawPrisonCards(); drawPrisonFx(); drawGarageSigns({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); drawCold({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); }
+      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); drawCellDoors(); drawPrisonCards(); drawFollowers(); drawPrisonFx(); drawGarageSigns({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); drawCold({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); }
       drawComp();
       drawThrown();
       drawBlood();
