@@ -1554,11 +1554,11 @@ const STAFF = [
   { id: "sparky", nm: "OFC. KOWALSKI",  role: "MOTOR POOL", f: 0, room: "pdgarage", fx: 0.22, fy: 0.72,
     hi: "Sparky. If it's got wheels and the department owns it, it's mine. Bring it in dented, take it out straight." },
   CAPTAIN,
-  { id: "chen", nm: "SGT. MARIA CHEN", role: "SWAT", f: 2, room: "sgtoffice", fx: 0.5, fy: 0.72, tall: 0.8,
+  { id: "chen", nm: "SGT. MARIA CHEN", role: "SWAT", f: 2, room: "sgtoffice", fx: 0.5, fy: 0.72, tall: 0.95,
     hi: "Chen. SWAT's mine -- Carver runs the stack, I say when it rolls. You want a door taken, you ask me." },
-  { id: "dale", nm: "LT. ARTHUR DALE", role: "WATCH COMMANDER", f: 2, room: "ltoffice", fx: 0.5, fy: 0.72, tall: 0.82,
+  { id: "dale", nm: "LT. ARTHUR DALE", role: "WATCH COMMANDER", f: 2, room: "ltoffice", fx: 0.5, fy: 0.72, tall: 0.97,
     hi: "Dale. I run the watch. Every car on the street tonight is on my board, including yours." },
-  { id: "beck", nm: "CPL. JAMES BECK", role: "K-9", f: 2, room: "pdlobby", fx: 0.35, fy: 0.4, tall: 0.8,
+  { id: "beck", nm: "CPL. JAMES BECK", role: "K-9", f: 2, room: "pdlobby", fx: 0.35, fy: 0.4, tall: 0.95,
     hi: "Beck. The dog's in the truck. He finds it, I bag it, you get the credit. Fair trade." },
 ];
 /* WHAT THE HOUSE SAYS TO YOU: by your juice and by how your last case went. */
@@ -2004,6 +2004,8 @@ const AAGS = [
   { id: "ellison", nm: "AAG ELLISON", note: "lives and dies by the forensics", start: 0, strongX: 1.3, crossX: 1.0 },
   { id: "ruiz",    nm: "AAG RUIZ",    note: "used to be a public defender",     start: 0, strongX: 1.0, crossX: 1.3 },
 ];
+/* DIRTY WORK (layer 435): planting evidence and paying witnesses. */
+const PLANT = { jury: 30, juryPaid: 14, cost: 200, maxPaid: 2, caught: 0.22, juiceLoss: 40, framedYears: 2 };
 const TRIAL = { rounds: 6, clock: 14, guilty: 60, miss: 8, recall: 10, firm: 7 };
 const CT_KEYS = ["ct_bench", "ct_witness", "ct_jury", "ct_counsel", "ct_pew", "ct_rail_gate", "ct_rail_long", "ct_steno",
                  "ct_evidence", "ct_easel", "ct_flag", "ct_podium"];
@@ -3477,6 +3479,7 @@ const CONTRABAND = {
   book:   { nm: "HOLLOWED-OUT BOOK", sev: 1 },
   gun:    { nm: "SMUGGLED PISTOL", sev: 6 },
   pkg:    { nm: "THE GANG'S PACKAGE", sev: 3 },
+  trowel: { nm: "SPOON-HANDLE TROWEL", sev: 3 },      // layer 437: the tunnel under the yard
 };
 // every contraband item has its own icon: assets/prison/ci_<item>.png
 for (const k in CONTRABAND) PD_ART["ci_" + k] = "assets/prison/ci_" + (k === "pkg" ? "heroin" : k) + ".png";
@@ -3485,7 +3488,7 @@ const STASH_PROPS = { bed: 1, toilet: 1, sink: 1, pr_bookshelf: 1, pr_washers: 1
 const STASH = { reach: 44, seed: 0.28, patR: 64, patChance: 0.45, patCd: 40, perSev: 6,
                 find: 0.9, skillCut: 0.08, skillMax: 5 };   // a pat-down finds what is on you 90%, less 8% a level of skill
 /* THE STORE: one man a block sells out of his cell for packs of cigarettes. */
-const PRISON_STORE = { shank: 12, pencil: 5, razor: 6, pills: 8, weed: 5, heroin: 14, hooch: 4, stamps: 3, book: 7, zipgun: 45, cash: 10 };
+const PRISON_STORE = { trowel: 25, shank: 12, pencil: 5, razor: 6, pills: 8, weed: 5, heroin: 14, hooch: 4, stamps: 3, book: 7, zipgun: 45, cash: 10 };
 /* ---------- THE ECONOMY INSIDE ----------
    Real money in Kestrel is the gang's drug. Each outside patron sends a share of its product
    inside (PRISON_ECON.send, AI-chosen: more when it is flush); product sold inside pays a
@@ -3519,7 +3522,7 @@ const JOIN_STEPS = [
   { k: "tribute", say: "Last thing. The table eats first. Ten packs.", packs: 10 },
 ];
 /* STORE STOCK: what each store man has on his shelf, and how many; he restocks each morning. */
-const STORE_STOCK = { shank: [0, 2], pencil: [1, 4], razor: [0, 3], pills: [1, 5], weed: [1, 5], heroin: [0, 2], hooch: [1, 6], stamps: [2, 8], book: [0, 2], zipgun: [0, 1], cash: [0, 3] };
+const STORE_STOCK = { trowel: [0, 1], shank: [0, 2], pencil: [1, 4], razor: [0, 3], pills: [1, 5], weed: [1, 5], heroin: [0, 2], hooch: [1, 6], stamps: [2, 8], book: [0, 2], zipgun: [0, 1], cash: [0, 3] };
 /* EVERY PRISONER IS SOMEBODY. The first time Kestrel is looked at, each intake-page inmate is given a
    life of his own and keeps it: a name, a number, a block and a CELL, a charge, a sentence, a release
    year, a gang or none. Same man, same cell, same record, every visit. Names are drawn from these by
@@ -3605,6 +3608,9 @@ const CREW = [
   { id: "ras", name: "Ras Leroy", no: "0876", car: "car_crew_ras", tall: 1.28,
     face: "pt_crew_ras", faceCiv: "pt_crew_ras", line: "Easy, bredren. Time pass whether you fight it or not." },
 ];
+/* THE HIRES (layer 438): three looks for each role, plate + face, assets/hires/. */
+const HIRE_ROLES = ["dealer", "driver", "shooter", "bomber", "lookout", "mechanic", "forger", "enforcer", "safecracker", "fence", "fixer", "chemist"];
+for (const r of HIRE_ROLES) for (let v = 1; v <= 3; v++) for (const k of ["yt_hire_" + r + "_" + v, "pt_hire_" + r + "_" + v]) PD_ART[k] = "assets/hires/" + k + ".png";
 for (const c of CREW) for (const k of ["yt_crew_" + c.id, "yt_crew_" + c.id + "_in", c.face, c.faceCiv]) PD_ART[k] = "assets/crew/" + k + ".png";
 /* CARS THE PLAYER CAN BUY (nose up). One is waiting at the garage when he gets it. */
 const BUY_CARS = ["buy_coupe", "buy_fastback", "buy_turbo", "buy_delorean_a", "buy_delorean_b", "buy_delorean_c", "buy_sedan_red",
@@ -11301,6 +11307,13 @@ export default function IronLionLayer004() {
 
   function doAction() {
     const g = G.current;
+    if (g.pintro) { G.introSkip && G.introSkip(); return; }             // E skips the bus
+    if (g.roof && G.roofHatchFn && G.roofHatchFn()) return;
+    if (g.inside && G.ladderUpFn && G.ladderUpFn()) return;
+    if (g.inside && g.inside.inPrison && G.drainFn && G.drainFn()) return;
+    if (g.inside && G.blueprintFn && G.blueprintFn()) return;
+    if (!g.inside && G.digFn && G.digFn()) return;
+    if (g.inside && G.opsBoardFn && G.opsBoardFn()) return;
     if (g.cab) { G.cabFn && G.cabFn(); return; }         // a game on screen: E quits it, before anything else
     /* THE CHOPPER. First branch on purpose: it is the only thing on that lot and the den door
        is close enough that a later check would lose to it. Climbing out puts you back on the
@@ -11376,6 +11389,9 @@ export default function IronLionLayer004() {
     if (g.mode === "foot" && g.inside && G.homeConsoleFn && G.homeConsoleFn()) return;
     if (g.mode === "foot" && g.inside && G.changeFn && G.changeFn()) return;
     if (g.mode === "foot" && g.inside && G.hatchFn && G.hatchFn()) return;
+    if (g.mode === "foot" && g.inside && G.hideCrewFn && G.hideCrewFn()) return;
+    if (g.mode === "foot" && g.pescaped && !g.inside) { const f = (g.pfol || []).find((q) => q.crew && Math.hypot(q.x - g.p.x, q.y - g.p.y) < 50);
+      if (f) { g.crewMate = f.crew; G.pickOpen("crew"); return; } }
     if (g.mode === "foot" && g.inside && G.swapFn && G.swapFn()) return;
     if (g.mode === "foot" && g.inside) {
       if (mountNearest()) return;
@@ -13404,12 +13420,17 @@ export default function IronLionLayer004() {
         const i = g.traffic.indexOf(g.kbus); if (i >= 0) g.traffic.splice(i, 1); g.kbus = null;
       }
     }
+    G.kestrelReleasesFn = () => kestrelReleases();   // test hook
     function kestrelReleases() {
       const out = [];
       g.convicts = (g.convicts || []).filter((q) => {
         const yrs = q.years || 5, served = (g.day || 0) - (q.inDay || 0);
         const due = yrs * PRISON_SENTENCE.dayPerYear * (q.threat === 3 ? 1 : PRISON_SENTENCE.parole);
-        if (served >= due) { out.push(q.name); return false; }
+        if (served >= due) { out.push(q.name);
+          if (q.framed) { (g.rivals = g.rivals || []).push({ no: q.fno || "F" + q.name, name: q.name, sex: q.fsex || "m", idSeed: q.fseed, civ: q.fciv,
+            tier: 3, next: "bank_job", framed: 1, since: Date.now() });
+            g.jobBanner = "HE'S OUT \u00b7 " + q.name; g.jobNote = q.name + " did time for something he didn't do. He knows it was you. Whatever he does now is on you."; }
+          return false; }
         return true;
       });
       if (out.length) { g.jobNote = "RELEASED FROM KESTREL: " + out.join(", ") + "."; bookNote("RELEASED: " + out.join(", ")); g.pfolk = null; }
@@ -13855,7 +13876,7 @@ export default function IronLionLayer004() {
     }
     function stepCase(dt) {
       stepWar(dt); stepTrial(dt); stepDispatch(dt);
-      stepPartner(dt); stepAutopilot(dt); stepDriveTalk(dt); stepRivalMsgs(); stepDeskPhone(); stepConvictClothes(); stepBackup(dt); stepK9(dt); stepCasings(dt); stepSquad(dt); stepGumball(dt);
+      stepPartner(dt); stepAutopilot(dt); stepDriveTalk(dt); stepPrisonIntro(dt); stepRivalMsgs(); stepDeskPhone(); stepConvictClothes(); stepBackup(dt); stepK9(dt); stepCasings(dt); stepSquad(dt); stepGumball(dt);
       const D = detectives();
       if (g.detStart && D) {
         g.detStart = false;
@@ -14328,6 +14349,12 @@ export default function IronLionLayer004() {
       // when every answer was right; he should be hard, not impossible
       let jury = inn ? 20 + J.start + D.start : 40 + held.reduce((a2, e) => a2 + worth(e), 0) * 0.4 + J.start + A.start + D.start;
       if (!C.arrest.rights) jury -= 15;              // never advised: the defence will live on it
+      jury += (C.planted ? PLANT.jury : 0) + (C.paid || 0) * PLANT.juryPaid;
+      // the defence might find it: then it all comes apart, and Internal Affairs wants a word
+      if ((C.planted || C.paid) && Math.random() < PLANT.caught * ((C.planted ? 1 : 0) + (C.paid || 0) * 0.5)) {
+        jury = 5; C.dirtyCaught = 1; g.juice = Math.max(0, (g.juice || 0) - PLANT.juiceLoss);
+        g.jobBanner = "THE DEFENCE FOUND IT"; g.jobNote = "The plant / the paid witness came apart on the stand. -" + PLANT.juiceLoss + " juice. IA will be asking.";
+      }
       jury = clamp(jury, 5, 80);
       // alternate: the People lead, the defence attacks
       const tops = held.map((e) => e.topic).filter((t, i, a2) => a2.indexOf(t) === i);
@@ -14409,6 +14436,10 @@ export default function IronLionLayer004() {
         g.jobBanner = "GUILTY \u00b7 " + A.name; g.jobNote = C.K.nm + " \u00b7 " + C.trial.judge.nm + " \u00b7 $" + pay;
         C.lines.push("VERDICT: GUILTY. " + A.name + ".");
         sendToKestrel(C, A.name);
+        if (!A.isPerp) { const q = (g.convicts || []).find((x) => x.name === A.name);
+          if (q) { q.framed = 1; q.years = Math.min(q.years || 4, PLANT.framedYears);
+            q.fno = A.no; q.fsex = A.sex; q.fseed = A.q && A.q.idSeed; q.fciv = A.q && A.q.civ; }
+          C.lines.push("HE DIDN'T DO IT. " + A.name + " knows exactly who put him away."); }
         crewAdvance(C, A.name);
         // a rival convicted is off the board for good
         if (C.rival) { g.rivals = (g.rivals || []).filter((q) => q !== C.rival);
@@ -14561,7 +14592,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const I = g.interro, C = g.case; if (!I) return null;
       const opts = I.done ? [{ id: "leave", label: "LEAVE THE ROOM" }]
         : I.held.filter((e) => !I.used[e.id]).map((e) => ({ id: "ev:" + e.id, label: e.label + (e.s >= INTERRO.strong ? " \u2605" : "") }))
-            .concat([{ id: "press", label: "PRESS HIM" }, { id: "easy", label: "GO EASY" }]);
+            .concat([{ id: "press", label: "PRESS HIM" }, { id: "easy", label: "GO EASY" }],
+              C && !C.planted ? [{ id: "plant", label: "PLANT EVIDENCE" }] : [],
+              C && (C.paid || 0) < PLANT.maxPaid ? [{ id: "paywit", label: "PAY A WITNESS \u00b7 $" + PLANT.cost }] : []);
       return { name: C && C.arrest ? C.arrest.name : "", bar: Math.round(I.bar), claim: I.claim, reply: I.reply, done: I.done, opts };
     }
     function stepInterro(dt) {
@@ -14605,6 +14638,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     G.interroFn = () => startInterro();
     G.interroPick = (id) => {
+      /* DIRTY WORK. Plant something on him, or put money in a witness's hand. Either one moves the
+         jury a long way. Either one can come apart in court. And a man convicted on it who did NOT
+         do it comes out of Kestrel holding the grudge of his life (see kestrelReleases). */
+      if (id === "plant" || id === "paywit") { const C = g.case, I = g.interro; if (!C || !I) return;
+        if (id === "plant") { C.planted = 1; I.reply = "You drop the bag where the lab will find it. He sees you do it."; }
+        else { if ((C.paid || 0) >= PLANT.maxPaid) { I.reply = "You've bought all the witnesses this case has."; } else if ((g.p.cash || 0) < PLANT.cost) { I.reply = "You don't have it."; } else { g.p.cash -= PLANT.cost; C.paid = (C.paid || 0) + 1; I.reply = "Somebody downtown will remember seeing him. For a price, they already do."; } }
+        setHud((h) => ({ ...h, interro: interroPanel() })); return; }
       const I = g.interro, C = g.case; if (!I || !C) return;
       if (id === "leave") { g.interro = null; setHud((h) => ({ ...h, interro: null })); return; }
       if (I.done) return;
@@ -15547,7 +15587,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function drawBackup(view) {
       if (g.inside) return;
-      if (g.prisonMode) { drawHideoutYard(view); drawFollowers(); drawPrisonFx(); }
+      if (g.prisonMode) { drawHideoutYard(view); drawTunnelSpots(); drawFollowers(); drawPrisonFx(); }
       drawK9();
       for (const c of g.backup || []) {
         const im = imgs.current[c.m.k];
@@ -15610,13 +15650,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           { id: "carver:home", label: "STAND DOWN" }, { id: "close", label: "AS YOU WERE" }] };
       }
       if (kind === "pockets") return pocketsPanel();
+      if (kind === "opsboard") return opsPanel();
       if (kind === "pescape") return escapePanel();
       if (kind === "inmate") return inmatePanel();
       if (kind === "pcards") return pcardsPanel();
       if (kind === "crew") {
         const C = CREW.find((q) => q.id === g.crewMate); if (!C) return null;
         return { title: C.name.toUpperCase() + " \u00b7 YOUR PEOPLE", face: "assets/crew/" + C.face + ".png",
-          text: g.crewSaid || C.line,
+          text: g.crewSaid || (g.pescaped ? C.outLine || "We're out. Where to?" : C.line),
           opts: [{ id: "crewx:out", label: "WHAT HAPPENS WHEN WE GET OUT?" },
                  (g.pfol || []).some((f) => f.crew === C.id) ? { id: "crewx:stay", label: "STAY HERE" } : { id: "crewx:follow", label: "WITH ME" },
                  { id: "close", label: "LATER" }] };
@@ -15720,10 +15761,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       else if (id.startsWith("console:")) { G.consolePick(id.slice(8)); return; }
       else if (id === "esc:go") { G.escapeGo(); return; }
+      else if (id.startsWith("bd:")) { G.opsPick(id); G.pickOpen("opsboard"); return; }
       else if (id.startsWith("inm:")) { G.inmatePick(id.slice(4)); G.pickOpen("inmate"); return; }
       else if (id.startsWith("pc:")) { G.pcPick(id.slice(3)); if (g.pc) G.pickOpen("pcards"); return; }
       else if (id.startsWith("pocket:")) { G.pocketUse(id.slice(7)); if (g.pickOpen) G.pickOpen("pockets"); return; }
-      else if (id === "crewx:follow" || id === "crewx:stay") { const q = (prisonFolk() || []).find((x) => x.crew === g.crewMate);
+      else if (id === "crewx:follow" || id === "crewx:stay") { const q = g.pescaped ? crewFolk(g.crewMate) : (prisonFolk() || []).find((x) => x.crew === g.crewMate);
         if (q) { if (id === "crewx:follow") folStart(q); else folStop(q); } g.crewSaid = id === "crewx:follow" ? "Lead the way." : "I'll hold it down here."; G.pickOpen("crew"); g.crewSaid = null; return; }
       else if (id.startsWith("crewx:")) { g.crewSaid = "Out there? I've got a car and I owe you. You call, I come."; G.pickOpen("crew"); g.crewSaid = null; return; }
       else if (id.startsWith("carver:")) G.carverFn(id.slice(7));
@@ -27527,8 +27569,18 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           && (g.p.hp <= 3 || !g.p.wpn || g.p.holstered)) arrestPlayer();
       return true;
     }
+    G.arrestPlayerFn = () => arrestPlayer();   // test hook
     function arrestPlayer() {
       if (g.arrested) return;
+      /* AN ESCAPED CONVICT TAKEN is not booked and released: he goes back to Kestrel, straight to the
+         SHU for 72 hours, and his crew hold the scrapyard without him. */
+      if (g.prisonMode && g.pescaped) {
+        g.heat = 0; g.wantedT = 0; g.police = null; g.policeMore = [];
+        g.pescaped = 0; g.pcivvies = 0; g.pfol = []; g.pinv = []; g.mode = "foot";
+        g.hole = { left: 72 * 60, hours: 72, why: "the escape" };
+        g.jobBanner = "RECAPTURED"; g.jobNote = "They drove you back to Kestrel in cuffs. 72 hours in the SHU. Pablo, Leroy and Ras still have the scrapyard.";
+        return;
+      }
       g.arrested = 2.6;
       g.heat = 0; g.wantedT = 0;
       // the price: half of what he was carrying, and everything he was carrying it with
@@ -28684,11 +28736,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.prisonMode = true; g.detMode = false; g.mode = "foot"; g.inside = wb; g.floor = 0; g.insideT = 1;
       g.p.x = pt[0]; g.p.y = pt[1]; g.p.vx = 0; g.p.vy = 0; g.cam.x = pt[0]; g.cam.y = pt[1];
       g.p.wpn = null; g.p.holstered = true; g.rack = [];
-      g.clock = CLOCK.start; g.pinv = []; g.pcigs = 20; g.pskill = STASH.skillMax; g.pdebt = null; g.pc = null; g.pday = 0; g.prel = {}; g.pmine = []; g.pheat = {}; g.pfol = []; g.pescaped = 0; g.crewOut = 0;   // hide skill maxed for now (Donny)
+      g.clock = CLOCK.start; g.pinv = []; g.pcigs = 20; g.pskill = STASH.skillMax; g.pdebt = null; g.pc = null; g.pday = 0; g.prel = {}; g.pmine = []; g.pheat = {}; g.pfol = []; g.pescaped = 0; g.crewOut = 0; g.pblue = 0; g.ptun = []; g.board2 = null;   // hide skill maxed for now (Donny)
       g.pgang = null; g.pfolk = null;
       g.job = null; g.pmission = null;                              // no street jobs in here
       g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y));
       g.jobBanner = "KESTREL STATE \u00b7 " + wb.name; g.jobNote = "7:00 count. Nobody knows who you are. Yet.";
+      g.pdrain = 0;
+      prisonIntroStart(wb, pt, cells.length);              // the bus in, then the cell
     }
 
     /* ---------- HOMES ---------- */
@@ -29160,7 +29214,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.lockT = (g.lockT || 0) + dt;
       if (!g.prisonMode || !P) { g.doorT = Math.min(1, (g.doorT || 0) + dt / CELL_DOOR.slide); return; }
       const home = g.inside === P.b && g.floor === 0 && inCellR(P, g.p.x, g.p.y);
-      if (!home && !g.hole && !g.pescaped && g.lockT > CELL_DOOR.grace && g.mode === "foot") {
+      if (!home && !g.hole && !g.pescaped && !g.pintro && g.lockT > CELL_DOOR.grace && g.mode === "foot") {
         // a guard walks him back
         g.inside = P.b; g.floor = 0; g.insideT = 1; g.pfolk = null;
         g.p.x = (P.x0 + P.x1) / 2; g.p.y = P.top ? P.y1 - 24 : P.y0 + 24; g.cam.x = g.p.x; g.cam.y = g.p.y;
@@ -29565,7 +29619,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       let h = 2166136261; for (const ch of String(k)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
       const t1 = PTRAITS[h % PTRAITS.length], t2 = PTRAITS[(h >>> 4) % PTRAITS.length];
       const gang = q.inmate && q.inmate.gang, mine = g.pgang && PRISON_GANGS[g.pgang] && PRISON_GANGS[g.pgang].nm === gang;
-      return (P[k] = { traits: t1 === t2 ? [t1] : [t1, t2], disp: (mine ? 30 : 0) + ((h >>> 8) % 21) - 10, fear: 0, respect: 0, met: 0, gang });
+      const spec = HIRE_ROLES[(h >>> 12) % HIRE_ROLES.length];
+      return (P[k] = { traits: t1 === t2 ? [t1] : [t1, t2], disp: (mine ? 30 : 0) + ((h >>> 8) % 21) - 10, fear: 0, respect: 0, met: 0, gang,
+        spec, name: q.name || null, yt: q.yt || null, tall: q.tall || 1.25, face: q.castFace || null });
     }
     const hasT = (R, t) => R.traits.indexOf(t) >= 0;
     function relDisp(R) { if (R.mine) return 100; return clamp(R.disp - ((g.pheat && R.gang && g.pheat[R.gang]) || 0), -100, 100); }
@@ -29618,7 +29674,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const gline = R.mine ? "WITH YOU" : R.gang || "NO GANG";
       return { title: who + " \u00b7 " + gline, face: q.castFace ? "assets/prison/" + q.castFace + ".png" : null,
         text: "\u201c" + said + "\u201d  " + (tone === "friend" ? "FRIEND" : tone === "enemy" ? "ENEMY" : "NEUTRAL") + " " + d + " \u00b7 FEAR " + R.fear + " \u00b7 RESPECT " + R.respect
-          + (known ? " \u00b7 " + R.traits.join(", ") : ""), opts };
+          + (known ? " \u00b7 " + R.traits.join(", ") + " \u00b7 GOOD " + (HIRES[R.spec] ? "AS A " + HIRES[R.spec].nm : "") : ""), opts };
     }
 
     /* ---------- YOUR PEOPLE WALK WITH YOU (layer 431) ----------
@@ -29636,7 +29692,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function folStop(q) { const k = relKey(q); g.pfol = (g.pfol || []).filter((f) => f.key !== k); }
     function stepFollowers(dt) {
       const L = g.pfol; if (!L || !L.length) return;
-      if (!g.prisonMode || prisonPhase(g.clock || CLOCK.start)[2] === "cells" || g.hole) { g.pfol = []; return; }
+      if (!g.prisonMode || (!g.pescaped && prisonPhase(g.clock || CLOCK.start)[2] === "cells") || g.hole) { g.pfol = []; return; }
+      // in a car, your people ride with you: they get out where you get out
+      if (g.mode !== "foot") { for (const f of L) { f.riding = 1; f.x = g.p.x; f.y = g.p.y; f.b = g.inside; f.f = g.floor; } return; }
       const F = g.inside ? prisonFolk() || [] : [];
       L.forEach((f, i) => {
         if (f.b !== g.inside || f.f !== g.floor) { f.lag += dt; if (f.lag > 1.5) { f.b = g.inside; f.f = g.floor; f.lag = 0;
@@ -29660,6 +29718,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       });
     }
     function drawFollowers() {
+      if (g.mode !== "foot") return;
       for (const f of g.pfol || []) {
         if (f.b !== g.inside || f.f !== g.floor) continue;
         drawShadow(f.x, f.y + 2, 9, 4, 0.3); drawYouth(f);
@@ -29721,7 +29780,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return true;
     };
     function stepConvictClothes() {
-      if (!g.prisonMode || g.pcivvies || g.hole) return;
+      if (!g.prisonMode || g.pcivvies || g.hole || g.pintro || g.sewer) return;   // nobody sees you down there
       if (inPrisonGrounds(g.p.x, g.p.y) && (!g.inside || g.inside.inPrison)) return;
       if ((g.heat || 0) < 3) { g.heat = 3; g.wantedAs = g.who === "lion" ? (g.plain ? "darius" : "lion") : g.who;   // the identity check must not clear it g.jobBanner = "ESCAPED CONVICT"; g.jobNote = "A man in a Kestrel jumpsuit on the street. Every cop in Raven Hook wants you. Find a locker and change.";
         try { escalatePolice(g.p.x, g.p.y, 2); } catch (e) {} }
@@ -29922,13 +29981,452 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.pickupFlash = { nm: to === 0 ? "lift:DOWN THE LADDER \u00b7 THE SHELTER" : "lift:UP THROUGH THE HATCH", t: 1.6 };
       return true;
     };
+    G.hideCrewFn = () => {
+      const b = g.inside; if (!b || !b.hideout || g.floor !== 1 || !g.crewOut || g.mode !== "foot") return false;
+      const pl = buildingPlans(b)[1], r = pl && pl.rooms[0]; if (!r) return false;
+      const n = CREW.findIndex((C, k) => Math.hypot(r.x0 + 70 + k * 100 - g.p.x, r.y1 - 70 - g.p.y) < 55);
+      if (n < 0) return false;
+      g.crewMate = CREW[n].id; G.pickOpen("crew"); return true;
+    };
+    // a crew member as a follower outside: his street plate
+    function crewFolk(id) { const C = CREW.find((q) => q.id === id);
+      return C ? { crew: C.id, friend: 1, name: C.name, yt: "yt_crew_" + C.id, tall: C.tall, castFace: C.faceCiv, inmate: { no: C.no } } : null; }
     // your crew, waiting in the garage once they are out
+    // your hired people, standing round the shelter (the ones not out on a job)
+    function drawHires() {
+      const b = g.inside, B = g.board2; if (!b || !b.hideout || g.floor !== 0 || !B || !(B.men || []).length) return;
+      const pl = buildingPlans(b)[0], r = pl && pl.rooms[0]; if (!r) return;
+      const busy = {}; for (const o of B.ops) for (const k in OPS[o.k].need) busy[k] = (busy[k] || 0) + OPS[o.k].need[k];
+      const seen = {};
+      B.men.forEach((m, n) => { seen[m.role] = (seen[m.role] || 0) + 1;
+        if (seen[m.role] <= (busy[m.role] || 0)) return;                 // out on a job
+        const x = r.x0 + 60 + (n % 6) * 70, y = r.y0 + (r.y1 - r.y0) * 0.62 + ((n / 6) | 0) * 60;
+        const q = { x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: m.tall || 1.25, yt: m.yt || "yt_hire_" + m.role + "_" + m.v, bang: -Math.PI / 2 };
+        drawShadow(x, y + 2, 9, 4, 0.3); drawYouth(q);
+        ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText(m.name ? m.name.toUpperCase() + " \u00b7 " + HIRES[m.role].nm : HIRES[m.role].nm, x, y - 30); ctx.textAlign = "start"; });
+    }
     function drawHideoutCrew() {
+      drawHires();
       const b = g.inside; if (!b || !b.hideout || g.floor !== 1 || !g.crewOut) return;
       const pl = buildingPlans(b)[1], r = pl && pl.rooms[0]; if (!r) return;
-      CREW.forEach((C, n) => { const q = { x: r.x0 + 70 + n * 100, y: r.y1 - 70, vx: 0, vy: 0, anim: 0, jit: 1, tall: C.tall, yt: "yt_crew_" + C.id, bang: -Math.PI / 2 };
+      CREW.forEach((C, n) => { if ((g.pfol || []).some((f) => f.crew === C.id)) return;
+        const q = { x: r.x0 + 70 + n * 100, y: r.y1 - 70, vx: 0, vy: 0, anim: 0, jit: 1, tall: C.tall, yt: "yt_crew_" + C.id, bang: -Math.PI / 2 };
         drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q);
         ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#6fe07a"; ctx.fillText(C.name.toUpperCase(), q.x, q.y - 30); ctx.textAlign = "start"; });
+    }
+
+    /* ---------- LAYER 436: THE BUS IN, ROOF HATCHES, THE DRAIN ----------
+       THE BUS IN (`g.pintro`): prison mode opens outside the gate beside the white bus, and a CO
+       walks the new fish through the rules, one line at a time (INTRO_LINES). E skips. Then you are
+       in your cell, as before. */
+    const INTRO_LINES = [
+      ["C.O. HARLAN", "Off the bus. Single file. Eyes on the man in front of you."],
+      ["C.O. HARLAN", "Welcome to Kestrel State. Count is 7, 4 and 9. You are in your cell for every one of them."],
+      ["C.O. HARLAN", "Chow three times a day. Yard in the afternoon. You work where the warden puts you."],
+      ["C.O. HARLAN", "Contraband goes in the hole with you. So does anything you do with your hands."],
+      ["C.O. HARLAN", "Every block has a shot caller. That's not my business. Don't make it my business."],
+      ["C.O. HARLAN", "Number 0001. Cell " + "{CELL}" + ". Move."],
+    ];
+    const INTRO_T = 4.6;
+    function stepPrisonIntro(dt) {
+      const I = g.pintro; if (!I) return;
+      I.t += dt;
+      if (!g.driveTalk || g.driveTalk.k !== I.i) {
+        const L = INTRO_LINES[I.i];
+        g.driveTalk = { who: L[0], text: L[1].replace("{CELL}", I.cell), t: INTRO_T + 0.3, k: I.i };
+      }
+      if (I.t >= INTRO_T) { I.t = 0; I.i++; if (I.i >= INTRO_LINES.length) prisonIntroEnd(); }
+    }
+    G.introSkip = () => prisonIntroEnd();
+    function prisonIntroEnd() {
+      const I = g.pintro; if (!I) return;
+      g.pintro = null; g.driveTalk = null;
+      g.inside = I.b; g.floor = 0; g.insideT = 1; g.pfolk = null;
+      g.p.x = I.pt[0]; g.p.y = I.pt[1]; g.cam.x = g.p.x; g.cam.y = g.p.y;
+      g.jobBanner = "KESTREL STATE \u00b7 " + I.b.name; g.jobNote = "7:00 count. Nobody knows who you are. Yet.";
+    }
+    function prisonIntroStart(wb, pt, cellNo) {
+      const B = PRISON_BOX, gx = (B.x0 + B.x1) / 2 + 160;
+      g.pintro = { i: 0, t: 0, b: wb, pt, cell: wb.pwing + "-" + cellNo };
+      g.inside = null; g.floor = 0; g.p.x = gx - 80; g.p.y = B.y0 - 120; g.cam.x = g.p.x; g.cam.y = g.p.y;
+      // the bus at the gate
+      if (!g.kbus) { g.kbus = { x: gx, y: B.y0 - 200, ang: -Math.PI / 2, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0,
+        m: { k: "pr_bus", len: 170, w: 68 }, dead: 1, parked: 1, named: 1 }; g.traffic.push(g.kbus); }
+    }
+
+    /* ROOF HATCHES. Every building of 2+ floors (not Kestrel) has a hatch on its roof, at the same
+       spot as a ladder on its top floor (roofHatchPt). On the roof, E at the hatch drops you down the
+       ladder inside; on the top floor, E at the ladder takes you up and out onto the roof. */
+    function roofHatchPt(b) { return [b.x + b.w * 0.72, b.y + b.h * 0.28]; }
+    const hatchOK = (b) => b && (b.floors || 1) >= 2 && !b.inPrison && !b.capPlate && !b.perimeter && !b.hideout;
+    G.roofHatchFn = () => {
+      const b = g.roof; if (!hatchOK(b) || g.mode !== "foot") return false;
+      const [hx, hy] = roofHatchPt(b);
+      if (Math.hypot(g.p.x - hx, g.p.y - hy) > 50) return false;
+      const f = b.floors - 1, pl = buildingPlans(b)[f]; if (!pl) return false;
+      const pt = freeIndoor(b, pl, hx, hy + 30, null) || [hx, hy + 30];
+      g.roof = null; g.inside = b; g.floor = f; g.insideT = 1; g.p.x = pt[0]; g.p.y = pt[1]; g.cam.x = pt[0]; g.cam.y = pt[1];
+      g.pickupFlash = { nm: "lift:DOWN THROUGH THE HATCH", t: 1.6 }; return true;
+    };
+    G.ladderUpFn = () => {
+      const b = g.inside; if (!hatchOK(b) || g.floor !== b.floors - 1 || g.mode !== "foot") return false;
+      const [hx, hy] = roofHatchPt(b), pl = buildingPlans(b)[g.floor];
+      const pt = (pl && freeIndoor(b, pl, hx, hy + 30, null)) || [hx, hy + 30];
+      if (Math.hypot(g.p.x - pt[0], g.p.y - pt[1]) > 55) return false;
+      g.inside = null; g.roof = b; g.p.x = hx; g.p.y = hy + 22; g.cam.x = g.p.x; g.cam.y = g.p.y;
+      g.pickupFlash = { nm: "lift:UP THE LADDER \u00b7 THE ROOF", t: 1.6 }; return true;
+    };
+    function drawRoofHatch() {
+      const b = g.roof; if (!hatchOK(b) || g.inside) return;
+      const im = imgs.current.rf_hatch, [hx, hy] = roofHatchPt(b), [ox, oy] = roofOffset(b);
+      if (im && im.width) ctx.drawImage(im, hx + ox - 18, hy + oy - 18, 36, 36);
+      else { ctx.fillStyle = "#555a60"; ctx.fillRect(hx + ox - 16, hy + oy - 16, 32, 32); }
+    }
+    function drawTopLadder() {
+      const b = g.inside; if (!hatchOK(b) || g.floor !== b.floors - 1) return;
+      const [hx, hy] = roofHatchPt(b), pl = buildingPlans(b)[g.floor];
+      const pt = (pl && freeIndoor(b, pl, hx, hy + 30, null)) || [hx, hy + 30];
+      const im = imgs.current.rf_ladder;
+      if (im && im.width) ctx.drawImage(im, pt[0] - 16, pt[1] - 34, 32, 36);
+      else { ctx.strokeStyle = "#9aa2aa"; ctx.lineWidth = 2; ctx.strokeRect(pt[0] - 8, pt[1] - 30, 16, 30); }
+    }
+
+    /* THE DRAIN. The shower room's drains lead down to the storm sewer, and a man with time can
+       loosen one. E at a pr_drain in free time: an hour's work, a guard might walk in (his skill
+       vs your hide skill), DRAIN.work sessions and the grate comes up. Then E takes you down into
+       the city's sewer at its nearest corridor -- and from there any manhole is out (in the
+       jumpsuit, so find a locker). */
+    const DRAIN = { work: 3, hole: 24 };
+    G.drainFn = () => {
+      if (!g.prisonMode || g.pescaped || !g.inside || !g.inside.inPrison || g.mode !== "foot") return false;
+      const pl = buildingPlans(g.inside)[g.floor]; if (!pl) return false;
+      const d = (pl.props || []).find((o) => o.t === "pr_drain" && Math.hypot(o.x + o.w / 2 - g.p.x, o.y + o.h / 2 - g.p.y) < 40);
+      if (!d) return false;
+      if (prisonPhase(g.clock || CLOCK.start)[2] === "cells") return false;
+      if ((g.pdrain || 0) >= DRAIN.work) {                 // down
+        const B = PRISON_BOX, cx = (B.x0 + B.x1) / 2, cy = B.y1 + 200;
+        const m = nearestManhole(cx, cy);
+        g.inside = null; g.roof = null; g.sewer = true; g.pescaped = 1; g.crewOut = 1; g.pfol = []; g.pfolk = null;
+        g.p.x = m ? m[0] : cx; g.p.y = m ? m[1] : cy; g.cam.x = g.p.x; g.cam.y = g.p.y;
+        g.jobBanner = "INTO THE SEWER"; g.jobNote = "The drain let out under the wall. Any manhole is the street -- in a Kestrel jumpsuit.";
+        const H = hideoutB(); if (H) { g.jobNote += " The scrapyard is at " + addressOf(H) + "."; if (typeof bookNote === "function") bookNote("THE SCRAPYARD: " + addressOf(H) + "."); }
+        return true;
+      }
+      const skill = 1 + ((Math.random() * 5) | 0), find = Math.max(0.05, PGUARD.base + skill * PGUARD.perGuard - (g.pskill || 0) * PGUARD.perHide) * 0.5;
+      g.clock = ((g.clock || 0) + 60) % 1440;
+      if (Math.random() < find) { g.pdrain = 0; g.hole = { left: DRAIN.hole * 60, hours: DRAIN.hole, why: "working on a drain grate" };
+        g.jobBanner = "CAUGHT AT THE DRAIN"; g.jobNote = "A level " + skill + " guard walked in on you. The grate gets welded. " + DRAIN.hole + " hours."; return true; }
+      g.pdrain = (g.pdrain || 0) + 1;
+      g.pickupFlash = { nm: "lift:" + (g.pdrain >= DRAIN.work ? "THE GRATE COMES UP \u00b7 E TO GO DOWN" : "AN HOUR ON THE GRATE \u00b7 " + g.pdrain + "/" + DRAIN.work), t: 2.4 };
+      return true;
+    };
+
+    /* ---------- LAYER 437: THE TUNNEL, AND THE BOARD ----------
+       THE TUNNEL OUT OF THE YARD. Three things, in order:
+         1. THE BLUEPRINTS -- in the RECORDS room upstairs in the hub (the warden's floor). E in there,
+            free time: you go through the drawers (a guard may walk in: PGUARD odds -> 24 h).
+         2. A TROWEL -- a spoon handle ground flat, from the store man (CONTRABAND.trowel).
+         3. THE SPOTS -- the blueprints show where the old storm culvert runs under the yard: TUNNEL.n
+            spots in a line from the weights to the south fence, drawn as chalk X's once you have them.
+            Dig them IN ORDER at yard time: each E is 45 minutes of digging (a tower guard may see:
+            half PGUARD odds -> the SHU, the trowel gone). Each spot takes TUNNEL.work sessions; when it
+            opens it joins the one before it underground. When the last one is through, E at it and
+            you come up outside the south wall -- escaped. */
+    const TUNNEL = { n: 3, work: 2, hole: 36 };
+    function tunnelSpots() {
+      const B = PRISON_BOX, Y = PRISON_YARD, W5 = B.x1 - B.x0, H5 = B.y1 - B.y0;
+      const x0 = B.x0 + W5 * (Y.u0 + 0.30 * (Y.u1 - Y.u0)), y0 = B.y0 + H5 * (Y.v0 + 0.55 * (Y.v1 - Y.v0));
+      const y1 = B.y0 + H5 * (Y.v1 - 0.03);
+      const out = []; for (let k = 0; k < TUNNEL.n; k++) out.push([x0 - k * 40, y0 + (y1 - y0) * k / (TUNNEL.n - 1)]);
+      return out;
+    }
+    G.tunnelSpotsFn = () => tunnelSpots(); G.campusBFn = (k) => campusB(k);   // test hooks
+    G.blueprintFn = () => {
+      if (!g.prisonMode || g.pblue || !g.inside || g.inside.kind !== "prison" || g.floor !== 1 || g.mode !== "foot") return false;
+      const pl = buildingPlans(g.inside)[1], r = pl && pl.rooms.find((q) => q.k === "records" && g.p.x > q.x0 && g.p.x < q.x1 && g.p.y > q.y0 && g.p.y < q.y1);
+      if (!r) return false;
+      if (prisonPhase(g.clock || CLOCK.start)[2] === "cells") return false;
+      const skill = 1 + ((Math.random() * 5) | 0), find = Math.max(0.05, PGUARD.base + skill * PGUARD.perGuard - (g.pskill || 0) * PGUARD.perHide);
+      g.clock = ((g.clock || 0) + 30) % 1440;
+      if (Math.random() < find) { g.hole = { left: 24 * 60, hours: 24, why: "in the records room" }; g.jobBanner = "CAUGHT IN RECORDS"; g.jobNote = "A level " + skill + " guard found you in the drawers. 24 hours."; return true; }
+      g.pblue = 1; g.jobBanner = "THE BLUEPRINTS"; g.jobNote = "1931 drawings of the yard. An old storm culvert runs under it to the south wall. Three places it comes close to the surface -- you know where now. You'll need something to dig with.";
+      if (typeof bookNote === "function") bookNote("BLUEPRINTS: an old culvert under the yard, three spots, south to the wall. Need a trowel.");
+      return true;
+    };
+    G.digFn = () => {
+      if (!g.prisonMode || g.pescaped || g.inside || g.mode !== "foot" || !inPrisonGrounds(g.p.x, g.p.y)) return false;
+      const S = tunnelSpots(), k = S.findIndex(([x, y]) => Math.hypot(g.p.x - x, g.p.y - y) < 40);
+      if (k < 0) return false;
+      if (!g.pblue) { g.pickupFlash = { nm: "lift:HARD GROUND. YOU'D NEED TO KNOW WHERE.", t: 1.8 }; return true; }
+      const T = (g.ptun = g.ptun || []);
+      if (k === S.length - 1 && T.length >= S.length && T.every((v) => v >= TUNNEL.work)) {      // through: out
+        const B = PRISON_BOX; g.p.x = S[k][0]; g.p.y = B.y1 + 220; g.cam.x = g.p.x; g.cam.y = g.p.y;
+        g.pescaped = 1; g.crewOut = 1; g.pfol = []; g.pfolk = null;
+        g.jobBanner = "UNDER THE WALL"; g.jobNote = "You come up in the weeds past the south fence, filthy, in a Kestrel jumpsuit.";
+        const H = hideoutB(); if (H) g.jobNote += " The scrapyard is at " + addressOf(H) + ".";
+        return true;
+      }
+      if ((g.pinv || []).indexOf("trowel") < 0) { g.pickupFlash = { nm: "lift:THIS IS THE SPOT. YOU NEED A TROWEL.", t: 1.8 }; return true; }
+      for (let i = 0; i < k; i++) if ((T[i] || 0) < TUNNEL.work) { g.pickupFlash = { nm: "lift:START WITH THE SPOT BY THE WEIGHTS", t: 1.8 }; return true; }
+      if ((T[k] || 0) >= TUNNEL.work) { g.pickupFlash = { nm: "lift:THIS ONE'S THROUGH. " + (k < S.length - 1 ? "THE NEXT ONE." : ""), t: 1.8 }; return true; }
+      const skill = 1 + ((Math.random() * 5) | 0), find = Math.max(0.03, PGUARD.base + skill * PGUARD.perGuard - (g.pskill || 0) * PGUARD.perHide) * 0.5;
+      g.clock = ((g.clock || 0) + 45) % 1440;
+      if (Math.random() < find) { const i = g.pinv.indexOf("trowel"); if (i >= 0) g.pinv.splice(i, 1);
+        g.hole = { left: TUNNEL.hole * 60, hours: TUNNEL.hole, why: "digging in the yard" }; g.jobBanner = "THE TOWER SAW YOU";
+        g.jobNote = "A level " + skill + " tower guard saw you digging. The trowel's gone. " + TUNNEL.hole + " hours."; return true; }
+      T[k] = (T[k] || 0) + 1;
+      const done = T[k] >= TUNNEL.work;
+      g.pickupFlash = { nm: "lift:" + (done ? (k === S.length - 1 ? "THROUGH TO THE CULVERT \u00b7 E TO GO" : "SPOT " + (k + 1) + " OPENS INTO THE CULVERT") : "45 MINUTES OF DIRT \u00b7 SPOT " + (k + 1) + " " + T[k] + "/" + TUNNEL.work), t: 2.4 };
+      return true;
+    };
+    function drawTunnelSpots() {
+      if (!g.prisonMode || !g.pblue || g.inside || g.pescaped) return;
+      const S = tunnelSpots(), T = g.ptun || [];
+      S.forEach(([x, y], k) => {
+        const v = T[k] || 0;
+        if (v >= TUNNEL.work) { ctx.fillStyle = "#1a120c"; ctx.beginPath(); ctx.ellipse(x, y, 13, 9, 0, 0, 6.3); ctx.fill(); ctx.strokeStyle = "#5a4430"; ctx.lineWidth = 2; ctx.stroke(); }
+        else { ctx.strokeStyle = v ? "#a58a5a" : "rgba(235,230,210,0.7)"; ctx.lineWidth = 2; ctx.beginPath();
+          ctx.moveTo(x - 8, y - 8); ctx.lineTo(x + 8, y + 8); ctx.moveTo(x + 8, y - 8); ctx.lineTo(x - 8, y + 8); ctx.stroke();
+          if (v) { ctx.fillStyle = "#6a5236"; ctx.beginPath(); ctx.ellipse(x + 12, y + 6, 7, 4, 0, 0, 6.3); ctx.fill(); } }
+      });
+    }
+
+    /* THE BOARD: running your own outfit from the scrapyard. The map table in the shelter. You HIRE
+       specialists (each a fee up front), then PLAN operations the way the gang war plans its moves:
+       each op needs certain people, runs for OPS[k].mins of game time, and then pays, costs, or
+       both. Pablo drives, Leroy shoots and Ras deals -- your crew fill those seats for free once
+       they are out. A car bomb or a hit on a gang lands on that gang in the war (g.gwar). */
+    /* THE PEOPLE (layer 441: seven new trades). `rep` is the street respect you need before that
+       kind of man will work for you at all. */
+    const HIRES = {
+      dealer:      { nm: "DEALER", cost: 400, crew: "ras", rep: 0 },
+      driver:      { nm: "DRIVER", cost: 600, crew: "viejo", rep: 0 },
+      shooter:     { nm: "SHOOTER", cost: 800, crew: "leroy", rep: 0 },
+      lookout:     { nm: "LOOKOUT", cost: 250, rep: 0 },
+      mechanic:    { nm: "MECHANIC", cost: 700, rep: 50 },
+      enforcer:    { nm: "ENFORCER", cost: 900, rep: 100 },
+      fence:       { nm: "FENCE", cost: 1000, rep: 100 },
+      forger:      { nm: "FORGER", cost: 1400, rep: 150 },
+      bomber:      { nm: "BOMB MAKER", cost: 1500, rep: 250 },
+      safecracker: { nm: "SAFECRACKER", cost: 2000, rep: 250 },
+      chemist:     { nm: "CHEMIST", cost: 2500, rep: 350 },
+      fixer:       { nm: "FIXER", cost: 4000, rep: 500 },
+    };
+    /* THE JOBS. need = people tied up while it runs; rep = respect needed to even plan it; gain =
+       respect it earns when it goes right (half of it lost when it goes wrong). case: needs a CASED
+       target first (a lookout's job) -- casing drops the risk and tells you what's in the till. */
+    const OPS = {
+      corner:    { nm: "PUT A DEALER ON A CORNER", need: { dealer: 1 }, mins: 90, pay: [0, 0], risk: 0.10, heat: 0, rep: 0, gain: 8 },
+      casestore: { nm: "CASE A STORE", need: { lookout: 1 }, mins: 60, pay: [0, 0], risk: 0.05, heat: 0, rep: 0, gain: 2 },
+      robbery:   { nm: "ROB A STORE", need: { driver: 1, shooter: 1 }, mins: 120, pay: [1500, 4000], risk: 0.22, heat: 1, rep: 0, gain: 15, cased: 1 },
+      chop:      { nm: "STEAL CARS TO ORDER", need: { mechanic: 1, driver: 1 }, mins: 150, pay: [1200, 3500], risk: 0.15, heat: 1, rep: 50, gain: 10 },
+      racket:    { nm: "PUT A SHOP ON PROTECTION", need: { enforcer: 1 }, mins: 120, pay: [0, 0], risk: 0.12, heat: 0, rep: 100, gain: 12 },
+      hijack:    { nm: "HIJACK A DELIVERY TRUCK", need: { driver: 1, shooter: 1, fence: 1 }, mins: 200, pay: [4000, 9000], risk: 0.25, heat: 1, rep: 150, gain: 25 },
+      papers:    { nm: "NEW PAPERS (DROP YOUR HEAT)", need: { forger: 1 }, mins: 180, pay: [0, 0], risk: 0.08, heat: 0, rep: 150, gain: 5, clean: 1 },
+      sellpaper: { nm: "SELL FORGED PAPERS", need: { forger: 1 }, mins: 240, pay: [800, 1800], risk: 0.10, heat: 0, rep: 150, gain: 5 },
+      armored:   { nm: "HIT AN ARMORED CAR", need: { driver: 1, shooter: 2, lookout: 1 }, mins: 240, pay: [8000, 16000], risk: 0.35, heat: 2, rep: 300, gain: 50 },
+      jewels:    { nm: "THE JEWELRY HEIST (ALDRIDGE'S)", need: { safecracker: 1, driver: 1, lookout: 1 }, mins: 300, pay: [15000, 30000], risk: 0.32, heat: 2, rep: 350, gain: 70, cased: 1 },
+      celeb:     { nm: "ROB A CELEBRITY'S PENTHOUSE", need: { safecracker: 1, lookout: 1, fixer: 1 }, mins: 360, pay: [25000, 60000], risk: 0.35, heat: 2, rep: 600, gain: 100 },
+      cop:       { nm: "BUY A COP (HEAT GONE)", need: { fixer: 1 }, mins: 120, pay: [0, 0], cost: 5000, risk: 0.10, heat: 0, rep: 500, gain: 10, clean: 1 },
+      carbomb:   { nm: "CAR BOMB ON A GANG", need: { bomber: 1, driver: 1 }, mins: 180, pay: [0, 0], risk: 0.28, heat: 2, gang: 1, dmg: 6000, stand: -40, rep: 250, gain: 40 },
+      hit:       { nm: "HIT ON A GANG MAN", need: { shooter: 1, lookout: 1 }, mins: 150, pay: [0, 0], risk: 0.25, heat: 1, gang: 1, dmg: 2500, stand: -25, rep: 100, gain: 25 },
+      favor:     { nm: "DO A JOB FOR THEM", need: { shooter: 1, driver: 1 }, mins: 180, pay: [500, 1500], risk: 0.15, heat: 1, gang: 1, stand: 25, rep: 0, gain: 10 },
+    };
+    /* STREET RESPECT (g.rep): what the street thinks you are. It caps how many people will work for
+       you -- you cannot build a big outfit fast -- and which people and jobs are open at all. It
+       only comes from jobs that go right, and it drains a little every day you do nothing. */
+    const REP_TIERS = [[0, "NOBODY", 3], [100, "KNOWN", 6], [250, "RESPECTED", 10], [500, "FEARED", 16], [800, "A BOSS", 25]];
+    const repTier = () => { const r = g.rep || 0; let t = REP_TIERS[0]; for (const x of REP_TIERS) if (r >= x[0]) t = x; return t; };
+    function peopleCount() { const B = g.board2 || {}; return Object.values(B.hires || {}).reduce((a, n) => a + n, 0); }
+    /* THE GANGS AND YOU. g.gstand[gang] -100..100 moves with what you do (a hit, a bomb, a favour,
+       tribute). Tiers: WAR (they hit your corners and your jobs go worse), HOSTILE, NEUTRAL, FRIENDLY
+       (jobs go a little better). A PACT is bought for PACT.days game days: they leave you and yours
+       alone and standing cannot fall below FRIENDLY while it runs. A day before it ends you get word;
+       RE-UP or let it lapse (an insult: -PACT.lapse). Hit a gang you have a pact with and it is war. */
+    const PACT = { days: 7, lapse: 20, base: 3000, perCash: 0.25 };
+    const standOf = (gk) => clamp((g.gstand || {})[gk] || 0, -100, 100);
+    const standTier = (v) => v <= -60 ? "WAR" : v < -10 ? "HOSTILE" : v < 40 ? "NEUTRAL" : "FRIENDLY";
+    function moveStand(gk, d) { const S = (g.gstand = g.gstand || {}); S[gk] = clamp((S[gk] || 0) + d, -100, 100);
+      const P = (g.gpact || {})[gk]; if (P && P.until > nowMin() && S[gk] < 40) S[gk] = 40; }
+    function pactCost(gk) { const G3 = g.gwar && g.gwar.gangs[gk]; return Math.round(PACT.base + (G3 ? (G3.cash || 0) * PACT.perCash : 0) - standOf(gk) * 20); }
+    /* Getting a man out: expensive by design (Donny). */
+    const SPRING = { law: { cost: 15000, mins: 3 * 1440, chance: 0.55 }, brk: { cost: 30000, mins: 18 * 60, chance: 0.70 } };
+    const nowMin = () => (g.pday || 0) * 1440 + (g.clock || 0);
+    function boardHave(k) { const B = g.board2 || {}; return (B.hires && B.hires[k] || 0) + (g.crewOut && HIRES[k].crew ? 1 : 0); }
+    function boardBusy(k) { return (g.board2 && g.board2.ops || []).reduce((a, o) => a + (OPS[o.k].need[k] || 0), 0); }
+    function boardFree(k) { return boardHave(k) - boardBusy(k); }
+    G.opsBoardFn = () => {
+      const b = g.inside; if (!b || !b.hideout || g.floor !== 0 || g.mode !== "foot") return false;
+      const pl = buildingPlans(b)[0];
+      const t = (pl.props || []).find((o) => o.t === "bs_maptable" && Math.hypot(o.x + o.w / 2 - g.p.x, o.y + o.h / 2 - g.p.y) < 70);
+      if (!t) return false;
+      g.board2 = g.board2 || { hires: {}, ops: [], corners: 0 }; g.boardSaid = null; G.pickOpen("opsboard"); return true;
+    };
+    function opsPanel() {
+      const B = g.board2; if (!B) return null;
+      const opts = [];
+      if (g.boardView === "hire") {
+        const cap = repTier()[2];
+        for (const k in HIRES) { const H = HIRES[k], lock = (g.rep || 0) < H.rep;
+          opts.push({ id: "bd:hire:" + k, label: (lock ? "\u2717 " : "") + "HIRE A " + H.nm + " \u00b7 $" + H.cost + (lock ? " \u00b7 NEEDS " + H.rep + " RESPECT" : " \u00b7 HAVE " + boardHave(k)) }); }
+        g.boardSaid = g.boardSaid || ("You have " + peopleCount() + " of the " + cap + " people a " + repTier()[1].toLowerCase() + " can keep.");
+        opts.push({ id: "bd:view:main", label: "BACK" });
+      } else if (g.boardView === "gangs") {
+        const gks = g.gwar ? Object.keys(g.gwar.gangs) : [];
+        const lines = [];
+        for (const gk of gks) { const v = standOf(gk), P = (g.gpact || {})[gk], live = P && P.until > nowMin();
+          lines.push((GANG_LABEL[gk] || gk) + ": " + (live ? "PACT (" + Math.ceil((P.until - nowMin()) / 1440) + "d)" : standTier(v)) + " " + v);
+          opts.push({ id: "bd:pact:" + gk, label: (live ? "RE-UP THE PACT WITH " : "BUY A PACT WITH ") + (GANG_LABEL[gk] || gk) + " \u00b7 $" + pactCost(gk) });
+          opts.push({ id: "bd:tribute:" + gk, label: "SEND TRIBUTE TO " + (GANG_LABEL[gk] || gk) + " \u00b7 $1500" }); }
+        g.boardSaid = lines.join(" \u00b7 ") || "No gangs on the board.";
+        opts.push({ id: "bd:view:main", label: "BACK" });
+      } else if (g.boardView === "kestrel") {
+        /* SPRINGING A MAN. Anyone inside you MET (and did not make an enemy of) can be got out and
+           put to work in his specialty: a LAWYER is slow and legal, a BREAKOUT is fast and loud. Both
+           are expensive, on purpose. He comes to the scrapyard, is on the board for free after. */
+        const L = Object.entries(g.prel || {}).filter(([k, R]) => R.met && R.name && !R.out && relDisp(R) > PREL.enemy && !(B.spring || []).some((q) => q.key === k)).slice(0, 5);
+        for (const [k, R] of L) {
+          opts.push({ id: "bd:law:" + k, label: "LAWYER FOR " + R.name.toUpperCase() + " (" + (HIRES[R.spec] || {}).nm + ") \u00b7 $" + SPRING.law.cost });
+          opts.push({ id: "bd:break:" + k, label: "BREAK OUT " + R.name.toUpperCase() + " \u00b7 $" + SPRING.brk.cost });
+        }
+        if (!L.length) g.boardSaid = g.boardSaid || "You don't know anybody inside well enough.";
+        opts.push({ id: "bd:view:main", label: "BACK" });
+      } else if (g.boardView === "plan") {
+        const gangs = g.gwar ? Object.keys(g.gwar.gangs) : [];
+        for (const k in OPS) { const O = OPS[k]; if ((g.rep || 0) < O.rep) continue;            // not open to you yet
+          if (O.cased && !(B.cased || []).some((c) => c.for === k || (!c.for && k === "robbery"))) {
+            if (k === "jewels") opts.push({ id: "bd:op:casejewels", label: "CASE ALDRIDGE'S FIRST (A LOOKOUT)" }); continue; }
+          const ok = Object.keys(O.need).every((r) => boardFree(r) >= O.need[r]);
+          const need = Object.keys(O.need).map((r) => O.need[r] + " " + HIRES[r].nm).join(", ");
+          if (O.gang) { for (const gk of gangs) opts.push({ id: "bd:op:" + k + ":" + gk, label: (ok ? "" : "\u2717 ") + O.nm + " \u00b7 " + (GANG_LABEL[gk] || gk) + " \u00b7 " + need }); }
+          else opts.push({ id: "bd:op:" + k, label: (ok ? "" : "\u2717 ") + O.nm + " \u00b7 " + need }); }
+        opts.push({ id: "bd:view:main", label: "BACK" });
+      } else {
+        opts.push({ id: "bd:view:hire", label: "HIRE PEOPLE" }, { id: "bd:view:plan", label: "PLAN A JOB" },
+                  { id: "bd:view:gangs", label: "THE GANGS AND YOU" }, { id: "bd:view:kestrel", label: "GET A MAN OUT OF KESTREL" }, { id: "close", label: "WALK AWAY" });
+      }
+      const staff = Object.keys(HIRES).map((k) => HIRES[k].nm.toLowerCase() + " " + boardFree(k) + "/" + boardHave(k)).join(", ");
+      const running = B.ops.map((o) => OPS[o.k].nm.toLowerCase() + " (" + Math.max(0, Math.ceil((o.at - nowMin()) / 60)) + "h)").join("; ");
+      return { title: "THE BOARD \u00b7 $" + (g.p.cash || 0) + " \u00b7 RESPECT " + (g.rep || 0) + " (" + repTier()[1] + ") \u00b7 " + B.corners + " CORNERS \u00b7 " + (B.rackets || 0) + " SHOPS", face: B.lastFace || null,
+        text: (g.boardSaid ? g.boardSaid + "  " : "") + "People free: " + staff + "." + (running ? " Running: " + running + "." : " Nothing running."), opts };
+    }
+    G.opsPick = (id) => {
+      const B = g.board2, [, a, k, gk] = id.split(":");
+      if (a === "view") { g.boardView = k === "main" ? null : k; g.boardSaid = null; return; }
+      if (a === "hire") { const H = HIRES[k];
+        if ((g.rep || 0) < H.rep) { g.boardSaid = "No " + H.nm.toLowerCase() + " works for a nobody. You need " + H.rep + " respect."; return; }
+        if (peopleCount() >= repTier()[2]) { g.boardSaid = "The street won't follow more than " + repTier()[2] + " people behind a " + repTier()[1].toLowerCase() + ". Earn more respect."; return; }
+        if ((g.p.cash || 0) < H.cost) { g.boardSaid = "Not enough cash."; return; }
+        g.p.cash -= H.cost; B.hires[k] = (B.hires[k] || 0) + 1;
+        const v = 1 + ((Math.random() * 3) | 0); (B.men = B.men || []).push({ role: k, v }); B.lastFace = "assets/hires/pt_hire_" + k + "_" + v + ".png";
+        g.boardSaid = "A " + H.nm.toLowerCase() + " is on the payroll."; return; }
+      if (a === "law" || a === "break") {
+        const S = a === "law" ? SPRING.law : SPRING.brk, R = (g.prel || {})[k]; if (!R) return;
+        if ((g.p.cash || 0) < S.cost) { g.boardSaid = "That kind of work costs $" + S.cost + "."; return; }
+        g.p.cash -= S.cost; (B.spring = B.spring || []).push({ key: k, how: a, at: nowMin() + S.mins });
+        g.boardSaid = a === "law" ? "A lawyer is filing for " + R.name + ". Give it " + Math.round(SPRING.law.mins / 1440) + " days." : "The men are set. " + R.name + " comes over the wall in " + Math.round(SPRING.brk.mins / 60) + " hours.";
+        g.boardView = null; return;
+      }
+      if (a === "op" && k === "casejewels") { if (boardFree("lookout") < 1) { g.boardSaid = "You need a lookout free."; return; }
+        B.ops.push({ k: "casestore", jewel: 1, at: nowMin() + OPS.casestore.mins }); g.boardSaid = "A lookout is watching Aldridge's."; g.boardView = null; return; }
+      if (a === "pact" || a === "tribute") { const cost = a === "pact" ? pactCost(k) : 1500;
+        if ((g.p.cash || 0) < cost) { g.boardSaid = "They want $" + cost + "."; return; }
+        g.p.cash -= cost;
+        if (a === "pact") { const P = (g.gpact = g.gpact || {}); const from = Math.max(nowMin(), (P[k] && P[k].until) || 0);
+          P[k] = { until: from + PACT.days * 1440, warned: 0 }; moveStand(k, 0); if (standOf(k) < 40) g.gstand[k] = 40;
+          g.boardSaid = "A pact with " + (GANG_LABEL[k] || k) + " for " + PACT.days + " days."; }
+        else { moveStand(k, 15); g.boardSaid = "Tribute paid. " + (GANG_LABEL[k] || k) + " think a little better of you."; }
+        return; }
+      if (a === "op") { const O = OPS[k];
+        if ((g.rep || 0) < O.rep) { g.boardSaid = "That's too big for somebody the street doesn't know yet."; return; }
+        if (O.cost && (g.p.cash || 0) < O.cost) { g.boardSaid = "That costs $" + O.cost + " up front."; return; }
+        if (!Object.keys(O.need).every((r) => boardFree(r) >= O.need[r])) { g.boardSaid = "You don't have the people free for that."; return; }
+        if (O.cost) g.p.cash -= O.cost;
+        if (O.gang && gk && (g.gpact || {})[gk] && g.gpact[gk].until > nowMin() && O.stand < 0) {     // breaking a pact
+          g.gpact[gk].until = 0; g.gstand[gk] = -100; g.jobBanner = "PACT BROKEN"; g.jobNote = "You moved on " + (GANG_LABEL[gk] || gk) + " while you had a pact. That's war."; }
+        const cz = O.cased ? (B.cased || []).findIndex((c) => (k === "jewels" ? c.for === "jewels" : !c.for)) : -1;
+        const tgt = cz >= 0 ? B.cased.splice(cz, 1)[0] : null;
+        B.ops.push({ k, gang: gk || null, at: nowMin() + O.mins, tgt }); g.boardSaid = O.nm + " -- set. " + Math.round(O.mins / 60) + " hours."; g.boardView = null; return; }
+    };
+    function stepOps() {
+      const B = g.board2; if (!B) return;
+      const now = nowMin();
+      for (let i = (B.spring || []).length - 1; i >= 0; i--) {
+        const sp = B.spring[i]; if (now < sp.at) continue; B.spring.splice(i, 1);
+        const S = sp.how === "law" ? SPRING.law : SPRING.brk, R = g.prel[sp.key]; if (!R) continue;
+        const chance = S.chance + Math.max(0, relDisp(R)) * 0.002;
+        if (Math.random() < chance) {
+          R.out = 1; B.hires[R.spec] = (B.hires[R.spec] || 0) + 1;
+          (B.men = B.men || []).push({ role: R.spec, v: 1, name: R.name, yt: R.yt, tall: R.tall });
+          if (R.face) B.lastFace = "assets/prison/" + R.face + ".png";
+          g.jobBanner = sp.how === "law" ? "RELEASED ON APPEAL" : "OVER THE WALL";
+          g.jobNote = R.name + " is out and at the scrapyard. He'll work as your " + HIRES[R.spec].nm.toLowerCase() + ", no charge.";
+          if (sp.how === "brk") { g.heat = Math.max(g.heat || 0, 2); g.wantedT = Math.max(g.wantedT || 0, 30); }
+        } else {
+          g.jobBanner = sp.how === "law" ? "APPEAL DENIED" : "THE BREAKOUT FAILED";
+          g.jobNote = sp.how === "law" ? "The judge wasn't buying it. " + R.name + " stays in. The money's gone." : "The guards were ready. " + R.name + " is in the SHU and your money's gone.";
+        }
+        if (typeof bookNote === "function") bookNote(g.jobBanner + ": " + R.name);
+      }
+      // corners pay once a game day
+      if (B.payDay === undefined || B.payDay < (g.pday || 0)) {
+        const first = B.payDay === undefined; B.payDay = g.pday || 0;
+        if (!first) {
+          // corners (a chemist of your own doubles what they clear) and protection
+          const chem = (B.hires.chemist || 0) > 0 ? 2 : 1;
+          const inc = (B.corners || 0) * 250 * chem + (B.rackets || 0) * 400;
+          if (inc) { g.p.cash = (g.p.cash || 0) + inc; g.pickupFlash = { nm: "lift:THE DAY'S TAKE \u00b7 +$" + inc, t: 2 }; }
+          g.rep = Math.max(0, (g.rep || 0) - 3);                  // respect fades if you sit still
+          // gangs at war hit you
+          for (const gk of Object.keys(g.gstand || {})) if (standTier(standOf(gk)) === "WAR" && Math.random() < 0.5) {
+            if (B.corners) { B.corners--; g.jobBanner = "HIT BY " + (GANG_LABEL[gk] || gk).toUpperCase(); g.jobNote = "They took one of your corners."; }
+            else if (B.rackets) { B.rackets--; g.jobBanner = "HIT BY " + (GANG_LABEL[gk] || gk).toUpperCase(); g.jobNote = "They burned out a shop that paid you."; }
+            else { const r = Object.keys(B.hires).find((k2) => B.hires[k2] > 0); if (r) { B.hires[r]--; const m = (B.men || []).findIndex((q) => q.role === r); if (m >= 0) B.men.splice(m, 1);
+              g.jobBanner = "HIT BY " + (GANG_LABEL[gk] || gk).toUpperCase(); g.jobNote = "They killed your " + HIRES[r].nm.toLowerCase() + "."; } }
+          }
+        }
+      }
+      for (const [gk, P] of Object.entries(g.gpact || {})) {
+        if (!P.until) continue;
+        if (!P.warned && P.until - now < 1440 && P.until > now) { P.warned = 1; g.jobBanner = "THE PACT IS RUNNING OUT"; g.jobNote = (GANG_LABEL[gk] || gk) + " want to know if you're re-upping. One day."; }
+        if (P.until <= now) { P.until = 0; moveStand(gk, -PACT.lapse); g.jobBanner = "PACT LAPSED"; g.jobNote = "You let it run out with " + (GANG_LABEL[gk] || gk) + ". They took it personally."; }
+      }
+      for (let i = B.ops.length - 1; i >= 0; i--) {
+        const o = B.ops[i]; if (now < o.at) continue;
+        B.ops.splice(i, 1);
+        const O = OPS[o.k];
+        let risk = O.risk - (o.tgt ? 0.10 : 0);
+        if (O.gang && o.gang && standTier(standOf(o.gang)) === "FRIENDLY") risk -= 0.05;
+        // anyone you are at war with makes every job harder
+        if (Object.keys(g.gstand || {}).some((gk) => standTier(standOf(gk)) === "WAR")) risk += 0.08;
+        const bad = Math.random() < Math.max(0.03, risk);
+        let note;
+        if (bad) {   // it went wrong: somebody is lost (a hire, never the crew), and heat
+          const role = Object.keys(O.need).find((r) => (B.hires[r] || 0) > 0);
+          if (role) { B.hires[role]--; const m = (B.men || []).findIndex((q) => q.role === role); if (m >= 0) B.men.splice(m, 1); }
+          note = O.nm + " WENT WRONG" + (role ? " -- you lost a " + HIRES[role].nm.toLowerCase() : "") + ".";
+          g.rep = Math.max(0, (g.rep || 0) - Math.round((O.gain || 0) / 2));
+          g.heat = Math.max(g.heat || 0, 1 + O.heat); g.wantedT = Math.max(g.wantedT || 0, 30);
+        } else {
+          let pay = O.pay[1] ? Math.round(O.pay[0] + Math.random() * (O.pay[1] - O.pay[0])) : 0;
+          if (o.tgt && o.k === "robbery") pay = o.tgt.cash;
+          g.p.cash = (g.p.cash || 0) + pay;
+          if (o.k === "corner") B.corners++;
+          if (o.k === "racket") B.rackets = (B.rackets || 0) + 1;
+          g.rep = (g.rep || 0) + (O.gain || 0);
+          if (O.clean) { g.heat = 0; g.wantedT = 0; g.pcivvies = 1; }
+          if (o.k === "casestore") { const nm = o.jewel ? "ALDRIDGE FINE JEWELRY" : cpick(["CORNER LIQUOR", "SAL'S PAWN", "QUIK-MART", "ROYAL DRUGS", "THE GOLD NUGGET BAR", "MARINO'S GROCERY"]);
+            (B.cased = B.cased || []).push({ nm, for: o.jewel ? "jewels" : null, guard: Math.random() < 0.4, cash: 1500 + ((Math.random() * 4000) | 0) }); }
+          if (O.gang && o.gang) moveStand(o.gang, O.stand || 0);
+          if (O.gang && g.gwar && g.gwar.gangs[o.gang]) { const G3 = g.gwar.gangs[o.gang]; G3.cash = Math.max(0, (G3.cash || 0) - O.dmg);
+            if (typeof warLog === "function") warLog("somebody " + (o.k === "carbomb" ? "blew up a car" : "put down a man") + " of " + (GANG_LABEL[o.gang] || o.gang)); }
+          note = O.nm + " -- DONE" + (pay ? ". $" + pay + "." : o.k === "corner" ? ". The corner is yours." : o.k === "racket" ? ". Another shop pays you now." :
+            o.k === "casestore" ? ". " + B.cased[B.cased.length - 1].nm + ": $" + B.cased[B.cased.length - 1].cash + " in the till" + (B.cased[B.cased.length - 1].guard ? ", an armed guard." : ", no guard.") :
+            O.clean ? ". Your heat is gone." : O.gang ? ". " + (GANG_LABEL[o.gang] || "They") + (O.stand > 0 ? " owe you one." : " felt it.") : ".") + (O.gain ? " +" + O.gain + " respect." : "");
+          if (O.heat) { g.heat = Math.max(g.heat || 0, O.heat); g.wantedT = Math.max(g.wantedT || 0, 20); }
+        }
+        g.jobBanner = "THE BOARD"; g.jobNote = note; if (typeof bookNote === "function") bookNote(note);
+      }
     }
     function kestrelRoster() {
       if (g.kestrel) return g.kestrel;
@@ -34703,7 +35201,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         { const before = g.clock == null ? CLOCK.start : g.clock;
           g.clock = (before + dt * CLOCK.rate) % 1440;
           if (g.clock < before) { g.day = (g.day || 0) + 1; kestrelReleases(); } }
-        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout();
+        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepOps();
         // anybody who has wandered onto the prison grounds from the street is walked back off
         if ((g.pedCullT = (g.pedCullT || 0) - dt) <= 0) { g.pedCullT = 2; g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y)); }
         if (g.prisonStart) startPrisonMode();
@@ -34958,7 +35456,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.inside) drawInterior(g.inside, g.floor, g.insideT);
       drawHeldRogues();
       // staff, customers and anyone robbing them, on top of the floor and its furniture
-      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); drawCellDoors(); drawShuDoors(); drawShuDay(); drawHideoutCrew(); drawPrisonCards(); drawFollowers(); drawPrisonFx(); drawGarageSigns({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); drawCold({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); }
+      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); drawCellDoors(); drawShuDoors(); drawShuDay(); drawHideoutCrew(); drawTopLadder(); drawPrisonCards(); drawFollowers(); drawPrisonFx(); drawGarageSigns({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); drawCold({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); }
       drawComp();
       drawThrown();
       drawBlood();
@@ -35185,6 +35683,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!g.inside) { drawOldTownProps(view); drawLights(view); drawBustMarks(view); }
       if (g.inside) drawCasings(view);
       drawBackup(view);
+      drawRoofHatch();
       drawDriveTalk();
       drawCase(view);
       drawStadium();
