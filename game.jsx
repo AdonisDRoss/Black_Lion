@@ -3624,6 +3624,7 @@ const SCRAP_KEYS = ["bs_bench", "bs_bunk", "bs_cot", "bs_drums", "bs_gasmasks", 
   "sy_wreck_a", "sy_wreck_b", "sy_wreck_burnt", "sy_wreck_c", "sy_wreck_crushed", "sy_wreck_d", "sy_wreck_van"];
 for (const k of SCRAP_KEYS) PD_ART[k] = "assets/scrap/" + k + ".png";
 for (const k of ["tx_bunker", "tx_bunker_b", "tx_shack_wood"]) PD_ART[k] = "assets/tex/" + k + ".png";
+for (const k of ["yt_merc_silas", "pt_merc_silas"]) PD_ART[k] = "assets/crew/" + k + ".png";   // Silas, the broker at the Rusty Nail (art to come)
 /* WEAPON ICONS: drawn over a man's head while he has one out, instead of in his hand. */
 const HEAD_ICON = { shank: "wi_bayonet", razor: "wi_razor", pencil: "wi_pencil", zipgun: "wi_zipgun", gun: "wi_pistol", pistol: "wi_pistol",
   beretta: "wi_pistol", revolver: "wi_revolver", shotgun: "wi_shotgun", bat: "wi_bat", knuckles: "wi_knuckles", tireiron: "wi_tireiron", bottle: "wi_bottle" };
@@ -11314,6 +11315,7 @@ export default function IronLionLayer004() {
     if (g.inside && G.blueprintFn && G.blueprintFn()) return;
     if (!g.inside && G.digFn && G.digFn()) return;
     if (g.inside && G.opsBoardFn && G.opsBoardFn()) return;
+    if (g.inside && G.silasFn && G.silasFn()) return;
     if (g.cab) { G.cabFn && G.cabFn(); return; }         // a game on screen: E quits it, before anything else
     /* THE CHOPPER. First branch on purpose: it is the only thing on that lot and the den door
        is close enough that a later check would lose to it. Climbing out puts you back on the
@@ -15587,7 +15589,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function drawBackup(view) {
       if (g.inside) return;
-      if (g.prisonMode) { drawHideoutYard(view); drawTunnelSpots(); drawFollowers(); drawPrisonFx(); }
+      if (g.prisonMode) { drawHideoutYard(view); drawStreetPeople(view); drawTunnelSpots(); drawFollowers(); drawPrisonFx(); drawTargetArrow(); }
       drawK9();
       for (const c of g.backup || []) {
         const im = imgs.current[c.m.k];
@@ -15651,6 +15653,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       if (kind === "pockets") return pocketsPanel();
       if (kind === "opsboard") return opsPanel();
+      if (kind === "merc") return mercPanel();
       if (kind === "pescape") return escapePanel();
       if (kind === "inmate") return inmatePanel();
       if (kind === "pcards") return pcardsPanel();
@@ -15761,6 +15764,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       else if (id.startsWith("console:")) { G.consolePick(id.slice(8)); return; }
       else if (id === "esc:go") { G.escapeGo(); return; }
+      else if (id.startsWith("merc:")) { G.mercPick(id); G.pickOpen("merc"); return; }
       else if (id.startsWith("bd:")) { G.opsPick(id); G.pickOpen("opsboard"); return; }
       else if (id.startsWith("inm:")) { G.inmatePick(id.slice(4)); G.pickOpen("inmate"); return; }
       else if (id.startsWith("pc:")) { G.pcPick(id.slice(3)); if (g.pc) G.pickOpen("pcards"); return; }
@@ -29954,6 +29958,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function stepHideout() {
       if (!g.pescaped) return;
       const H = hideoutB(); if (!H) return;
+      const MB = mercBarB(); if (MB && g.inside === MB) g.mercSeen = 1;
       if (g.crewOut && !g.crewCarsParked && Math.hypot(g.p.x - H.x, g.p.y - H.y) < 1500) {
         g.crewCarsParked = 1; CREW.forEach((C, n) => g.hideoutPark(C.car, n + 1));
       }
@@ -30348,6 +30353,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const tgt = cz >= 0 ? B.cased.splice(cz, 1)[0] : null;
         B.ops.push({ k, gang: gk || null, at: nowMin() + O.mins, tgt }); g.boardSaid = O.nm + " -- set. " + Math.round(O.mins / 60) + " hours."; g.boardView = null; return; }
     };
+    G.stepOpsT = () => stepOps();   // test hook
     function stepOps() {
       const B = g.board2; if (!B) return;
       const now = nowMin();
@@ -30379,7 +30385,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           g.rep = Math.max(0, (g.rep || 0) - 3);                  // respect fades if you sit still
           // gangs at war hit you
           for (const gk of Object.keys(g.gstand || {})) if (standTier(standOf(gk)) === "WAR" && Math.random() < 0.5) {
-            if (B.corners) { B.corners--; g.jobBanner = "HIT BY " + (GANG_LABEL[gk] || gk).toUpperCase(); g.jobNote = "They took one of your corners."; }
+            if ((B.spots || []).length && !B.attack) { const sp = cpick(B.spots); B.attack = { spot: sp, x: sp.x, y: sp.y, gk, t: CORNER_DEF };
+              g.jobBanner = (GANG_LABEL[gk] || gk).toUpperCase() + " ARE HITTING YOUR " + (sp.kind === "corner" ? "CORNER" : "SHOP"); g.jobNote = sp.addr + ". " + CORNER_DEF + " seconds. Follow the red arrow."; }
+            else if (B.attack) {}
+            else if (B.corners) { B.corners--; g.jobBanner = "HIT BY " + (GANG_LABEL[gk] || gk).toUpperCase(); g.jobNote = "They took one of your corners."; }
             else if (B.rackets) { B.rackets--; g.jobBanner = "HIT BY " + (GANG_LABEL[gk] || gk).toUpperCase(); g.jobNote = "They burned out a shop that paid you."; }
             else { const r = Object.keys(B.hires).find((k2) => B.hires[k2] > 0); if (r) { B.hires[r]--; const m = (B.men || []).findIndex((q) => q.role === r); if (m >= 0) B.men.splice(m, 1);
               g.jobBanner = "HIT BY " + (GANG_LABEL[gk] || gk).toUpperCase(); g.jobNote = "They killed your " + HIRES[r].nm.toLowerCase() + "."; } }
@@ -30411,8 +30420,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           let pay = O.pay[1] ? Math.round(O.pay[0] + Math.random() * (O.pay[1] - O.pay[0])) : 0;
           if (o.tgt && o.k === "robbery") pay = o.tgt.cash;
           g.p.cash = (g.p.cash || 0) + pay;
-          if (o.k === "corner") B.corners++;
-          if (o.k === "racket") B.rackets = (B.rackets || 0) + 1;
+          if (o.k === "corner") { B.corners++; addSpot("corner", "dealer"); }
+          if (o.k === "racket") { B.rackets = (B.rackets || 0) + 1; addSpot("racket", "enforcer"); }
           g.rep = (g.rep || 0) + (O.gain || 0);
           if (O.clean) { g.heat = 0; g.wantedT = 0; g.pcivvies = 1; }
           if (o.k === "casestore") { const nm = o.jewel ? "ALDRIDGE FINE JEWELRY" : cpick(["CORNER LIQUOR", "SAL'S PAWN", "QUIK-MART", "ROYAL DRUGS", "THE GOLD NUGGET BAR", "MARINO'S GROCERY"]);
@@ -30427,6 +30436,178 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }
         g.jobBanner = "THE BOARD"; g.jobNote = note; if (typeof bookNote === "function") bookNote(note);
       }
+    }
+
+    /* ---------- LAYER 443: THE RUSTY NAIL, YOUR PEOPLE ON THE STREET, CASING IN PERSON ----------
+       THE RUSTY NAIL (`mercBarB`): the bar nearest the scrapyard becomes the merc bar. SILAS, the
+       broker, sits in it; E by him -> the jobs going (refreshed each game day): collect a debt, move
+       a package, watch a deal, put down a gang man -- and a SIT-DOWN with any gang that hates you,
+       which is how you settle a beef. Take one and the address is marked (an arrow at the screen's
+       edge); get to the door before it runs out (MERC_T game minutes). Some go bad (hp, heat). */
+    const MERC_T = 300;
+    const MERC_JOBS = [
+      { k: "debt", nm: "COLLECT A DEBT", pay: [800, 1600], rep: 8, risk: 0.2, dmg: 3 },
+      { k: "pkg", nm: "MOVE A PACKAGE", pay: [600, 1200], rep: 6, risk: 0.15, heat: 1 },
+      { k: "deal", nm: "WATCH A DEAL GO DOWN", pay: [1000, 2200], rep: 10, risk: 0.25, dmg: 4 },
+      { k: "gangman", nm: "PUT DOWN A GANG MAN", pay: [2000, 3500], rep: 20, risk: 0.35, dmg: 5, gang: -25, heat: 1 },
+    ];
+    function mercBarB() {
+      if (g.mercBar !== undefined) return g.mercBar;
+      const H = hideoutB(); if (!H) return null;
+      let best = null, bd = 1e12;
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); if (!c) continue;
+        for (const b of (c.blds || [])) { if (!b.door || b.inPrison || b.landmark || b.homeOf || b.hideout) continue;
+          if (!/bar|tavern|pub/.test(b.kind || "") && !/bar|tavern|pub/.test(b.biz || "")) continue;
+          const d = Math.hypot(b.x - H.x, b.y - H.y); if (d < bd) { bd = d; best = b; } } }
+      if (best) { best.name = "THE RUSTY NAIL"; best.mercBar = 1; }
+      return (g.mercBar = best || null);
+    }
+    function silasPt(b) { const pl = buildingPlans(b)[b.entry || 0], r = pl && pl.rooms[0]; if (!r) return null;
+      return freeIndoor(b, pl, (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2 + 20, r) || [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2]; }
+    G.mercBarFn = () => mercBarB(); G.doorPtFn = (b) => doorPoint(b); G.silasPtFn = (b) => silasPt(b);   // test hooks
+    G.silasFn = () => {
+      const b = g.inside; if (!g.pescaped || !b || !b.mercBar || g.mode !== "foot") return false;
+      const s = silasPt(b); if (!s || Math.hypot(g.p.x - s[0], g.p.y - s[1]) > 60) return false;
+      g.mercSaid = null; G.pickOpen("merc"); return true;
+    };
+    function mercOffers() {
+      const day = g.pday || 0;
+      if (!g.mercOff || g.mercOff.day !== day) {
+        const gks = g.gwar ? Object.keys(g.gwar.gangs) : [];
+        g.mercOff = { day, jobs: [0, 1, 2].map(() => { const J = cpick(MERC_JOBS); return { ...J, gk: J.gang ? cpick(gks) : null, pay: Math.round(J.pay[0] + Math.random() * (J.pay[1] - J.pay[0])) }; }) };
+      }
+      return g.mercOff.jobs;
+    }
+    function mercPanel() {
+      const opts = [];
+      if (g.merc) opts.push({ id: "merc:drop", label: "DROP THE JOB YOU'RE ON (-5 RESPECT)" });
+      else {
+        mercOffers().forEach((J, n) => opts.push({ id: "merc:take:" + n, label: J.nm + (J.gk ? " (" + (GANG_LABEL[J.gk] || J.gk) + ")" : "") + " \u00b7 $" + J.pay }));
+        for (const gk of Object.keys(g.gstand || {})) if (standOf(gk) < -10)
+          opts.push({ id: "merc:sit:" + gk, label: "SIT DOWN WITH " + (GANG_LABEL[gk] || gk) + " \u00b7 $" + (2000 + Math.round(-standOf(gk) * 40)) });
+      }
+      opts.push({ id: "close", label: "ANOTHER DRINK" });
+      return { title: "SILAS \u00b7 THE RUSTY NAIL \u00b7 RESPECT " + (g.rep || 0), face: null,
+        text: g.mercSaid || (g.merc ? "You've got work. Go do it." : "Everybody in here is for hire, or hiring. What do you want?"), opts };
+    }
+    G.mercPick = (id) => {
+      const [, a, n] = id.split(":");
+      if (a === "drop") { g.merc = null; g.rep = Math.max(0, (g.rep || 0) - 5); g.mercSaid = "Word gets round when a man walks off a job."; return; }
+      // a target somewhere across town
+      const bar = g.inside; let tgt = null;
+      for (let t = 0; t < 80 && !tgt; t++) { const a2 = Math.random() * 6.28, r = 900 + Math.random() * 1800;
+        const c = getCell(Math.floor((bar.x + Math.cos(a2) * r) / PITCH), Math.floor((bar.y + Math.sin(a2) * r) / PITCH));
+        const b = c && (c.blds || []).find((q) => q.door && !q.inPrison && !q.landmark && !q.hideout && !q.mercBar); if (b) tgt = b; }
+      if (!tgt) { g.mercSaid = "Nothing going right now."; return; }
+      if (a === "take") { const J = mercOffers()[+n]; g.merc = { ...J, b: tgt, due: nowMin() + MERC_T }; g.mercOff.jobs.splice(+n, 1); }
+      else if (a === "sit") { const cost = 2000 + Math.round(-standOf(n) * 40);
+        if ((g.p.cash || 0) < cost) { g.mercSaid = "They want $" + cost + " on the table before they'll sit."; return; }
+        g.p.cash -= cost; g.merc = { k: "sit", nm: "THE SIT-DOWN WITH " + (GANG_LABEL[n] || n), gk: n, pay: 0, rep: 5, risk: 0.1, b: tgt, due: nowMin() + MERC_T }; }
+      g.mercSaid = g.merc.nm + ": " + addressOf(tgt) + ". Get there inside " + Math.round(MERC_T / 60) + " hours.";
+    };
+    function stepMerc() {
+      const M = g.merc; if (!M) return;
+      if (nowMin() > M.due) { g.merc = null; g.rep = Math.max(0, (g.rep || 0) - 5); g.jobBanner = "TOO LATE"; g.jobNote = M.nm + " -- you never showed. -5 respect."; return; }
+      if (g.inside) return;
+      const d = doorPoint(M.b); if (Math.hypot(g.p.x - d[0], g.p.y - d[1]) > 80) return;
+      g.merc = null;
+      if (M.k === "sit") { const gk = M.gk; g.gstand[gk] = Math.max(standOf(gk), -10) + 20;
+        g.jobBanner = "THE SIT-DOWN"; g.jobNote = "You sat across from " + (GANG_LABEL[gk] || gk) + ". The money talked. It's squashed -- for now."; g.rep = (g.rep || 0) + M.rep; return; }
+      if (Math.random() < M.risk) { g.p.hp = Math.max(1, (g.p.hp || 10) - (M.dmg || 2)); g.heat = Math.max(g.heat || 0, 2); g.wantedT = Math.max(g.wantedT || 0, 20);
+        const half = Math.round(M.pay / 2); g.p.cash = (g.p.cash || 0) + half;
+        g.jobBanner = "IT WENT SIDEWAYS"; g.jobNote = M.nm + " went bad. You got out with $" + half + " and some blood on you."; return; }
+      g.p.cash = (g.p.cash || 0) + M.pay; g.rep = (g.rep || 0) + M.rep;
+      if (M.heat) { g.heat = Math.max(g.heat || 0, M.heat); g.wantedT = Math.max(g.wantedT || 0, 15); }
+      if (M.gk && M.gang) moveStand(M.gk, M.gang);
+      g.jobBanner = "PAID"; g.jobNote = M.nm + " -- done. $" + M.pay + ", +" + M.rep + " respect.";
+      if (typeof bookNote === "function") bookNote(g.jobNote);
+    }
+    // Silas at the bar, and an arrow to wherever you are headed
+    function drawSilas() {
+      const b = g.inside; if (!g.pescaped || !b || !b.mercBar || g.floor !== (b.entry || 0)) return;
+      const s = silasPt(b); if (!s) return;
+      const q = { x: s[0], y: s[1], vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt: "yt_merc_silas", bang: Math.PI / 2 };
+      drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q);
+      if (!imgs.current.yt_merc_silas || !imgs.current.yt_merc_silas.width) { ctx.fillStyle = "#3a2a22"; ctx.beginPath(); ctx.arc(q.x, q.y, 11, 0, 6.3); ctx.fill(); }
+      ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText("SILAS \u00b7 BROKER", q.x, q.y - 30); ctx.textAlign = "start";
+    }
+    function drawTargetArrow() {
+      const tg = g.merc ? doorPoint(g.merc.b) : g.board2 && g.board2.attack ? [g.board2.attack.x, g.board2.attack.y] : !g.inside && g.pescaped && g.mercBar && !g.mercSeen ? doorPoint(g.mercBar) : null;
+      if (!tg || g.inside) return;
+      const dx = tg[0] - g.p.x, dy = tg[1] - g.p.y, d = Math.hypot(dx, dy); if (d < 140) return;
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const W = ctx.canvas.width, H = ctx.canvas.height, a = Math.atan2(dy, dx), R = Math.min(W, H) * 0.42;
+      const x = W / 2 + Math.cos(a) * R, y = H / 2 + Math.sin(a) * R;
+      ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = g.board2 && g.board2.attack && !g.merc ? "#ff5040" : "#e8c46a";
+      ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-8, -9); ctx.lineTo(-8, 9); ctx.closePath(); ctx.fill();
+      ctx.rotate(-a); ctx.font = "700 11px monospace"; ctx.textAlign = "center"; ctx.fillText(Math.round(d / 21) + "m", 0, 24);
+      ctx.restore();
+    }
+
+    /* YOUR PEOPLE ON THE STREET. Every corner you put a dealer on and every shop you put on
+       protection is a real spot in town (B.spots) with your man standing on it (gold label). When a
+       gang you are at war with hits you, it is an ATTACK on one of those spots: red on the map arrow,
+       CORNER_DEF seconds to get there. Get there and your man holds it (+respect, and they bleed a
+       little standing); don't, and it is gone. */
+    const CORNER_DEF = 90;
+    function spotNear(b0) {
+      const H = b0 || hideoutB(); if (!H) return null;
+      for (let t = 0; t < 60; t++) { const a = Math.random() * 6.28, r = 500 + Math.random() * 1400;
+        const c = getCell(Math.floor((H.x + Math.cos(a) * r) / PITCH), Math.floor((H.y + Math.sin(a) * r) / PITCH));
+        const b = c && (c.blds || []).find((q) => q.door && !q.inPrison && !q.landmark && !q.hideout); if (b) { const d = doorPoint(b); return { x: d[0] + 30, y: d[1] + 30, addr: addressOf(b), nm: b.name }; } }
+      return null;
+    }
+    function addSpot(kind, role) { const B = g.board2; const s = spotNear(); if (!s) return;
+      const man = (B.men || []).find((m) => m.role === role) || { role, v: 1 };
+      (B.spots = B.spots || []).push({ ...s, kind, yt: man.yt || "yt_hire_" + role + "_" + (man.v || 1), tall: man.tall || 1.25 }); }
+    function stepCornerWar(dt) {
+      const B = g.board2; if (!B || !B.attack) return;
+      const A = B.attack; A.t -= dt;
+      if (!g.inside && Math.hypot(g.p.x - A.x, g.p.y - A.y) < 90) {
+        B.attack = null; g.rep = (g.rep || 0) + 10; moveStand(A.gk, -5);
+        g.jobBanner = "YOU HELD IT"; g.jobNote = "You got there in time. " + (GANG_LABEL[A.gk] || "They") + " ran. +10 respect."; return; }
+      if (A.t <= 0) { B.attack = null;
+        const i = (B.spots || []).indexOf(A.spot); if (i >= 0) B.spots.splice(i, 1);
+        if (A.spot.kind === "corner") B.corners = Math.max(0, (B.corners || 0) - 1); else B.rackets = Math.max(0, (B.rackets || 0) - 1);
+        g.jobBanner = "YOU LOST IT"; g.jobNote = (GANG_LABEL[A.gk] || "They") + " took your " + (A.spot.kind === "corner" ? "corner" : "shop") + " on " + A.spot.addr + "."; }
+    }
+    function drawStreetPeople(view) {
+      const B = g.board2; if (!B || !B.spots || g.inside) return;
+      for (const s of B.spots) {
+        if (s.x < view.x0 - 60 || s.x > view.x1 + 60 || s.y < view.y0 - 60 || s.y > view.y1 + 60) continue;
+        const q = { x: s.x, y: s.y, vx: 0, vy: 0, anim: 0, jit: 1, tall: s.tall, yt: s.yt, bang: Math.PI / 2 };
+        drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q);
+        const hit = B.attack && B.attack.spot === s;
+        ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = hit ? "#ff5040" : "#e8c46a";
+        ctx.fillText(hit ? "UNDER ATTACK \u00b7 " + Math.ceil(B.attack.t) + "s" : s.kind === "corner" ? "YOUR CORNER" : "PROTECTED", q.x, q.y - 30); ctx.textAlign = "start";
+      }
+    }
+
+    /* CASING IN PERSON. Escaped and inside any shop: the CASE button -- stand in there CASE_T seconds
+       and you know the till, whether there is a guard. The shop goes on the board's cased list (your
+       people can take it), or press ROB and take it yourself. */
+    const CASE_T = 10;
+    G.caseShopFn = () => {
+      const b = g.inside; if (!g.pescaped || !b || !b.biz || b.hideout || b.mercBar) return;
+      const B = (g.board2 = g.board2 || { hires: {}, ops: [], corners: 0 });
+      const C = (B.cased || []).find((c) => c.b === b);
+      if (!C) { g.casing = { b, t: 0 }; g.pickupFlash = { nm: "lift:LOOKING THE PLACE OVER...", t: 1.4 }; return; }
+      // rob it yourself
+      B.cased.splice(B.cased.indexOf(C), 1);
+      const odds = 0.7 + (g.p.wpn ? 0.15 : 0) - (C.guard ? 0.2 : 0);
+      if (Math.random() < odds) { g.p.cash = (g.p.cash || 0) + C.cash; g.rep = (g.rep || 0) + 12; g.heat = Math.max(g.heat || 0, 2); g.wantedT = Math.max(g.wantedT || 0, 30);
+        g.jobBanner = "STUCK UP " + (b.name || "THE STORE"); g.jobNote = "$" + C.cash + " out of the till. +12 respect. Now go."; }
+      else { g.p.hp = Math.max(1, (g.p.hp || 10) - 4); g.heat = Math.max(g.heat || 0, 3); g.wantedT = Math.max(g.wantedT || 0, 45);
+        g.jobBanner = "IT WENT WRONG"; g.jobNote = (C.guard ? "The guard" : "The owner") + " had a gun under the counter. You ran with nothing."; }
+    };
+    function stepCasing(dt) {
+      const K = g.casing; if (!K) return;
+      if (g.inside !== K.b) { g.casing = null; g.pickupFlash = { nm: "lift:YOU LEFT BEFORE YOU SAW ENOUGH", t: 1.6 }; return; }
+      K.t += dt;
+      if (K.t >= CASE_T) { g.casing = null; const B = g.board2;
+        const C = { nm: K.b.name || "A STORE", b: K.b, for: null, guard: Math.random() < 0.4, cash: 1500 + ((Math.random() * 4500) | 0) };
+        (B.cased = B.cased || []).push(C);
+        g.jobBanner = "CASED \u00b7 " + C.nm; g.jobNote = "$" + C.cash + " in the till, " + (C.guard ? "an armed guard." : "no guard.") + " ROB it now, or leave it for your people on the board."; }
     }
     function kestrelRoster() {
       if (g.kestrel) return g.kestrel;
@@ -35201,7 +35382,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         { const before = g.clock == null ? CLOCK.start : g.clock;
           g.clock = (before + dt * CLOCK.rate) % 1440;
           if (g.clock < before) { g.day = (g.day || 0) + 1; kestrelReleases(); } }
-        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepOps();
+        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepOps(); stepMerc(); stepCornerWar(dt); stepCasing(dt);
         // anybody who has wandered onto the prison grounds from the street is walked back off
         if ((g.pedCullT = (g.pedCullT || 0) - dt) <= 0) { g.pedCullT = 2; g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y)); }
         if (g.prisonStart) startPrisonMode();
@@ -35456,7 +35637,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.inside) drawInterior(g.inside, g.floor, g.insideT);
       drawHeldRogues();
       // staff, customers and anyone robbing them, on top of the floor and its furniture
-      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); drawCellDoors(); drawShuDoors(); drawShuDay(); drawHideoutCrew(); drawTopLadder(); drawPrisonCards(); drawFollowers(); drawPrisonFx(); drawGarageSigns({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); drawCold({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); }
+      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); drawCellDoors(); drawShuDoors(); drawShuDay(); drawHideoutCrew(); drawTopLadder(); drawSilas(); drawPrisonCards(); drawFollowers(); drawPrisonFx(); drawGarageSigns({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); drawCold({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); }
       drawComp();
       drawThrown();
       drawBlood();
@@ -43925,6 +44106,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             {hud.atBust && btn("BUST", JUICE.cost.swat + " juice", () => G.bustFn && G.bustFn(), null, false)}
             {hud.ramosCar && btn("RAMOS", hud.autoOn ? "take the wheel" : "you drive",
               () => { if (G.current.auto) { G.current.auto = null; } else G.pickOpen && G.pickOpen("drive"); }, null, hud.autoOn)}
+            {G.current && G.current.pescaped && G.current.inside && G.current.inside.biz && !G.current.inside.hideout && !G.current.inside.mercBar &&
+              btn(((G.current.board2 && G.current.board2.cased) || []).some((c) => c.b === G.current.inside) ? "ROB" : "CASE", "this place", () => G.caseShopFn && G.caseShopFn(), null, false)}
             {G.current && G.current.prisonMode && btn("POCKETS", ((G.current.pinv || []).length) + " on you", () => { G.current.pocketSaid = null; G.pickOpen && G.pickOpen("pockets"); }, null, false)}
             {btn("BOOK", hud.bookOpen ? "shut it" : (hud.bookN || 0) + " names",
               () => G.bookFn && G.bookFn(), null, hud.bookOpen)}
