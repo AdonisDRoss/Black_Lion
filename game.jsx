@@ -2976,6 +2976,9 @@ const PRISON_CELL = { i: 16, j: 23 };
 /* TIGHTER: the wall pulled in so the buildings stand close and the open ground is the yard's. */
 const PRISON_BOX = { x0: 23425, y0: 35195, x1: 27575, y1: 38305 };    // pulled in again, round the same centre
 /* THE YARD, as fractions of the box: fenced on all four sides with one gate in its top fence. */
+/* A plan room is in the TOP row of a two-row block when it sits above the building's middle
+   (plan rooms carry world coords, not the grid gy0 the furnisher sees). */
+const rowTop = (r, b) => (r.y0 + r.y1) / 2 < b.y + b.h / 2;
 const YARD_WEIGHTS_W = 120;          // the iron pile in the middle of the track, in world units
 const PRISON_YARD = { u0: 0.05, v0: 0.64, u1: 0.37, v1: 0.97, gate: 150, fence: 12 };
 let MARKS_REF = [];
@@ -2985,7 +2988,7 @@ const inPrisonGrounds = (x, y) => x > PRISON_BOX.x0 - 160 && x < PRISON_BOX.x1 +
 const PRISON_CAMPUS = [
   // k (roof plate)       u     v     w     h     kind            floors door side  extra
   ["pr_roof_cafe",      0.50, 0.16, 0.34, 0.36, "prisoncafe",    1, 0.5, 2, { name: "KESTREL STATE -- MESS HALL" }],
-  ["pr_roof_hub",       0.50, 0.42, 0.40, 0.39, "prison",        2, 0.5, 2, { prison: 1, name: "KESTREL STATE" }],
+  ["pr_roof_hub",       0.50, 0.42, 0.40, 0.39, "prison",        3, 0.5, 2, { prison: 1, name: "KESTREL STATE" }],   // 3rd floor: the SHU
   ["pr_roof_wing",      0.20, 0.27, 0.64, 0.34, "prisonwing",    2, 0.5, 2, { wing: "A", name: "A BLOCK" }],
   ["pr_roof_wing",      0.20, 0.52, 0.64, 0.34, "prisonwing",    2, 0.5, 2, { wing: "B", name: "B BLOCK" }],
   ["pr_roof_wing",      0.80, 0.27, 0.64, 0.34, "prisonwing",    2, 0.5, 2, { wing: "C", name: "C BLOCK" }],
@@ -6021,6 +6024,7 @@ const DOORW = 48;          // 2.2m. 34 was a doorway two people could not pass i
                             // mathematically impossible to walk through no matter how carefully aimed
 
 function floorKind(b, f) {
+  if (b.hideout) return f === 0 ? "shelter" : "scrapgarage";      // the scrapyard: the shelter under the garage
   if (b.kind === "house") return f === 0 ? (b.floors > 1 ? "house_g2" : "house_g1") : "house_u";
   if (b.kind === "trailer") return "trailer";
   if (b.kind === "store") return "store";
@@ -6039,7 +6043,7 @@ function floorKind(b, f) {
   if (b.kind === "sechq") return f === 0 ? "sechq" : "offices";
   /* Ground floor is where visitors and inmates meet; upstairs is where the place is run from.
      Don Matteo is on the ground floor because that is where w5 puts the player. */
-  if (b.kind === "prison") return f === 0 ? "cellblock" : "wardenwing";
+  if (b.kind === "prison") return f === 0 ? "cellblock" : f === 1 ? "wardenwing" : "shu";
   if (b.kind === "prisonwing") return "cellrow";                 // both tiers
   if (b.homeOf && f === b.floors - 1) return "homeapt";         // Malcolm's / Ramos's floor
   if (b.kind === "prisoncafe") return "pcafe";
@@ -6403,6 +6407,21 @@ function makeFloor(b, f, rnd) {
     if (put(c2, r2, h - 1, GY - 1, "apt_bath") >= 0) rooms[rooms.length - 1].floorTex = "tx_home_tile";
     if (h < GX - 1) { put(h, 0, h, GY - 1, "corridor"); put(h + 1, 0, GX - 1, GY - 1, "apt_neighbor"); }
     else put(h, 0, GX - 1, GY - 1, "corridor");
+  } else if (kind === "scrapgarage") {
+    hub = put(0, 0, GX - 1, GY - 1, "sygarage"); rooms[rooms.length - 1].floorTex = "tx_bunker";
+  } else if (kind === "shelter") {
+    hub = put(0, 0, GX - 1, GY - 1, "shelterroom"); rooms[rooms.length - 1].floorTex = "tx_bunker_b";
+  } else if (kind === "shu") {
+    /* THE SHU -- the Special Housing Unit, the hole, on the top floor of the hub. A corridor down
+       the middle, a row of solitary cells each side behind solid steel doors, the guard desk at the
+       end. Twenty-three hours a day in a room the size of a bunk. */
+    const a2 = Math.max(1, Math.floor(GY * 0.38));
+    hub = put(0, a2, GX - 2, GY - a2 - 1, "shuhall");
+    for (let x = 0; x < GX - 1; x++) {
+      if (put(x, 0, x, a2 - 1, "shucell") >= 0) rooms[rooms.length - 1].floorTex = "tx_concrete";
+      if (put(x, GY - a2, x, GY - 1, "shucell") >= 0) rooms[rooms.length - 1].floorTex = "tx_concrete";
+    }
+    put(GX - 1, 0, GX - 1, GY - 1, "shudesk");
   } else if (kind === "cellrow") {
     /* A CELL BLOCK WING: one cell a column, a row down each side, the tier between them. The
        door is on the end wall, into the tier. Each cell gets a bunk, a pan, a sink and a desk. */
@@ -7829,6 +7848,28 @@ function makeFloor(b, f, rnd) {
         P(q2.x1 - 3 - fw, fixY, fw, 24, "sink");
         break;
       }
+      case "sygarage": {
+        const L = q2.x0 + 22, T = q2.y0 + 22, R2 = q2.x1 - 22, B2 = q2.y1 - 22;
+        P(L, T, 90, 50, "bs_bench"); P(L + 100, T, 70, 50, "bs_shelves"); P(R2 - 44, T, 40, 46, "locker");
+        P(R2 - 130, T + 90, 120, 60, "sy_wreck_a"); P(L, T + 90, 50, 50, "sy_tires_a"); P(L + 60, T + 100, 20, 26, "sy_drum_a"); P(L + 84, T + 100, 20, 26, "sy_drum_c");
+        P(cx - 30, cy + 10, 60, 60, "sy_hatch_open"); P(R2 - 60, B2 - 60, 50, 50, "sy_motors_a");
+        break;
+      }
+      case "shelterroom": {
+        const L = q2.x0 + 22, T = q2.y0 + 22, R2 = q2.x1 - 22, B2 = q2.y1 - 22;
+        P(cx - 26, T, 52, 52, "bs_ladderhole");
+        P(L, T, 44, 70, "bs_bunk"); P(L + 50, T, 60, 34, "bs_cot"); P(R2 - 70, T, 70, 60, "bs_gunrack");
+        P(L, B2 - 50, 50, 50, "bs_radio"); P(L + 60, B2 - 56, 60, 56, "bs_generator"); P(R2 - 50, B2 - 76, 46, 76, "bs_watertank");
+        P(cx - 40, cy - 10, 80, 60, "bs_maptable"); P(R2 - 80, cy - 20, 70, 50, "bs_shelves"); P(L, cy, 70, 40, "bs_sandbags");
+        P(R2 - 120, B2 - 44, 60, 40, "bs_gasmasks"); P(cx + 50, B2 - 40, 60, 36, "bs_drums");
+        break;
+      }
+      case "shucell": {
+        const top = r.gy0 === 0, by = top ? q2.y0 + 6 : q2.y1 - 56;
+        P(q2.x0 + 4, by, 24, 50, "bed"); P(q2.x1 - 22, top ? q2.y0 + 6 : q2.y1 - 24, 18, 18, "toilet");
+        break;
+      }
+      case "shudesk": P(cx - 26, cy - 16, 52, 32, "pr_desk"); P(cx - 10, cy + 24, 20, 20, "chair"); break;
       case "tier": {
         /* THE COMMON AREA in the middle of the tier: a couch facing the TV, two card tables with their
            chairs. Free time happens here. */
@@ -11329,9 +11370,12 @@ export default function IronLionLayer004() {
       // a hiding place: the stash menu
       if (G.stashOpenFn && G.stashOpenFn()) return;
     }
+    if (g.mode === "foot" && g.inside && g.inside.inPrison && G.escapeFn && G.escapeFn()) return;
     if (g.mode === "foot" && g.inside && g.inside.inPrison && G.cardsFn && G.cardsFn()) return;
     if (g.mode === "foot" && g.inside && g.inside.inPrison && G.stashFn && G.stashFn()) return;
     if (g.mode === "foot" && g.inside && G.homeConsoleFn && G.homeConsoleFn()) return;
+    if (g.mode === "foot" && g.inside && G.changeFn && G.changeFn()) return;
+    if (g.mode === "foot" && g.inside && G.hatchFn && G.hatchFn()) return;
     if (g.mode === "foot" && g.inside && G.swapFn && G.swapFn()) return;
     if (g.mode === "foot" && g.inside) {
       if (mountNearest()) return;
@@ -13811,7 +13855,7 @@ export default function IronLionLayer004() {
     }
     function stepCase(dt) {
       stepWar(dt); stepTrial(dt); stepDispatch(dt);
-      stepPartner(dt); stepAutopilot(dt); stepBackup(dt); stepK9(dt); stepCasings(dt); stepSquad(dt); stepGumball(dt);
+      stepPartner(dt); stepAutopilot(dt); stepDriveTalk(dt); stepRivalMsgs(); stepDeskPhone(); stepConvictClothes(); stepBackup(dt); stepK9(dt); stepCasings(dt); stepSquad(dt); stepGumball(dt);
       const D = detectives();
       if (g.detStart && D) {
         g.detStart = false;
@@ -14680,8 +14724,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       } else if (id === "chen") {
         opts.push({ id: "radio:swat", label: "SWAT, ON ME \u00b7 " + JUICE.cost.swat + " JUICE" });
       } else if (id === "beck") {
+        { const n = (g.rivalMsgs || []).filter((m) => m.at === "beck").length; if (n) opts.push({ id: "house:beck:msg", label: "SOMEBODY LEFT YOU A MESSAGE \u00b7 " + n }); }
         opts.push({ id: "radio:k9", label: "BRING THE DOG \u00b7 " + JUICE.cost.k9 + " JUICE" });
       } else if (id === "sally") {
+        { const n = (g.rivalMsgs || []).filter((m) => m.at === "sally").length; if (n) opts.push({ id: "house:sally:msg", label: "MESSAGES \u00b7 " + n }); }
         opts.push({ id: "house:sally:tip", label: "ANYTHING ON THE WIRE?" });
         if (open) opts.push({ id: "house:sally:sheet", label: "PULL THE SHEET ON MY MAN" });
         /* RUN A NAME: anybody on the case Malcolm has carded, one run each. */
@@ -14716,6 +14762,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.housePick = (id) => {
       const C = g.case, parts = id.split(":");
       const who = parts[1], what = parts[2];
+      if (what === "msg") {       // a rival's message, left at the desk
+        const L = g.rivalMsgs || [], i = L.findIndex((m) => m.at === who), m = i >= 0 ? L.splice(i, 1)[0] : null;
+        g.houseSaid = m ? (who === "sally" ? "Came in on the line for you. " : "Guy called the desk. ") + "\u201c" + m.text + "\u201d That was " + m.from + "." : "Nothing else.";
+        if (m && typeof bookNote === "function") bookNote("Message from " + m.from + ": " + m.text);
+        G.pickOpen("house:" + who); return;
+      }
       let said = null;
       if (who === "elias") {
         if (what === "in" && C && C.bag.length) {
@@ -15495,7 +15547,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function drawBackup(view) {
       if (g.inside) return;
-      if (g.prisonMode) { drawFollowers(); drawPrisonFx(); }
+      if (g.prisonMode) { drawHideoutYard(view); drawFollowers(); drawPrisonFx(); }
       drawK9();
       for (const c of g.backup || []) {
         const im = imgs.current[c.m.k];
@@ -15558,6 +15610,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           { id: "carver:home", label: "STAND DOWN" }, { id: "close", label: "AS YOU WERE" }] };
       }
       if (kind === "pockets") return pocketsPanel();
+      if (kind === "pescape") return escapePanel();
       if (kind === "inmate") return inmatePanel();
       if (kind === "pcards") return pcardsPanel();
       if (kind === "crew") {
@@ -15666,6 +15719,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         G.pickOpen("pstash"); return;
       }
       else if (id.startsWith("console:")) { G.consolePick(id.slice(8)); return; }
+      else if (id === "esc:go") { G.escapeGo(); return; }
       else if (id.startsWith("inm:")) { G.inmatePick(id.slice(4)); G.pickOpen("inmate"); return; }
       else if (id.startsWith("pc:")) { G.pcPick(id.slice(3)); if (g.pc) G.pickOpen("pcards"); return; }
       else if (id.startsWith("pocket:")) { G.pocketUse(id.slice(7)); if (g.pickOpen) G.pickOpen("pockets"); return; }
@@ -28623,14 +28677,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          roster is put in it, his card says it, and at every count the door slides shut on it. He
          starts standing on its floor in the gap by the bars -- not on the bunk. */
       const r = cells[cells.length - 1];
-      const top = r.gy0 === 0;
+      const top = rowTop(r, wb);
       const pt = [(r.x0 + r.x1) / 2, top ? r.y1 - 24 : r.y0 + 24];
       g.pcell = { b: wb, no: cells.length, blk: wb.pwing, x0: r.x0, x1: r.x1, y0: r.y0, y1: r.y1, top };
       g.doorT = 0; g.lockT = 0;
       g.prisonMode = true; g.detMode = false; g.mode = "foot"; g.inside = wb; g.floor = 0; g.insideT = 1;
       g.p.x = pt[0]; g.p.y = pt[1]; g.p.vx = 0; g.p.vy = 0; g.cam.x = pt[0]; g.cam.y = pt[1];
       g.p.wpn = null; g.p.holstered = true; g.rack = [];
-      g.clock = CLOCK.start; g.pinv = []; g.pcigs = 20; g.pskill = STASH.skillMax; g.pdebt = null; g.pc = null; g.pday = 0; g.prel = {}; g.pmine = []; g.pheat = {}; g.pfol = [];   // hide skill maxed for now (Donny)
+      g.clock = CLOCK.start; g.pinv = []; g.pcigs = 20; g.pskill = STASH.skillMax; g.pdebt = null; g.pc = null; g.pday = 0; g.prel = {}; g.pmine = []; g.pheat = {}; g.pfol = []; g.pescaped = 0; g.crewOut = 0;   // hide skill maxed for now (Donny)
       g.pgang = null; g.pfolk = null;
       g.job = null; g.pmission = null;                              // no street jobs in here
       g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y));
@@ -29031,11 +29085,64 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.jobBanner = "THE HOLE \u00b7 " + hours + " HOURS"; g.jobNote = "Found on you: " + g.hole.why + ".";
     }
     // the hole: the clock runs fast, you sit in the dark, and then you are back on your tier
+    /* THE HOLE IS A PLACE NOW: time in the hole is served in a SHU cell on the hub's top floor
+       (the infirmary's time in a bed on its ward). You are walked there when it starts, the steel
+       door holds you in, the clock runs fast, and when it is over you are walked back to your own
+       cell. The SHU doors are always shut -- nobody wanders into a solitary cell. */
+    function campusB(kind) {
+      for (let i = PRISON.i0; i <= PRISON.i1; i++) for (let j = PRISON.j0; j <= PRISON.j1; j++)
+        for (const b2 of (getCell(i, j).blds || [])) if (b2.kind === kind) return b2;
+      return null;
+    }
+    function holePlace() {
+      const H = g.hole, inf = /infirmary/.test(H.why || "");
+      const b = campusB(inf ? "prisoninf" : "prison"); if (!b) return;
+      const f = inf ? 0 : b.floors - 1, pl = buildingPlans(b)[f]; if (!pl) return;
+      const rs = pl.rooms.filter((r) => r.k === (inf ? "pward" : "shucell"));
+      if (!rs.length) return;
+      const r = inf ? rs[0] : rs[(Math.random() * rs.length) | 0], top = rowTop(r, b);
+      g.inside = b; g.floor = f; g.insideT = 1; g.pfolk = null; g.mode = "foot";
+      g.p.x = (r.x0 + r.x1) / 2; g.p.y = inf ? (r.y0 + r.y1) / 2 : top ? r.y0 + (r.y1 - r.y0) * 0.55 : r.y0 + (r.y1 - r.y0) * 0.45;
+      g.cam.x = g.p.x; g.cam.y = g.p.y;
+      H.placed = { b, f, x0: r.x0, x1: r.x1, y0: r.y0, y1: r.y1, top, inf };
+      g.pfol = []; g.phunts = null; g.palarm = 0; g.pc = null;
+    }
+    function holeReturn() {
+      const P = g.pcell; if (!P) return;
+      g.inside = P.b; g.floor = 0; g.insideT = 1; g.pfolk = null;
+      g.p.x = (P.x0 + P.x1) / 2; g.p.y = P.top ? P.y1 - 24 : P.y0 + 24; g.cam.x = g.p.x; g.cam.y = g.p.y;
+    }
     function stepHole(dt) {
       if (!g.hole) return;
+      if (g.prisonMode && !g.hole.placed) holePlace();
+      if (g.hole.tray || g.hole.yard) return;          // the clock holds while the tray comes / the yard hour runs
+      const Q = g.hole.placed;
+      if (Q && g.inside === Q.b && g.floor === Q.f && !Q.inf) {   // the steel door holds
+        g.p.x = clamp(g.p.x, Q.x0 + 12, Q.x1 - 12); g.p.y = clamp(g.p.y, Q.y0 + 12, Q.y1 - 12);
+      }
       const run = dt * 40;
       g.hole.left -= run; g.clock = ((g.clock || 0) + run) % 1440;
-      if (g.hole.left <= 0) { g.hole = null; g.pickupFlash = { nm: "lift:OUT OF THE HOLE", t: 2 }; }
+      if (g.hole.left <= 0) { const inf = Q && Q.inf; g.hole = null; if (g.prisonMode) holeReturn();
+        g.pickupFlash = { nm: inf ? "lift:DISCHARGED FROM THE INFIRMARY" : "lift:OUT OF THE HOLE", t: 2 }; }
+    }
+    function drawShuDoors() {
+      const b = g.inside; if (!b || b.kind !== "prison" || g.floor !== b.floors - 1) return;
+      const pl = buildingPlans(b)[g.floor]; if (!pl) return;
+      for (const r of pl.rooms) {
+        if (r.k !== "shucell") continue;
+        const top = rowTop(r, b), y = top ? r.y1 : r.y0, cx = (r.x0 + r.x1) / 2, w = 50;
+        ctx.fillStyle = "#3b4047"; ctx.fillRect(cx - w / 2 - 3, y - 5, w + 6, 10);
+        ctx.fillStyle = "#6c737b"; ctx.fillRect(cx - w / 2, y - 4, w, 8);
+        ctx.fillStyle = "#1c1f23"; ctx.fillRect(cx - 6, y - 2, 12, 4);          // the food slot
+        ctx.fillStyle = "#9aa2aa"; ctx.fillRect(cx + w / 2 - 8, y - 1, 4, 2);     // the handle
+      }
+    }
+    // outside the hole, nobody walks into a SHU cell
+    function stepShuBlock() {
+      const b = g.inside; if (g.hole || !b || b.kind !== "prison" || g.floor !== b.floors - 1 || g.mode !== "foot") return;
+      const pl = buildingPlans(b)[g.floor]; if (!pl) return;
+      for (const r of pl.rooms) if (r.k === "shucell" && g.p.x > r.x0 && g.p.x < r.x1 && g.p.y > r.y0 && g.p.y < r.y1)
+        g.p.y = rowTop(r, b) ? r.y1 + 16 : r.y0 - 16;
     }
 
     /* ---------- CELL DOORS ----------
@@ -29053,7 +29160,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.lockT = (g.lockT || 0) + dt;
       if (!g.prisonMode || !P) { g.doorT = Math.min(1, (g.doorT || 0) + dt / CELL_DOOR.slide); return; }
       const home = g.inside === P.b && g.floor === 0 && inCellR(P, g.p.x, g.p.y);
-      if (!home && !g.hole && g.lockT > CELL_DOOR.grace && g.mode === "foot") {
+      if (!home && !g.hole && !g.pescaped && g.lockT > CELL_DOOR.grace && g.mode === "foot") {
         // a guard walks him back
         g.inside = P.b; g.floor = 0; g.insideT = 1; g.pfolk = null;
         g.p.x = (P.x0 + P.x1) / 2; g.p.y = P.top ? P.y1 - 24 : P.y0 + 24; g.cam.x = g.p.x; g.cam.y = g.p.y;
@@ -29066,7 +29173,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const mine = g.inside === P.b && g.floor === 0;
         for (const r of pl.rooms) {
           if (r.k !== "pcell") continue;
-          const own = mine && Math.abs(r.x0 - P.x0) < 1 && Math.abs(r.y0 - P.y0) < 1, top = r.gy0 === 0;
+          const own = mine && Math.abs(r.x0 - P.x0) < 1 && Math.abs(r.y0 - P.y0) < 1, top = rowTop(r, g.inside);
           if (own) { g.p.y = top ? Math.min(g.p.y, r.y1 - 14) : Math.max(g.p.y, r.y0 + 14); continue; }
           if (inCellR(r, g.p.x, g.p.y, 0)) g.p.y = top ? r.y1 + 16 : r.y0 - 16;
         }
@@ -29078,7 +29185,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const pl = buildingPlans(b)[g.floor]; if (!pl) return;
       for (const r of pl.rooms) {
         if (r.k !== "pcell") continue;
-        const top = r.gy0 === 0, y = top ? r.y1 : r.y0, cx = (r.x0 + r.x1) / 2, w = CELL_DOOR.w, x0 = cx - w / 2;
+        const top = rowTop(r, b), y = top ? r.y1 : r.y0, cx = (r.x0 + r.x1) / 2, w = CELL_DOOR.w, x0 = cx - w / 2;
         // the frame, then the door rolled across from the left
         ctx.fillStyle = "#2a2d31"; ctx.fillRect(x0 - 3, y - 4, w + 6, 8);
         const dw = w * f;
@@ -29179,7 +29286,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (const q of F0) {
         if (!q.angry || q.down || q.cards) continue;
         const d = dist(q);
-        if (d > PFIGHT.reach) { const sp = PFIGHT.spd * dt; q.x += (g.p.x - q.x) / d * sp; q.y += (g.p.y - q.y) / d * sp; q.vx = (g.p.x - q.x) / d * 60; q.vy = (g.p.y - q.y) / d * 60; q.anim = (q.anim || 0) + dt; continue; }
+        if (d > PFIGHT.reach) { const sp = PFIGHT.spd * dt; q.x += (g.p.x - q.x) / d * sp; q.y += (g.p.y - q.y) / d * sp; q.vx = (g.p.x - q.x) / d * 60; q.vy = (g.p.y - q.y) / d * 60; q.anim = (q.anim || 0) + dt; collideCrew(q); continue; }
         q.swing = (q.swing || 0) - dt;
         if (q.swing <= 0) { q.swing = PFIGHT.every; g.p.hp = (g.p.hp || 0) - (q.hitman ? PC.hitDmg : PFIGHT.dmg); g.hurtT = 0.25;
           g.pickupFlash = { nm: "lift:HIT \u00b7 " + Math.max(0, g.p.hp | 0) + " HP", t: 0.9 }; }
@@ -29205,7 +29312,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           continue;
         }
         const dx = g.p.x - H.x, dy = g.p.y - H.y, d = Math.hypot(dx, dy);
-        if (d > PGUARD.reach) { const sp = PGUARD.spd * (1 + H.skill * 0.08); H.x += dx / d * sp * dt; H.y += dy / d * sp * dt; H.vx = dx / d * sp; H.vy = dy / d * sp; H.anim = (H.anim || 0) + dt; continue; }
+        if (d > PGUARD.reach) { const sp = PGUARD.spd * (1 + H.skill * 0.08); H.x += dx / d * sp * dt; H.y += dy / d * sp * dt; H.vx = dx / d * sp; H.vy = dy / d * sp; H.anim = (H.anim || 0) + dt; collideCrew(H);
+          // stuck on a wall for too long: he comes round by the door (a short hop)
+          H.stuck = Math.hypot(H.x - (H.lx || 0), H.y - (H.ly || 0)) < 0.5 ? (H.stuck || 0) + dt : 0; H.lx = H.x; H.ly = H.y;
+          if (H.stuck > 2.5) { const a = Math.atan2(g.p.y - H.y, g.p.x - H.x); H.x = g.p.x - Math.cos(a) * 90; H.y = g.p.y - Math.sin(a) * 90; H.stuck = 0; }
+          continue; }
         // the search: his skill against yours; a weapon in your hand is found every time
         const bad = (g.pinv || []).filter((it) => CONTRABAND[it].sev > 0);
         const find = g.pwpn ? 1 : PGUARD.base + H.skill * PGUARD.perGuard - (g.pskill || 0) * PGUARD.perHide;
@@ -29538,7 +29649,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else { const a = g.board.ang + Math.PI + (i - (L.length - 1) / 2) * 0.6; tx = g.p.x + Math.cos(a) * PFOL.gap * (1 + (i >> 1) * 0.6); ty = g.p.y + Math.sin(a) * PFOL.gap * (1 + (i >> 1) * 0.6); }
         const dx = tx - f.x, dy = ty - f.y, d = Math.hypot(dx, dy);
         const stop = foe ? PFOL.reach : 6;
-        if (d > stop) { const sp = Math.min(PFOL.spd * (d > 200 ? 1.6 : 1), d / dt); f.x += dx / d * sp * dt; f.y += dy / d * sp * dt; f.vx = dx / d * sp; f.vy = dy / d * sp; f.anim = (f.anim || 0) + dt; f.bang = Math.atan2(dy, dx); }
+        if (d > stop) { const sp = Math.min(PFOL.spd * (d > 200 ? 1.6 : 1), d / dt); f.x += dx / d * sp * dt; f.y += dy / d * sp * dt; f.vx = dx / d * sp; f.vy = dy / d * sp; f.anim = (f.anim || 0) + dt; f.bang = Math.atan2(dy, dx);
+          if (d < 400) collideCrew(f);   // walls hold them (a long way off they just catch up)
+          f.stuck = Math.hypot(f.x - (f.lx || 0), f.y - (f.ly || 0)) < 0.5 ? (f.stuck || 0) + dt : 0; f.lx = f.x; f.ly = f.y;
+          if (f.stuck > 2) { f.x = tx - dx / d * (stop + 8); f.y = ty - dy / d * (stop + 8); f.stuck = 0; } }   // round by the door
         else { f.vx = 0; f.vy = 0; }
         f.cd -= dt;
         if (foe && d <= PFOL.reach + 4 && f.cd <= 0) { f.cd = PFOL.every; foe.fhits = (foe.fhits || 0) + 1;
@@ -29552,6 +29666,269 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(8,10,8,0.85)"; ctx.fillStyle = "#6fe07a";
         const nm = (f.name || "").toUpperCase(); ctx.strokeText(nm, f.x, f.y - 30); ctx.fillText(nm, f.x, f.y - 30); ctx.textAlign = "start";
       }
+    }
+
+    /* ---------- LAYER 433: SHU ROUTINE, CLOTHES, RIVAL MESSAGES, RAMOS ON THE ROAD ---------- */
+    /* THE SHU DAY. Three meals come through the slot -- a guard walks the corridor to your door and
+       the fast clock stops while he does -- and once a day, at 2 PM, one hour of yard ALONE: walked
+       out to the empty yard, the clock at normal speed for SHU.yardReal seconds, then walked back. */
+    const SHU = { meals: [7 * 60 + 30, 12 * 60, 17 * 60 + 30], yard: 14 * 60, yardReal: 25, hp: 3 };
+    function stepShuDay(dt) {
+      const H = g.hole; if (!H || !H.placed || H.placed.inf) return;
+      const Q = H.placed, c = g.clock || 0;
+      // the yard hour
+      if (H.yard) { H.yard.t -= dt;
+        if (H.yard.t <= 0) { H.yard = null; g.inside = Q.b; g.floor = Q.f; g.insideT = 1; g.pfolk = null;
+          g.p.x = (Q.x0 + Q.x1) / 2; g.p.y = (Q.y0 + Q.y1) / 2; g.cam.x = g.p.x; g.cam.y = g.p.y; g.jobNote = "Back in the box."; }
+        return; }
+      if (!H.yardDay || H.yardDay !== (g.pday || 0)) if (c >= SHU.yard && c < SHU.yard + 60) {
+        H.yardDay = g.pday || 0; H.yard = { t: SHU.yardReal };
+        const B = PRISON_BOX, Y = PRISON_YARD, W5 = B.x1 - B.x0, H5 = B.y1 - B.y0;
+        g.inside = null; g.mode = "foot"; g.p.x = B.x0 + W5 * (Y.u0 + 0.5 * (Y.u1 - Y.u0)); g.p.y = B.y0 + H5 * (Y.v0 + 0.5 * (Y.v1 - Y.v0));
+        g.cam.x = g.p.x; g.cam.y = g.p.y; g.jobBanner = "SHU \u00b7 ONE HOUR OF YARD"; g.jobNote = "Nobody else out here. That's the point."; return; }
+      // meals through the slot
+      const due = SHU.meals.find((m) => c >= m && c < m + 40 && !(H.fed || {})[m]);
+      if (due !== undefined && !H.tray && g.inside === Q.b && g.floor === Q.f) {
+        const pl = buildingPlans(Q.b)[Q.f], hall = pl && pl.rooms.find((r) => r.k === "shuhall");
+        const dy = Q.top ? Q.y1 + 22 : Q.y0 - 22;
+        H.tray = { m: due, x: hall ? hall.x1 - 20 : Q.x0, y: dy, tx: (Q.x0 + Q.x1) / 2, ty: dy, t: 0 };
+      }
+      if (H.tray) {
+        const T = H.tray, d = Math.hypot(T.tx - T.x, T.ty - T.y);
+        if (d > 4) { T.x += (T.tx - T.x) / d * Math.min(d, 110 * dt); T.y += (T.ty - T.y) / d * Math.min(d, 110 * dt); T.anim = (T.anim || 0) + dt; T.vx = (T.tx - T.x); T.vy = 0; }
+        else { T.t += dt; if (T.t > 1.5) { (H.fed = H.fed || {})[T.m] = 1; H.tray = null; g.p.hp = Math.min(g.p.maxHp || 10, (g.p.hp || 0) + SHU.hp);
+          g.pickupFlash = { nm: "lift:A TRAY THROUGH THE SLOT \u00b7 +HEALTH", t: 2 }; } }
+      }
+    }
+    function drawShuDay() {
+      const H = g.hole, T = H && H.tray; if (!T || !H.placed || g.inside !== H.placed.b) return;
+      drawShadow(T.x, T.y + 3, 12, 5, 0.38);
+      drawYouth({ x: T.x, y: T.y, vx: T.vx || 0, vy: 0, anim: T.anim || 0, jit: 1, tall: 1.0, yt: "yt_pr_guard_1" });
+      ctx.fillStyle = "#c9b98a"; ctx.fillRect(T.x - 7, T.y - 16, 14, 8);            // the tray
+    }
+
+    /* CLOTHES. #0001 in the jumpsuit OUTSIDE the prison grounds is an escaped convict on sight:
+       top heat, and it stays topped while he wears it. Any locker (a locker, the station's pd_lockers,
+       his own at home) lets him change: E at it -> street clothes (g.pcivvies). */
+    const LOCKER_KEYS = { locker: 1, pd_lockers: 1, pr_locker: 1 };
+    G.changeFn = () => {
+      if (!g.prisonMode || g.mode !== "foot" || !g.inside || g.inside.inPrison) return false;
+      const pl = buildingPlans(g.inside)[g.floor]; if (!pl) return false;
+      const L = (pl.props || []).find((o) => LOCKER_KEYS[o.t] && Math.hypot(o.x + o.w / 2 - g.p.x, o.y + o.h / 2 - g.p.y) < 60);
+      if (!L) return false;
+      g.pcivvies = !g.pcivvies;
+      g.pickupFlash = { nm: g.pcivvies ? "lift:STREET CLOTHES \u00b7 THE JUMPSUIT GOES IN THE LOCKER" : "lift:BACK IN THE JUMPSUIT", t: 2.2 };
+      return true;
+    };
+    function stepConvictClothes() {
+      if (!g.prisonMode || g.pcivvies || g.hole) return;
+      if (inPrisonGrounds(g.p.x, g.p.y) && (!g.inside || g.inside.inPrison)) return;
+      if ((g.heat || 0) < 3) { g.heat = 3; g.wantedAs = g.who === "lion" ? (g.plain ? "darius" : "lion") : g.who;   // the identity check must not clear it g.jobBanner = "ESCAPED CONVICT"; g.jobNote = "A man in a Kestrel jumpsuit on the street. Every cop in Raven Hook wants you. Find a locker and change.";
+        try { escalatePolice(g.p.x, g.p.y, 2); } catch (e) {} }
+      g.wantedT = 90;
+    }
+
+    /* RIVAL MESSAGES. A man who walked (g.rivals) does not stay quiet. Every RMSG.every game
+       minutes one of them sends word: half the time it is left with Sally or with Beck on the desk
+       (MESSAGE in their panel), half the time the phone on your desk rings the next time you are in
+       the station. The words get worse as he climbs (rival.tier). */
+    const RMSG = { every: 240, first: 90 };
+    const RMSG_LINES = [
+      ["Tell the detective I said thanks for the day in court.", "Tell Malcolm the jury liked me.", "Say hi to your partner for me."],
+      ["I know which car you drive.", "You looked tired on Sable Ave last night, detective.", "You should see what I'm doing next. You will."],
+      ["Next one's got your name on it.", "Ask Ramos if she locks her door.", "You had your shot. Now I take mine."],
+    ];
+    function stepRivalMsgs() {
+      if (!g.detMode || !(g.rivals || []).length) return;
+      const c = g.clock || 0, abs = (g.day || g.pday || 0) * 1440 + c;
+      if (g.rmsgNext === undefined) g.rmsgNext = abs + RMSG.first;
+      if (abs < g.rmsgNext) return;
+      g.rmsgNext = abs + RMSG.every;
+      const R = cpick(g.rivals), tier = Math.min(2, (R.tier || 1) - 1 + ((Math.random() < 0.3) ? 1 : 0));
+      const m = { from: R.name, text: cpick(RMSG_LINES[Math.max(0, tier)]) };
+      if (Math.random() < 0.5) { (g.rivalMsgs = g.rivalMsgs || []).push({ ...m, at: Math.random() < 0.5 ? "sally" : "beck" }); }
+      else (g.rivalCalls = g.rivalCalls || []).push(m);
+    }
+    function stepDeskPhone() {
+      if (!g.detMode || !(g.rivalCalls || []).length || !g.inside || !g.inside.pd) return;
+      if ((g.phoneCd || 0) > 0) { g.phoneCd -= 1 / 60; return; }
+      const m = g.rivalCalls.shift(); g.phoneCd = 20;
+      g.driveTalk = { who: "YOUR DESK PHONE", text: "\u201c" + m.text + "\u201d -- " + m.from + ". Click.", t: 7 };
+      if (typeof bookNote === "function") bookNote("Phone call from " + m.from + ": " + m.text);
+    }
+
+    /* RAMOS ON THE ROAD. While she drives (g.auto) she talks: a line every RDRIVE.gap seconds, from
+       the topics that fit how far along you two are (g.ramosBond, +1 for every drive that gets where
+       it was going). The milestones are hers: at RDRIVE.marks she says the thing she has been not
+       saying, once each, and the next tier opens. */
+    const RDRIVE = { gap: 16, marks: [3, 7, 12, 18] };
+    const RAMOS_TALK = [
+      ["You want the radio or the quiet?", "This city's got more potholes than cops.", "Mulcahy likes you. Don't let it go to your head.",
+       "My dad drove a cab on these streets for thirty years.", "You eat today? You never eat."],
+      ["You ever think about doing something else? Anything else?", "My mother keeps asking when I'm bringing somebody home. I tell her the job's the somebody.",
+       "You're different when it's just us in the car, you know that?", "I don't let a lot of people drive with me. You noticed that?"],
+      ["You scared me last week. Going in alone like that.", "I keep your coffee order in my head. Black, two sugars. Don't make it weird.",
+       "If something happened to you out there I'd... never mind. Watch the road.", "I like it when you laugh. You should do it more."],
+      ["Malcolm... when this case is done, you want to get dinner? Not a stakeout dinner. A real one.", "I'm not good at saying things. So I'm driving slower instead.",
+       "Whatever you're carrying, you don't have to carry it by yourself."],
+    ];
+    const RAMOS_MARK = ["You're alright, Malcolm. I mean that.", "I asked for you, you know. When they partnered us. I asked.",
+      "I think about you when I'm off shift. There. I said it.", "If you asked me to stay, I'd stay."];
+    function stepDriveTalk(dt) {
+      if (g.driveTalk) { g.driveTalk.t -= dt; if (g.driveTalk.t <= 0) g.driveTalk = null; }
+      const A = g.auto;
+      if (!A || !g.detMode) { if (g.driveWas) { g.driveWas = 0; g.ramosBond = (g.ramosBond || 0) + (g.driveGot ? 1 : 0); g.driveGot = 0; } return; }
+      g.driveWas = 1; if (A.i >= (A.pts || []).length - 1) g.driveGot = 1;
+      g.driveCd = (g.driveCd === undefined ? 6 : g.driveCd) - dt;
+      if (g.driveCd > 0 || g.driveTalk) return;
+      g.driveCd = RDRIVE.gap;
+      const bond = g.ramosBond || 0, said = (g.ramosMarks = g.ramosMarks || {});
+      const mk = RDRIVE.marks.findIndex((m, i) => bond >= m && !said[i]);
+      let line;
+      if (mk >= 0) { said[mk] = 1; line = RAMOS_MARK[mk]; }
+      else { const tier = RDRIVE.marks.filter((m) => bond >= m).length; line = cpick(RAMOS_TALK[Math.min(tier, RAMOS_TALK.length - 1)]); }
+      g.driveTalk = { who: "RAMOS", text: line, t: 7 };
+    }
+    function drawDriveTalk() {
+      const D = g.driveTalk; if (!D) return;
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const W = ctx.canvas.width, sc = Math.max(1, W / 1280), w = Math.min(W * 0.8, 720 * sc), x = (W - w) / 2, y = ctx.canvas.height * 0.66;
+      ctx.globalAlpha = Math.min(1, D.t); ctx.fillStyle = "rgba(8,10,12,0.78)"; ctx.fillRect(x, y, w, 46 * sc);
+      ctx.fillStyle = D.who === "RAMOS" ? "#8fb8ff" : "#e8c46a"; ctx.font = "700 " + (10 * sc) + "px monospace"; ctx.fillText(D.who, x + 12 * sc, y + 15 * sc);
+      ctx.fillStyle = "#ece4cf"; ctx.font = (13 * sc) + "px system-ui, sans-serif";
+      ctx.fillText(D.text.length > 96 ? D.text.slice(0, 94) + "\u2026" : D.text, x + 12 * sc, y + 35 * sc);
+      ctx.restore();
+    }
+
+    /* ---------- LAYER 434: THE ESCAPE AND THE SCRAPYARD ----------
+       OUT IN THE LAUNDRY. On the laundry detail, between 9 AM and 5 PM, E at a laundry cart offers
+       the way out: under the sheets, onto the van. At the dock a guard looks -- HIS search skill
+       against YOUR hide skill (PGUARD's formula). Missed: the van drives out and drops you in town,
+       in the jumpsuit (top wanted until you change). Caught: the SHU, ESC.hole hours.
+       THE SCRAPYARD (`hideoutB`): a garage building across town, fenced in, wrecks and a crusher and a
+       container round it, one of the buy cars waiting, your crew's three cars when they are out.
+       Street level is the garage (a locker to change in, the workbench, the hatch); E at the hatch
+       drops you into the shelter below (bunks, the gun rack, the radio, the generator, water, a map).
+       Pablo told you where it is: the address goes in your notebook the day you get out. */
+    const ESC = { from: 9 * 60, to: 17 * 60, hole: 48, dropMin: 2600 };
+    G.escapeFn = () => {
+      if (!g.prisonMode || g.pescaped || g.pjob !== "laundry" || !g.inside || !g.inside.prison) return false;
+      if (!laundryNear("pl_cart")) return false;
+      const c = g.clock || 0; if (c < ESC.from || c >= ESC.to) return false;
+      G.pickOpen("pescape"); return true;
+    };
+    function escapePanel() {
+      return { title: "THE LAUNDRY VAN", face: null,
+        text: "The van backs up to the dock at the top of the hour. The carts go on it full of sheets. Nobody counts the sheets. Somebody might look under them.",
+        opts: [{ id: "esc:go", label: "UNDER THE SHEETS \u00b7 HIDE SKILL " + (g.pskill || 0) }, { id: "close", label: "NOT TODAY" }] };
+    }
+    G.escapeGo = () => {
+      g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+      const skill = 1 + ((Math.random() * 5) | 0);
+      const find = Math.max(0.05, PGUARD.base + skill * PGUARD.perGuard - (g.pskill || 0) * PGUARD.perHide);
+      if (Math.random() < find) {
+        g.hole = { left: ESC.hole * 60, hours: ESC.hole, why: "trying to leave in the laundry" };
+        g.jobBanner = "CAUGHT AT THE DOCK"; g.jobNote = "A level " + skill + " guard put his hand under the sheets. " + ESC.hole + " hours in the SHU.";
+        return;
+      }
+      // out: the van's drop, far across town, somewhere with a door
+      const B = PRISON_BOX, cx = (B.x0 + B.x1) / 2, cy = (B.y0 + B.y1) / 2;
+      let drop = null;
+      for (let t = 0; t < 60 && !drop; t++) {
+        const a = Math.random() * 6.28, r = ESC.dropMin + Math.random() * 1500;
+        const c2 = getCell(Math.floor((cx + Math.cos(a) * r) / PITCH), Math.floor((cy + Math.sin(a) * r) / PITCH));
+        const b = c2 && (c2.blds || []).find((q) => q.door && !q.inPrison && !q.landmark);
+        if (b) drop = doorPoint(b);
+      }
+      if (!drop) drop = [cx, B.y0 - 900];
+      g.inside = null; g.mode = "foot"; g.floor = 0; g.pfolk = null; g.pfol = []; g.pc = null; g.plaundry = null;
+      g.p.x = drop[0]; g.p.y = drop[1]; g.cam.x = g.p.x; g.cam.y = g.p.y;
+      g.pescaped = 1; g.crewOut = 1;
+      const H = hideoutB();
+      g.jobBanner = "OUT";
+      g.jobNote = "The van dropped you behind a laundromat. You're in a Kestrel jumpsuit on a city street -- find a locker. " +
+        (H ? "Pablo said: the scrapyard at " + addressOf(H) + ". There's a locker, and a car." : "");
+      if (H && typeof bookNote === "function") bookNote("THE SCRAPYARD: " + addressOf(H) + ". A locker, a car, a hatch. Pablo, Leroy and Ras will find their way there.");
+      if (H) g.hideoutMark = 1;
+    };
+    function hideoutB() {
+      if (g.hideout !== undefined) return g.hideout;
+      const pb = precinctB(), B = PRISON_BOX;
+      const px = pb ? pb.x : 0, py = pb ? pb.y : 0;
+      let best = null, bd = -1;
+      // not a building anybody else uses: no distro, no den, no gang, no shop crew
+      const taken = new Set(); try { for (const S of guardSites()) if (S.b) taken.add(S.b); } catch (e) {}
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+        const c = getCell(i, j); if (!c) continue;
+        for (const b of (c.blds || [])) {
+          if ((b.kind !== "garage" && b.kind !== "warehouse") || !b.door || b.landmark || b.inPrison || b.homeOf || b.pd) continue;
+          if (taken.has(b) || b.den || b.gang || b.distro || b.biz || b.stash || b.warDen) continue;
+          const d = Math.min(Math.hypot(b.x - px, b.y - py), Math.hypot(b.x - (B.x0 + B.x1) / 2, b.y - (B.y0 + B.y1) / 2));
+          if (d < 3000) continue;
+          const sc = -Math.abs(d - 5200);            // across town, not the edge of the map
+          if (!best || sc > bd) { best = b; bd = sc; }
+        }
+      }
+      if (!best) return (g.hideout = null);
+      best.hideout = 1; best.floors = 2; best.entry = 1; best.name = "THE SCRAPYARD"; best.plans = null;
+      // the yard round it: fence, wrecks, crusher, container, tyres, drums -- and a car waiting
+      const P = []; const x0 = best.x - 150, y0 = best.y - 150, x1 = best.x + best.w + 150, y1 = best.y + best.h + 150;
+      const put = (t, x, y, w, h) => P.push({ t, x, y, w, h });
+      for (let x = x0; x < x1; x += 120) { put("sy_fence", x, y0 - 20, 120, 40); put("sy_fence", x, y1 - 20, 120, 40); }
+      const L = [["sy_wreck_a", 120, 60], ["sy_wreck_b", 120, 60], ["sy_wreck_burnt", 120, 60], ["sy_wreck_van", 130, 64], ["sy_crusher", 150, 80],
+                 ["sy_container", 150, 110], ["sy_cubes", 60, 60], ["sy_tires_a", 50, 50], ["sy_tires_b", 60, 50], ["sy_drum_a", 20, 26], ["sy_drum_b", 20, 26],
+                 ["sy_scrap_pile", 70, 60], ["sy_crane", 150, 110], ["sy_wreck_crushed", 110, 60]];
+      L.forEach(([t, w, h], k) => {
+        const side = k % 4, f = ((k * 0.37) % 1);
+        const x = side === 0 ? x0 + 10 + f * (x1 - x0 - w - 20) : side === 1 ? x1 - w - 10 : side === 2 ? x0 + 10 + f * (x1 - x0 - w - 20) : x0 + 10;
+        const y = side === 0 ? y0 + 26 : side === 1 ? y0 + 26 + f * (y1 - y0 - h - 52) : side === 2 ? y1 - h - 26 : y0 + 26 + f * (y1 - y0 - h - 52);
+        put(t, x, y, w, h);
+      });
+      g.hideProps = P;
+      const dp = doorPoint(best), sd = best.door.side, o = sd === 0 ? [0, -1] : sd === 1 ? [1, 0] : sd === 2 ? [0, 1] : [-1, 0];
+      const park = (k, n) => g.traffic.push({ x: dp[0] + o[0] * 100 + (o[1] ? -90 + n * 70 : 0), y: dp[1] + o[1] * 100 + (o[0] ? -90 + n * 70 : 0), axis: "v", si: 0, dir: 1, k: 0,
+        ang: o[1] ? 0 : Math.PI / 2, spd: 0, cruise: 0, brake: 0, m: { k, len: 100, w: 46 }, dead: 1, parked: 1, named: 1, owner: "player" });
+      park(cpick(BUY_CARS), 0);
+      g.hideoutPark = park;
+      return (g.hideout = best);
+    }
+    function stepHideout() {
+      if (!g.pescaped) return;
+      const H = hideoutB(); if (!H) return;
+      if (g.crewOut && !g.crewCarsParked && Math.hypot(g.p.x - H.x, g.p.y - H.y) < 1500) {
+        g.crewCarsParked = 1; CREW.forEach((C, n) => g.hideoutPark(C.car, n + 1));
+      }
+    }
+    function drawHideoutYard(view) {
+      const P = g.hideProps; if (!P || g.inside) return;
+      for (const q of P) {
+        if (q.x > view.x1 + 40 || q.x + q.w < view.x0 - 40 || q.y > view.y1 + 40 || q.y + q.h < view.y0 - 40) continue;
+        const im = imgs.current[q.t]; if (!im || !im.width) continue;
+        const sc = Math.min(q.w / im.width, q.h / im.height), w = im.width * sc, h = im.height * sc;
+        ctx.drawImage(im, q.x + (q.w - w) / 2, q.y + (q.h - h) / 2, w, h);
+      }
+    }
+    // E at the hatch in the garage drops you into the shelter; E at the ladder in the shelter takes you up
+    G.hatchFn = () => {
+      const b = g.inside; if (!b || !b.hideout || g.mode !== "foot") return false;
+      const pl = buildingPlans(b)[g.floor]; if (!pl) return false;
+      const key = g.floor === 1 ? "sy_hatch_open" : "bs_ladderhole";
+      const o = (pl.props || []).find((q) => q.t === key && Math.hypot(q.x + q.w / 2 - g.p.x, q.y + q.h / 2 - g.p.y) < 60);
+      if (!o) return false;
+      const to = g.floor === 1 ? 0 : 1, pl2 = buildingPlans(b)[to];
+      const o2 = (pl2.props || []).find((q) => q.t === (to === 0 ? "bs_ladderhole" : "sy_hatch_open"));
+      g.floor = to; g.pfolk = null;
+      if (o2) { g.p.x = o2.x + o2.w / 2; g.p.y = o2.y + o2.h + 16; g.cam.x = g.p.x; g.cam.y = g.p.y; }
+      g.pickupFlash = { nm: to === 0 ? "lift:DOWN THE LADDER \u00b7 THE SHELTER" : "lift:UP THROUGH THE HATCH", t: 1.6 };
+      return true;
+    };
+    // your crew, waiting in the garage once they are out
+    function drawHideoutCrew() {
+      const b = g.inside; if (!b || !b.hideout || g.floor !== 1 || !g.crewOut) return;
+      const pl = buildingPlans(b)[1], r = pl && pl.rooms[0]; if (!r) return;
+      CREW.forEach((C, n) => { const q = { x: r.x0 + 70 + n * 100, y: r.y1 - 70, vx: 0, vy: 0, anim: 0, jit: 1, tall: C.tall, yt: "yt_crew_" + C.id, bang: -Math.PI / 2 };
+        drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q);
+        ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#6fe07a"; ctx.fillText(C.name.toUpperCase(), q.x, q.y - 30); ctx.textAlign = "start"; });
     }
     function kestrelRoster() {
       if (g.kestrel) return g.kestrel;
@@ -34326,7 +34703,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         { const before = g.clock == null ? CLOCK.start : g.clock;
           g.clock = (before + dt * CLOCK.rate) % 1440;
           if (g.clock < before) { g.day = (g.day || 0) + 1; kestrelReleases(); } }
-        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt);
+        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout();
         // anybody who has wandered onto the prison grounds from the street is walked back off
         if ((g.pedCullT = (g.pedCullT || 0) - dt) <= 0) { g.pedCullT = 2; g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y)); }
         if (g.prisonStart) startPrisonMode();
@@ -34581,7 +34958,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.inside) drawInterior(g.inside, g.floor, g.insideT);
       drawHeldRogues();
       // staff, customers and anyone robbing them, on top of the floor and its furniture
-      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); drawCellDoors(); drawPrisonCards(); drawFollowers(); drawPrisonFx(); drawGarageSigns({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); drawCold({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); }
+      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); drawCellDoors(); drawShuDoors(); drawShuDay(); drawHideoutCrew(); drawPrisonCards(); drawFollowers(); drawPrisonFx(); drawGarageSigns({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); drawCold({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); }
       drawComp();
       drawThrown();
       drawBlood();
@@ -34808,6 +35185,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!g.inside) { drawOldTownProps(view); drawLights(view); drawBustMarks(view); }
       if (g.inside) drawCasings(view);
       drawBackup(view);
+      drawDriveTalk();
       drawCase(view);
       drawStadium();
       drawClub();
@@ -40906,6 +41284,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     if (typeof window !== "undefined") {
       const W2 = (window.__ironlion = window.__ironlion || {});
       W2.G = G;                                       // the test harness reads the live state through this
+      W2.hide = () => { const gg = G.current; const H = gg.hideout; if (!H) return null; gg.inside = H; gg.floor = 1; gg.insideT = 1; gg.mode = "foot"; const pl = buildingPlans(H)[1]; const r = pl.rooms[0]; gg.p.x = (r.x0 + r.x1) / 2; gg.p.y = (r.y0 + r.y1) / 2 - 40; gg.cam.x = gg.p.x; gg.cam.y = gg.p.y; return [H.name, H.kind, pl.rooms.map((q) => q.k), pl.props.map((q) => q.t).join(",")]; };
+      W2.props = () => { const gg = G.current; return buildingPlans(gg.inside)[gg.floor].props.map((o) => o.t); };
+      W2.goto = (t) => { const gg = G.current, o = buildingPlans(gg.inside)[gg.floor].props.find((q) => q.t === t); if (!o) return null; gg.p.x = o.x + o.w / 2; gg.p.y = o.y + o.h + 14; return [o.x, o.y, o.w, o.h]; };
+      W2.rooms = () => { const gg = G.current; const pl = buildingPlans(gg.inside)[gg.floor]; return pl.rooms.map((r) => [r.k, r.gy0, r.gy1, Math.round(r.y0), Math.round(r.y1)]); };
       W2.home = () => { const gg = G.current, H = homes(); if (!H) return "no homes"; const b = H.malcolm, f = b.floors - 1;
         const pl = buildingPlans(b)[f], r = pl.rooms.find((q) => q.k === "apt_living");
         gg.inside = b; gg.floor = f; gg.insideT = 1; gg.mode = "foot"; gg.p.x = (r.x0 + r.x1) / 2; gg.p.y = (r.y0 + r.y1) / 2; gg.cam.x = gg.p.x; gg.cam.y = gg.p.y;
