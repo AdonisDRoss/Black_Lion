@@ -3624,6 +3624,10 @@ const SCRAP_KEYS = ["bs_bench", "bs_bunk", "bs_cot", "bs_drums", "bs_gasmasks", 
   "sy_wreck_a", "sy_wreck_b", "sy_wreck_burnt", "sy_wreck_c", "sy_wreck_crushed", "sy_wreck_d", "sy_wreck_van"];
 for (const k of SCRAP_KEYS) PD_ART[k] = "assets/scrap/" + k + ".png";
 for (const k of ["tx_bunker", "tx_bunker_b", "tx_shack_wood"]) PD_ART[k] = "assets/tex/" + k + ".png";
+/* THE RUSTY NAIL's fittings (layer 444), assets/bar/. */
+const MB_KEYS = ["mb_shelf_a", "mb_shelf_b", "mb_stool", "mb_stools_pair", "mb_counter", "mb_stool_b", "mb_stool_c", "mb_stool_d", "mb_pool",
+  "mb_dartboard", "mb_booth_l", "mb_booth_r", "mb_table", "mb_jukebox", "mb_notice", "mb_neon", "mb_cigmachine", "mb_crates"];
+for (const k of MB_KEYS) PD_ART[k] = "assets/bar/" + k + ".png";
 for (const k of ["yt_merc_silas", "pt_merc_silas"]) PD_ART[k] = "assets/crew/" + k + ".png";   // Silas, the broker at the Rusty Nail (art to come)
 /* WEAPON ICONS: drawn over a man's head while he has one out, instead of in his hand. */
 const HEAD_ICON = { shank: "wi_bayonet", razor: "wi_razor", pencil: "wi_pencil", zipgun: "wi_zipgun", gun: "wi_pistol", pistol: "wi_pistol",
@@ -6031,6 +6035,7 @@ const DOORW = 48;          // 2.2m. 34 was a doorway two people could not pass i
                             // mathematically impossible to walk through no matter how carefully aimed
 
 function floorKind(b, f) {
+  if (b.mercBar && f === (b.entry || 0)) return "mercbar";          // the Rusty Nail: one open room
   if (b.hideout) return f === 0 ? "shelter" : "scrapgarage";      // the scrapyard: the shelter under the garage
   if (b.kind === "house") return f === 0 ? (b.floors > 1 ? "house_g2" : "house_g1") : "house_u";
   if (b.kind === "trailer") return "trailer";
@@ -6414,6 +6419,8 @@ function makeFloor(b, f, rnd) {
     if (put(c2, r2, h - 1, GY - 1, "apt_bath") >= 0) rooms[rooms.length - 1].floorTex = "tx_home_tile";
     if (h < GX - 1) { put(h, 0, h, GY - 1, "corridor"); put(h + 1, 0, GX - 1, GY - 1, "apt_neighbor"); }
     else put(h, 0, GX - 1, GY - 1, "corridor");
+  } else if (kind === "mercbar") {
+    hub = put(0, 0, GX - 1, GY - 1, "mbroom"); rooms[rooms.length - 1].floorTex = "tx_shack_wood";
   } else if (kind === "scrapgarage") {
     hub = put(0, 0, GX - 1, GY - 1, "sygarage"); rooms[rooms.length - 1].floorTex = "tx_bunker";
   } else if (kind === "shelter") {
@@ -10147,6 +10154,7 @@ export default function IronLionLayer004() {
     const MUSIC = {
       title:     { data: null, url: "assets/title.mp3" },
       det:       { data: null, url: "assets/det.mp3" },            // detective mode's own track
+      prison:    { data: null, url: "assets/music/prison.mp3" },   // "Before the Rain" -- Donny's prison-mode song
       /* THE KINGS' OWN TRACK. Keyed by GANG, not by district -- the hood already has `hood`,
          and this is theirs rather than the neighbourhood's, so it can follow them into a club
          or a rooftop later without the map deciding for it. `gang_<id>` is the shape; any other
@@ -11316,6 +11324,7 @@ export default function IronLionLayer004() {
     if (!g.inside && G.digFn && G.digFn()) return;
     if (g.inside && G.opsBoardFn && G.opsBoardFn()) return;
     if (g.inside && G.silasFn && G.silasFn()) return;
+    if (g.inside && G.poolFn && G.poolFn()) return;
     if (g.cab) { G.cabFn && G.cabFn(); return; }         // a game on screen: E quits it, before anything else
     /* THE CHOPPER. First branch on purpose: it is the only thing on that lot and the den door
        is close enough that a later check would lose to it. Climbing out puts you back on the
@@ -15654,6 +15663,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "pockets") return pocketsPanel();
       if (kind === "opsboard") return opsPanel();
       if (kind === "merc") return mercPanel();
+      if (kind === "pool") return poolPanel();
       if (kind === "pescape") return escapePanel();
       if (kind === "inmate") return inmatePanel();
       if (kind === "pcards") return pcardsPanel();
@@ -15764,6 +15774,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       else if (id.startsWith("console:")) { G.consolePick(id.slice(8)); return; }
       else if (id === "esc:go") { G.escapeGo(); return; }
+      else if (id.startsWith("pool:")) { G.poolPick(id.slice(5)); return; }
       else if (id.startsWith("merc:")) { G.mercPick(id); G.pickOpen("merc"); return; }
       else if (id.startsWith("bd:")) { G.opsPick(id); G.pickOpen("opsboard"); return; }
       else if (id.startsWith("inm:")) { G.inmatePick(id.slice(4)); G.pickOpen("inmate"); return; }
@@ -22187,6 +22198,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const CAB_W = 200, CAB_H = 160;
     function openCab(which) {
       const g2 = G.current;
+      if (which && which.pool) {
+        const F = which.pool;
+        g2.cab = { g: "pool", t: 0, over: 0, score: 0, pts: [0, 0], balls: poolRack(), turn: 0, aim: 0, pow: 0, foe: F, stake: which.stake, msg: "YOUR BREAK" };
+        g2.paused = true; return;
+      }
       if (which === "pong") {
         g2.cab = { g: "pong", t: 0, over: 0, score: 0, pts: [0, 0], me: CAB_H / 2, foe: CAB_H / 2,
                    ball: { x: CAB_W / 2, y: CAB_H / 2, vx: 70, vy: 30 } };
@@ -22303,6 +22319,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (c.g === "curtain") { c.score = 0; c.wave = 1; resetCurtain(c); }
           else if (c.g === "brawl") { c.pick = null; c.msg = null; }
           else if (c.g === "pong") { c.pts = [0, 0]; c.score = 0; }
+          else if (c.g === "pool") { closeCab(); return; }
           else { c.me.hp = 3; c.foe.hp = 3; c.shell = null; c.turn = 0; }
         }
         return;
@@ -22310,7 +22327,107 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (c.g === "curtain") stepCurtain(c, dt, ix, edge);
       else if (c.g === "brawl") stepBrawl(c, dt, ix, iy, edge);
       else if (c.g === "pong") stepPong(c, dt, iy);
+      else if (c.g === "pool") stepPool(c, dt, ix, iy, fire);
       else stepFront(c, dt, ix, iy, edge);
+    }
+    /* ---------- PTAB AT THE RUSTY NAIL (layer 444) ----------
+       Nine balls and the cue ball, two players, turns. Stick LEFT/RIGHT aims (UP/DOWN aims fine),
+       HOLD fire to draw back, LET GO to shoot -- the power bar swings while you hold. Sink a ball and
+       you shoot again (a point each); scratch the cue ball and you lose a point and the turn. When the
+       table is clear, most points wins the stake. The hustlers (POOL_FOES) aim by the ghost-ball method
+       with an error that shrinks with skill. */
+    const PTAB = { x0: 12, y0: 30, x1: 188, y1: 128, r: 3.2, pr: 6.2, fric: 0.975, maxV: 300 };
+    function poolRack() {
+      const cx = PTAB.x0 + (PTAB.x1 - PTAB.x0) * 0.7, cy = (PTAB.y0 + PTAB.y1) / 2, d = PTAB.r * 2.05, B = [];
+      let n = 1;
+      for (let row = 0; row < 3; row++) for (let k = 0; k <= row; k++) B.push({ n: n++, x: cx + row * d * 0.87, y: cy + (k - row / 2) * d, vx: 0, vy: 0 });
+      for (let k = 0; k < 3; k++) B.push({ n: n++, x: cx + 3 * d * 0.87, y: cy + (k - 1) * d, vx: 0, vy: 0 });
+      B.unshift({ n: 0, x: PTAB.x0 + (PTAB.x1 - PTAB.x0) * 0.25, y: cy, vx: 0, vy: 0 });
+      return B;
+    }
+    const poolPockets = () => { const P = PTAB, mx = (P.x0 + P.x1) / 2; return [[P.x0, P.y0], [mx, P.y0 - 1], [P.x1, P.y0], [P.x0, P.y1], [mx, P.y1 + 1], [P.x1, P.y1]]; };
+    const poolStill = (c) => c.balls.every((b) => b.in || Math.hypot(b.vx, b.vy) < 1.5);
+    function poolShoot(c, ang, pow) {
+      const cue = c.balls[0]; cue.vx = Math.cos(ang) * PTAB.maxV * pow; cue.vy = Math.sin(ang) * PTAB.maxV * pow;
+      c.moving = 1; c.sunk = 0; c.scratch = 0;
+    }
+    function stepPool(c, dt, ix, iy, fire) {
+      const P = PTAB, B = c.balls;
+      // physics, in small steps
+      const steps = 4;
+      for (let s = 0; s < steps; s++) {
+        const h = dt / steps;
+        for (const b of B) { if (b.in) continue; b.x += b.vx * h; b.y += b.vy * h; const f = Math.pow(P.fric, h * 60); b.vx *= f; b.vy *= f;
+          if (Math.hypot(b.vx, b.vy) < 1.5) { b.vx = 0; b.vy = 0; }
+          if (b.x < P.x0 + P.r) { b.x = P.x0 + P.r; b.vx = Math.abs(b.vx) * 0.8; } if (b.x > P.x1 - P.r) { b.x = P.x1 - P.r; b.vx = -Math.abs(b.vx) * 0.8; }
+          if (b.y < P.y0 + P.r) { b.y = P.y0 + P.r; b.vy = Math.abs(b.vy) * 0.8; } if (b.y > P.y1 - P.r) { b.y = P.y1 - P.r; b.vy = -Math.abs(b.vy) * 0.8; }
+          for (const [px, py] of poolPockets()) if (Math.hypot(b.x - px, b.y - py) < P.pr) { b.in = 1; b.vx = 0; b.vy = 0; if (b.n === 0) c.scratch = 1; else { c.sunk++; c.pts[c.turn]++; } } }
+        for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) {
+          const a = B[i], b = B[j]; if (a.in || b.in) continue;
+          const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy); if (d >= P.r * 2 || d === 0) continue;
+          const nx = dx / d, ny = dy / d, ov = P.r * 2 - d; a.x -= nx * ov / 2; a.y -= ny * ov / 2; b.x += nx * ov / 2; b.y += ny * ov / 2;
+          const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny; if (rv > 0) continue;
+          a.vx += rv * nx; a.vy += rv * ny; b.vx -= rv * nx; b.vy -= rv * ny;
+        }
+      }
+      if (c.moving) {
+        if (!poolStill(c)) return;
+        c.moving = 0;
+        if (c.scratch) { c.pts[c.turn] = Math.max(0, c.pts[c.turn] - 1); const cue = B[0]; cue.in = 0; cue.x = P.x0 + (P.x1 - P.x0) * 0.25; cue.y = (P.y0 + P.y1) / 2;
+          c.msg = (c.turn ? c.foe.nm : "YOU") + " SCRATCHED"; c.turn ^= 1; }
+        else if (!c.sunk) { c.turn ^= 1; c.msg = c.turn ? c.foe.nm + "'S SHOT" : "YOUR SHOT"; }
+        else c.msg = (c.turn ? c.foe.nm : "YOU") + " SANK " + c.sunk + " \u00b7 AGAIN";
+        c.think = 0.9;
+        if (B.every((b) => b.n === 0 || b.in)) { poolEnd(c); }
+        return;
+      }
+      if (c.turn === 0) {
+        c.aim += (ix * 1.8 + iy * 0.35) * dt;
+        if (fire) { c.charge = (c.charge || 0) + dt; c.pow = 0.15 + 0.85 * Math.abs(Math.sin(c.charge * 1.6)); }
+        else if (c.charge) { poolShoot(c, c.aim, c.pow); c.charge = 0; }
+      } else {
+        c.think -= dt; if (c.think > 0) return;
+        // the hustler: the straightest shot he can see, with his skill's worth of error
+        const cue = B[0]; let best = null;
+        for (const b of B) { if (b.n === 0 || b.in) continue;
+          for (const [px, py] of poolPockets()) {
+            const tx = px - b.x, ty = py - b.y, td = Math.hypot(tx, ty);
+            const gx = b.x - tx / td * PTAB.r * 2, gy = b.y - ty / td * PTAB.r * 2;
+            const ax = gx - cue.x, ay = gy - cue.y, ad = Math.hypot(ax, ay);
+            const cut = Math.acos(clamp((ax * tx + ay * ty) / (ad * td), -1, 1));
+            const sc = cut + td / 400 + ad / 600; if (!best || sc < best.sc) best = { sc, ang: Math.atan2(ay, ax), d: ad + td }; } }
+        if (!best) return;
+        const err = (0.16 - c.foe.skill * 0.045) * (Math.random() * 2 - 1);
+        poolShoot(c, best.ang + err, clamp(0.35 + best.d / 320, 0.35, 0.95));
+      }
+    }
+    G.stepPoolT = (c, dt, fire) => stepPool(c, dt, 0, 0, fire);   // test hook
+    function poolEnd(c) {
+      const [me, foe] = c.pts, S = c.stake || 0;
+      if (me > foe) { g.p.cash = (g.p.cash || 0) + S * 2; g.rep = (g.rep || 0) + c.foe.skill * 3; c.msg = "YOU WIN $" + S * 2; }
+      else if (me < foe) c.msg = c.foe.nm + " TAKES THE $" + S;
+      else { g.p.cash = (g.p.cash || 0) + S; c.msg = "A PUSH \u00b7 STAKES BACK"; }
+      c.stake = 0; c.over = 3; c.done = 1;
+    }
+    function drawPool(c) {
+      const P = PTAB;
+      ctx.fillStyle = "#4a2c18"; ctx.fillRect(P.x0 - 6, P.y0 - 6, P.x1 - P.x0 + 12, P.y1 - P.y0 + 12);
+      ctx.fillStyle = "#1f6b3a"; ctx.fillRect(P.x0, P.y0, P.x1 - P.x0, P.y1 - P.y0);
+      ctx.fillStyle = "#0c0c0c"; for (const [px, py] of poolPockets()) { ctx.beginPath(); ctx.arc(px, py, P.pr - 1, 0, 6.3); ctx.fill(); }
+      const COL = ["#f4f0e6", "#e8c020", "#2050c8", "#c82828", "#6a2a9a", "#e87a18", "#1a8a3a", "#7a1a1a", "#111", "#e8c020"];
+      for (const b of c.balls) { if (b.in) continue; ctx.fillStyle = COL[b.n]; ctx.beginPath(); ctx.arc(b.x, b.y, P.r, 0, 6.3); ctx.fill();
+        if (b.n === 9) { ctx.fillStyle = "#f4f0e6"; ctx.fillRect(b.x - P.r, b.y - 1, P.r * 2, 2); } }
+      if (!c.moving && c.turn === 0 && !c.done) {      // the cue and the aim line
+        const cue = c.balls[0], a = c.aim, back = 4 + (c.charge ? c.pow * 14 : 0);
+        ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+        ctx.beginPath(); ctx.moveTo(cue.x, cue.y); ctx.lineTo(cue.x + Math.cos(a) * 60, cue.y + Math.sin(a) * 60); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle = "#c9a26a"; ctx.lineWidth = 2; ctx.beginPath();
+        ctx.moveTo(cue.x - Math.cos(a) * back, cue.y - Math.sin(a) * back); ctx.lineTo(cue.x - Math.cos(a) * (back + 40), cue.y - Math.sin(a) * (back + 40)); ctx.stroke();
+        if (c.charge) { ctx.fillStyle = "#333"; ctx.fillRect(P.x0, P.y1 + 12, 60, 5); ctx.fillStyle = "#e8c46a"; ctx.fillRect(P.x0, P.y1 + 12, 60 * c.pow, 5); }
+      }
+      ctx.fillStyle = "#e8e0c8"; ctx.font = "bold 9px monospace";
+      ctx.fillText("YOU " + c.pts[0], P.x0, 20); ctx.fillText(c.foe.nm + " " + c.pts[1], P.x1 - 70, 20);
+      ctx.fillText((c.msg || "") + (c.stake ? "  \u00b7 $" + c.stake : ""), P.x0, P.y1 + 26);
     }
     /* RALLY '86 -- the console's own game. Stick up and down moves your paddle; first to seven. */
     function stepPong(c, dt, iy) {
@@ -22485,6 +22602,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           ctx.fillStyle = "#6a7a70"; ctx.font = "7px monospace";
           ctx.fillText("TAP PUNCH  DOWN+TAP KICK  BACK BLOCK", 12, CAB_H - 4);
         }
+      } else if (c.g === "pool") {
+        drawPool(c);
       } else if (c.g === "pong") {
         ctx.fillStyle = "#2a3a30"; for (let y = 4; y < CAB_H; y += 10) ctx.fillRect(CAB_W / 2 - 1, y, 2, 5);
         ctx.fillStyle = "#d8e8d0";
@@ -22543,12 +22662,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.strokeRect(1, 1, CAB_W - 2, CAB_H - 2);
       ctx.fillStyle = "#c8b070"; ctx.font = "bold 11px monospace";
       const title = c.g === "curtain" ? "THE IRON CURTAIN"
-                  : c.g === "brawl" ? "HOOK CITY BRAWLER" : c.g === "pong" ? "RALLY '86" : "THE FRONT";
+                  : c.g === "brawl" ? "HOOK CITY BRAWLER" : c.g === "pong" ? "RALLY '86" : c.g === "pool" ? "POOL \u00b7 THE RUSTY NAIL" : "THE FRONT";
       ctx.fillText(title, CAB_W / 2 - title.length * 3.3, -8);
       ctx.fillStyle = "#7a7a70"; ctx.font = "8px monospace";
       const help = c.g === "curtain" ? "STICK MOVE  ·  FIRE SHOOT  ·  E QUIT"
                  : c.g === "brawl" ? "STICK MOVE  ·  FIRE STRIKE  ·  E QUIT"
                  : c.g === "pong" ? "STICK UP/DOWN  ·  FIRST TO 7  ·  E QUIT"
+                 : c.g === "pool" ? "STICK AIM  ·  HOLD FIRE, LET GO TO SHOOT  ·  E QUIT (FORFEIT)"
                  : "STICK AIM/POWER  ·  FIRE SHOOT  ·  E QUIT";
       ctx.fillText(help, CAB_W / 2 - help.length * 2.2, CAB_H + 16);
       ctx.restore();
@@ -23130,6 +23250,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     for (const k of CT_KEYS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#6b4a2e"; if (CT_SOLID[k]) SOLID_PROP[k] = 1; }
     for (const k of PR_PROPS) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#5a5c60"; if (k !== "pr_clock") SOLID_PROP[k] = 1; }
     // layer 425: his place, the shower kit, the scrapyard and shelter -- small things you walk over
+    for (const k of MB_KEYS) { PROP_ART[k] = k; PROP_COL[k] = PROP_COL[k] || "#4a3326"; if (!/stool|dartboard|notice|neon/.test(k)) SOLID_PROP[k] = 1; }
     for (const k of HOME_KEYS.concat(PR_SHOWER, SCRAP_KEYS)) { if (/^tx_/.test(k)) continue; PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#5a5048";
       if (!/poster|_lp_|record|_can|cart_|joystick|cereal|drain|soap|towel|wetfloor|hatch|slab|grate/.test(k)) SOLID_PROP[k] = 1; }
     for (const k of DG_KEYS.concat(["pd_computer"])) { PROP_ART[k] = k; if (!PROP_COL[k]) PROP_COL[k] = "#c9a24a"; if (DG_SOLID[k]) SOLID_PROP[k] = 1; }
@@ -30459,10 +30580,60 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         for (const b of (c.blds || [])) { if (!b.door || b.inPrison || b.landmark || b.homeOf || b.hideout) continue;
           if (!/bar|tavern|pub/.test(b.kind || "") && !/bar|tavern|pub/.test(b.biz || "")) continue;
           const d = Math.hypot(b.x - H.x, b.y - H.y); if (d < bd) { bd = d; best = b; } } }
-      if (best) { best.name = "THE RUSTY NAIL"; best.mercBar = 1; }
+      if (best) { best.name = "THE RUSTY NAIL"; best.mercBar = 1; best.plans = null; fitRustyNail(best); }   // re-planned as one open bar room
       return (g.mercBar = best || null);
     }
-    function silasPt(b) { const pl = buildingPlans(b)[b.entry || 0], r = pl && pl.rooms[0]; if (!r) return null;
+    /* Fit the Rusty Nail out from its own sheet: the biggest room on the street floor is cleared (the
+       stairs stay) and gets the back bar and counter with stools along the top, the pool table in the
+       middle, booths and a table on the right (Silas sits there), the jukebox, cigarette machine and
+       crates along the bottom, the notice board, neon and dartboard on the walls. */
+    function fitRustyNail(b) {
+      const f = b.entry || 0, pl = buildingPlans(b)[f]; if (!pl || !pl.rooms.length) return;
+      const r = pl.rooms.slice().sort((a, c) => (c.x1 - c.x0) * (c.y1 - c.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))[0];
+      const inR = (o) => o.x + o.w / 2 > r.x0 && o.x + o.w / 2 < r.x1 && o.y + o.h / 2 > r.y0 && o.y + o.h / 2 < r.y1;
+      pl.props = (pl.props || []).filter((o) => !inR(o) || /stair|elev|door/.test(o.t));
+      const W = r.x1 - r.x0, H = r.y1 - r.y0, L = r.x0 + 18, T = r.y0 + 18, R = r.x1 - 18, Bm = r.y1 - 18, cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2;
+      const P = (x, y, w, h, t) => pl.props.push({ x, y, w, h, t });
+      const cw = Math.min(220, W * 0.5);
+      P(L, T, cw * 0.9, cw * 0.9 * 100 / 303, "mb_shelf_a");
+      const cty = T + cw * 0.9 * 100 / 303 + 6; P(L, cty, cw, cw * 130 / 405, "mb_counter");
+      const sty = cty + cw * 130 / 405 + 4; for (let k = 0; k < 4; k++) P(L + 20 + k * (cw - 40) / 3, sty, 16, 26, k % 2 ? "mb_stool_b" : "mb_stool");
+      // the pool table: in the middle unless the stairs are there -- then above or below them
+      const pw = Math.min(140, W * 0.4), ph = pw * 138 / 276, kept = pl.props.filter((o) => /stair|elev|door/.test(o.t)).concat(pl.stair && pl.stair.w > 0 ? [pl.stair] : []);
+      const hits = (x, y) => kept.some((o) => x < o.x + o.w + 12 && x + pw > o.x - 12 && y < o.y + o.h + 12 && y + ph > o.y - 12);
+      let px = cx - pw / 2, py = cy - ph / 2;
+      for (const dy of [0, 70, -70, 120, -120]) if (!hits(px, cy - ph / 2 + dy)) { py = cy - ph / 2 + dy; break; }
+      P(px, py, pw, ph, "mb_pool"); b.poolAt = [px + pw / 2, py + ph / 2];
+      P(R - 100, T + 4, 30, 56, "mb_booth_l"); P(R - 68, T + 14, 32, 36, "mb_table"); P(R - 34, T + 4, 30, 56, "mb_booth_r");
+      b.mbSilas = [R - 52, T + 70];
+      P(R - 40, cy - 18, 34, 34, "mb_dartboard"); P(R - 64, T - 12, 56, 38, "mb_neon");
+      P(L, Bm - 60, 38, 60, "mb_jukebox"); P(L + 50, Bm - 34, 100, 46, "mb_notice");
+      P(R - 44, Bm - 54, 38, 52, "mb_cigmachine"); P(R - 104, Bm - 42, 54, 42, "mb_crates");
+    }
+    // the pool table: E -> who do you want to play, for how much
+    const POOL_FOES = [
+      { id: "pete", nm: "SKINNY PETE", skill: 1, stake: 100 },
+      { id: "marlene", nm: "MARLENE", skill: 2, stake: 500 },
+      { id: "deacon", nm: "THE DEACON", skill: 3, stake: 2000 },
+    ];
+    G.poolFn = () => {
+      const b = g.inside; if (!g.pescaped || !b || !b.mercBar || !b.poolAt || g.mode !== "foot" || g.floor !== (b.entry || 0)) return false;
+      if (Math.hypot(g.p.x - b.poolAt[0], g.p.y - b.poolAt[1]) > 90) return false;
+      G.pickOpen("pool"); return true;
+    };
+    function poolPanel() {
+      return { title: "THE POOL TABLE \u00b7 $" + (g.p.cash || 0), face: null,
+        text: "Three people want your money. First to more points when the table's clear takes the pot. Quit and you forfeit.",
+        opts: POOL_FOES.map((F) => ({ id: "pool:" + F.id, label: F.nm + " \u00b7 " + ["", "SLOPPY", "SHARP", "A HUSTLER"][F.skill] + " \u00b7 $" + F.stake }))
+          .concat([{ id: "close", label: "NOT NOW" }]) };
+    }
+    G.poolPick = (id) => {
+      const F = POOL_FOES.find((q) => q.id === id); if (!F) return;
+      if ((g.p.cash || 0) < F.stake) { g.pickupFlash = { nm: "lift:" + F.nm + " WANTS $" + F.stake + " ON THE RAIL", t: 1.8 }; return; }
+      g.p.cash -= F.stake; g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+      openCab({ pool: F, stake: F.stake });
+    };
+    function silasPt(b) { if (b.mbSilas) return b.mbSilas; const pl = buildingPlans(b)[b.entry || 0], r = pl && pl.rooms[0]; if (!r) return null;
       return freeIndoor(b, pl, (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2 + 20, r) || [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2]; }
     G.mercBarFn = () => mercBarB(); G.doorPtFn = (b) => doorPoint(b); G.silasPtFn = (b) => silasPt(b);   // test hooks
     G.silasFn = () => {
@@ -32136,6 +32307,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (g.title) { /* the title screen's own track -- musicUpdate plays it */ }
         else if (g.boss && (!g.boss.roof || g.roof === g.boss.roof)) musicPlay("boss");
         else if (g.detMode) musicPlay("det");
+        // PRISON MODE: his song, inside Kestrel -- and anywhere once he is out and still in the jumpsuit life
+        else if (g.prisonMode && !g.cab && (!g.pescaped || (g.heat || 0) === 0)) musicPlay("prison");
         /* Not inside the venue. A chase happening in the street is not audible over a band
            twelve feet away, and having the gig cut out because a squad car went past the door
            was the single most jarring thing in the district. */
@@ -41963,7 +42136,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
     if (typeof window !== "undefined") {
       const W2 = (window.__ironlion = window.__ironlion || {});
-      W2.G = G;                                       // the test harness reads the live state through this
+      W2.G = G; W2.mus = () => MUS && MUS.cur;                                       // the test harness reads the live state through this
       W2.hide = () => { const gg = G.current; const H = gg.hideout; if (!H) return null; gg.inside = H; gg.floor = 1; gg.insideT = 1; gg.mode = "foot"; const pl = buildingPlans(H)[1]; const r = pl.rooms[0]; gg.p.x = (r.x0 + r.x1) / 2; gg.p.y = (r.y0 + r.y1) / 2 - 40; gg.cam.x = gg.p.x; gg.cam.y = gg.p.y; return [H.name, H.kind, pl.rooms.map((q) => q.k), pl.props.map((q) => q.t).join(",")]; };
       W2.props = () => { const gg = G.current; return buildingPlans(gg.inside)[gg.floor].props.map((o) => o.t); };
       W2.goto = (t) => { const gg = G.current, o = buildingPlans(gg.inside)[gg.floor].props.find((q) => q.t === t); if (!o) return null; gg.p.x = o.x + o.w / 2; gg.p.y = o.y + o.h + 14; return [o.x, o.y, o.w, o.h]; };
