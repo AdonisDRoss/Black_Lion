@@ -6079,7 +6079,7 @@ const DOORW = 48;          // 2.2m. 34 was a doorway two people could not pass i
                             // mathematically impossible to walk through no matter how carefully aimed
 
 function floorKind(b, f) {
-  if (b.stuHome && f === (b.entry || 0)) return "stuhome";          // student mode: his family's place
+  if (b.stuHome) return f === 0 ? "stuhome" : "stuupper";          // student mode: downstairs living + kitchen, upstairs the bedrooms
   if (b.school) return f === 0 ? "school_g" : f === 1 ? "school_c" : "office";     // the schools: ground + classrooms (layer 456)
   if (b.mercBar && f === (b.entry || 0)) return "mercbar";          // the Rusty Nail: one open room
   if (b.hideout) return f === 0 ? "shelter" : "scrapgarage";      // the scrapyard: the shelter under the garage
@@ -6469,10 +6469,18 @@ function makeFloor(b, f, rnd) {
       put(h + 1, 0, GX - 1, GY - 1, "apt_neighbor"); }
     else put(h, 0, GX - 1, GY - 1, "corridor");
   } else if (kind === "stuhome") {
-    const c2 = Math.max(2, Math.round(GX * 0.55)), r1 = Math.max(1, Math.round(GY * 0.5));
+    // DOWNSTAIRS: the living room and the kitchen, side by side; the stairs go up from here
+    const c2 = Math.max(2, Math.round(GX * 0.58));
     hub = put(0, 0, c2 - 1, GY - 1, "stuliving"); rooms[rooms.length - 1].floorTex = "tx_home_wood";
-    if (put(c2, 0, GX - 1, r1 - 1, "stubedroom") >= 0) rooms[rooms.length - 1].floorTex = "tx_home_rug";
-    if (put(c2, r1, GX - 1, GY - 1, "stukitchen") >= 0) rooms[rooms.length - 1].floorTex = "tx_lino";
+    if (put(c2, 0, GX - 1, GY - 1, "stukitchen") >= 0) rooms[rooms.length - 1].floorTex = "tx_lino";
+  } else if (kind === "stuupper") {
+    // UPSTAIRS: a hall along the bottom; his room, Mom's room and the bathroom off it
+    const r1 = Math.max(1, GY - Math.max(1, Math.round(GY * 0.3)));
+    hub = put(0, r1, GX - 1, GY - 1, "stuhall"); rooms[rooms.length - 1].floorTex = "tx_home_wood";
+    const a1 = Math.max(1, Math.round(GX * 0.4)), a2 = Math.max(a1 + 1, Math.round(GX * 0.78));
+    if (put(0, 0, a1 - 1, r1 - 1, "stubedroom") >= 0) rooms[rooms.length - 1].floorTex = "tx_home_rug";
+    if (put(a1, 0, a2 - 1, r1 - 1, "stumom") >= 0) rooms[rooms.length - 1].floorTex = "tx_home_rug";
+    if (put(a2, 0, GX - 1, r1 - 1, "stubath") >= 0) rooms[rooms.length - 1].floorTex = "tx_lino";
   } else if (kind === "school_g" || kind === "school_c") {
     /* THE SCHOOLS (layer 456). Two floors. A hall runs across the middle of each.
        Ground: the GYM, the CAFETERIA and the LIBRARY above the hall; the PRINCIPAL'S office, the
@@ -7948,10 +7956,12 @@ function makeFloor(b, f, rnd) {
         P(q2.x1 - 3 - fw, fixY, fw, 24, "sink");
         break;
       }
-      case "stubedroom": P(q2.x0 + 12, q2.y0 + 12, 50, 72, "bed"); P(q2.x1 - 64, q2.y0 + 12, 56, 32, "desk"); P(q2.x1 - 44, q2.y1 - 50, 32, 42, "dresser");
-        P(q2.x0 + 70, q2.y0 + 4, 40, 14, "ap_poster_bball"); break;
-      case "stuliving": P(q2.x0 + 14, cy - 20, 90, 36, "sofa"); P(q2.x0 + 30, cy - 76, 54, 28, "tv"); P(q2.x1 - 50, q2.y0 + 12, 40, 40, "bookshelf"); break;
-      case "stukitchen": P(q2.x0 + 12, q2.y0 + 10, 34, 34, "fridge"); P(q2.x0 + 52, q2.y0 + 10, 36, 30, "stove"); P(cx - 26, cy + 4, 52, 36, "cafetable"); break;
+      /* Student mode's house: everything against the walls, the middle of every room left open. */
+      case "stubedroom": P(q2.x0 + 10, q2.y0 + 10, 44, 64, "bed"); P(q2.x1 - 58, q2.y0 + 8, 50, 28, "desk"); P(q2.x0 + 60, q2.y0 + 4, 36, 12, "ap_poster_bball"); break;
+      case "stumom": P(q2.x0 + 10, q2.y0 + 10, 48, 66, "bed"); P(q2.x1 - 42, q2.y0 + 8, 34, 30, "dresser"); break;
+      case "stubath": P(q2.x0 + 8, q2.y0 + 8, 24, 24, "toilet"); P(q2.x1 - 30, q2.y0 + 8, 22, 20, "sink"); break;
+      case "stuliving": P(q2.x0 + 10, q2.y0 + 10, 80, 30, "sofa"); P(q2.x0 + 30, q2.y1 - 30, 30, 20, "tv"); P(q2.x1 - 40, q2.y0 + 10, 30, 36, "bookshelf"); break;
+      case "stukitchen": P(q2.x0 + 8, q2.y0 + 8, 30, 30, "fridge"); P(q2.x0 + 42, q2.y0 + 8, 30, 26, "stove"); P(q2.x1 - 50, q2.y1 - 42, 44, 32, "cafetable"); break;
       case "classroom": {
         /* A teacher's desk under the chalkboard, the flag and the clock on the wall, and TWELVE desks:
            three rows of four. The prep rooms have bookcases and a world map; the public ones storage
@@ -10295,6 +10305,7 @@ export default function IronLionLayer004() {
       title:     { data: null, url: "assets/title.mp3" },
       det:       { data: null, url: "assets/det.mp3" },            // detective mode's own track
       prison:    { data: null, url: "assets/music/prison.mp3" },   // "Before the Rain" -- Donny's prison-mode song
+      school:    { data: null, url: "assets/music/school.mp3" },   // student mode's song (the upload matched the prison song byte-for-byte)
       /* THE KINGS' OWN TRACK. Keyed by GANG, not by district -- the hood already has `hood`,
          and this is theirs rather than the neighbourhood's, so it can follow them into a club
          or a rooftop later without the map deciding for it. `gang_<id>` is the shape; any other
@@ -31641,17 +31652,31 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         for (const b of (c.blds || [])) { if (!b.door || b.school || b.landmark || b.homeOf || b.pd || b.inPrison || b.hideout || b.mercBar || b.biz) continue;
           if (!/house|home|apart|walk|tenement|resid|flat|row/.test(b.kind || "")) continue;
           const d = Math.hypot(b.x - sch.x, b.y - sch.y); if (d > 500 && d < bd) { bd = d; best = b; } } }
-      if (best) { best.stuHome = 1; best.name = "HOME"; best.plans = null; }
+      if (best) { best.stuHome = 1; best.name = "HOME"; best.floors = 2; best.entry = 0; best.plans = null; clearHomePaths(best); }
       return (g.stuHome = best);
     }
-    function stuBedPt() { const b = studentHome(); if (!b) return null; const pl = buildingPlans(b)[b.entry || 0]; if (!pl) return null;
-      const bed = (pl.props || []).find((o) => o.t === "bed"); return bed ? [bed.x + bed.w / 2, bed.y + bed.h + 14] : null; }
+    /* The house must be walkable: nothing within reach of the front door, the stairs, or any doorway
+       between rooms. Anything placed there is taken out after the plans are made. */
+    function clearHomePaths(b) {
+      const dp = doorPoint(b);
+      for (let f = 0; f < (b.floors || 1); f++) { const pl = buildingPlans(b)[f]; if (!pl) continue;
+        const keep = (o) => { const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+          if (f === 0 && Math.hypot(cx - dp[0], cy - dp[1]) < 75) return false;
+          if (pl.stair && pl.stair.w > 0 && o.x < pl.stair.x + pl.stair.w + 36 && o.x + o.w > pl.stair.x - 36 && o.y < pl.stair.y + pl.stair.h + 36 && o.y + o.h > pl.stair.y - 36) return /stair/.test(o.t);
+          for (const d of pl.doorMarks || []) if (o.x < d.x + 46 && o.x + o.w > d.x - 46 && o.y < d.y + 46 && o.y + o.h > d.y - 46) return false;
+          return true; };
+        pl.props = (pl.props || []).filter(keep); }
+    }
+    function stuBedRoom() { const b = studentHome(); if (!b) return null; const pl = buildingPlans(b)[1]; return pl ? { pl, r: pl.rooms.find((q) => q.k === "stubedroom") } : null; }
+    function stuBedPt() { const S = stuBedRoom(); if (!S || !S.r) return null;
+      const bed = (S.pl.props || []).find((o) => o.t === "bed" && o.x > S.r.x0 && o.x < S.r.x1 && o.y > S.r.y0 && o.y < S.r.y1);
+      return bed ? [bed.x + bed.w + 18, bed.y + bed.h / 2] : [(S.r.x0 + S.r.x1) / 2, (S.r.y0 + S.r.y1) / 2]; }
     function startStudentMode() {
       g.studentStart = false;
       const S = schools(), H = studentHome(); if (!S.length || !H) { g.studentStart = true; return; }
       g.studentMode = true; g.prisonMode = false; g.detMode = false; g.mode = "foot"; g.job = null;
       g.stu = { school: "central", pts: 0, day: 1, streak: 0, att: {}, asked: {}, offer: 0, block: null };
-      g.clock = STU.wake; g.inside = H; g.floor = H.entry || 0; g.insideT = 1;
+      g.clock = STU.wake; g.inside = H; g.floor = 1; g.insideT = 1;
       const pt = stuBedPt() || doorPoint(H); g.p.x = pt[0]; g.p.y = pt[1]; g.cam.x = pt[0]; g.cam.y = pt[1];
       g.p.wpn = null; g.p.holstered = true; g.heat = 0;
       g.jobBanner = "DAY 1 \u00b7 RAVEN HOOK CENTRAL HIGH"; g.jobNote = "6:30 AM. First bell is at 8:00. Don't be late.";
@@ -31694,9 +31719,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.stuHomeFn = () => {
       if (!g.studentMode || g.inside !== studentHome() || g.mode !== "foot") return false;
       const pl = buildingPlans(g.inside)[g.floor]; if (!pl) return false;
-      const near = (pl.props || []).filter((o) => /^(bed|desk)$/.test(o.t)).map((o) => ({ o, d: Math.hypot(o.x + o.w / 2 - g.p.x, o.y + o.h / 2 - g.p.y) })).filter((q) => q.d < 60).sort((a, c) => a.d - c.d)[0];
+      const mine = pl.rooms.find((q) => q.k === "stubedroom");
+      const near = (pl.props || []).filter((o) => /^(bed|desk)$/.test(o.t) && mine && o.x + o.w / 2 > mine.x0 && o.x + o.w / 2 < mine.x1 && o.y + o.h / 2 > mine.y0 && o.y + o.h / 2 < mine.y1).map((o) => ({ o, d: Math.hypot(o.x + o.w / 2 - g.p.x, o.y + o.h / 2 - g.p.y) })).filter((q) => q.d < 60).sort((a, c) => a.d - c.d)[0];
       if (!near) return false;
-      G.pickOpen(near.o.t === "bed" ? "stubed" : "studesk"); return true;
+      G.pickOpen(near.o.t === "bed" ? "stubed" : "studesk"); return true;     // (reach: 60, measured to the prop's centre)
     };
     function stuBedPanel() { const late = (g.clock || 0) >= 20 * 60 || (g.clock || 0) < 5 * 60;
       return { title: "YOUR BED \u00b7 " + clockText(g.clock || 0), face: null, text: late ? "Lights out. Tomorrow's another day." : "It's early. You could sleep, but school doesn't wait.",
@@ -31748,7 +31774,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (a === "t") { const T = g.stuTest; if (!T) return; if (+n === T.qs[T.i][2]) T.right++; T.i++;
         if (T.i >= 3) { if (T.noBooks) { (g.stu.ready = g.stu.ready || {})[T.subj] = Math.max(0, (g.stu.ready[T.subj] || 0) - 60); } gradeTest(T.subj, T.right); g.stuTest = null; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); } return; }
       if (a === "sleep") { const c = g.clock || 0; if (c > STU.wake) { U.day++; } g.clock = STU.wake; U.curfewHit = 0; g.sfolk = null;
-        const H = studentHome(); if (H) { g.inside = H; g.floor = H.entry || 0; g.insideT = 1; }
+        const H = studentHome(); if (H) { g.inside = H; g.floor = 1; g.insideT = 1; }
         const pt = stuBedPt(); if (pt) { g.p.x = pt[0]; g.p.y = pt[1]; g.cam.x = pt[0]; g.cam.y = pt[1]; }
         g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
         g.jobBanner = "DAY " + U.day + " \u00b7 " + (U.school === "aldric" ? "ST. ALDRIC'S" : "CENTRAL HIGH"); g.jobNote = "6:30 AM. TODAY: " + testSubj(U.day) + " TEST." + (isDanceDay(U.day) ? " " + danceName(U.day) + " TONIGHT, 7 PM, THE GYM." : "") + (U.packed ? "" : " Pack your books.") + " Grade points " + U.pts + "/" + STU.transfer + "."; return; }
@@ -31794,12 +31820,19 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const BF = { idx: 3, name: "DEVON GREENE" };
 
     // ---- the bus
-    function busStop(which) { const b = which === "home" ? studentHome() : stuSchoolB(); if (!b) return null; const d = doorPoint(b); return [d[0] + 70, d[1] + 50]; }
+    /* The bus stops IN THE STREET: the curb lane of the road the building's door faces, right in front
+       of the door, lying along the road. Returns [x, y, angle]. */
+    function busStop(which) {
+      const b = which === "home" ? studentHome() : stuSchoolB(); if (!b || !b.door) return null;
+      const d = doorPoint(b), i = Math.floor((b.x + b.w / 2) / PITCH), j = Math.floor((b.y + b.h / 2) / PITCH), sd = b.door.side;
+      if (sd === 0 || sd === 2) { const L = sd === 0 ? j : j + 1, y = SX(L) + (sd === 0 ? 1 : -1) * halfW(L) * 0.5; return [d[0], y, 0]; }
+      const L = sd === 3 ? i : i + 1, x = SX(L) + (sd === 3 ? 1 : -1) * halfW(L) * 0.5; return [x, d[1], Math.PI / 2];
+    }
     function busHere() { const c = g.clock || 0; if (c >= 435 && c < 465) return "home"; if (c >= 860 && c < 900) return "school"; return null; }
     G.stuHomeT = () => studentHome();   // test hook
     G.busFn = () => {
       if (!g.studentMode || g.inside || g.mode !== "foot") return false;
-      const w = busHere(); if (!w) return false; const s = busStop(w); if (!s || Math.hypot(g.p.x - s[0], g.p.y - s[1]) > 90) return false;
+      const w = busHere(); if (!w) return false; const s = busStop(w); if (!s || Math.hypot(g.p.x - s[0], g.p.y - s[1]) > 110) return false;
       const to = w === "home" ? stuSchoolB() : studentHome(), d = doorPoint(to);
       g.p.x = d[0] + 30; g.p.y = d[1] + 40; g.cam.x = g.p.x; g.cam.y = g.p.y;
       g.clock = w === "home" ? 470 : Math.max(g.clock, 900) + 15; g.sfolk = null;
@@ -31809,24 +31842,46 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function drawStudentWorld(view) {
       if (!g.studentMode || g.inside) return;
       const w = busHere(), s = w && busStop(w), bus = imgs.current.sch_bus;
-      if (s && bus && bus.width) { ctx.save(); ctx.translate(s[0], s[1]); ctx.rotate(Math.PI / 2); ctx.drawImage(bus, -32, -85, 64, 170); ctx.restore();
+      if (s && bus && bus.width) { ctx.save(); ctx.translate(s[0], s[1]); ctx.rotate(s[2] + Math.PI / 2); ctx.drawImage(bus, -32, -85, 64, 170); ctx.restore();
         ctx.font = "700 9px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd65a"; ctx.fillText("E \u00b7 THE BUS", s[0], s[1] - 50); ctx.textAlign = "start"; }
       // mom's car out front of the house
-      const H = studentHome(); if (H) { const d = doorPoint(H), im = imgs.current.car_stu_mom || imgs.current.buy_sedan_grey;
-        if (im && im.width && (g.clock < 470 || g.clock > 1020)) { ctx.save(); ctx.translate(d[0] - 90, d[1] + 60); ctx.drawImage(im, -23, -50, 46, 100); ctx.restore(); } }
+      const H = studentHome(); if (H) { const D = driveway(H), im = imgs.current.car_stu_mom || imgs.current.buy_sedan_grey;
+        if (D) { ctx.fillStyle = "#8d8a84"; ctx.fillRect(D.rx, D.ry, D.rw, D.rh); ctx.fillStyle = "rgba(0,0,0,0.12)"; ctx.fillRect(D.rx + D.rw / 2 - 1, D.ry, 2, D.rh);
+          if (im && im.width && (g.clock < 470 || g.clock > 1020)) { ctx.save(); ctx.translate(D.cx, D.cy); ctx.rotate(D.ang); ctx.drawImage(im, -23, -50, 46, 100); ctx.restore(); } } }
       drawBestFriend();
     }
+    /* MOM'S DRIVEWAY: a concrete strip beside the house, from the house's front line out to the
+       pavement, on whichever side has room; the wagon sits on it, nose to the street. */
+    function driveway(H) {
+      if (H.drive !== undefined) return H.drive;
+      const c = getCell(Math.floor((H.x + H.w / 2) / PITCH), Math.floor((H.y + H.h / 2) / PITCH)); if (!c || !H.door) return (H.drive = null);
+      const sd = H.door.side, W = 60, others = (c.blds || []).filter((q) => q !== H);
+      const clear = (x, y, w, h) => !others.some((q) => x < q.x + q.w && x + w > q.x && y < q.y + q.h && y + h > q.y);
+      let best = null;
+      for (const side of [1, -1]) {
+        let rx, ry, rw, rh, ang;
+        if (sd === 0 || sd === 2) { rx = side > 0 ? H.x + H.w + 8 : H.x - W - 8; rw = W;
+          if (sd === 2) { ry = H.y + H.h * 0.3; rh = c.ly1 - ry; ang = Math.PI; } else { ry = c.ly0; rh = H.y + H.h * 0.7 - c.ly0; ang = 0; } }
+        else { ry = side > 0 ? H.y + H.h + 8 : H.y - W - 8; rh = W;
+          if (sd === 1) { rx = H.x + H.w * 0.3; rw = c.lx1 - rx; ang = Math.PI / 2; } else { rx = c.lx0; rw = H.x + H.w * 0.7 - c.lx0; ang = -Math.PI / 2; } }
+        if (rw > 20 && rh > 20 && clear(rx, ry, rw, rh) && rx >= c.lx0 - 1 && rx + rw <= c.lx1 + 1 && ry >= c.ly0 - 1 && ry + rh <= c.ly1 + 1) { best = { rx, ry, rw, rh, ang }; break; }
+      }
+      if (best) { const along = sd === 0 || sd === 2; best.cx = best.rx + best.rw / 2; best.cy = best.ry + best.rh / 2;
+        if (along) best.cy = sd === 2 ? best.ry + Math.min(best.rh - 60, 70) : best.ry + best.rh - Math.min(best.rh - 60, 70);
+        else best.cx = sd === 1 ? best.rx + Math.min(best.rw - 60, 70) : best.rx + best.rw - Math.min(best.rw - 60, 70); }
+      return (H.drive = best);
+    }
     // ---- mom
-    function momPt() { const H = studentHome(); if (!H) return null; const pl = buildingPlans(H)[H.entry || 0], r = pl && pl.rooms.find((q) => q.k === "stukitchen"); return r ? [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2 + 30] : null; }
+    function momPt() { const H = studentHome(); if (!H) return null; const pl = buildingPlans(H)[0], r = pl && pl.rooms.find((q) => q.k === "stukitchen"); return r ? [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2 + 30] : null; }
     const momHome = () => { const c = g.clock || 0; return c < 470 || c > 1050; };
     function drawMom() {
-      if (!g.studentMode || g.inside !== studentHome() || !momHome()) return;
+      if (!g.studentMode || g.inside !== studentHome() || g.floor !== 0 || !momHome()) return;
       const p2 = momPt(); if (!p2) return;
       const yt = imgs.current.yt_stu_mom && imgs.current.yt_stu_mom.width ? "yt_stu_mom" : "yt_stf_ch_teacher_f3";
       drawShadow(p2[0], p2[1] + 2, 9, 4, 0.3); drawYouth({ x: p2[0], y: p2[1], vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt, bang: Math.PI / 2 });
       ctx.font = "700 9px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd65a"; ctx.fillText("MOM", p2[0], p2[1] - 30); ctx.textAlign = "start";
     }
-    G.momFn = () => { if (!g.studentMode || g.inside !== studentHome() || !momHome()) return false; const p2 = momPt(); if (!p2 || Math.hypot(g.p.x - p2[0], g.p.y - p2[1]) > 55) return false; G.pickOpen("stumom"); return true; };
+    G.momFn = () => { if (!g.studentMode || g.inside !== studentHome() || g.floor !== 0 || !momHome()) return false; const p2 = momPt(); if (!p2 || Math.hypot(g.p.x - p2[0], g.p.y - p2[1]) > 55) return false; G.pickOpen("stumom"); return true; };
     function momPanel() { const U = g.stu, opts = [];
       if (U.money !== U.day && (g.clock || 0) < 470) opts.push({ id: "stu:lunch", label: "LUNCH MONEY" });
       opts.push({ id: "close", label: "BYE, MA" });
@@ -33498,6 +33553,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (g.detMode) musicPlay("det");
         // PRISON MODE: his song, inside Kestrel -- and anywhere once he is out and still in the jumpsuit life
         else if (g.prisonMode && !g.cab && (!g.pescaped || (g.heat || 0) === 0)) musicPlay("prison");
+        else if (g.studentMode && !g.cab) musicPlay("school");
         /* Not inside the venue. A chase happening in the street is not audible over a band
            twelve feet away, and having the gig cut out because a squad car went past the door
            was the single most jarring thing in the district. */
