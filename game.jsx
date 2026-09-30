@@ -21491,16 +21491,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const mat = facadeOf(b);
       const wallLit = facePat(b, tb, true);
       const wallDim = facePat(b, tb, false);
+      /* A wall face runs from the FOOTPRINT edge to the ROOF edge -- its points are already in world
+         space. It used to build the path under a half-offset translate, which slid every wall by
+         half the parallax: the walls floated off the base and the roof looked unpinned (the
+         hospital, and every other building without a plate). */
       const face = (pts, fill) => {
-        ctx.save();
-        ctx.translate(ox * 0.5, oy * 0.5);
         ctx.fillStyle = fill; ctx.beginPath();
         ctx.moveTo(pts[0], pts[1]);
         for (let p = 2; p < pts.length; p += 2) ctx.lineTo(pts[p], pts[p + 1]);
-        ctx.closePath();
-        ctx.translate(-ox * 0.5, -oy * 0.5);
-        ctx.fill();
-        ctx.restore();
+        ctx.closePath(); ctx.fill();
       };
       // side faces (only the ones the camera can see past)
       if (oy < 0) face([b.x, b.y + b.h, b.x + b.w, b.y + b.h, rx + b.w, ry + b.h, rx, ry + b.h], wallLit);
@@ -42327,6 +42326,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
     if (typeof window !== "undefined") {
       const W2 = (window.__ironlion = window.__ironlion || {});
+      W2.findB = (k) => { for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); const b = c && (c.blds || []).find((q) => q.kind === k); if (b) return [b.x, b.y, b.w, b.h, b.floors, b._plate || null, b.roofKey || null, b.door && b.door.side]; } return null; };
       W2.G = G; W2.mus = () => MUS && MUS.cur;                                       // the test harness reads the live state through this
       W2.hide = () => { const gg = G.current; const H = gg.hideout; if (!H) return null; gg.inside = H; gg.floor = 1; gg.insideT = 1; gg.mode = "foot"; const pl = buildingPlans(H)[1]; const r = pl.rooms[0]; gg.p.x = (r.x0 + r.x1) / 2; gg.p.y = (r.y0 + r.y1) / 2 - 40; gg.cam.x = gg.p.x; gg.cam.y = gg.p.y; return [H.name, H.kind, pl.rooms.map((q) => q.k), pl.props.map((q) => q.t).join(",")]; };
       W2.props = () => { const gg = G.current; return buildingPlans(gg.inside)[gg.floor].props.map((o) => o.t); };
