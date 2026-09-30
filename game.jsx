@@ -3629,7 +3629,7 @@ const MB_KEYS = ["mb_shelf_a", "mb_shelf_b", "mb_stool", "mb_stools_pair", "mb_c
   "mb_dartboard", "mb_booth_l", "mb_booth_r", "mb_table", "mb_jukebox", "mb_notice", "mb_neon", "mb_cigmachine", "mb_crates"];
 for (const k of MB_KEYS) PD_ART[k] = "assets/bar/" + k + ".png";
 for (const k of ["ui_plate", "car_dmg_front", "car_dmg_glass", "car_dmg_blood"]) PD_ART[k] = "assets/ui/" + k + ".png";   // layer 446
-for (const k of ["yt_merc_silas", "pt_merc_silas"]) PD_ART[k] = "assets/crew/" + k + ".png";   // Silas, the broker at the Rusty Nail (art to come)
+for (const k of ["yt_merc_silas", "pt_merc_silas"]) PD_ART[k] = "assets/crew/" + k + ".png";   // Silas, the broker at the Rusty Nail (layer 447)   // Silas, the broker at the Rusty Nail (art to come)
 /* WEAPON ICONS: drawn over a man's head while he has one out, instead of in his hand. */
 const HEAD_ICON = { shank: "wi_bayonet", razor: "wi_razor", pencil: "wi_pencil", zipgun: "wi_zipgun", gun: "wi_pistol", pistol: "wi_pistol",
   beretta: "wi_pistol", revolver: "wi_revolver", shotgun: "wi_shotgun", bat: "wi_bat", knuckles: "wi_knuckles", tireiron: "wi_tireiron", bottle: "wi_bottle" };
