@@ -11399,6 +11399,7 @@ export default function IronLionLayer004() {
       // a hiding place: the stash menu
       if (G.stashOpenFn && G.stashOpenFn()) return;
     }
+    if (g.mode === "foot" && g.inside && g.inside.inPrison && G.myCellFn && G.myCellFn()) return;
     if (g.mode === "foot" && g.inside && g.inside.inPrison && G.escapeFn && G.escapeFn()) return;
     if (g.mode === "foot" && g.inside && g.inside.inPrison && G.cardsFn && G.cardsFn()) return;
     if (g.mode === "foot" && g.inside && g.inside.inPrison && G.stashFn && G.stashFn()) return;
@@ -12025,6 +12026,7 @@ export default function IronLionLayer004() {
       const inp = input.current, k = inp.keys;
       let ix = inp.x + (k["a"] || k["arrowleft"] ? -1 : 0) + (k["d"] || k["arrowright"] ? 1 : 0);
       let iy = inp.y + (k["w"] || k["arrowup"] ? -1 : 0) + (k["s"] || k["arrowdown"] ? 1 : 0);
+      if (g.pintro) { ix = 0; iy = 0; }                  // the walk in: he leads, you follow
       const len = Math.hypot(ix, iy);
       if (len > 1) { ix /= len; iy /= len; }
       const wantRun = inp.run || k["shift"];
@@ -15603,7 +15605,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function drawBackup(view) {
       if (g.inside) return;
-      if (g.prisonMode) { drawBlockLabels(view); drawBasketball(view); drawHideoutYard(view); drawStreetPeople(view); drawTunnelSpots(); drawFollowers(); drawPrisonFx(); drawTargetArrow(); }
+      if (g.prisonMode) { drawPrisonIntro(); drawBlockLabels(view); drawBasketball(view); drawHideoutYard(view); drawStreetPeople(view); drawTunnelSpots(); drawFollowers(); drawPrisonFx(); drawTargetArrow(); }
       drawK9();
       for (const c of g.backup || []) {
         const im = imgs.current[c.m.k];
@@ -15670,6 +15672,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "merc") return mercPanel();
       if (kind === "pool") return poolPanel();
       if (kind === "plates") return platesPanel();
+      if (kind === "mail") return mailPanel();
+      if (kind === "mybunk") return bunkPanel();
       if (kind === "pescape") return escapePanel();
       if (kind === "inmate") return inmatePanel();
       if (kind === "pcards") return pcardsPanel();
@@ -15734,9 +15738,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "pstash") {
         const S = g.stashAtNow; if (!S) return null;
         const here = stashAt(S.key), inv = g.pinv || [];
-        return { title: "HIDING PLACE \u00b7 " + S.what.toUpperCase(), face: null,
+        const mine = myCellHere(), bed = /bed|bunk/i.test(S.what), desk = /desk/i.test(S.what);
+        const extra = [];
+        if (mine && bed && !g.hole) for (const [k2, lab] of SLEEP_TO) extra.push({ id: "sleep:" + k2, label: "SLEEP UNTIL " + lab });
+        if (mine && desk) { const un = (g.pmail || []).filter((m) => !m.read).length; extra.push({ id: "mailopen", label: "THE MAIL" + (un ? " \u00b7 " + un + " NEW" : "") }); }
+        return { title: (mine && bed ? "YOUR BUNK" : mine && desk ? "YOUR DESK" : "HIDING PLACE") + " \u00b7 " + S.what.toUpperCase(), face: null,
           text: here.length ? "Something's already in here." : "Empty. Nobody's using it.",
-          opts: here.map((it, n) => ({ id: "pstash:take:" + n, icon: PD_ART["ci_" + it], label: "TAKE " + CONTRABAND[it].nm }))
+          opts: extra.concat(here.map((it, n) => ({ id: "pstash:take:" + n, icon: PD_ART["ci_" + it], label: "TAKE " + CONTRABAND[it].nm })))
             .concat(inv.map((it, n) => ({ id: "pstash:hide:" + n, icon: PD_ART["ci_" + it], label: "HIDE " + CONTRABAND[it].nm })))
             .concat([{ id: "close", label: "LEAVE IT" }]) };
       }
@@ -15780,6 +15788,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       else if (id.startsWith("console:")) { G.consolePick(id.slice(8)); return; }
       else if (id === "esc:go") { G.escapeGo(); return; }
+      else if (id.startsWith("sleep:")) { G.sleepPick(id.slice(6)); return; }
+      else if (id === "bunkstash") { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); G.stashFn && G.stashFn(); return; }
+      else if (id === "mailopen") { g.mailSaid = null; G.pickOpen("mail"); return; }
+      else if (id.startsWith("mail:")) { G.mailPick(id.slice(5)); G.pickOpen("mail"); return; }
       else if (id.startsWith("plate:")) { G.platePick(id.slice(6)); G.pickOpen("plates"); return; }
       else if (id.startsWith("pool:")) { G.poolPick(id.slice(5)); return; }
       else if (id.startsWith("merc:")) { G.mercPick(id); G.pickOpen("merc"); return; }
@@ -28727,6 +28739,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!b || !b.inPrison) return null;
       const ph = prisonPhase(g.clock || CLOCK.start)[2];
       if (g.pfolk && g.pfolk.b === b && g.pfolk.f === g.floor && g.pfolk.ph === ph) return g.pfolk.folk;
+      const prevFolk = g.pfolk && g.pfolk.b === b && g.pfolk.f === g.floor ? g.pfolk.folk : null;   // a phase change on this floor: they walk
       const pl = buildingPlans(b)[g.floor]; if (!pl) return null;
       // where the day puts them: in their cells at count, in the mess hall at chow, spread out otherwise
       const inCell = ph === "cells" ? PRISON_POP.cell : ph === "chow" ? 0.08 : 0.3;
@@ -28843,6 +28856,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (r.k === "pguard") { const gk = b.pwomen ? pick(PR_PEOPLE.guardW) : pick(PR_PEOPLE.guard); add(r, gk, { guard: 1, tall: GUARD_TALL[gk] || 1.3, castFace: GUARD_FACE[gk] ? GUARD_FACE[gk][0] : null,
           cast: { sex: b.pwomen ? "f" : "m", tone: GUARD_FACE[gk] ? GUARD_FACE[gk][1] : "mid" } }); }
       }
+      try { nightAndShowers(folk, b, pl, ph); } catch (e) {}
+      try { folkTransition(prevFolk, folk, b); } catch (e) {}
       g.pfolk = { b, f: g.floor, folk, ph };
       return folk;
     }
@@ -30151,23 +30166,72 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        THE BUS IN (`g.pintro`): prison mode opens outside the gate beside the white bus, and a CO
        walks the new fish through the rules, one line at a time (INTRO_LINES). E skips. Then you are
        in your cell, as before. */
-    const INTRO_LINES = [
-      ["C.O. HARLAN", "Off the bus. Single file. Eyes on the man in front of you."],
-      ["C.O. HARLAN", "Welcome to Kestrel State. Count is 7, 4 and 9. You are in your cell for every one of them."],
-      ["C.O. HARLAN", "Chow three times a day. Yard in the afternoon. You work where the warden puts you."],
-      ["C.O. HARLAN", "Contraband goes in the hole with you. So does anything you do with your hands."],
-      ["C.O. HARLAN", "Every block has a shot caller. That's not my business. Don't make it my business."],
-      ["C.O. HARLAN", "Number 0001. Cell " + "{CELL}" + ". Move."],
-    ];
-    const INTRO_T = 4.6;
+    /* THE WALK IN (layer 450). C.O. Harlan leads; you walk behind him (no control -- E skips);
+       three other new fish shuffle behind you. Outside: off the bus, through the gate, the yard and
+       the buildings pointed out. Then inside your block: in the door, down the tier, into your cell.
+       He talks the whole way (the subtitle box), one line per leg. */
+    const INTRO_SPD = 70;
+    const INTRO_OUT = ["Off the bus. Single file. Eyes on the man in front of you.",
+      "Welcome to Kestrel State. The yard's on your left. You'll see it in the afternoon, if you behave.",
+      "Big building in the middle is the hub. Warden's up top. The hole's above that -- you don't want to see it."];
+    const INTRO_IN = ["This is {BLOCK} Block. Count is 7, 4 and 9, and you are in your cell for every one of them.",
+      "Chow three times a day. You work where the warden puts you. Contraband goes in the hole with you.",
+      "Every block has a shot caller. That's not my business. Don't make it my business.",
+      "Number 0001. Cell {CELL}. In you go."];
+    function introInsidePt(b) { const d = doorPoint(b), cx = b.x + b.w / 2, cy = b.y + b.h / 2, L = Math.hypot(cx - d[0], cy - d[1]) || 1;
+      return [d[0] + (cx - d[0]) / L * 40, d[1] + (cy - d[1]) / L * 40]; }
+    function prisonIntroStart(wb, pt, cellNo) {
+      const B = PRISON_BOX, gx = (B.x0 + B.x1) / 2;
+      const P = [[gx + 60, B.y0 - 120], [gx, B.y0 - 40], [gx, B.y0 + 60], [gx, B.y0 + 220]];
+      g.pintro = { st: "out", i: 0, legs: P, b: wb, pt, cell: wb.pwing + "-" + cellNo, co: { x: P[0][0], y: P[0][1] + 40, vx: 0, vy: 0, anim: 0 },
+        fish: [0, 1, 2].map((k) => ({ x: P[0][0] + 20, y: P[0][1] - 40 - k * 30, vx: 0, vy: 0, anim: 0, yt: (PR_PEOPLE.inmate || [])[k + 3] || "yt_pr_inmate_1" })) };
+      g.inside = null; g.floor = 0; g.p.x = P[0][0]; g.p.y = P[0][1]; g.cam.x = g.p.x; g.cam.y = g.p.y;
+      if (!g.kbus) { g.kbus = { x: gx + 140, y: B.y0 - 160, ang: -Math.PI / 2, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0,
+        m: { k: "pr_bus", len: 170, w: 68 }, dead: 1, parked: 1, named: 1 }; g.traffic.push(g.kbus); }
+      g.driveTalk = { who: "C.O. HARLAN", text: INTRO_OUT[0], t: 6 };
+    }
+    // walk a body toward (tx,ty); returns true when there
+    function introStep(o, tx, ty, dt, sp) { const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy);
+      if (d < 3) { o.vx = 0; o.vy = 0; return true; } const m = Math.min(d, sp * dt); o.x += dx / d * m; o.y += dy / d * m; o.vx = dx / d * sp; o.vy = dy / d * sp; o.anim += dt; return false; }
+    function followLine(lead, list, dt) { let prev = lead;
+      for (const o of list) { const dx = prev.x - o.x, dy = prev.y - o.y, d = Math.hypot(dx, dy);
+        if (d > 30) { const m = Math.min(d - 30, INTRO_SPD * 1.2 * dt); o.x += dx / d * m; o.y += dy / d * m; o.vx = dx / d * INTRO_SPD; o.vy = dy / d * INTRO_SPD; o.anim = (o.anim || 0) + dt; }
+        else { o.vx = 0; o.vy = 0; } prev = o; } }
     function stepPrisonIntro(dt) {
       const I = g.pintro; if (!I) return;
-      I.t += dt;
-      if (!g.driveTalk || g.driveTalk.k !== I.i) {
-        const L = INTRO_LINES[I.i];
-        g.driveTalk = { who: L[0], text: L[1].replace("{CELL}", I.cell), t: INTRO_T + 0.3, k: I.i };
+      const me = g.p, co = I.co;
+      if (I.i < I.legs.length) {
+        if (introStep(co, I.legs[I.i][0], I.legs[I.i][1], dt, INTRO_SPD)) {
+          I.i++;
+          const lines = I.st === "out" ? INTRO_OUT : INTRO_IN;
+          if (I.i < lines.length) g.driveTalk = { who: "C.O. HARLAN", text: lines[I.i].replace("{CELL}", I.cell).replace("{BLOCK}", I.b.pwing), t: 6 };
+        }
+      } else if (I.st === "out") {
+        // through the door of the block: inside, at its door, the same line-up
+        const b = I.b, pl = buildingPlans(b)[0], d0 = introInsidePt(b);
+        const tier = pl && pl.rooms.find((r) => r.k === "tier"), ty = tier ? (tier.y0 + tier.y1) / 2 : d0[1] - 80;
+        const cellTop = I.pt[1] < ty, cy2 = cellTop ? I.pt[1] + 10 : I.pt[1] - 10;
+        I.st = "in"; I.i = 0; g.inside = b; g.floor = 0; g.insideT = 1; g.pfolk = null;
+        I.legs = [[d0[0], ty], [I.pt[0], ty], [I.pt[0], cellTop ? ty - 40 : ty + 40]];
+        I.cellPt = [I.pt[0], cy2];
+        co.x = d0[0]; co.y = d0[1]; me.x = d0[0]; me.y = d0[1] + 30; I.fish.forEach((f, k) => { f.x = d0[0]; f.y = d0[1] + 60 + k * 30; });
+        g.driveTalk = { who: "C.O. HARLAN", text: INTRO_IN[0].replace("{BLOCK}", b.pwing), t: 6 };
+      } else {
+        // at the bars: you step into the cell; he and the others walk on
+        if (!I.done) { I.done = 1; I.leave = 2.5; }
+        introStep(me, I.cellPt[0], I.cellPt[1], dt, INTRO_SPD);
+        I.leave -= dt; if (I.leave <= 0) prisonIntroEnd();
+        return;
       }
-      if (I.t >= INTRO_T) { I.t = 0; I.i++; if (I.i >= INTRO_LINES.length) prisonIntroEnd(); }
+      followLine(co, [me].concat(I.fish), dt);
+      me.anim = (me.anim || 0) + dt; g.cam.x += (me.x - g.cam.x) * Math.min(1, dt * 4); g.cam.y += (me.y - g.cam.y) * Math.min(1, dt * 4);
+    }
+    function drawPrisonIntro() {
+      const I = g.pintro; if (!I) return;
+      if ((I.st === "out") !== !g.inside) return;
+      for (const o of I.fish) { drawShadow(o.x, o.y + 2, 9, 4, 0.3); drawYouth({ ...o, jit: 1, tall: 1.25 }); }
+      drawShadow(I.co.x, I.co.y + 2, 10, 4, 0.34); drawYouth({ ...I.co, jit: 1, tall: 1.3, yt: "yt_pr_guard_1" });
+      ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#7ab8ff"; ctx.fillText("C.O. HARLAN", I.co.x, I.co.y - 32); ctx.textAlign = "start";
     }
     G.introSkip = () => prisonIntroEnd();
     function prisonIntroEnd() {
@@ -30177,14 +30241,38 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.p.x = I.pt[0]; g.p.y = I.pt[1]; g.cam.x = g.p.x; g.cam.y = g.p.y;
       g.jobBanner = "KESTREL STATE \u00b7 " + I.b.name; g.jobNote = "7:00 count. Nobody knows who you are. Yet.";
     }
-    function prisonIntroStart(wb, pt, cellNo) {
-      const B = PRISON_BOX, gx = (B.x0 + B.x1) / 2 + 160;
-      g.pintro = { i: 0, t: 0, b: wb, pt, cell: wb.pwing + "-" + cellNo };
-      g.inside = null; g.floor = 0; g.p.x = gx - 80; g.p.y = B.y0 - 120; g.cam.x = g.p.x; g.cam.y = g.p.y;
-      // the bus at the gate
-      if (!g.kbus) { g.kbus = { x: gx, y: B.y0 - 200, ang: -Math.PI / 2, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0,
-        m: { k: "pr_bus", len: 170, w: 68 }, dead: 1, parked: 1, named: 1 }; g.traffic.push(g.kbus); }
+
+    /* THE TIERS MOVE (layer 450). When the day changes phase, the men don't blink out and in:
+       whoever is leaving the floor walks to the door and goes (g.pleave); whoever is arriving walks in
+       from the door to his place. In free time the men on the tier drift about near their spot. */
+    function folkKey(q) { return (q.inmate && q.inmate.no) || q.name || (q.yt + ":" + Math.round(q.x / 40) + ":" + Math.round(q.y / 40)); }
+    function folkTransition(prev, folk, b) {
+      if (!prev || !b.door) return;
+      const D = introInsidePt(b), was = new Set(prev.map(folkKey)), now = new Set(folk.map(folkKey));
+      for (const q of folk) if (!was.has(folkKey(q)) && !q.store) { q.tx = q.x; q.ty = q.y; q.x = D[0] + (Math.random() - 0.5) * 20; q.y = D[1]; q.walking = 1; q.delay = Math.random() * 4; }
+      for (const q of prev) if (!now.has(folkKey(q)) && !q.down) (g.pleave = g.pleave || []).push({ ...q, tx: D[0], ty: D[1], lb: b, lf: g.floor, life: 14, delay: Math.random() * 3 });
     }
+    function stepFolkWalk(dt) {
+      const P = g.pfolk; if (!P || g.inside !== P.b) { if (g.pleave) g.pleave = g.pleave.filter((q) => q.lb === g.inside); return; }
+      const free = P.ph !== "cells", pl = buildingPlans(P.b)[P.f];
+      for (const q of P.folk) {
+        if (q.down || q.angry || q.hitman) continue;
+        if (q.walking) { if ((q.delay -= dt) > 0) continue; if (introStep(q, q.tx, q.ty, dt, 60)) q.walking = 0; else collideCrew(q); continue; }
+        if (!free || q.guard || q.store || q.shot || q.warden || q.sleep || q.shower) continue;
+        if (q.hx === undefined) { q.hx = q.x; q.hy = q.y; const r = pl && pl.rooms.find((r2) => q.x > r2.x0 && q.x < r2.x1 && q.y > r2.y0 && q.y < r2.y1); q.rk = r ? r.k : ""; q.wt = Math.random() * 6; }
+        if (/cell/.test(q.rk)) continue;                        // a man in his cell stays in it
+        q.wt -= dt;
+        if (q.wt <= 0) { q.wt = 4 + Math.random() * 6;
+          const room = WORK_ROOMS.test(q.rk) && pl ? pl.rooms.find((r2) => q.hx > r2.x0 && q.hx < r2.x1 && q.hy > r2.y0 && q.hy < r2.y1) : null;
+          const st = room ? (pl.props || []).filter((o) => o.x + o.w / 2 > room.x0 && o.x + o.w / 2 < room.x1 && o.y + o.h / 2 > room.y0 && o.y + o.h / 2 < room.y1) : [];
+          if (st.length) { const o = cpick(st); q.wx = o.x + o.w / 2; q.wy = o.y + o.h + 12; }            // to the next station
+          else { const a = Math.random() * 6.28, r = 20 + Math.random() * 50; q.wx = q.hx + Math.cos(a) * r; q.wy = q.hy + Math.sin(a) * r; } }
+        if (q.wx !== undefined && !introStep(q, q.wx, q.wy, dt, 28)) collideCrew(q);
+      }
+      for (const q of g.pleave || []) { q.life -= dt; if ((q.delay -= dt) > 0) continue; if (introStep(q, q.tx, q.ty, dt, 60)) q.life = 0; else collideCrew(q); }
+      if (g.pleave) g.pleave = g.pleave.filter((q) => q.life > 0);
+    }
+    function drawLeavers() { for (const q of g.pleave || []) if (q.lb === g.inside && q.lf === g.floor) { drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q); } }
 
     /* ROOF HATCHES. Every building of 2+ floors (not Kestrel) has a hatch on its roof, at the same
        spot as a ladder on its top floor (roofHatchPt). On the roof, E at the hatch drops you down the
@@ -30964,6 +31052,105 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (!g.pball) { const [lx, ly] = g.ballAt || C.loose; ball(lx, ly, 5); }
       if (g.pball) ball(g.p.x + 10, g.p.y - 4, 4.5);
     }
+
+    /* ---------- LAYER 451: SLEEP, MAIL, WORK LOOPS, NIGHT, SHOWERS ----------
+       YOUR BUNK: the hiding-place panel of the bed in YOUR cell also offers SLEEP -- until dawn
+       (6:30), noon, or dusk (6 PM). The clock jumps; the counts pass with you in your cell.
+       YOUR DESK: its panel also has THE MAIL -- letters from home now and then (Mom, your brother,
+       your sister), and once you have people outside (the crew out, or an outfit on the board), a
+       report on how the business is doing without you. */
+    const SLEEP_TO = [["dawn", "DAWN (6:30 AM)", 6 * 60 + 30], ["noon", "NOON", 12 * 60], ["dusk", "DUSK (6 PM)", 18 * 60]];
+    const LETTERS = {
+      MOM: ["Baby, I pray for you every night. Your cousin Tasha had her baby, a girl. Eat something. I'll come on the first Sunday.",
+            "They raised the rent again. Don't you worry about it, I'm managing. You just keep your head down in there.",
+            "I baked your sweet potato pie for church and everybody asked about you. I told them you're coming home."],
+      "YOUR BROTHER": ["Man, the block ain't the same. Somebody took the corner by Dre's. I'm staying out of it like you said.",
+                       "Got a job at the tire place. Real job. Don't laugh. Mom's good. Stay up.",
+                       "Some dudes came round asking where you're at. I ain't tell them nothing. Watch your back in there."],
+      "YOUR SISTER": ["Mom cried after the visit. Not because of you -- because she misses you. Write her more.",
+                      "I'm saving for nursing school. When you get out we're going to Red Lobster, my treat."],
+    };
+    function myCellHere() { const P = g.pcell; return P && g.inside === P.b && g.floor === 0 && g.p.x > P.x0 && g.p.x < P.x1 && g.p.y > P.y0 && g.p.y < P.y1; }
+    function stepPrisonMail() {
+      if (!g.prisonMode) return;
+      const d = g.pday || 0; if (g.pmailDay === d) return;
+      const first = g.pmailDay === undefined; g.pmailDay = d; if (first) return;
+      const M = (g.pmail = g.pmail || []);
+      if (Math.random() < 0.4) { const from = cpick(Object.keys(LETTERS)); M.push({ from, text: cpick(LETTERS[from]), day: d }); }
+      const B = g.board2;
+      if ((g.crewOut || B) && !g.pescaped) {
+        const hires = B ? Object.values(B.hires || {}).reduce((a, n) => a + n, 0) : 0, war = Object.keys(g.gstand || {}).filter((k) => standOf(k) <= -60);
+        M.push({ from: "PABLO", day: d, text: "Mijo. " + (B ? B.corners + " corners, " + (B.rackets || 0) + " shops paying, " + hires + " people on the payroll. " : "We're holding the scrapyard. ") +
+          (war.length ? "We're at war with " + war.map((k) => GANG_LABEL[k] || k).join(" and ") + ". They hit us when they can. " : "Quiet out here. ") +
+          "Respect is " + (g.rep || 0) + ". We wait for you." });
+      }
+      if (M.some((m) => !m.read)) { g.jobBanner = "MAIL CALL"; g.jobNote = "There's a letter on your desk."; }
+    }
+    function mailPanel() {
+      const M = g.pmail || [];
+      const opts = M.slice(-6).reverse().map((m) => ({ id: "mail:" + M.indexOf(m), label: (m.read ? "" : "\u2709 ") + "FROM " + m.from }));
+      opts.push({ id: "close", label: "PUT THEM AWAY" });
+      return { title: "YOUR DESK \u00b7 THE MAIL", face: null, text: g.mailSaid || (M.length ? "Letters, the ones you kept." : "Nothing yet. It comes on the cart after lunch."), opts };
+    }
+    // E at your own bunk or desk
+    G.myCellFn = () => {
+      if (!g.prisonMode || g.mode !== "foot" || !myCellHere()) return false;
+      const pl = buildingPlans(g.inside)[0], P = g.pcell;
+      const near = (pl.props || []).filter((o) => o.x + o.w / 2 > P.x0 && o.x + o.w / 2 < P.x1 && o.y + o.h / 2 > P.y0 && o.y + o.h / 2 < P.y1)
+        .map((o) => ({ o, d: Math.hypot(o.x + o.w / 2 - g.p.x, o.y + o.h / 2 - g.p.y) })).filter((q) => q.d < 48).sort((a, b) => a.d - b.d)[0];
+      if (!near) return false;
+      if (/bed|bunk/.test(near.o.t)) { if (g.hole) return false; G.pickOpen("mybunk"); return true; }
+      if (/desk/.test(near.o.t)) { g.mailSaid = null; G.pickOpen("mail"); return true; }
+      return false;
+    };
+    function bunkPanel() {
+      return { title: "YOUR BUNK \u00b7 " + clockText(g.clock || 0), face: null, text: "Thin mattress, thinner blanket. Time goes faster asleep.",
+        opts: SLEEP_TO.map(([k, lab]) => ({ id: "sleep:" + k, label: "SLEEP UNTIL " + lab }))
+          .concat([{ id: "bunkstash", label: "THE MATTRESS (YOUR HIDE)" }, { id: "close", label: "NOT NOW" }]) };
+    }
+    G.mailPick = (n) => { const m = (g.pmail || [])[+n]; if (!m) return; m.read = 1; g.mailSaid = "FROM " + m.from + ": \u201c" + m.text + "\u201d"; };
+    G.sleepPick = (k) => {
+      const T = SLEEP_TO.find((q) => q[0] === k); if (!T) return;
+      const c = g.clock || 0; let to = T[2];
+      if (to <= c) { to += 1440; }
+      g.clock = to % 1440; if (to >= 1440) g.pday = (g.pday || 0) + 1;
+      g.plastClock = g.clock; g.pfolk = null; g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+      g.p.hp = g.p.maxHp || g.p.hp; g.p.stamina = g.p.maxStamina || g.p.stamina;
+      g.jobBanner = "YOU SLEPT"; g.jobNote = "Woke at " + clockText(g.clock) + ". Rested.";
+    };
+    /* WORK LOOPS: a man on a work floor (laundry, kitchen/mess at work time, library, infirmary)
+       goes from station to station -- the washers, the serving line, the shelves -- a few seconds at
+       each. NIGHT: after lights out every man in a cell is in his bunk, flat, a Z over him. SHOWERS:
+       outside counts and meals two or three men are in the showers, and they are pixelated. */
+    const WORK_ROOMS = /laundry|pchow|plibrary|pward|kitchen/;
+    const isNight = () => { const c = g.clock || 0; return c >= 21 * 60 + 30 || c < 6 * 60; };
+    function nightAndShowers(folk, b, pl, ph) {
+      const night = isNight();
+      for (const q of folk) {
+        const r = pl.rooms.find((r2) => q.x > r2.x0 && q.x < r2.x1 && q.y > r2.y0 && q.y < r2.y1);
+        if (night && r && r.k === "pcell" && q.convict) {
+          const bed = (pl.props || []).find((o) => /bed|bunk/.test(o.t) && o.x + o.w / 2 > r.x0 && o.x + o.w / 2 < r.x1 && o.y + o.h / 2 > r.y0 && o.y + o.h / 2 < r.y1);
+          if (bed) { q.x = bed.x + bed.w / 2; q.y = bed.y + bed.h * 0.45; q.sleep = 1; }
+        }
+      }
+      if (ph === "work" && !night) { const sh = pl.rooms.find((r) => r.k === "pshowers");
+        if (sh) for (let n = 0; n < 2 + (Math.random() < 0.5 ? 1 : 0); n++) {
+          const pt = freeIndoor(b, pl, (sh.x0 + sh.x1) / 2, sh.y0 + (sh.y1 - sh.y0) * (0.25 + n * 0.25), sh);
+          if (pt) folk.push({ x: pt[0], y: pt[1], vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt: cpick(PR_PEOPLE.inmate), convict: 1, shower: 1, bang: Math.random() * 6.28,
+            cast: { sex: b.pwomen ? "f" : "m", tone: PRISON_WING_TONE[b.pwing] || cpick(["deep", "mid", "light"]) } });
+        } }
+    }
+    const SKIN = { deep: ["#5a3a24", "#6b4630", "#4e321f"], mid: ["#a8744c", "#b98458", "#946440"], light: ["#e0b490", "#d4a27e", "#ecc4a2"] };
+    function drawShowerCensor(q) {
+      const tone = (q.cast && q.cast.tone) || "mid", S = SKIN[tone] || SKIN.mid, px = 3;
+      // the body, in skin, over the clothes; then the mosaic square
+      ctx.save(); ctx.translate(q.x, q.y);
+      for (let y = -14; y < 10; y += px) for (let x = -10; x < 10; x += px) { ctx.fillStyle = S[(Math.abs(x * 7 + y * 13)) % 3]; ctx.fillRect(x, y, px, px); }
+      for (let y = 0; y < 12; y += 4) for (let x = -8; x < 8; x += 4) { ctx.fillStyle = S[(Math.abs(x + y * 3 + Math.floor(g.t * 2))) % 3]; ctx.fillRect(x, y, 4, 4); }
+      ctx.restore();
+      // steam
+      ctx.fillStyle = "rgba(230,235,240,0.18)"; ctx.beginPath(); ctx.arc(q.x + Math.sin(g.t + q.x) * 6, q.y - 26 - (g.t * 10 % 12), 9, 0, 6.3); ctx.fill();
+    }
     function kestrelRoster() {
       if (g.kestrel) return g.kestrel;
       const K = {}, used = {};
@@ -31023,10 +31210,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (const q of F) {
         if (g.pc && g.pc.names && g.pc.names[q.name || q.yt] && g.pc.b === g.inside) continue;   // he is at the card table
         if (g.pfol && g.pfol.length && (q.convict || q.crew) && g.pfol.some((f) => f.key === relKey(q))) continue;   // he is walking with you
+        if (q.sleep) {   // in his bunk
+          ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(1.5708); ctx.translate(-q.x, -q.y); drawYouth({ ...q, vx: 0, vy: 0, anim: 0 }); ctx.restore();
+          ctx.fillStyle = "rgba(220,225,255,0.7)"; ctx.font = "700 9px monospace"; ctx.fillText("z", q.x + 8 + Math.sin(g.t + q.x) * 2, q.y - 18 - (g.t * 6 % 8)); continue; }
         if (q.down) {   // put down: flat on the floor, blood under him
           ctx.fillStyle = "rgba(120,10,10,0.55)"; ctx.beginPath(); ctx.ellipse(q.x + 4, q.y + 4, 16, 9, 0.3, 0, 6.3); ctx.fill();
           ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(1.4); ctx.translate(-q.x, -q.y); drawYouth(q); ctx.restore(); continue; }
         drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q);
+        if (q.shower) drawShowerCensor(q);
         // a man you know: his name over his head, green for your people
         const RR = g.prisonMode && q.convict && !q.crew && !q.guard && !q.store ? rel(q) : null;
         if (q.name && ((q.friend) || (RR && RR.met))) { ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
@@ -35740,7 +35931,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         { const before = g.clock == null ? CLOCK.start : g.clock;
           g.clock = (before + dt * CLOCK.rate) % 1440;
           if (g.clock < before) { g.day = (g.day || 0) + 1; kestrelReleases(); } }
-        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepOps(); stepMerc(); stepCornerWar(dt); stepCasing(dt); stepBall(dt);
+        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepFolkWalk(dt); stepPrisonMail(); stepOps(); stepMerc(); stepCornerWar(dt); stepCasing(dt); stepBall(dt);
         // anybody who has wandered onto the prison grounds from the street is walked back off
         if ((g.pedCullT = (g.pedCullT || 0) - dt) <= 0) { g.pedCullT = 2; g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y)); }
         if (g.prisonStart) startPrisonMode();
@@ -35995,7 +36186,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.inside) drawInterior(g.inside, g.floor, g.insideT);
       drawHeldRogues();
       // staff, customers and anyone robbing them, on top of the floor and its furniture
-      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); drawCellDoors(); drawShuDoors(); drawShuDay(); drawHideoutCrew(); drawTopLadder(); drawSilas(); drawBlockStencil(); drawPrisonCards(); drawFollowers(); drawPrisonFx(); drawGarageSigns({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); drawCold({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); }
+      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); drawCellDoors(); drawLeavers(); drawPrisonIntro(); drawShuDoors(); drawShuDay(); drawHideoutCrew(); drawTopLadder(); drawSilas(); drawBlockStencil(); drawPrisonCards(); drawFollowers(); drawPrisonFx(); drawGarageSigns({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); drawCold({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); }
       drawComp();
       drawThrown();
       drawBlood();
