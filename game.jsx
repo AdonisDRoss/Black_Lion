@@ -3628,6 +3628,7 @@ for (const k of ["tx_bunker", "tx_bunker_b", "tx_shack_wood"]) PD_ART[k] = "asse
 const MB_KEYS = ["mb_shelf_a", "mb_shelf_b", "mb_stool", "mb_stools_pair", "mb_counter", "mb_stool_b", "mb_stool_c", "mb_stool_d", "mb_pool",
   "mb_dartboard", "mb_booth_l", "mb_booth_r", "mb_table", "mb_jukebox", "mb_notice", "mb_neon", "mb_cigmachine", "mb_crates"];
 for (const k of MB_KEYS) PD_ART[k] = "assets/bar/" + k + ".png";
+for (const k of ["ui_plate", "car_dmg_front", "car_dmg_glass", "car_dmg_blood"]) PD_ART[k] = "assets/ui/" + k + ".png";   // layer 446
 for (const k of ["yt_merc_silas", "pt_merc_silas"]) PD_ART[k] = "assets/crew/" + k + ".png";   // Silas, the broker at the Rusty Nail (art to come)
 /* WEAPON ICONS: drawn over a man's head while he has one out, instead of in his hand. */
 const HEAD_ICON = { shank: "wi_bayonet", razor: "wi_razor", pencil: "wi_pencil", zipgun: "wi_zipgun", gun: "wi_pistol", pistol: "wi_pistol",
@@ -15664,6 +15665,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "opsboard") return opsPanel();
       if (kind === "merc") return mercPanel();
       if (kind === "pool") return poolPanel();
+      if (kind === "plates") return platesPanel();
       if (kind === "pescape") return escapePanel();
       if (kind === "inmate") return inmatePanel();
       if (kind === "pcards") return pcardsPanel();
@@ -15774,6 +15776,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       else if (id.startsWith("console:")) { G.consolePick(id.slice(8)); return; }
       else if (id === "esc:go") { G.escapeGo(); return; }
+      else if (id.startsWith("plate:")) { G.platePick(id.slice(6)); G.pickOpen("plates"); return; }
       else if (id.startsWith("pool:")) { G.poolPick(id.slice(5)); return; }
       else if (id.startsWith("merc:")) { G.mercPick(id); G.pickOpen("merc"); return; }
       else if (id.startsWith("bd:")) { G.opsPick(id); G.pickOpen("opsboard"); return; }
@@ -30780,6 +30783,88 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         (B.cased = B.cased || []).push(C);
         g.jobBanner = "CASED \u00b7 " + C.nm; g.jobNote = "$" + C.cash + " in the till, " + (C.guard ? "an armed guard." : "no guard.") + " ROB it now, or leave it for your people on the board."; }
     }
+
+    /* ---------- LAYER 446: MAKES, MODELS, PLATES, AND DAMAGE ----------
+       Every car has an identity (`carInfo(v)`, made once and kept on it): a make and model (from its
+       sprite where the sprite says -- a Grand National, a DeLorean, the lowrider -- else from a pool by
+       size), a colour (from the sprite's name where it has one), an Illinois plate, and a registered
+       owner. RUN PLATES (the button, detective mode, in a car): the cars around you as a list; pick one
+       and its plate comes up on screen with who it belongs to and whether it is flagged. */
+    const CAR_POOLS = {
+      sedan: ["CHEVY CAPRICE", "FORD LTD", "PLYMOUTH FURY", "OLDS CUTLASS", "DODGE ARIES", "AMC CONCORD", "PONTIAC BONNEVILLE", "CHEVY MONTE CARLO", "BUICK REGAL", "FORD CROWN VICTORIA"],
+      big: ["CADILLAC DEVILLE", "LINCOLN TOWN CAR", "CHRYSLER NEW YORKER", "MERCURY GRAND MARQUIS"],
+      van: ["FORD ECONOLINE", "CHEVY G20", "DODGE RAM VAN"], truck: ["CHEVY C10", "FORD F-150", "GMC SIERRA"],
+      small: ["FORD ESCORT", "CHEVY CAVALIER", "HONDA ACCORD", "TOYOTA COROLLA", "VW RABBIT", "DATSUN 280ZX"],
+    };
+    const CAR_BY_KEY = [[/gn_/, "BUICK GRAND NATIONAL"], [/delorean/, "DMC DELOREAN"], [/coupe|fastback|turbo/, "FORD MUSTANG GT"],
+      [/crew_viejo|lowrider/, "CHEVY IMPALA (LOWRIDER)"], [/crew_leroy/, "FORD MUSTANG MACH 1"], [/crew_ras/, "DODGE CHARGER"],
+      [/pd_k9/, "CHEVY BLAZER (K-9)"], [/^pd_/, "FORD LTD (POLICE)"], [/van|econ/, "FORD ECONOLINE"], [/truck|pickup/, "CHEVY C10"], [/taxi|cab_/, "CHECKER MARATHON (TAXI)"]];
+    const CAR_COLS = ["BLACK", "WHITE", "SILVER", "GREY", "RED", "MAROON", "NAVY", "BLUE", "GREEN", "BROWN", "TAN", "GOLD", "YELLOW", "ORANGE"];
+    const OWNER_F = ["James", "Robert", "Linda", "Mary", "Walter", "Dolores", "Frank", "Carl", "Anthony", "Gloria", "Leon", "Teresa", "Earl", "Vincent", "Rosa", "Dwayne"];
+    const OWNER_L = ["Kowalski", "Washington", "Moretti", "O'Brien", "Jackson", "Nguyen", "Delgado", "Brooks", "Sullivan", "Petrov", "Greene", "Castillo", "Walsh", "Harris"];
+    function carInfo(v) {
+      if (v.idn) return v.idn;
+      const key = String((v.m && v.m.k) || ""), L = (v.m && v.m.len) || 100;
+      let h = 2166136261; for (const ch of key + (v.x | 0) + (v.y | 0) + Math.random()) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+      const pick = (a, s) => a[(h >>> s) % a.length];
+      const byKey = CAR_BY_KEY.find(([re]) => re.test(key));
+      const model = byKey ? byKey[1] : pick(L > 125 ? CAR_POOLS.big : L < 88 ? CAR_POOLS.small : v.m && v.m.van ? CAR_POOLS.van : CAR_POOLS.sedan, 3);
+      const colWord = CAR_COLS.find((c) => key.toUpperCase().indexOf(c) >= 0) || (/orange/.test(key) ? "ORANGE" : null);
+      const colour = colWord || (key === "car_crew_viejo" ? "PURPLE" : key === "car_crew_leroy" ? "GREEN" : key === "car_crew_ras" ? "ORANGE" : pick(CAR_COLS, 7));
+      const L3 = "ABCDEFGHJKLMNPRSTUVWXYZ";
+      const plate = L3[h % 23] + L3[(h >>> 5) % 23] + L3[(h >>> 10) % 23] + " " + (100 + ((h >>> 15) % 900));
+      const police = /^pd_/.test(key) || v.patrol;
+      return (v.idn = { model, colour, plate: police ? "MUNICIPAL" : plate,
+        owner: police ? "RAVEN HOOK P.D." : v.owner === "player" ? "(A SHELL COMPANY)" : pick(OWNER_F, 11) + " " + pick(OWNER_L, 17),
+        stolen: !police && ((h >>> 20) % 100) < 4 });
+    }
+    G.markHitCarFn = (v) => markHitCar(v);   // test hook
+    function platesPanel() {
+      const L = (g.traffic || []).filter((v) => v !== activeVeh() && !v.bus && Math.hypot(v.x - g.p.x, v.y - g.p.y) < 700)
+        .sort((a, b) => Math.hypot(a.x - g.p.x, a.y - g.p.y) - Math.hypot(b.x - g.p.x, b.y - g.p.y)).slice(0, 7);
+      g.plateList = L;
+      const opts = L.map((v, n) => { const I = carInfo(v); return { id: "plate:" + n, label: I.colour + " " + I.model + " \u00b7 " + Math.round(Math.hypot(v.x - g.p.x, v.y - g.p.y) / 21) + "m" + (v.dead ? " \u00b7 PARKED" : "") }; });
+      opts.push({ id: "close", label: "DONE" });
+      return { title: "RUN PLATES \u00b7 MDT", face: null, text: g.plateSaid || (L.length ? "Pick a car. Dispatch runs it." : "Nothing close enough to read."), opts };
+    }
+    G.platePick = (n) => {
+      const v = (g.plateList || [])[+n]; if (!v) return;
+      const I = carInfo(v);
+      const flag = I.stolen ? "REPORTED STOLEN" : v.hit ? "FRONT-END DAMAGE REPORTED -- HIT-AND-RUN" : "NO WANTS, NO WARRANTS";
+      g.plateShow = { I, t: 7, flag };
+      g.plateSaid = I.plate + " comes back to a " + I.colour.toLowerCase() + " " + I.model + ", registered to " + I.owner + ". " + flag + ".";
+    };
+    function drawPlateShow() {
+      const S = g.plateShow; if (!S) return; S.t -= 1 / 60; if (S.t <= 0) { g.plateShow = null; return; }
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = Math.min(1, S.t);
+      const W = ctx.canvas.width, sc = Math.max(1, W / 1280), pw = 240 * sc, ph = pw * 170 / 365, x = (W - pw) / 2, y = ctx.canvas.height * 0.2;   // centre, clear of the minimap
+      const im = imgs.current.ui_plate;
+      if (im && im.width) ctx.drawImage(im, x, y, pw, ph); else { ctx.fillStyle = "#f2f0ea"; ctx.fillRect(x, y, pw, ph); }
+      ctx.textAlign = "center"; ctx.fillStyle = "#1a3a8a"; ctx.font = "700 " + (11 * sc) + "px monospace"; ctx.fillText("ILLINOIS", x + pw * 0.42, y + ph * 0.22);
+      ctx.fillStyle = "#0e1c4a"; ctx.font = "900 " + (40 * sc) + "px monospace"; ctx.fillText(S.I.plate, x + pw / 2, y + ph * 0.66);
+      ctx.fillStyle = "#1a3a8a"; ctx.font = "700 " + (9 * sc) + "px monospace"; ctx.fillText("LAND OF LINCOLN", x + pw / 2, y + ph * 0.88);
+      ctx.fillStyle = "rgba(8,10,12,0.8)"; ctx.fillRect(x - 90 * sc, y + ph + 6 * sc, pw + 180 * sc, 44 * sc);
+      ctx.fillStyle = S.I.stolen ? "#ff6a5a" : "#e8e0c8"; ctx.font = "700 " + (10 * sc) + "px monospace";
+      ctx.fillText(S.I.colour + " " + S.I.model, x + pw / 2, y + ph + 20 * sc);
+      ctx.fillText(S.I.owner + " \u00b7 " + S.flag, x + pw / 2, y + ph + 36 * sc);
+      ctx.restore();
+    }
+    /* HIT-AND-RUN MARKS (v.hit = { glass, blood }). The DEFORMATION is the game's own crush system:
+       `markHitCar(v)` calls applyDamage at the nose (a real front-end crush on that car's own sprite,
+       any colour); on top go the spiderweb in the windshield and blood on the hood. */
+    function markHitCar(v) {
+      const fx = Math.cos(v.ang), fy = Math.sin(v.ang), L = v.m.len;
+      const t0 = v.tough; v.tough = 1;                  // a civilian shell for this: the dent has to read
+      try { for (let k = 0; k < 4; k++) applyDamage(v, 690, v.x + fx * L * 0.5 + fy * (k - 1.5) * 6, v.y + fy * L * 0.5 - fx * (k - 1.5) * 6, L, v.m.w || L * 0.45); } catch (e) {}
+      v.tough = t0;
+      v.hit = { glass: 1, blood: 1 };
+    }
+    function drawHitMarks(w, L, v) {
+      const D = v.hit; if (!D) return;
+      const top = -L / 2, gl = imgs.current.car_dmg_glass, bl = imgs.current.car_dmg_blood;
+      if (D.glass && gl && gl.width) ctx.drawImage(gl, -w * 0.2, top + L * 0.22, w * 0.4, w * 0.4);
+      if (D.blood && bl && bl.width) ctx.drawImage(bl, -w * 0.3, top + L * 0.07, w * 0.34, w * 0.24);
+    }
     function kestrelRoster() {
       if (g.kestrel) return g.kestrel;
       const K = {}, used = {};
@@ -32660,6 +32745,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.translate(v.x, v.y); ctx.rotate(v.ang + Math.PI / 2);
         drawShadow(2, 5, w * 0.42, L * 0.40, 0.32);
         drawBody(im, w, L, v);
+        if (v.hit) drawHitMarks(w, L, v);
         // a chopper with nobody on it is just scenery; the rust buckets are cars, so skip them
         if (v.gang && L < 90) drawGangRider(v);   // parked chopper or turf patrol alike
         if (v.brake > 0.4) {
@@ -36038,6 +36124,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.inside) drawCasings(view);
       drawBackup(view);
       drawRoofHatch();
+      drawPlateShow();
       drawDriveTalk();
       drawCase(view);
       drawStadium();
@@ -44281,6 +44368,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               () => { if (G.current.auto) { G.current.auto = null; } else G.pickOpen && G.pickOpen("drive"); }, null, hud.autoOn)}
             {G.current && G.current.pescaped && G.current.inside && G.current.inside.biz && !G.current.inside.hideout && !G.current.inside.mercBar &&
               btn(((G.current.board2 && G.current.board2.cased) || []).some((c) => c.b === G.current.inside) ? "ROB" : "CASE", "this place", () => G.caseShopFn && G.caseShopFn(), null, false)}
+            {G.current && G.current.detMode && G.current.mode !== "foot" && btn("PLATES", "run a car", () => { G.current.plateSaid = null; G.pickOpen && G.pickOpen("plates"); }, null, false)}
             {G.current && G.current.prisonMode && btn("POCKETS", ((G.current.pinv || []).length) + " on you", () => { G.current.pocketSaid = null; G.pickOpen && G.pickOpen("pockets"); }, null, false)}
             {btn("BOOK", hud.bookOpen ? "shut it" : (hud.bookN || 0) + " names",
               () => G.bookFn && G.bookFn(), null, hud.bookOpen)}
