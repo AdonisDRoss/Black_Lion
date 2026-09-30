@@ -2981,7 +2981,9 @@ const PRISON_BOX = { x0: 23425, y0: 35195, x1: 27575, y1: 38305 };    // pulled 
 /* A plan room is in the TOP row of a two-row block when it sits above the building's middle
    (plan rooms carry world coords, not the grid gy0 the furnisher sees). */
 const rowTop = (r, b) => (r.y0 + r.y1) / 2 < b.y + b.h / 2;
-const YARD_WEIGHTS_W = 120;          // the iron pile in the middle of the track, in world units
+const YARD_WEIGHTS_W = 120;
+const YARD_COURT = { frac: 0.24, max: 250 };     // the basketball court (was 34% / 380 -- too big)
+const YARD_BENCH_W = 110;                         // the bleachers bench (was 200)          // the iron pile in the middle of the track, in world units
 const PRISON_YARD = { u0: 0.05, v0: 0.64, u1: 0.37, v1: 0.97, gate: 150, fence: 12 };
 let MARKS_REF = [];
 const MARKS_REF_SET = (a) => (MARKS_REF = a);           // drawPrison reads the marks through this
@@ -9028,6 +9030,7 @@ function settleDoor(b) {
                   : s === 3 ? Math.abs(r.x0 - edge) < 2 : Math.abs(r.x1 - edge) < 2;
     if (!touches) continue;
     const a0 = horiz ? r.x0 : r.y0, a1 = horiz ? r.x1 : r.y1;
+    if (r.k === "tierdoor") { best = { score: 1e9, mid: (a0 + a1) / 2 }; break; }     // a wing: the gap in the cells, exactly
     const span = a1 - a0;
     if (span < DOORW + 2 * WT + 20) continue;
     const score = span + (r.k === "hall" || r.k === "corridor" ? 1000 : r.k === "living" ? 400 : 0);
@@ -11323,6 +11326,7 @@ export default function IronLionLayer004() {
     if (g.inside && g.inside.inPrison && G.drainFn && G.drainFn()) return;
     if (g.inside && G.blueprintFn && G.blueprintFn()) return;
     if (!g.inside && G.digFn && G.digFn()) return;
+    if (!g.inside && G.ballFn && G.ballFn()) return;
     if (g.inside && G.opsBoardFn && G.opsBoardFn()) return;
     if (g.inside && G.silasFn && G.silasFn()) return;
     if (g.inside && G.poolFn && G.poolFn()) return;
@@ -15599,7 +15603,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function drawBackup(view) {
       if (g.inside) return;
-      if (g.prisonMode) { drawHideoutYard(view); drawStreetPeople(view); drawTunnelSpots(); drawFollowers(); drawPrisonFx(); drawTargetArrow(); }
+      if (g.prisonMode) { drawBlockLabels(view); drawBasketball(view); drawHideoutYard(view); drawStreetPeople(view); drawTunnelSpots(); drawFollowers(); drawPrisonFx(); drawTargetArrow(); }
       drawK9();
       for (const c of g.backup || []) {
         const im = imgs.current[c.m.k];
@@ -17296,7 +17300,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.fillStyle = "#5c5c58"; ctx.fillRect(yx, yy, yw, yh);
       for (const [k, gx, gy] of [["yd_grass_1", 0.08, 0.15], ["yd_grass_2", 0.9, 0.9], ["yd_grass_5", 0.92, 0.35]])
         prop(k, yx + yw * gx, yy + yh * gy, 80);
-      prop("yd_court", yx + yw * 0.2, yy + yh * 0.52, Math.min(yw * 0.34, 380));
+      prop("yd_court", yx + yw * 0.2, yy + yh * 0.52, Math.min(yw * YARD_COURT.frac, YARD_COURT.max));
       // THE TRACK: four quarter pieces round one centre make the loop, the iron pile in the middle
       { const im = imgs.current.yd_track, ring = imgs.current.yd_track_ring, tcx = yx + yw * 0.66, tcy = yy + yh * 0.5, tw = Math.min(yw * 0.26, yh * 0.46);
         /* ONE RING now (yd_track_ring) -- the four quarter pieces never met cleanly. The quarters
@@ -17311,8 +17315,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }
         prop("yd_weights", tcx, tcy, YARD_WEIGHTS_W);          // a man-sized weight pen, not a building
       }
-      prop("yd_bleachers", yx + yw * 0.42, yy + yh * 0.1, 200);
-      prop("yd_picnic_a", yx + yw * 0.92, yy + yh * 0.12, 100);
+      prop("yd_bleachers", yx + yw * 0.42, yy + yh * 0.1, YARD_BENCH_W);
+      prop("yd_picnic_a", yx + yw * 0.92, yy + yh * 0.12, 70);
       prop("yd_handball", yx + yw * 0.42, yy + yh * 0.93, 240);
       prop("yd_phone", yx + yw * 0.05, yy + yh * 0.9, 32);
       // the fence, drawn where the solid fence is (PRISON_YARD.fence; the generator walls it)
@@ -30865,6 +30869,102 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (D.glass && gl && gl.width) ctx.drawImage(gl, -w * 0.2, top + L * 0.22, w * 0.4, w * 0.4);
       if (D.blood && bl && bl.width) ctx.drawImage(bl, -w * 0.3, top + L * 0.07, w * 0.34, w * 0.24);
     }
+
+    /* ---------- LAYER 448: BLOCK LABELS, BASKETBALL ----------
+       Which block is which: each wing's letter is painted big on its roof (outside) and stencilled
+       on the tier floor (inside), and the HUD line says it. */
+    function prisonWings() {
+      if (g.pwingList && g.pwingList.length) return g.pwingList;
+      const L = [];
+      for (let i = PRISON.i0; i <= PRISON.i1; i++) for (let j = PRISON.j0; j <= PRISON.j1; j++)
+        for (const b of (getCell(i, j).blds || [])) if (b.kind === "prisonwing" && b.pwing) L.push(b);
+      return (g.pwingList = L);
+    }
+    function drawBlockLabels(view) {
+      if (g.inside) return;
+      for (const b of prisonWings()) {
+        const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+        if (cx < view.x0 - 400 || cx > view.x1 + 400 || cy < view.y0 - 400 || cy > view.y1 + 400) continue;
+        const [ox, oy] = roofOffset(b);
+        ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        const s = Math.min(b.w, b.h) * 0.55;
+        ctx.font = "900 " + s + "px Impact, 'Arial Black', sans-serif";
+        ctx.fillStyle = "rgba(235,225,190,0.55)"; ctx.strokeStyle = "rgba(20,20,20,0.5)"; ctx.lineWidth = 6;
+        ctx.strokeText(b.pwing, cx + ox, cy + oy); ctx.fillText(b.pwing, cx + ox, cy + oy);
+        ctx.font = "900 " + (s * 0.16) + "px monospace"; ctx.fillStyle = "rgba(235,225,190,0.7)";
+        ctx.fillText((b.pwomen ? "WOMEN'S " : "") + "BLOCK " + b.pwing, cx + ox, cy + oy + s * 0.5);
+        ctx.restore();
+      }
+    }
+    function drawBlockStencil() {
+      const b = g.inside; if (!b || b.kind !== "prisonwing" || !b.pwing) return;
+      const pl = buildingPlans(b)[g.floor], hub = pl && pl.rooms.find((r) => r.k === "tier"); if (!hub) return;
+      ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      const h = Math.min(90, (hub.y1 - hub.y0) * 0.8);
+      ctx.font = "900 " + h + "px Impact, 'Arial Black', sans-serif"; ctx.fillStyle = "rgba(230,200,90,0.16)";
+      const tx = hub.x0 + (hub.x1 - hub.x0) * 0.62, ty = (hub.y0 + hub.y1) / 2;
+      ctx.fillText(b.pwing + " BLOCK \u00b7 TIER " + (g.floor + 1), tx, ty);
+      ctx.restore();
+    }
+
+    /* BASKETBALL. During yard time four inmates play two-on-two on the court (a ball bouncing between
+       them, a shot now and then). A loose ball sits by the side: E picks it up, E again shoots at the
+       nearer hoop -- make it and the men watching think a little better of you. */
+    const BALL = { make: 0.45 };
+    function courtGeom() {
+      const B = PRISON_BOX, Y = PRISON_YARD, W5 = B.x1 - B.x0, H5 = B.y1 - B.y0;
+      const yx = B.x0 + W5 * Y.u0, yy = B.y0 + H5 * Y.v0, yw = W5 * (Y.u1 - Y.u0), yh = H5 * (Y.v1 - Y.v0);
+      const im = imgs.current.yd_court, cw = Math.min(yw * YARD_COURT.frac, YARD_COURT.max), ch = im && im.width ? cw * im.height / im.width : cw * 1.6;
+      const cx = yx + yw * 0.2, cy = yy + yh * 0.52, vert = ch > cw;
+      const hoops = vert ? [[cx, cy - ch * 0.42], [cx, cy + ch * 0.42]] : [[cx - cw * 0.42, cy], [cx + cw * 0.42, cy]];
+      return { cx, cy, cw, ch, hoops, loose: [cx + cw * 0.62, cy] };
+    }
+    G.courtFn = () => courtGeom();   // test hook
+    function yardTime() { const ph = prisonPhase(g.clock || CLOCK.start)[2]; return ph !== "cells"; }
+    G.ballFn = () => {
+      if (!g.prisonMode || g.inside || g.pescaped || g.mode !== "foot" || !inPrisonGrounds(g.p.x, g.p.y)) return false;
+      const C = courtGeom();
+      if (!g.pball) {
+        const [lx, ly] = g.ballAt || C.loose; if (Math.hypot(g.p.x - lx, g.p.y - ly) > 45) return false;
+        g.pball = 1; g.pickupFlash = { nm: "lift:YOU PICK UP THE BALL \u00b7 E TO SHOOT", t: 1.6 }; return true;
+      }
+      const hp = C.hoops.slice().sort((a, b) => Math.hypot(a[0] - g.p.x, a[1] - g.p.y) - Math.hypot(b[0] - g.p.x, b[1] - g.p.y))[0];
+      const d = Math.hypot(hp[0] - g.p.x, hp[1] - g.p.y);
+      if (d > 320) { g.pickupFlash = { nm: "lift:GET CLOSER TO A HOOP", t: 1.2 }; return true; }
+      const make = Math.random() < BALL.make * clamp(1.3 - d / 320, 0.3, 1.2);
+      g.pshot2 = { x0: g.p.x, y0: g.p.y, x1: hp[0], y1: hp[1], t: 0, make };
+      g.pball = 0; return true;
+    }
+    function stepBall(dt) {
+      const S = g.pshot2; if (!S) return;
+      S.t += dt / 0.9;
+      if (S.t >= 1) { g.pshot2 = null;
+        const C = courtGeom(); g.ballAt = [S.x1 + (S.make ? 0 : 30), S.y1 + (S.make ? 30 : -20)];
+        g.pickupFlash = { nm: "lift:" + (S.make ? "NOTHING BUT NET" : "BRICK"), t: 1.4 };
+        if (S.make) for (const q of prisonFolk() || []) if (q.convict && Math.hypot(q.x - g.p.x, q.y - g.p.y) < 400) { const R = rel(q); R.respect = Math.min(100, R.respect + 1); } }
+    }
+    function drawBasketball(view) {
+      if (!g.prisonMode || g.inside) return;
+      const C = courtGeom(); if (C.cx < view.x0 - 400 || C.cx > view.x1 + 400) return;
+      const ball = (x, y, r) => { ctx.fillStyle = "#d8661e"; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.3); ctx.fill();
+        ctx.strokeStyle = "#3a1a08"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.3); ctx.moveTo(x - r, y); ctx.lineTo(x + r, y); ctx.moveTo(x, y - r); ctx.lineTo(x, y + r); ctx.stroke(); };
+      // the pickup game
+      if (yardTime() && !g.pescaped) {
+        const t = g.t, inm = PR_PEOPLE.inmate || [];
+        const P = [0, 1, 2, 3].map((k) => { const a = t * (0.5 + k * 0.13) + k * 1.7, r = C.cw * (0.18 + 0.06 * (k % 2));
+          return { x: C.cx + Math.cos(a) * r * (C.ch > C.cw ? 0.8 : 1.6), y: C.cy + Math.sin(a) * r * (C.ch > C.cw ? 1.6 : 0.8), k }; });
+        for (const p of P) { const q = { x: p.x, y: p.y, vx: -Math.sin(t) * 40, vy: Math.cos(t) * 40, anim: t * 3 + p.k, jit: 1, tall: 1.25, yt: inm[p.k % Math.max(1, inm.length)] || "yt_pr_inmate_1" };
+          drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q); }
+        const hold = Math.floor(t / 1.4) % 4, nxt = (hold + 1) % 4, f = (t / 1.4) % 1, a = P[hold], b2 = P[nxt];
+        const bx = a.x + (b2.x - a.x) * f, by = a.y + (b2.y - a.y) * f - Math.sin(f * Math.PI) * 14;
+        ball(bx, by + Math.abs(Math.sin(t * 9)) * 3, 4);
+      }
+      // your shot in the air, or the loose ball
+      const S = g.pshot2;
+      if (S) { const x = S.x0 + (S.x1 - S.x0) * S.t, y = S.y0 + (S.y1 - S.y0) * S.t - Math.sin(S.t * Math.PI) * 60; ball(x, y, 5); }
+      else if (!g.pball) { const [lx, ly] = g.ballAt || C.loose; ball(lx, ly, 5); }
+      if (g.pball) ball(g.p.x + 10, g.p.y - 4, 4.5);
+    }
     function kestrelRoster() {
       if (g.kestrel) return g.kestrel;
       const K = {}, used = {};
@@ -35641,7 +35741,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         { const before = g.clock == null ? CLOCK.start : g.clock;
           g.clock = (before + dt * CLOCK.rate) % 1440;
           if (g.clock < before) { g.day = (g.day || 0) + 1; kestrelReleases(); } }
-        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepOps(); stepMerc(); stepCornerWar(dt); stepCasing(dt);
+        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepOps(); stepMerc(); stepCornerWar(dt); stepCasing(dt); stepBall(dt);
         // anybody who has wandered onto the prison grounds from the street is walked back off
         if ((g.pedCullT = (g.pedCullT || 0) - dt) <= 0) { g.pedCullT = 2; g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y)); }
         if (g.prisonStart) startPrisonMode();
@@ -35896,7 +35996,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.inside) drawInterior(g.inside, g.floor, g.insideT);
       drawHeldRogues();
       // staff, customers and anyone robbing them, on top of the floor and its furniture
-      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); drawCellDoors(); drawShuDoors(); drawShuDay(); drawHideoutCrew(); drawTopLadder(); drawSilas(); drawPrisonCards(); drawFollowers(); drawPrisonFx(); drawGarageSigns({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); drawCold({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); }
+      if (g.inside && g.insideT > 0.5) { drawShopFolk(); drawPrisonFolk(); drawCellDoors(); drawShuDoors(); drawShuDay(); drawHideoutCrew(); drawTopLadder(); drawSilas(); drawBlockStencil(); drawPrisonCards(); drawFollowers(); drawPrisonFx(); drawGarageSigns({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); drawCold({ x0: -1e9, x1: 1e9, y0: -1e9, y1: 1e9 }); }
       drawComp();
       drawThrown();
       drawBlood();
@@ -39772,7 +39872,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (m.pd) { b.pd = true; b.pdArt = true; b.rampIn = PD_B2.ramp; }
         if (m.dg) { b.dg = true; b.name = "THE DAILY GRIND"; }
         if (m.prisonMark) { const X = m.prisonMark; b.name = X.name; b.pwing = X.wing || null; b.pwomen = !!X.women;
-          b.inPrison = true; if (X.prison) b.prison = true; }
+          b.inPrison = true; if (X.prison) b.prison = true;
+          /* A WING's door is on its south wall, centred on the `tierdoor` gap the plan leaves in the
+             bottom row of cells. It was sitting at the wall's middle instead, which is not the gap's
+             middle -- so the doorway cut into the cell beside it. settleDoor now centres on the gap. */
+          if (b.pwing && b.door) { b.door.side = 2; settleDoor(b); } }
         /* The lot's west fence is solid -- the one you could see and walk through. In the plate's
            own pixels (786 x 708): x 9..42, from the building line to the bottom. */
         if (m.pd && b.plateRect) {
@@ -42709,6 +42813,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               ? "B" + ((hud.entry ?? 0) - (hud.floor ?? 0))
               : "FLOOR " + (((hud.floor ?? 0) - (hud.entry ?? 0)) + 1)
                 + " / " + Math.max(1, (hud.floors ?? 1) - (hud.entry ?? 0))}
+            {G.current && G.current.inside && G.current.inside.pwing ? " \u00b7 " + G.current.inside.pwing + " BLOCK" : ""}
             {hud.planKind ? " \u00b7 " + hud.planKind.toUpperCase() : ""}
             {hud.fkind ? ` · ${{ club: "CLUB FLOOR", terminal: "CONCOURSE", house_g1: "HOUSE", house_g2: "HOUSE", house_u: "UPSTAIRS", tower_flats: "FLATS", dining: "HOUSE", store: "STORE", lobby: "LOBBY", apartments: "APARTMENTS", offices: "OFFICES", reception: "RECEPTION", gymfloor: "GYM", nightclub: "CLUB FLOOR", basement: "BASEMENT · BEDROOMS" }[hud.fkind] || ""}` : ""}
           </div>
