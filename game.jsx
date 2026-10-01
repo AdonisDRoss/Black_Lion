@@ -6469,18 +6469,20 @@ function makeFloor(b, f, rnd) {
       put(h + 1, 0, GX - 1, GY - 1, "apt_neighbor"); }
     else put(h, 0, GX - 1, GY - 1, "corridor");
   } else if (kind === "stuhome") {
-    // DOWNSTAIRS: the living room and the kitchen, side by side; the stairs go up from here
-    const c2 = Math.max(2, Math.round(GX * 0.58));
-    hub = put(0, 0, c2 - 1, GY - 1, "stuliving"); rooms[rooms.length - 1].floorTex = "tx_home_wood";
+    /* DOWNSTAIRS: the living room top-left, the bathroom in the LOWER-LEFT corner, a small entry with
+       the stairs beside it, the kitchen down the right side. */
+    const c1 = Math.max(1, Math.round(GX * 0.30)), c2 = Math.max(c1 + 1, Math.round(GX * 0.62)), r1 = Math.max(1, GY - Math.max(1, Math.round(GY * 0.38)));
+    hub = put(0, 0, c2 - 1, r1 - 1, "stuliving"); rooms[rooms.length - 1].floorTex = "tx_home_wood";
+    if (put(0, r1, c1 - 1, GY - 1, "stubath") >= 0) rooms[rooms.length - 1].floorTex = "tx_lino";
+    if (put(c1, r1, c2 - 1, GY - 1, "stuentry") >= 0) rooms[rooms.length - 1].floorTex = "tx_home_wood";
     if (put(c2, 0, GX - 1, GY - 1, "stukitchen") >= 0) rooms[rooms.length - 1].floorTex = "tx_lino";
   } else if (kind === "stuupper") {
-    // UPSTAIRS: a hall along the bottom; his room, Mom's room and the bathroom off it
-    const r1 = Math.max(1, GY - Math.max(1, Math.round(GY * 0.3)));
+    // UPSTAIRS: a hall along the bottom (the stairs at its left end); his room and Mom's room, bigger, over it
+    const r1 = Math.max(1, GY - Math.max(1, Math.round(GY * 0.38)));
     hub = put(0, r1, GX - 1, GY - 1, "stuhall"); rooms[rooms.length - 1].floorTex = "tx_home_wood";
-    const a1 = Math.max(1, Math.round(GX * 0.4)), a2 = Math.max(a1 + 1, Math.round(GX * 0.78));
+    const a1 = Math.max(1, Math.round(GX * 0.5));
     if (put(0, 0, a1 - 1, r1 - 1, "stubedroom") >= 0) rooms[rooms.length - 1].floorTex = "tx_home_rug";
-    if (put(a1, 0, a2 - 1, r1 - 1, "stumom") >= 0) rooms[rooms.length - 1].floorTex = "tx_home_rug";
-    if (put(a2, 0, GX - 1, r1 - 1, "stubath") >= 0) rooms[rooms.length - 1].floorTex = "tx_lino";
+    if (put(a1, 0, GX - 1, r1 - 1, "stumom") >= 0) rooms[rooms.length - 1].floorTex = "tx_home_rug";
   } else if (kind === "school_g" || kind === "school_c") {
     /* THE SCHOOLS (layer 456). Two floors. A hall runs across the middle of each.
        Ground: the GYM, the CAFETERIA and the LIBRARY above the hall; the PRINCIPAL'S office, the
@@ -7077,6 +7079,12 @@ function makeFloor(b, f, rnd) {
         w: b.w * (PD_B2.stair[2] - PD_B2.stair[0]), h: b.h * (PD_B2.stair[3] - PD_B2.stair[1]) }
     : (kind === "vt_parking" || kind === "vt_lobby" || kind === "vt_pool")
     ? { x: b.x + WT + 16, y: b.y + b.h * 0.5 - 19, w: 64, h: 38 }
+    : b.homeOf === "malcolm"
+    // Malcolm's building: the stairs at the TOP of the corridor between the two suites, on every floor
+    ? { x: b.x + (Math.max(3, Math.floor(GX / 2)) + 0.5) * (b.w / GX) - 32, y: b.y + WT + 12, w: 64, h: 38 }
+    : (kind === "stuhome" || kind === "stuupper")
+    // the student's house: the stairs in the lower-left, just right of the downstairs bathroom -- the same spot on both floors
+    ? { x: b.x + b.w * 0.30 + WT + 8, y: b.y + b.h - WT - 50, w: 64, h: 38 }
     : kind === "gymfloor"
     ? { x: b.x + b.w * (0.5 + GYM_STAIR.fx) - 32, y: b.y + b.h * (0.5 + GYM_STAIR.fy) - 19, w: 64, h: 38 }
     : {
@@ -7960,7 +7968,8 @@ function makeFloor(b, f, rnd) {
       case "stubedroom": P(q2.x0 + 10, q2.y0 + 10, 44, 64, "bed"); P(q2.x1 - 58, q2.y0 + 8, 50, 28, "desk"); P(q2.x0 + 60, q2.y0 + 4, 36, 12, "ap_poster_bball"); break;
       case "stumom": P(q2.x0 + 10, q2.y0 + 10, 48, 66, "bed"); P(q2.x1 - 42, q2.y0 + 8, 34, 30, "dresser"); break;
       case "stubath": P(q2.x0 + 8, q2.y0 + 8, 24, 24, "toilet"); P(q2.x1 - 30, q2.y0 + 8, 22, 20, "sink"); break;
-      case "stuliving": P(q2.x0 + 10, q2.y0 + 10, 80, 30, "sofa"); P(q2.x0 + 30, q2.y1 - 30, 30, 20, "tv"); P(q2.x1 - 40, q2.y0 + 10, 30, 36, "bookshelf"); break;
+      case "stuliving": P(cx - 24, q2.y0 + 20, 48, 24, "ap_tv_low"); P(cx - 45, cy + 6, 90, 32, "sofa"); P(q2.x0 + 8, q2.y0 + 10, 30, 36, "bookshelf"); break;   // the TV on the top wall, the couch in the room facing it -- the bottom wall is all doorways
+      case "stuentry": break;
       case "stukitchen": P(q2.x0 + 8, q2.y0 + 8, 30, 30, "fridge"); P(q2.x0 + 42, q2.y0 + 8, 30, 26, "stove"); P(q2.x1 - 50, q2.y1 - 42, 44, 32, "cafetable"); break;
       case "classroom": {
         /* A teacher's desk under the chalkboard, the flag and the clock on the wall, and TWELVE desks:
@@ -10305,7 +10314,7 @@ export default function IronLionLayer004() {
       title:     { data: null, url: "assets/title.mp3" },
       det:       { data: null, url: "assets/det.mp3" },            // detective mode's own track
       prison:    { data: null, url: "assets/music/prison.mp3" },   // "Before the Rain" -- Donny's prison-mode song
-      school:    { data: null, url: "assets/music/school.mp3" },   // student mode's song (the upload matched the prison song byte-for-byte)
+      school:    { data: null, url: "assets/music/school.mp3" },   // student mode's song: "After the Final Bell"
       /* THE KINGS' OWN TRACK. Keyed by GANG, not by district -- the hood already has `hood`,
          and this is theirs rather than the neighbourhood's, so it can follow them into a club
          or a rooftop later without the map deciding for it. `gang_<id>` is the shape; any other
@@ -11554,6 +11563,7 @@ export default function IronLionLayer004() {
     if (g.mode === "foot" && g.inside && G.momFn && G.momFn()) return;
     if (g.mode === "foot" && g.inside && G.kidFn && G.kidFn()) return;
     if (g.mode === "foot" && g.inside && G.stuHomeFn && G.stuHomeFn()) return;
+    if (g.mode === "foot" && g.inside && G.stuSitFn && G.stuSitFn()) return;
     if (g.mode === "foot" && g.inside && G.stuClassFn && G.stuClassFn()) return;
     if (g.mode === "foot" && g.inside && G.slideDoorFn && G.slideDoorFn()) return;
     if (g.mode === "foot" && g.inside && G.homeConsoleFn && G.homeConsoleFn()) return;
@@ -30169,6 +30179,18 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else { const tier = RDRIVE.marks.filter((m) => bond >= m).length; line = cpick(RAMOS_TALK[Math.min(tier, RAMOS_TALK.length - 1)]); }
       g.driveTalk = { who: "RAMOS", text: line, t: 7 };
     }
+    // THE CLOCK, upper right (student mode): the time and what the bell says
+    function drawStudentClock() {
+      if (!g.studentMode) return;
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const W = ctx.canvas.width, sc = Math.max(1, W / 1280), blk = bellBlock(g.clock || 0);
+      const lab = { arrive: "BEFORE SCHOOL", pass: "PASSING", lunch: "LUNCH", leave: "DISMISSAL", closed: "" }[blk] || ("PERIOD " + blk.slice(1));
+      const x = W - 14 * sc, y = 22 * sc;
+      ctx.fillStyle = "rgba(8,10,12,0.75)"; ctx.fillRect(x - 150 * sc, y - 16 * sc, 150 * sc, 40 * sc);
+      ctx.textAlign = "right"; ctx.fillStyle = "#ffe08a"; ctx.font = "900 " + (20 * sc) + "px monospace"; ctx.fillText(clockText(g.clock || 0), x - 8 * sc, y + 4 * sc);
+      ctx.fillStyle = "#c9b98a"; ctx.font = "700 " + (9 * sc) + "px monospace"; ctx.fillText(("DAY " + g.stu.day + (lab ? " \u00b7 " + lab : "")), x - 8 * sc, y + 18 * sc);
+      ctx.textAlign = "start"; ctx.restore();
+    }
     function drawDriveTalk() {
       const D = g.driveTalk; if (!D) return;
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -31526,7 +31548,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (const b of schools()) {
         const S = SCHOOLS.find((q) => q.id === b.school), im = imgs.current[S.logo]; if (!im || !im.width) continue;
         if (b.x > view.x1 + 100 || b.x + b.w < view.x0 - 100 || b.y > view.y1 + 100 || b.y + b.h < view.y0 - 100) continue;
-        const [ox, oy] = roofOffset(b), w = Math.min(b.w, b.h * 1.6) * 0.6, h = w * im.height / im.width;
+        const ox = 0, oy = 0, w = Math.min(b.w, b.h * 1.6) * 0.6, h = w * im.height / im.width;     // pinned to the roof (the plate roofs do not lean)
         ctx.globalAlpha = 0.9; ctx.drawImage(im, b.x + b.w / 2 + ox - w / 2, b.y + b.h / 2 + oy - h / 2, w, h); ctx.globalAlpha = 1;
       }
     }
@@ -31548,6 +31570,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const dn = g.studentMode && g.stu && isDanceDay(g.stu.day) && (g.clock || 0) >= DANCE.from && (g.clock || 0) < DANCE.to;
       const blk = bellBlock(g.clock || 0), key = b.school + ":" + g.floor + ":" + blk + (dn ? ":dance" : "");
       if (g.sfolk && g.sfolk.key === key && g.sfolk.b === b) return g.sfolk.list;
+      const prevS = g.sfolk && g.sfolk.b === b && g.sfolk.floor === g.floor ? g.sfolk.list : null;     // a bell on this floor: they WALK
       const sc = b.school === "aldric" ? "sa" : "ch", P = SCHOOL_PEOPLE[sc], pl = buildingPlans(b)[g.floor]; if (!pl) return null;
       const kids = schoolKids(sc), out = [];
       const rooms = (k) => pl.rooms.filter((r) => r.k === k);
@@ -31586,13 +31609,28 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       for (const q of out) if (q.wander) { q.hx = q.x; q.hy = q.y; }
       if (g.studentMode && g.stu) for (const q of out) if (q.kid != null) { q.rec = kidRec(sc, q.kid, q.yt); if (sc === "ch" && q.kid === BF.idx) { q.rec.best = 1; q.rec.name = "Devon Greene"; q.rec.disp = 100; } }
-      g.sfolk = { key, b, list: out };
+      /* NO TELEPORTING (layer 464): anyone who was on this floor walks from where he was to his new
+         place; anyone new comes up the stairs; anyone gone walks to the stairs and leaves. */
+      if (!prevS) g.sleave = [];
+      if (prevS) {
+        const st = pl.stair && pl.stair.w > 0 ? [pl.stair.x + pl.stair.w / 2, pl.stair.y + pl.stair.h / 2] : [(b.x + b.w / 2), b.y + b.h - 40];
+        const idOf = (q) => q.kid != null ? "k" + q.kid : "s" + q.yt, was = new Map(prevS.map((q) => [idOf(q), q]));
+        for (const q of out) { const w0 = was.get(idOf(q)); q.tx = q.x; q.ty = q.y; q.walk = 1;
+          if (w0) { q.x = w0.x; q.y = w0.y; was.delete(idOf(q)); } else { q.x = st[0] + (Math.random() - 0.5) * 30; q.y = st[1]; q.delay = Math.random() * 6; } }
+        g.sleave = [...was.values()].filter((q) => !q.down).map((q) => ({ ...q, tx: st[0], ty: st[1], walk: 1, leave: 1, seated: 0 }));
+      }
+      g.sfolk = { key, b, floor: g.floor, list: out };
       return out;
     }
     function drawSchoolFolk() {
       const L = schoolFolk(); if (!L) return;
       const dt = clamp((g.t || 0) - (g.sfolkT == null ? g.t || 0 : g.sfolkT), 0, 0.1); g.sfolkT = g.t || 0;
+      const walkTo = (q, sp) => { if ((q.delay = (q.delay || 0) - dt) > 0) return false; if (introStep(q, q.tx, q.ty, dt, sp)) return true; collideCrew(q); q.bang = Math.atan2(q.vy, q.vx); return false; };
+      for (const q of (g.sleave || [])) { if (walkTo(q, 70)) q.gone = 1; else { drawShadow(q.x, q.y + 2, 8, 3, 0.28); drawYouth(q); } }
+      if (g.sleave) g.sleave = g.sleave.filter((q) => !q.gone);
       for (const q of L) {
+        if (q.walk) { if (walkTo(q, 70)) { q.walk = 0; q.x = q.tx; q.y = q.ty; q.vx = 0; q.vy = 0; q.bang = q.seated ? -Math.PI / 2 : q.bang; if (q.wander) { q.hx = q.x; q.hy = q.y; } }
+          else { drawShadow(q.x, q.y + 2, 8, 3, 0.28); drawYouth({ ...q, tall: 1.05 }); continue; } }
         if (q.wander) { q.wt = (q.wt || 0) - dt;
           if (q.wt <= 0) { q.wt = 2 + Math.random() * 4; const a = Math.random() * 6.28, r = 20 + Math.random() * 60; q.wx = q.hx + Math.cos(a) * r; q.wy = q.hy + Math.sin(a) * r; }
           if (q.wx !== undefined && !introStep(q, q.wx, q.wy, dt, 40)) { collideCrew(q); q.bang = Math.atan2(q.vy, q.vx); } }
@@ -31651,6 +31689,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); if (!c) continue;
         for (const b of (c.blds || [])) { if (!b.door || b.school || b.landmark || b.homeOf || b.pd || b.inPrison || b.hideout || b.mercBar || b.biz) continue;
           if (!/house|home|apart|walk|tenement|resid|flat|row/.test(b.kind || "")) continue;
+          if (b.w * b.h < 95000) continue;                       // big enough for rooms you can move in
           const d = Math.hypot(b.x - sch.x, b.y - sch.y); if (d > 500 && d < bd) { bd = d; best = b; } } }
       if (best) { best.stuHome = 1; best.name = "HOME"; best.floors = 2; best.entry = 0; best.plans = null; clearHomePaths(best); }
       return (g.stuHome = best);
@@ -31690,24 +31729,29 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.studentStart) startStudentMode();
       if (!g.studentMode) return;
       const U = g.stu, before = g.clock || 0;
-      g.clock = (before + dt * CLOCK.rate) % 1440;
+      /* SCHOOL TIME RUNS SLOW (layer 464): a 50-minute period takes 3 real minutes, a 5-minute passing
+         time 1 real minute, lunch 3; the rest of the day at the usual rate. */
+      const bk = bellBlock(before), rate = /^p\d$/.test(bk) || bk === "lunch" ? 50 / 180 : bk === "pass" ? 5 / 60 : bk === "arrive" || bk === "leave" ? 30 / 120 : CLOCK.rate;
+      g.clock = (before + dt * rate) % 1440;
       if (g.clock < before) { U.day++; U.slept = 0; }
       const blk = bellBlock(g.clock), b = stuSchoolB();
       const pIdx = { p1: 0, p2: 1, p3: 2, p4: 3, p5: 4, p6: 5 }[blk];
       // in your room this period?
       if (pIdx !== undefined) { const C = stuClassroom(pIdx);
-        if (C && g.inside === b && g.floor === 1 && g.p.x > C.r.x0 && g.p.x < C.r.x1 && g.p.y > C.r.y0 && g.p.y < C.r.y1) U.att[U.day + ":" + blk] = 1; }
+        if (!(C && g.inside === b && g.floor === 1 && g.p.x > C.r.x0 && g.p.x < C.r.x1 && g.p.y > C.r.y0 && g.p.y < C.r.y1)) { if (U.seat === U.day + ":" + blk) U.seat = null; }   // left the room: not seated
+        else if (U.seat === U.day + ":" + blk) U.att[U.day + ":" + blk] = U.seatLate === U.day + ":" + blk ? 2 : 1; }
       if (blk !== U.block) {
         const was = U.block; U.block = blk;
         if (/^p\d$/.test(was || "")) {             // the bell: were you there?
           const wasSubj = (() => { const Cw = stuClassroom({ p1: 0, p2: 1, p3: 2, p4: 3, p5: 4, p6: 5 }[was]); return Cw ? STU_SUBJ[Cw.k] : null; })();
           if (wasSubj && wasSubj === testSubj(U.day) && U.tested !== U.day + ":" + wasSubj) gradeTest(wasSubj, U.att[U.day + ":" + was] ? 0 : -1);   // there but never sat it: 0 right
-          if (U.att[U.day + ":" + was]) { U.pts++; if (wasSubj) addReady(wasSubj, 10); g.pickupFlash = { nm: "lift:PRESENT \u00b7 +1 \u00b7 " + U.pts + "/" + STU.transfer, t: 1.8 }; }
+          if (U.att[U.day + ":" + was] === 2) { if (wasSubj) addReady(wasSubj, 6); g.pickupFlash = { nm: "lift:TARDY \u00b7 NO POINT", t: 1.8 }; }
+          else if (U.att[U.day + ":" + was]) { U.pts++; if (wasSubj) addReady(wasSubj, 10); g.pickupFlash = { nm: "lift:PRESENT \u00b7 +1 \u00b7 " + U.pts + "/" + STU.transfer, t: 1.8 }; }
           else { U.pts = Math.max(0, U.pts - 1); U.missed = U.day; g.pickupFlash = { nm: "lift:ABSENT \u00b7 -1", t: 1.8 }; } }
         if (was === "p6" && U.missed !== U.day) U.streak++; else if (was === "p6") U.streak = 0;
         if (pIdx !== undefined) { const C = stuClassroom(pIdx);
           g.jobBanner = "PERIOD " + (pIdx + 1) + " \u00b7 " + (C ? STU_SUBJ[C.k] : "") + (C ? " \u00b7 " + (C.k < 3 ? "UPSTAIRS, ROOM " : "UPSTAIRS, ROOM ") + (C.k + 1) : "");
-          g.jobNote = "Be in the room when the bell goes. E at your desk to answer a question."; }
+          g.jobNote = "Sit at your desk (E) before the bell -- after it you're tardy. E again for the teacher's question."; }
         else if (blk === "lunch") { g.jobBanner = "LUNCH"; g.jobNote = "Cafeteria, downstairs. Everybody's there."; }
         else if (blk === "leave") { g.jobBanner = "SCHOOL'S OUT"; g.jobNote = "Home by 10 PM. Grade points " + U.pts + "/" + STU.transfer + ", streak " + U.streak + " days."; }
         else if (blk === "arrive") { g.jobBanner = "FIRST BELL AT 8:00"; g.jobNote = "Get to " + (b ? b.name : "school") + "."; }
@@ -31738,9 +31782,30 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           "Grade points " + U.pts + " of " + STU.transfer + " for the scholarship. Streak " + U.streak + " days. NEXT TEST: " + testSubj((g.clock || 0) > 860 ? U.day + 1 : U.day) +
           ". REPORT CARD: " + STU_SUBJ.map((s2) => s2.slice(0, 4) + " " + ((U.card || {})[s2] || "-") + " (ready " + ((U.ready || {})[s2] || 0) + ")").join(", ") + ".", opts }; }
     // E at your desk in class: the teacher's question
+    /* YOUR DESK (the last desk of your group's room). E there BEFORE the period starts (the passing
+       time, or arrival before 1st) sits you for it -- on time. E there after it has started sits you
+       late: TARDY, no point. Once seated, E again: the teacher's question, or the test. */
+    function myDesk(C) { const b = stuSchoolB(), pl = buildingPlans(b)[1];
+      const D = (pl.props || []).filter((o) => o.t === "sch_studentdesk" && o.x + o.w / 2 > C.r.x0 && o.x + o.w / 2 < C.r.x1 && o.y + o.h / 2 > C.r.y0 && o.y + o.h / 2 < C.r.y1);
+      return D[D.length - 1] || null; }
+    function nextPeriod(c) { const P = BELL.filter((q) => /^p\d$/.test(q[0])); const cur = P.find((q) => c >= q[1] && c < q[2]); if (cur) return { blk: cur[0], started: true };
+      const nx = P.find((q) => q[1] > c); return nx ? { blk: nx[0], started: false } : null; }
+    G.stuSitFn = () => {
+      if (!g.studentMode || g.mode !== "foot" || g.inside !== stuSchoolB() || g.floor !== 1) return false;
+      const N2 = nextPeriod(g.clock || 0); if (!N2) return false;
+      const pI = { p1: 0, p2: 1, p3: 2, p4: 3, p5: 4, p6: 5 }[N2.blk], C = stuClassroom(pI); if (!C) return false;
+      const d = myDesk(C); if (!d || Math.hypot(d.x + d.w / 2 - g.p.x, d.y + d.h / 2 - g.p.y) > 46) return false;
+      const U = g.stu, key = U.day + ":" + N2.blk;
+      if (U.seat === key) return false;                     // already seated: E goes on to the question
+      U.seat = key; U.seatLate = N2.started ? key : null;
+      g.p.x = d.x + d.w / 2; g.p.y = d.y + d.h + 4;
+      g.pickupFlash = { nm: "lift:" + (N2.started ? "YOU SLIDE IN LATE \u00b7 TARDY" : "SEATED FOR " + STU_SUBJ[C.k] + " \u00b7 ON TIME"), t: 1.8 };
+      return true;
+    };
     G.stuClassFn = () => {
       if (!g.studentMode || g.mode !== "foot") return false;
       const blk = bellBlock(g.clock || 0), pIdx = { p1: 0, p2: 1, p3: 2, p4: 3, p5: 4, p6: 5 }[blk]; if (pIdx === undefined) return false;
+      if (g.stu.seat !== g.stu.day + ":" + blk) { g.pickupFlash = { nm: "lift:SIT AT YOUR DESK FIRST", t: 1.4 }; return false; }
       const C = stuClassroom(pIdx), b = stuSchoolB(); if (!C || g.inside !== b || g.floor !== 1) return false;
       if (!(g.p.x > C.r.x0 && g.p.x < C.r.x1 && g.p.y > C.r.y0 && g.p.y < C.r.y1)) return false;
       const U = g.stu, key = U.day + ":" + blk, subj = STU_SUBJ[C.k];
@@ -31848,7 +31913,6 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const H = studentHome(); if (H) { const D = driveway(H), im = imgs.current.car_stu_mom || imgs.current.buy_sedan_grey;
         if (D) { ctx.fillStyle = "#8d8a84"; ctx.fillRect(D.rx, D.ry, D.rw, D.rh); ctx.fillStyle = "rgba(0,0,0,0.12)"; ctx.fillRect(D.rx + D.rw / 2 - 1, D.ry, 2, D.rh);
           if (im && im.width && (g.clock < 470 || g.clock > 1020)) { ctx.save(); ctx.translate(D.cx, D.cy); ctx.rotate(D.ang); ctx.drawImage(im, -23, -50, 46, 100); ctx.restore(); } } }
-      drawBestFriend();
     }
     /* MOM'S DRIVEWAY: a concrete strip beside the house, from the house's front line out to the
        pavement, on whichever side has room; the wagon sits on it, nose to the street. */
@@ -36799,7 +36863,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         stepClub(dt);
         stepCamps(dt);
         stepAnimals(dt);
-        { const before = g.clock == null ? CLOCK.start : g.clock;
+        if (!g.studentMode) { const before = g.clock == null ? CLOCK.start : g.clock;     // student mode keeps its own (slow) school clock
           g.clock = (before + dt * CLOCK.rate) % 1440;
           if (g.clock < before) { g.day = (g.day || 0) + 1; kestrelReleases(); } }
         stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepFolkWalk(dt); stepPrisonMail(); stepOps(); stepMerc(); stepCornerWar(dt); stepCasing(dt); stepBall(dt);
@@ -37030,7 +37094,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return;
       }
       drawGround(view);
-      if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); }
+      if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawStudentWorld(view); }
       if (!g.inside) drawMarkGround(view);
       if (!g.inside) drawCasings(view);
       if (!g.inside) { drawLake(view); drawRiver(view); }   // over the ground, under everything that floats on it
@@ -37281,13 +37345,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       drawUnitNumbers(view);
       drawCoroner();
       drawTrailEvidence(view);
-      if (!g.inside) { drawOldTownProps(view); drawAlleys(view); drawSchoolsOutside(view); drawStudentWorld(view); drawLights(view); drawBustMarks(view); }
+      if (!g.inside) { drawOldTownProps(view); drawAlleys(view); drawSchoolsOutside(view); drawBestFriend(); drawLights(view); drawBustMarks(view); }
       if (g.inside) drawCasings(view);
       drawBackup(view);
       drawRoofHatch();
       drawWeaponIcons();
       drawPlateShow();
       drawDriveTalk();
+      drawStudentClock();
       drawCase(view);
       drawStadium();
       drawClub();
@@ -43393,6 +43458,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       W2.findB = (k) => { for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); const b = c && (c.blds || []).find((q) => q.kind === k); if (b) return [b.x, b.y, b.w, b.h, b.floors, b._plate || null, b.roofKey || null, b.door && b.door.side]; } return null; };
       W2.G = G; W2.mus = () => MUS && MUS.cur;                                       // the test harness reads the live state through this
       W2.hide = () => { const gg = G.current; const H = gg.hideout; if (!H) return null; gg.inside = H; gg.floor = 1; gg.insideT = 1; gg.mode = "foot"; const pl = buildingPlans(H)[1]; const r = pl.rooms[0]; gg.p.x = (r.x0 + r.x1) / 2; gg.p.y = (r.y0 + r.y1) / 2 - 40; gg.cam.x = gg.p.x; gg.cam.y = gg.p.y; return [H.name, H.kind, pl.rooms.map((q) => q.k), pl.props.map((q) => q.t).join(",")]; };
+      W2.stair = () => { const gg = G.current; const pl = buildingPlans(gg.inside)[gg.floor]; return pl.stair && [pl.stair.x | 0, pl.stair.y | 0, pl.rooms.filter((r) => r.k === "corridor").map((r) => [r.x0 | 0, r.y0 | 0, r.x1 | 0, r.y1 | 0])]; };
       W2.props = () => { const gg = G.current; return buildingPlans(gg.inside)[gg.floor].props.map((o) => o.t); };
       W2.goto = (t) => { const gg = G.current, o = buildingPlans(gg.inside)[gg.floor].props.find((q) => q.t === t); if (!o) return null; gg.p.x = o.x + o.w / 2; gg.p.y = o.y + o.h + 14; return [o.x, o.y, o.w, o.h]; };
       W2.rooms = () => { const gg = G.current; const pl = buildingPlans(gg.inside)[gg.floor]; return pl.rooms.map((r) => [r.k, r.gy0, r.gy1, Math.round(r.y0), Math.round(r.y1)]); };
@@ -44651,8 +44717,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 90,
           background: "linear-gradient(transparent, rgba(6,7,9,0.94) 22%)", padding: "40px 16px 22px", fontFamily: mono }}>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            {hud.pick.face && <img src={hud.pick.face} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
-              style={{ width: 44, height: 44, objectFit: "contain", imageRendering: "pixelated" }} />}
+            {hud.pick.face && <img key={hud.pick.face} src={hud.pick.face} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+              style={{ width: 64, height: 64, objectFit: "contain", imageRendering: "pixelated" }} />}
             <div style={{ fontSize: 9, letterSpacing: "0.24em", color: "#6fa8dc" }}>{hud.pick.title}</div>
           </div>
           {hud.pick.text && (
