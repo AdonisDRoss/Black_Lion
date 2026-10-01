@@ -15841,7 +15841,6 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "mail") return mailPanel();
       if (kind === "stubed") return stuBedPanel();
       if (kind === "studesk") return stuDeskPanel();
-      if (kind === "stusched") return stuSchedPanel();
       if (kind === "stuq") return stuQPanel();
       if (kind === "stumom") return momPanel();
       if (kind === "stukid") return kidPanel();
@@ -31781,12 +31780,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function stuBedPanel() { const late = (g.clock || 0) >= 20 * 60 || (g.clock || 0) < 5 * 60;
       return { title: "YOUR BED \u00b7 " + clockText(g.clock || 0), face: null, text: late ? "Lights out. Tomorrow's another day." : "It's early. You could sleep, but school doesn't wait.",
         opts: [{ id: "stu:sleep", label: "SLEEP UNTIL 6:30 AM" }, { id: "close", label: "NOT YET" }] }; }
-    const STU_NAMES = ["Danny", "Mike", "Bobby", "Jimmy", "Ray", "Vince", "Nick", "Eddie", "Tommy", "Sal", "Marco", "Frankie"];
     function stuDeskPanel() { const U = g.stu, opts = [];
-      if (!U.name) { for (const nm of STU_NAMES) opts.push({ id: "stu:nm:" + nm, label: "GO BY \u201c" + nm.toUpperCase() + "\u201d" });
-        return { title: "YOUR DESK", face: null, text: "There's a nametag taped inside the desk, blank. Pick what the teachers call you.", opts }; }
       if (U.offer === 1) opts.push({ id: "stu:accept", label: "ACCEPT THE ST. ALDRIC'S SCHOLARSHIP" });
-      opts.push({ id: "stu:sched", label: "VIEW TODAY'S SCHEDULE" });
       opts.push(U.packed ? { id: "stu:unpack", label: "UNPACK YOUR BOOKS" } : { id: "stu:pack", label: "PACK YOUR BOOKS FOR TOMORROW" });
       if ((g.clock || 0) >= 885 && !U.packed) for (const m of [30, 60, 90, 120]) opts.push({ id: "stu:hw:" + m, label: "STUDY " + testSubj(U.day + 1) + " \u00b7 " + (m < 60 ? m + " MIN" : m / 60 + (m === 60 ? " HOUR" : " HOURS")) });
       opts.push({ id: "close", label: "CLOSE" });
@@ -31831,19 +31826,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!U.packed) return true;
       const Q = cpick(STU_Q[STU_SUBJ[C.k]]); g.stuQ = { q: Q, key }; G.pickOpen("stuq"); return true;
     };
-    // the day's schedule, your group's (group 0): period, subject, room, time -- a button on the desk
-    function stuSchedPanel() { const U = g.stu, c = g.clock || 0, blk = bellBlock(c);
-      if (!isSchoolDay(U.day)) return { title: "SCHEDULE \u00b7 " + DOW[dowOf(U.day)], face: null, text: "No school today.", opts: [{ id: "close", label: "CLOSE" }] };
-      const rows = [];
-      for (let p = 0; p < 6; p++) { const blkName = "p" + (p + 1), C = stuClassroom(p), B = BELL.find((q) => q[0] === blkName), subj = C ? STU_SUBJ[C.k] : "";
-        const now = blk === blkName;
-        rows.push((now ? "\u25b6 " : "") + "PERIOD " + (p + 1) + "  " + clockText(B[1]) + "-" + clockText(B[2]) + "  " + subj + (C ? "  (ROOM " + (C.k + 1) + ")" : "")); }
-      const L = BELL.find((q) => q[0] === "lunch");
-      rows.splice(3, 0, (blk === "lunch" ? "\u25b6 " : "") + "LUNCH  " + clockText(L[1]) + "-" + clockText(L[2]));
-      return { title: "YOUR SCHEDULE \u00b7 " + DOW[dowOf(U.day)], face: null, text: rows.join("\n"), opts: [{ id: "close", label: "CLOSE" }] };
-    }
-    function stuQPanel() { const Z = g.stuQ; if (!Z) return null; const nm = g.stu.name;
-      return { title: nm ? "\u201c" + nm.toUpperCase() + "?\u201d THE TEACHER CALLS ON YOU" : "THE TEACHER CALLS ON YOU", face: null, text: Z.q[0], opts: Z.q[1].map((a, n) => ({ id: "stu:ans:" + n, label: a })) }; }
+    function stuQPanel() { const Z = g.stuQ; if (!Z) return null;
+      return { title: "THE TEACHER CALLS ON YOU", face: null, text: Z.q[0], opts: Z.q[1].map((a, n) => ({ id: "stu:ans:" + n, label: a })) }; }
     G.stuPick = (id) => {
       const U = g.stu, [, a, n] = id.split(":");
       if (a === "lunch") { U.money = U.day; U.cash = (U.cash || 0) + 5; g.pickupFlash = { nm: "lift:$5 LUNCH MONEY", t: 1.4 }; return; }
@@ -31860,8 +31844,6 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         g.clock = Math.min(1439, (g.clock || 0) + mins);
         g.stuSaid = "You studied " + subj.toLowerCase() + " for " + (mins / 60) + " hours. " + (seen ? "Tomorrow's test, you'll recognise: " + qs.slice(0, seen).map((q) => "\u201c" + q[0] + "\u201d").join(" ") : "Nothing stuck yet.");
         G.pickOpen("studesk"); return; }
-      if (a === "nm") { U.name = n; g.pickupFlash = { nm: "lift:TEACHERS WILL CALL YOU " + n.toUpperCase(), t: 1.8 }; G.pickOpen("studesk"); return; }
-      if (a === "sched") { G.pickOpen("stusched"); return; }
       if (a === "hang" || a === "beer" || a === "smoke") { hangAct(a); return; }
       if (a === "ask") { const q = g.kidTalk; if (q) g.kidSaid = askOut(q); return; }
       if (a === "k") { kidAct(n); return; }
