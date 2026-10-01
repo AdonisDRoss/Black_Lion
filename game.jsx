@@ -6480,9 +6480,10 @@ function makeFloor(b, f, rnd) {
     // UPSTAIRS: a hall along the bottom (the stairs at its left end); his room and Mom's room, bigger, over it
     const r1 = Math.max(1, GY - Math.max(1, Math.round(GY * 0.38)));
     hub = put(0, r1, GX - 1, GY - 1, "stuhall"); rooms[rooms.length - 1].floorTex = "tx_home_wood";
-    const a1 = Math.max(1, Math.round(GX * 0.5));
+    const a1 = Math.max(1, Math.round(GX * 0.42)), a2 = Math.max(a1 + 1, Math.round(GX * 0.78));
     if (put(0, 0, a1 - 1, r1 - 1, "stubedroom") >= 0) rooms[rooms.length - 1].floorTex = "tx_home_rug";
-    if (put(a1, 0, GX - 1, r1 - 1, "stumom") >= 0) rooms[rooms.length - 1].floorTex = "tx_home_rug";
+    if (put(a1, 0, a2 - 1, r1 - 1, "stumom") >= 0) rooms[rooms.length - 1].floorTex = "tx_home_rug";
+    if (put(a2, 0, GX - 1, r1 - 1, "stubath") >= 0) rooms[rooms.length - 1].floorTex = "tx_lino";
   } else if (kind === "school_g" || kind === "school_c") {
     /* THE SCHOOLS (layer 456). Two floors. A hall runs across the middle of each.
        Ground: the GYM, the CAFETERIA and the LIBRARY above the hall; the PRINCIPAL'S office, the
@@ -11560,6 +11561,8 @@ export default function IronLionLayer004() {
     if (g.mode === "foot" && g.inside && g.inside.inPrison && G.cardsFn && G.cardsFn()) return;
     if (g.mode === "foot" && g.inside && g.inside.inPrison && G.stashFn && G.stashFn()) return;
     if (g.mode === "foot" && !g.inside && G.busFn && G.busFn()) return;
+    if (g.mode === "foot" && G.pipeFn && G.pipeFn()) return;
+    if (g.mode === "foot" && !g.inside && G.hangFn && G.hangFn()) return;
     if (g.mode === "foot" && g.inside && G.momFn && G.momFn()) return;
     if (g.mode === "foot" && g.inside && G.kidFn && G.kidFn()) return;
     if (g.mode === "foot" && g.inside && G.stuHomeFn && G.stuHomeFn()) return;
@@ -14057,7 +14060,7 @@ export default function IronLionLayer004() {
     }
     function stepCase(dt) {
       stepWar(dt); stepTrial(dt); stepDispatch(dt);
-      stepPartner(dt); stepAutopilot(dt); stepDriveTalk(dt); stepPrisonIntro(dt); stepSlideDoors(dt); alleyCollide(); stepStudent(dt); if (g.studentMode) { stepStudentLife(dt); danceStep(); } stepRivalMsgs(); stepDeskPhone(); stepConvictClothes(); stepBackup(dt); stepK9(dt); stepCasings(dt); stepSquad(dt); stepGumball(dt);
+      stepPartner(dt); stepAutopilot(dt); stepDriveTalk(dt); stepPrisonIntro(dt); stepSlideDoors(dt); alleyCollide(); stepStudent(dt); if (g.studentMode) { stepStudentLife(dt); danceStep(); stepCurfew(); } stepRivalMsgs(); stepDeskPhone(); stepConvictClothes(); stepBackup(dt); stepK9(dt); stepCasings(dt); stepSquad(dt); stepGumball(dt);
       const D = detectives();
       if (g.detStart && D) {
         g.detStart = false;
@@ -15841,6 +15844,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "stuq") return stuQPanel();
       if (kind === "stumom") return momPanel();
       if (kind === "stukid") return kidPanel();
+      if (kind === "stuhang") return hangPanel();
       if (kind === "stutest") return testPanel();
       if (kind === "mybunk") return bunkPanel();
       if (kind === "pescape") return escapePanel();
@@ -30188,7 +30192,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const x = W - 14 * sc, y = 22 * sc;
       ctx.fillStyle = "rgba(8,10,12,0.75)"; ctx.fillRect(x - 150 * sc, y - 16 * sc, 150 * sc, 40 * sc);
       ctx.textAlign = "right"; ctx.fillStyle = "#ffe08a"; ctx.font = "900 " + (20 * sc) + "px monospace"; ctx.fillText(clockText(g.clock || 0), x - 8 * sc, y + 4 * sc);
-      ctx.fillStyle = "#c9b98a"; ctx.font = "700 " + (9 * sc) + "px monospace"; ctx.fillText(("DAY " + g.stu.day + (lab ? " \u00b7 " + lab : "")), x - 8 * sc, y + 18 * sc);
+      ctx.fillStyle = "#c9b98a"; ctx.font = "700 " + (9 * sc) + "px monospace"; ctx.fillText((DOW[dowOf(g.stu.day)] + " \u00b7 DAY " + g.stu.day + (lab ? " \u00b7 " + lab : isSchoolDay(g.stu.day) ? "" : " \u00b7 WEEKEND")), x - 8 * sc, y + 18 * sc);
       ctx.textAlign = "start"; ctx.restore();
     }
     function drawDriveTalk() {
@@ -30474,8 +30478,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     /* ROOF HATCHES. Every building of 2+ floors (not Kestrel) has a hatch on its roof, at the same
        spot as a ladder on its top floor (roofHatchPt). On the roof, E at the hatch drops you down the
        ladder inside; on the top floor, E at the ladder takes you up and out onto the roof. */
-    function roofHatchPt(b) { return [b.x + b.w * 0.72, b.y + b.h * 0.28]; }
-    const hatchOK = (b) => b && (b.floors || 1) >= 2 && !b.inPrison && !b.capPlate && !b.perimeter && !b.hideout;
+    function roofHatchPt(b) { return b.stuHome ? [b.x + b.w * 0.70, b.y + b.h * 0.80] : [b.x + b.w * 0.72, b.y + b.h * 0.28]; }   // the student's: over the upstairs hall
+    const hatchOK = (b) => b && (b.floors || 1) >= 2 && !b.inPrison && (!b.capPlate || b.stuHome) && !b.perimeter && !b.hideout;
     G.roofHatchFn = () => {
       const b = g.roof; if (!hatchOK(b) || g.mode !== "foot") return false;
       const [hx, hy] = roofHatchPt(b);
@@ -31562,7 +31566,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        and block (`schoolFolk`), drawn indoors (`drawSchoolFolk`); in the hall they drift about. */
     const BELL = [["arrive", 450, 480], ["p1", 480, 530], ["pass", 530, 535], ["p2", 535, 585], ["pass", 585, 590], ["p3", 590, 640], ["pass", 640, 645],
       ["lunch", 645, 695], ["pass", 695, 700], ["p4", 700, 750], ["pass", 750, 755], ["p5", 755, 805], ["pass", 805, 810], ["p6", 810, 860], ["leave", 860, 885]];
-    function bellBlock(c) { const B = BELL.find((q) => c >= q[1] && c < q[2]); return B ? B[0] : "closed"; }
+    /* THE WEEK (layer 465): student mode's day 1 is a Monday; Saturday and Sunday there is no school. */
+    const DOW = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+    const dowOf = (d) => ((d || 1) - 1) % 7, isSchoolDay = (d) => dowOf(d) < 5;
+    const nextSchoolDay = (d) => { let n = d + 1; while (!isSchoolDay(n)) n++; return n; };
+    function bellBlock(c) { if (g.studentMode && g.stu && !isSchoolDay(g.stu.day)) return "closed";
+      const B = BELL.find((q) => c >= q[1] && c < q[2]); return B ? B[0] : "closed"; }
     // 60 kids a school, each his own look out of the whole student body (stuPool), in a fixed order
     function schoolKids(sc) { const P = stuPool(sc), L = []; for (let i = 0; i < 60; i++) L.push({ grp: (i / 12) | 0, i, yt: P[(i * 37 + 11) % P.length] }); return L; }
     function schoolFolk() {
@@ -31756,7 +31765,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (blk === "leave") { g.jobBanner = "SCHOOL'S OUT"; g.jobNote = "Home by 10 PM. Grade points " + U.pts + "/" + STU.transfer + ", streak " + U.streak + " days."; }
         else if (blk === "arrive") { g.jobBanner = "FIRST BELL AT 8:00"; g.jobNote = "Get to " + (b ? b.name : "school") + "."; }
       }
-      if (g.clock >= STU.curfew + (isDanceDay(U.day) ? 30 : 0) && !U.curfewHit && !(g.inside === studentHome())) { U.curfewHit = U.day; U.pts = Math.max(0, U.pts - 2); g.jobBanner = "PAST CURFEW"; g.jobNote = "Out after 10. -2. Get home."; }
+      if (curfewNow() && !isDanceDay(U.day) && U.curfewWarn !== U.day && !(g.inside === studentHome() || g.roof === studentHome())) { U.curfewWarn = U.day; g.jobBanner = "PAST CURFEW"; g.jobNote = "If Mom checks your room, you're done. The front door creaks. The roof doesn't."; }
       if (U.pts >= STU.transfer && U.school !== "aldric" && !U.offer) { U.offer = 1; g.jobNote = "Something came in the mail. It's on your desk at home."; }
     }
     // your bed: sleep to tomorrow. your desk: the mail (the scholarship offer)
@@ -31828,12 +31837,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (U.packed) { g.pickupFlash = { nm: "lift:YOUR BOOKS ARE STILL IN YOUR BAG -- UNPACK", t: 1.8 }; return; }
         const mins = +n || 60, subj = testSubj(U.day + 1), seen = Math.min(3, Math.floor(mins / 40));
         if (U.hwDone !== U.day) U.pts += 2; U.hwDone = U.day; addReady(subj, Math.round(mins / 10));
+        const tday = nextSchoolDay(U.day);
         const qs = STU_Q[subj].slice().sort(() => Math.random() - 0.5).slice(0, 3);
-        U.nextTest = { day: U.day + 1, subj, qs, seen: Math.max(seen, (U.nextTest && U.nextTest.day === U.day + 1 && U.nextTest.subj === subj) ? U.nextTest.seen : 0) };
+        U.nextTest = { day: tday, subj, qs, seen: Math.max(seen, (U.nextTest && U.nextTest.day === tday && U.nextTest.subj === subj) ? U.nextTest.seen : 0) };
         if (U.nextTest.seen > seen) U.nextTest.qs = qs;       // a new study session redraws what you see
         g.clock = Math.min(1439, (g.clock || 0) + mins);
         g.stuSaid = "You studied " + subj.toLowerCase() + " for " + (mins / 60) + " hours. " + (seen ? "Tomorrow's test, you'll recognise: " + qs.slice(0, seen).map((q) => "\u201c" + q[0] + "\u201d").join(" ") : "Nothing stuck yet.");
         G.pickOpen("studesk"); return; }
+      if (a === "hang" || a === "beer" || a === "smoke") { hangAct(a); return; }
       if (a === "ask") { const q = g.kidTalk; if (q) g.kidSaid = askOut(q); return; }
       if (a === "k") { kidAct(n); return; }
       if (a === "t") { const T = g.stuTest; if (!T) return; if (+n === T.qs[T.i][2]) T.right++; T.i++;
@@ -31842,7 +31853,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const H = studentHome(); if (H) { g.inside = H; g.floor = 1; g.insideT = 1; }
         const pt = stuBedPt(); if (pt) { g.p.x = pt[0]; g.p.y = pt[1]; g.cam.x = pt[0]; g.cam.y = pt[1]; }
         g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
-        g.jobBanner = "DAY " + U.day + " \u00b7 " + (U.school === "aldric" ? "ST. ALDRIC'S" : "CENTRAL HIGH"); g.jobNote = "6:30 AM. TODAY: " + testSubj(U.day) + " TEST." + (isDanceDay(U.day) ? " " + danceName(U.day) + " TONIGHT, 7 PM, THE GYM." : "") + (U.packed ? "" : " Pack your books.") + " Grade points " + U.pts + "/" + STU.transfer + "."; return; }
+        g.jobBanner = "DAY " + U.day + " \u00b7 " + (U.school === "aldric" ? "ST. ALDRIC'S" : "CENTRAL HIGH"); g.jobNote = DOW[dowOf(U.day)] + ", 6:30 AM. " + (isSchoolDay(U.day) ? "TODAY: " + testSubj(U.day) + " TEST." : "No school today.") + (isDanceDay(U.day) ? " " + danceName(U.day) + " TONIGHT, 7 PM, THE GYM." : "") + (U.packed ? "" : " Pack your books.") + " Grade points " + U.pts + "/" + STU.transfer + "."; return; }
       if (a === "accept") { U.school = "aldric"; U.offer = 2; g.sfolk = null; g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
         g.jobBanner = "ST. ALDRIC'S PREPARATORY ACADEMY"; g.jobNote = "The blazer fits. Mostly. First day's tomorrow -- it's across town."; return; }
       if (a === "ans") { const Z = g.stuQ; if (!Z) return; U.asked[Z.key] = 1; const ok = +n === Z.q[2];
@@ -31947,9 +31958,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     G.momFn = () => { if (!g.studentMode || g.inside !== studentHome() || g.floor !== 0 || !momHome()) return false; const p2 = momPt(); if (!p2 || Math.hypot(g.p.x - p2[0], g.p.y - p2[1]) > 55) return false; G.pickOpen("stumom"); return true; };
     function momPanel() { const U = g.stu, opts = [];
-      if (U.money !== U.day && (g.clock || 0) < 470) opts.push({ id: "stu:lunch", label: "LUNCH MONEY" });
+      if (U.money !== U.day && (g.clock || 0) < 470 && !(U.grounded >= U.day)) opts.push({ id: "stu:lunch", label: "LUNCH MONEY" });
       opts.push({ id: "close", label: "BYE, MA" });
-      const t = U.detention === U.day ? "Detention? Again? Your father would have-- just go to your room." :
+      const t = U.grounded >= U.day ? (U.momMad ? "Don't. I know about " + U.momMad.replace(/^sneaking |^coming |^out /, "") + ". You're grounded till " + DOW[dowOf(U.grounded + 1)] + ". Go upstairs." : "You're grounded. Home by six. I mean it.") :
+        U.smell === U.day || U.smell === U.day - 1 ? "Come here. ...Is that BEER? Smoke? On my couch? Boy--" :
+        U.detention === U.day ? "Detention? Again? Your father would have-- just go to your room." :
         U.pts >= STU.transfer * 0.7 ? "Your teacher called. She said 'scholarship.' I had to sit down." :
         U.streak >= 3 ? "Look at you, every day on time. I'm proud of you, baby." : U.pts < 5 ? "I don't want to hear about cutting class. Not in this house." : "Eat something before the bus. And tie your shoes.";
       return { title: "MOM", face: imgs.current.pt_stu_mom ? "assets/school/pt_stu_mom.png" : null, text: t, opts }; }
@@ -31957,7 +31970,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function stepStudentLife(dt) {
       const U = g.stu; if (!U) return;
       const c = g.clock || 0;
-      if (U.hwDay !== U.day && U.hwCheck !== U.day && c >= 480 && c < 485) { U.hwCheck = U.day; if (U.hwDone !== U.day - 1 && U.day > 1) { U.pts = Math.max(0, U.pts - 1); g.pickupFlash = { nm: "lift:NO HOMEWORK \u00b7 -1", t: 1.8 }; } }
+      if (isSchoolDay(U.day) && U.hwCheck !== U.day && c >= 480 && c < 485) { U.hwCheck = U.day; if (U.hwDone !== U.day - 1 && U.day > 1 && dowOf(U.day) !== 0) { U.pts = Math.max(0, U.pts - 1); g.pickupFlash = { nm: "lift:NO HOMEWORK \u00b7 -1", t: 1.8 }; } }
       // detention: 2:30-3:30 in the library
       if (U.detention === U.day && c >= 870 && c < 930) { const b = stuSchoolB(), pl = b && buildingPlans(b)[0], lib = pl && pl.rooms.find((r) => r.k === "schlibrary");
         if (lib && g.inside === b && g.floor === 0 && g.p.x > lib.x0 && g.p.x < lib.x1 && g.p.y > lib.y0 && g.p.y < lib.y1) U.detSat = U.day; }
@@ -31977,7 +31990,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const opts = [{ id: "stu:k:talk", label: known ? "TALK" : "SAY WHAT'S UP" }, { id: "stu:k:joke", label: "CRACK A JOKE" }];
       if ((g.stu.cash || 0) >= 1) opts.push({ id: "stu:k:share", label: "SPLIT YOUR LUNCH ($1)" });
       opts.push({ id: "stu:k:insult", label: "TALK TRASH" }, { id: "stu:k:fight", label: "FIGHT HIM" });
-      opts.splice(1, 0, { id: "stu:ask", label: "ASK TO " + (g.stu.day > DANCE.prom - DANCE.every ? "PROM" : "THE DANCE") });
+      opts.splice(1, 0, { id: "stu:ask", label: "ASK TO " + (g.stu.day > DANCE.prom - 7 ? "PROM" : "THE DANCE") });
       if (R.best) opts.unshift({ id: "stu:k:bf", label: g.stu.bfWith ? "SEE YOU TOMORROW" : "WALK WITH ME AFTER SCHOOL" });
       opts.push({ id: "close", label: "LATER" });
       const tone = R.best ? "Best friend. Since the third grade." : d >= 40 ? "Friendly." : d <= -30 ? "He doesn't like you." : "Neutral.";
@@ -32030,7 +32043,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        right answers (x 25) + readiness / 4: A 90+ (+10 points), B 75 (+6), C 60 (+3), D 45 (0),
        F (-3). Absent in that period on test day = F. Readiness then drops to 20 for the next week.
        Report card and the next test on your desk at home. */
-    const testSubj = (day) => STU_SUBJ[((day || 1) - 1) % 5];
+    const testSubj = (day) => (isSchoolDay(day) ? STU_SUBJ[dowOf(day)] : STU_SUBJ[dowOf(nextSchoolDay(day))]);   // Mon English ... Fri Art
     const GRADES = [[90, "A", 10], [75, "B", 6], [60, "C", 3], [45, "D", 0], [0, "F", -3]];
     function addReady(subj, n) { const R = (g.stu.ready = g.stu.ready || {}); R[subj] = clamp((R[subj] || 0) + n, 0, 100); }
     function gradeTest(subj, right) {
@@ -32056,13 +32069,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        ten school days (days 10, 20...), 7 to 10 PM; PROM on day 30. ASK A KID TO THE DANCE / PROM:
        yes if they like you enough -- harder the more popular they are than you. No date by prom night:
        -20 popularity. */
-    const DANCE = { every: 10, prom: 30, from: 19 * 60, to: 22 * 60 };
-    const isDanceDay = (d) => d % DANCE.every === 0 || d === DANCE.prom;
+    // a dance on the Friday of every second week; PROM on the Saturday of week six (day 41)
+    const DANCE = { every: 14, prom: 41, from: 19 * 60, to: 22 * 60 };
+    const isDanceDay = (d) => (dowOf(d) === 4 && Math.floor((d - 1) / 7) % 2 === 1) || d === DANCE.prom;
     const danceName = (d) => (d === DANCE.prom ? "PROM" : "THE DANCE");
     function kidPop(R) { if (R.pop == null) { let h = 0; for (const ch of R.name) h = (h * 31 + ch.charCodeAt(0)) >>> 0; R.pop = 20 + (h % 70) + (R.clique === "JOCKS" || R.clique === "LEGACY" ? 10 : 0); } return Math.min(100, R.pop); }
     function stuPop() { return clamp(g.stu.pop == null ? 30 : g.stu.pop, 0, 100); }
     function askOut(q) {
-      const U = g.stu, R = q.rec, next = U.day <= DANCE.prom ? (U.day % DANCE.every === 0 ? U.day : Math.min(DANCE.prom, Math.ceil(U.day / DANCE.every) * DANCE.every)) : null;
+      const U = g.stu, R = q.rec; let next = null; for (let d = U.day; d <= DANCE.prom; d++) if (isDanceDay(d)) { next = d; break; }
       if (!next) return "There's nothing left to ask anybody to.";
       if (U.date && U.date.day === next) return "You already have a date for " + danceName(next).toLowerCase() + ".";
       const need = 50 + (kidPop(R) - stuPop()) * 0.5;
@@ -32083,6 +32097,105 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function danceFolk(out, sc, gym, kids, person) {        // the gym on a dance night: a crowd, a DJ table, your date
       kids.slice(0, 36).forEach((q, n) => person(gym.x0 + 30 + (n % 9) * ((gym.x1 - gym.x0 - 60) / 8), gym.y0 + 40 + ((n / 9) | 0) * ((gym.y1 - gym.y0 - 80) / 3), q.yt, { wander: 1, tall: 1.05, kid: q.i, dance: 1 }));
+    }
+
+    /* ---------- LAYER 465: CURFEW, SNEAKING OUT, DEVON'S CALLS, HANGOUTS ----------
+       CURFEW: 10 PM on school nights (Sun-Thu), midnight on Fri and Sat; 6 PM while GROUNDED. Out
+       past it -- and caught -- means Mom: grounded 3 days (no lunch money, the 6 PM curfew, Devon
+       stops calling), -5 popularity... and she says so. CAUGHT means: walking in or out the FRONT
+       DOOR after curfew while she is home, or not being in the house when she checks your room (once
+       a night, some time after curfew, half the nights). THE OTHER WAY: the ladder in the upstairs
+       hall to the roof, and the DRAINPIPE down the side of the house (E at the roof edge / at the
+       pipe). Nobody hears the roof.
+       DEVON CALLS some evenings (not when you're grounded): the skate park, the arcade, or LOVERS'
+       LANE, a time. HANGOUTS: kids at the skate park after school and at night, outside the arcade,
+       and at Lovers' Lane at night (cars parked, couples, beer, smoke). E at a group: HANG OUT -- an
+       hour, popularity; meet Devon where he said and it counts double. */
+    const curfewNow = () => { const U = g.stu, c = g.clock || 0, wkEnd = dowOf(U.day) === 4 || dowOf(U.day) === 5;
+      if (U.grounded >= U.day) return c >= 18 * 60 || c < 6 * 60;
+      return wkEnd ? c < 6 * 60 && c >= 0 && U.lateNight : c >= 22 * 60 || c < 6 * 60; };
+    function stuGround(why) { const U = g.stu; U.grounded = U.day + 3; U.pop = stuPop() - 5; U.momMad = why;
+      g.jobBanner = "GROUNDED"; g.jobNote = "Mom caught you " + why + ". Three days: no lunch money, home by 6, no phone."; }
+    function drainPt(b) { return [b.x - 18, b.y + b.h * 0.5]; }
+    G.pipeFn = () => {
+      const H = studentHome(); if (!g.studentMode || !H || g.mode !== "foot") return false;
+      const [px, py] = drainPt(H);
+      if (!g.inside && !g.roof && Math.hypot(g.p.x - px, g.p.y - py) < 40) { g.roof = H; g.p.x = H.x + 24; g.p.y = py; g.cam.x = g.p.x; g.cam.y = g.p.y;
+        g.pickupFlash = { nm: "lift:UP THE DRAINPIPE", t: 1.4 }; return true; }
+      if (g.roof === H && Math.hypot(g.p.x - (H.x + 24), g.p.y - py) < 50) { g.roof = null; g.p.x = px; g.p.y = py; g.cam.x = px; g.cam.y = py;
+        g.pickupFlash = { nm: "lift:DOWN THE DRAINPIPE", t: 1.4 }; return true; }
+      return false;
+    };
+    function stepCurfew() {
+      const U = g.stu, H = studentHome(); if (!H) return;
+      const c = g.clock || 0;
+      U.lateNight = c < 6 * 60;                                     // after midnight
+      const home = g.inside === H || g.roof === H, momIn = momHome();
+      // the front door after curfew, with Mom home
+      if (U.wasIn !== undefined && curfewNow() && momIn) {
+        if (U.wasIn && !g.inside && !g.roof && U.wasRoof !== true) { if (U.caughtNight !== U.day) { U.caughtNight = U.day; stuGround("sneaking out the front door"); } }
+        if (!U.wasIn && g.inside === H && U.out) { if (U.caughtNight !== U.day) { U.caughtNight = U.day; stuGround("coming in the front door at " + clockText(c)); } }
+      }
+      U.wasIn = g.inside === H; U.wasRoof = g.roof === H;
+      if (curfewNow() && !home) U.out = 1; if (!curfewNow()) U.out = 0;
+      // Mom checks your room once a night, half the nights
+      if (curfewNow() && U.checkDay !== U.day + (c < 360 ? 0 : 0.5)) {
+        U.checkDay = U.day + (c < 360 ? 0 : 0.5); U.checkAt = Math.random() < 0.5 ? (c + 60 + Math.random() * 150) % 1440 : -1; }
+      if (U.checkAt >= 0 && Math.abs(c - U.checkAt) < 2) { U.checkAt = -1; if (g.inside !== H && U.caughtNight !== U.day) { U.caughtNight = U.day; stuGround("out of the house at " + clockText(c)); } }
+      if (U.grounded < U.day && U.momMad) U.momMad = null;
+      // Devon calls (evenings at home)
+      if (g.inside === H && c >= 18 * 60 && c < 20 * 60 + 30 && U.callDay !== U.day) { U.callDay = U.day;
+        if (U.grounded < U.day && Math.random() < 0.45) { const P = hangSpots(), sp = cpick(P), at = (dowOf(U.day) >= 4 ? 22 : 20) * 60 + 30;
+          U.hang = { day: U.day, spot: sp.id, at, done: 0 };
+          g.driveTalk = { who: "THE PHONE \u00b7 DEVON", text: "\u201cYo. " + sp.nm + ", " + clockText(at) + ". Everybody's going to be there. Don't be lame.\u201d", t: 8 }; } }
+    }
+    // the hangouts
+    function hangSpots() {
+      if (g.hangs) return g.hangs;
+      const L = [{ id: "skate", nm: "the skate park", x: SX(6), y: SX(8), always: 1 }, { id: "lane", nm: "Lovers' Lane", x: SX(9) + 750, y: SX(13) + 300, night: 1 }];
+      const H = studentHome(); let best = null, bd = 1e12;
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c2 = getCell(i, j); if (!c2) continue;
+        for (const b of (c2.blds || [])) if (/arcade/.test(b.kind || b.biz || "")) { const d = H ? Math.hypot(b.x - H.x, b.y - H.y) : 0; if (d < bd) { bd = d; best = b; } } }
+      if (best) { const d = doorPoint(best); L.push({ id: "arcade", nm: "the arcade", x: d[0], y: d[1] + 40, always: 1 }); }
+      return (g.hangs = L);
+    }
+    const hangLive = (S) => { const c = g.clock || 0; return S.night ? c >= 20 * 60 || c < 2 * 60 : (c >= 15 * 60 && c < 24 * 60) || c < 60 || !isSchoolDay(g.stu.day) && c > 11 * 60; };
+    function drawHangouts(view) {
+      if (!g.studentMode || g.inside) return;
+      const kids = schoolKids("ch");
+      for (const S of hangSpots()) {
+        if (!hangLive(S) || S.x < view.x0 - 200 || S.x > view.x1 + 200 || S.y < view.y0 - 200 || S.y > view.y1 + 200) continue;
+        if (S.id === "lane") for (let k = 0; k < 3; k++) { const im = imgs.current[["buy_coupe", "buy_sedan_blue", "buy_gn_black"][k]]; if (im && im.width) { ctx.save(); ctx.translate(S.x - 120 + k * 120, S.y - 40); ctx.drawImage(im, -23, -50, 46, 100); ctx.restore(); } }
+        const n = S.id === "lane" ? 6 : 7;
+        for (let k = 0; k < n; k++) { const q = kids[(k * 7 + S.x) % 60], a = k * 0.9 + g.t * 0.1, r = 40 + (k % 3) * 14;
+          const x = S.x + Math.cos(a) * r, y = S.y + 30 + Math.sin(a) * r * 0.6;
+          drawShadow(x, y + 2, 8, 3, 0.28); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.05, yt: q.yt, bang: Math.atan2(S.y - y, S.x - x) }); }
+        const U = g.stu; if (U.hang && U.hang.spot === S.id && U.hang.day === U.day) { const B = { x: S.x + 20, y: S.y + 20, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.05, yt: imgs.current.yt_stu_bestfriend ? "yt_stu_bestfriend" : kids[3].yt };
+          drawShadow(B.x, B.y + 2, 8, 3, 0.3); drawYouth(B); ctx.font = "700 9px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd65a"; ctx.fillText("DEVON", B.x, B.y - 28); ctx.textAlign = "start"; }
+        ctx.font = "700 9px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText(S.nm.toUpperCase(), S.x, S.y - 70); ctx.textAlign = "start";
+      }
+      drawDrainpipe();
+    }
+    function drawDrainpipe() { const H = studentHome(); if (!H) return; const [px, py] = drainPt(H);
+      ctx.fillStyle = "#7a7f86"; ctx.fillRect(H.x - 6, py - 60, 5, 120); ctx.fillStyle = "#5a5f66"; ctx.fillRect(H.x - 10, py + 56, 12, 6); }
+    G.hangFn = () => {
+      if (!g.studentMode || g.inside || g.mode !== "foot") return false;
+      const S = hangSpots().find((q) => hangLive(q) && Math.hypot(g.p.x - q.x, g.p.y - q.y - 30) < 90); if (!S) return false;
+      g.hangAt = S; G.pickOpen("stuhang"); return true;
+    };
+    function hangPanel() { const S = g.hangAt, U = g.stu; if (!S) return null; const devon = U.hang && U.hang.spot === S.id && U.hang.day === U.day && !U.hang.done;
+      const opts = [{ id: "stu:hang", label: "HANG OUT (AN HOUR)" }];
+      if (S.id === "lane") opts.push({ id: "stu:beer", label: "TAKE A BEER" }, { id: "stu:smoke", label: "TAKE A CIGARETTE" });
+      opts.push({ id: "close", label: "LEAVE" });
+      return { title: S.nm.toUpperCase() + " \u00b7 POPULARITY " + stuPop(), face: null,
+        text: (g.hangSaid || (S.id === "lane" ? "Car radios, somebody's older brother's beer, a couple steaming up a back window." : S.id === "skate" ? "Boards cracking on the rails, a boom box, somebody bleeding a little." : "Pac-Man noises through the door, quarters on the machines.")) + (devon ? " Devon's here, like he said." : ""), opts }; }
+    function hangAct(a) {
+      const S = g.hangAt, U = g.stu; g.clock = (g.clock + 60) % 1440;
+      const devon = U.hang && U.hang.spot === S.id && U.hang.day === U.day && !U.hang.done;
+      if (a === "hang") { const k = (U.hangDay === U.day + ":" + S.id ? 0 : 3) * (devon ? 2 : 1); U.hangDay = U.day + ":" + S.id; U.pop = stuPop() + k; if (devon) U.hang.done = 1;
+        g.hangSaid = k ? "Good hour. +" + k + " popularity." + (devon ? " Devon's stoked you came." : "") : "Same faces, same jokes."; }
+      if (a === "beer") { U.pop = stuPop() + 2; U.smell = U.day; g.hangSaid = "Warm Old Style. Mom will smell it if she's up. (+2)"; }
+      if (a === "smoke") { U.pop = stuPop() + 1; U.smell = U.day; g.hangSaid = "You cough. Everybody laughs. (+1)"; }
     }
     function kestrelRoster() {
       if (g.kestrel) return g.kestrel;
@@ -37345,7 +37458,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       drawUnitNumbers(view);
       drawCoroner();
       drawTrailEvidence(view);
-      if (!g.inside) { drawOldTownProps(view); drawAlleys(view); drawSchoolsOutside(view); drawBestFriend(); drawLights(view); drawBustMarks(view); }
+      if (!g.inside) { drawOldTownProps(view); drawAlleys(view); drawSchoolsOutside(view); drawBestFriend(); drawHangouts(view); drawLights(view); drawBustMarks(view); }
       if (g.inside) drawCasings(view);
       drawBackup(view);
       drawRoofHatch();
