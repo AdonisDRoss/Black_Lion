@@ -3590,7 +3590,7 @@ for (const k of PR_PROPS.concat(PR_SHOWER, PR_ROOFS, YD_KEYS, PR_PEOPLE.guard, P
    The shower room, Malcolm's place, the K-9 truck, the three new officers, the three men who
    become the player's crew and their cars, the cars you can buy, the scrapyard and the shelter
    under it, the roof hatch, and the weapon icons. Registered here, UNDER the lists they read. */
-const HOME_KEYS = ["ap_ac", "ap_armchair_a", "ap_armchair_b", "ap_atari", "ap_beanbag_a", "ap_beanbag_b", "ap_bed", "ap_can", "ap_can_b",
+const HOME_KEYS = ["ap_tv_low_n", "ap_ac", "ap_armchair_a", "ap_armchair_b", "ap_atari", "ap_beanbag_a", "ap_beanbag_b", "ap_bed", "ap_can", "ap_can_b",
   "ap_cans", "ap_cans_record", "ap_cart_a", "ap_cart_b", "ap_cart_c", "ap_cart_d", "ap_cart_e", "ap_cart_f", "ap_cereal", "ap_coffeetable",
   "ap_console", "ap_desk_a", "ap_desk_b", "ap_dining", "ap_dresser_a", "ap_dresser_b", "ap_endtable_a", "ap_endtable_b", "ap_fan",
   "ap_floorlamp", "ap_joystick", "ap_lamp", "ap_lp_a", "ap_lp_b", "ap_lp_c", "ap_plant", "ap_plant_b", "ap_poster_bball", "ap_poster_getdown",
@@ -7973,10 +7973,10 @@ function makeFloor(b, f, rnd) {
         break;
       }
       /* Student mode's house: everything against the walls, the middle of every room left open. */
-      case "stubedroom": P(q2.x0 + 10, q2.y0 + 10, 44, 64, "bed"); P(q2.x1 - 58, q2.y0 + 8, 50, 28, "desk"); P(q2.x0 + 60, q2.y0 + 4, 36, 12, "ap_poster_bball"); break;
+      case "stubedroom": P(q2.x0 + 10, q2.y0 + 10, 44, 64, "bed"); P(Math.max(q2.x0 + 66, q2.x1 - 58), q2.y0 + 8, 50, 28, "desk");   // the desk on the top wall, clear of the bed P(q2.x0 + 60, q2.y0 + 4, 36, 12, "ap_poster_bball"); break;
       case "stumom": P(q2.x0 + 10, q2.y0 + 10, 48, 66, "bed"); P(q2.x1 - 42, q2.y0 + 8, 34, 30, "dresser"); break;
-      case "stubath": P(q2.x0 + 8, q2.y0 + 8, 24, 24, "toilet"); P(q2.x1 - 30, q2.y0 + 8, 22, 20, "sink"); break;
-      case "stuliving": P(cx - 45, q2.y0 + 20, 90, 32, "sofa"); P(cx - 24, cy + 18, 48, 24, "ap_tv_low"); P(cx + 30, cy + 22, 28, 22, "ap_atari"); P(q2.x0 + 18, q2.y0 + 20, 30, 36, "bookshelf"); break;   // the couch on the north wall; the TV south of it facing north, the game system beside it
+      case "stubath": P(q2.x0 + 8, q2.y1 - 32, 24, 24, "toilet"); P(q2.x0 + 6, cy - 10, 22, 20, "sink"); break;   // both on the far wall, clear of the door and the stairs
+      case "stuliving": P(cx - 45, q2.y0 + 20, 90, 32, "sofa"); P(cx - 24, cy + 14, 48, 26, "ap_tv_low_n"); P(cx - 13, cy - 12, 26, 20, "ap_atari"); P(q2.x0 + 18, q2.y0 + 20, 30, 36, "bookshelf"); break;   // couch on the north wall; the TV south of it, SCREEN NORTH to the couch; the game system beside it
       case "stuentry": break;
       case "stukitchen": P(q2.x0 + 8, q2.y0 + 8, 30, 30, "fridge"); P(q2.x0 + 42, q2.y0 + 8, 30, 26, "stove"); P(q2.x1 - 50, q2.y1 - 42, 44, 32, "cafetable"); break;
       case "classroom": {
@@ -11577,6 +11577,7 @@ export default function IronLionLayer004() {
     if (g.mode === "foot" && G.pipeFn && G.pipeFn()) return;
     if (g.mode === "foot" && !g.inside && G.hangFn && G.hangFn()) return;
     if (g.mode === "foot" && g.inside && G.momFn && G.momFn()) return;
+    if (g.mode === "foot" && G.coachFn && G.coachFn()) return;
     if (g.mode === "foot" && G.kidFn && G.kidFn()) return;
     if (g.mode === "foot" && g.inside && G.stuHomeFn && G.stuHomeFn()) return;
     if (g.mode === "foot" && g.inside && G.stuSitFn && G.stuSitFn()) return;
@@ -12206,6 +12207,7 @@ export default function IronLionLayer004() {
       let ix = inp.x + (k["a"] || k["arrowleft"] ? -1 : 0) + (k["d"] || k["arrowright"] ? 1 : 0);
       let iy = inp.y + (k["w"] || k["arrowup"] ? -1 : 0) + (k["s"] || k["arrowdown"] ? 1 : 0);
       if (g.pintro || g.pRiding) { ix = 0; iy = 0; }     // the walk in / riding the bus: no control
+      if (Math.hypot(ix, iy) > 0.15) g.p.face = Math.atan2(iy, ix);   // he keeps facing the way he last went
       if (g.studentMode && stepBike(dt)) return;            // on the bike: its own movement
       const len = Math.hypot(ix, iy);
       if (len > 1) { ix /= len; iy /= len; }
@@ -14074,7 +14076,7 @@ export default function IronLionLayer004() {
     }
     function stepCase(dt) {
       stepWar(dt); stepTrial(dt); stepDispatch(dt);
-      stepPartner(dt); stepAutopilot(dt); stepDriveTalk(dt); stepPrisonIntro(dt); stepSlideDoors(dt); alleyCollide(); stepStudent(dt); if (g.studentMode) { stepStudentLife(dt); danceStep(); stepCurfew(); stepBusRoute(dt); } stepRivalMsgs(); stepDeskPhone(); stepConvictClothes(); stepBackup(dt); stepK9(dt); stepCasings(dt); stepSquad(dt); stepGumball(dt);
+      stepPartner(dt); stepAutopilot(dt); stepDriveTalk(dt); stepPrisonIntro(dt); stepSlideDoors(dt); alleyCollide(); stepStudent(dt); if (g.studentMode) { stepStudentLife(dt); danceStep(); stepCurfew(); stepBusRoute(dt); stepTeam(); stepBullies(); } stepRivalMsgs(); stepDeskPhone(); stepConvictClothes(); stepBackup(dt); stepK9(dt); stepCasings(dt); stepSquad(dt); stepGumball(dt);
       const D = detectives();
       if (g.detStart && D) {
         g.detStart = false;
@@ -15860,6 +15862,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "stumom") return momPanel();
       if (kind === "stukid") return kidPanel();
       if (kind === "stuhang") return hangPanel();
+      if (kind === "stucoach") return coachPanel();
+      if (kind === "stubully") return bullyPanel();
       if (kind === "stutest") return testPanel();
       if (kind === "mybunk") return bunkPanel();
       if (kind === "pescape") return escapePanel();
@@ -22405,6 +22409,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const CAB_W = 200, CAB_H = 160;
     function openCab(which) {
       const g2 = G.current;
+      if (which && which.hoops) { g2.cab = hoopsNew(which.foe); g2.paused = true; return; }
       if (which && which.pool) {
         const F = which.pool;
         g2.cab = { g: "pool", t: 0, over: 0, score: 0, pts: [0, 0], balls: poolRack(), turn: 0, aim: 0, pow: 0, foe: F, stake: which.stake, msg: "YOUR BREAK" };
@@ -22527,6 +22532,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           else if (c.g === "brawl") { c.pick = null; c.msg = null; }
           else if (c.g === "pong") { c.pts = [0, 0]; c.score = 0; }
           else if (c.g === "pool") { closeCab(); return; }
+          else if (c.g === "hoops") { closeCab(); return; }
           else { c.me.hp = 3; c.foe.hp = 3; c.shell = null; c.turn = 0; }
         }
         return;
@@ -22535,6 +22541,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (c.g === "brawl") stepBrawl(c, dt, ix, iy, edge);
       else if (c.g === "pong") stepPong(c, dt, iy);
       else if (c.g === "pool") stepPool(c, dt, ix, iy, fire);
+      else if (c.g === "hoops") stepHoops(c, dt, ix, iy, fire);
       else stepFront(c, dt, ix, iy, edge);
     }
     /* ---------- PTAB AT THE RUSTY NAIL (layer 444) ----------
@@ -22635,6 +22642,77 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.fillStyle = "#e8e0c8"; ctx.font = "bold 9px monospace";
       ctx.fillText("YOU " + c.pts[0], P.x0, 20); ctx.fillText(c.foe.nm + " " + c.pts[1], P.x1 - 70, 20);
       ctx.fillText((c.msg || "") + (c.stake ? "  \u00b7 $" + c.stake : ""), P.x0, P.y1 + 26);
+    }
+    /* ---------- BASKETBALL (layer 470): the school team's game ----------
+       Three-on-three on the cab screen, four two-minute quarters. Stick moves the man you control;
+       TAP fire to PASS to the open teammate (you take over him), HOLD and let go to SHOOT -- the
+       power meter swings, the sweet spot is in the middle. Outside the arc it's three. On defence
+       you control whoever is nearest the ball: run into the ball-carrier to try for a steal. Your
+       PRACTICE (g.stu.hoopSkill) makes your shots fall more. */
+    const HPC = { x0: 8, y0: 28, x1: 192, y1: 128, rimL: [16, 78], rimR: [184, 78], arc: 54, q: 120 };
+    function hoopsNew(foe) {
+      const P = []; for (let k = 0; k < 3; k++) P.push({ t: 0, x: 70 - k * 14, y: 52 + k * 26, vx: 0, vy: 0 }); for (let k = 0; k < 3; k++) P.push({ t: 1, x: 130 + k * 14, y: 52 + k * 26, vx: 0, vy: 0 });
+      return { g: "hoops", t: 0, over: 0, score: 0, P, ctl: 0, hold: 0, ball: { h: 0, x: 0, y: 0 }, sc: [0, 0], q: 1, clock: HPC.q, msg: "TIP-OFF", foe, steal: 0, pause: 1.2 };
+    }
+    function hoopsInbound(c, team) { const k = team === 0 ? 0 : 3; c.P.forEach((p, n) => { p.x = p.t === 0 ? 40 + (n % 3) * 30 : 160 - (n % 3) * 30; p.y = 50 + (n % 3) * 26; });
+      c.ball = { h: k }; c.ctl = 0; c.pause = 1.0; }
+    function hoopsShoot(c, from, pow) {
+      const p = c.P[from], rim = p.t === 0 ? HPC.rimR : HPC.rimL, d = Math.hypot(rim[0] - p.x, rim[1] - p.y), three = d > HPC.arc;
+      const skill = p.t === 0 ? ((g.stu && g.stu.hoopSkill) || 0) * 0.025 : (c.foe || 0.15);
+      let pct = d < 26 ? 0.62 : d < HPC.arc ? 0.46 : 0.34; pct += skill; if (from === c.ctl && p.t === 0) pct -= Math.abs(pow - 0.6) * 0.6;
+      c.ball = { h: -1, x: p.x, y: p.y, fx: p.x, fy: p.y, tx: rim[0], ty: rim[1], f: 0, make: Math.random() < pct, pts: three ? 3 : 2, team: p.t };
+    }
+    function stepHoops(c, dt, ix, iy, fire) {
+      if (c.done) return;
+      if (c.pause > 0) { c.pause -= dt; return; }
+      c.clock -= dt;
+      if (c.clock <= 0) { if (c.q < 4) { c.q++; c.clock = HPC.q; c.msg = "QUARTER " + c.q; hoopsInbound(c, c.q % 2); }
+        else { c.done = 1; c.over = 3; const won = c.sc[0] > c.sc[1], U = g.stu; c.msg = won ? "FINAL: YOU WIN " + c.sc[0] + "-" + c.sc[1] : "FINAL: " + c.sc[0] + "-" + c.sc[1];
+          if (U) { U.pop = stuPop() + (won ? 6 : 2); U.respect = (U.respect || 0) + (won ? 5 : 1); U.games = (U.games || 0) + 1; U.wins = (U.wins || 0) + (won ? 1 : 0); } return; } }
+      const B = c.ball, P = c.P;
+      // the man you control: yours with the ball, or nearest the ball on defence
+      if (B.h >= 0 && P[B.h].t === 0) c.ctl = B.h; else if (B.h >= 0) { const bh = P[B.h]; c.ctl = [0, 1, 2].sort((a, b) => Math.hypot(P[a].x - bh.x, P[a].y - bh.y) - Math.hypot(P[b].x - bh.x, P[b].y - bh.y))[0]; }
+      const me = P[c.ctl]; me.x = clamp(me.x + ix * 60 * dt, HPC.x0 + 3, HPC.x1 - 3); me.y = clamp(me.y + iy * 60 * dt, HPC.y0 + 3, HPC.y1 - 3);
+      // fire: tap = pass, hold = shot
+      if (B.h === c.ctl) { if (fire) c.hold += dt; else if (c.hold > 0) { const h = c.hold; c.hold = 0;
+          if (h < 0.22) { const mate = [0, 1, 2].filter((k) => k !== c.ctl).sort((a, b) => P[b].x - P[a].x)[0]; c.ball = { h: -2, x: me.x, y: me.y, to: mate, f: 0, fx: me.x, fy: me.y }; c.msg = "PASS"; }
+          else { hoopsShoot(c, c.ctl, Math.min(1, (h - 0.22) / 0.8)); c.msg = "SHOT!"; } } }
+      else c.hold = 0;
+      // everyone else
+      P.forEach((p, n) => { if (n === c.ctl) return; let tx, ty;
+        const attackRight = p.t === 0, hasBall = B.h === n, myTeamBall = B.h >= 0 && P[B.h].t === p.t;
+        if (hasBall) { const rim = attackRight ? HPC.rimR : HPC.rimL; tx = rim[0] + (attackRight ? -20 : 20); ty = rim[1] + (n % 2 ? -14 : 14);
+          if (p.t === 1 && (Math.hypot(rim[0] - p.x, rim[1] - p.y) < 34 || Math.random() < dt * 0.25)) { hoopsShoot(c, n, 0.6); }
+          else if (p.t === 1 && Math.random() < dt * 0.35) { const m2 = [3, 4, 5].filter((k) => k !== n); c.ball = { h: -2, x: p.x, y: p.y, to: cpick(m2), f: 0, fx: p.x, fy: p.y }; } }
+        else if (myTeamBall) { const k = n % 3; tx = attackRight ? 120 + k * 22 : 80 - k * 22; ty = 44 + k * 28; }
+        else { const mark = P[(n + 3) % 6]; tx = mark.x + (p.t === 0 ? 10 : -10); ty = mark.y; }
+        const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy); if (d > 2) { p.x += dx / d * 48 * dt; p.y += dy / d * 48 * dt; } });
+      // the ball
+      if (B.h === -2) { const t = P[B.to]; B.f += dt / 0.35; B.x = B.fx + (t.x - B.fx) * B.f; B.y = B.fy + (t.y - B.fy) * B.f;
+        // a defender in the lane can pick it off
+        for (const p of P) if (p.t !== t.t && Math.hypot(p.x - B.x, p.y - B.y) < 4 && Math.random() < 0.08) { c.ball = { h: P.indexOf(p) }; c.msg = "PICKED OFF"; return; }
+        if (B.f >= 1) c.ball = { h: B.to }; }
+      else if (B.h === -1) { B.f += dt / 0.8; B.x = B.fx + (B.tx - B.fx) * B.f; B.y = B.fy + (B.ty - B.fy) * B.f;
+        if (B.f >= 1) { if (B.make) { c.sc[B.team] += B.pts; c.msg = (B.team === 0 ? "YOU SCORE " : "THEY SCORE ") + B.pts; hoopsInbound(c, 1 - B.team); }
+          else { c.msg = "MISS -- REBOUND"; c.ball = { h: -3, x: B.tx + (B.tx < 100 ? 12 : -12), y: B.ty + (Math.random() - 0.5) * 30 }; } } }
+      else if (B.h === -3) { const n = P.map((p, k) => [k, Math.hypot(p.x - B.x, p.y - B.y)]).sort((a, b) => a[1] - b[1])[0]; P.forEach((p) => { const dx = B.x - p.x, dy = B.y - p.y, d = Math.hypot(dx, dy); if (d > 1) { p.x += dx / d * 40 * dt; p.y += dy / d * 40 * dt; } });
+        if (n[1] < 5) c.ball = { h: n[0] }; }
+      else if (B.h >= 0 && P[B.h].t === 1) { const bh = P[B.h]; if (Math.hypot(me.x - bh.x, me.y - bh.y) < 7) { c.steal += dt; if (c.steal > 0.4) { c.steal = 0; if (Math.random() < 0.35) { c.ball = { h: c.ctl }; c.msg = "STEAL!"; } } } }
+    }
+    function drawHoops(c) {
+      ctx.fillStyle = "#c8873e"; ctx.fillRect(HPC.x0, HPC.y0, HPC.x1 - HPC.x0, HPC.y1 - HPC.y0);
+      ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 1; ctx.strokeRect(HPC.x0, HPC.y0, HPC.x1 - HPC.x0, HPC.y1 - HPC.y0);
+      ctx.beginPath(); ctx.moveTo(100, HPC.y0); ctx.lineTo(100, HPC.y1); ctx.stroke(); ctx.beginPath(); ctx.arc(100, 78, 10, 0, 6.3); ctx.stroke();
+      for (const [rx, ry, sgn] of [[HPC.rimL[0], HPC.rimL[1], 1], [HPC.rimR[0], HPC.rimR[1], -1]]) { ctx.beginPath(); ctx.arc(rx, ry, HPC.arc, sgn > 0 ? -1.2 : Math.PI - 1.94, sgn > 0 ? 1.2 : Math.PI + 1.94); ctx.stroke();
+        ctx.strokeStyle = "#ff6a2a"; ctx.beginPath(); ctx.arc(rx, ry, 3, 0, 6.3); ctx.stroke(); ctx.strokeStyle = "rgba(255,255,255,0.8)"; }
+      c.P.forEach((p, n) => { ctx.fillStyle = p.t === 0 ? "#7a1a1a" : "#1a2a7a"; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, 6.3); ctx.fill();
+        if (n === c.ctl) { ctx.strokeStyle = "#ffe08a"; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 6.3); ctx.stroke(); } });
+      const B = c.ball; let bx, by; if (B.h >= 0) { bx = c.P[B.h].x + 3; by = c.P[B.h].y - 3; } else { bx = B.x; by = B.y - (B.h === -1 ? Math.sin(Math.min(1, B.f) * Math.PI) * 14 : 0); }
+      ctx.fillStyle = "#ff8a2a"; ctx.beginPath(); ctx.arc(bx, by, 2.4, 0, 6.3); ctx.fill();
+      if (c.hold > 0.22) { const pw = Math.min(1, (c.hold - 0.22) / 0.8); ctx.fillStyle = "#333"; ctx.fillRect(HPC.x0, HPC.y1 + 6, 60, 4); ctx.fillStyle = Math.abs(pw - 0.6) < 0.12 ? "#7fe07a" : "#e8c46a"; ctx.fillRect(HPC.x0, HPC.y1 + 6, 60 * pw, 4); }
+      ctx.fillStyle = "#e8e0c8"; ctx.font = "bold 9px monospace";
+      ctx.fillText("US " + c.sc[0] + "  THEM " + c.sc[1], HPC.x0, 20); ctx.fillText("Q" + c.q + "  " + Math.max(0, Math.ceil(c.clock)) + "s", HPC.x1 - 52, 20);
+      ctx.fillText(c.msg || "", HPC.x0, HPC.y1 + 22);
     }
     /* RALLY '86 -- the console's own game. Stick up and down moves your paddle; first to seven. */
     function stepPong(c, dt, iy) {
@@ -22811,6 +22889,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }
       } else if (c.g === "pool") {
         drawPool(c);
+      } else if (c.g === "hoops") {
+        drawHoops(c);
       } else if (c.g === "pong") {
         ctx.fillStyle = "#2a3a30"; for (let y = 4; y < CAB_H; y += 10) ctx.fillRect(CAB_W / 2 - 1, y, 2, 5);
         ctx.fillStyle = "#d8e8d0";
@@ -22869,13 +22949,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.strokeRect(1, 1, CAB_W - 2, CAB_H - 2);
       ctx.fillStyle = "#c8b070"; ctx.font = "bold 11px monospace";
       const title = c.g === "curtain" ? "THE IRON CURTAIN"
-                  : c.g === "brawl" ? "HOOK CITY BRAWLER" : c.g === "pong" ? "RALLY '86" : c.g === "pool" ? "POOL \u00b7 THE RUSTY NAIL" : "THE FRONT";
+                  : c.g === "brawl" ? "HOOK CITY BRAWLER" : c.g === "pong" ? "RALLY '86" : c.g === "pool" ? "POOL \u00b7 THE RUSTY NAIL" : c.g === "hoops" ? "VARSITY BASKETBALL" : "THE FRONT";
       ctx.fillText(title, CAB_W / 2 - title.length * 3.3, -8);
       ctx.fillStyle = "#7a7a70"; ctx.font = "8px monospace";
       const help = c.g === "curtain" ? "STICK MOVE  ·  FIRE SHOOT  ·  E QUIT"
                  : c.g === "brawl" ? "STICK MOVE  ·  FIRE STRIKE  ·  E QUIT"
                  : c.g === "pong" ? "STICK UP/DOWN  ·  FIRST TO 7  ·  E QUIT"
                  : c.g === "pool" ? "STICK AIM  ·  HOLD FIRE, LET GO TO SHOOT  ·  E QUIT (FORFEIT)"
+                 : c.g === "hoops" ? "STICK MOVE  ·  TAP FIRE PASS  ·  HOLD & RELEASE SHOOT  ·  RUN INTO THEM TO STEAL"
                  : "STICK AIM/POWER  ·  FIRE SHOOT  ·  E QUIT";
       ctx.fillText(help, CAB_W / 2 - help.length * 2.2, CAB_H + 16);
       ctx.restore();
@@ -31592,7 +31673,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function schoolFolk() {
       const b = g.inside; if (!b || !b.school) return null;
       const dn = g.studentMode && g.stu && isDanceDay(g.stu.day) && (g.clock || 0) >= DANCE.from && (g.clock || 0) < DANCE.to;
-      const blk = bellBlock(g.clock || 0), key = b.school + ":" + g.floor + ":" + blk + (dn ? ":dance" : "");
+      const blk = bellBlock(g.clock || 0), key = b.school + ":" + g.floor + ":" + blk + (dn ? ":dance" : "") + (g.studentMode && (isPractice() || isGameNight()) ? ":team" : "");
       if (g.sfolk && g.sfolk.key === key && g.sfolk.b === b) return g.sfolk.list;
       const prevS = g.sfolk && g.sfolk.b === b && g.sfolk.floor === g.floor ? g.sfolk.list : null;     // a bell on this floor: they WALK
       const sc = b.school === "aldric" ? "sa" : "ch", P = SCHOOL_PEOPLE[sc], pl = buildingPlans(b)[g.floor]; if (!pl) return null;
@@ -31628,6 +31709,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           kids.forEach((q, n) => { const s2 = seats[n % Math.max(1, seats.length)]; if (s2 && n < seats.length) person(s2[0], s2[1], q.yt, { tall: 1.0, seated: 1, kid: q.i, bang: n % 2 ? -Math.PI / 2 : Math.PI / 2 }); });
         }
         if (dn && gym) danceFolk(out, sc, gym, kids, person);
+        if (g.studentMode && gym && !dn) teamFolk(gym, kids, person, P);
         if (blk === "p6" && gym) gymFolk(out, gym, kids, person);
         if (blk === "arrive" || blk === "leave" || blk === "pass") inHall(kids.filter((_, n) => n % 3 === 1));
         if (blk !== "closed" || true) { const h = rooms("schhall")[0]; if (h) person(h.x1 - 60, (h.y0 + h.y1) / 2, "yt_" + P.janitor, { tall: 1.25, wander: 1 }); }
@@ -31718,15 +31800,28 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const S = schools(); const sch = S[0]; if (!sch) return null;
       const si = Math.floor(sch.x / PITCH), sj = Math.floor(sch.y / PITCH);
       let bestC = null, bs = -1e9;
-      for (let i = si - 3; i <= si + 3; i++) for (let j = sj - 3; j <= sj + 3; j++) { if (i === si && j === sj) continue; const c = getCell(i, j); if (!c) continue;
+      { let M = 0; for (let i = si - 4; i <= si + 4; i++) for (let j = sj - 4; j <= sj + 4; j++) { const c = getCell(i, j); if (!c) continue; const B = c.blds || [];
+          if (B.filter(isHouse).length < 3 || B.some(isBizB)) continue; for (const b of B) if (isHouse(b)) M = Math.max(M, b.w * b.h); }
+        g.stuBigMin = M * 0.8; }
+      for (let i = si - 4; i <= si + 4; i++) for (let j = sj - 4; j <= sj + 4; j++) { if (i === si && j === sj) continue; const c = getCell(i, j); if (!c) continue;
         const B = c.blds || [], h = B.filter(isHouse).length; if (h < 3 || B.some(isBizB)) continue;
+        const big = Math.max(0, ...B.filter(isHouse).map((b) => b.w * b.h)); if (big < (g.stuBigMin || 0)) continue;   // and a house big enough for real rooms
         let score = h * 3;
         for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const n = getCell(i + di, j + dj); if (!n) continue; const NB = n.blds || []; score += NB.filter(isHouse).length - NB.filter(isBizB).length * 4; }
         score -= Math.hypot(i - si, j - sj);
         if (score > bs) { bs = score; bestC = c; } }
       let best = null;
       if (bestC) for (const b of bestC.blds || []) if (isHouse(b) && b.door && !b.school && !b.landmark && !b.homeOf) { if (!best || b.w * b.h > best.w * best.h) best = b; }
-      if (best) { best.stuHome = 1; best.name = "HOME"; best.floors = 2; best.entry = 0; best.plans = null; clearHomePaths(best); g.stuHomeCell = bestC; }
+      if (best) {
+        /* The houses here are small, so his is GROWN into the open ground round it: up to 45% wider and
+           taller, as far as the lot and the neighbours allow (it keeps its door wall). */
+        const others = (bestC.blds || []).filter((q) => q !== best), fits = (x, y, w, h) => x >= bestC.lx0 + 8 && y >= bestC.ly0 + 8 && x + w <= bestC.lx1 - 8 && y + h <= bestC.ly1 - 8 &&
+          !others.some((q) => x < q.x + q.w + 24 && x + w > q.x - 24 && y < q.y + q.h + 24 && y + h > q.y - 24);
+        for (let f = 1.45; f > 1.0; f -= 0.05) { const w = best.w * f, h = best.h * f, cx = best.x + best.w / 2, cy = best.y + best.h / 2;
+          const sd = best.door ? best.door.side : 2;
+          const x = sd === 1 ? best.x + best.w - w : sd === 3 ? best.x : cx - w / 2, y = sd === 2 ? best.y + best.h - h : sd === 0 ? best.y : cy - h / 2;
+          if (fits(x, y, w, h)) { best.x = x; best.y = y; best.w = w; best.h = h; break; } }
+        best.stuHome = 1; best.name = "HOME"; best.floors = 2; best.entry = 0; best.plans = null; clearHomePaths(best); g.stuHomeCell = bestC; }
       return (g.stuHome = best);
     }
     // the houses round his: the neighbours (his block and the four next to it)
@@ -31748,6 +31843,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (pl.stair && pl.stair.w > 0 && o.x < pl.stair.x + pl.stair.w + 36 && o.x + o.w > pl.stair.x - 36 && o.y < pl.stair.y + pl.stair.h + 36 && o.y + o.h > pl.stair.y - 36) return /stair/.test(o.t);
           for (const d of pl.doorMarks || []) if (o.x < d.x + 46 && o.x + o.w > d.x - 46 && o.y < d.y + 46 && o.y + o.h > d.y - 46) return false;
           return true; };
+        g.homeDropped = (g.homeDropped || []).concat((pl.props || []).filter((o) => !keep(o)).map((o) => f + ":" + o.t));
         pl.props = (pl.props || []).filter(keep); }
     }
     function stuBedRoom() { const b = studentHome(); if (!b) return null; const pl = buildingPlans(b)[1]; return pl ? { pl, r: pl.rooms.find((q) => q.k === "stubedroom") } : null; }
@@ -31905,6 +32001,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (a === "nm") { U.name = n; g.pickupFlash = { nm: "lift:TEACHERS WILL CALL YOU " + n.toUpperCase(), t: 1.8 }; G.pickOpen("studesk"); return; }
       if (a === "sched") { G.pickOpen("stusched"); return; }
       if (a === "hang" || a === "beer" || a === "smoke") { hangAct(a); return; }
+      if (a === "join" || a === "practice" || a === "game") { teamAct(a); return; }
+      if (a === "b") { bullyAct(n); return; }
       if (a === "ask") { const q = g.kidTalk; if (q) g.kidSaid = askOut(q); return; }
       if (a === "k") { kidAct(n); return; }
       if (a === "t") { const T = g.stuTest; if (!T) return; if (+n === T.qs[T.i][2]) T.right++; T.i++;
@@ -32334,7 +32432,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        gets on. Your door last: Mom has her say (by yours) and the bus waits ten seconds -- E gets
        you on. Then it drives to school along the streets and lets everybody off at the door; you
        with them if you were on it. Miss it and it goes without you. */
-    const BUS_V = 320, BUS_STOP = 4.5, BUS_HOME = 10;
+    const BUS_V = 320, BUS_STOP = 4.5, BUS_HOME = 22;
     const PARENT_SAYS = {
       BULLY: "And NO fighting today, you hear me?", SHY: "Talk to somebody today, sweetie!", CLOWN: "Leave the jokes at home for once!",
       GOSSIP: "Mind your business at that school!", HUSTLER: "And bring my change back!", SWEET: "Love you, baby! Have a good day!",
@@ -32381,6 +32479,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             const pyt = PARENT_YT[(next.n * 2 + (next.n % 2)) % PARENT_YT.length];
             if (Math.hypot(g.p.x - x, g.p.y - y) < 700) g.driveTalk = { who: (/_f\d$/.test(pyt) ? "MRS. " : "MR. ") + next.rec.name.split(" ")[1].toUpperCase(), text: "\u201c" + first + "! " + say + "\u201d", t: 4 }; }
           else { B.atHome = 1; B.wait = BUS_HOME; const nm = (U.name || "baby");
+            g.jobBanner = "THE BUS IS OUTSIDE"; g.jobNote = "It waits " + BUS_HOME + " seconds. Out the front door and E to get on.";
             const say = U.grounded >= U.day ? "Straight there and straight home, " + nm + ". You're grounded." : U.pts >= STU.transfer * 0.6 ? "Look at you, " + nm + "! Keep those grades up!" : U.streak >= 3 ? "Another day on time, " + nm + ". I'm proud of you." : "Don't miss this bus, " + nm + "! Go, go!";
             if (momHome()) g.driveTalk = { who: "MOM", text: "\u201c" + say + "\u201d", t: 5 }; } }
         return;
@@ -32415,10 +32514,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     G.busT = () => { const B = g.stu && g.stu.bus; return B && { phase: B.phase, trav: B.trav | 0, stops: B.stops.length, done: B.stops.filter((q) => q.done).length, riders: B.riders.length, atHome: B.atHome, wait: +(B.wait || 0).toFixed(1), on: B.on, x: B.x | 0, y: B.y | 0 }; };   // test hook
     G.busRouteFn = () => { const U = g.stu, B = U && U.bus; if (!B || B.phase !== "loop" || !B.atHome || B.wait <= 0 || g.inside) return false; const R = busLoop(); const [x, y] = busPos(R, (R.sHome + B.trav) % R.tot);
-      if (Math.hypot(g.p.x - x, g.p.y - y) > 200) return false; B.on = 1; g.pRiding = 1; g.pickupFlash = { nm: "lift:ON THE BUS", t: 1.4 }; return true; };
+      if (Math.hypot(g.p.x - x, g.p.y - y) > 280) return false; B.on = 1; g.pRiding = 1; g.pickupFlash = { nm: "lift:ON THE BUS", t: 1.4 }; return true; };
     // ---- the bike
     const BIKE = { acc: 260, max: 340, drag: 0.6, brake: 520, turn: 3.2, hop: 0.45 };
-    function bikeSpot() { const H = studentHome(); const D = H && driveway(H); return D ? [D.cx + (D.ang === 0 || D.ang === Math.PI ? 34 : 0), D.cy + (D.ang === 0 || D.ang === Math.PI ? 0 : 34)] : null; }
+    function bikeSpot() { const H = studentHome(); if (!H || !H.door) return null; const d = doorPoint(H), D = driveway(H), sd = H.door.side;
+      // beside the front step, on the side away from the driveway (never under Mom's car)
+      const along = sd === 0 || sd === 2 ? [1, 0] : [0, 1]; let sgn = 1; if (D) sgn = (along[0] ? (D.cx > d[0] ? -1 : 1) : (D.cy > d[1] ? -1 : 1));
+      return [d[0] + along[0] * 60 * sgn, d[1] + along[1] * 60 * sgn]; }
     G.bikeFn = () => {
       if (!g.studentMode || g.inside || g.mode !== "foot" && g.mode !== "bike") return false;
       const U = g.stu, Bk = (U.bike = U.bike || { parked: bikeSpot(), on: 0, spd: 0, ang: -Math.PI / 2, air: 0 });
@@ -32543,6 +32645,65 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (let k = 0; k < 8; k++) { const x = cx + (rnd() - 0.5) * Wd.w * 0.3, y = cy + (rnd() - 0.5) * Wd.h * 0.25, s2 = 14 + rnd() * 10; ctx.fillStyle = "#24431f"; ctx.beginPath(); ctx.arc(x, y, s2, 0, 6.3); ctx.fill(); }  // a few in the middle
       ctx.font = "700 10px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#c9a26a"; ctx.fillText("THE WOODS \\u00b7 BMX TRACK", cx, Wd.y - 8); ctx.textAlign = "start";
     }
+
+    /* ---------- LAYER 470: THE TEAM, AND THE BULLIES ----------
+       THE TEAM: E at the coach (in the gym) -> JOIN VARSITY BASKETBALL. PRACTICE Mon + Wed, 3-4 PM in the
+       gym: be there and E the coach -> +1 skill (g.stu.hoopSkill, shots fall more). GAME NIGHT Thursday,
+       7-9 PM in the gym: E the coach -> tip-off (the basketball cab game; a win +6 popularity +5 respect).
+       Miss two practices in a row and he benches you for the next game.
+       THE BULLIES: a kid with the BULLY trait who doesn't like you may corner you at lunch or between
+       classes (once a day at most): HAND OVER your lunch money, SAY NO (he backs off if you have the
+       respect, shoves you if not), or FIGHT him. */
+    const TEAM = { practice: [0, 2], from: 15 * 60, to: 16 * 60, gameDow: 3, gameFrom: 19 * 60, gameTo: 21 * 60 };
+    const isPractice = () => g.stu && TEAM.practice.includes(dowOf(g.stu.day)) && (g.clock || 0) >= TEAM.from && (g.clock || 0) < TEAM.to;
+    const isGameNight = () => g.stu && dowOf(g.stu.day) === TEAM.gameDow && (g.clock || 0) >= TEAM.gameFrom && (g.clock || 0) < TEAM.gameTo;
+    function teamFolk(gym, kids, person, P) {
+      if (!(isPractice() || isGameNight())) return;
+      person(gym.x0 + (gym.x1 - gym.x0) / 2, gym.y1 - 34, "yt_" + P.coach, { tall: 1.3, coachQ: 1, bang: -Math.PI / 2 });
+      kids.filter((q) => q.grp === 1).slice(0, 6).forEach((q, n) => person(gym.x0 + 40 + n * ((gym.x1 - gym.x0 - 80) / 5), gym.y0 + (gym.y1 - gym.y0) * 0.45, q.yt, { tall: 1.05, kid: q.i, wander: 1 }));
+      if (isGameNight()) kids.filter((q) => q.grp >= 2).slice(0, 16).forEach((q, n) => person(gym.x0 + 14 + (n % 8) * ((gym.x1 - gym.x0 - 28) / 7), gym.y0 + 14 + ((n / 8) | 0) * 16, q.yt, { tall: 0.95, kid: q.i }));
+    }
+    G.coachFn = () => {
+      if (!g.studentMode || !g.inside || !g.inside.school || g.floor !== 0 || g.mode !== "foot") return false;
+      const L = (g.sfolk && g.sfolk.list) || []; const c = L.find((q) => (q.coachQ || /coach/.test(q.yt || "")) && Math.hypot(q.x - g.p.x, q.y - g.p.y) < 60);
+      if (!c) return false; g.coachSaid = null; G.pickOpen("stucoach"); return true;
+    };
+    function coachPanel() {
+      const U = g.stu, opts = [];
+      if (!U.team) opts.push({ id: "stu:join", label: "JOIN VARSITY BASKETBALL" });
+      else { if (isPractice() && U.practiced !== U.day) opts.push({ id: "stu:practice", label: "PRACTICE (+1 SKILL)" });
+        if (isGameNight() && U.played !== U.day) opts.push({ id: "stu:game", label: U.benched === U.day ? "YOU'RE BENCHED TONIGHT" : "TIP-OFF: PLAY THE GAME" }); }
+      opts.push({ id: "close", label: "LATER, COACH" });
+      return { title: "THE COACH \u00b7 VARSITY BASKETBALL", face: null,
+        text: g.coachSaid || (U.team ? "Practice Monday and Wednesday, three o'clock. Games Thursday night, seven. Skill " + (U.hoopSkill || 0) + ". Record " + (U.wins || 0) + "-" + ((U.games || 0) - (U.wins || 0)) + "." : "You want to play? We practice Mondays and Wednesdays at three, games Thursday nights. You show up, you play."), opts };
+    }
+    function teamAct(a) {
+      const U = g.stu;
+      if (a === "join") { U.team = 1; U.lastPractice = U.day; g.coachSaid = "Welcome to the team, " + (U.name || "kid") + ". Don't make me regret it."; return; }
+      if (a === "practice") { U.practiced = U.day; U.lastPractice = U.day; U.hoopSkill = Math.min(10, (U.hoopSkill || 0) + 1); g.clock = Math.min(TEAM.to, (g.clock || 0) + 45); g.coachSaid = "Good work. Skill " + U.hoopSkill + "."; return; }
+      if (a === "game") { if (U.benched === U.day) { g.coachSaid = "You missed practice. You ride the bench tonight."; return; }
+        U.played = U.day; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); openCab({ hoops: 1, foe: 0.08 + Math.min(0.15, (U.games || 0) * 0.02) }); return; }
+    }
+    function stepTeam() { const U = g.stu; if (!U || !U.team) return;
+      // two missed practice days in a row: benched for the next game
+      if (TEAM.practice.includes(dowOf(U.day)) && (g.clock || 0) >= TEAM.to && U.practiceCheck !== U.day) { U.practiceCheck = U.day;
+        if (U.practiced !== U.day) { U.missedP = (U.missedP || 0) + 1; if (U.missedP >= 2) { U.missedP = 0; let d = U.day; while (dowOf(d) !== TEAM.gameDow) d++; U.benched = d; g.jobBanner = "BENCHED"; g.jobNote = "Two practices missed. Coach is sitting you Thursday."; } }
+        else U.missedP = 0; } }
+    // the bullies
+    function stepBullies() {
+      const U = g.stu, blk = bellBlock(g.clock || 0); if (!U || U.bullyDay === U.day || !(blk === "lunch" || blk === "pass") || !g.inside || !g.inside.school || g.pickOpen) return;
+      const L = (g.sfolk && g.sfolk.list) || [];
+      const b = L.find((q) => q.rec && q.rec.trait === "BULLY" && !q.rec.best && kidDisp(q.rec) < 30 && Math.hypot(q.x - g.p.x, q.y - g.p.y) < 90);
+      if (!b || Math.random() > 0.02) return;
+      U.bullyDay = U.day; g.kidTalk = b; b.rec.met = 1; G.pickOpen("stubully");
+    }
+    function bullyPanel() { const q = g.kidTalk; if (!q) return null; const R = q.rec, U = g.stu;
+      return { title: R.name.toUpperCase() + " \u00b7 " + R.clique, face: q.yt ? "assets/school/" + q.yt.replace(/^yt_/, "pt_") + ".png" : null,
+        text: g.kidSaid || "\u201cHey, " + (U.name || "new kid") + ". Lunch money. Now. Don't make me ask twice.\u201d",
+        opts: [{ id: "stu:b:pay", label: "HAND IT OVER ($" + (U.cash || 0) + ")" }, { id: "stu:b:no", label: "SAY NO" }, { id: "stu:k:fight", label: "FIGHT HIM" }, { id: "close", label: "WALK AWAY" }] }; }
+    function bullyAct(a) { const q = g.kidTalk, U = g.stu; if (!q) return;
+      if (a === "pay") { U.cash = 0; U.pop = stuPop() - 2; g.kidSaid = "He pockets it and laughs. People saw. (-2 popularity)"; }
+      if (a === "no") { if ((U.respect || 0) >= 25) { U.respect += 2; g.kidSaid = "\u201c...Whatever.\u201d He walks. (+2 respect)"; } else { U.respect = Math.max(0, (U.respect || 0) - 2); U.pop = stuPop() - 1; g.kidSaid = "He shoves you into the lockers. It's loud. Everybody turns. (-2 respect)"; } } }
     function kestrelRoster() {
       if (g.kestrel) return g.kestrel;
       const K = {}, used = {};
@@ -35274,7 +35435,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       if (conv && conv.width) {
         drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
-        drawYouth({ x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1, tall: 1.0, yt: g.studentMode ? skey : pkey, bang: g.board.ang,
+        drawYouth({ x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1, tall: 1.0, yt: g.studentMode ? skey : pkey, bang: g.p.face != null ? g.p.face : g.board.ang,
                     swing: Math.max(g.p.atk || 0, g.p.punT || 0), swingDur: (g.p.punT || 0) > 0 ? (g.p.punDur || 0.18) : 0.26,
                     move: (g.p.punT || 0) > 0 ? (g.p.punMove || "jab") : "swing" });
         return;
@@ -38601,7 +38762,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        choose which one you meant. */
     /* THE CONSOLE at Malcolm's place: E by the Atari set picks a cartridge. */
     G.homeConsoleFn = () => {
-      const b = g.inside; if (!b || b.homeOf !== "malcolm" || g.mode !== "foot") return false;
+      const b = g.inside; if (!b || (b.homeOf !== "malcolm" && !b.stuHome) || g.mode !== "foot") return false;
       const pl = buildingPlans(b)[g.floor]; if (!pl) return false;
       const q = (pl.props || []).find((o) => o.t === "ap_atari" && Math.hypot(o.x + o.w / 2 - g.p.x, o.y + o.h / 2 - g.p.y) < 60);
       if (!q) return false;
