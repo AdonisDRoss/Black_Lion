@@ -11576,7 +11576,7 @@ export default function IronLionLayer004() {
     if (g.mode === "foot" && G.pipeFn && G.pipeFn()) return;
     if (g.mode === "foot" && !g.inside && G.hangFn && G.hangFn()) return;
     if (g.mode === "foot" && g.inside && G.momFn && G.momFn()) return;
-    if (g.mode === "foot" && g.inside && G.kidFn && G.kidFn()) return;
+    if (g.mode === "foot" && G.kidFn && G.kidFn()) return;
     if (g.mode === "foot" && g.inside && G.stuHomeFn && G.stuHomeFn()) return;
     if (g.mode === "foot" && g.inside && G.stuSitFn && G.stuSitFn()) return;
     if (g.mode === "foot" && g.inside && G.stuClassFn && G.stuClassFn()) return;
@@ -31708,17 +31708,34 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       HISTORY: [["The Declaration of Independence was signed in...", ["1812", "1776", "1865"], 1], ["Chicago's Great Fire was in...", ["1871", "1906", "1929"], 0], ["The first man on the Moon:", ["Glenn", "Armstrong", "Aldrin"], 1], ["The Civil War ended in...", ["1865", "1861", "1877"], 0], ["Who was president during the New Deal?", ["Hoover", "F. D. Roosevelt", "Truman"], 1], ["The Berlin Wall went up in...", ["1961", "1945", "1972"], 0], ["Who gave the 'I Have a Dream' speech?", ["Malcolm X", "Martin Luther King Jr.", "Medgar Evers"], 1], ["The 19th Amendment gave women...", ["the vote", "jury duty", "property rights"], 0], ["Who is president in 1986?", ["Carter", "Reagan", "Bush"], 1], ["The stock market crashed in...", ["1929", "1933", "1919"], 0], ["Pearl Harbor was attacked in...", ["1939", "1941", "1944"], 1], ["The first U.S. president was...", ["Adams", "Jefferson", "Washington"], 2], ["Rosa Parks' bus boycott was in...", ["Montgomery", "Selma", "Birmingham"], 0], ["Watergate brought down...", ["Nixon", "Ford", "Johnson"], 0], ["The Louisiana Purchase was from...", ["Spain", "France", "Britain"], 1]],
       ART: [["Who painted the Mona Lisa?", ["Van Gogh", "Da Vinci", "Picasso"], 1], ["Red + yellow makes...", ["orange", "green", "purple"], 0], ["Warhol painted cans of...", ["beans", "soup", "paint"], 1], ["Who cut off part of his ear?", ["Van Gogh", "Monet", "Dali"], 0], ["The primary colors are...", ["red, yellow, blue", "red, green, blue", "black, white, grey"], 0], ["Who painted melting clocks?", ["Dali", "Magritte", "Miro"], 0], ["Cubism was started by Picasso and...", ["Braque", "Matisse", "Kandinsky"], 0], ["Blue + yellow makes...", ["green", "orange", "brown"], 0], ["Michelangelo painted the ceiling of the...", ["Louvre", "Sistine Chapel", "Parthenon"], 1], ["'The Starry Night' is by...", ["Van Gogh", "Gauguin", "Cezanne"], 0], ["Chicago's 'Picasso' sculpture is in...", ["Daley Plaza", "Grant Park", "Navy Pier"], 0], ["Keith Haring's art started in the...", ["subway", "sewers", "circus"], 0], ["A painting of fruit and objects is a...", ["landscape", "still life", "portrait"], 1], ["Colors opposite on the wheel are...", ["analogous", "complementary", "primary"], 1], ["Basquiat was first known as...", ["SAMO", "BANKSY", "CRASH"], 0]],
     };
+    /* THE NEIGHBOURHOOD (layer 468): his house is in the most residential block within three blocks of
+       Central High -- houses all round, no bars, no businesses -- the biggest house on it. */
+    const isHouse = (b) => /house|home|resid|row/.test(b.kind || "") && !b.biz;
+    const isBizB = (b) => !!b.biz || /bar|tavern|pub|club|liquor|shop|store/.test(b.kind || "");
     function studentHome() {
       if (g.stuHome) return g.stuHome;
       const S = schools(); const sch = S[0]; if (!sch) return null;
-      let best = null, bd = 1e12;
-      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); if (!c) continue;
-        for (const b of (c.blds || [])) { if (!b.door || b.school || b.landmark || b.homeOf || b.pd || b.inPrison || b.hideout || b.mercBar || b.biz) continue;
-          if (!/house|home|apart|walk|tenement|resid|flat|row/.test(b.kind || "")) continue;
-          if (b.w * b.h < 95000) continue;                       // big enough for rooms you can move in
-          const d = Math.hypot(b.x - sch.x, b.y - sch.y); if (d > 500 && d < bd) { bd = d; best = b; } } }
-      if (best) { best.stuHome = 1; best.name = "HOME"; best.floors = 2; best.entry = 0; best.plans = null; clearHomePaths(best); }
+      const si = Math.floor(sch.x / PITCH), sj = Math.floor(sch.y / PITCH);
+      let bestC = null, bs = -1e9;
+      for (let i = si - 3; i <= si + 3; i++) for (let j = sj - 3; j <= sj + 3; j++) { if (i === si && j === sj) continue; const c = getCell(i, j); if (!c) continue;
+        const B = c.blds || [], h = B.filter(isHouse).length; if (h < 3 || B.some(isBizB)) continue;
+        let score = h * 3;
+        for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const n = getCell(i + di, j + dj); if (!n) continue; const NB = n.blds || []; score += NB.filter(isHouse).length - NB.filter(isBizB).length * 4; }
+        score -= Math.hypot(i - si, j - sj);
+        if (score > bs) { bs = score; bestC = c; } }
+      let best = null;
+      if (bestC) for (const b of bestC.blds || []) if (isHouse(b) && b.door && !b.school && !b.landmark && !b.homeOf) { if (!best || b.w * b.h > best.w * best.h) best = b; }
+      if (best) { best.stuHome = 1; best.name = "HOME"; best.floors = 2; best.entry = 0; best.plans = null; clearHomePaths(best); g.stuHomeCell = bestC; }
       return (g.stuHome = best);
+    }
+    // the houses round his: the neighbours (his block and the four next to it)
+    function neighbours() {
+      if (g.neighB) return g.neighB; const H = studentHome(); if (!H) return [];
+      const i = Math.floor((H.x + H.w / 2) / PITCH), j = Math.floor((H.y + H.h / 2) / PITCH), L = [];
+      for (const [di, dj] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) { const c = getCell(i + di, j + dj); if (!c) continue;
+        for (const b of c.blds || []) if (b !== H && isHouse(b) && b.door) L.push(b); }
+      L.sort((a, b) => Math.hypot(a.x - H.x, a.y - H.y) - Math.hypot(b.x - H.x, b.y - H.y));
+      return (g.neighB = L.slice(0, 8));
     }
     /* The house must be walkable: nothing within reach of the front door, the stairs, or any doorway
        between rooms. Anything placed there is taken out after the plans are made. */
@@ -32028,8 +32045,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     // ---- the kids: E on one
     G.kidFn = () => {
-      if (!g.studentMode || !g.inside || !g.inside.school || g.mode !== "foot") return false;
-      const L = (g.sfolk && g.sfolk.list) || []; const q = L.filter((k) => k.kid != null && Math.hypot(k.x - g.p.x, k.y - g.p.y) < 44).sort((a, b) => Math.hypot(a.x - g.p.x, a.y - g.p.y) - Math.hypot(b.x - g.p.x, b.y - g.p.y))[0];
+      if (!g.studentMode || g.mode !== "foot") return false;
+      if (!g.inside && !g.neighFolk) return false; if (g.inside && !g.inside.school) return false;
+      const L = g.inside ? (g.sfolk && g.sfolk.list) || [] : g.neighFolk; const q = L.filter((k) => k.kid != null && Math.hypot(k.x - g.p.x, k.y - g.p.y) < 44).sort((a, b) => Math.hypot(a.x - g.p.x, a.y - g.p.y) - Math.hypot(b.x - g.p.x, b.y - g.p.y))[0];
       if (!q) return false; g.kidTalk = q; g.kidSaid = null; G.pickOpen("stukid"); return true;
     };
     function kidPanel() {
@@ -32204,6 +32222,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c2 = getCell(i, j); if (!c2) continue;
         for (const b of (c2.blds || [])) if (/arcade/.test(b.kind || b.biz || "")) { const d = H ? Math.hypot(b.x - H.x, b.y - H.y) : 0; if (d < bd) { bd = d; best = b; } } }
       if (best) { const d = doorPoint(best); L.push({ id: "arcade", nm: "the arcade", x: d[0], y: d[1] + 40, always: 1 }); }
+      const Wd = findWoods(); if (Wd) L.push({ id: "woods", nm: "the woods", x: Wd.x + Wd.w / 2, y: Wd.y + Wd.h / 2 - 20, always: 1 });
       return (g.hangs = L);
     }
     const hangLive = (S) => { const c = g.clock || 0; return S.night ? c >= 20 * 60 || c < 2 * 60 : (c >= 15 * 60 && c < 24 * 60) || c < 60 || !isSchoolDay(g.stu.day) && c > 11 * 60; };
@@ -32351,7 +32370,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        launch -- the faster, the longer the air. Press HOP in the air for a trick (a no-hander, a
        tabletop, a can-can); land it in front of the kids for popularity (3 a day). Hit a wall too
        fast and you go down. */
-    const DIRT_JUMPS = () => { const S = hangSpots().find((q) => q.id === "skate"); return S ? [0, 1, 2].map((k) => ({ x: S.x + 230 + k * 150, y: S.y + 140 + (k % 2) * 40, w: 70, h: 34 })) : []; };
+    const DIRT_JUMPS = () => { const Wd = findWoods(); if (!Wd) return []; const cx = Wd.x + Wd.w / 2, cy = Wd.y + Wd.h / 2;
+      return [0.3, 2.2, 4.1].map((a) => ({ x: cx + Math.cos(a) * Wd.w * 0.34, y: cy + Math.sin(a) * Wd.h * 0.28, w: 60, h: 30 })); };   // on the woods track
     const TRICKS = ["A NO-HANDER", "A TABLETOP", "A CAN-CAN", "A SUPERMAN", "A TAIL WHIP"];
     function drawDirtJumps(view) {
       if (!g.studentMode || g.inside) return;
@@ -32360,7 +32380,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.fillStyle = "#7a5838"; ctx.beginPath(); ctx.ellipse(R.x, R.y - 3, R.w / 2, R.h / 2, 0, 0, 6.3); ctx.fill();
         ctx.fillStyle = "#93704a"; ctx.beginPath(); ctx.ellipse(R.x, R.y - 6, R.w / 3, R.h / 4, 0, 0, 6.3); ctx.fill();
         ctx.strokeStyle = "rgba(40,28,16,0.5)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(R.x - 14, R.y + 8); ctx.lineTo(R.x + 14, R.y - 10); ctx.stroke(); }
-      const S = hangSpots().find((q) => q.id === "skate"); if (S && !(S.x < view.x0 - 300 || S.x > view.x1 + 300)) { ctx.font = "700 9px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#c9a26a"; ctx.fillText("THE DIRT JUMPS", S.x + 380, S.y + 100); ctx.textAlign = "start"; }
+
     }
     function stepBike(dt) {
       const Bk = g.stu && g.stu.bike; if (!Bk || !Bk.on) return false;
@@ -32379,7 +32399,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (Bk.air <= 0 && Bk.spd > 150) for (const R of DIRT_JUMPS()) if (Math.abs(g.p.x - R.x) < R.w / 2 && Math.abs(g.p.y - R.y) < R.h / 2) {
         Bk.air = Bk.airMax = 0.5 + Bk.spd / 500; Bk.big = 1; Bk.trick = null; g.pickupFlash = { nm: "lift:AIR!", t: 0.8 }; break; }
       if (Bk.air > 0) { Bk.air -= dt;
-        if (Bk.air <= 0 && Bk.big) { Bk.big = 0; const U = g.stu, S = hangSpots().find((q) => q.id === "skate"), crowd = S && hangLive(S) && Math.hypot(g.p.x - S.x, g.p.y - S.y) < 700;
+        if (Bk.air <= 0 && Bk.big) { Bk.big = 0; const U = g.stu, Wd = findWoods(), crowd = Wd && hangLive({ always: 1 }) && Math.hypot(g.p.x - (Wd.x + Wd.w / 2), g.p.y - (Wd.y + Wd.h / 2)) < 500;
           if (Bk.trick) { const ok = Math.random() < 0.75; if (ok && crowd && (U.trickN || 0) < 3 + (U.trickDay !== U.day ? 3 : 0)) { if (U.trickDay !== U.day) { U.trickDay = U.day; U.trickN = 0; } U.trickN++; U.pop = stuPop() + 1; }
             g.pickupFlash = { nm: "lift:" + (ok ? Bk.trick + (crowd ? " \u00b7 THE KIDS GO WILD +1" : "") : "BAILED THE " + Bk.trick.replace(/^A /, "")), t: 1.8 }; if (!ok) Bk.crash = 1.2; }
           Bk.trick = null; } }
@@ -32407,6 +32427,60 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       drawShadow(g.p.x, g.p.y + 4, 12, 5, 0.3);
       ctx.save(); ctx.translate(g.p.x, g.p.y - (s - 1) * 30); ctx.rotate(Bk.ang + Math.PI / 2); ctx.scale(s, s); ctx.drawImage(im, -20, -36, 40, 72); ctx.restore();
       return true;
+    }
+
+    /* NEIGHBOURS: the families in the houses round his. Afternoons and evenings (and all day at the
+       weekend) a kid from Central and a parent are out front of each of the nearest houses -- the kids
+       are real kids from school (talk to them like anyone, E), the parents say hello. THE WOODS: the
+       nearest open ground big enough, a stand of trees round a dirt BMX track with three jumps on it
+       (the dirt jumps live here now). */
+    const PARENT_YT = ["yt_stf_ch_teacher_m1", "yt_stf_ch_teacher_f1", "yt_stf_ch_teacher_m2", "yt_stf_ch_teacher_f2", "yt_stf_ch_janitor", "yt_stf_ch_teacher_f3", "yt_stu_mom"];
+    const neighOut = () => { const c = g.clock || 0; return !isSchoolDay(g.stu.day) ? c > 9 * 60 && c < 20 * 60 : c > 15 * 60 + 30 && c < 20 * 60; };
+    function neighFolk() {
+      const kids = schoolKids("ch"), L = [];
+      neighbours().slice(0, 6).forEach((b, n) => { const d = doorPoint(b), sd = b.door.side, o = sd === 0 ? [0, -1] : sd === 1 ? [1, 0] : sd === 2 ? [0, 1] : [-1, 0];
+        const q = kids[20 + n * 5]; const rec = kidRec("ch", q.i, q.yt);
+        L.push({ x: d[0] + o[0] * 40 + o[1] * 20, y: d[1] + o[1] * 40 + o[0] * 20, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.05, yt: q.yt, kid: q.i, rec, bang: Math.atan2(o[1], o[0]) });
+        L.push({ x: d[0] + o[0] * 18 - o[1] * 22, y: d[1] + o[1] * 18 - o[0] * 22, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt: PARENT_YT[n % PARENT_YT.length], parent: rec.name.split(" ")[1], bang: Math.atan2(o[1], o[0]) }); });
+      return L;
+    }
+    function drawNeighbours(view) {
+      if (!g.studentMode || g.inside || !neighOut()) { g.neighFolk = null; return; }
+      const L = (g.neighFolk = g.neighFolk || neighFolk());
+      for (const q of L) { if (q.x < view.x0 - 60 || q.x > view.x1 + 60 || q.y < view.y0 - 60 || q.y > view.y1 + 60) continue;
+        drawShadow(q.x, q.y + 2, 8, 3, 0.28); drawYouth(q);
+        const nm = q.parent ? (q.yt === "yt_stu_mom" || /_f\\d$/.test(q.yt) ? "MRS. " : "MR. ") + q.parent.toUpperCase() : (q.rec.met ? q.rec.name.split(" ")[0].toUpperCase() : "");
+        if (nm) { ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = q.parent ? "#c9b98a" : kidCol(q.rec); ctx.fillText(nm, q.x, q.y - 28); ctx.textAlign = "start"; } }
+    }
+    function findWoods() {
+      if (g.woods !== undefined) return g.woods; const H = studentHome(); if (!H) return null;
+      const hi = Math.floor((H.x + H.w / 2) / PITCH), hj = Math.floor((H.y + H.h / 2) / PITCH), W = 480, Ht = 330;
+      let best = null, bd = 1e12;
+      const fields = schools().map((b) => schoolField(b)).filter((F) => F && !F.none).map((F) => ({ x: F.ox - 40, y: F.oy - 60, w: F.ow + 80, h: F.oh + 120 }));
+      for (let i = hi - 6; i <= hi + 6; i++) for (let j = hj - 6; j <= hj + 6; j++) { const c = getCell(i, j); if (!c || c.lx0 == null) continue;
+        if (!/hood|park|arden|irish|edge|cemetery/.test(c.zone || zoneOf(i, j))) continue;
+        const B = []; for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const n = getCell(i + di, j + dj); if (n) B.push(...(n.blds || [])); }
+        if ((c.blds || []).some((b) => b.school || b.landmark)) continue;
+        B.push(...fields);
+        for (let x = c.lx0 + 20; x + W < c.lx1 - 20; x += 60) for (let y = c.ly0 + 20; y + Ht < c.ly1 - 20; y += 60) {
+          if (B.some((b) => x < b.x + b.w + 20 && x + W > b.x - 20 && y < b.y + b.h + 20 && y + Ht > b.y - 20)) continue;
+          const d = Math.hypot(x - H.x, y - H.y); if (d < bd) { bd = d; best = { x, y, w: W, h: Ht }; } } }
+      return (g.woods = best);
+    }
+    function drawWoods(view) {
+      if (!g.studentMode || g.inside) return; const Wd = findWoods(); if (!Wd) return;
+      if (Wd.x > view.x1 + 100 || Wd.x + Wd.w < view.x0 - 100 || Wd.y > view.y1 + 100 || Wd.y + Wd.h < view.y0 - 100) return;
+      const cx = Wd.x + Wd.w / 2, cy = Wd.y + Wd.h / 2;
+      ctx.fillStyle = "#2f4a26"; ctx.fillRect(Wd.x, Wd.y, Wd.w, Wd.h);                                    // the undergrowth
+      ctx.strokeStyle = "#7a5838"; ctx.lineWidth = 44; ctx.beginPath(); ctx.ellipse(cx, cy, Wd.w * 0.34, Wd.h * 0.28, 0, 0, 6.3); ctx.stroke();   // the dirt track
+      ctx.strokeStyle = "rgba(60,40,22,0.6)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(cx, cy, Wd.w * 0.34, Wd.h * 0.28, 0, 0, 6.3); ctx.stroke();
+      let h = 7; const rnd = () => ((h = Math.imul(h ^ (h >>> 13), 1274126177) + 97) >>> 0) / 4294967296;
+      for (let k = 0; k < 46; k++) { const a = rnd() * 6.28, r = 0.44 + rnd() * 0.08, x = cx + Math.cos(a) * Wd.w * r, y = cy + Math.sin(a) * Wd.h * r, s2 = 18 + rnd() * 16;   // trees round the edge
+        ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.beginPath(); ctx.arc(x + 5, y + 6, s2, 0, 6.3); ctx.fill();
+        ctx.fillStyle = rnd() < 0.5 ? "#1f3a1c" : "#2a4d22"; ctx.beginPath(); ctx.arc(x, y, s2, 0, 6.3); ctx.fill();
+        ctx.fillStyle = "rgba(120,170,90,0.18)"; ctx.beginPath(); ctx.arc(x - s2 * 0.3, y - s2 * 0.3, s2 * 0.5, 0, 6.3); ctx.fill(); }
+      for (let k = 0; k < 8; k++) { const x = cx + (rnd() - 0.5) * Wd.w * 0.3, y = cy + (rnd() - 0.5) * Wd.h * 0.25, s2 = 14 + rnd() * 10; ctx.fillStyle = "#24431f"; ctx.beginPath(); ctx.arc(x, y, s2, 0, 6.3); ctx.fill(); }  // a few in the middle
+      ctx.font = "700 10px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#c9a26a"; ctx.fillText("THE WOODS \\u00b7 BMX TRACK", cx, Wd.y - 8); ctx.textAlign = "start";
     }
     function kestrelRoster() {
       if (g.kestrel) return g.kestrel;
@@ -37418,7 +37492,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return;
       }
       drawGround(view);
-      if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawDirtJumps(view); drawStudentWorld(view); }
+      if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawWoods(view); drawDirtJumps(view); drawStudentWorld(view); }
       if (!g.inside) drawMarkGround(view);
       if (!g.inside) drawCasings(view);
       if (!g.inside) { drawLake(view); drawRiver(view); }   // over the ground, under everything that floats on it
@@ -37669,7 +37743,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       drawUnitNumbers(view);
       drawCoroner();
       drawTrailEvidence(view);
-      if (!g.inside) { drawOldTownProps(view); drawAlleys(view); drawSchoolsOutside(view); drawBestFriend(); drawHangouts(view); drawBikes(view); drawTrackRunners(view); drawBusRoute(); drawLights(view); drawBustMarks(view); }
+      if (!g.inside) { drawOldTownProps(view); drawAlleys(view); drawSchoolsOutside(view); drawBestFriend(); drawHangouts(view); drawNeighbours(view); drawBikes(view); drawTrackRunners(view); drawBusRoute(); drawLights(view); drawBustMarks(view); }
       if (g.inside) drawCasings(view);
       drawBackup(view);
       drawRoofHatch();
@@ -43783,6 +43857,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       W2.G = G; W2.mus = () => MUS && MUS.cur;                                       // the test harness reads the live state through this
       W2.hide = () => { const gg = G.current; const H = gg.hideout; if (!H) return null; gg.inside = H; gg.floor = 1; gg.insideT = 1; gg.mode = "foot"; const pl = buildingPlans(H)[1]; const r = pl.rooms[0]; gg.p.x = (r.x0 + r.x1) / 2; gg.p.y = (r.y0 + r.y1) / 2 - 40; gg.cam.x = gg.p.x; gg.cam.y = gg.p.y; return [H.name, H.kind, pl.rooms.map((q) => q.k), pl.props.map((q) => q.t).join(",")]; };
       W2.stair = () => { const gg = G.current; const pl = buildingPlans(gg.inside)[gg.floor]; return pl.stair && [pl.stair.x | 0, pl.stair.y | 0, pl.rooms.filter((r) => r.k === "corridor").map((r) => [r.x0 | 0, r.y0 | 0, r.x1 | 0, r.y1 | 0])]; };
+      W2.woodsReset = () => { G.current.woods = undefined; };
+      W2.kinds = (cx, cy, r) => { const out = {}; for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); if (!c) continue; for (const b of (c.blds || [])) { if (Math.hypot(b.x - cx, b.y - cy) > r) continue; const k = (b.kind || "?") + (b.biz ? "/biz" : ""); out[k] = (out[k] || 0) + 1; } } return out; };
+      W2.cellHouses = () => { const res = []; for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); if (!c) continue; const B = c.blds || []; const h = B.filter((b) => /house|home|resid|row/.test(b.kind || "") && !b.biz).length, biz = B.filter((b) => b.biz || /bar|tavern|pub|club|liquor/.test(b.kind || "")).length; if (h >= 3) res.push([i, j, h, biz, zoneOf(i, j)]); } return res; };
       W2.props = () => { const gg = G.current; return buildingPlans(gg.inside)[gg.floor].props.map((o) => o.t); };
       W2.goto = (t) => { const gg = G.current, o = buildingPlans(gg.inside)[gg.floor].props.find((q) => q.t === t); if (!o) return null; gg.p.x = o.x + o.w / 2; gg.p.y = o.y + o.h + 14; return [o.x, o.y, o.w, o.h]; };
       W2.rooms = () => { const gg = G.current; const pl = buildingPlans(gg.inside)[gg.floor]; return pl.rooms.map((r) => [r.k, r.gy0, r.gy1, Math.round(r.y0), Math.round(r.y1)]); };
