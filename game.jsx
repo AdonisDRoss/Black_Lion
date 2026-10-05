@@ -3643,7 +3643,7 @@ const OVERHEAD_ICON = { pistol_auto: "wi_beretta", beretta: "wi_beretta", revolv
 const ALLEY_KEYS = ["al_can", "al_can_open", "al_dumpster", "al_dumpster_open", "al_bag_a", "al_bag_b", "al_bag_c", "al_garbage_truck", "al_pigeon_a",
   "al_pigeon_b", "al_pigeon_c", "al_pigeon_d", "al_pigeon_fly_a", "al_pigeon_fly_b", "al_gate", "al_fire_escape", "al_pallets"];
 for (const k of ALLEY_KEYS) PD_ART[k] = "assets/alley/" + k + ".png";
-const SCHOOL_KIT2 = ["sch_bus2", "sch_hoop_up", "sch_court_v", "sch_chalkboard", "sch_teacherdesk", "sch_teacherdesk_b", "sch_studentdesk", "sch_flag", "sch_clock", "sch_bookstack_a", "sch_bookstack_b",
+const SCHOOL_KIT2 = ["sch_hoop_side_w", "sch_bus2", "sch_hoop_up", "sch_court_v", "sch_chalkboard", "sch_teacherdesk", "sch_teacherdesk_b", "sch_studentdesk", "sch_flag", "sch_clock", "sch_bookstack_a", "sch_bookstack_b",
   "sch_bookcase", "sch_bookcase_b", "sch_bin", "sch_bin_b", "sch_worldmap", "sch_cafe_table", "sch_servingline", "sch_tray", "sch_tray_full", "sch_milk", "sch_cup",
   "sch_libshelf", "sch_readtable", "sch_circdesk", "sch_catalogue", "sch_catalogue_b", "sch_bookcart", "sch_couch", "sch_principal_desk", "sch_officedesk",
   "sch_coffee", "sch_mailboxes", "sch_filing", "sch_cot", "sch_eyechart", "sch_court", "sch_hoop", "sch_hoop_side", "sch_hoop_b", "sch_mats", "sch_mats_folded",
@@ -3666,6 +3666,9 @@ const YT_SCALE = { yt_stu_ch_17: 0.8 };
 for (const sc of ["ch", "sa"]) for (let n = 1; n <= STU_N[sc]; n++) { const k = "stu_" + sc + "_" + n; PD_ART["yt_" + k] = "assets/school/yt_" + k + ".png"; PD_ART["pt_" + k] = "assets/school/pt_" + k + ".png"; }
 for (const k of ["stu_mom", "stu_bestfriend"]) { PD_ART["yt_" + k] = "assets/school/yt_" + k + ".png"; PD_ART["pt_" + k] = "assets/school/pt_" + k + ".png"; }   // stu_bestfriend art in -- hip-cut plate + portrait, drop the two PNGs in assets/school/
 PD_ART.car_stu_mom = "assets/cars/car_stu_mom.png";
+for (let n = 1; n <= 6; n++) { PD_ART["yt_opp_" + n] = "assets/school/yt_opp_" + n + ".png"; PD_ART["yt_cheer_opp_" + n] = "assets/school/yt_cheer_opp_" + n + ".png"; }
+for (let n = 1; n <= 8; n++) PD_ART["yt_cheer_sa_" + n] = "assets/school/yt_cheer_sa_" + n + ".png";   // St. Aldric's cheer squad (layer 476)
+for (const k of ["stu_player_team", "stu_bestfriend_team"]) PD_ART["yt_" + k] = "assets/school/yt_" + k + ".png";   // the player and Devon in the grey team uniform -- art to come   // the GREY opposing team (tinted per school) -- art to come
 for (const sx of ["m", "f"]) for (let n = 1; n <= 6; n++) PD_ART["yt_parent_" + sx + n] = "assets/school/yt_parent_" + sx + n + ".png";   // the neighbours' parents (layer 469)
 for (const k of ["bike_player", "bike_player_ride", "bike_player_down"].concat([1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => "bike_v" + n))) PD_ART[k] = "assets/bikes/" + k + ".png";
 for (const k of ["stu_player_ch", "stu_player_sa", "stu_player_sa2"]) { PD_ART["yt_" + k] = "assets/school/yt_" + k + ".png"; PD_ART["pt_" + k] = "assets/school/pt_" + k + ".png"; }
@@ -7091,8 +7094,9 @@ function makeFloor(b, f, rnd) {
     // Malcolm's building: the stairs at the TOP of the corridor between the two suites, on every floor
     ? { x: b.x + (Math.max(3, Math.floor(GX / 2)) + 0.5) * (b.w / GX) - 32, y: b.y + WT + 12, w: 64, h: 38 }
     : (kind === "school_g" || kind === "school_c")
-    // the schools: the stairs in the TOP-LEFT corner of the building (the back of the gym / of room 1), both floors
-    ? { x: b.x + WT + 10, y: b.y + WT + 10, w: 64, h: 38 }
+    // the schools: the stairs at the WEST END OF THE HALL, both floors (the hall is rows r1..r2 of the plan)
+    ? (() => { const r1 = Math.max(2, Math.round(GY * 0.42)), r2 = Math.min(GY - 2, r1 + Math.max(1, Math.round(GY * 0.14)));
+        return { x: b.x + WT + 10, y: b.y + ((r1 + r2) / 2) * (b.h / GY) - 19, w: 64, h: 38 }; })()
     : (kind === "stuhome" || kind === "stuupper")
     // the student's house: the stairs in the lower-left, just right of the downstairs bathroom -- the same spot on both floors
     ? { x: b.x + b.w * 0.30 + WT + 8, y: b.y + b.h - WT - 50, w: 64, h: 38 }
@@ -8007,7 +8011,7 @@ function makeFloor(b, f, rnd) {
       case "schgym":
         P(q2.x0 + 10, q2.y0 + 10, W2 - 20, H2 - 20, H2 > W2 ? "sch_court_v" : "sch_court");    // the painted court, the whole floor, turned to the room
         if (H2 > W2) { P(cx - 22, q2.y0 + 12, 44, 34, "sch_hoop"); P(cx - 22, q2.y1 - 46, 44, 34, "sch_hoop_up"); }  // north-south, facing in
-        else { P(q2.x0 + 12, cy - 22, 30, 44, "sch_hoop_side"); P(q2.x1 - 42, cy - 22, 30, 44, "sch_hoop_side"); }
+        else { P(q2.x0 + 12, cy - 22, 30, 44, "sch_hoop_side"); P(q2.x1 - 42, cy - 22, 30, 44, "sch_hoop_side_w"); }   // facing each other, inward
         P(q2.x0 + 14, q2.y1 - 40, 70, 34, "sch_mats"); P(q2.x1 - 50, q2.y1 - 46, 40, 40, "sch_vault");
         break;
       case "schcafe": {
@@ -11575,6 +11579,8 @@ export default function IronLionLayer004() {
     if (g.mode === "foot" && g.inside && g.inside.inPrison && G.cardsFn && G.cardsFn()) return;
     if (g.mode === "foot" && g.inside && g.inside.inPrison && G.stashFn && G.stashFn()) return;
     if (!g.inside && G.busRouteFn && G.busRouteFn()) return;
+    if (G.repairFn && G.repairFn()) return;
+    if (!g.inside && g.mode === "foot" && G.dealerFn && G.dealerFn()) return;
     if (!g.inside && G.bikeFn && G.bikeFn()) return;
     if (g.mode === "foot" && !g.inside && G.busFn && G.busFn()) return;
     if (g.mode === "foot" && G.pipeFn && G.pipeFn()) return;
@@ -11593,7 +11599,7 @@ export default function IronLionLayer004() {
     if (g.mode === "foot" && g.pescaped && !g.inside) { const f = (g.pfol || []).find((q) => q.crew && Math.hypot(q.x - g.p.x, q.y - g.p.y) < 50);
       if (f) { g.crewMate = f.crew; G.pickOpen("crew"); return; } }
     if (g.mode === "foot" && g.inside && G.swapFn && G.swapFn()) return;
-    if (g.mode === "foot" && g.inside) {
+    if (g.mode === "foot" && g.inside && !(g.inside.school || g.inside.stuHome)) {   // (a car parked outside is not something you reach through a school wall)
       if (mountNearest()) return;
     }
     if (g.mode === "foot" && G.coldEFn && G.coldEFn()) return;
@@ -15865,6 +15871,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "stumom") return momPanel();
       if (kind === "stukid") return kidPanel();
       if (kind === "stuhang") return hangPanel();
+      if (kind === "dealer") return dealerPanel();
+      if (kind === "repair") return repairPanel();
       if (kind === "stucoach") return coachPanel();
       if (kind === "stubully") return bullyPanel();
       if (kind === "stutest") return testPanel();
@@ -15983,6 +15991,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       else if (id.startsWith("console:")) { G.consolePick(id.slice(8)); return; }
       else if (id === "esc:go") { G.escapeGo(); return; }
+      else if (id === "deal:buy") { dealerBuy(); G.pickOpen("dealer"); return; }
+      else if (id.startsWith("rep:")) { const [, a, n] = id.split(":"); repairAct(a, n); G.pickOpen("repair"); return; }
       else if (id.startsWith("stu:")) { G.stuPick(id); if (g.pickOpen) G.pickOpen(g.pickOpen); return; }
       else if (id.startsWith("sleep:")) { G.sleepPick(id.slice(6)); return; }
       else if (id === "bunkstash") { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); G.stashFn && G.stashFn(); return; }
@@ -22412,7 +22422,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const CAB_W = 200, CAB_H = 160;
     function openCab(which) {
       const g2 = G.current;
-      if (which && which.hoops) { g2.cab = hoopsNew(which.foe); g2.paused = true; return; }
+      if (which && which.hoops) { g2.cab = hoopsNew(which.foe); g2.cab.opp = which.opp || null; g2.paused = true; return; }
+      if (which && which.dodge) { g2.cab = dodgeNew(); g2.paused = true; return; }
       if (which && which.pool) {
         const F = which.pool;
         g2.cab = { g: "pool", t: 0, over: 0, score: 0, pts: [0, 0], balls: poolRack(), turn: 0, aim: 0, pow: 0, foe: F, stake: which.stake, msg: "YOUR BREAK" };
@@ -22536,6 +22547,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           else if (c.g === "pong") { c.pts = [0, 0]; c.score = 0; }
           else if (c.g === "pool") { closeCab(); return; }
           else if (c.g === "hoops") { closeCab(); return; }
+          else if (c.g === "dodge") { closeCab(); return; }
           else { c.me.hp = 3; c.foe.hp = 3; c.shell = null; c.turn = 0; }
         }
         return;
@@ -22545,6 +22557,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (c.g === "pong") stepPong(c, dt, iy);
       else if (c.g === "pool") stepPool(c, dt, ix, iy, fire);
       else if (c.g === "hoops") stepHoops(c, dt, ix, iy, fire);
+      else if (c.g === "dodge") stepDodge(c, dt, ix, iy, fire);
       else stepFront(c, dt, ix, iy, edge);
     }
     /* ---------- PTAB AT THE RUSTY NAIL (layer 444) ----------
@@ -22706,16 +22719,94 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.fillStyle = "#c8873e"; ctx.fillRect(HPC.x0, HPC.y0, HPC.x1 - HPC.x0, HPC.y1 - HPC.y0);
       ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 1; ctx.strokeRect(HPC.x0, HPC.y0, HPC.x1 - HPC.x0, HPC.y1 - HPC.y0);
       ctx.beginPath(); ctx.moveTo(100, HPC.y0); ctx.lineTo(100, HPC.y1); ctx.stroke(); ctx.beginPath(); ctx.arc(100, 78, 10, 0, 6.3); ctx.stroke();
-      for (const [rx, ry, sgn] of [[HPC.rimL[0], HPC.rimL[1], 1], [HPC.rimR[0], HPC.rimR[1], -1]]) { ctx.beginPath(); ctx.arc(rx, ry, HPC.arc, sgn > 0 ? -1.2 : Math.PI - 1.94, sgn > 0 ? 1.2 : Math.PI + 1.94); ctx.stroke();
+      for (const [rx, ry, sgn] of [[HPC.rimL[0], HPC.rimL[1], 1], [HPC.rimR[0], HPC.rimR[1], -1]]) { ctx.beginPath(); ctx.arc(rx, ry, HPC.arc, sgn > 0 ? -1.2 : Math.PI - 1.2, sgn > 0 ? 1.2 : Math.PI + 1.2); ctx.stroke();
         ctx.strokeStyle = "#ff6a2a"; ctx.beginPath(); ctx.arc(rx, ry, 3, 0, 6.3); ctx.stroke(); ctx.strokeStyle = "rgba(255,255,255,0.8)"; }
-      c.P.forEach((p, n) => { ctx.fillStyle = p.t === 0 ? "#7a1a1a" : "#1a2a7a"; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, 6.3); ctx.fill();
+      const ourCol = g.stu && g.stu.school === "aldric" ? "#1a2a6a" : "#7a1a1a", theirCol = c.opp ? c.opp[1] : "#1a2a7a";
+      const has = (k) => imgs.current[k] && imgs.current[k].width;
+      c.P.forEach((p, n) => { const ok = has("yt_opp_1"); let key = ok ? "yt_opp_" + (1 + ((n + (c.opp ? c.opp[0].length : 0)) % 6)) : "yt_stu_ch_" + (29 + (n % 3));
+        if (n === 0 && has("yt_stu_player_team")) key = "yt_stu_player_team"; else if (n === 1 && has("yt_stu_bestfriend_team")) key = "yt_stu_bestfriend_team";   // you and Devon, when drawn
+        const tp = tintPlate(key, p.t === 0 ? ourCol : theirCol);
+        if (tp) { const h = 13, w = h * tp.width / tp.height; ctx.drawImage(tp, p.x - w / 2, p.y - h / 2, w, h); }
+        else { ctx.fillStyle = p.t === 0 ? ourCol : theirCol; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, 6.3); ctx.fill(); }
         if (n === c.ctl) { ctx.strokeStyle = "#ffe08a"; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 6.3); ctx.stroke(); } });
       const B = c.ball; let bx, by; if (B.h >= 0) { bx = c.P[B.h].x + 3; by = c.P[B.h].y - 3; } else { bx = B.x; by = B.y - (B.h === -1 ? Math.sin(Math.min(1, B.f) * Math.PI) * 14 : 0); }
       ctx.fillStyle = "#ff8a2a"; ctx.beginPath(); ctx.arc(bx, by, 2.4, 0, 6.3); ctx.fill();
       if (c.hold > 0.22) { const pw = Math.min(1, (c.hold - 0.22) / 0.8); ctx.fillStyle = "#333"; ctx.fillRect(HPC.x0, HPC.y1 + 6, 60, 4); ctx.fillStyle = Math.abs(pw - 0.6) < 0.12 ? "#7fe07a" : "#e8c46a"; ctx.fillRect(HPC.x0, HPC.y1 + 6, 60 * pw, 4); }
       ctx.fillStyle = "#e8e0c8"; ctx.font = "bold 9px monospace";
-      ctx.fillText("US " + c.sc[0] + "  THEM " + c.sc[1], HPC.x0, 20); ctx.fillText("Q" + c.q + "  " + Math.max(0, Math.ceil(c.clock)) + "s", HPC.x1 - 52, 20);
+      ctx.fillText("US " + c.sc[0] + "  " + (c.opp ? c.opp[0].split(" ")[0] : "THEM") + " " + c.sc[1], HPC.x0, 20); ctx.fillText("Q" + c.q + "  " + Math.max(0, Math.ceil(c.clock)) + "s", HPC.x1 - 52, 20);
       ctx.fillText(c.msg || "", HPC.x0, HPC.y1 + 22);
+    }
+    /* ---------- DODGEBALL (layer 473): gym class, Space Invaders-style ----------
+       Their side across the top: two rows of kids drifting side to side, throwing down at you.
+       Your side along the bottom: you (stick left/right, FIRE throws straight up) and five
+       teammates who throw on their own. A kid who's hit is OUT and walks to the sideline (they
+       stand along the edge). A side with nobody left loses the round; best of three. */
+    const DB = { x0: 10, x1: 190, top: 34, bot: 132, ballV: 120 };
+    function dodgeNew() { const c = { g: "dodge", t: 0, over: 0, score: 0, round: 1, won: [0, 0], msg: "ROUND 1", pause: 1.4, cd: 0, balls: [] }; dodgeRound(c); return c; }
+    function dodgeRound(c) {
+      c.them = []; for (let r = 0; r < 2; r++) for (let k = 0; k < 6; k++) c.them.push({ x: 40 + k * 24 + r * 12, y: DB.top + r * 16, out: 0, side: 0 });
+      c.us = []; for (let k = 0; k < 6; k++) c.us.push({ x: 30 + k * 28, y: DB.bot, out: 0, me: k === 2, side: 0 });
+      c.dir = 1; c.balls = []; c.pause = 1.2;
+    }
+    function stepDodge(c, dt, ix, iy, fire) {
+      if (c.done) return; if (c.pause > 0) { c.pause -= dt; return; }
+      const me = c.us.find((q) => q.me && !q.out) || c.us.find((q) => !q.out);
+      if (me) { me.me = true; me.x = clamp(me.x + ix * 90 * dt, DB.x0 + 4, DB.x1 - 4); }
+      c.cd -= dt;
+      if (me && fire && c.cd <= 0) { c.cd = 0.45; c.balls.push({ x: me.x, y: me.y - 6, v: -DB.ballV, us: 1 }); }
+      // their side drifts, bouncing at the walls
+      const alive = c.them.filter((q) => !q.out); let edge = false;
+      for (const q of alive) { q.x += c.dir * 22 * dt; if (q.x < DB.x0 + 6 || q.x > DB.x1 - 6) edge = true; }
+      if (edge) c.dir *= -1;
+      // throws: theirs at random, your teammates now and then
+      for (const q of alive) if (Math.random() < dt * 0.22) c.balls.push({ x: q.x, y: q.y + 6, v: DB.ballV * 0.8, us: 0 });
+      for (const q of c.us) if (!q.out && !q.me && Math.random() < dt * 0.15) c.balls.push({ x: q.x, y: q.y - 6, v: -DB.ballV, us: 1 });
+      // the balls
+      for (const b of c.balls) { b.y += b.v * dt;
+        const tgt = b.us ? c.them : c.us;
+        for (const q of tgt) if (!q.out && Math.abs(q.x - b.x) < 5 && Math.abs(q.y - b.y) < 6) { q.out = 1; b.dead = 1;
+          // out: walk to the sideline (their outs line the right wall, ours the left)
+          const n = tgt.filter((z) => z.out).length; q.sx = b.us ? DB.x1 + 4 : DB.x0 - 4; q.sy = (b.us ? DB.top : DB.bot - 60) + n * 9; break; }
+        if (b.y < DB.top - 12 || b.y > DB.bot + 12) b.dead = 1; }
+      c.balls = c.balls.filter((b) => !b.dead);
+      for (const q of c.them.concat(c.us)) if (q.out && q.sx != null) { q.x += (q.sx - q.x) * Math.min(1, dt * 3); q.y += (q.sy - q.y) * Math.min(1, dt * 3); }
+      const themLeft = c.them.filter((q) => !q.out).length, usLeft = c.us.filter((q) => !q.out).length;
+      if (!themLeft || !usLeft) { const w = themLeft ? 1 : 0; c.won[w]++; c.msg = w ? "THEY TAKE ROUND " + c.round : "YOU TAKE ROUND " + c.round;
+        if (c.won[0] === 2 || c.won[1] === 2) { c.done = 1; c.over = 3; const youWin = c.won[0] === 2, U = g.stu;
+          c.msg = youWin ? "YOU WIN THE GAME " + c.won[0] + "-" + c.won[1] : "THEY WIN " + c.won[1] + "-" + c.won[0];
+          if (U) { if (youWin) { U.pop = stuPop() + 2; U.respect = (U.respect || 0) + 3; } } return; }
+        c.round++; dodgeRound(c); c.msg += " \u00b7 ROUND " + c.round; }
+    }
+    function drawDodge(c) {
+      ctx.fillStyle = "#c8873e"; ctx.fillRect(DB.x0, DB.top - 10, DB.x1 - DB.x0, DB.bot - DB.top + 20);
+      ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = 1; ctx.strokeRect(DB.x0, DB.top - 10, DB.x1 - DB.x0, DB.bot - DB.top + 20);
+      ctx.beginPath(); ctx.moveTo(DB.x0, (DB.top + DB.bot) / 2); ctx.lineTo(DB.x1, (DB.top + DB.bot) / 2); ctx.stroke();
+      const man = (q, col) => { ctx.fillStyle = q.out ? "rgba(120,120,120,0.8)" : col; ctx.beginPath(); ctx.arc(q.x, q.y, 3.6, 0, 6.3); ctx.fill();
+        ctx.fillStyle = q.out ? "#888" : "#e8c8a0"; ctx.beginPath(); ctx.arc(q.x, q.y - 2.5, 1.8, 0, 6.3); ctx.fill(); };
+      for (const q of c.them) man(q, "#1a2a7a");
+      for (const q of c.us) { man(q, "#7a1a1a"); if (q.me && !q.out) { ctx.strokeStyle = "#ffe08a"; ctx.beginPath(); ctx.arc(q.x, q.y, 6, 0, 6.3); ctx.stroke(); } }
+      for (const b of c.balls) { ctx.fillStyle = "#d0302a"; ctx.beginPath(); ctx.arc(b.x, b.y, 2.2, 0, 6.3); ctx.fill(); }
+      ctx.fillStyle = "#e8e0c8"; ctx.font = "bold 9px monospace";
+      ctx.fillText("ROUNDS  YOU " + c.won[0] + " - " + c.won[1] + " THEM", DB.x0, 18); ctx.fillText(c.msg || "", DB.x0, DB.bot + 24);
+    }
+    /* OPPONENT SCHOOLS for the basketball team: a different school every game night, in its colours.
+       Their players are drawn from a grey plate tinted to the school (tintPlate) -- the grey team
+       sheet when it comes (yt_opp_1..6), a jock plate until then. */
+    const OPP_SCHOOLS = [["LINCOLN PARK", "#2a5a2a"], ["ST. BRENDAN'S", "#2a3a8a"], ["CALUMET TECH", "#8a5a1a"], ["NORTH SHORE PREP", "#4a1a6a"],
+      ["SOUTH HOOK HIGH", "#8a1a1a"], ["BRIDGEPORT", "#1a6a6a"], ["WESTSIDE VOCATIONAL", "#5a5a5a"], ["HOLY NAME", "#c8a020"], ["GARFIELD", "#a03a6a"], ["LAKEVIEW", "#2a7ac8"]];
+    const tintCache = {};
+    function tintPlate(key, col) {
+      const id = key + col; if (tintCache[id]) return tintCache[id]; const im = imgs.current[key]; if (!im || !im.width) return null;
+      const cv = document.createElement("canvas"); cv.width = im.width; cv.height = im.height; const x = cv.getContext("2d");
+      x.drawImage(im, 0, 0);
+      // paint only the UNIFORM: the grey pixels (no colour, not dark) take the school's colour, shaded by their own
+      // lightness; skin, hair and the outline stay as drawn
+      try { const D = x.getImageData(0, 0, cv.width, cv.height), d = D.data, cr = parseInt(col.slice(1, 3), 16), cg = parseInt(col.slice(3, 5), 16), cb = parseInt(col.slice(5, 7), 16);
+        for (let k = 0; k < d.length; k += 4) { if (d[k + 3] < 20) continue; const r = d[k], gg = d[k + 1], b2 = d[k + 2], mx = Math.max(r, gg, b2), mn = Math.min(r, gg, b2);
+          if (mx - mn < 22 && mx > 70) { const L = mx / 255 * 1.35; d[k] = Math.min(255, cr * L); d[k + 1] = Math.min(255, cg * L); d[k + 2] = Math.min(255, cb * L); } }
+        x.putImageData(D, 0, 0);
+      } catch (e) { x.globalCompositeOperation = "multiply"; x.fillStyle = col; x.fillRect(0, 0, cv.width, cv.height); x.globalCompositeOperation = "destination-in"; x.drawImage(im, 0, 0); }
+      return (tintCache[id] = cv);
     }
     /* RALLY '86 -- the console's own game. Stick up and down moves your paddle; first to seven. */
     function stepPong(c, dt, iy) {
@@ -22894,6 +22985,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         drawPool(c);
       } else if (c.g === "hoops") {
         drawHoops(c);
+      } else if (c.g === "dodge") {
+        drawDodge(c);
       } else if (c.g === "pong") {
         ctx.fillStyle = "#2a3a30"; for (let y = 4; y < CAB_H; y += 10) ctx.fillRect(CAB_W / 2 - 1, y, 2, 5);
         ctx.fillStyle = "#d8e8d0";
@@ -22952,7 +23045,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.strokeRect(1, 1, CAB_W - 2, CAB_H - 2);
       ctx.fillStyle = "#c8b070"; ctx.font = "bold 11px monospace";
       const title = c.g === "curtain" ? "THE IRON CURTAIN"
-                  : c.g === "brawl" ? "HOOK CITY BRAWLER" : c.g === "pong" ? "RALLY '86" : c.g === "pool" ? "POOL \u00b7 THE RUSTY NAIL" : c.g === "hoops" ? "VARSITY BASKETBALL" : "THE FRONT";
+                  : c.g === "brawl" ? "HOOK CITY BRAWLER" : c.g === "pong" ? "RALLY '86" : c.g === "pool" ? "POOL \u00b7 THE RUSTY NAIL" : c.g === "hoops" ? "VARSITY BASKETBALL" + (c.opp ? " VS " + c.opp[0] : "") : c.g === "dodge" ? "GYM \u00b7 DODGEBALL" : "THE FRONT";
       ctx.fillText(title, CAB_W / 2 - title.length * 3.3, -8);
       ctx.fillStyle = "#7a7a70"; ctx.font = "8px monospace";
       const help = c.g === "curtain" ? "STICK MOVE  ·  FIRE SHOOT  ·  E QUIT"
@@ -22960,6 +23053,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                  : c.g === "pong" ? "STICK UP/DOWN  ·  FIRST TO 7  ·  E QUIT"
                  : c.g === "pool" ? "STICK AIM  ·  HOLD FIRE, LET GO TO SHOOT  ·  E QUIT (FORFEIT)"
                  : c.g === "hoops" ? "STICK MOVE  ·  TAP FIRE PASS  ·  HOLD & RELEASE SHOOT  ·  RUN INTO THEM TO STEAL"
+                 : c.g === "dodge" ? "STICK LEFT/RIGHT  ·  FIRE THROWS  ·  BEST OF THREE ROUNDS"
                  : "STICK AIM/POWER  ·  FIRE SHOOT  ·  E QUIT";
       ctx.fillText(help, CAB_W / 2 - help.length * 2.2, CAB_H + 16);
       ctx.restore();
@@ -31746,7 +31840,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (q.wt <= 0) { q.wt = 2 + Math.random() * 4; const a = Math.random() * 6.28, r = 20 + Math.random() * 60; q.wx = q.hx + Math.cos(a) * r; q.wy = q.hy + Math.sin(a) * r; }
           if (q.wx !== undefined && !introStep(q, q.wx, q.wy, dt, 40)) { collideCrew(q); q.bang = Math.atan2(q.vy, q.vx); } }
         if (q.down > 0) { q.down -= dt; ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(1.5); ctx.translate(-q.x, -q.y); drawYouth(q); ctx.restore(); continue; }
-        drawShadow(q.x, q.y + 2, 8, 3, 0.28); drawYouth(q);
+        drawShadow(q.x, q.y + 2, 8, 3, 0.28);
+        if (q.tint) { const tp = tintPlate(q.yt, q.tint); if (tp) { const h = 30 * 0.82 * (q.tall || 1), w = h * tp.width / tp.height; ctx.save(); ctx.translate(q.x, q.y); ctx.rotate((q.bang || 0) + Math.PI / 2); ctx.drawImage(tp, -w / 2, -h / 2, w, h); ctx.restore(); continue; } }
+        drawYouth(q);
       }
     }
     /* THE TRACK AND FIELD, outside each school in the biggest open side of its lot: the oval track
@@ -32408,7 +32504,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const atTrack = () => { const b = stuSchoolB(), F = b && schoolField(b); return F && !F.none && !g.inside && g.p.x > F.ox - 20 && g.p.x < F.ox + F.ow + 20 && g.p.y > F.oy - 20 && g.p.y < F.oy + F.oh + 20; };
     function gymPlay() { const U = g.stu, act = gymToday(); if (U.gymPlayed === U.day) { g.pickupFlash = { nm: "lift:THE COACH: 'YOU'VE HAD YOUR TURN.'", t: 1.4 }; return; }
       U.gymPlayed = U.day;
-      if (act === "DODGEBALL") { if (Math.random() < 0.55 + (U.respect || 0) / 400) { U.pop = stuPop() + 2; U.respect = (U.respect || 0) + 3; g.jobBanner = "DODGEBALL"; g.jobNote = "Last one standing on your side. +2 popularity, +3 respect."; }
+      if (act === "DODGEBALL") { openCab({ dodge: 1 }); return;
+        if (Math.random() < 0.55 + (U.respect || 0) / 400) { U.pop = stuPop() + 2; U.respect = (U.respect || 0) + 3; g.jobBanner = "DODGEBALL"; g.jobNote = "Last one standing on your side. +2 popularity, +3 respect."; }
         else { g.jobBanner = "DODGEBALL"; g.jobNote = "Took one in the face. Everybody saw. The coach blows the whistle laughing."; } }
       else if (act === "THE TRACK") { const t = 70 + Math.round(Math.random() * 25 - (U.respect || 0) / 20); U.pop = stuPop() + (t < 75 ? 2 : 0); g.jobBanner = "THE TRACK"; g.jobNote = "Your lap: " + t + " seconds." + (t < 75 ? " Fastest in the group. +2" : ""); }
       else { const m = Math.floor(Math.random() * 6); U.pop = stuPop() + (m >= 4 ? 1 : 0); g.jobBanner = "BASKETBALL"; g.jobNote = m + " of 5 from the line." + (m >= 4 ? " +1" : ""); } }
@@ -32667,12 +32764,23 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       person(gym.x0 + (gym.x1 - gym.x0) / 2, gym.y1 - 34, "yt_" + P.coach, { tall: 1.3, coachQ: 1, bang: -Math.PI / 2 });
       kids.filter((q) => q.grp === 1).slice(0, 6).forEach((q, n) => person(gym.x0 + 40 + n * ((gym.x1 - gym.x0 - 80) / 5), gym.y0 + (gym.y1 - gym.y0) * 0.45, q.yt, { tall: 1.05, kid: q.i, wander: 1 }));
       if (isGameNight()) kids.filter((q) => q.grp >= 2).slice(0, 16).forEach((q, n) => person(gym.x0 + 14 + (n % 8) * ((gym.x1 - gym.x0 - 28) / 7), gym.y0 + 14 + ((n / 8) | 0) * 16, q.yt, { tall: 0.95, kid: q.i }));
+      /* GAME NIGHT CHEER (layer 475): our cheerleaders along one sideline (Central's cheer squad plates -- St. Aldric's
+         has none on its sheets yet, so its squad borrows them), the visitors' squad on the other in grey painted their
+         colours (yt_cheer_opp_1..6 when that sheet exists). */
+      if (isGameNight()) { const W = gym.x1 - gym.x0, opp = OPP_SCHOOLS[((g.stu && g.stu.games) || 0) % OPP_SCHOOLS.length];
+        const home = g.inside && g.inside.school === "aldric" ? [1, 2, 3, 4, 5, 6].map((n) => "yt_cheer_sa_" + n) : [35, 36, 37, 38, 39, 40].map((n) => "yt_stu_ch_" + n);   // St. Aldric's has its own squad now
+        home.forEach((key, k) => person(gym.x0 + 30 + k * (W - 60) / 5, gym.y1 - 70, key, { tall: 1.0, wander: 1, cheer: 1 }));
+        for (let k = 0; k < 6; k++) { const key = "yt_cheer_opp_" + (k + 1); if (!(imgs.current[key] && imgs.current[key].width)) break;
+          person(gym.x0 + 30 + k * (W - 60) / 5, gym.y0 + 56, key, { tall: 1.0, wander: 1, cheer: 1, tint: opp[1] }); } }
     }
     G.coachFn = () => {
       if (!g.studentMode || !g.inside || !g.inside.school || g.floor !== 0 || g.mode !== "foot") return false;
       const L = (g.sfolk && g.sfolk.list) || []; const c = L.find((q) => (q.coachQ || /coach/.test(q.yt || "")) && Math.hypot(q.x - g.p.x, q.y - g.p.y) < 60);
       if (!c) return false; g.coachSaid = null; G.pickOpen("stucoach"); return true;
     };
+    G.dodgeT = () => openCab({ dodge: 1 });   // test hook
+    G.tintT = (k, c) => { try { const t = tintPlate(k, c); return t ? [t.width, t.height] : 'null'; } catch (e) { return 'ERR ' + e.message; } };
+    G.hoopsT = () => openCab({ hoops: 1, foe: 0.1, opp: OPP_SCHOOLS[3] });
     function coachPanel() {
       const U = g.stu, opts = [];
       if (!U.team) opts.push({ id: "stu:join", label: "JOIN VARSITY BASKETBALL" });
@@ -32680,14 +32788,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (isGameNight() && U.played !== U.day) opts.push({ id: "stu:game", label: U.benched === U.day ? "YOU'RE BENCHED TONIGHT" : "TIP-OFF: PLAY THE GAME" }); }
       opts.push({ id: "close", label: "LATER, COACH" });
       return { title: "THE COACH \u00b7 VARSITY BASKETBALL", face: null,
-        text: g.coachSaid || (U.team ? "Practice Monday and Wednesday, three o'clock. Games Thursday night, seven. Skill " + (U.hoopSkill || 0) + ". Record " + (U.wins || 0) + "-" + ((U.games || 0) - (U.wins || 0)) + "." : "You want to play? We practice Mondays and Wednesdays at three, games Thursday nights. You show up, you play."), opts };
+        text: g.coachSaid || (U.team ? "Practice Monday and Wednesday, three o'clock. Thursday night we play " + OPP_SCHOOLS[(U.games || 0) % OPP_SCHOOLS.length][0] + ". Skill " + (U.hoopSkill || 0) + ". Record " + (U.wins || 0) + "-" + ((U.games || 0) - (U.wins || 0)) + "." : "You want to play? We practice Mondays and Wednesdays at three, games Thursday nights. You show up, you play."), opts };
     }
     function teamAct(a) {
       const U = g.stu;
       if (a === "join") { U.team = 1; U.lastPractice = U.day; g.coachSaid = "Welcome to the team, " + (U.name || "kid") + ". Don't make me regret it."; return; }
       if (a === "practice") { U.practiced = U.day; U.lastPractice = U.day; U.hoopSkill = Math.min(10, (U.hoopSkill || 0) + 1); g.clock = Math.min(TEAM.to, (g.clock || 0) + 45); g.coachSaid = "Good work. Skill " + U.hoopSkill + "."; return; }
       if (a === "game") { if (U.benched === U.day) { g.coachSaid = "You missed practice. You ride the bench tonight."; return; }
-        U.played = U.day; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); openCab({ hoops: 1, foe: 0.08 + Math.min(0.15, (U.games || 0) * 0.02) }); return; }
+        U.played = U.day; g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+        const opp = OPP_SCHOOLS[(U.games || 0) % OPP_SCHOOLS.length];
+        openCab({ hoops: 1, foe: 0.08 + Math.min(0.15, (U.games || 0) * 0.02), opp }); return; }
     }
     function stepTeam() { const U = g.stu; if (!U || !U.team) return;
       // two missed practice days in a row: benched for the next game
@@ -32709,6 +32819,79 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function bullyAct(a) { const q = g.kidTalk, U = g.stu; if (!q) return;
       if (a === "pay") { U.cash = 0; U.pop = stuPop() - 2; g.kidSaid = "He pockets it and laughs. People saw. (-2 popularity)"; }
       if (a === "no") { if ((U.respect || 0) >= 25) { U.respect += 2; g.kidSaid = "\u201c...Whatever.\u201d He walks. (+2 respect)"; } else { U.respect = Math.max(0, (U.respect || 0) - 2); U.pop = stuPop() - 1; g.kidSaid = "He shoves you into the lockers. It's loud. Everybody turns. (-2 respect)"; } } }
+
+    /* ---------- LAYER 472: CAR DEALERSHIPS, THE REPAIR SHOP ----------
+       Three lots across the city, each a building with its open ground turned into a car lot: rows of
+       cars nose-out with prices on the windshield, strings of pennants, the name on a sign. E at a car:
+       the salesman's panel -- the model, the price, BUY. A bought car is yours: parked on the lot,
+       your name on the papers, no theft when you get in. THE REPAIR SHOP (by the first lot): drive up
+       to its door and E: FIX IT (dents, glass, blood -- by how bad it is) or RESPRAY (a new colour; any
+       heat the car carries cools off). */
+    const DEALERS = [["SMILIN' SAL'S MOTORS", "hood"], ["LAKESHORE AUTO PLAZA", "uptown"], ["KOWALSKI BROS. USED CARS", "industrial"]];
+    const CAR_PRICE = (k) => /delorean/.test(k) ? 25000 : /gn_/.test(k) ? 18000 : /turbo/.test(k) ? 15000 : /fastback/.test(k) ? 12000 : /coupe/.test(k) ? 9000 : 6000;
+    const carNice = (k) => /delorean/.test(k) ? "DeLorean DMC-12" : /gn_/.test(k) ? "Buick Grand National" : /turbo/.test(k) ? "Turbo coupe" : /fastback/.test(k) ? "Mustang fastback" : /coupe/.test(k) ? "Two-door coupe" : "Four-door sedan";
+    function dealers() {
+      if (g.dealersB) return g.dealersB; const out = [], used = new Set();
+      for (const [nm, zone] of DEALERS) {
+        let best = null, bArea = 0;
+        for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { if (!new RegExp(zone).test(zoneOf(i, j))) continue; const c = getCell(i, j); if (!c || c.lx0 == null) continue;
+          for (const b of c.blds || []) { if (!b.door || b.school || b.landmark || b.homeOf || b.stuHome || b.pd || b.inPrison || b.hideout || b.mercBar || used.has(b) || b.dealer) continue;
+            const open = Math.max(b.y - c.ly0, c.ly1 - (b.y + b.h), b.x - c.lx0, c.lx1 - (b.x + b.w)) * Math.min(b.w, b.h);
+            if (open > bArea && Math.min(b.w, b.h) > 140) { bArea = open; best = { b, c }; } } }
+        if (!best) continue; const { b, c } = best; used.add(b); b.dealer = 1; b.name = nm;
+        const sides = [["up", b.y - c.ly0], ["down", c.ly1 - (b.y + b.h)], ["left", b.x - c.lx0], ["right", c.lx1 - (b.x + b.w)]].sort((p, q) => q[1] - p[1]);
+        const S2 = sides[0][0], R = S2 === "up" ? [b.x, c.ly0 + 14, b.x + b.w, b.y - 14] : S2 === "down" ? [b.x, b.y + b.h + 14, b.x + b.w, c.ly1 - 14] : S2 === "left" ? [c.lx0 + 14, b.y, b.x - 14, b.y + b.h] : [b.x + b.w + 14, b.y, c.lx1 - 14, b.y + b.h];
+        const cars = []; let h = nm.length * 7919;
+        const cols = Math.max(1, Math.floor((R[2] - R[0]) / 62)), rows = Math.max(1, Math.floor((R[3] - R[1]) / 118));
+        for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) { h = (h * 1103515245 + 12345) >>> 0; const key = BUY_CARS[h % BUY_CARS.length];
+          cars.push({ k: key, x: R[0] + 31 + k * ((R[2] - R[0] - 62) / Math.max(1, cols - 1 || 1)) * (cols > 1 ? 1 : 0) + (cols === 1 ? (R[2] - R[0]) / 2 - 31 : 0), y: R[1] + 59 + r * 118, price: CAR_PRICE(key) }); }
+        out.push({ b, nm, lot: R, cars });
+      }
+      // the repair shop: a building near the first lot
+      const D0 = out[0]; if (D0) { let best = null, bd = 1e12; const ci = Math.floor(D0.b.x / PITCH), cj = Math.floor(D0.b.y / PITCH);
+        for (let i = ci - 2; i <= ci + 2; i++) for (let j = cj - 2; j <= cj + 2; j++) { const c = getCell(i, j); if (!c) continue;
+          for (const b of c.blds || []) { if (!b.door || b.dealer || b.school || b.landmark || b.homeOf || b.stuHome || b.pd || b.hideout || b.mercBar) continue; const d = Math.hypot(b.x - D0.b.x, b.y - D0.b.y); if (d > 200 && d < bd) { bd = d; best = b; } } }
+        if (best) { best.repair = 1; best.name = "EDDIE'S AUTO BODY & REPAIR"; g.repairB = best; } }
+      return (g.dealersB = out);
+    }
+    function drawDealers(view) {
+      if (g.inside) return;
+      for (const D of dealers()) { const [x0, y0, x1, y1] = D.lot; if (x0 > view.x1 + 100 || x1 < view.x0 - 100 || y0 > view.y1 + 100 || y1 < view.y0 - 100) continue;
+        ctx.fillStyle = "#3a3c40"; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+        ctx.strokeStyle = "rgba(240,240,220,0.5)"; ctx.lineWidth = 2; for (let x = x0; x <= x1; x += 62) { ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke(); }
+        for (const c of D.cars) { if (c.sold) continue; const im = imgs.current[c.k]; if (im && im.width) { ctx.drawImage(im, c.x - 23, c.y - 50, 46, 100); }
+          ctx.fillStyle = "#fff6c0"; ctx.fillRect(c.x - 14, c.y - 30, 28, 10); ctx.fillStyle = "#c01818"; ctx.font = "bold 7px monospace"; ctx.textAlign = "center"; ctx.fillText("$" + (c.price / 1000) + "K", c.x, c.y - 22); ctx.textAlign = "start"; }
+        // pennants along the edge
+        for (let x = x0; x < x1; x += 12) { ctx.fillStyle = ["#d22", "#fd2", "#22d", "#2b2"][((x - x0) / 12 | 0) % 4]; ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x + 10, y0); ctx.lineTo(x + 5, y0 + 8 + Math.sin(g.t * 3 + x) * 1.5); ctx.fill(); }
+        ctx.fillStyle = "rgba(10,10,14,0.8)"; ctx.fillRect((x0 + x1) / 2 - 90, y1 + 4, 180, 16); ctx.fillStyle = "#ffd65a"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.fillText(D.nm, (x0 + x1) / 2, y1 + 16); ctx.textAlign = "start"; }
+      const R = g.repairB; if (R) { const d = doorPoint(R); ctx.fillStyle = "rgba(10,10,14,0.8)"; ctx.fillRect(d[0] - 80, d[1] + 18, 160, 14); ctx.fillStyle = "#9fd0ff"; ctx.font = "bold 9px monospace"; ctx.textAlign = "center"; ctx.fillText("EDDIE'S AUTO BODY", d[0], d[1] + 28); ctx.textAlign = "start"; }
+    }
+    G.dealersT = () => dealers().map((D) => [D.nm, D.lot.map((v) => v | 0), D.cars.length]).concat([g.repairB ? ["REPAIR", doorPoint(g.repairB).map((v) => v | 0)] : ["no repair"]]);   // test hook
+    G.dealerFn = () => {
+      if (g.inside || g.mode !== "foot") return false;
+      const mine = (g.traffic || []).filter((v) => v.mine).map((v) => Math.hypot(g.p.x - v.x, g.p.y - v.y)).sort((a, b) => a - b)[0];
+      for (const D of dealers()) for (const c of D.cars) if (!c.sold && Math.hypot(g.p.x - c.x, g.p.y - c.y) < Math.min(54, mine == null ? 1e9 : mine)) { g.dealerCar = { D, c }; g.dealerSaid = null; G.pickOpen("dealer"); return true; }
+      return false;
+    };
+    function dealerPanel() { const Z = g.dealerCar; if (!Z) return null; const { D, c } = Z, cash = g.p.cash || 0;
+      return { title: D.nm + " \u00b7 " + carNice(c.k).toUpperCase(), face: null,
+        text: g.dealerSaid || "\u201cBeautiful, isn't she? " + carNice(c.k) + ", runs like a dream. $" + c.price.toLocaleString() + ", and for you I throw in the floor mats.\u201d  You have $" + cash.toLocaleString() + ".",
+        opts: (cash >= c.price ? [{ id: "deal:buy", label: "BUY IT ($" + c.price.toLocaleString() + ")" }] : [{ id: "close", label: "YOU CAN'T AFFORD IT" }]).concat([{ id: "close", label: "JUST LOOKING" }]) }; }
+    function dealerBuy() { const Z = g.dealerCar; if (!Z) return; const { D, c } = Z; if ((g.p.cash || 0) < c.price) return;
+      g.p.cash -= c.price; c.sold = 1;
+      const v = { x: c.x, y: c.y, ang: -Math.PI / 2, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0, m: { k: c.k, len: 104, w: 46 }, dead: 0, parked: 1, named: 1, mine: 1 };   // parked, not a wreck: you can get in
+      v.idn = { model: carNice(c.k).toUpperCase(), colour: "", plate: "NEW", owner: (g.studentMode && g.stu && g.stu.name ? g.stu.name : "YOU").toUpperCase() };
+      g.traffic.push(v); g.dealerSaid = "\u201cPleasure doing business. Keys are in it.\u201d It's yours -- parked right there on the lot.";
+      g.jobBanner = "YOU BOUGHT A CAR"; g.jobNote = carNice(c.k) + ", $" + c.price.toLocaleString() + ". Your name's on the papers."; }
+    // the repair shop: in a car, near its door
+    G.repairFn = () => { const R = g.repairB; if (!R || (g.mode !== "car" && g.mode !== "civ")) return false; const d = doorPoint(R); const v = activeVeh(); if (!v || Math.hypot(v.x - d[0], v.y - d[1]) > 140) return false;
+      g.repairSaid = null; G.pickOpen("repair"); return true; };
+    function repairPanel() { const v = activeVeh(); if (!v) return null; const bad = Math.min(1, (v.crush || 0) + (v.dmg || 0) + (v.dents ? v.dents.length * 0.05 : 0) + (v.hit ? 0.3 : 0)), cost = Math.round(150 + bad * 1200);
+      return { title: "EDDIE'S AUTO BODY & REPAIR", face: null, text: g.repairSaid || "\u201cWhat'd you do to it?\u201d Eddie walks round it, wiping his hands. Fix: $" + cost + ". Respray: $400. You have $" + (g.p.cash || 0) + ".",
+        opts: [{ id: "rep:fix:" + cost, label: "FIX IT ($" + cost + ")" }, { id: "rep:paint", label: "RESPRAY ($400)" }, { id: "close", label: "NEVER MIND" }] }; }
+    function repairAct(a, n) { const v = activeVeh(); if (!v) return;
+      if (a === "fix") { const cost = +n; if ((g.p.cash || 0) < cost) { g.repairSaid = "\u201cCash first, pal.\u201d"; return; } g.p.cash -= cost; v.crush = 0; v.dmg = 0; v.dents = []; v.hit = null; v.idn = v.idn ? { ...v.idn, flag: null } : v.idn; g.repairSaid = "Good as new. \u201cTry not to do that again.\u201d"; }
+      if (a === "paint") { if ((g.p.cash || 0) < 400) { g.repairSaid = "\u201cCash first, pal.\u201d"; return; } g.p.cash -= 400; v.respray = (v.respray || 0) + 1; v.tint = cpick(["#3a5a8a", "#8a2a2a", "#2a6a3a", "#c8c0a8", "#222428"]); if (g.heat) g.heat = Math.max(0, g.heat - 1); g.repairSaid = "A new coat. Nobody's looking for this colour."; } }
     function kestrelRoster() {
       if (g.kestrel) return g.kestrel;
       const K = {}, used = {};
@@ -37720,7 +37903,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return;
       }
       drawGround(view);
-      if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawWoods(view); drawDirtJumps(view); drawStudentWorld(view); }
+      if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawDealers(view); drawWoods(view); drawDirtJumps(view); drawStudentWorld(view); }
       if (!g.inside) drawMarkGround(view);
       if (!g.inside) drawCasings(view);
       if (!g.inside) { drawLake(view); drawRiver(view); }   // over the ground, under everything that floats on it
