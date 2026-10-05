@@ -3666,6 +3666,7 @@ const YT_SCALE = { yt_stu_ch_17: 0.8 };
 for (const sc of ["ch", "sa"]) for (let n = 1; n <= STU_N[sc]; n++) { const k = "stu_" + sc + "_" + n; PD_ART["yt_" + k] = "assets/school/yt_" + k + ".png"; PD_ART["pt_" + k] = "assets/school/pt_" + k + ".png"; }
 for (const k of ["stu_mom", "stu_bestfriend"]) { PD_ART["yt_" + k] = "assets/school/yt_" + k + ".png"; PD_ART["pt_" + k] = "assets/school/pt_" + k + ".png"; }   // stu_bestfriend art in -- hip-cut plate + portrait, drop the two PNGs in assets/school/
 PD_ART.car_stu_mom = "assets/cars/car_stu_mom.png";
+for (const sx of ["m", "f"]) for (let n = 1; n <= 6; n++) PD_ART["yt_parent_" + sx + n] = "assets/school/yt_parent_" + sx + n + ".png";   // the neighbours' parents (layer 469)
 for (const k of ["bike_player", "bike_player_ride", "bike_player_down"].concat([1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => "bike_v" + n))) PD_ART[k] = "assets/bikes/" + k + ".png";
 for (const k of ["stu_player_ch", "stu_player_sa", "stu_player_sa2"]) { PD_ART["yt_" + k] = "assets/school/yt_" + k + ".png"; PD_ART["pt_" + k] = "assets/school/pt_" + k + ".png"; }
 const stuPool = (sc) => { const L = []; for (let n = 1; n <= STU_N[sc]; n++) L.push("yt_stu_" + sc + "_" + n);
@@ -32327,34 +32328,94 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function busPos(R, s) { s = ((s % R.tot) + R.tot) % R.tot; for (let k = 0; k < 4; k++) { const [a, len] = R.seg[k]; if (s <= a + len) { const f = (s - a) / len;
       return [R.P[k][0] + (R.P[k + 1][0] - R.P[k][0]) * f, R.P[k][1] + (R.P[k + 1][1] - R.P[k][1]) * f, Math.atan2(R.P[k + 1][1] - R.P[k][1], R.P[k + 1][0] - R.P[k][0])]; } } return R.P[0].concat(0); }
+    /* THE BUS RUN (layer 469). 7:15 on a school day it starts just past your door and drives the
+       loop round your block, pulling up at each neighbour's house: the kid walks out from the door
+       with the parent behind, the parent calls something after them (by that kid's record), the kid
+       gets on. Your door last: Mom has her say (by yours) and the bus waits ten seconds -- E gets
+       you on. Then it drives to school along the streets and lets everybody off at the door; you
+       with them if you were on it. Miss it and it goes without you. */
+    const BUS_V = 320, BUS_STOP = 4.5, BUS_HOME = 10;
+    const PARENT_SAYS = {
+      BULLY: "And NO fighting today, you hear me?", SHY: "Talk to somebody today, sweetie!", CLOWN: "Leave the jokes at home for once!",
+      GOSSIP: "Mind your business at that school!", HUSTLER: "And bring my change back!", SWEET: "Love you, baby! Have a good day!",
+      HOTHEAD: "Count to ten before you swing, I mean it!", NERD: "Knock 'em dead on that test, genius!" };
+    function busStops(R) {
+      const near = (pt) => { let sBest = 0, bd = 1e12; for (let k = 0; k < 4; k++) for (let f = 0; f <= 1; f += 0.01) {
+        const x = R.P[k][0] + (R.P[k + 1][0] - R.P[k][0]) * f, y = R.P[k][1] + (R.P[k + 1][1] - R.P[k][1]) * f, d = Math.hypot(x - pt[0], y - pt[1]);
+        if (d < bd) { bd = d; sBest = R.seg[k][0] + R.seg[k][1] * f; } } return [sBest, bd]; };
+      const kids = schoolKids("ch"), out = [];
+      neighbours().slice(0, 6).forEach((b, n) => { const d = doorPoint(b), [sv, dist] = near(d); if (dist > 320) return;
+        const q = kids[20 + n * 5], rec = kidRec("ch", q.i, q.yt); out.push({ s: sv, door: d, yt: q.yt, rec, n }); });
+      return out;
+    }
+    function busToSchool(from) {        // along the streets: the street it is on, across, down to the school's curb
+      const sb = stuSchoolB(), st = busStop("school"); if (!sb || !st) return [from];
+      // to the nearest east-west street first (it may be on a north-south side of the loop), along it, down the
+      // north-south street by the school, then to the school's curb
+      const hj = Math.round(from[1] / PITCH), hy = SX(hj) + (from[1] >= SX(hj) ? 1 : -1) * halfW(hj) * 0.5;
+      const vi = Math.round(st[0] / PITCH), vx = SX(vi) + (st[0] >= SX(vi) ? 1 : -1) * halfW(vi) * 0.5;
+      return [from, [from[0], hy], [vx, hy], [vx, st[1]], [st[0], st[1]]];
+    }
     function stepBusRoute(dt) {
       const U = g.stu, c = g.clock || 0; if (!isSchoolDay(U.day)) { U.bus = null; return; }
-      if (c >= 435 && c < 470 && (!U.bus || U.bus.day !== U.day) && !(U.bus && U.bus.done)) { const R = busLoop(); if (!R) return; U.bus = { day: U.day, s: (R.sHome - R.tot * 0.55 + R.tot) % R.tot, wait: 0, stopsLeft: [R.stops[0], R.stops[1], R.sHome], done: 0, on: 0 }; }
-      const B = U.bus; if (!B || B.done) return; const R = busLoop(); if (!R) return;
-      if (B.wait > 0) { B.wait -= dt; if (B.wait <= 0 && B.atHome) { B.atHome = 0; B.leaving = 1; } }
-      else { const prev = B.s, v = 260; B.s += v * dt; const dist = (a, b) => ((b - a) % R.tot + R.tot) % R.tot;
-        for (const st of B.stopsLeft) if (dist(prev, st) <= v * dt + 0.01) { B.stopsLeft = B.stopsLeft.filter((q) => q !== st); B.wait = st === R.sHome ? 9 : 3; B.atHome = st === R.sHome; B.s = st; break; }
-        if (B.leaving && dist(R.sHome, B.s) > R.tot * 0.3) { B.done = 1;                           // round the corner: off to school
-          if (B.on) { const d = doorPoint(stuSchoolB()); g.p.x = d[0] + 30; g.p.y = d[1] + 40; g.cam.x = g.p.x; g.cam.y = g.p.y; g.clock = Math.max(g.clock, 472); g.sfolk = null; g.pRiding = 0;
-            g.jobBanner = "THE BUS"; g.jobNote = "Twenty minutes of somebody's Walkman too loud. You're at school."; }
-          else if (!g.inside) { g.jobBanner = "MISSED THE BUS"; g.jobNote = "It's gone. Walk -- or ride."; } } }
-      if (B.on) { const [x, y] = busPos(R, B.s); g.p.x = x; g.p.y = y; g.cam.x = x; g.cam.y = y; }
+      const R = busLoop(); if (!R) return;
+      if (c >= 435 && c < 470 && (!U.bus || U.bus.day !== U.day)) {
+        const stops = busStops(R).map((q) => ({ ...q, d: ((q.s - R.sHome) % R.tot + R.tot) % R.tot })).filter((q) => q.d > 60).sort((a, b) => a.d - b.d);
+        U.bus = { day: U.day, phase: "loop", trav: 40, stops, home: 0, wait: 0, on: 0, riders: [], walkers: [] }; }
+      const B = U.bus; if (!B || B.phase === "done") return;
+      const step = (q, tx, ty, sp) => { const dx = tx - q.x, dy = ty - q.y, d = Math.hypot(dx, dy); if (d < 3) return true; const m = Math.min(d, sp * dt); q.x += dx / d * m; q.y += dy / d * m; q.vx = dx / d * sp; q.vy = dy / d * sp; q.anim = (q.anim || 0) + dt; return false; };
+      // kids walking to / from the bus
+      for (const w of B.walkers) if (!w.done && step(w, w.tx, w.ty, 80)) { w.done = 1; if (w.board) B.riders.push(w.yt); }
+      B.walkers = B.walkers.filter((w) => !w.done || w.stay);
+      if (B.phase === "loop") {
+        if (B.wait > 0) { B.wait -= dt; if (B.wait <= 0 && B.atHome) B.phase = "go"; return; }
+        const pos = (R.sHome + B.trav) % R.tot; B.pos = busPos(R, pos);
+        const next = B.stops.find((q) => !q.done);
+        const target = next ? next.d : R.tot;                              // your door is the end of the loop
+        B.trav = Math.min(target, B.trav + BUS_V * dt);
+        if (B.trav >= target) {
+          const [x, y] = busPos(R, (R.sHome + B.trav) % R.tot);
+          if (next) { next.done = 1; B.wait = BUS_STOP;
+            B.walkers.push({ x: next.door[0], y: next.door[1], tx: x, ty: y, yt: next.yt, board: 1 });
+            const say = PARENT_SAYS[next.rec.trait] || "Have a good day!"; const first = next.rec.name.split(" ")[0];
+            const pyt = PARENT_YT[(next.n * 2 + (next.n % 2)) % PARENT_YT.length];
+            if (Math.hypot(g.p.x - x, g.p.y - y) < 700) g.driveTalk = { who: (/_f\d$/.test(pyt) ? "MRS. " : "MR. ") + next.rec.name.split(" ")[1].toUpperCase(), text: "\u201c" + first + "! " + say + "\u201d", t: 4 }; }
+          else { B.atHome = 1; B.wait = BUS_HOME; const nm = (U.name || "baby");
+            const say = U.grounded >= U.day ? "Straight there and straight home, " + nm + ". You're grounded." : U.pts >= STU.transfer * 0.6 ? "Look at you, " + nm + "! Keep those grades up!" : U.streak >= 3 ? "Another day on time, " + nm + ". I'm proud of you." : "Don't miss this bus, " + nm + "! Go, go!";
+            if (momHome()) g.driveTalk = { who: "MOM", text: "\u201c" + say + "\u201d", t: 5 }; } }
+        return;
+      }
+      if (B.phase === "go") { B.phase = "drive"; B.path = busToSchool(B.pos || busPos(R, R.sHome)); B.seg = 1; B.x = B.path[0][0]; B.y = B.path[0][1];
+        if (!B.on && !g.inside) { g.jobBanner = "MISSED THE BUS"; g.jobNote = "There it goes. Walk -- or ride."; } }
+      if (B.phase === "drive") {
+        const [tx, ty] = B.path[B.seg]; const q = { x: B.x, y: B.y }; const there = step(q, tx, ty, BUS_V * 1.4); B.x = q.x; B.y = q.y; B.ang = Math.atan2(ty - B.y || 0.001, tx - B.x || 0.001);
+        if (there) { B.seg++; if (B.seg >= B.path.length) { B.phase = "unload"; B.wait = 7; g.clock = Math.max(g.clock, 472);
+          const d = doorPoint(stuSchoolB());
+          B.riders.forEach((yt, n) => B.walkers.push({ x: B.x + (n % 3) * 10, y: B.y + n * 6, tx: d[0] + (n % 4) * 12 - 18, ty: d[1], yt, stay: 0 }));
+          if (B.on) { B.on = 0; g.pRiding = 0; g.p.x = B.x + 30; g.p.y = B.y + 10; g.sfolk = null; g.jobBanner = "THE BUS"; g.jobNote = "Everybody off. You're at school."; } } }
+        if (B.on) { g.p.x = B.x; g.p.y = B.y; g.cam.x = B.x; g.cam.y = B.y; }
+        return;
+      }
+      if (B.phase === "unload") { B.wait -= dt; if (B.wait <= 0) B.phase = "done"; }
+      if (B.on && B.pos) { g.p.x = B.pos[0]; g.p.y = B.pos[1]; g.cam.x = g.p.x; g.cam.y = g.p.y; }
     }
     function drawBusRoute() {
-      const U = g.stu, B = U && U.bus; if (!B || B.done || g.inside) return; const R = busLoop(); if (!R) return;
-      const [x, y, a] = busPos(R, B.s), im = imgs.current.sch_bus2 && imgs.current.sch_bus2.width ? imgs.current.sch_bus2 : imgs.current.sch_bus;
+      const U = g.stu, B = U && U.bus; if (!B || B.phase === "done" || g.inside) return; const R = busLoop(); if (!R) return;
+      let x, y, a;
+      if (B.phase === "loop" || B.phase === "go") { [x, y, a] = busPos(R, (R.sHome + (B.trav || 0)) % R.tot); }
+      else { x = B.x; y = B.y; a = B.ang || 0; }
+      const im = imgs.current.sch_bus2 && imgs.current.sch_bus2.width ? imgs.current.sch_bus2 : imgs.current.sch_bus;
       if (im && im.width) { ctx.save(); ctx.translate(x, y); ctx.rotate(a + Math.PI / 2); const h = 170, w = h * im.width / im.height; ctx.drawImage(im, -w / 2, -h / 2, w, h); ctx.restore(); }
-      // kids waiting at the corners it hasn't reached yet
-      const kids = schoolKids("ch");
-      B.stopsLeft.filter((st) => st !== R.sHome).forEach((st, n) => { const [sx, sy] = busPos(R, st); for (let k = 0; k < 3; k++) {
-        drawShadow(sx + 40 + k * 16, sy + 30, 7, 3, 0.25); drawYouth({ x: sx + 40 + k * 16, y: sy + 30, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.0, yt: kids[(n * 3 + k + 20) % 60].yt }); } });
-      if (B.wait > 0 && B.atHome) { ctx.font = "700 9px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd65a"; ctx.fillText("E \u00b7 GET ON \u00b7 " + Math.ceil(B.wait) + "s", x, y - 96); ctx.textAlign = "start"; }
+      for (const w of B.walkers) { drawShadow(w.x, w.y + 2, 7, 3, 0.25); drawYouth({ x: w.x, y: w.y, vx: w.vx || 0, vy: w.vy || 0, anim: w.anim || 0, jit: 1, tall: 1.0, yt: w.yt }); }
+      // the kids still waiting at their doors (with a parent)
+      if (B.phase === "loop") for (const st of B.stops) { const px = st.door[0] - 20, py = st.door[1] - 8;     // a parent at the door, the kid until he goes
+        drawShadow(px, py + 2, 8, 3, 0.25); drawYouth({ x: px, y: py, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt: PARENT_YT[(st.n * 2 + (st.n % 2)) % PARENT_YT.length] });
+        if (!st.done) { drawShadow(st.door[0], st.door[1] + 2, 7, 3, 0.25); drawYouth({ x: st.door[0], y: st.door[1], vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.0, yt: st.yt }); } }
+      if (B.phase === "loop" && B.wait > 0 && B.atHome) { ctx.font = "700 9px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd65a"; ctx.fillText("E \u00b7 GET ON \u00b7 " + Math.ceil(B.wait) + "s", x, y - 96); ctx.textAlign = "start"; }
     }
-    G.busPosT = () => { const U = g.stu, B = U && U.bus, R = busLoop(); return B && R ? busPos(R, B.s) : null; };
-    G.busLoopT = () => { const R = busLoop(); return R && { tot: R.tot | 0, stops: R.stops.map((v) => v | 0), sHome: R.sHome | 0 }; };   // test hook
-    G.busRouteFn = () => { const U = g.stu, B = U && U.bus; if (!B || B.done || !B.atHome || B.wait <= 0 || g.inside) return false; const R = busLoop(); const [x, y] = busPos(R, B.s);
-      if (Math.hypot(g.p.x - x, g.p.y - y) > 170) return false; B.on = 1; g.pRiding = 1; g.pickupFlash = { nm: "lift:ON THE BUS", t: 1.4 }; return true; };
-
+    G.busT = () => { const B = g.stu && g.stu.bus; return B && { phase: B.phase, trav: B.trav | 0, stops: B.stops.length, done: B.stops.filter((q) => q.done).length, riders: B.riders.length, atHome: B.atHome, wait: +(B.wait || 0).toFixed(1), on: B.on, x: B.x | 0, y: B.y | 0 }; };   // test hook
+    G.busRouteFn = () => { const U = g.stu, B = U && U.bus; if (!B || B.phase !== "loop" || !B.atHome || B.wait <= 0 || g.inside) return false; const R = busLoop(); const [x, y] = busPos(R, (R.sHome + B.trav) % R.tot);
+      if (Math.hypot(g.p.x - x, g.p.y - y) > 200) return false; B.on = 1; g.pRiding = 1; g.pickupFlash = { nm: "lift:ON THE BUS", t: 1.4 }; return true; };
     // ---- the bike
     const BIKE = { acc: 260, max: 340, drag: 0.6, brake: 520, turn: 3.2, hop: 0.45 };
     function bikeSpot() { const H = studentHome(); const D = H && driveway(H); return D ? [D.cx + (D.ang === 0 || D.ang === Math.PI ? 34 : 0), D.cy + (D.ang === 0 || D.ang === Math.PI ? 0 : 34)] : null; }
@@ -32434,7 +32495,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        are real kids from school (talk to them like anyone, E), the parents say hello. THE WOODS: the
        nearest open ground big enough, a stand of trees round a dirt BMX track with three jumps on it
        (the dirt jumps live here now). */
-    const PARENT_YT = ["yt_stf_ch_teacher_m1", "yt_stf_ch_teacher_f1", "yt_stf_ch_teacher_m2", "yt_stf_ch_teacher_f2", "yt_stf_ch_janitor", "yt_stf_ch_teacher_f3", "yt_stu_mom"];
+    const PARENT_YT = ["yt_parent_m1", "yt_parent_f1", "yt_parent_m2", "yt_parent_f2", "yt_parent_m3", "yt_parent_f3", "yt_parent_m4", "yt_parent_f4", "yt_parent_m5", "yt_parent_f5", "yt_parent_m6", "yt_parent_f6"];
     const neighOut = () => { const c = g.clock || 0; return !isSchoolDay(g.stu.day) ? c > 9 * 60 && c < 20 * 60 : c > 15 * 60 + 30 && c < 20 * 60; };
     function neighFolk() {
       const kids = schoolKids("ch"), L = [];
@@ -35204,6 +35265,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          The old intake plate is the fallback while the new files are not up. */
       const pkey = [g.pcivvies ? "yt_player_civ" : "yt_player_in", "yt_pr_player"].find((k) => imgs.current[k] && imgs.current[k].width);
       const skey = g.studentMode ? (g.stu && g.stu.school === "aldric" ? "yt_stu_player_sa" : "yt_stu_player_ch") : null;
+      if (g.studentMode && g.pRiding) return;                // inside the bus: not drawn
       const conv = g.studentMode && imgs.current[skey] && imgs.current[skey].width ? imgs.current[skey] : g.prisonMode && pkey ? imgs.current[pkey] : null;
       if (conv && conv.width && g.plaundry) {
         const J = g.plaundry, ck = J.step === "collect" ? (Object.keys(J.got).length ? "pl_cart_dirty" : "pl_cart_empty")
