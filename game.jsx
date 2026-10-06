@@ -15916,6 +15916,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "bizshop") return bizShopPanel();
       if (kind === "artstaff") return artStaffPanel();
       if (kind === "motorpool") return motorPanel();
+      if (kind === "jobplay") return jobPlayPanel();
       if (kind === "merc") return mercPanel();
       if (kind === "pool") return poolPanel();
       if (kind === "plates") return platesPanel();
@@ -16062,7 +16063,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("plate:")) { G.platePick(id.slice(6)); G.pickOpen("plates"); return; }
       else if (id.startsWith("pool:")) { G.poolPick(id.slice(5)); return; }
       else if (id.startsWith("merc:")) { G.mercPick(id); G.pickOpen("merc"); return; }
-      else if (id.startsWith("bd:")) { G.opsPick(id); G.pickOpen("opsboard"); return; }
+      else if (id.startsWith("bd:ride:")) { G.opsPick(id); return; }
+      else if (id.startsWith("bd:")) { G.opsPick(id); if (!g.jobRide) G.pickOpen("opsboard"); return; }
       else if (id.startsWith("bm:open:")) { g.bmKey = id.slice(8); g.bmSaid = null; G.pickOpen("baseman"); return; }
       else if (id.startsWith("bm:")) { G.baseManPick(id); G.pickOpen("baseman"); return; }
       else if (id.startsWith("biz:")) { G.bizPick(id); G.pickOpen("bizshop"); return; }
@@ -31598,7 +31600,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     };
     // the board's YOUR PEOPLE: everybody and what he's doing; pick one to give him an order
     function peopleOpts() { const busy = opBusyKeys();
-      return basePeople().map((p) => ({ id: "bm:open:" + p.key, label: p.name.toUpperCase() + " \u00b7 " + HIRES[p.role].nm + " \u00b7 " + jobText(p, busy).toUpperCase() })); }
+      return basePeople().map((p) => ({ id: "bm:open:" + p.key, label: p.name.toUpperCase() + " " + stars(skillOf(p)) + " \u00b7 " + HIRES[p.role].nm + " \u00b7 " + jobText(p, busy).toUpperCase() })); }
     function drawBark(x, y, text) {
       ctx.save(); ctx.font = "600 10px system-ui, sans-serif"; const wds = text.split(" "), lines = []; let ln = "";
       for (const w of wds) { const t2 = ln ? ln + " " + w : w; if (ctx.measureText(t2).width > 150 && ln) { lines.push(ln); ln = w; } else ln = t2; } if (ln) lines.push(ln);
@@ -32020,6 +32022,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           opts.push({ id: "bd:hire:" + k, label: (lock ? "\u2717 " : "") + "HIRE A " + H.nm + " \u00b7 $" + H.cost + (lock ? " \u00b7 NEEDS " + H.rep + " RESPECT" : " \u00b7 HAVE " + boardHave(k)) }); }
         g.boardSaid = g.boardSaid || ("You have " + peopleCount() + " of the " + cap + " people a " + repTier()[1].toLowerCase() + " can keep.");
         opts.push({ id: "bd:view:main", label: "BACK" });
+      } else if (g.boardView === "confirm" && g.opDraft) {
+        opts.push(...confirmPanelOpts());
       } else if (g.boardView === "people") {
         const L = peopleOpts(); opts.push(...L); if (!L.length) g.boardSaid = g.boardSaid || "Nobody works for you yet.";
         opts.push({ id: "bd:view:main", label: "BACK" });
@@ -32062,8 +32066,60 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return { title: "THE BOARD \u00b7 $" + (g.p.cash || 0) + " \u00b7 RESPECT " + (g.rep || 0) + " (" + repTier()[1] + ") \u00b7 " + B.corners + " CORNERS \u00b7 " + (B.rackets || 0) + " SHOPS", face: B.lastFace || null,
         text: (g.boardSaid ? g.boardSaid + "  " : "") + "People free: " + staff + ". " + ridesLine() + (running ? " Running: " + running + "." : " Nothing running."), opts };
     }
+    /* ---------- LAYER 500: WHO GOES, SKILL, AND RIDING ALONG ----------
+       Every hire has a SKILL (1-5 stars, rolled at hire, better for the dearer trades; the crew are good: Viejo 5,
+       Leroy 4, Ras 3) and it grows (+0.25) with every job that comes off. A job takes the BEST free people of each trade.
+       Picking a job on the board now opens WHO GOES: the team by name and stars, what you're up against (the cased
+       store's guard, an armed counter, a gang's strength, an armored car's guns) and the ODDS (`jobOdds`): the job's base
+       risk, the team's skill, casing, the target's defences, any war -- and a slot for YOU, always there:
+         SEND THEM  -- it runs on the clock as before, decided by the odds.
+         RIDE WITH THEM -- +12% to the odds, and it PLAYS OUT now (`jobPlay`): three beats -- the approach (quiet or fast),
+         inside (watch the guard or grab everything), and, if the dice say there's trouble, the way out (shoot your way
+         out or drop it and run) -- each choice moving the odds or the take. The clock jumps the job's length. You share
+         the risk: gone wrong with you on it costs you blood and heat; gone right pays you more respect.
+       Skill also lifts the take (+8% a star above 3). */
+    const CREW_SKILL = { viejo: 5, leroy: 4, ras: 3 };
+    const skillOf = (p) => p.crew ? CREW_SKILL[p.crew] || 3 : (p.m.skill || (p.m.skill = Math.max(1, Math.min(5, Math.round(1.5 + Math.random() * 2 + (HIRES[p.role].cost >= 1500 ? 1 : 0))))));
+    const stars = (n) => "\u2605".repeat(Math.round(n)) + "\u2606".repeat(5 - Math.round(n));
+    function pickTeam(k) { const O = OPS[k], busy = opBusyKeys(), team = [];
+      for (const r in O.need) { const L = basePeople().filter((p) => p.role === r && !isOut(p) && !busy.has(p.key) && !p.following).sort((a, b) => skillOf(b) - skillOf(a)); team.push(...L.slice(0, O.need[r])); }
+      return team; }
+    function jobDefence(k, gk, tgt) { const out = []; let d = 0;
+      if (tgt) { if (tgt.guard) { d += 0.10; out.push("an armed guard"); } d -= 0.10; out.push("you've cased it"); }
+      if (k === "armored") { d += 0.12; out.push("two guards with shotguns"); }
+      if (k === "jewels" || k === "celeb") { d += 0.08; out.push("alarms and a safe"); }
+      if (gk && g.gwar && g.gwar.gangs[gk]) { const s = Math.min(0.15, (g.gwar.gangs[gk].cash || 0) / 60000); d += s; out.push((GANG_LABEL[gk] || gk) + (s > 0.1 ? " are strong right now" : " are stretched")); }
+      if (Object.keys(g.gstand || {}).some((q) => standTier(standOf(q)) === "WAR")) { d += 0.08; out.push("you're at war"); }
+      return { d, txt: out.join(", ") || "nothing much" }; }
+    function jobOdds(k, gk, tgt, team, ride) { const O = OPS[k], avg = team.length ? team.reduce((a, p) => a + skillOf(p), 0) / team.length : 2.5;
+      return clamp(1 - O.risk + (avg - 2.5) * 0.07 - jobDefence(k, gk, tgt).d + (ride ? 0.12 : 0), 0.1, 0.95); }
+    function confirmPanelOpts() { const D = g.opDraft, O = OPS[D.k], team = pickTeam(D.k), def = jobDefence(D.k, D.gk, D.tgtPeek);
+      const send = jobOdds(D.k, D.gk, D.tgtPeek, team, false), ride = jobOdds(D.k, D.gk, D.tgtPeek, team, true);
+      g.boardSaid = O.nm + (D.gk ? " \u00b7 " + (GANG_LABEL[D.gk] || D.gk) : "") + ".  TEAM: " + (team.map((p) => p.name.split(" ")[0] + " " + stars(skillOf(p))).join(", ") || "nobody free") +
+        ".  AGAINST: " + def.txt + ".  ODDS: " + Math.round(send * 100) + "% -- " + Math.round(ride * 100) + "% with you on it.";
+      return [{ id: "bd:go:send", label: "SEND THEM (" + Math.round(send * 100) + "%)" }, { id: "bd:go:ride", label: "RIDE WITH THEM (" + Math.round(ride * 100) + "%)" }, { id: "bd:view:plan", label: "NOT THIS ONE" }]; }
+    // riding along: the job plays out in three beats
+    const BEATS = [
+      { t: "THE APPROACH", s: (J) => J.driver + " brings the car round the block twice. Nobody on the corner looks twice.", o: [["GO IN QUIET", 0.05, -0.10], ["GO IN FAST", -0.05, 0.10]] },
+      { t: "INSIDE", s: (J) => J.guard ? "There's a guard by the door, hand near his hip." : "Nobody's armed that you can see. Faces on the floor.", o: [["WATCH THE GUARD", 0.06, 0], ["GRAB EVERYTHING", -0.06, 0.20]] },
+      { t: "THE WAY OUT", s: (J) => J.trouble ? "Sirens. Somebody hit the alarm -- a squad car's turning the corner." : "Out the back, into the car. Clean.", o: [["SHOOT YOUR WAY OUT", 0.08, 0], ["DROP IT AND RUN", 0, -1]] },
+    ];
+    function jobPlayPanel() { const J = g.jobRide; if (!J) return null; const B2 = BEATS[J.beat];
+      if (J.beat === 2 && !J.trouble) return { title: "RIDING ALONG \u00b7 " + B2.t, face: null, text: B2.s(J), opts: [{ id: "bd:ride:0", label: "DRIVE" }] };
+      return { title: "RIDING ALONG \u00b7 " + B2.t, face: null, text: B2.s(J) + "  (odds now " + Math.round(J.odds * 100) + "%)", opts: B2.o.map((q, n) => ({ id: "bd:ride:" + n, label: q[0] })) }; }
+    function jobPlayPick(n) { const J = g.jobRide; if (!J) return; const B2 = BEATS[J.beat], q = B2.o[n] || [null, 0, 0];
+      if (!(J.beat === 2 && !J.trouble)) { J.odds = clamp(J.odds + q[1], 0.05, 0.97); if (q[2] === -1) J.drop = 1; else J.payMul += q[2]; if (n === 0 && J.beat === 2) { g.heat = Math.max(g.heat || 0, 2); } }
+      J.beat++; if (J.beat === 2) J.trouble = Math.random() > J.odds + 0.15;
+      if (J.beat >= 3 || J.drop) { const o = J.o; o.odds = J.drop ? 1 : J.odds; o.payMul = J.drop ? 0 : J.payMul; o.ride = 1; o.dropped = J.drop; o.at = nowMin(); g.clock = (g.clock || 0) + OPS[o.k].mins;
+        g.jobRide = null; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); stepOps(); return; }
+      G.pickOpen("jobplay"); }
     G.opsPick = (id) => {
       const B = g.board2, [, a, k, gk] = id.split(":");
+      if (a === "go") { const D = g.opDraft; if (!D) return; g.opGo = k; G.opsPick("bd:op:" + D.k + (D.gk ? ":" + D.gk : "")); g.opGo = null; return; }      // layer 500
+      if (a === "ride") { jobPlayPick(+k); return; }
+      if (a === "op" && OPS[k] && !g.opGo && k !== "casejewels") { const O = OPS[k];                                   // WHO GOES first
+        const cz = O.cased ? (B.cased || []).find((c) => (k === "jewels" ? c.for === "jewels" : !c.for)) : null;
+        g.opDraft = { k, gk: gk || null, tgtPeek: cz || null }; g.boardView = "confirm"; return; }
       if (a === "view") { g.boardView = k === "main" ? null : k; g.boardSaid = null; return; }
       if (a === "hire") { const H = HIRES[k];
         if ((g.rep || 0) < H.rep) { g.boardSaid = "No " + H.nm.toLowerCase() + " works for a nobody. You need " + H.rep + " respect."; return; }
@@ -32100,7 +32156,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           g.gpact[gk].until = 0; g.gstand[gk] = -100; g.jobBanner = "PACT BROKEN"; g.jobNote = "You moved on " + (GANG_LABEL[gk] || gk) + " while you had a pact. That's war."; }
         const cz = O.cased ? (B.cased || []).findIndex((c) => (k === "jewels" ? c.for === "jewels" : !c.for)) : -1;
         const tgt = cz >= 0 ? B.cased.splice(cz, 1)[0] : null;
-        B.ops.push({ k, gang: gk || null, at: nowMin() + O.mins, tgt, rides: rides.map((r) => r.id) }); g.boardSaid = O.nm + " -- set. " + Math.round(O.mins / 60) + " hours." + (rides.length ? " Taking " + rides.map((r) => RIDE[r.type].nm.toLowerCase()).join(" + ") + "." : ""); g.boardView = null; return; }
+        const team = pickTeam(k), ride = g.opGo === "ride";
+        const op = { k, gang: gk || null, at: nowMin() + O.mins, tgt, rides: rides.map((r) => r.id), team: team.map((p) => p.key), odds: jobOdds(k, gk, tgt, team, ride), payMul: 1 + team.reduce((a, p) => a + Math.max(0, skillOf(p) - 3) * 0.08, 0) / Math.max(1, team.length) * team.length / Math.max(1, team.length) };
+        B.ops.push(op); g.opDraft = null;
+        if (ride) { const drv = team.find((p) => p.role === "driver"); g.jobRide = { o: op, beat: 0, odds: op.odds, payMul: op.payMul, driver: drv ? drv.name.split(" ")[0] : "Your driver", guard: !!(tgt && tgt.guard) || k === "armored" || k === "jewels" };
+          g.boardView = null; G.pickOpen("jobplay"); return; } g.boardSaid = O.nm + " -- set. " + Math.round(O.mins / 60) + " hours." + (rides.length ? " Taking " + rides.map((r) => RIDE[r.type].nm.toLowerCase()).join(" + ") + "." : ""); g.boardView = null; return; }
     };
     G.stepOpsT = () => stepOps();   // test hook
     function stepOps() {
@@ -32158,7 +32218,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (O.gang && o.gang && standTier(standOf(o.gang)) === "FRIENDLY") risk -= 0.05;
         // anyone you are at war with makes every job harder
         if (Object.keys(g.gstand || {}).some((gk) => standTier(standOf(gk)) === "WAR")) risk += 0.08;
-        const bad = Math.random() < Math.max(0.03, risk);
+        const bad = o.dropped ? true : o.odds != null ? Math.random() > o.odds : Math.random() < Math.max(0.03, risk);      // the odds were set when it started (layer 500)
         let note;
         const used = (B.rides || []).filter((r) => (o.rides || []).includes(r.id));
         if (bad) B.rides = (B.rides || []).filter((r) => !used.includes(r) || Math.random() < 0.5);            // half the rides don't come back
@@ -32166,14 +32226,18 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (!bad && O.ride) { (B.rides = B.rides || []).push({ id: (B.rideId = (B.rideId || 0) + 1), type: O.ride }); }
         if (bad) {   // it went wrong: somebody is lost (a hire, never the crew), and heat
           const role = Object.keys(O.need).find((r) => (B.hires[r] || 0) > 0);
-          if (role) { B.hires[role]--; let m = (B.men || []).findIndex((q) => q.role === role && (!q.job || q.job === "wait")); if (m < 0) m = (B.men || []).findIndex((q) => q.role === role); if (m >= 0) B.men.splice(m, 1); }
-          note = O.nm + " WENT WRONG" + (role ? " -- you lost a " + HIRES[role].nm.toLowerCase() : "") + ".";
+          if (role && !o.dropped) { B.hires[role]--; let m = (B.men || []).findIndex((q) => q.role === role && (!q.job || q.job === "wait")); if (m < 0) m = (B.men || []).findIndex((q) => q.role === role); if (m >= 0) B.men.splice(m, 1); }
+          note = o.dropped ? O.nm + " -- YOU DROPPED IT AND RAN. Nobody lost, nothing taken." : O.nm + " WENT WRONG" + (role ? " -- you lost a " + HIRES[role].nm.toLowerCase() : "") + ".";
+          if (o.ride && !o.dropped) { g.p.hp = Math.max(1, (g.p.hp || 10) - (g.p.maxHp || 10) * 0.4); g.heat = Math.max(g.heat || 0, 2 + (O.heat || 0) > 3 ? 3 : 2 + (O.heat || 0)); note += " You took a bullet getting out."; }
           g.rep = Math.max(0, (g.rep || 0) - Math.round((O.gain || 0) / 2));
           g.heat = Math.max(g.heat || 0, 1 + O.heat); g.wantedT = Math.max(g.wantedT || 0, 30);
         } else {
           let pay = O.pay[1] ? Math.round(O.pay[0] + Math.random() * (O.pay[1] - O.pay[0])) : 0;
           if (o.tgt && o.k === "robbery") pay = o.tgt.cash;
           if (LOOT[o.k] && used.length) pay = Math.round(pay * Math.max(...used.map((r) => RIDE[r.type].cargo)));     // more room, more taken
+          if (o.payMul) pay = Math.round(pay * o.payMul);                                                            // skill, and how you played it
+          for (const key of o.team || []) { const p = personByKey(key); if (p && p.m) p.m.skill = Math.min(5, (p.m.skill || 2) + 0.25); }   // they get better
+          if (o.ride) g.rep = (g.rep || 0) + Math.round((O.gain || 0) / 2);                                          // you were there
           g.p.cash = (g.p.cash || 0) + pay;
           if (o.k === "corner") { B.corners++; addSpot("corner", "dealer"); }
           if (o.k === "racket") { B.rackets = (B.rackets || 0) + 1; addSpot("racket", "enforcer"); }
