@@ -8052,7 +8052,7 @@ function makeFloor(b, f, rnd) {
         const L = q2.x0 + 22, T = q2.y0 + 22, R2 = q2.x1 - 22, B2 = q2.y1 - 22;
         P(L, T, 90, 50, "bs_bench"); P(L + 100, T, 70, 50, "bs_shelves"); P(R2 - 44, T, 40, 46, "locker");
         P(R2 - 130, T + 90, 120, 60, "sy_wreck_a"); P(L, T + 90, 50, 50, "sy_tires_a"); P(L + 60, T + 100, 20, 26, "sy_drum_a"); P(L + 84, T + 100, 20, 26, "sy_drum_c");
-        P(cx - 30, cy + 10, 60, 60, "sy_hatch_open"); P(R2 - 60, B2 - 60, 50, 50, "sy_motors_a");
+        P(cx - 190, cy + 10, 60, 60, "sy_hatch_open"); P(R2 - 60, B2 - 60, 50, 50, "sy_motors_a");   // the hatch off the stairs (layer 482)
         break;
       }
       case "shelterroom": {
@@ -8060,7 +8060,7 @@ function makeFloor(b, f, rnd) {
         P(cx - 26, T, 52, 52, "bs_ladderhole");
         P(L, T, 44, 70, "bs_bunk"); P(L + 50, T, 60, 34, "bs_cot"); P(R2 - 70, T, 70, 60, "bs_gunrack");
         P(L, B2 - 50, 50, 50, "bs_radio"); P(L + 60, B2 - 56, 60, 56, "bs_generator"); P(R2 - 50, B2 - 76, 46, 76, "bs_watertank");
-        P(cx - 40, cy - 10, 80, 60, "bs_maptable"); P(R2 - 80, cy - 20, 70, 50, "bs_shelves"); P(L, cy, 70, 40, "bs_sandbags");
+        P(cx - 250, cy - 30, 80, 60, "bs_maptable");                  // the board, clear of the stairs in the middle (layer 482) P(R2 - 80, cy - 20, 70, 50, "bs_shelves"); P(L, cy, 70, 40, "bs_sandbags");
         P(R2 - 120, B2 - 44, 60, 40, "bs_gasmasks"); P(cx + 50, B2 - 40, 60, 36, "bs_drums");
         break;
       }
@@ -11512,6 +11512,8 @@ export default function IronLionLayer004() {
     if (g.inside && G.blueprintFn && G.blueprintFn()) return;
     if (!g.inside && G.digFn && G.digFn()) return;
     if (!g.inside && G.ballFn && G.ballFn()) return;
+    if (g.inside && G.baseTalkFn && G.baseTalkFn()) return;          // your people at the yard (the board wins when it's nearer)
+    if (!g.inside && G.spotTalkFn && G.spotTalkFn()) return;         // your man on a corner / at the gate
     if (g.inside && G.opsBoardFn && G.opsBoardFn()) return;
     if (g.inside && G.silasFn && G.silasFn()) return;
     if (g.inside && G.poolFn && G.poolFn()) return;
@@ -15808,7 +15810,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function drawBackup(view) {
       if (g.inside) return;
-      if (g.prisonMode) { drawPrisonIntro(); drawBlockLabels(view); drawBasketball(view); drawHideoutYard(view); drawStreetPeople(view); drawTunnelSpots(); drawFollowers(); drawPrisonFx(); drawTargetArrow(); }
+      if (g.prisonMode) { drawPrisonIntro(); drawBlockLabels(view); drawBasketball(view); drawHideoutYard(view); drawStreetPeople(view); drawYardGuards(view); drawTunnelSpots(); drawFollowers(); drawPrisonFx(); drawTargetArrow(); }
       drawK9();
       for (const c of g.backup || []) {
         const im = imgs.current[c.m.k];
@@ -15872,6 +15874,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       if (kind === "pockets") return pocketsPanel();
       if (kind === "opsboard") return opsPanel();
+      if (kind === "baseman") return baseManPanel();
       if (kind === "merc") return mercPanel();
       if (kind === "pool") return poolPanel();
       if (kind === "plates") return platesPanel();
@@ -16019,6 +16022,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("pool:")) { G.poolPick(id.slice(5)); return; }
       else if (id.startsWith("merc:")) { G.mercPick(id); G.pickOpen("merc"); return; }
       else if (id.startsWith("bd:")) { G.opsPick(id); G.pickOpen("opsboard"); return; }
+      else if (id.startsWith("bm:open:")) { g.bmKey = id.slice(8); g.bmSaid = null; G.pickOpen("baseman"); return; }
+      else if (id.startsWith("bm:")) { G.baseManPick(id); G.pickOpen("baseman"); return; }
       else if (id.startsWith("inm:")) { G.inmatePick(id.slice(4)); G.pickOpen("inmate"); return; }
       else if (id.startsWith("pc:")) { G.pcPick(id.slice(3)); if (g.pc) G.pickOpen("pcards"); return; }
       else if (id.startsWith("pocket:")) { G.pocketUse(id.slice(7)); if (g.pickOpen) G.pickOpen("pockets"); return; }
@@ -27573,7 +27578,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const tgt = inVehicle() ? activeVeh() : g.p;
       if (!tgt || !Number.isFinite(tgt.x)) return;
       for (const v of g.traffic) {
-        if (!v.patrol || v.block) continue;
+        if (!v.patrol || v.block || !(v.m && v.m.k === "cruiser")) continue;     // police only (layer 483)
         const dx = tgt.x - v.x, dy = tgt.y - v.y, d = Math.hypot(dx, dy) || 1;
         if (d > 2200) continue;
         v.chasing = 1;
@@ -27600,19 +27605,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if ((g.heat || 0) >= 2 && inVehicle() && g.blockCd <= 0) {
         const veh = activeVeh();
         const sp = Math.hypot(veh.vx || 0, veh.vy || 0);
-        if (sp > 120) {
-          g.blockCd = 14;
-          const a = Math.atan2(veh.vy, veh.vx);
-          const bx = veh.x + Math.cos(a) * 1250, by = veh.y + Math.sin(a) * 1250;
-          for (let q = -1; q <= 1; q += 2) {
-            g.traffic.push({
-              x: bx + Math.cos(a + Math.PI / 2) * q * 46,
-              y: by + Math.sin(a + Math.PI / 2) * q * 46,
-              ang: a + Math.PI / 2, m: { k: "cruiser", len: 108, w: 50 },
-              spd: 0, cruise: 0, brake: 1, dead: 1, patrol: 1, block: 1, life: 26,
-              axis: "h", si: 0, k: 0, dir: 1, fireCd: 0.8, turn: 0, siren: 1,
-            });
-          }
+        if (sp > 120 && placeRoadblock(veh)) {        // layer 483: mid-block, across the whole road
+          g.blockCd = 16;
           g.pickupFlash = { nm: "roadblock_ahead", t: 2.0 };
           g.scanner = Math.max(g.scanner || 0, 2.4);
         }
@@ -27644,15 +27638,177 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (d2 < 300) v.wasClose = 1;
         if (passed && !v.rejoined) {
           v.rejoined = 1; v.passed = 1;
-          v.block = 0; v.chasing = 1; v.dead = 0; v.brake = 0;
           if (v.crewOut) for (const m of v.crewOut) {
             const gi = (g.guards || []).indexOf(m);
             if (gi >= 0) g.guards.splice(gi, 1);
           }
           v.crewOut = null;
+          // back in, and after you as a police car proper (layer 483) -- every other one, so the street isn't emptied
+          if ((g.heat || 0) > 0 && (g.policeMore || []).length < 5 && n % 2 === 0) {
+            g.traffic.splice(n, 1);
+            const car = { axis: "v", si: 0, dir: 1, k: 0, x: v.x, y: v.y, ang: v.ang, spd: 0, cruise: 260, m: { len: 108, w: 45.3, k: "cruiser" }, lightPhase: 0 };
+            (g.policeMore = g.policeMore || []).push({ x: tgt2.x, y: tgt2.y, car, units: makeCopPair(car, 1), life: 60, arrived: true, chase: 1 });
+            continue;
+          }
+          v.life = Math.min(v.life, 4);
         }
       }
     }
+    /* ---------- LAYER 483: THE RHPD GIVES CHASE ----------
+       What was wrong: the dispatched cruisers drove in a straight line to where the crime HAPPENED, parked
+       and got out -- they never followed a car. The "pursuit" code steered GANG patrol cars at you, not
+       police. And roadblocks were two cruisers dropped 1250 ahead on whatever ground was there (often a
+       building), whose collision was two 19-unit circles with a gap between them you drove through; parked
+       cars were skipped by the bumper test entirely.
+       Now:
+         THE CHASE (`stepCopChase`) -- wanted and in a car, every police car comes after YOU, each with a job:
+           the first PURSUES (aims a little ahead of you), the second INTERCEPTS (aims well ahead, to cut you
+           off), the third FLANKS (comes up alongside). They follow the streets (`copSteer`: a look-ahead off
+           the road turns them along it), keep out of buildings, back up when stuck, and close fast: top speed
+           rises with heat. Close in, they RAM -- and from beside your back wheel it's a PIT: the car slews.
+           Wanted at heat 2+ brings more cars over time (up to 2 / 3 / 4 by heat), arriving from the streets
+           round you. Get out on foot and they pull up where you are and come out shooting (copCover, as before).
+         ROADBLOCKS -- set MID-BLOCK on the road you're on, 1100+ ahead, cruisers laid across the whole width
+           including the sidewalks (3 on a street, 4 on an avenue). Solid: `solidCars` is an oriented-box test of
+           your car (three circles along it) against every parked car, roadblock and police car; they give a
+           little when rammed hard, a cruiser rammed at speed turns a bit, and ramming police raises your heat.
+           Beaten blocks remount and join the chase as real police cars.
+         Gang patrols no longer chase you because the police want you. */
+    const CHASE = { spd: [0, 440, 500, 560, 600], acc: 430, turn: 2.9, ram: 92, ramCd: 1.3, more: 14 };
+    // steer for a point, but along the streets: off-road ahead means turn down the road we're on
+    function copSteer(c, tx, ty) {
+      let a = Math.atan2(ty - c.y, tx - c.x);
+      const lx = c.x + Math.cos(a) * 150, ly = c.y + Math.sin(a) * 150;
+      if (onRoad(lx, ly) || Math.hypot(tx - c.x, ty - c.y) < 160) return a;
+      const i = clamp(Math.round(c.x / PITCH), 0, N), j = clamp(Math.round(c.y / PITCH), 0, N);
+      const onV = Math.abs(c.x - SX(i)) < halfW(i), onH = Math.abs(c.y - SX(j)) < halfW(j);
+      const opts = [];
+      if (onV) { opts.push([Math.PI / 2, SX(i), null], [-Math.PI / 2, SX(i), null]); }
+      if (onH) { opts.push([0, null, SX(j)], [Math.PI, null, SX(j)]); }
+      if (!opts.length) {   // off the road: to the nearest road
+        const dxr = SX(i) - c.x, dyr = SX(j) - c.y; return Math.abs(dxr) < Math.abs(dyr) ? Math.atan2(0, dxr) : Math.atan2(dyr, 0); }
+      let best = opts[0], bv = -9;
+      for (const o of opts) { const v = Math.cos(o[0] - a); if (v > bv) { bv = v; best = o; } }
+      // along the road, pulled toward its middle
+      if (best[1] != null) { const off = clamp((best[1] - c.x) / 200, -0.6, 0.6); return best[0] + (best[0] > 0 ? -off : off); }
+      const off = clamp((best[2] - c.y) / 200, -0.6, 0.6); return best[0] + (best[0] === 0 ? off : -off);
+    }
+    function copFleet() { const L = []; if (g.police) L.push(g.police); for (const P of g.policeMore || []) L.push(P); return L; }
+    // a reinforcement, on a road somewhere round you, already coming
+    function copReinforce(level) {
+      const pv = pvOf(); let x = pv.x, y = pv.y;
+      for (let t = 0; t < 10; t++) { const a = Math.random() * 6.283, r = 1100 + Math.random() * 400; x = pv.x + Math.cos(a) * r; y = pv.y + Math.sin(a) * r;
+        const i = clamp(Math.round(x / PITCH), 0, N), j = clamp(Math.round(y / PITCH), 0, N);
+        if (Math.abs(x - SX(i)) < Math.abs(y - SX(j))) x = SX(i); else y = SX(j);
+        if (onRoad(x, y)) break; }
+      const car = { axis: "v", si: 0, dir: 1, k: 0, x, y, ang: Math.atan2(pv.y - y, pv.x - x), spd: 120, cruise: 260, m: { len: 108, w: 45.3, k: "cruiser" }, lightPhase: Math.random() * 6 };
+      (g.policeMore = g.policeMore || []).push({ x: pv.x, y: pv.y, car, units: makeCopPair(car, level), life: 70, arrived: true, chase: 1 });
+      g.scanner = Math.max(g.scanner || 0, 2.2);
+    }
+    function stepCopChase(dt) {
+      if (g.detMode || g.title) return;
+      const heat = g.heat || 0, inCar = inVehicle() && !g.inside, pv = pvOf();
+      const F = copFleet();
+      if (!(heat > 0)) { for (const P of F) P.chase = 0; return; }
+      // more cars as it goes on
+      g.chaseMoreT = (g.chaseMoreT || 0) - dt;
+      const want = heat >= 3 ? 4 : heat >= 2 ? 3 : 2;
+      if (inCar && heat >= 2 && g.chaseMoreT <= 0 && F.length < want) { g.chaseMoreT = CHASE.more; copReinforce(heat >= 3 ? 2 : 1); }
+      const pa = inCar ? activeVeh().ang : 0, pvx = inCar ? (activeVeh().vx || 0) : 0, pvy = inCar ? (activeVeh().vy || 0) : 0;
+      F.forEach((P, n) => {
+        const c = P.car; if (!c || !Number.isFinite(c.x)) return;
+        if (Math.hypot(c.x - pv.x, c.y - pv.y) < 3200) P.life = Math.max(P.life, 30);
+        if (!inCar) {   // he's on foot: pull up where he is, then it's the scene code (out, cover, shoot)
+          if (P.chase) { P.chase = 0; P.arrived = false; }
+          if (!P.arrived) { P.x = pv.x; P.y = pv.y; }
+          return;
+        }
+        if (!P.chase) { P.chase = 1; P.arrived = true; for (const u of P.units) { u.state = "wait"; u.x = c.x; u.y = c.y; } }
+        P.x = pv.x; P.y = pv.y;
+        // the job: pursue, intercept, flank
+        const role = n % 3, lead = role === 0 ? 0.5 : role === 1 ? 1.4 : 0.6;
+        let tx = pv.x + pvx * lead, ty = pv.y + pvy * lead;
+        if (role === 1) { tx += Math.cos(pa) * 260; ty += Math.sin(pa) * 260; }
+        if (role === 2) { const s2 = (n % 2 ? 1 : -1) * 70; tx += Math.cos(pa + Math.PI / 2) * s2; ty += Math.sin(pa + Math.PI / 2) * s2; }
+        const d = Math.hypot(pv.x - c.x, pv.y - c.y);
+        if (d < 260) { tx = pv.x; ty = pv.y; }         // close: just go for him
+        c.lightPhase = (c.lightPhase || 0) + dt;
+        if ((c.revT || 0) > 0) {   // stuck: back up and come again
+          c.revT -= dt; c.spd = Math.max(-140, (c.spd || 0) - CHASE.acc * dt); c.ang += 1.4 * dt * (n % 2 ? 1 : -1);
+        } else {
+          const want2 = copSteer(c, tx, ty); let da = want2 - c.ang;
+          while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
+          c.ang += clamp(da, -CHASE.turn * dt, CHASE.turn * dt);
+          const top = CHASE.spd[Math.min(4, Math.max(1, Math.round(heat) + (n >= 3 ? 1 : 0)))] * (Math.abs(da) > 1.2 ? 0.45 : 1) * (d < 160 ? 0.85 : 1);
+          c.spd = Math.min(top, (c.spd || 0) + CHASE.acc * dt);
+        }
+        const ox = c.x, oy = c.y;
+        c.x += Math.cos(c.ang) * c.spd * dt; c.y += Math.sin(c.ang) * c.spd * dt;
+        c.vx = Math.cos(c.ang) * c.spd; c.vy = Math.sin(c.ang) * c.spd;
+        collideBuildings(c, 24, false);
+        const moved = Math.hypot(c.x - ox, c.y - oy);
+        if (c.spd > 80 && moved < c.spd * dt * 0.25) { c.stuckT = (c.stuckT || 0) + dt; if (c.stuckT > 0.8) { c.revT = 0.9; c.stuckT = 0; } } else c.stuckT = 0;
+        // contact: a ram, or from beside his back wheel, a PIT
+        c.ramCd = Math.max(0, (c.ramCd || 0) - dt);
+        if (d < CHASE.ram && c.ramCd <= 0 && c.spd > 120) { const veh = activeVeh(); c.ramCd = CHASE.ramCd;
+          const ux = (pv.x - c.x) / (d || 1), uy = (pv.y - c.y) / (d || 1);
+          const fwd = ux * Math.cos(veh.ang) + uy * Math.sin(veh.ang);       // > 0: he's in front of the cop, i.e. the cop is behind
+          const side = -ux * Math.sin(veh.ang) + uy * Math.cos(veh.ang);
+          veh.vx = (veh.vx || 0) + ux * 150; veh.vy = (veh.vy || 0) + uy * 150;
+          if (fwd > 0.2 && Math.abs(side) > 0.35) { veh.ang += (side > 0 ? 1 : -1) * 0.75; veh.vx *= 0.6; veh.vy *= 0.6; g.pickupFlash = { nm: "lift:PIT MANEUVER", t: 1.2 }; }
+          applyDamage(veh, 260, c.x, c.y, 108, 52); g.shake = Math.max(g.shake || 0, 10); sfxImpact(0.9);
+          c.spd *= 0.55; }
+      });
+    }
+    // parked cars, roadblocks and police cars are SOLID boxes to your car
+    function solidCars() {
+      if (!inVehicle() || g.onFwy || g.inside) return;
+      const pc = activeVeh(); if (!pc || !Number.isFinite(pc.x)) return;
+      const L = (pc.m && pc.m.len) || (g.mode === "moto" ? 60 : 108), W = (pc.m && pc.m.w) || (g.mode === "moto" ? 20 : 50);
+      const list = g.traffic.filter((v) => v !== pc && (v.dead || v.block)).concat(policeCars().filter((v) => v && v !== pc));
+      const ha = Math.cos(pc.ang), hb = Math.sin(pc.ang);
+      for (const v of list) {
+        if (!Number.isFinite(v.x) || Math.abs(v.x - pc.x) > 190 || Math.abs(v.y - pc.y) > 190) continue;
+        const vl = (v.m && v.m.len) || 110, vw = (v.m && v.m.w) || 50, ca = Math.cos(v.ang), sa = Math.sin(v.ang);
+        for (const off of [-0.32, 0, 0.32]) {
+          const px = pc.x + ha * L * off, py = pc.y + hb * L * off, r = W * 0.5;
+          const rx = px - v.x, ry = py - v.y, al = rx * ca + ry * sa, sd = -rx * sa + ry * ca;
+          const cl = clamp(al, -vl / 2, vl / 2), cs = clamp(sd, -vw / 2, vw / 2);
+          const dl = al - cl, ds = sd - cs, dd = Math.hypot(dl, ds);
+          if (dd >= r) continue;
+          let nl, ns, pen;
+          if (dd < 0.001) { const pa2 = vl / 2 - Math.abs(al), ps = vw / 2 - Math.abs(sd);
+            if (pa2 < ps) { nl = al >= 0 ? 1 : -1; ns = 0; pen = pa2 + r; } else { nl = 0; ns = sd >= 0 ? 1 : -1; pen = ps + r; } }
+          else { nl = dl / dd; ns = ds / dd; pen = r - dd; }
+          const nx = nl * ca - ns * sa, ny = nl * sa + ns * ca, give = v.block ? 0.12 : v.dead ? 0.2 : 0.35;
+          pc.x += nx * pen * (1 - give); pc.y += ny * pen * (1 - give); v.x -= nx * pen * give; v.y -= ny * pen * give;
+          const dot = (pc.vx || 0) * nx + (pc.vy || 0) * ny;
+          if (dot < 0) { pc.vx -= dot * nx * 1.2; pc.vy -= dot * ny * 1.2; pc.vx *= 0.72; pc.vy *= 0.72;
+            if (-dot > 90) { g.shake = Math.max(g.shake || 0, Math.min(12, -dot / 35)); sfxImpact(clamp(-dot / 300, 0.35, 1));
+              applyDamage(pc, -dot, v.x, v.y, L, W); applyDamage(v, -dot * 1.2, px, py, vl, vw);
+              if (v.block && -dot > 260) { v.ang += (Math.random() - 0.5) * 0.4; v.x -= nx * 14; v.y -= ny * 14; }
+              if (v.m && v.m.k === "cruiser" && !g.detMode && -dot > 150) { g.heat = Math.max(g.heat || 0, 2); g.wantedT = Math.max(g.wantedT || 0, 90);
+                g.wantedAs = g.who === "lion" ? (g.plain ? "darius" : "lion") : g.who; } } }
+        }
+      }
+    }
+    // a roadblock: mid-block on the road you're on, across the whole width
+    function placeRoadblock(veh) {
+      const vx = veh.vx || 0, vy = veh.vy || 0, horiz = Math.abs(vx) > Math.abs(vy), dir = horiz ? Math.sign(vx) : Math.sign(vy);
+      const i = clamp(Math.round(veh.x / PITCH), 0, N), j = clamp(Math.round(veh.y / PITCH), 0, N);
+      if (horiz ? Math.abs(veh.y - SX(j)) > halfW(j) : Math.abs(veh.x - SX(i)) > halfW(i)) return false;     // not on a road
+      const along = horiz ? veh.x : veh.y;
+      let mid = (Math.floor(along / PITCH) + 0.5) * PITCH;                  // block centres sit between intersections
+      while ((mid - along) * dir < 1100) mid += dir * PITCH;
+      if (mid < PITCH * 0.5 || mid > N * PITCH - PITCH * 0.5) return false;
+      const hw = horiz ? halfW(j) : halfW(i), span = hw + 60, n = Math.ceil((span * 2) / 104), cross = horiz ? SX(j) : SX(i);
+      for (let q = 0; q < n; q++) { const o = -span + (q + 0.5) * (span * 2 / n);
+        g.traffic.push({ x: horiz ? mid : cross + o, y: horiz ? cross + o : mid, ang: horiz ? Math.PI / 2 + (q % 2 ? 0.12 : -0.12) : (q % 2 ? 0.12 : -0.12),
+          m: { k: "cruiser", len: 108, w: 50 }, spd: 0, cruise: 0, brake: 1, dead: 1, patrol: 1, block: 1, life: 30,
+          axis: "h", si: 0, k: 0, dir: 1, fireCd: 0.8, turn: 0, siren: 1, lightPhase: q }); }
+      return true;
+    }
+    G.roadblockT = () => { const v = activeVeh(); return v ? placeRoadblock(v) : null; };   // test hook
     /* CHOPPERS. A long chase brings something you cannot outrun on the ground. The news bird
        at two minutes -- it only watches, and it is the warning. The police bird at three, and
        that one holds the wanted clock open on its own.
@@ -30576,6 +30732,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return true;
     };
     G.hideCrewFn = () => {
+      if (g.pescaped) return !!(G.baseTalkFn && G.baseTalkFn());    // layer 482
       const b = g.inside; if (!b || !b.hideout || g.floor !== 1 || !g.crewOut || g.mode !== "foot") return false;
       const pl = buildingPlans(b)[1], r = pl && pl.rooms[0]; if (!r) return false;
       const n = CREW.findIndex((C, k) => Math.hypot(r.x0 + 70 + k * 100 - g.p.x, r.y1 - 70 - g.p.y) < 55);
@@ -30600,6 +30757,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText(m.name ? m.name.toUpperCase() + " \u00b7 " + HIRES[m.role].nm : HIRES[m.role].nm, x, y - 30); ctx.textAlign = "start"; });
     }
     function drawHideoutCrew() {
+      if (g.pescaped) { drawBaseFolk(); return; }      // layer 482: everybody walks (drawBaseFolk); the rows below are the old stand-ins
       drawHires();
       const b = g.inside; if (!b || !b.hideout || g.floor !== 1 || !g.crewOut) return;
       const pl = buildingPlans(b)[1], r = pl && pl.rooms[0]; if (!r) return;
@@ -30608,6 +30766,216 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q);
         ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#6fe07a"; ctx.fillText(C.name.toUpperCase(), q.x, q.y - 30); ctx.textAlign = "start"; });
     }
+
+    /* ---------- LAYER 482: THE BASE, YOUR PEOPLE AND THEIR ORDERS ----------
+       Everybody at the scrapyard who isn't out WALKS: the crew (Pablo, Leroy, Ras) in the garage, the hires
+       split between the garage and the shelter (by their number). They wander the room, stop, wander, and
+       when you're near they talk -- one-liners in a bubble over the head (BARKS: by trade, and the crew's own).
+       E by any of them -> "baseman": who he is, what he's doing, and ORDERS:
+         WAIT HERE        -- stays at the base: he's who the board's jobs draw on.
+         WORK A CORNER    -- dealers (and chemists): he goes out, and 45 game minutes later he's standing on a
+                             corner of your own (a street spot, $250 a day like any corner) with his own face.
+         GUARD THE YARD   -- shooters, enforcers, lookouts and the crew: he stands at the scrapyard gate. Every
+                             man there cuts the odds a gang at war hits you that day by 30%.
+         GUARD A CORNER   -- the same men, at one of your spots: when it's hit and you don't get there, he holds
+                             it 65% of the time (otherwise it's lost and he comes home).
+         PULL HUSTLES     -- anybody: out on the street; every game hour some of them pay (a fence or a forger
+                             more), and now and then one gets picked up and is gone a day.
+         COME BACK        -- whatever he's doing, he comes home (a corner he was working goes with him).
+       Anybody can be reached from the board too: YOUR PEOPLE lists them all with what they're doing.
+       A man who's out (or busy on a board job) is not free for the board: boardFree takes them off. */
+    const BASE_SPD = 36;
+    const HIRE_FIRST = ["Tony", "Sal", "Vic", "Benny", "Ray", "Carl", "Dutch", "Earl", "Lou", "Marcus", "Dee", "Tommy", "Rico", "Junior", "Walt", "Floyd", "Nate", "Cheech"];
+    const HIRE_LAST = ["Russo", "Kowalczyk", "Dunn", "Washington", "Pruitt", "Moran", "Sikora", "Bell", "Greco", "Haynes", "Lindqvist", "Mack", "Okafor", "Petrakis", "Riley", "Vance", "Zielinski", "Boyd"];
+    const BARKS = {
+      any: ["You hear the Bears traded for a kicker? A KICKER.", "Somebody's been drinking my Old Style.", "This place smells like motor oil and bad decisions.",
+        "Say the word, boss.", "Quiet tonight. Too quiet.", "I got a cousin in Cicero says hi.", "Who left the radio on the Sox game? We lost.",
+        "Cold enough out there to freeze your hubcaps.", "Pay day's the best day.", "Ditka would've had my back.", "I ain't sleeping on that cot again."],
+      dealer: ["Corner's been dry. Put me back out there.", "Product don't move itself.", "Kids on Halsted want what I got.", "Cash in, bags out. Simple."],
+      driver: ["I could do the Ryan in six minutes flat.", "Somebody's gotta tune that carburetor.", "Wheelman's only as good as his car, boss."],
+      shooter: ["Cleaned it twice. It's ready.", "Anybody comes through that gate, I see 'em first.", "Point me at somebody."],
+      lookout: ["I see everything. Mostly pigeons.", "Squad car went by twice. Same cop.", "Eyes open, mouth shut."],
+      mechanic: ["Give me twenty minutes and a socket set.", "That wreck out there? Could run again.", "Never trust a carburetor."],
+      enforcer: ["Shop owners pay. They always pay.", "I don't ask twice.", "Knuckles are sore. Good sore."],
+      fence: ["I can move anything but a hot stove.", "Got a guy in Gary wants watches.", "Ten cents on the dollar. Take it or leave it."],
+      forger: ["Steady hands, boss. Steady hands.", "Need a new name? I got a drawer full.", "Ink's the easy part. The paper's the trick."],
+      bomber: ["Don't touch the blue bag.", "Smell that? That's chemistry.", "Relax, it's stable. Mostly."],
+      safecracker: ["Every box has a song. You just gotta hear it.", "Mosler, Diebold -- I've kissed 'em all.", "Fingertips like a surgeon."],
+      chemist: ["Purity's what keeps customers.", "I'm not cooking in here, relax.", "Science, boss. Pure science."],
+      fixer: ["I made a call. The call made a call.", "Everybody's got a price. I know most of 'em.", "Downtown owes me three favors."],
+      viejo: ["Sit, mijo. Eat something.", "This lowrider's older than you, and prettier.", "Kestrel food. Never again.", "Mi abuela could drive better than these pendejos."],
+      leroy: ["I watched your back inside. Still watching it.", "Free man's coffee tastes different.", "Keep your head down. I'll keep mine up."],
+      ras: ["Easy, bredren. Easy.", "Time pass, whether you count it or not.", "Jah know, it good to see sky."],
+    };
+    const HUSTLE = { fence: [150, 500], forger: [150, 450], fixer: [200, 600], safecracker: [120, 400], any: [40, 250] };
+    const GUARDS = { shooter: 1, enforcer: 1, lookout: 1 };
+    function hireName(m) { if (!m.name) { const h = (m.id * 2654435761) >>> 0; m.name = HIRE_FIRST[h % HIRE_FIRST.length] + " " + HIRE_LAST[(h >>> 8) % HIRE_LAST.length]; } return m.name; }
+    // everyone of yours: the crew (once out) and every man on the payroll
+    function basePeople() {
+      const B = g.board2 || {}, out = [];
+      if (g.crewOut) for (const C of CREW) { const role = Object.keys(HIRES).find((k) => HIRES[k].crew === C.id);
+        const rec = ((g.crewJobs = g.crewJobs || {})[C.id] = (g.crewJobs || {})[C.id] || { job: "wait" });
+        out.push({ key: "c:" + C.id, crew: C.id, name: C.name, role, yt: "yt_crew_" + C.id, tall: C.tall, face: "assets/crew/" + (C.faceCiv || C.face) + ".png", rec, home: 1,
+          following: (g.pfol || []).some((f) => f.crew === C.id) }); }
+      for (const m of B.men || []) { if (!m.id) m.id = (B.nextId = (B.nextId || 0) + 1); if (!m.job) m.job = "wait";
+        out.push({ key: "m:" + m.id, m, name: hireName(m), role: m.role, yt: m.yt || "yt_hire_" + m.role + "_" + (m.v || 1), tall: m.tall || 1.25,
+          face: m.face || "assets/hires/pt_hire_" + m.role + "_" + (m.v || 1) + ".png", rec: m, home: m.id % 2 }); }
+      return out;
+    }
+    const personByKey = (k) => basePeople().find((q) => q.key === k);
+    const isOut = (p) => p.rec.job && p.rec.job !== "wait";
+    function outCount(k) { return basePeople().filter((p) => p.role === k && isOut(p)).length; }
+    // who of the waiting ones is tied up on a board job right now (the board books by trade, so: the first N)
+    function opBusyKeys() { const B = g.board2 || {}, busy = new Set(), left = {};
+      for (const o of B.ops || []) for (const k in OPS[o.k].need) left[k] = (left[k] || 0) + OPS[o.k].need[k];
+      for (const p of basePeople().sort((a, b) => (a.crew ? 1 : 0) - (b.crew ? 1 : 0))) if (!isOut(p) && left[p.role] > 0) { left[p.role]--; busy.add(p.key); }
+      return busy; }
+    function jobText(p, busy) { const r = p.rec, B = g.board2 || {}, sp = (B.spots || []).find((q) => q.sid === r.spot);
+      if (p.following) return "with you";
+      if (busy && busy.has(p.key)) return "on a board job";
+      return r.job === "deal" ? (sp ? "on a corner, " + sp.addr : "heading out to a corner") : r.job === "guard" ? (sp ? "guarding " + sp.addr : "guarding a corner")
+        : r.job === "guardbase" ? "guarding the yard" : r.job === "hustle" ? "hustling" : r.job === "jail" ? "picked up -- back in " + Math.max(1, Math.ceil((r.until - nowMin()) / 60)) + "h" : "at the yard"; }
+    // the walkers: one record per person at the base
+    function baseRoom(f) { const H = hideoutB(); const pl = H && buildingPlans(H)[f]; return pl ? { pl, r: pl.rooms[0] } : null; }
+    function baseSpot(f) { const R = baseRoom(f); if (!R || !R.r) return null; const { pl, r } = R, st = pl.stair;
+      for (let t = 0; t < 14; t++) { const x = r.x0 + 50 + Math.random() * (r.x1 - r.x0 - 100), y = r.y0 + 50 + Math.random() * (r.y1 - r.y0 - 100);
+        if (st && Math.abs(x - st.x) < 60 && Math.abs(y - st.y) < 70) continue;
+        if ((pl.props || []).some((o) => (SOLID_PROP[o.t] || /hatch|ladderhole|maptable|wreck/.test(o.t)) && x > o.x - 16 && x < o.x + o.w + 16 && y > o.y - 16 && y < o.y + o.h + 16)) continue;
+        return [x, y]; }
+      return [(r.x0 + r.x1) / 2 + 80, r.y1 - 50]; }
+    function stepBaseFolk(dt) {
+      if (!g.pescaped) return;
+      stepPeopleJobs();
+      const H = hideoutB(); if (!H || g.inside !== H) return;
+      const F = (g.bfolk = g.bfolk || {}), busy = opBusyKeys(), here = new Set();
+      for (const p of basePeople()) { if (isOut(p) || p.following || busy.has(p.key)) continue;
+        here.add(p.key);
+        let w = F[p.key]; if (!w) { const pt = baseSpot(p.home); if (!pt) continue; w = F[p.key] = { x: pt[0], y: pt[1], tx: pt[0], ty: pt[1], pause: Math.random() * 3, vx: 0, vy: 0, anim: 0, bark: 4 + Math.random() * 12 }; }
+        w.p = p; w.floor = p.home;
+        if (w.floor !== g.floor) continue;
+        if (w.pause > 0) { w.pause -= dt; w.vx = 0; w.vy = 0; if (w.pause <= 0) { const pt = baseSpot(w.floor); if (pt) { w.tx = pt[0]; w.ty = pt[1]; } } }
+        else { const dx = w.tx - w.x, dy = w.ty - w.y, d = Math.hypot(dx, dy);
+          if (d < 4) { w.pause = 2 + Math.random() * 5; w.vx = 0; w.vy = 0; }
+          else { const m = Math.min(d, BASE_SPD * dt); w.x += dx / d * m; w.y += dy / d * m; w.vx = dx / d * BASE_SPD; w.vy = dy / d * BASE_SPD; w.anim += dt; } }
+        // talk: when you're near, now and then, one at a time
+        w.bark -= dt; if (w.say) { w.say.t -= dt; if (w.say.t <= 0) w.say = null; }
+        if (w.bark <= 0) { w.bark = 9 + Math.random() * 14;
+          if (Math.hypot(w.x - g.p.x, w.y - g.p.y) < 340 && (g.barkGap || 0) <= 0) { const L = (BARKS[p.crew] || []).concat(BARKS[p.role] || [], BARKS.any);
+            w.say = { text: cpick(L), t: 3.8 }; g.barkGap = 2.2; } }
+      }
+      if (g.barkGap > 0) g.barkGap -= dt;
+      for (const k in F) if (!here.has(k)) delete F[k];
+    }
+    // the jobs that run whether you're at the yard or not
+    function stepPeopleJobs() {
+      const B = g.board2; if (!B) return; const now = nowMin();
+      let take = 0, who = [];
+      for (const p of basePeople()) { const r = p.rec;
+        if (r.job === "deal" && !r.spot && now >= (r.at || 0)) { const s0 = spotNear(); if (s0) { const sid = (B.nextSid = (B.nextSid || 0) + 1);
+            (B.spots = B.spots || []).push({ ...s0, kind: "corner", yt: p.yt, tall: p.tall, who: p.key, sid }); B.corners = (B.corners || 0) + 1; r.spot = sid;
+            g.pickupFlash = { nm: "lift:" + p.name.toUpperCase() + " IS ON A CORNER \u00b7 " + s0.addr, t: 2.2 }; } }
+        for (let n = 0; n < 24 && r.job === "hustle" && now >= (r.at || 0); n++) { r.at = (r.at || now) + 60; const roll = Math.random();     // an hour at a time (a skip catches up)
+          if (roll < 0.04) { r.job = "jail"; r.until = now + 1440; g.jobBanner = "PICKED UP"; g.jobNote = p.name + " got pinched running a game. He'll be out in a day."; }
+          else if (roll < 0.55) { const P = HUSTLE[p.role] || HUSTLE.any, v = Math.round(P[0] + Math.random() * (P[1] - P[0])); take += v; if (!who.includes(p.name.split(" ")[0])) who.push(p.name.split(" ")[0]); } }
+        if (r.job === "jail" && now >= (r.until || 0)) { r.job = "wait"; g.jobBanner = "BACK"; g.jobNote = p.name + " is out and back at the yard."; }
+      }
+      if (take) { g.p.cash = (g.p.cash || 0) + take; g.pickupFlash = { nm: "lift:HUSTLES \u00b7 " + who.join(", ").toUpperCase() + " \u00b7 +$" + take, t: 2 }; }
+    }
+    // sending a man somewhere
+    function setJob(p, job, sid) { const B = g.board2 = g.board2 || { hires: {}, ops: [], corners: 0 }, r = p.rec;
+      // whatever he was doing ends: a corner he was working closes, a corner he was guarding loses him
+      if (r.job === "deal" && r.spot) { const i = (B.spots || []).findIndex((q) => q.sid === r.spot); if (i >= 0) { B.spots.splice(i, 1); B.corners = Math.max(0, (B.corners || 0) - 1); } }
+      if (r.job === "guard" && r.spot) { const sp = (B.spots || []).find((q) => q.sid === r.spot); if (sp && sp.guard === p.key) sp.guard = null; }
+      r.job = job; r.spot = null; r.at = 0;
+      if (job === "deal") r.at = nowMin() + 45;
+      if (job === "hustle") r.at = nowMin() + 60;
+      if (job === "guard") { const sp = (B.spots || []).find((q) => q.sid === sid); if (sp) { sp.guard = p.key; sp.gyt = p.yt; sp.gtall = p.tall; r.spot = sid; } }
+      if (job !== "wait" && g.bfolk) delete g.bfolk[p.key];
+    }
+    const baseGuards = () => basePeople().filter((p) => p.rec.job === "guardbase").length;
+    G.baseTalkFn = () => {
+      const H = hideoutB(); if (!g.pescaped || !H || g.inside !== H || g.mode !== "foot" || !g.bfolk) return false;
+      let best = null, bd = 44;
+      for (const k in g.bfolk) { const w = g.bfolk[k]; if (w.floor !== g.floor) continue; const d = Math.hypot(w.x - g.p.x, w.y - g.p.y); if (d < bd) { bd = d; best = w; } }
+      if (!best) return false;
+      const pl = buildingPlans(H)[g.floor], t = (pl.props || []).find((o) => o.t === "bs_maptable");
+      if (t && Math.hypot(t.x + t.w / 2 - g.p.x, t.y + t.h / 2 - g.p.y) < bd) return false;   // the board's nearer
+      best.pause = Math.max(best.pause, 4); best.vx = 0; best.vy = 0;
+      g.bmKey = best.p.key; g.bmSaid = null; G.pickOpen("baseman"); return true;
+    };
+    // E by your man on a street corner (dealing or guarding): the same panel
+    G.spotTalkFn = () => {
+      const B = g.board2; if (!g.pescaped || g.inside || !B || !B.spots || g.mode !== "foot") return false;
+      for (const s of B.spots) { if (s.who && Math.hypot(s.x - g.p.x, s.y - g.p.y) < 40) { g.bmKey = s.who; g.bmSaid = null; G.pickOpen("baseman"); return true; }
+        if (s.guard && Math.hypot(s.x + 48 - g.p.x, s.y + 10 - g.p.y) < 40) { g.bmKey = s.guard; g.bmSaid = null; G.pickOpen("baseman"); return true; } }
+      const H = hideoutB(); if (H) { const d = doorPoint(H); const gs = basePeople().filter((p) => p.rec.job === "guardbase");
+        for (let i = 0; i < gs.length; i++) { const x = d[0] - 40 + i * 34, y = d[1] + 34; if (Math.hypot(x - g.p.x, y - g.p.y) < 30) { g.bmKey = gs[i].key; g.bmSaid = null; G.pickOpen("baseman"); return true; } } }
+      return false;
+    };
+    function baseManPanel() {
+      const p = personByKey(g.bmKey); if (!p) return null;
+      const B = g.board2 || {}, r = p.rec, busy = opBusyKeys().has(p.key), opts = [];
+      const canGuard = GUARDS[p.role] || p.crew, free = boardFree(p.role) > 0 || isOut(p);
+      if (busy) {}
+      else if (isOut(p)) { if (r.job !== "jail") opts.push({ id: "bm:wait", label: "COME BACK TO THE YARD" }); }
+      else if (!p.following) {
+        opts.push({ id: "bm:wait", label: "WAIT HERE FOR A JOB" });
+        if (/^(dealer|chemist)$/.test(p.role)) opts.push({ id: "bm:deal", label: "WORK A CORNER ($250 A DAY)" });
+        if (canGuard) { opts.push({ id: "bm:guardbase", label: "GUARD THE YARD" });
+          for (const sp of (B.spots || []).filter((q) => !q.guard).slice(0, 3)) opts.push({ id: "bm:guard:" + sp.sid, label: "GUARD YOUR " + (sp.kind === "corner" ? "CORNER" : "SHOP") + " \u00b7 " + sp.addr }); }
+        opts.push({ id: "bm:hustle", label: "PULL HUSTLES ON THE STREET" });
+      }
+      if (p.crew && !isOut(p) && !busy) opts.push(p.following ? { id: "bm:stay", label: "STAY HERE" } : { id: "bm:follow", label: "WITH ME" });
+      opts.push({ id: "bm:talk", label: "WHAT'S ON YOUR MIND?" }, { id: "close", label: "LATER" });
+      const said = g.bmSaid || cpick((BARKS[p.crew] || []).concat(BARKS[p.role] || []).concat(BARKS.any));
+      g.bmSaid = said;
+      return { title: p.name.toUpperCase() + " \u00b7 " + HIRES[p.role].nm + " \u00b7 " + jobText(p, busy ? new Set([p.key]) : null).toUpperCase(), face: p.face,
+        text: "\u201c" + said + "\u201d" + (busy ? "  He's tied up on a board job." : !free ? "  (Every " + HIRES[p.role].nm.toLowerCase() + " you have is busy.)" : ""), opts };
+    }
+    G.baseManPick = (id) => {
+      const [, a, x] = id.split(":"), p = personByKey(g.bmKey); if (!p) return;
+      if (a === "talk") { g.bmSaid = cpick((BARKS[p.crew] || []).concat(BARKS[p.role] || []).concat(BARKS.any)); return; }
+      if (a === "follow" || a === "stay") { const q = crewFolk(p.crew); if (q) { if (a === "follow") folStart(q); else folStop(q); }
+        g.bmSaid = a === "follow" ? "Right behind you." : "I'll be here."; if (g.bfolk) delete g.bfolk[p.key]; return; }
+      if (a !== "wait" && !isOut(p) && boardFree(p.role) <= 0) { g.bmSaid = "Every " + HIRES[p.role].nm.toLowerCase() + " you got is tied up on a job."; return; }
+      if (a === "wait") { const back = isOut(p); setJob(p, "wait"); g.bmSaid = back ? "On my way back." : "I'll be right here, boss."; return; }
+      if (a === "deal") { setJob(p, "deal"); g.bmSaid = "I'll find a corner. Give me an hour."; return; }
+      if (a === "guardbase") { setJob(p, "guardbase"); g.bmSaid = "Nobody comes through that gate."; return; }
+      if (a === "guard") { setJob(p, "guard", +x); g.bmSaid = "I got it. Anybody tries anything, they deal with me."; return; }
+      if (a === "hustle") { setJob(p, "hustle"); g.bmSaid = "I'll go shake some trees."; return; }
+    };
+    // the board's YOUR PEOPLE: everybody and what he's doing; pick one to give him an order
+    function peopleOpts() { const busy = opBusyKeys();
+      return basePeople().map((p) => ({ id: "bm:open:" + p.key, label: p.name.toUpperCase() + " \u00b7 " + HIRES[p.role].nm + " \u00b7 " + jobText(p, busy).toUpperCase() })); }
+    function drawBark(x, y, text) {
+      ctx.save(); ctx.font = "600 10px system-ui, sans-serif"; const wds = text.split(" "), lines = []; let ln = "";
+      for (const w of wds) { const t2 = ln ? ln + " " + w : w; if (ctx.measureText(t2).width > 150 && ln) { lines.push(ln); ln = w; } else ln = t2; } if (ln) lines.push(ln);
+      const W = Math.max(...lines.map((l) => ctx.measureText(l).width)) + 14, Hh = lines.length * 12 + 8, bx = x - W / 2, by = y - Hh - 8;
+      ctx.fillStyle = "rgba(250,246,232,0.95)"; ctx.strokeStyle = "rgba(20,20,24,0.9)"; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, W, Hh, 6) : ctx.rect(bx, by, W, Hh); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x - 5, by + Hh); ctx.lineTo(x, by + Hh + 7); ctx.lineTo(x + 5, by + Hh); ctx.fill();
+      ctx.fillStyle = "#1a1a1e"; ctx.textAlign = "center"; lines.forEach((l, i) => ctx.fillText(l, x, by + 14 + i * 12)); ctx.restore();
+    }
+    function drawBaseFolk() {
+      const H = hideoutB(); if (!g.pescaped || !H || g.inside !== H || !g.bfolk) return;
+      const list = Object.values(g.bfolk).filter((w) => w.floor === g.floor && w.p).sort((a, b) => a.y - b.y);
+      for (const w of list) { const p = w.p, q = { x: w.x, y: w.y, vx: w.vx, vy: w.vy, anim: w.anim, jit: 1, tall: p.tall, yt: p.yt, bang: Math.abs(w.vx) + Math.abs(w.vy) > 1 ? Math.atan2(w.vy, w.vx) : -Math.PI / 2 };
+        drawShadow(w.x, w.y + 2, 9, 4, 0.3); drawYouth(q);
+        ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = p.crew ? "#6fe07a" : "#e8c46a";
+        ctx.fillText(p.name.toUpperCase() + (p.crew ? "" : " \u00b7 " + HIRES[p.role].nm), w.x, w.y - 30); ctx.textAlign = "start"; }
+      for (const w of list) if (w.say) drawBark(w.x, w.y - 36, w.say.text);
+    }
+    // outside: the men guarding the yard, at the gate
+    function drawYardGuards(view) {
+      const H = hideoutB(); if (!g.pescaped || g.inside || !H) return; const d = doorPoint(H);
+      if (d[0] < view.x0 - 200 || d[0] > view.x1 + 200 || d[1] < view.y0 - 200 || d[1] > view.y1 + 200) return;
+      basePeople().filter((p) => p.rec.job === "guardbase").forEach((p, i) => { const x = d[0] - 40 + i * 34, y = d[1] + 34;
+        drawShadow(x, y + 2, 9, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: p.tall, yt: p.yt, bang: Math.PI / 2 });
+        ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText(p.name.split(" ")[0].toUpperCase() + " \u00b7 GUARD", x, y - 30); ctx.textAlign = "start"; });
+    }
+    G.basePeopleT = () => basePeople().map((p) => [p.key, p.name, p.role, p.rec.job, p.home]);   // test hooks
+    G.baseFolkT = () => Object.entries(g.bfolk || {}).map(([k, w]) => [k, w.floor, w.x | 0, w.y | 0, w.say ? w.say.text : null]);
+    G.setJobT = (key, job, sid) => { const p = personByKey(key); if (p) setJob(p, job, sid); return p ? p.rec.job : null; };
 
     /* ---------- LAYER 436: THE BUS IN, ROOF HATCHES, THE DRAIN ----------
        THE BUS IN (`g.pintro`): prison mode opens outside the gate beside the white bus, and a CO
@@ -30921,7 +31289,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const nowMin = () => (g.pday || 0) * 1440 + (g.clock || 0);
     function boardHave(k) { const B = g.board2 || {}; return (B.hires && B.hires[k] || 0) + (g.crewOut && HIRES[k].crew ? 1 : 0); }
     function boardBusy(k) { return (g.board2 && g.board2.ops || []).reduce((a, o) => a + (OPS[o.k].need[k] || 0), 0); }
-    function boardFree(k) { return boardHave(k) - boardBusy(k); }
+    function boardFree(k) { return boardHave(k) - boardBusy(k) - outCount(k); }     // men sent out (layer 482) aren't free
     G.opsBoardFn = () => {
       const b = g.inside; if (!b || !b.hideout || g.floor !== 0 || g.mode !== "foot") return false;
       const pl = buildingPlans(b)[0];
@@ -30937,6 +31305,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         for (const k in HIRES) { const H = HIRES[k], lock = (g.rep || 0) < H.rep;
           opts.push({ id: "bd:hire:" + k, label: (lock ? "\u2717 " : "") + "HIRE A " + H.nm + " \u00b7 $" + H.cost + (lock ? " \u00b7 NEEDS " + H.rep + " RESPECT" : " \u00b7 HAVE " + boardHave(k)) }); }
         g.boardSaid = g.boardSaid || ("You have " + peopleCount() + " of the " + cap + " people a " + repTier()[1].toLowerCase() + " can keep.");
+        opts.push({ id: "bd:view:main", label: "BACK" });
+      } else if (g.boardView === "people") {
+        const L = peopleOpts(); opts.push(...L); if (!L.length) g.boardSaid = g.boardSaid || "Nobody works for you yet.";
         opts.push({ id: "bd:view:main", label: "BACK" });
       } else if (g.boardView === "gangs") {
         const gks = g.gwar ? Object.keys(g.gwar.gangs) : [];
@@ -30969,7 +31340,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           else opts.push({ id: "bd:op:" + k, label: (ok ? "" : "\u2717 ") + O.nm + " \u00b7 " + need }); }
         opts.push({ id: "bd:view:main", label: "BACK" });
       } else {
-        opts.push({ id: "bd:view:hire", label: "HIRE PEOPLE" }, { id: "bd:view:plan", label: "PLAN A JOB" },
+        opts.push({ id: "bd:view:hire", label: "HIRE PEOPLE" }, { id: "bd:view:people", label: "YOUR PEOPLE \u00b7 GIVE ORDERS" }, { id: "bd:view:plan", label: "PLAN A JOB" },
                   { id: "bd:view:gangs", label: "THE GANGS AND YOU" }, { id: "bd:view:kestrel", label: "GET A MAN OUT OF KESTREL" }, { id: "close", label: "WALK AWAY" });
       }
       const staff = Object.keys(HIRES).map((k) => HIRES[k].nm.toLowerCase() + " " + boardFree(k) + "/" + boardHave(k)).join(", ");
@@ -31046,7 +31417,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (inc) { g.p.cash = (g.p.cash || 0) + inc; g.pickupFlash = { nm: "lift:THE DAY'S TAKE \u00b7 +$" + inc, t: 2 }; }
           g.rep = Math.max(0, (g.rep || 0) - 3);                  // respect fades if you sit still
           // gangs at war hit you
-          for (const gk of Object.keys(g.gstand || {})) if (standTier(standOf(gk)) === "WAR" && Math.random() < 0.5) {
+          for (const gk of Object.keys(g.gstand || {})) if (standTier(standOf(gk)) === "WAR" && Math.random() < 0.5 * Math.pow(0.7, baseGuards())) {     // men at the gate (layer 482)
             if ((B.spots || []).length && !B.attack) { const sp = cpick(B.spots); B.attack = { spot: sp, x: sp.x, y: sp.y, gk, t: CORNER_DEF };
               g.jobBanner = (GANG_LABEL[gk] || gk).toUpperCase() + " ARE HITTING YOUR " + (sp.kind === "corner" ? "CORNER" : "SHOP"); g.jobNote = sp.addr + ". " + CORNER_DEF + " seconds. Follow the red arrow."; }
             else if (B.attack) {}
@@ -31074,7 +31445,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         let note;
         if (bad) {   // it went wrong: somebody is lost (a hire, never the crew), and heat
           const role = Object.keys(O.need).find((r) => (B.hires[r] || 0) > 0);
-          if (role) { B.hires[role]--; const m = (B.men || []).findIndex((q) => q.role === role); if (m >= 0) B.men.splice(m, 1); }
+          if (role) { B.hires[role]--; let m = (B.men || []).findIndex((q) => q.role === role && (!q.job || q.job === "wait")); if (m < 0) m = (B.men || []).findIndex((q) => q.role === role); if (m >= 0) B.men.splice(m, 1); }
           note = O.nm + " WENT WRONG" + (role ? " -- you lost a " + HIRES[role].nm.toLowerCase() : "") + ".";
           g.rep = Math.max(0, (g.rep || 0) - Math.round((O.gain || 0) / 2));
           g.heat = Math.max(g.heat || 0, 1 + O.heat); g.wantedT = Math.max(g.wantedT || 0, 30);
@@ -31346,8 +31717,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!g.inside && Math.hypot(g.p.x - A.x, g.p.y - A.y) < 90) {
         B.attack = null; g.rep = (g.rep || 0) + 10; moveStand(A.gk, -5);
         g.jobBanner = "YOU HELD IT"; g.jobNote = "You got there in time. " + (GANG_LABEL[A.gk] || "They") + " ran. +10 respect."; return; }
+      if (A.t <= 0 && A.spot.guard && Math.random() < 0.65) { B.attack = null; const gp = personByKey(A.spot.guard); moveStand(A.gk, -5);
+        g.jobBanner = "HELD"; g.jobNote = (gp ? gp.name : "Your man") + " held " + A.spot.addr + ". " + (GANG_LABEL[A.gk] || "They") + " backed off."; return; }
       if (A.t <= 0) { B.attack = null;
-        const i = (B.spots || []).indexOf(A.spot); if (i >= 0) B.spots.splice(i, 1);
+        for (const k2 of [A.spot.who, A.spot.guard]) { const gp = k2 && personByKey(k2); if (gp) { gp.rec.job = "wait"; gp.rec.spot = null; } }     // whoever was there comes home if (i >= 0) B.spots.splice(i, 1);
         if (A.spot.kind === "corner") B.corners = Math.max(0, (B.corners || 0) - 1); else B.rackets = Math.max(0, (B.rackets || 0) - 1);
         g.jobBanner = "YOU LOST IT"; g.jobNote = (GANG_LABEL[A.gk] || "They") + " took your " + (A.spot.kind === "corner" ? "corner" : "shop") + " on " + A.spot.addr + "."; }
     }
@@ -31359,7 +31732,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q);
         const hit = B.attack && B.attack.spot === s;
         ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = hit ? "#ff5040" : "#e8c46a";
-        ctx.fillText(hit ? "UNDER ATTACK \u00b7 " + Math.ceil(B.attack.t) + "s" : s.kind === "corner" ? "YOUR CORNER" : "PROTECTED", q.x, q.y - 30); ctx.textAlign = "start";
+        const who = s.who && personByKey(s.who);
+        ctx.fillText(hit ? "UNDER ATTACK \u00b7 " + Math.ceil(B.attack.t) + "s" : (who ? who.name.split(" ")[0].toUpperCase() + " \u00b7 " : "") + (s.kind === "corner" ? "YOUR CORNER" : "PROTECTED"), q.x, q.y - 30); ctx.textAlign = "start";
+        if (s.guard) { const q2 = { x: s.x + 48, y: s.y + 10, vx: 0, vy: 0, anim: 0, jit: 1, tall: s.gtall || 1.25, yt: s.gyt, bang: Math.PI / 2 };   // his guard (layer 482)
+          drawShadow(q2.x, q2.y + 2, 9, 4, 0.3); drawYouth(q2); ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText("GUARD", q2.x, q2.y - 22); ctx.textAlign = "start"; }
       }
     }
 
@@ -37844,6 +38220,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       resolveTrafficOverlap();
       updateItems(dt, g.cam.x, g.cam.y);
       updatePolice(dt);
+      stepCopChase(dt); solidCars();      // the police chase you; parked cars, blocks and cruisers are solid (layer 483)
       updateDetectives(dt);
       updateWeather(dt);
       /* THE KNOCKOUT. Fourteen separate Math.max(0, ...) calls clamp the player's health and
@@ -37895,7 +38272,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (!g.studentMode) { const before = g.clock == null ? CLOCK.start : g.clock;     // student mode keeps its own (slow) school clock
           g.clock = (before + dt * CLOCK.rate) % 1440;
           if (g.clock < before) { g.day = (g.day || 0) + 1; kestrelReleases(); } }
-        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepFolkWalk(dt); stepPrisonMail(); stepOps(); stepMerc(); stepCornerWar(dt); stepCasing(dt); stepBall(dt);
+        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepBaseFolk(dt); stepFolkWalk(dt); stepPrisonMail(); stepOps(); stepMerc(); stepCornerWar(dt); stepCasing(dt); stepBall(dt);
         // anybody who has wandered onto the prison grounds from the street is walked back off
         if ((g.pedCullT = (g.pedCullT || 0) - dt) <= 0) { g.pedCullT = 2; g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y)); }
         if (g.prisonStart) startPrisonMode();
