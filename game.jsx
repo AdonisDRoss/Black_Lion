@@ -11394,6 +11394,7 @@ export default function IronLionLayer004() {
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
       if (k === "e") doAction();
       if (k === "f" && G.strikeFn) G.strikeFn();
+      if (k === "t" && G.current.studentMode && G.pickOpen) G.pickOpen("stuskip");   // fast forward (student mode)
       if (k === "n") G.current.nightTarget = G.current.nightTarget > 0.5 ? 0 : 1;
       if (k === "h" && G.hydroFn) G.hydroFn();          // hydraulics, in a lowrider
       if (k === "-" || k === "_") G.zoomStep && G.zoomStep(-0.15);
@@ -15878,6 +15879,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "stubed") return stuBedPanel();
       if (kind === "studesk") return stuDeskPanel();
       if (kind === "stusched") return stuSchedPanel();
+      if (kind === "stuskip") return stuSkipPanel();
       if (kind === "stuq") return stuQPanel();
       if (kind === "stumom") return momPanel();
       if (kind === "stukid") return kidPanel();
@@ -22245,6 +22247,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       } catch (e) { im._rim = null; }
       return im._rim;
     }
+    function drawHoopsOver() {
+      const pl = buildingPlans(g.inside)[g.floor]; if (!pl) return;
+      for (const p of pl.props || []) if (HOOP_FACE[p.t]) propSprite(p.t, p.x, p.y, p.w, p.h);
+    }
     function drawHoopProp(kind, im, x, y, w, h) {
       const F = HOOP_FACE[kind], rim = hoopRim(im);
       const q = rim == null ? 0 : ((Math.round((Math.atan2(F[1], F[0]) - rim) / (Math.PI / 2)) % 4) + 4) % 4;   // quarter turns
@@ -23353,6 +23359,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (const p of plan.props) {
         if (OWNED_BY_FLOOR[p.t]) continue;
         if (p.wallArt) continue;               // hung after the walls, below
+        if (HOOP_FACE[p.t]) continue;          // the hoops hang OVER the players: drawHoopsOver, after everyone
         // collision only -- a gy_block drawn as a coloured box would put a grey slab over the ring
         if (p.t === "gy_block") continue;
         // she is only parked here while she is in the building
@@ -32179,7 +32186,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (subj === testSubj(U.day) && U.tested !== U.day + ":" + subj) {                // test day: the test
         const pre = U.nextTest && U.nextTest.day === U.day && U.nextTest.subj === subj ? U.nextTest : null;
         g.stuTest = { subj, i: 0, right: 0, noBooks: !U.packed, seen: pre ? pre.seen : 0, qs: pre ? pre.qs : STU_Q[subj].slice().sort(() => Math.random() - 0.5).slice(0, 3) }; G.pickOpen("stutest"); return true; }
-      if (U.asked[key]) { g.pickupFlash = { nm: "lift:YOU ALREADY ANSWERED THIS PERIOD", t: 1.4 }; return true; }
+      if (U.asked[key]) { G.pickOpen("stuskip"); return true; }     // answered: the desk offers the bell (layer 481)
       if (!U.packed) return true;
       const Q = cpick(STU_Q[STU_SUBJ[C.k]]); g.stuQ = { q: Q, key }; G.pickOpen("stuq"); return true;
     };
@@ -32194,10 +32201,60 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       rows.splice(3, 0, (blk === "lunch" ? "\u25b6 " : "") + "LUNCH  " + clockText(L[1]) + "-" + clockText(L[2]));
       return { title: "YOUR SCHEDULE \u00b7 " + DOW[dowOf(U.day)], face: null, text: rows.join("\n"), opts: [{ id: "close", label: "CLOSE" }] };
     }
+    /* FAST FORWARD (layer 481): the SKIP button (or T) in student mode, and E at your desk once you've answered.
+       What it offers depends on where the day is:
+         IN CLASS  -- seated, and the period's thing done (the question answered / the test sat / gym played, or no
+                      books so there's nothing to do): SKIP TO THE BELL.
+         LUNCH     -- SKIP TO THE END OF LUNCH, from anywhere.
+         PASSING / BEFORE 1ST -- seated for the next period: SKIP TO THE BELL (on time, it starts).
+         ANY OTHER TIME (before school, after, weekends) -- WAIT 30 MIN / 1 HOUR / 3 HOURS, and before the bus WAIT
+                      FOR THE BUS. A wait never jumps PAST a time something happens (the bus, the first bell, the
+                      homework check, school's out, detention's start and end, practice, the dance, curfew, midnight):
+                      it stops there, so nothing that checks the clock gets stepped over. */
+    function skipStops() {      // the times a wait stops at, today
+      const U = g.stu, sd = isSchoolDay(U.day), out = [STU.curfew, 1439];
+      if (sd) out.push(435, 450, 885);                                          // the bus, the doors open, school's out
+      if (sd && U.detention === U.day) out.push(870, 930);                      // detention, in and out
+      if (U.team && TEAM.practice.includes(dowOf(U.day))) out.push(TEAM.from, TEAM.to);
+      if (U.team && dowOf(U.day) === TEAM.gameDow) out.push(TEAM.gameFrom, TEAM.gameTo);
+      if (isDanceDay(U.day)) out.push(DANCE.from, DANCE.to);
+      return out.sort((a, b) => a - b);
+    }
+    function stuSkipPanel() {
+      const U = g.stu, c = g.clock || 0, blk = bellBlock(c), B = BELL.find((q) => q[0] === blk && c >= q[1] && c < q[2]), opts = [];
+      let text = "";
+      const go = (to, label) => opts.push({ id: "stu:skip:" + Math.round(to), label: label + (/UNTIL$/.test(label) ? " " : " \u00b7 ") + clockText(to) });
+      if (/^p\d$/.test(blk)) {
+        const key = U.day + ":" + blk, C = stuClassroom({ p1: 0, p2: 1, p3: 2, p4: 3, p5: 4, p6: 5 }[blk]), subj = C && STU_SUBJ[C.k];
+        const done = C && C.gym ? U.gymPlayed === U.day : subj === testSubj(U.day) ? U.tested === U.day + ":" + subj : !!U.asked[key] || !U.packed;
+        if (U.seat !== key) text = "You're not in your seat. Sit at your desk (E) first.";
+        else if (!done) text = C && C.gym ? "The coach hasn't had you up yet -- E to play first." : subj === testSubj(U.day) ? "There's a test on the desk. Take it first." : "The teacher hasn't called on you yet -- E at your desk.";
+        else { text = "You've done your part. The clock on the wall says the rest."; go(B[2], "SKIP TO THE BELL"); }
+      } else if (blk === "lunch") { text = "Tater tots and a carton of milk."; go(B[2], "SKIP TO THE END OF LUNCH"); }
+      else if (blk === "pass" || blk === "arrive") {
+        const N2 = nextPeriod(c), key = N2 && U.day + ":" + N2.blk, nB = N2 && BELL.find((q) => q[0] === N2.blk);
+        if (N2 && U.seat === key) { text = "You're in your seat."; go(nB[1], "SKIP TO THE BELL"); }
+        else text = "Get to your desk (E) first -- then you can wait for the bell.";
+      } else {
+        const stop = (to) => Math.min(to, skipStops().find((t) => t > c) || 1439);
+        if (isSchoolDay(U.day) && c < 435) go(435, "WAIT FOR THE BUS");
+        const seen = new Set(opts.map((o) => o.id));
+        for (const [m, nm] of [[30, "WAIT 30 MIN"], [60, "WAIT 1 HOUR"], [180, "WAIT 3 HOURS"]]) { const t = stop(c + m); if (t <= c || seen.has("stu:skip:" + Math.round(t))) continue; seen.add("stu:skip:" + Math.round(t)); go(t, t < c + m ? "WAIT UNTIL" : nm); }
+        text = c >= 1260 ? "It's late. Your bed's the way to get to morning." : "Time to kill.";
+      }
+      opts.push({ id: "close", label: "NOT YET" });
+      return { title: "FAST FORWARD \u00b7 " + clockText(c), face: null, text, opts };
+    }
+    G.stuSkipT = () => stuSkipPanel();   // test hook
+    G.stuDeskT = (pI) => { const C = stuClassroom(pI), b = stuSchoolB(); if (!C || C.gym) return null; const d = myDesk(C); if (!d) return null;   // test hook: at your desk for period pI
+      g.inside = b; g.floor = 1; g.insideT = 1; g.mode = "foot"; g.p.x = d.x + d.w / 2; g.p.y = d.y + d.h + 4; return [C.k, STU_SUBJ[C.k]]; };
     function stuQPanel() { const Z = g.stuQ; if (!Z) return null; const nm = g.stu.name;
       return { title: nm ? "\u201c" + nm.toUpperCase() + "?\u201d THE TEACHER CALLS ON YOU" : "THE TEACHER CALLS ON YOU", face: null, text: Z.q[0], opts: Z.q[1].map((a, n) => ({ id: "stu:ans:" + n, label: a })) }; }
     G.stuPick = (id) => {
       const U = g.stu, [, a, n] = id.split(":");
+      if (a === "skip") { const to = +n, c = g.clock || 0; if (!(to > c) || to > 1439) return;
+        if (!stuSkipPanel().opts.some((o) => o.id === id)) return;           // only what the panel offers right now
+        g.clock = to; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); g.pickupFlash = { nm: "lift:\u23e9 " + clockText(to), t: 1.4 }; return; }
       if (a === "lunch") { U.money = U.day; U.cash = (U.cash || 0) + 5; g.pickupFlash = { nm: "lift:$5 LUNCH MONEY", t: 1.4 }; return; }
       if (a === "pack") { U.packed = 1; g.pickupFlash = { nm: "lift:BOOKS IN THE BAG", t: 1.2 }; return; }
       if (a === "unpack") { U.packed = 0; g.pickupFlash = { nm: "lift:BOOKS ON THE DESK", t: 1.2 }; return; }
@@ -38238,6 +38295,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (kind === 2) drawHero();
         else if (kind === 9) p.__draw();
       }
+      if (g.inside && g.insideT > 0.5) drawHoopsOver();    // the backboards and rims over the heads of whoever's under them (layer 481)
       if (!g.inside) {
         // Roofs belong ABOVE the sorted building list, not before it -- drawn early, every
         // building painted straight over the roof and the man standing on it.
@@ -46595,6 +46653,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               btn(((G.current.board2 && G.current.board2.cased) || []).some((c) => c.b === G.current.inside) ? "ROB" : "CASE", "this place", () => G.caseShopFn && G.caseShopFn(), null, false)}
             {G.current && G.current.detMode && G.current.mode !== "foot" && btn("PLATES", "run a car", () => { G.current.plateSaid = null; G.pickOpen && G.pickOpen("plates"); }, null, false)}
             {G.current && G.current.studentMode && btn("SCHED", "where to be", () => { G.pickOpen && G.pickOpen("stusched"); }, null, false)}
+            {G.current && G.current.studentMode && btn("SKIP", "fast forward", () => { G.pickOpen && G.pickOpen("stuskip"); }, null, false)}
             {G.current && G.current.studentMode && G.current.stu && G.current.stu.bike && G.current.stu.bike.on && btn("HOP", "bunny hop", () => G.bikeHop && G.bikeHop(), null, false)}
             {G.current && G.current.prisonMode && btn("POCKETS", ((G.current.pinv || []).length) + " on you", () => { G.current.pocketSaid = null; G.pickOpen && G.pickOpen("pockets"); }, null, false)}
             {btn("BOOK", hud.bookOpen ? "shut it" : (hud.bookN || 0) + " names",
