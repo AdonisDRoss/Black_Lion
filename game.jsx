@@ -3668,6 +3668,12 @@ for (const k of ["stu_mom", "stu_bestfriend"]) { PD_ART["yt_" + k] = "assets/sch
 PD_ART.car_stu_mom = "assets/cars/car_stu_mom.png";
 for (let n = 1; n <= 6; n++) { PD_ART["yt_opp_" + n] = "assets/school/yt_opp_" + n + ".png"; PD_ART["yt_cheer_opp_" + n] = "assets/school/yt_cheer_opp_" + n + ".png"; }
 for (let n = 1; n <= 8; n++) PD_ART["yt_cheer_sa_" + n] = "assets/school/yt_cheer_sa_" + n + ".png";   // St. Aldric's cheer squad (layer 476)
+/* THE CAR LOTS' ART (layer 479): three roofs, each with _r / _l turns (the plate's front -- its bottom edge --
+   swung to face a right / left door), and the lot kit off one magenta sheet. assets/dealer/ */
+const DEALER_ROOFS = ["rf_dealer_show", "rf_dealer_wire", "rf_repair"];
+const DEALER_KIT = ["dl_stall", "dl_price", "dl_sale", "dl_tubeman", "dl_pennants", "dl_lotlight", "dl_trailer"];
+for (const k of DEALER_ROOFS) for (const v of ["", "_r", "_l"]) PD_ART[k + v] = "assets/dealer/" + k + v + ".png";
+for (const k of DEALER_KIT) PD_ART[k] = "assets/dealer/" + k + ".png";
 for (const k of ["stu_player_team", "stu_bestfriend_team"]) PD_ART["yt_" + k] = "assets/school/yt_" + k + ".png";   // the player and Devon in the grey team uniform -- art to come   // the GREY opposing team (tinted per school) -- art to come
 for (const sx of ["m", "f"]) for (let n = 1; n <= 6; n++) PD_ART["yt_parent_" + sx + n] = "assets/school/yt_parent_" + sx + n + ".png";   // the neighbours' parents (layer 469)
 for (const k of ["bike_player", "bike_player_ride", "bike_player_down"].concat([1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => "bike_v" + n))) PD_ART[k] = "assets/bikes/" + k + ".png";
@@ -7897,6 +7903,7 @@ function makeFloor(b, f, rnd) {
         break;
       case "warden":
         P(cx - 40, q2.y0 + pad + 10, 80, 34, "desk");
+        P(cx + 2, q2.y0 + pad + 12, 34, 26, "pd_computer");          // THE WARDEN'S TERMINAL: the test way out (layer 478)
         P(cx - 12, q2.y0 + pad + 50, 24, 24, "chair");
         P(q2.x1 - pad - 34, q2.y1 - pad - 30, 34, 30, "safe");
         P(q2.x0 + pad, q2.y1 - pad - 30, 40, 30, "bookshelf");
@@ -8697,7 +8704,7 @@ function makeFloor(b, f, rnd) {
        that is not in the building. */
     const INTERACTIVE = { console: 1, terminal: 1, cab: 1, lift: 1, safe: 1, cardtable: 1,
                           wheeltable: 1, bartop: 1, stagedeck: 1, reel: 1, cbradio: 1,
-                          scanner: 1, printer: 1, bed: 1, sk_rack: 1, drum: 1 };
+                          scanner: 1, printer: 1, bed: 1, sk_rack: 1, drum: 1, pd_computer: 1 };
     const CLEAR = DOORW + 26;
     /* THE FRONT DOOR IS A DOORWAY TOO. This list was only the doorways between rooms, so the tidy
        pass could push a sofa flat against the outside wall exactly where the street door is --
@@ -11553,6 +11560,7 @@ export default function IronLionLayer004() {
        facing outranks a door handle. */
     // the leadership sit indoors now: E at a seated man talks to him wherever he is
     if (g.mode === "foot" && g.inside && G.leaderFn && G.leaderFn()) return;
+    if (g.mode === "foot" && g.inside && G.wardenPcFn && G.wardenPcFn()) return;     // the warden's terminal beats the warden himself
     if (g.mode === "foot" && g.inside && g.inside.inPrison && g.prisonMode) {
       const F = (G.prisonFolkFn && G.prisonFolkFn()) || [];
       // whoever is NEAREST: the store man or a shot caller
@@ -11588,6 +11596,7 @@ export default function IronLionLayer004() {
     if (g.mode === "foot" && g.inside && G.momFn && G.momFn()) return;
     if (g.mode === "foot" && G.coachFn && G.coachFn()) return;
     if (g.mode === "foot" && G.kidFn && G.kidFn()) return;
+    if (g.mode === "foot" && g.inside && G.fastTravelFn && G.fastTravelFn()) return;
     if (g.mode === "foot" && g.inside && G.stuHomeFn && G.stuHomeFn()) return;
     if (g.mode === "foot" && g.inside && G.stuSitFn && G.stuSitFn()) return;
     if (g.mode === "foot" && g.inside && G.stuClassFn && G.stuClassFn()) return;
@@ -15872,6 +15881,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "stukid") return kidPanel();
       if (kind === "stuhang") return hangPanel();
       if (kind === "dealer") return dealerPanel();
+      if (kind === "fasttravel") return fastTravelPanel();
+      if (kind === "wardenpc") return wardenPcPanel();
       if (kind === "repair") return repairPanel();
       if (kind === "stucoach") return coachPanel();
       if (kind === "stubully") return bullyPanel();
@@ -15991,6 +16002,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       else if (id.startsWith("console:")) { G.consolePick(id.slice(8)); return; }
       else if (id === "esc:go") { G.escapeGo(); return; }
+      else if (id === "ft:go") { fastTravelGo(); return; }
+      else if (id.startsWith("wpc:")) { wardenPcGo(id.slice(4)); return; }
       else if (id === "deal:buy") { dealerBuy(); G.pickOpen("dealer"); return; }
       else if (id.startsWith("rep:")) { const [, a, n] = id.split(":"); repairAct(a, n); G.pickOpen("repair"); return; }
       else if (id.startsWith("stu:")) { G.stuPick(id); if (g.pickOpen) G.pickOpen(g.pickOpen); return; }
@@ -30431,15 +30444,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return;
       }
       // out: the van's drop, far across town, somewhere with a door
-      const B = PRISON_BOX, cx = (B.x0 + B.x1) / 2, cy = (B.y0 + B.y1) / 2;
-      let drop = null;
-      for (let t = 0; t < 60 && !drop; t++) {
-        const a = Math.random() * 6.28, r = ESC.dropMin + Math.random() * 1500;
-        const c2 = getCell(Math.floor((cx + Math.cos(a) * r) / PITCH), Math.floor((cy + Math.sin(a) * r) / PITCH));
-        const b = c2 && (c2.blds || []).find((q) => q.door && !q.inPrison && !q.landmark);
-        if (b) drop = doorPoint(b);
-      }
-      if (!drop) drop = [cx, B.y0 - 900];
+      const drop = escDrop();
       g.inside = null; g.mode = "foot"; g.floor = 0; g.pfolk = null; g.pfol = []; g.pc = null; g.plaundry = null;
       g.p.x = drop[0]; g.p.y = drop[1]; g.cam.x = g.p.x; g.cam.y = g.p.y;
       g.pescaped = 1; g.crewOut = 1;
@@ -30450,6 +30455,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (H && typeof bookNote === "function") bookNote("THE SCRAPYARD: " + addressOf(H) + ". A locker, a car, a hatch. Pablo, Leroy and Ras will find their way there.");
       if (H) g.hideoutMark = 1;
     };
+    function escDrop() {
+      const B = PRISON_BOX, cx = (B.x0 + B.x1) / 2, cy = (B.y0 + B.y1) / 2;
+      for (let t = 0; t < 60; t++) {
+        const a = Math.random() * 6.28, r = ESC.dropMin + Math.random() * 1500;
+        const c2 = getCell(Math.floor((cx + Math.cos(a) * r) / PITCH), Math.floor((cy + Math.sin(a) * r) / PITCH));
+        const b = c2 && (c2.blds || []).find((q) => q.door && !q.inPrison && !q.landmark);
+        if (b) return doorPoint(b);
+      }
+      return [cx, B.y0 - 900];
+    }
     function hideoutB() {
       if (g.hideout !== undefined) return g.hideout;
       const pb = precinctB(), B = PRISON_BOX;
@@ -31075,6 +31090,73 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        stairs stay) and gets the back bar and counter with stools along the top, the pool table in the
        middle, booths and a table on the right (Silas sits there), the jukebox, cigarette machine and
        crates along the bottom, the notice board, neon and dartboard on the walls. */
+    /* FAST TRAVEL TO THE SCRAPYARD (layer 477): out of Kestrel, any office computer in the city (a
+       "computer" / "pd_computer" prop -- and one now sits in the Rusty Nail's corner) lets you set up the
+       back way: E at it -> GO TO THE SCRAPYARD, and you are at the garage door half an hour later. */
+    G.fastTravelFn = () => {
+      if (!g.prisonMode || !g.pescaped || !g.inside || g.inside.inPrison || g.mode !== "foot") return false;
+      const pl = buildingPlans(g.inside)[g.floor]; if (!pl) return false;
+      const pc = (pl.props || []).find((o) => /computer/.test(o.t) && Math.hypot(o.x + o.w / 2 - g.p.x, o.y + o.h / 2 - g.p.y) < 55); if (!pc) return false;
+      G.pickOpen("fasttravel"); return true;
+    };
+    function fastTravelPanel() { const H = hideoutB();
+      return { title: "A COMPUTER \u00b7 " + (g.inside.name || "AN OFFICE"), face: null, text: H ? "A modem screech, a friend of a friend, a car round the back. Thirty minutes to the scrapyard." : "Nowhere to go yet.",
+        opts: (H ? [{ id: "ft:go", label: "GO TO THE SCRAPYARD" }] : []).concat([{ id: "close", label: "LOG OFF" }]) }; }
+    function fastTravelGo() { const H = hideoutB(); if (!H) return; const d = doorPoint(H);
+      g.inside = null; g.floor = 0; g.insideT = 0; g.p.x = d[0]; g.p.y = d[1] + 30; g.cam.x = g.p.x; g.cam.y = g.p.y; g.clock = ((g.clock || 0) + 30) % 1440;
+      g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); g.jobBanner = "THE SCRAPYARD"; g.jobNote = "The car drops you at the gate and keeps going."; }
+    /* THE WARDEN'S TERMINAL (layer 478). A TEST SHORTCUT, not a story beat: the computer on Warden
+       Crane's desk (hub, upstairs, his office) gets you out of Kestrel in one press so the escaped
+       half of prison mode -- the scrapyard, the board, the Rusty Nail, the corners -- can be tested
+       without a laundry run or three nights on a drain. Every way out sets the same flags the real
+       escapes set (g.pescaped, g.crewOut, the scrapyard in the book):
+         THE STREET   -- the laundry van's drop, no search: across town, in the jumpsuit (heat 3 until a locker)
+         THE SCRAPYARD -- straight into the garage with Pablo, Leroy and Ras, already in street clothes
+         THE SEWER    -- the drain's exit: the manhole nearest the south wall, in the jumpsuit
+       and A STAKE adds $10,000 and 250 respect (RESPECTED: ten people, most trades) for the board.
+       Prison mode only, and only while you are still inside. */
+    G.wardenPcFn = () => {
+      if (!g.prisonMode || g.pescaped || !g.inside || g.inside.kind !== "prison" || g.floor !== 1 || g.mode !== "foot") return false;
+      const pl = buildingPlans(g.inside)[1]; if (!pl) return false;
+      const pc = (pl.props || []).find((o) => o.t === "pd_computer" && Math.hypot(o.x + o.w / 2 - g.p.x, o.y + o.h / 2 - g.p.y) < 62);
+      if (!pc) return false;
+      g.wpcSaid = null; G.pickOpen("wardenpc"); return true;
+    };
+    function wardenPcPanel() {
+      return { title: "WARDEN CRANE'S TERMINAL \u00b7 TEST", face: null,
+        text: g.wpcSaid || "Green letters on black. TRANSFER ORDERS, RELEASES, a cursor blinking. Nobody is watching the screen. You have $" + (g.p.cash || 0).toLocaleString() + " and " + (g.rep || 0) + " respect.",
+        opts: [{ id: "wpc:yard", label: "OUT \u00b7 THE SCRAPYARD (CHANGED, CREW WITH YOU)" },
+               { id: "wpc:street", label: "OUT \u00b7 THE STREET (THE VAN'S DROP, IN THE JUMPSUIT)" },
+               { id: "wpc:sewer", label: "OUT \u00b7 THE SEWER (UNDER THE SOUTH WALL)" },
+               { id: "wpc:stake", label: "A STAKE \u00b7 +$10,000 \u00b7 +250 RESPECT" },
+               { id: "close", label: "LOG OFF" }] };
+    }
+    function wardenPcGo(how) {
+      if (how === "stake") { g.p.cash = (g.p.cash || 0) + 10000; g.rep = (g.rep || 0) + 250;
+        g.wpcSaid = "PAYROLL ADJUSTMENT ACCEPTED. $10,000 in your pocket, 250 respect on the street. Total: $" + g.p.cash.toLocaleString() + ", " + g.rep + " respect.";
+        G.pickOpen("wardenpc"); return; }
+      g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+      const H = hideoutB();
+      // everything the real escapes clear: the tier, the walkers, the cards, the laundry, the hole
+      g.roof = null; g.sewer = false; g.mode = "foot"; g.insideT = 0; g.pfolk = null; g.pfol = []; g.pc = null; g.plaundry = null; g.hole = null; g.pintro = null;
+      g.pescaped = 1; g.crewOut = 1;
+      if (how === "yard" && H) {
+        const pl = buildingPlans(H)[1], r = pl && pl.rooms[0];
+        g.inside = H; g.floor = 1; g.insideT = 1; g.pcivvies = 1;
+        if (r) { g.p.x = (r.x0 + r.x1) / 2; g.p.y = (r.y0 + r.y1) / 2 - 40; } else { const d = doorPoint(H); g.inside = null; g.floor = 0; g.p.x = d[0]; g.p.y = d[1]; }
+        g.jobBanner = "THE SCRAPYARD"; g.jobNote = "Out of Kestrel and into the garage. Street clothes on. Pablo, Leroy and Ras are here.";
+      } else if (how === "sewer") {
+        const B = PRISON_BOX, cx = (B.x0 + B.x1) / 2, cy = B.y1 + 200, m = nearestManhole(cx, cy);
+        g.inside = null; g.floor = 0; g.sewer = true; g.p.x = m ? m[0] : cx; g.p.y = m ? m[1] : cy;
+        g.jobBanner = "INTO THE SEWER"; g.jobNote = "Under the wall. Any manhole is the street -- in a Kestrel jumpsuit.";
+      } else {
+        const d = escDrop(); g.inside = null; g.floor = 0; g.p.x = d[0]; g.p.y = d[1];
+        g.jobBanner = "OUT"; g.jobNote = "Dropped across town in a Kestrel jumpsuit -- find a locker.";
+      }
+      g.cam.x = g.p.x; g.cam.y = g.p.y;
+      if (H) { g.hideoutMark = 1; if (how !== "yard") g.jobNote += " The scrapyard is at " + addressOf(H) + ".";
+        if (typeof bookNote === "function") bookNote("THE SCRAPYARD: " + addressOf(H) + ". A locker, a car, a hatch."); }
+    }
     function fitRustyNail(b) {
       const f = b.entry || 0, pl = buildingPlans(b)[f]; if (!pl || !pl.rooms.length) return;
       const r = pl.rooms.slice().sort((a, c) => (c.x1 - c.x0) * (c.y1 - c.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))[0];
@@ -31082,6 +31164,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       pl.props = (pl.props || []).filter((o) => !inR(o) || /stair|elev|door/.test(o.t));
       const W = r.x1 - r.x0, H = r.y1 - r.y0, L = r.x0 + 18, T = r.y0 + 18, R = r.x1 - 18, Bm = r.y1 - 18, cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2;
       const P = (x, y, w, h, t) => pl.props.push({ x, y, w, h, t });
+      P(R - 40, Bm - 30, 34, 26, "pd_computer");                    // Silas's corner computer: the back way to the scrapyard (layer 477)
       const cw = Math.min(220, W * 0.5);
       P(L, T, cw * 0.9, cw * 0.9 * 100 / 303, "mb_shelf_a");
       const cty = T + cw * 0.9 * 100 / 303 + 6; P(L, cty, cw, cw * 130 / 405, "mb_counter");
@@ -32827,46 +32910,95 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        your name on the papers, no theft when you get in. THE REPAIR SHOP (by the first lot): drive up
        to its door and E: FIX IT (dents, glass, blood -- by how bad it is) or RESPRAY (a new colour; any
        heat the car carries cools off). */
-    const DEALERS = [["SMILIN' SAL'S MOTORS", "hood"], ["LAKESHORE AUTO PLAZA", "uptown"], ["KOWALSKI BROS. USED CARS", "industrial"]];
+    const DEALERS = [["SMILIN' SAL'S MOTORS", "hood", "rf_dealer_show"], ["LAKESHORE AUTO PLAZA", "uptown", "rf_dealer_show"], ["KOWALSKI BROS. USED CARS", "industrial", "rf_dealer_wire", "trailer"]];
+    // a roof plate's front is its bottom edge: turned to face the door's side (a north door is flipped by drawBuildingExt itself)
+    const roofFor = (base, b) => base + (b.door && b.door.side === 1 ? "_r" : b.door && b.door.side === 3 ? "_l" : "");
     const CAR_PRICE = (k) => /delorean/.test(k) ? 25000 : /gn_/.test(k) ? 18000 : /turbo/.test(k) ? 15000 : /fastback/.test(k) ? 12000 : /coupe/.test(k) ? 9000 : 6000;
     const carNice = (k) => /delorean/.test(k) ? "DeLorean DMC-12" : /gn_/.test(k) ? "Buick Grand National" : /turbo/.test(k) ? "Turbo coupe" : /fastback/.test(k) ? "Mustang fastback" : /coupe/.test(k) ? "Two-door coupe" : "Four-door sedan";
     function dealers() {
       if (g.dealersB) return g.dealersB; const out = [], used = new Set();
-      for (const [nm, zone] of DEALERS) {
-        let best = null, bArea = 0;
+      for (const [nm, zone, roof, extra] of DEALERS) {
+        /* THE LOT is the open ground on one side of the building, from 14 off its wall to 14 short of the block's
+           edge -- and (layer 479) 14 short of any other building on the block in the way: a house used to stand in
+           Sal's lot with cars and the signs under its roof. The building with the biggest such lot wins. */
+        const lotOf = (b, c) => {
+          let bestR = null, bestA = 0;
+          for (const S2 of ["up", "down", "left", "right"]) {
+            const R = S2 === "up" ? [b.x, c.ly0 + 14, b.x + b.w, b.y - 14] : S2 === "down" ? [b.x, b.y + b.h + 14, b.x + b.w, c.ly1 - 14] : S2 === "left" ? [c.lx0 + 14, b.y, b.x - 14, b.y + b.h] : [b.x + b.w + 14, b.y, c.lx1 - 14, b.y + b.h];
+            for (const o of c.blds || []) { if (o === b || o.x >= R[2] || o.x + o.w <= R[0] || o.y >= R[3] || o.y + o.h <= R[1]) continue;
+              if (S2 === "up") R[1] = Math.max(R[1], o.y + o.h + 14); else if (S2 === "down") R[3] = Math.min(R[3], o.y - 14);
+              else if (S2 === "left") R[0] = Math.max(R[0], o.x + o.w + 14); else R[2] = Math.min(R[2], o.x - 14); }
+            const w = R[2] - R[0], hh = R[3] - R[1]; if (w < 124 || hh < 236) continue;     // two stalls by two rows at the least
+            const A = Math.floor(w / 62) * Math.floor(hh / 118); if (A > bestA) { bestA = A; bestR = { R, S2 }; }
+          }
+          return bestR ? { ...bestR, n: bestA } : null;
+        };
+        let best = null, bN = 0;
         for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { if (!new RegExp(zone).test(zoneOf(i, j))) continue; const c = getCell(i, j); if (!c || c.lx0 == null) continue;
           for (const b of c.blds || []) { if (!b.door || b.school || b.landmark || b.homeOf || b.stuHome || b.pd || b.inPrison || b.hideout || b.mercBar || used.has(b) || b.dealer) continue;
-            const open = Math.max(b.y - c.ly0, c.ly1 - (b.y + b.h), b.x - c.lx0, c.lx1 - (b.x + b.w)) * Math.min(b.w, b.h);
-            if (open > bArea && Math.min(b.w, b.h) > 140) { bArea = open; best = { b, c }; } } }
-        if (!best) continue; const { b, c } = best; used.add(b); b.dealer = 1; b.name = nm;
-        const sides = [["up", b.y - c.ly0], ["down", c.ly1 - (b.y + b.h)], ["left", b.x - c.lx0], ["right", c.lx1 - (b.x + b.w)]].sort((p, q) => q[1] - p[1]);
-        const S2 = sides[0][0], R = S2 === "up" ? [b.x, c.ly0 + 14, b.x + b.w, b.y - 14] : S2 === "down" ? [b.x, b.y + b.h + 14, b.x + b.w, c.ly1 - 14] : S2 === "left" ? [c.lx0 + 14, b.y, b.x - 14, b.y + b.h] : [b.x + b.w + 14, b.y, c.lx1 - 14, b.y + b.h];
+            if (Math.min(b.w, b.h) <= 140) continue; const L = lotOf(b, c);
+            if (L && L.n > bN) { bN = L.n; best = { b, c, L }; } } }
+        if (!best) continue; const { b, c } = best; used.add(b); b.dealer = 1; b.name = nm; b.roofKey = roofFor(roof, b); b._plate = undefined;
+        const { R, S2 } = best.L;
         const cars = []; let h = nm.length * 7919;
         const cols = Math.max(1, Math.floor((R[2] - R[0]) / 62)), rows = Math.max(1, Math.floor((R[3] - R[1]) / 118));
         for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) { h = (h * 1103515245 + 12345) >>> 0; const key = BUY_CARS[h % BUY_CARS.length];
           cars.push({ k: key, x: R[0] + 31 + k * ((R[2] - R[0] - 62) / Math.max(1, cols - 1 || 1)) * (cols > 1 ? 1 : 0) + (cols === 1 ? (R[2] - R[0]) / 2 - 31 : 0), y: R[1] + 59 + r * 118, price: CAR_PRICE(key) }); }
-        out.push({ b, nm, lot: R, cars });
+        /* THE LOT KIT (layer 479): stalls are painted under every slot (sold or not), so keep the slots;
+           then the signs. The OUTER edge (away from the building) gets the tube man and the pennant pole at its
+           corners and the SALE sign in the middle; the corners by the building get a lot light each -- or, at
+           Kowalski's, one of them the sales trailer. Any car standing where a prop goes is left off the lot. */
+        const slots = cars.map((q) => [q.x, q.y]), sp = cols > 1 ? (R[2] - R[0] - 62) / (cols - 1) : 62;
+        const [X0, Y0, X1, Y1] = R, kit = [];
+        const outer = S2 === "up" ? [[X0, Y0], [X1, Y0]] : S2 === "down" ? [[X0, Y1], [X1, Y1]] : S2 === "left" ? [[X0, Y0], [X0, Y1]] : [[X1, Y0], [X1, Y1]];
+        const inner = S2 === "up" ? [[X0, Y1], [X1, Y1]] : S2 === "down" ? [[X0, Y0], [X1, Y0]] : S2 === "left" ? [[X1, Y0], [X1, Y1]] : [[X0, Y0], [X0, Y1]];
+        const put = (t, [px, py], w, hh) => { const x = Math.max(X0, Math.min(X1 - w, px - w / 2)), y = Math.max(Y0, Math.min(Y1 - hh, py - hh / 2)); kit.push({ t, x, y, w, h: hh }); };
+        put("dl_tubeman", outer[0], 72, 44); put("dl_pennants", outer[1], 96, 100);
+        put("dl_sale", [(outer[0][0] + outer[1][0]) / 2, (outer[0][1] + outer[1][1]) / 2], 64, 38);
+        if (extra === "trailer") put("dl_trailer", inner[0], 128, 80); else put("dl_lotlight", inner[0], 20, 50);
+        put("dl_lotlight", inner[1], 20, 50);
+        const hit = (q) => kit.some((o) => q.x + 23 > o.x - 6 && q.x - 23 < o.x + o.w + 6 && q.y + 50 > o.y - 6 && q.y - 50 < o.y + o.h + 6);
+        out.push({ b, nm, lot: R, cars: cars.filter((q) => !hit(q)), slots, sp, kit });
       }
       // the repair shop: a building near the first lot
       const D0 = out[0]; if (D0) { let best = null, bd = 1e12; const ci = Math.floor(D0.b.x / PITCH), cj = Math.floor(D0.b.y / PITCH);
         for (let i = ci - 2; i <= ci + 2; i++) for (let j = cj - 2; j <= cj + 2; j++) { const c = getCell(i, j); if (!c) continue;
           for (const b of c.blds || []) { if (!b.door || b.dealer || b.school || b.landmark || b.homeOf || b.stuHome || b.pd || b.hideout || b.mercBar) continue; const d = Math.hypot(b.x - D0.b.x, b.y - D0.b.y); if (d > 200 && d < bd) { bd = d; best = b; } } }
-        if (best) { best.repair = 1; best.name = "EDDIE'S AUTO BODY & REPAIR"; g.repairB = best; } }
+        if (best) { best.repair = 1; best.name = "EDDIE'S AUTO BODY & REPAIR"; best.roofKey = roofFor("rf_repair", best); best._plate = undefined; g.repairB = best; } }
       return (g.dealersB = out);
     }
     function drawDealers(view) {
       if (g.inside) return;
       for (const D of dealers()) { const [x0, y0, x1, y1] = D.lot; if (x0 > view.x1 + 100 || x1 < view.x0 - 100 || y0 > view.y1 + 100 || y1 < view.y0 - 100) continue;
-        ctx.fillStyle = "#3a3c40"; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-        ctx.strokeStyle = "rgba(240,240,220,0.5)"; ctx.lineWidth = 2; for (let x = x0; x <= x1; x += 62) { ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke(); }
+        const stall = imgs.current.dl_stall, tag = imgs.current.dl_price, K = imgs.current;
+        if (stall && stall.width) {   // the painted stalls: the asphalt's own grey under the edges, a stall under every slot
+          ctx.fillStyle = "#5c5c5a"; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+          for (const [sx, sy] of D.slots) ctx.drawImage(stall, sx - D.sp / 2, sy - 59, D.sp, 118);
+        } else {
+          ctx.fillStyle = "#3a3c40"; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+          ctx.strokeStyle = "rgba(240,240,220,0.5)"; ctx.lineWidth = 2; for (let x = x0; x <= x1; x += 62) { ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke(); }
+        }
+        const nite = Math.min(1, Math.max(0, ((g.night || 0) - 0.2) / 0.5));
+        if (nite > 0) for (const o of D.kit) if (o.t === "dl_lotlight") {   // a pool of light on the asphalt under each lamp
+          const gx = o.x + o.w / 2, gy = o.y + 8, gr = ctx.createRadialGradient(gx, gy, 4, gx, gy, 150);
+          gr.addColorStop(0, "rgba(255,244,200," + 0.32 * nite + ")"); gr.addColorStop(1, "rgba(255,244,200,0)"); ctx.fillStyle = gr; ctx.fillRect(gx - 150, gy - 150, 300, 300); }
         for (const c of D.cars) { if (c.sold) continue; const im = imgs.current[c.k]; if (im && im.width) { ctx.drawImage(im, c.x - 23, c.y - 50, 46, 100); }
-          ctx.fillStyle = "#fff6c0"; ctx.fillRect(c.x - 14, c.y - 30, 28, 10); ctx.fillStyle = "#c01818"; ctx.font = "bold 7px monospace"; ctx.textAlign = "center"; ctx.fillText("$" + (c.price / 1000) + "K", c.x, c.y - 22); ctx.textAlign = "start"; }
+          // the windshield sticker: the art's NEW CAR band, then this car's own price on the white
+          if (tag && tag.width) ctx.drawImage(tag, 0, 0, tag.width, tag.height * 0.34, c.x - 15, c.y - 33, 30, 7);
+          else { ctx.fillStyle = "#1e9fc0"; ctx.fillRect(c.x - 15, c.y - 33, 30, 7); }
+          ctx.fillStyle = "#fff6ee"; ctx.fillRect(c.x - 15, c.y - 26, 30, 10); ctx.strokeStyle = "#555"; ctx.lineWidth = 0.6; ctx.strokeRect(c.x - 15, c.y - 33, 30, 17);
+          ctx.fillStyle = "#c01818"; ctx.font = "bold 8px monospace"; ctx.textAlign = "center"; ctx.fillText("$" + c.price.toLocaleString(), c.x, c.y - 18); ctx.textAlign = "start"; }
+        for (const o of D.kit) { const im = K[o.t]; if (!im || !im.width) continue;
+          if (o.t === "dl_tubeman") {   // he dances: a sway from his base, a bob in his length
+            const cx = o.x + o.w * 0.12, cy = o.y + o.h; ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.sin(g.t * 3.1 + o.x) * 0.12); ctx.scale(1 + Math.sin(g.t * 5.3 + o.y) * 0.05, 1);
+            ctx.drawImage(im, -o.w * 0.12, -o.h, o.w, o.h); ctx.restore(); continue; }
+          ctx.drawImage(im, o.x, o.y, o.w, o.h); }
         // pennants along the edge
         for (let x = x0; x < x1; x += 12) { ctx.fillStyle = ["#d22", "#fd2", "#22d", "#2b2"][((x - x0) / 12 | 0) % 4]; ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x + 10, y0); ctx.lineTo(x + 5, y0 + 8 + Math.sin(g.t * 3 + x) * 1.5); ctx.fill(); }
         ctx.fillStyle = "rgba(10,10,14,0.8)"; ctx.fillRect((x0 + x1) / 2 - 90, y1 + 4, 180, 16); ctx.fillStyle = "#ffd65a"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.fillText(D.nm, (x0 + x1) / 2, y1 + 16); ctx.textAlign = "start"; }
       const R = g.repairB; if (R) { const d = doorPoint(R); ctx.fillStyle = "rgba(10,10,14,0.8)"; ctx.fillRect(d[0] - 80, d[1] + 18, 160, 14); ctx.fillStyle = "#9fd0ff"; ctx.font = "bold 9px monospace"; ctx.textAlign = "center"; ctx.fillText("EDDIE'S AUTO BODY", d[0], d[1] + 28); ctx.textAlign = "start"; }
     }
-    G.dealersT = () => dealers().map((D) => [D.nm, D.lot.map((v) => v | 0), D.cars.length]).concat([g.repairB ? ["REPAIR", doorPoint(g.repairB).map((v) => v | 0)] : ["no repair"]]);   // test hook
+    G.dealersT = () => dealers().map((D) => [D.nm, D.lot.map((v) => v | 0), D.cars.length, D.b.roofKey, D.kit.map((o) => o.t).join(",")]).concat([g.repairB ? ["REPAIR", doorPoint(g.repairB).map((v) => v | 0), g.repairB.roofKey] : ["no repair"]]);   // test hook
     G.dealerFn = () => {
       if (g.inside || g.mode !== "foot") return false;
       const mine = (g.traffic || []).filter((v) => v.mine).map((v) => Math.hypot(g.p.x - v.x, g.p.y - v.y)).sort((a, b) => a - b)[0];
