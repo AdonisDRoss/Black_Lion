@@ -8017,8 +8017,10 @@ function makeFloor(b, f, rnd) {
       }
       case "schgym":
         P(q2.x0 + 10, q2.y0 + 10, W2 - 20, H2 - 20, H2 > W2 ? "sch_court_v" : "sch_court");    // the painted court, the whole floor, turned to the room
-        if (H2 > W2) { P(cx - 22, q2.y0 + 12, 44, 34, "sch_hoop"); P(cx - 22, q2.y1 - 46, 44, 34, "sch_hoop_up"); }  // north-south, facing in
-        else { P(q2.x0 + 12, cy - 22, 30, 44, "sch_hoop_side"); P(q2.x1 - 42, cy - 22, 30, 44, "sch_hoop_side_w"); }   // facing each other, inward
+        /* the hoops at the two ends, rims facing in (layer 480): drawProp turns each one by where its rim actually
+           is in the art (HOOP_FACE), so the slot only has to be square enough for the plate either way round */
+        if (H2 > W2) { P(cx - 26, q2.y0 + 10, 52, 52, "sch_hoop"); P(cx - 26, q2.y1 - 62, 52, 52, "sch_hoop_up"); }   // north end, south end
+        else { P(q2.x0 + 10, cy - 26, 52, 52, "sch_hoop_side"); P(q2.x1 - 62, cy - 26, 52, 52, "sch_hoop_side_w"); }   // west end, east end
         P(q2.x0 + 14, q2.y1 - 40, 70, 34, "sch_mats"); P(q2.x1 - 50, q2.y1 - 46, 40, 40, "sch_vault");
         break;
       case "schcafe": {
@@ -22205,6 +22207,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const k = PROP_ART[kind];
       const im = k && imgs.current[k];
       if (!im || !im.width) return false;
+      if (HOOP_FACE[kind]) return drawHoopProp(kind, im, x, y, w, h);
       /* The same prop is placed both ways round -- a sofa is 96x32 along a wide wall and 32x96
          along a tall one -- so a single plate has to serve both. Turn it a quarter when the
          footprint's long axis disagrees with the plate's, instead of fitting a landscape sofa
@@ -22222,6 +22225,34 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return true;
     }
 
+    /* BASKETBALL HOOPS FACE THE COURT (layer 480). The generic quarter-turn above (a plate turned when its long
+       axis disagrees with the slot's) was spinning the gym hoops sideways, and which way each hoop plate points
+       was never certain anyway. So a hoop is turned by where its RIM is: the orange in the plate is found once
+       (its centre against the plate's centre gives the way the rim points), and the plate is turned by the
+       quarter-turns that point it the way this end needs -- the north hoop's rim south, the south hoop's north,
+       west's east, east's west: toward each other. If the pixels can't be read the plate is drawn as named. */
+    const HOOP_FACE = { sch_hoop: [0, 1], sch_hoop_up: [0, -1], sch_hoop_side: [1, 0], sch_hoop_side_w: [-1, 0] };
+    function hoopRim(im) {
+      if (im._rim !== undefined) return im._rim;
+      im._rim = null;
+      try {
+        const cv = document.createElement("canvas"); cv.width = im.width; cv.height = im.height;
+        const cx2 = cv.getContext("2d"); cx2.drawImage(im, 0, 0); const d = cx2.getImageData(0, 0, im.width, im.height).data;
+        let sx = 0, sy = 0, n = 0;
+        for (let yy = 0; yy < im.height; yy++) for (let xx = 0; xx < im.width; xx++) { const i = (yy * im.width + xx) * 4;
+          const r = d[i], gg = d[i + 1], bb = d[i + 2]; if (d[i + 3] > 128 && r > 170 && r - gg > 55 && gg > 40 && bb < 110 && r - bb > 100) { sx += xx; sy += yy; n++; } }
+        if (n >= 6) { const dx = sx / n - im.width / 2, dy = sy / n - im.height / 2; if (Math.hypot(dx, dy) > 2) im._rim = Math.atan2(dy, dx); }
+      } catch (e) { im._rim = null; }
+      return im._rim;
+    }
+    function drawHoopProp(kind, im, x, y, w, h) {
+      const F = HOOP_FACE[kind], rim = hoopRim(im);
+      const q = rim == null ? 0 : ((Math.round((Math.atan2(F[1], F[0]) - rim) / (Math.PI / 2)) % 4) + 4) % 4;   // quarter turns
+      const iw = q % 2 ? im.height : im.width, ih = q % 2 ? im.width : im.height, sc = Math.min(w / iw, h / ih);
+      ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.rotate(q * Math.PI / 2);
+      ctx.drawImage(im, -im.width * sc / 2, -im.height * sc / 2, im.width * sc, im.height * sc); ctx.restore();
+      return true;
+    }
     const PROP_COL = {
       /* So the bank is legible BEFORE any of its art exists -- steel for the vault, brass for
          the boxes and the ropes, green for the cash, wood for the counter. */
@@ -44401,6 +44432,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       W2.hide = () => { const gg = G.current; const H = gg.hideout; if (!H) return null; gg.inside = H; gg.floor = 1; gg.insideT = 1; gg.mode = "foot"; const pl = buildingPlans(H)[1]; const r = pl.rooms[0]; gg.p.x = (r.x0 + r.x1) / 2; gg.p.y = (r.y0 + r.y1) / 2 - 40; gg.cam.x = gg.p.x; gg.cam.y = gg.p.y; return [H.name, H.kind, pl.rooms.map((q) => q.k), pl.props.map((q) => q.t).join(",")]; };
       W2.stair = () => { const gg = G.current; const pl = buildingPlans(gg.inside)[gg.floor]; return pl.stair && [pl.stair.x | 0, pl.stair.y | 0, pl.rooms.filter((r) => r.k === "corridor").map((r) => [r.x0 | 0, r.y0 | 0, r.x1 | 0, r.y1 | 0])]; };
       W2.woodsReset = () => { G.current.woods = undefined; };
+      W2.gym = () => { const gg = G.current; for (const S of schools()) { const b = S.b || S, pls = buildingPlans(b);   // test hook: stand in a school gym
+        for (let f = 0; f < pls.length; f++) { const r = pls[f] && pls[f].rooms.find((q) => q.k === "schgym"); if (!r) continue;
+          gg.inside = b; gg.floor = f; gg.insideT = 1; gg.mode = "foot"; gg.p.x = (r.x0 + r.x1) / 2; gg.p.y = (r.y0 + r.y1) / 2; return [f, r.x1 - r.x0 | 0, r.y1 - r.y0 | 0]; } } return null; };
       W2.kinds = (cx, cy, r) => { const out = {}; for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); if (!c) continue; for (const b of (c.blds || [])) { if (Math.hypot(b.x - cx, b.y - cy) > r) continue; const k = (b.kind || "?") + (b.biz ? "/biz" : ""); out[k] = (out[k] || 0) + 1; } } return out; };
       W2.cellHouses = () => { const res = []; for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); if (!c) continue; const B = c.blds || []; const h = B.filter((b) => /house|home|resid|row/.test(b.kind || "") && !b.biz).length, biz = B.filter((b) => b.biz || /bar|tavern|pub|club|liquor/.test(b.kind || "")).length; if (h >= 3) res.push([i, j, h, biz, zoneOf(i, j)]); } return res; };
       W2.props = () => { const gg = G.current; return buildingPlans(gg.inside)[gg.floor].props.map((o) => o.t); };
