@@ -6143,7 +6143,7 @@ function floorKind(b, f) {
   if (b.stuHome) return f === 0 ? "stuhome" : "stuupper";          // student mode: downstairs living + kitchen, upstairs the bedrooms
   if (b.school) return f === 0 ? "school_g" : f === 1 ? "school_c" : "office";     // the schools: ground + classrooms (layer 456)
   if (b.mercBar && f === (b.entry || 0)) return "mercbar";          // the Rusty Nail: one open room
-  if (b.hideout) return f === 0 ? "shelter" : "scrapgarage";      // the scrapyard: the shelter under the garage
+  if (b.hideout) return f === 0 ? "shelter" : f === 1 ? "motorpool" : "scrapgarage";   // the scrapyard: shelter (B), the motor pool (street), the garage (up) -- layer 506
   if (b.kind === "house") return f === 0 ? (b.floors > 1 ? "house_g2" : "house_g1") : "house_u";
   if (b.kind === "trailer") return "trailer";
   if (b.kind === "store") return "store";
@@ -6225,6 +6225,44 @@ function floorKind(b, f) {
   if (b.kind === "tower" && b.hqTower && f === b.floors - 1) return "kings_hq";
   if (b.kind === "tower") return f === 0 ? "lobby" : "tower_flats";
   return f === 0 ? (b.retail ? "store" : "lobby") : "apartments";
+}
+
+/* THE MOTOR POOL FLOOR (layer 506). The scrapyard's street level is a parking room: two rows of stalls nose-in to the
+   long walls, a lane down the middle you walk, the stairs at one end of the lane and the hatch to the shelter at the
+   other. Twenty stalls, numbered 1-20 (the first long wall, then the other; the doorway left open). The car size
+   shrinks to fit the building -- a shallow warehouse gets slightly smaller cars, never fewer stalls. Pure geometry
+   off the building, cached on it, used by the plan (stall lines, the solid stalls, the stairs) and by the drawing. */
+const POOL_LEN = 100, POOL_W = 46, POOL_N = 20;
+function poolLayout(b) {
+  if (b._poolL) return b._poolL;
+  const horiz = b.w >= b.h;
+  const U0 = (horiz ? b.x : b.y) + WT, U1 = (horiz ? b.x + b.w : b.y + b.h) - WT;
+  const V0 = (horiz ? b.y : b.x) + WT, V1 = (horiz ? b.y + b.h : b.x + b.w) - WT;
+  const s = b.door ? b.door.side : 2, dpos = b.door ? b.door.pos : 0.5;
+  const doorLong = horiz ? (s === 0 || s === 2) : (s === 1 || s === 3);
+  const doorU = doorLong ? (horiz ? b.x + b.w * dpos : b.y + b.h * dpos) : null;
+  const doorWall = doorLong ? ((horiz ? s === 0 : s === 3) ? 0 : 1) : -1;          // 0 = the low wall
+  const doorEnd = doorLong ? -1 : ((horiz ? s === 3 : s === 0) ? 0 : 1);           // 0 = the low end
+  const stairEnd = doorEnd === 0 ? 1 : 0, endZ = 104;
+  let sc = Math.min(1, (V1 - V0 - 72) / (2 * POOL_LEN + 12)), out = null;
+  for (let tries = 0; tries < 14 && sc > 0.4; tries++, sc *= 0.94) {
+    const len = POOL_LEN * sc, wid = POOL_W * sc, sw = wid + 14 * sc, st = [];
+    for (let wall = 0; wall < 2 && st.length < POOL_N; wall++) {
+      const lo = U0 + (stairEnd === 0 || doorEnd === 0 ? endZ : 16), hi = U1 - (stairEnd === 1 || doorEnd === 1 ? endZ : 16);
+      for (let u = lo; u + sw <= hi && st.length < POOL_N; u += sw) {
+        if (wall === doorWall && Math.abs(u + sw / 2 - doorU) < 52 + sw / 2) continue;   // the doorway stays open
+        const v = wall === 0 ? V0 + 6 : V1 - 6 - len, cu = u + (sw - wid) / 2;
+        st.push(horiz ? { x: cu, y: v, w: wid, h: len, rot: wall === 0 ? 0 : Math.PI, wall }
+                      : { x: v, y: cu, w: len, h: wid, rot: wall === 0 ? -Math.PI / 2 : Math.PI / 2, wall });
+      }
+    }
+    out = { st, sc, len, wid };
+    if (st.length >= POOL_N) break;
+  }
+  const vm = (V0 + V1) / 2, sU = stairEnd === 0 ? U0 + 18 : U1 - 18 - 64, hU = stairEnd === 0 ? U1 - 18 - 56 : U0 + 18;
+  const stair = horiz ? { x: sU, y: vm - 19, w: 64, h: 38 } : { x: vm - 32, y: sU, w: 64, h: 38 };
+  const hatch = horiz ? { x: hU, y: vm - 28, w: 56, h: 56 } : { x: vm - 28, y: hU, w: 56, h: 56 };
+  return (b._poolL = { stalls: out.st.slice(0, POOL_N), sc: out.sc, horiz, stair, hatch, vm, U0, U1, V0, V1 });
 }
 
 function makeFloor(b, f, rnd) {
@@ -6573,6 +6611,8 @@ function makeFloor(b, f, rnd) {
     }
   } else if (kind === "mercbar") {
     hub = put(0, 0, GX - 1, GY - 1, "mbroom"); rooms[rooms.length - 1].floorTex = "tx_shack_wood";
+  } else if (kind === "motorpool") {
+    hub = put(0, 0, GX - 1, GY - 1, "sypool"); rooms[rooms.length - 1].floorTex = "tx_concrete";
   } else if (kind === "scrapgarage") {
     hub = put(0, 0, GX - 1, GY - 1, "sygarage"); rooms[rooms.length - 1].floorTex = "tx_bunker";
   } else if (kind === "shelter") {
@@ -7151,6 +7191,8 @@ function makeFloor(b, f, rnd) {
     : (kind === "stuhome" || kind === "stuupper")
     // the student's house: the stairs in the lower-left, just right of the downstairs bathroom -- the same spot on both floors
     ? { x: b.x + b.w * 0.30 + WT + 8, y: b.y + b.h - WT - 50, w: 64, h: 38 }
+    : kind === "motorpool"
+    ? poolLayout(b).stair                                   // the end of the lane (layer 506)
     : kind === "gymfloor"
     ? { x: b.x + b.w * (0.5 + GYM_STAIR.fx) - 32, y: b.y + b.h * (0.5 + GYM_STAIR.fy) - 19, w: 64, h: 38 }
     : {
@@ -8101,7 +8143,22 @@ function makeFloor(b, f, rnd) {
         const L = q2.x0 + 22, T = q2.y0 + 22, R2 = q2.x1 - 22, B2 = q2.y1 - 22;
         P(L, T, 90, 50, "bs_bench"); P(L + 100, T, 70, 50, "bs_shelves"); P(R2 - 44, T, 40, 46, "locker");
         P(R2 - 130, T + 90, 120, 60, "sy_wreck_a"); P(L, T + 90, 50, 50, "sy_tires_a"); P(L + 60, T + 100, 20, 26, "sy_drum_a"); P(L + 84, T + 100, 20, 26, "sy_drum_c");
-        P(cx - 190, cy + 10, 60, 60, "sy_hatch_open"); P(R2 - 60, B2 - 60, 50, 50, "sy_motors_a");   // the hatch off the stairs (layer 482)
+        P(R2 - 60, B2 - 60, 50, 50, "sy_motors_a");     // the hatch moved down to the motor pool floor (layer 506)
+        P(cx - 200, B2 - 56, 60, 56, "sy_tires_b"); P(cx + 120, T, 60, 50, "sy_scrap_pile");
+        break;
+      }
+      case "sypool": {
+        /* THE MOTOR POOL (layer 506): a painted line each side of every stall, a stall number on the floor, the stall
+           itself an invisible box that is solid only while a car stands in it (collideBuildings), the hatch at the end
+           of the lane. The cars are drawn from g.motor at draw time -- they come and go, the plan does not. */
+        const L2 = poolLayout(b);
+        L2.stalls.forEach((q, n) => {
+          props.push({ x: q.x, y: q.y, w: q.w, h: q.h, t: "poolslot", slot: n, rot: q.rot });
+          const gap = (L2.horiz ? q.w : q.h) * 0.15 + 4;
+          if (L2.horiz) { props.push({ x: q.x - gap, y: q.y, w: 2, h: q.h, t: "stall_line" }); props.push({ x: q.x + q.w + gap - 2, y: q.y, w: 2, h: q.h, t: "stall_line" }); }
+          else { props.push({ x: q.x, y: q.y - gap, w: q.w, h: 2, t: "stall_line" }); props.push({ x: q.x, y: q.y + q.h + gap - 2, w: q.w, h: 2, t: "stall_line" }); }
+        });
+        const h2 = L2.hatch; props.push({ x: h2.x, y: h2.y, w: h2.w, h: h2.h, t: "sy_hatch_open" });
         break;
       }
       case "shelterroom": {
@@ -23492,6 +23549,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           continue;
         }
         if (p.t === "stall_line") { ctx.fillStyle = "rgba(232,226,200,0.55)"; ctx.fillRect(p.x, p.y, p.w, p.h); continue; }
+        if (p.t === "poolslot") { drawPoolSlot(p); continue; }                       // the motor pool's stalls (layer 506)
         if (p.t === "ramp_marks") {
           // chevrons pointing out, and the floor darkening toward daylight that is not there at night
           ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.fillRect(p.x, p.y, p.w, p.h);
@@ -23898,6 +23956,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
              14 deep, and both of the rules below would have deleted them. Exact, not shrunk. */
           if (p.hard) { list.push({ x: p.x, y: p.y, w: p.w, h: p.h }); continue; }
           if (p.t === "vh_rochelle_coupe" && !rochelleIn()) continue;
+          if (p.t === "poolslot") { if (g.motor && g.motor.slots && g.motor.slots[p.slot]) list.push({ x: p.x + 4, y: p.y + 4, w: p.w - 8, h: p.h - 8 }); continue; }   // a stall stops you while a car's in it (layer 506)
           if (!SOLID_PROP[p.t]) continue;
           if (p.w < 26 || p.h < 26) continue;
           list.push({ x: p.x + 6, y: p.y + 6, w: p.w - 12, h: p.h - 12 });
@@ -28245,43 +28304,87 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.toStairFn = () => { const pl = g.inside && buildingPlans(g.inside)[g.floor], st = pl && pl.stair; if (!st) return;
       if (g.p.x >= st.x - 30 && g.p.x <= st.x + st.w + 30 && g.p.y >= st.y - 30 && g.p.y <= st.y + st.h + 30) return;
       g.p.x = st.x + st.w / 2; g.p.y = st.y + st.h + 22; };
-    const POOL_MAX = 20;
+    /* LAYER 506: the pool is twenty FIXED stalls now (M.slots[n] = a car or null), because they're drawn standing in
+       the motor pool floor -- a car keeps its stall while it's out and comes back to it. Only cars that are yours go
+       in: the one waiting at the door, the crew's three (straight into the pool, nothing left on the street), and
+       every car you buy. */
+    const POOL_MAX = 20, SY_SHELTER = 0, SY_POOL = 1, SY_GARAGE = 2;
     function motorPool() { const M = (g.motor = g.motor || { slots: [] });
+      if (!M.fixed) { M.fixed = 1; const old = M.slots.filter(Boolean); M.slots = new Array(POOL_MAX).fill(null); old.slice(0, POOL_MAX).forEach((c, n) => { M.slots[n] = c; }); }
       if (!M.seeded) { M.seeded = 1; const H = hideoutB(); if (H) { const d = doorPoint(H);
-        for (let n = (g.traffic || []).length - 1; n >= 0; n--) { const v = g.traffic[n]; if (M.slots.length >= 5) break;
-          if ((v.parked || v.dead || v.crewCar || v.mine) && v.m && v.m.k && Math.hypot(v.x - d[0], v.y - d[1]) < 700 && !v.block && !(v.m.k === "cruiser")) {
-            M.slots.push({ k: v.m.k, nm: poolName(v.m.k, v) }); g.traffic.splice(n, 1); } } } }
+        for (let n = (g.traffic || []).length - 1; n >= 0; n--) { const v = g.traffic[n]; if (poolCount() >= 5) break;
+          if ((v.owner === "player" || v.crewCar || v.mine) && v.m && v.m.k && Math.hypot(v.x - d[0], v.y - d[1]) < 700 && !v.block && !(v.m.k === "cruiser")) {
+            const at = M.slots.indexOf(null); if (at < 0) break; M.slots[at] = { k: v.m.k, nm: poolName(v.m.k, v) }; g.traffic.splice(n, 1); } } } }
       return M; }
+    function poolCount() { return ((g.motor && g.motor.slots) || []).filter(Boolean).length; }
+    const stallName = (n) => "STALL " + (n + 1);
     function poolName(k, v) { const c = /car_crew_(\w+)/.exec(k); if (c) { const C = CREW.find((q) => q.id === c[1]); return ((C ? C.name.split(" ")[0] : c[1]) + "'s ride").toUpperCase(); }
       if (v && v.idn && v.idn.model) return v.idn.model; return /^buy_/.test(k) ? carNice(k).toUpperCase() : k.replace(/_/g, " ").toUpperCase(); }
-    function motorAdd(k, nm, at) { const M = motorPool(); if (M.slots.length >= POOL_MAX) return false; if (at != null) M.slots.splice(Math.min(at, M.slots.length), 0, { k, nm }); else M.slots.push({ k, nm }); return true; }
-    function motorAdd0(k, nm) { const M = motorPool(); if (M.slots.length >= POOL_MAX) return false; M.slots.push({ k, nm }); return true; }
-    G.motorFn = () => { const H = hideoutB(); if (!g.pescaped || !H || g.inside !== H || g.floor !== 1 || g.mode !== "foot") return false;
-      const pl = buildingPlans(H)[1], w = (pl.props || []).find((p) => /sy_wreck/.test(p.t)); if (!w || Math.hypot(w.x + w.w / 2 - g.p.x, w.y + w.h / 2 - g.p.y) > 110) return false;
+    function motorAdd(k, nm, at) { const M = motorPool(), n = at != null && at >= 0 && at < POOL_MAX && !M.slots[at] ? at : M.slots.indexOf(null);
+      if (n < 0) return false; M.slots[n] = { k, nm }; g.motorLast = n; return true; }
+    function motorAdd0(k, nm) { return motorAdd(k, nm, null); }
+    const poolHas = (k) => (g.motor && g.motor.slots || []).some((c) => c && c.k === k) || !!(g.car && g.car.pool && g.car.skin && g.car.skin.k === k);
+    // the nearest stall with a car in it, on the motor pool floor, within reach
+    function poolNear(r) { const H = hideoutB(); if (!H || g.inside !== H || g.floor !== SY_POOL) return null; const M = motorPool(), L = poolLayout(H);
+      let best = null, bd = r || 70;
+      L.stalls.forEach((q, n) => { if (!M.slots[n]) return; const nx = clamp(g.p.x, q.x, q.x + q.w), ny = clamp(g.p.y, q.y, q.y + q.h), d = Math.hypot(g.p.x - nx, g.p.y - ny);
+        if (d < bd) { bd = d; best = n; } });
+      return best; }
+    G.motorFn = () => { const H = hideoutB(); if (!g.pescaped || !H || g.inside !== H || g.mode !== "foot") return false;
+      if (g.floor === SY_POOL) { const n = poolNear(70); if (n == null) return false; G.motorPick("mp:take:" + n); return true; }    // walk up to it, E, you're driving it out
+      if (g.floor !== SY_GARAGE) return false;
+      const pl = buildingPlans(H)[SY_GARAGE], w = (pl.props || []).find((p) => /sy_wreck/.test(p.t)); if (!w || Math.hypot(w.x + w.w / 2 - g.p.x, w.y + w.h / 2 - g.p.y) > 110) return false;
       g.motorSaid = null; G.pickOpen("motorpool"); return true; };
-    function motorPanel() { const M = motorPool();
-      const opts = M.slots.map((c, n) => ({ id: "mp:take:" + n, label: "ROW " + (1 + Math.floor(n / 5)) + " \u00b7 " + (1 + n % 5) + " \u00b7 " + c.nm }));
+    function motorPanel() { const M = motorPool(), opts = [];
+      M.slots.forEach((c, n) => { if (c) opts.push({ id: "mp:take:" + n, label: stallName(n) + " \u00b7 " + c.nm }); });
       opts.push({ id: "close", label: "LEAVE THEM" });
-      return { title: "THE MOTOR POOL \u00b7 " + M.slots.length + " / " + POOL_MAX, face: null,
-        text: g.motorSaid || (M.slots.length ? "Pick one -- you'll be out the gate behind the wheel." : "Nothing parked. Buy one off a lot and it's delivered here."), opts }; }
+      return { title: "THE MOTOR POOL \u00b7 " + poolCount() + " / " + POOL_MAX, face: null,
+        text: g.motorSaid || (poolCount() ? "Pick one -- you'll be out the gate behind the wheel. They're all downstairs on the parking floor." : "Nothing parked. Buy one off a lot and it's delivered here."), opts }; }
     G.motorPick = (id) => { const M = motorPool(), n = +id.split(":")[2], c = M.slots[n], H = hideoutB(); if (!c || !H) return;
-      M.slots.splice(n, 1); c.slot = n; const d = doorPoint(H), out = [[0, -1], [1, 0], [0, 1], [-1, 0]][H.door.side] || [0, 1];
+      M.slots[n] = null; c.slot = n; const d = doorPoint(H), out = [[0, -1], [1, 0], [0, 1], [-1, 0]][H.door.side] || [0, 1];
       g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
       g.inside = null; g.floor = 0; g.insideT = 0; g.mode = "car";
       g.car.x = d[0] + out[0] * 90; g.car.y = d[1] + out[1] * 90; g.car.ang = Math.atan2(out[1], out[0]); g.car.vx = 0; g.car.vy = 0;
       g.car.skin = { k: c.k, len: 104, w: 46 }; g.car.crush = null; g.car.dents = []; g.car.dmg = 0; g.car.fuel = 100; g.car.pool = c;
       g.car.tough = 1.6; g.car.armored = 1; g.car.runflat = 1;                     // the crew's cars: plated and on run-flats (layer 505)
       g.p.x = g.car.x; g.p.y = g.car.y; g.cam.x = g.p.x; g.cam.y = g.p.y;
-      g.jobBanner = "OUT OF THE YARD"; g.jobNote = c.nm + ". Bring it back to the door and E puts it away."; };
+      g.jobBanner = "OUT OF THE YARD"; g.jobNote = c.nm + ". Bring it back to the door and E puts it back in " + stallName(n) + "."; };
     G.motorParkFn = () => { const H = hideoutB(); if (!g.pescaped || !H || g.mode !== "car" || !g.car) return false;
       const d = doorPoint(H); if (Math.hypot(g.car.x - d[0], g.car.y - d[1]) > 170) return false;
       const k = (g.car.skin && g.car.skin.k) || "sedan", nm = (g.car.pool && g.car.pool.nm) || k.replace(/_/g, " ").toUpperCase();
-      if (!motorAdd(k, nm, g.car.pool ? g.car.pool.slot : null)) { g.pickupFlash = { nm: "lift:THE MOTOR POOL'S FULL (20)", t: 1.4 }; return true; }
-      g.car.pool = null; g.car.x = -99999; g.car.y = -99999; g.car.vx = g.car.vy = 0;          // in its slot, off the street
-      g.mode = "foot"; g.inside = H; g.floor = 1; g.insideT = 1;
-      const pl = buildingPlans(H)[1], r = pl && pl.rooms[0]; if (r) { g.p.x = (r.x0 + r.x1) / 2; g.p.y = (r.y0 + r.y1) / 2 + 40; }
-      g.pickupFlash = { nm: "lift:PARKED \u00b7 " + nm, t: 1.4 }; return true; };
-    G.motorT = () => motorPool().slots.map((c) => c.nm);   // test hook
+      const want = g.car.pool ? g.car.pool.slot : null;
+      if (!motorAdd(k, nm, want)) { g.pickupFlash = { nm: "lift:THE MOTOR POOL'S FULL (20)", t: 1.4 }; return true; }
+      const n = g.motorLast;
+      g.car.pool = null; g.car.x = -99999; g.car.y = -99999; g.car.vx = g.car.vy = 0;          // in its stall, off the street
+      g.mode = "foot"; g.inside = H; g.floor = SY_POOL; g.insideT = 1; g.pfolk = null;
+      // you get out in the lane beside it
+      const L = poolLayout(H), q = L.stalls[n >= 0 ? n : 0];
+      if (q) { if (L.horiz) { g.p.x = q.x + q.w / 2; g.p.y = L.vm; } else { g.p.x = L.vm; g.p.y = q.y + q.h / 2; } }
+      g.cam.x = g.p.x; g.cam.y = g.p.y;
+      g.pickupFlash = { nm: "lift:PARKED \u00b7 " + nm + (n >= 0 ? " \u00b7 " + stallName(n) : ""), t: 1.4 }; return true; };
+    // one stall, drawn by drawInterior: the car in it (nose to the wall), its number on the floor, and a tag when you're at it
+    function drawPoolSlot(p) {
+      const M = motorPool(), c = M.slots[p.slot];
+      ctx.save(); ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "rgba(232,226,200,0.32)";
+      const L = poolLayout(g.inside), lx = L.horiz ? p.x + p.w / 2 : (p.rot < 0 ? p.x + p.w + 14 : p.x - 14), ly = L.horiz ? (p.rot === 0 ? p.y + p.h + 12 : p.y - 6) : p.y + p.h / 2 + 3;
+      ctx.fillText(String(p.slot + 1), lx, ly);
+      if (c) { const im = imgs.current[c.k], cx = p.x + p.w / 2, cy = p.y + p.h / 2, side = L.horiz;
+        const W = side ? p.w : p.h, Hh = side ? p.h : p.w;           // the sprite is nose-up: draw it W wide, Hh long, then turn it
+        drawShadow(cx, cy + 3, side ? p.w * 0.55 : p.w * 0.5, side ? p.h * 0.5 : p.h * 0.55, 0.35);
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(p.rot || 0);
+        if (im && im.width) ctx.drawImage(im, -W / 2, -Hh / 2, W, Hh);
+        else { ctx.fillStyle = /crew_viejo/.test(c.k) ? "#6a3f8a" : /crew_leroy/.test(c.k) ? "#3f7a46" : /crew_ras/.test(c.k) ? "#b0652a" : "#4d5a6a"; ctx.fillRect(-W / 2, -Hh / 2, W, Hh);
+          ctx.fillStyle = "rgba(160,200,230,0.5)"; ctx.fillRect(-W / 2 + 4, -Hh / 2 + Hh * 0.18, W - 8, Hh * 0.18); }
+        ctx.restore();
+        if (poolNear(70) === p.slot) { ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center";
+          const tx = cx, ty = cy + 4;                              // on the car itself, not under your feet in the lane
+          ctx.fillStyle = "rgba(0,0,0,0.6)"; const tw = ctx.measureText("E \u00b7 TAKE IT OUT \u00b7 " + c.nm).width + 12; ctx.fillRect(tx - tw / 2, ty - 11, tw, 15);
+          ctx.fillStyle = "#e8c46a"; ctx.fillText("E \u00b7 TAKE IT OUT \u00b7 " + c.nm, tx, ty); } }
+      ctx.restore();
+    }
+    G.motorT = () => motorPool().slots.map((c) => c && c.nm);   // test hook
+    G.poolT = () => { const H = hideoutB(); if (!H) return null; const L = poolLayout(H); return { n: L.stalls.length, sc: +L.sc.toFixed(2), horiz: L.horiz, stair: L.stair, hatch: L.hatch,
+      stalls: L.stalls.map((q) => [q.x | 0, q.y | 0, q.w | 0, q.h | 0]), cars: motorPool().slots.map((c) => c && c.k), b: [H.x, H.y, H.w, H.h, H.door.side, +H.door.pos.toFixed(2)] }; };
     /* CHOPPERS. A long chase brings something you cannot outrun on the ground. The news bird
        at two minutes -- it only watches, and it is the warning. The police bird at three, and
        that one holds the wanted clock open on its own.
@@ -31417,7 +31520,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }
       }
       if (!best) return (g.hideout = null);
-      best.hideout = 1; best.floors = 2; best.entry = 1; best.name = "THE SCRAPYARD"; best.plans = null;
+      best.hideout = 1; best.floors = 3; best.entry = 1; best.name = "THE SCRAPYARD"; best.plans = null; best._poolL = null;   // shelter / motor pool / garage (layer 506)
       // the yard round it: fence, wrecks, crusher, container, tyres, drums -- and a car waiting
       const P = []; const x0 = best.x - 150, y0 = best.y - 150, x1 = best.x + best.w + 150, y1 = best.y + best.h + 150;
       const put = (t, x, y, w, h) => P.push({ t, x, y, w, h });
@@ -31444,7 +31547,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const H = hideoutB(); if (!H) return;
       const MB = mercBarB(); if (MB && g.inside === MB) g.mercSeen = 1;
       if (g.crewOut && !g.crewCarsParked && Math.hypot(g.p.x - H.x, g.p.y - H.y) < 1500) {
-        g.crewCarsParked = 1; CREW.forEach((C, n) => g.hideoutPark(C.car, n + 1));
+        g.crewCarsParked = 1; CREW.forEach((C, n) => { if (!poolHas(C.car)) motorAdd(C.car, poolName(C.car)); });   // straight into the pool, not left on the street (layer 506)
       }
     }
     function drawHideoutYard(view) {
@@ -31460,7 +31563,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.hatchFn = () => {
       const b = g.inside; if (!b || !b.hideout || g.mode !== "foot") return false;
       const pl = buildingPlans(b)[g.floor]; if (!pl) return false;
-      const key = g.floor === 1 ? "sy_hatch_open" : "bs_ladderhole";
+      const key = g.floor === 1 ? "sy_hatch_open" : g.floor === 0 ? "bs_ladderhole" : "--";     // the hatch is in the motor pool floor now (layer 506)
       const o = (pl.props || []).find((q) => q.t === key && Math.hypot(q.x + q.w / 2 - g.p.x, q.y + q.h / 2 - g.p.y) < 60);
       if (!o) return false;
       const to = g.floor === 1 ? 0 : 1, pl2 = buildingPlans(b)[to];
@@ -31472,8 +31575,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     };
     G.hideCrewFn = () => {
       if (g.pescaped) return !!(G.baseTalkFn && G.baseTalkFn());    // layer 482
-      const b = g.inside; if (!b || !b.hideout || g.floor !== 1 || !g.crewOut || g.mode !== "foot") return false;
-      const pl = buildingPlans(b)[1], r = pl && pl.rooms[0]; if (!r) return false;
+      const b = g.inside; if (!b || !b.hideout || g.floor !== SY_GARAGE || !g.crewOut || g.mode !== "foot") return false;
+      const pl = buildingPlans(b)[SY_GARAGE], r = pl && pl.rooms[0]; if (!r) return false;
       const n = CREW.findIndex((C, k) => Math.hypot(r.x0 + 70 + k * 100 - g.p.x, r.y1 - 70 - g.p.y) < 55);
       if (n < 0) return false;
       g.crewMate = CREW[n].id; G.pickOpen("crew"); return true;
@@ -31498,8 +31601,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function drawHideoutCrew() {
       if (g.pescaped) { drawBaseFolk(); return; }      // layer 482: everybody walks (drawBaseFolk); the rows below are the old stand-ins
       drawHires();
-      const b = g.inside; if (!b || !b.hideout || g.floor !== 1 || !g.crewOut) return;
-      const pl = buildingPlans(b)[1], r = pl && pl.rooms[0]; if (!r) return;
+      const b = g.inside; if (!b || !b.hideout || g.floor !== SY_GARAGE || !g.crewOut) return;
+      const pl = buildingPlans(b)[SY_GARAGE], r = pl && pl.rooms[0]; if (!r) return;
       CREW.forEach((C, n) => { if ((g.pfol || []).some((f) => f.crew === C.id)) return;
         const q = { x: r.x0 + 70 + n * 100, y: r.y1 - 70, vx: 0, vy: 0, anim: 0, jit: 1, tall: C.tall, yt: "yt_crew_" + C.id, bang: -Math.PI / 2 };
         drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q);
@@ -31554,12 +31657,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const B = g.board2 || {}, out = [];
       if (g.crewOut) for (const C of CREW) { const role = Object.keys(HIRES).find((k) => HIRES[k].crew === C.id);
         const rec = ((g.crewJobs = g.crewJobs || {})[C.id] = (g.crewJobs || {})[C.id] || { job: "wait" });
-        out.push({ key: "c:" + C.id, crew: C.id, name: C.name, role, yt: "yt_crew_" + C.id, tall: C.tall, face: "assets/crew/" + (C.faceCiv || C.face) + ".png", rec, home: 1,
+        out.push({ key: "c:" + C.id, crew: C.id, name: C.name, role, yt: "yt_crew_" + C.id, tall: C.tall, face: "assets/crew/" + (C.faceCiv || C.face) + ".png", rec, home: SY_GARAGE,
           following: (g.pfol || []).some((f) => f.crew === C.id) }); }
       for (const m of B.men || []) { if (!m.id) m.id = (B.nextId = (B.nextId || 0) + 1); if (!m.job) m.job = "wait";
         const vv = m.role === "hacker" ? 1 : (m.v || 1);                                  // the hacker has one plate (layer 503)
         out.push({ key: "m:" + m.id, m, name: hireName(m), role: m.role, yt: m.yt || "yt_hire_" + m.role + "_" + vv, tall: m.tall || 1.25,
-          face: m.face || "assets/hires/pt_hire_" + m.role + "_" + vv + ".png", rec: m, home: m.id % 2 }); }
+          face: m.face || "assets/hires/pt_hire_" + m.role + "_" + vv + ".png", rec: m, home: (m.id % 2) * SY_GARAGE }); }   // shelter or the garage, never the parking floor
       return out;
     }
     const personByKey = (k) => basePeople().find((q) => q.key === k);
@@ -34465,7 +34568,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function dealerBuy() { const Z = g.dealerCar; if (!Z) return; const { D, c } = Z; if ((g.p.cash || 0) < c.price) return;
       g.p.cash -= c.price; c.sold = 1;
       if (g.pescaped && motorAdd(c.k, carNice(c.k).toUpperCase())) { g.dealerSaid = "\u201cPleasure. We'll have it run over to your yard.\u201d"; g.jobBanner = "YOU BOUGHT A CAR";
-        g.jobNote = carNice(c.k) + " -- delivered to the scrapyard motor pool (" + g.motor.slots.length + "/20)."; return; }       // layer 497
+        g.jobNote = carNice(c.k) + " -- delivered to the scrapyard motor pool (" + poolCount() + "/20)."; return; }       // layer 497
       const v = { x: c.x, y: c.y, ang: -Math.PI / 2, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0, m: { k: c.k, len: 104, w: 46 }, dead: 0, parked: 1, named: 1, mine: 1 };   // parked, not a wreck: you can get in
       v.idn = { model: carNice(c.k).toUpperCase(), colour: "", plate: "NEW", owner: (g.studentMode && g.stu && g.stu.name ? g.stu.name : "YOU").toUpperCase() };
       g.traffic.push(v); g.dealerSaid = "\u201cPleasure doing business. Keys are in it.\u201d It's yours -- parked right there on the lot.";
@@ -45878,7 +45981,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       W2.wings = () => { const L = []; for (let i = PRISON.i0; i <= PRISON.i1; i++) for (let j = PRISON.j0; j <= PRISON.j1; j++) for (const b of (getCell(i, j).blds || [])) if (b.kind === "prisonwing") L.push([b.pwing, b.x | 0, b.y | 0, b.w | 0, b.h | 0, b.door && b.door.side, b.door && +b.door.pos.toFixed(2), doorPoint(b).map((v) => v | 0)]); return L; };
       W2.findB = (k) => { for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); const b = c && (c.blds || []).find((q) => q.kind === k); if (b) return [b.x, b.y, b.w, b.h, b.floors, b._plate || null, b.roofKey || null, b.door && b.door.side]; } return null; };
       W2.G = G; W2.mus = () => MUS && MUS.cur;                                       // the test harness reads the live state through this
-      W2.hide = () => { const gg = G.current; const H = gg.hideout; if (!H) return null; gg.inside = H; gg.floor = 1; gg.insideT = 1; gg.mode = "foot"; const pl = buildingPlans(H)[1]; const r = pl.rooms[0]; gg.p.x = (r.x0 + r.x1) / 2; gg.p.y = (r.y0 + r.y1) / 2 - 40; gg.cam.x = gg.p.x; gg.cam.y = gg.p.y; return [H.name, H.kind, pl.rooms.map((q) => q.k), pl.props.map((q) => q.t).join(",")]; };
+      W2.hide = (f) => { const gg = G.current; const H = gg.hideout; if (!H) return null; f = f == null ? 2 : f; gg.inside = H; gg.floor = f; gg.insideT = 1; gg.mode = "foot"; const pl = buildingPlans(H)[f]; const r = pl.rooms[0]; gg.p.x = (r.x0 + r.x1) / 2; gg.p.y = (r.y0 + r.y1) / 2 - 40; gg.cam.x = gg.p.x; gg.cam.y = gg.p.y; return [H.name, H.kind, pl.rooms.map((q) => q.k), pl.props.map((q) => q.t).join(",")]; };
       W2.stair = () => { const gg = G.current; const pl = buildingPlans(gg.inside)[gg.floor]; return pl.stair && [pl.stair.x | 0, pl.stair.y | 0, pl.rooms.filter((r) => r.k === "corridor").map((r) => [r.x0 | 0, r.y0 | 0, r.x1 | 0, r.y1 | 0])]; };
       W2.woodsReset = () => { G.current.woods = undefined; };
       W2.enterBiz = (re) => { const gg = G.current, rx = new RegExp(re); for (let r = 0; r < 16; r++) for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {   // test hook: stand in the nearest business of a trade
