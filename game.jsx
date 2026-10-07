@@ -1,4 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
+// the Xbox browser drives a mouse (and zooms on the triggers) unless the page takes the pad -- as early as possible (layer 507)
+try { if (typeof navigator !== "undefined" && "gamepadInputEmulation" in navigator) navigator.gamepadInputEmulation = "gamepad"; } catch (e) {}
 
 /* ============================================================
    IRON LION — RAVEN HOOK, 1986
@@ -10689,6 +10691,8 @@ export default function IronLionLayer004() {
     }
 
   const [zoomUI, setZoomUI] = useState(1);
+  const [padWheel, setPadWheel] = useState(null);
+  const [padOn, setPadOn] = useState(false);          // a controller is being used: the touch buttons and stick get out of the way (layer 508)     // the pad's ACTION WHEEL (layer 507) -- its own state: the HUD tick replaces hud wholesale
   const [hud, setHud] = useState({ mode: "foot", mph: 0, place: "", night: false });
   const [mapOpen, setMapOpen] = useState(false);
   const [mapErr, setMapErr] = useState(null);
@@ -11501,36 +11505,97 @@ export default function IronLionLayer004() {
        the page. MENUS: while a panel is open the pad drives it -- stick / D-pad up-down (or left-right) moves the
        highlight, A picks, B closes -- and A no longer falls through to "act" in the world. (layer 505) */
     try { if ("gamepadInputEmulation" in navigator) navigator.gamepadInputEmulation = "gamepad"; } catch (e) {}
-    let raf2 = 0; const was = {}; let sel = 0, navT = 0;
+    /* LAYER 507: THE WHOLE PAD. Every button does something, and anything that's only an on-screen button (ROB BANK,
+       STICK UP, RADIO, HYDRO, TALK, the hero powers...) is on the ACTION WHEEL (LB): the wheel lists whatever buttons
+       are on screen right now, so new ones join it by themselves.
+         LEFT STICK move / steer      L3 (click) sprint on/off        RIGHT STICK up-down zoom      R3 (click) HOOK / jump / drop
+         A  E -- act, doors, stairs, talk, get in/out       B  STRIKE (closes the map / book / any menu first)
+         X  SPACE -- e-brake, jump, hop                      Y  COVER
+         LB ACTION WHEEL                                     RB TARGET (lock on / next), or DRAW / PUT UP when there's nothing to lock
+         LT on foot: DRAW / PUT UP -- in a car: brake / reverse          RT on foot: RUN (hold) -- in a car: GAS
+         START  MAP          VIEW (back)  THE BOOK           D-PAD  up night · down pockets / ID · left/right zoom
+       The browser's own zoom on the triggers is blocked: Gamepad* keys, ctrl+wheel and ctrl +/- are swallowed, the
+       page can't be pinch-scaled, and the pad is handed to the page at load (top of the file) as well as here. */
+    try { let m = document.querySelector('meta[name="viewport"]'); if (!m) { m = document.createElement("meta"); m.name = "viewport"; document.head.appendChild(m); }
+      m.content = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"; document.body.style.touchAction = "none"; document.documentElement.style.touchAction = "none"; } catch (e) {}
+    const eatKey = (e) => { if (/^Gamepad/.test(e.key || "") || ((e.ctrlKey || e.metaKey) && /^[-+=0_]$/.test(e.key))) { e.preventDefault(); e.stopPropagation(); } };
+    const eatWheel = (e) => { if (e.ctrlKey) e.preventDefault(); };
+    const eatGesture = (e) => e.preventDefault();
+    window.addEventListener("keydown", eatKey, { capture: true, passive: false }); window.addEventListener("keyup", eatKey, { capture: true, passive: false });
+    window.addEventListener("wheel", eatWheel, { passive: false }); document.addEventListener("gesturestart", eatGesture, { passive: false });
+    // touch the screen (or click) and the touch controls come back
+    const touchBack = (e) => { if (G.padOnNow && (e.pointerType === "touch" || e.pointerType === "mouse" || e.pointerType === "pen")) { G.padOnNow = 0; setPadOn(false); } };
+    window.addEventListener("pointerdown", touchBack, { capture: true });
+    let raf2 = 0; const was = {}; let sel = 0, navT = 0, sprint = 0;
     const menuOpts = () => [...document.querySelectorAll("[data-pickopt]")];
     const mark = (L) => L.forEach((el, i) => { el.style.outline = i === sel ? "2px solid #ffd65a" : "none"; el.style.background = i === sel ? "rgba(60,50,20,0.95)" : "rgba(12,13,17,0.9)"; });
-    const MAP = { 0: "e", 1: "f", 2: " ", 3: "c", 7: "w", 6: "s", 9: "n", 12: "arrowup", 13: "arrowdown", 14: "arrowleft", 15: "arrowright" };
+    const live = () => new Set([...document.querySelectorAll("[data-act]")].map((e) => e.getAttribute("data-act")));
+    const act = (labels) => { const A = G.acts || {}, L = live(); for (const l of labels) if (L.has(l) && A[l]) return A[l]; return null; };
+    const tap = (labels) => { const a = act(labels); if (!a) return false; a.onDown && a.onDown(); if (a.onUp) setTimeout(a.onUp, 140); return true; };
+    G.padTap = tap; G.inputT = () => ({ run: !!input.current.run, x: input.current.x, y: input.current.y, w: !!input.current.keys.w, s: !!input.current.keys.s, sp: !!input.current.keys[" "] });   // test hook
+    const openWheel = () => { const A = G.acts || {}, list = [];
+      for (const l of live()) if (A[l] && l !== "E") list.push({ label: l, sub: A[l].sub || "" });
+      setPadWheel(list); };
+    G.wheelClose = () => setPadWheel(null);
+    G.wheelPick = (l) => { G.wheelClose(); setTimeout(() => tap([l]), 30); };
+    const closeSomething = () => { const g = G.current;
+      if (g && g.mapOpen) { setMapOpen(false); return true; }
+      if (g && g.bookOpen && G.bookFn) { G.bookFn(); return true; }
+      return false; };
     const poll = () => {
       raf2 = requestAnimationFrame(poll);
       const pads = navigator.getGamepads ? navigator.getGamepads() : []; const gp = pads && [...pads].find((q) => q && q.connected); if (!gp) return;
-      const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, dz = 0.18;
-      if (Math.hypot(ax, ay) > dz) { input.current.x = ax; input.current.y = ay; input.current.pad = 1; } else if (input.current.pad) { input.current.x = 0; input.current.y = 0; input.current.pad = 0; }
+      const g = G.current, car = g && g.mode !== "foot";
+      const B = (i) => !!(gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > 0.35));
+      const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, dz = 0.18, ry = gp.axes[3] || 0;
+      const moving = Math.hypot(ax, ay) > dz;
+      if (!G.padOnNow && (moving || gp.buttons.some((q) => q && (q.pressed || q.value > 0.35)))) { G.padOnNow = 1; setPadOn(true); }
+      if (moving) { input.current.x = ax; input.current.y = ay; input.current.pad = 1; } else if (input.current.pad) { input.current.x = 0; input.current.y = 0; input.current.pad = 0; sprint = 0; }
       const L = menuOpts();
-      if (L.length) {                                          // a panel is open: the pad is the menu
+      if (L.length) {                                          // a panel is open (or the wheel): the pad is the menu
         if (sel >= L.length) sel = L.length - 1;
-        const dy = (gp.buttons[13] && gp.buttons[13].pressed) || (gp.buttons[15] && gp.buttons[15].pressed) || ay > 0.6 || ax > 0.6 ? 1 : (gp.buttons[12] && gp.buttons[12].pressed) || (gp.buttons[14] && gp.buttons[14].pressed) || ay < -0.6 || ax < -0.6 ? -1 : 0;
+        // the wheel is two columns: up/down jump a row, left/right step across; ordinary panels are one list
+        const cols = document.querySelector("[data-pickcols]") ? 2 : 1;
+        const down = B(13) || ay > 0.6, up = B(12) || ay < -0.6, right = B(15) || ax > 0.6, left = B(14) || ax < -0.6;
+        const dy = cols === 1 ? (down || right ? 1 : up || left ? -1 : 0) : (down ? 2 : up ? -2 : right ? 1 : left ? -1 : 0);
         navT -= 1 / 60; if (dy && navT <= 0) { sel = (sel + dy + L.length) % L.length; navT = 0.22; } if (!dy) navT = 0;
         mark(L);
-        const a = gp.buttons[0] && gp.buttons[0].pressed, bb = gp.buttons[1] && gp.buttons[1].pressed;
-        if (a && !was[0]) { L[sel] && L[sel].click(); sel = 0; }
-        if (bb && !was[1]) { G.current.pickOpen = null; G.pickFn && G.pickFn("close"); sel = 0; }
-        gp.buttons.forEach((b, i) => { was[i] = b.pressed || b.value > 0.5; });
-        input.current.x = 0; input.current.y = 0; return;
+        if (B(0) && !was[0]) { L[sel] && L[sel].click(); sel = 0; }
+        if (B(1) && !was[1]) { G.wheelClose(); if (g) g.pickOpen = null; G.pickFn && G.pickFn("close"); sel = 0; }
+        if (B(4) && !was[4]) { G.wheelClose(); sel = 0; }          // LB again puts the wheel away
+        for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i);
+        input.current.x = 0; input.current.y = 0; input.current.run = false; return;
       }
       sel = 0;
-      gp.buttons.forEach((b, i) => { const on = b.pressed || b.value > 0.5; const k = MAP[i];
-        if (on && !was[i]) { if (k) { input.current.keys[k] = true; if (k === "e") doAction(); if (k === "f" && G.strikeFn) G.strikeFn(); if (k === "c" && G.coverFn) G.coverFn(); if (k === "n") G.current.nightTarget = G.current.nightTarget > 0.5 ? 0 : 1; }
-          if (i === 4) G.zoomStep && G.zoomStep(-0.15); if (i === 5) G.zoomStep && G.zoomStep(0.15); }
-        if (!on && was[i] && k) input.current.keys[k] = false;
-        was[i] = on; });
+      const K = input.current.keys, press = (i) => B(i) && !was[i];
+      if (g && g.mapOpen) { if (press(9) || press(1)) setMapOpen(false); for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i); return; }
+      if (press(0)) doAction();
+      if (press(1)) { if (!closeSomething() && G.strikeFn) G.strikeFn(); }
+      const rel = (i) => !B(i) && was[i];                       // only touch a key on a press or a release, so the keyboard still works
+      if (press(2)) K[" "] = true; if (rel(2)) K[" "] = false;
+      if (press(3) && G.coverFn) G.coverFn();
+      if (press(4)) openWheel();
+      if (press(5)) { if (!tap(["TGT"])) tap(["DRAW", "PUT UP"]); }
+      // the triggers: a car's pedals, or on foot draw / run
+      if (press(7)) { if (car) K["w"] = true; else input.current.run = true; }
+      if (rel(7)) { K["w"] = false; input.current.run = !!sprint && !car; }
+      if (press(6)) { if (car) K["s"] = true; else tap(["DRAW", "PUT UP"]); }
+      if (rel(6)) K["s"] = false;
+      if (press(8) && G.bookFn) G.bookFn();
+      if (press(9)) setMapOpen(true);
+      if (press(10) && !car) { sprint = sprint ? 0 : 1; input.current.run = !!sprint || B(7); }   // L3: sprint until you let the stick go
+      if (!sprint && !B(7) && was.sprintOn) input.current.run = false; was.sprintOn = !!sprint;
+      if (press(11)) tap(["HOOK", "JUMP", "DROP"]);           // R3: the rooftops
+      if (press(12) && g) g.nightTarget = g.nightTarget > 0.5 ? 0 : 1;
+      if (press(13)) tap(["POCKETS", "ID"]);
+      if (press(14)) G.zoomStep && G.zoomStep(-0.15);
+      if (press(15)) { if (g && g.mis && G.pickOpen) G.pickOpen("misorders"); else G.zoomStep && G.zoomStep(0.15); }   // on a job: ORDERS (layer 508)
+      if (Math.abs(ry) > 0.3 && G.zoomStep) G.zoomStep(-ry * 0.025);     // right stick: zoom
+      for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i);
     };
     raf2 = requestAnimationFrame(poll);
-    return () => cancelAnimationFrame(raf2);
+    return () => { cancelAnimationFrame(raf2); window.removeEventListener("keydown", eatKey, { capture: true }); window.removeEventListener("keyup", eatKey, { capture: true });
+      window.removeEventListener("wheel", eatWheel); document.removeEventListener("gesturestart", eatGesture); window.removeEventListener("pointerdown", touchBack, { capture: true }); };
   }, []);
 
   /* ---- keyboard ---- */
@@ -11662,6 +11727,7 @@ export default function IronLionLayer004() {
     if (!g.inside && G.digFn && G.digFn()) return;
     if (!g.inside && G.ballFn && G.ballFn()) return;
     if (g.inside && G.motorFn && G.motorFn()) return;                // the motor pool (layer 497)
+    if (G.misDoorFn && G.misDoorFn()) return;                        // a job's back door (layer 508)
     if (g.inside && G.vaultFn && G.vaultFn()) return;                // the open vault (layer 496)
     if (g.inside && G.artTalkFn && G.artTalkFn()) return;            // the terminal's / airport's people (layer 495)
     if (g.inside && G.safeFn && G.safeFn()) return;                  // the safe in the back (layer 485)
@@ -15964,7 +16030,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function drawBackup(view) {
       if (g.inside) return;
-      if (g.prisonMode) { drawPrisonIntro(); drawBlockLabels(view); drawBasketball(view); drawHideoutYard(view); drawStreetPeople(view); drawYardGuards(view); drawTunnelSpots(); drawFollowers(); drawPrisonFx(); drawTargetArrow(); }
+      if (g.prisonMode) { drawPrisonIntro(); drawBlockLabels(view); drawBasketball(view); drawHideoutYard(view); drawStreetPeople(view); drawYardGuards(view); drawTunnelSpots(); drawMission(); drawFollowers(); drawPrisonFx(); drawTargetArrow(); }
       drawK9();
       for (const c of g.backup || []) {
         const im = imgs.current[c.m.k];
@@ -16033,6 +16099,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "artstaff") return artStaffPanel();
       if (kind === "motorpool") return motorPanel();
       if (kind === "jobplay") return jobPlayPanel();
+      if (kind === "misorders") return misPanel();
       if (kind === "merc") return mercPanel();
       if (kind === "pool") return poolPanel();
       if (kind === "plates") return platesPanel();
@@ -16180,7 +16247,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("pool:")) { G.poolPick(id.slice(5)); return; }
       else if (id.startsWith("merc:")) { G.mercPick(id); G.pickOpen("merc"); return; }
       else if (id.startsWith("bd:ride:")) { G.opsPick(id); return; }
-      else if (id.startsWith("bd:")) { G.opsPick(id); if (!g.jobRide) G.pickOpen("opsboard"); return; }
+      else if (id.startsWith("bd:")) { G.opsPick(id); if (!g.jobRide && !g.misStarted) G.pickOpen("opsboard"); g.misStarted = 0; return; }
+      else if (id.startsWith("mis:")) { G.misPick && G.misPick(id); return; }                 // the job's orders (layer 508)
       else if (id.startsWith("bm:open:")) { g.bmKey = id.slice(8); g.bmSaid = null; G.pickOpen("baseman"); return; }
       else if (id.startsWith("bm:")) { G.baseManPick(id); G.pickOpen("baseman"); return; }
       else if (id.startsWith("biz:")) { G.bizPick(id); G.pickOpen("bizshop"); return; }
@@ -31271,9 +31339,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const L = g.pfol; if (!L || !L.length) return;
       if (!g.prisonMode || (!g.pescaped && prisonPhase(g.clock || CLOCK.start)[2] === "cells") || g.hole) { g.pfol = []; return; }
       // in a car, your people ride with you: they get out where you get out
-      if (g.mode !== "foot") { for (const f of L) { f.riding = 1; f.x = g.p.x; f.y = g.p.y; f.b = g.inside; f.f = g.floor; } return; }
+      if (g.mode !== "foot") { for (const f of L) { if (f.task) { misStepTask(f, dt); continue; } f.riding = 1; f.x = g.p.x; f.y = g.p.y; f.b = g.inside; f.f = g.floor; } return; }
       const F = g.inside ? prisonFolk() || [] : [];
       L.forEach((f, i) => {
+        if (f.task) { misStepTask(f, dt); return; }                 // on an order (layer 508)
         if (f.b !== g.inside || f.f !== g.floor) { f.lag += dt; if (f.lag > 1.5) { f.b = g.inside; f.f = g.floor; f.lag = 0;
           f.x = g.p.x - Math.cos(g.board.ang) * 60; f.y = g.p.y - Math.sin(g.board.ang) * 60; } return; }
         // the man coming at you, nearest to YOU
@@ -31301,6 +31370,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         drawShadow(f.x, f.y + 2, 9, 4, 0.3); drawYouth(f);
         ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(8,10,8,0.85)"; ctx.fillStyle = "#6fe07a";
         const nm = (f.name || "").toUpperCase(); ctx.strokeText(nm, f.x, f.y - 30); ctx.fillText(nm, f.x, f.y - 30); ctx.textAlign = "start";
+        if (f.task && f.task.need && f.task.w > 0) { const k = Math.min(1, f.task.w / f.task.need); ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(f.x - 18, f.y - 46, 36, 6); ctx.fillStyle = "#e8c46a"; ctx.fillRect(f.x - 17, f.y - 45, 34 * k, 4); }   // working (layer 508)
       }
     }
 
@@ -31661,8 +31731,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           following: (g.pfol || []).some((f) => f.crew === C.id) }); }
       for (const m of B.men || []) { if (!m.id) m.id = (B.nextId = (B.nextId || 0) + 1); if (!m.job) m.job = "wait";
         const vv = m.role === "hacker" ? 1 : (m.v || 1);                                  // the hacker has one plate (layer 503)
-        out.push({ key: "m:" + m.id, m, name: hireName(m), role: m.role, yt: m.yt || "yt_hire_" + m.role + "_" + vv, tall: m.tall || 1.25,
-          face: m.face || "assets/hires/pt_hire_" + m.role + "_" + vv + ".png", rec: m, home: (m.id % 2) * SY_GARAGE }); }   // shelter or the garage, never the parking floor
+        const art = m.role === "locksmith" ? "safecracker" : m.role;                    // ART OWED: the locksmith's own plate + face (layer 508)
+        out.push({ key: "m:" + m.id, m, name: hireName(m), role: m.role, yt: m.yt || "yt_hire_" + art + "_" + vv, tall: m.tall || 1.25,
+          face: m.face || "assets/hires/pt_hire_" + art + "_" + vv + ".png", rec: m, home: (m.id % 2) * SY_GARAGE }); }   // shelter or the garage, never the parking floor
       return out;
     }
     const personByKey = (k) => basePeople().find((q) => q.key === k);
@@ -32081,6 +32152,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       driver:      { nm: "DRIVER", cost: 600, crew: "viejo", rep: 0 },
       shooter:     { nm: "SHOOTER", cost: 800, crew: "leroy", rep: 0 },
       lookout:     { nm: "LOOKOUT", cost: 250, rep: 0 },
+      locksmith:   { nm: "LOCKSMITH", cost: 700, rep: 0 },                       // layer 508: opens a back door on a job (no plate yet: wears the safecracker's)
       thief:       { nm: "CAR THIEF", cost: 500, rep: 0 },
       hacker:      { nm: "HACKER", cost: 1500, rep: 100 },                       // layer 501: cameras dark, calls slow                       // layer 491: steals the rides jobs run on
       mechanic:    { nm: "MECHANIC", cost: 700, rep: 50 },
@@ -32288,7 +32360,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const send = jobOdds(D.k, D.gk, D.tgtPeek, team, false), ride = jobOdds(D.k, D.gk, D.tgtPeek, team, true);
       g.boardSaid = O.nm + (D.gk ? " \u00b7 " + (GANG_LABEL[D.gk] || D.gk) : "") + ".  TEAM: " + (team.map((p) => p.name.split(" ")[0] + " " + stars(skillOf(p))).join(", ") || "nobody free") +
         ".  AGAINST: " + def.txt + ".  ODDS: " + Math.round(send * 100) + "% -- " + Math.round(ride * 100) + "% with you on it.";
-      return [{ id: "bd:go:send", label: "SEND THEM (" + Math.round(send * 100) + "%)" }, { id: "bd:go:ride", label: "RIDE WITH THEM (" + Math.round(ride * 100) + "%)" }, { id: "bd:view:plan", label: "NOT THIS ONE" }]; }
+      const lead = MIS_JOBS[D.k] ? { id: "bd:go:lead", label: "LEAD IT -- YOU, THEM AND THE CAR, FOR REAL (" + Math.round(ride * 100) + "%)" } : { id: "bd:go:ride", label: "RIDE WITH THEM (" + Math.round(ride * 100) + "%)" };   // layer 508
+      return [{ id: "bd:go:send", label: "SEND THEM (" + Math.round(send * 100) + "%)" }, lead, { id: "bd:view:plan", label: "NOT THIS ONE" }]; }
     // riding along: the job plays out in three beats
     const BEATS = [
       { t: "THE APPROACH", s: (J) => J.driver + " brings the car round the block twice. Nobody on the corner looks twice.", o: [["GO IN QUIET", 0.05, -0.10], ["GO IN FAST", -0.05, 0.10]] },
@@ -32347,9 +32420,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           g.gpact[gk].until = 0; g.gstand[gk] = -100; g.jobBanner = "PACT BROKEN"; g.jobNote = "You moved on " + (GANG_LABEL[gk] || gk) + " while you had a pact. That's war."; }
         const cz = O.cased ? (B.cased || []).findIndex((c) => (k === "jewels" ? c.for === "jewels" : !c.for)) : -1;
         const tgt = cz >= 0 ? B.cased.splice(cz, 1)[0] : null;
-        const team = pickTeam(k), ride = g.opGo === "ride";
+        const team = pickTeam(k), ride = g.opGo === "ride" || g.opGo === "lead";
         const op = { k, gang: gk || null, at: nowMin() + O.mins, tgt, rides: rides.map((r) => r.id), team: team.map((p) => p.key), odds: jobOdds(k, gk, tgt, team, ride), payMul: 1 + team.reduce((a, p) => a + Math.max(0, skillOf(p) - 3) * 0.08, 0) / Math.max(1, team.length) * team.length / Math.max(1, team.length) };
         B.ops.push(op); g.opDraft = null;
+        if (g.opGo === "lead") { if (misStart(op, team)) { g.boardView = null; return; } }     // played for real (layer 508); no target -> runs as SEND
         if (ride) { const drv = team.find((p) => p.role === "driver"); g.jobRide = { o: op, beat: 0, odds: op.odds, payMul: op.payMul, driver: drv ? drv.name.split(" ")[0] : "Your driver", guard: !!(tgt && tgt.guard) || k === "armored" || k === "jewels" };
           g.boardView = null; G.pickOpen("jobplay"); return; } g.boardSaid = O.nm + " -- set. " + Math.round(O.mins / 60) + " hours." + (rides.length ? " Taking " + rides.map((r) => RIDE[r.type].nm.toLowerCase()).join(" + ") + "." : ""); g.boardView = null; return; }
     };
@@ -32427,6 +32501,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           let pay = O.pay[1] ? Math.round(O.pay[0] + Math.random() * (O.pay[1] - O.pay[0])) : 0;
           if (o.tgt && o.k === "robbery") pay = o.tgt.cash;
           if (LOOT[o.k] && used.length) pay = Math.round(pay * Math.max(...used.map((r) => RIDE[r.type].cargo)));     // more room, more taken
+          if (o.played) pay = o.extra || 0;                                                                          // a job you led: the money was what you took (layer 508)
           if (o.payMul) pay = Math.round(pay * o.payMul);                                                            // skill, and how you played it
           for (const key of o.team || []) { const p = personByKey(key); if (p && p.m) p.m.skill = Math.min(5, (p.m.skill || 2) + 0.25); }   // they get better
           if (o.ride) g.rep = (g.rep || 0) + Math.round((O.gain || 0) / 2);                                          // you were there
@@ -32439,7 +32514,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             (B.cased = B.cased || []).push({ nm, for: o.jewel ? "jewels" : null, guard: Math.random() < 0.4, cash: 1500 + ((Math.random() * 4000) | 0) }); }
           if (O.gang && o.gang) moveStand(o.gang, O.stand || 0);
           let bombedAt = null;
-          if (o.k === "carbomb" && o.gang) { const fb = gangFront(o.gang); if (fb) { bombBusiness(fb, o.gang); bombedAt = fb; } }
+          if (o.k === "carbomb" && o.gang && !o.played) { const fb = gangFront(o.gang); if (fb) { bombBusiness(fb, o.gang); bombedAt = fb; } }
+          if (o.played && o.bombedAt) bombedAt = o.bombedAt;                                                       // you set it off yourself
           if (O.gang && g.gwar && g.gwar.gangs[o.gang]) { const G3 = g.gwar.gangs[o.gang]; G3.cash = Math.max(0, (G3.cash || 0) - O.dmg);
             if (typeof warLog === "function") warLog("somebody " + (o.k === "carbomb" ? "blew up a car" : "put down a man") + " of " + (GANG_LABEL[o.gang] || o.gang)); }
           note = O.nm + " -- DONE" + (pay ? ". $" + pay + "." : o.k === "corner" ? ". The corner is yours." : o.k === "racket" ? ". Another shop pays you now." :
@@ -32451,6 +32527,181 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         g.jobBanner = "THE BOARD"; g.jobNote = note; if (typeof bookNote === "function") bookNote(note);
       }
     }
+
+    /* ---------- LAYER 508: CREW MISSIONS, PLAYED FOR REAL ----------
+       On the board, WHO GOES now offers LEAD IT for the jobs that happen at a place (ROB A STORE, THE JEWELRY HEIST, CAR
+       BOMB ON A GANG). SEND THEM still runs on the clock as text; every other job keeps the old RIDE WITH THEM beats.
+       LEAD IT: you're out the scrapyard gate in a car from the motor pool, your people riding with you (the driver at the
+       wheel side, the rest as followers who get out when you get out), a gold arrow to the target. Out of the car within
+       sight of the door and you're ON SITE: the driver keeps the motor running. ORDERS (D-pad right / the ORDERS button /
+       the action wheel) -- on the spot, by trade:
+         LOCKSMITH or SAFECRACKER  OPEN THE BACK DOOR -- walks round to the back wall, works it, then follows again. E at the
+                                   open back door takes you in (and out) the back: quieter, +15% on the take.
+         SAFECRACKER               CRACK THE SAFE -- once he's inside with you: walks to the safe, works it, the safe's yours.
+         BOMB MAKER                PLANT IT at the front door / the back door / the side wall / OUR CAR parked out front /
+                                   under the counter (inside) -- then SET IT OFF once you're 300 clear. Near enough the
+                                   building, it's blown: the place is shut three days (the bombed-business plates).
+         DRIVER                    WAIT HERE / CIRCLE THE BLOCK (the car's off the street) / BRING THE CAR (pulls up by you).
+         ANYONE                    HOLD THIS SPOT / COME WITH ME.        And: CALL IT OFF.
+       Done when: the store's register is stuck up (robbery), the safe or the register is cleaned out (jewels), or the bomb
+       took the front off (car bomb) -- then GET AWAY: back to the scrapyard door. The job settles on the board with what you
+       actually took (jewels: the stones fenced on top); your people get their skill, you get the respect. Caught or down,
+       it went wrong. A locksmith who's free tags along on a store job without being asked. */
+    const MIS_JOBS = { robbery: 1, jewels: 1, carbomb: 1 };
+    const MIS_PLANTS = [["front", "THE FRONT DOOR"], ["back", "THE BACK DOOR"], ["side", "THE SIDE WALL"], ["car", "OUR CAR, OUT FRONT"], ["counter", "UNDER THE COUNTER"]];
+    const wallPt = (b, side, pos, out) => side === 0 ? [b.x + b.w * pos, b.y - out] : side === 2 ? [b.x + b.w * pos, b.y + b.h + out] : side === 3 ? [b.x - out, b.y + b.h * pos] : [b.x + b.w + out, b.y + b.h * pos];
+    const backSide = (b) => ((b.door ? b.door.side : 2) + 2) % 4;
+    const misFol = () => (g.pfol || []).filter((f) => f.mis);
+    const first = (nm) => (nm || "").split(" ")[0].toUpperCase();
+    function misTarget(k, gk, tgt) {
+      if (k === "carbomb") return gk ? gangFront(gk) : null;
+      if (k === "robbery" && tgt && tgt.b) return tgt.b;
+      const H = hideoutB(), hx = H ? H.x : g.p.x, hy = H ? H.y : g.p.y; let best = null, bd = 1e12;
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); if (!c) continue;
+        for (const b of c.blds || []) { if (!b.door || !b.biz || b.hideout || b.mercBar || b.inPrison || b.landmark || b.uterm || (b.bombed && b.bombed.until > nowMin())) continue;
+          const jew = /ALDRIDGE|JEWEL/.test(b.name || "") || /jewel/.test(b.biz);
+          if (k === "jewels" ? !jew : (jew || /club|casino|cardroom|bank|airport|terminal/.test(b.biz))) continue;
+          const d = Math.hypot(b.x - hx, b.y - hy), sc = k === "jewels" ? d : Math.abs(d - 2200);
+          if (sc < bd) { bd = sc; best = b; } } }
+      if (best && tgt && k === "robbery") tgt.b = best;
+      return best;
+    }
+    function misStart(op, team) {
+      const b = misTarget(op.k, op.gang, op.tgt), H = hideoutB(); if (!b || !H) return false;
+      op.at = nowMin() + 1e7; op.live = 1;                                   // it doesn't settle on the clock: you settle it
+      const drv = team.find((p) => p.role === "driver"), extra = [];
+      if (op.k === "robbery") { const busy = opBusyKeys(); const ls = basePeople().find((p) => (p.role === "locksmith" || p.role === "safecracker") && !isOut(p) && !busy.has(p.key) && !team.includes(p)); if (ls) extra.push(ls); }
+      const walkers = team.filter((p) => p !== drv).concat(extra);
+      const d = doorPoint(H), out = [[0, -1], [1, 0], [0, 1], [-1, 0]][H.door.side] || [0, 1];
+      const M0 = motorPool(), n = M0.slots.findIndex(Boolean), c = n >= 0 ? M0.slots[n] : null; if (c) { M0.slots[n] = null; c.slot = n; }
+      g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+      g.inside = null; g.floor = 0; g.insideT = 0; g.mode = "car"; g.roof = null;
+      g.car.x = d[0] + out[0] * 90; g.car.y = d[1] + out[1] * 90; g.car.ang = Math.atan2(out[1], out[0]); g.car.vx = 0; g.car.vy = 0;
+      g.car.skin = { k: c ? c.k : "buy_sedan_grey", len: 104, w: 46 }; g.car.crush = null; g.car.dents = []; g.car.dmg = 0; g.car.fuel = 100; g.car.pool = c;
+      g.car.tough = 1.6; g.car.armored = 1; g.car.runflat = 1;
+      g.p.x = g.car.x; g.p.y = g.car.y; g.cam.x = g.p.x; g.cam.y = g.p.y;
+      g.pfol = (g.pfol || []).filter((f) => !f.mis);
+      for (const p of walkers) g.pfol.push({ mis: 1, key: p.key, role: p.role, name: p.name, yt: p.yt, tall: p.tall, x: g.p.x, y: g.p.y, vx: 0, vy: 0, b: null, f: 0, cd: 0, lag: 0, angry: 0, down: 0, riding: 1, jit: 1, anim: 0, bang: 0 });
+      g.mis = { op, k: op.k, gk: op.gang, b, phase: "drive", drv: drv ? drv.name : null, car: "with", bomb: null, back: 0, got: 0,
+        safe0: b.biz ? econOf(b).safe : 0, cash0: g.p.cash || 0, gt0: g.t, t: 0 };
+      g.misStarted = 1; g.misSaid = null;
+      g.jobBanner = OPS[op.k].nm; g.jobNote = "Drive to " + (b.name || addressOf(b)) + " -- follow the gold arrow. " + (walkers.length ? walkers.map((p) => p.name.split(" ")[0]).join(", ") + " ride with you. " : "") + "ORDERS on the spot.";
+      return true;
+    }
+    function misStatus() { const M = g.mis; if (!M) return "";
+      const who = misFol().map((f) => first(f.name) + (f.task ? (f.task.kind === "hold" ? " (holding)" : f.task.need ? " (working " + Math.round(100 * f.task.w / f.task.need) + "%)" : " (on his way)") : " (with you)")).join(", ");
+      const car = !M.drv ? "" : M.carGone ? " The car's gone." : M.car === "circle" ? " " + first(M.drv) + " is circling the block." : " " + first(M.drv) + " is at the wheel.";
+      const goal = M.phase === "drive" ? "Get to " + (M.b.name || "the place") + "." : M.phase === "away" ? "GET AWAY -- back to the scrapyard." :
+        M.k === "carbomb" ? "Have it planted, get clear, set it off." : M.k === "jewels" ? "Clean out the safe (or stick up the counter)." : "Stick up the register.";
+      return goal + (who ? " " + who + "." : "") + car + (M.back ? " The back door's open." : "") + (M.bomb ? " A bomb is armed at " + M.bomb.nm.toLowerCase() + "." : ""); }
+    const misCarNear = () => { const M = g.mis, d = doorPoint(M.b); return g.car && !M.carGone && M.car !== "circle" && Math.hypot(g.car.x - d[0], g.car.y - d[1]) < 260; };
+    const misBombDist = () => { const B = g.mis && g.mis.bomb; return B ? Math.hypot(g.p.x - B.x, g.p.y - B.y) : 1e9; };
+    function misPanel() { const M = g.mis; if (!M) return null; const opts = [];
+      for (const f of misFol()) { const fk = f.key.replace(/:/g, "~"), nm = first(f.name), withMe = f.b === g.inside && f.f === g.floor;
+        if ((f.role === "locksmith" || f.role === "safecracker") && !M.back && M.phase !== "drive") opts.push({ id: "mis:back:" + fk, label: nm + " \u00b7 OPEN THE BACK DOOR" });
+        if (f.role === "safecracker" && g.inside === M.b && withMe && M.b.biz && econOf(M.b).safe > 0) opts.push({ id: "mis:safe:" + fk, label: nm + " \u00b7 CRACK THE SAFE" });
+        if (f.role === "bomber" && !M.bomb && M.phase !== "drive") for (const [k2, l] of MIS_PLANTS) {
+          if (k2 === "counter" ? g.inside !== M.b : g.inside) continue; if (k2 === "car" && !misCarNear()) continue;
+          opts.push({ id: "mis:plant:" + fk + ":" + k2, label: nm + " \u00b7 PLANT IT: " + l }); }
+        opts.push(f.task && f.task.kind === "hold" ? { id: "mis:come:" + fk, label: nm + " \u00b7 COME WITH ME" } : f.task ? { id: "mis:come:" + fk, label: nm + " \u00b7 DROP IT, COME WITH ME" } : { id: "mis:hold:" + fk, label: nm + " \u00b7 HOLD THIS SPOT" }); }
+      if (M.bomb && M.bomb.armed) opts.push({ id: "mis:boom", label: "SET IT OFF" + (misBombDist() < 300 || g.inside ? " (GET CLEAR FIRST)" : "") });
+      if (M.drv && !M.carGone && M.phase !== "drive") { const d = first(M.drv); opts.push({ id: "mis:car:wait", label: d + " \u00b7 WAIT HERE" }, { id: "mis:car:circle", label: d + " \u00b7 CIRCLE THE BLOCK" }, { id: "mis:car:bring", label: d + " \u00b7 BRING THE CAR" }); }
+      opts.push({ id: "mis:abort", label: "CALL IT OFF" }, { id: "close", label: "CARRY ON" });
+      return { title: "ORDERS \u00b7 " + OPS[M.k].nm, face: null, text: g.misSaid || misStatus(), opts }; }
+    function misTask(f, kind, x, y, need, done, b2, fl) { f.task = { kind, x, y, need: need || 0, w: 0, done, b: b2 || null, fl: fl || 0 }; }
+    function misStepTask(f, dt) { const T = f.task; if (!T) return false;
+      if (f.b !== T.b || f.f !== T.fl) {                                    // off to somewhere you aren't: he goes the way you'd go
+        f.b = T.b; f.f = T.fl; if (T.b) { f.x = T.x; f.y = T.y + 30; } else { const dp = g.mis ? doorPoint(g.mis.b) : [T.x, T.y]; f.x = dp[0]; f.y = dp[1]; } }
+      if (Math.hypot(T.x - f.x, T.y - f.y) > (T.b ? 250 : 900)) { f.x = T.x + 24; f.y = T.y + 24; }       // indoors (or a long way): he's just there
+      const dx = T.x - f.x, dy = T.y - f.y, d = Math.hypot(dx, dy);
+      if (d > 8) { const sp = Math.min(PFOL.spd, d / Math.max(dt, 1e-3)); f.x += dx / d * sp * dt; f.y += dy / d * sp * dt; f.vx = dx / d * sp; f.vy = dy / d * sp; f.anim = (f.anim || 0) + dt; f.bang = Math.atan2(dy, dx);
+        if (f.b === g.inside && f.f === g.floor && g.mode === "foot") collideCrew(f);
+        f.stuck = Math.hypot(f.x - (f.lx || 0), f.y - (f.ly || 0)) < 0.5 ? (f.stuck || 0) + dt : 0; f.lx = f.x; f.ly = f.y;
+        if (f.stuck > 1.5 || f.b !== g.inside) { if (f.stuck > 1.5 || d > 600) { f.x = T.x; f.y = T.y; } f.stuck = 0; }
+        return true; }
+      f.vx = 0; f.vy = 0;
+      if (T.need) { T.w += dt; if (T.w >= T.need) { const cb = T.done; f.task = null; if (cb) cb(f); } }
+      return true; }
+    const misFlash = (t) => { g.pickupFlash = { nm: "lift:" + t, t: 2.0 }; };
+    function placeCarNear(x, y) {
+      const bad = (px, py) => { for (let i = Math.floor(px / PITCH) - 1; i <= Math.floor(px / PITCH) + 1; i++) for (let j = Math.floor(py / PITCH) - 1; j <= Math.floor(py / PITCH) + 1; j++) {
+        const c = getCell(i, j); if (!c) continue; for (const b of c.blds || []) if (px > b.x - 40 && px < b.x + b.w + 40 && py > b.y - 40 && py < b.y + b.h + 40) return true; } return false; };
+      for (let r = 70; r < 420; r += 30) for (let k = 0; k < 12; k++) { const a = k / 12 * 6.283, px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; if (!bad(px, py)) return [px, py, a + Math.PI / 2]; }
+      return [x + 90, y, 0]; }
+    G.misPick = (id) => { const M = g.mis; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); if (!M) return;
+      const [, a, key0, k2] = id.split(":"), key = (key0 || "").replace(/~/g, ":"), f = misFol().find((q) => q.key === key), nm = f ? first(f.name) : "";   // keys carry ':' -- sent as '~'
+      void key0;
+      const b = M.b, ds = b.door ? b.door.side : 2, dp = b.door ? b.door.pos : 0.5;
+      if (a === "back" && f) { const [x, y] = wallPt(b, backSide(b), 0.5, 20);
+        misTask(f, "back", x, y, 5, () => { M.back = 1; misFlash(nm + " HAS THE BACK DOOR OPEN"); }); misFlash(nm + " HEADS ROUND THE BACK"); return; }
+      if (a === "safe" && f) { const s2 = bizSafe(b); if (!s2) return;
+        misTask(f, "safe", s2.x + s2.w / 2, s2.y + s2.h + 18, 8, () => { const e = econOf(b), take = e.safe; e.safe = 0; g.p.cash = (g.p.cash || 0) + take; M.got = 1;
+          misFlash(nm + " CRACKED IT \u00b7 +$" + take.toLocaleString()); }, b, b.entry || 0); misFlash(nm + " GOES TO WORK ON THE SAFE"); return; }
+      if (a === "plant" && f) { const P = MIS_PLANTS.find((q) => q[0] === k2); if (!P) return; let x, y, inB = null, fl = 0;
+        if (k2 === "front") [x, y] = wallPt(b, ds, dp, 22); else if (k2 === "back") [x, y] = wallPt(b, backSide(b), 0.5, 22);
+        else if (k2 === "side") [x, y] = wallPt(b, (ds + 1) % 4, 0.5, 22); else if (k2 === "car") { x = g.car.x; y = g.car.y + 28; } else { x = g.p.x; y = g.p.y; inB = b; fl = g.floor; }
+        misTask(f, "plant", x, y, 6, () => { M.bomb = { x, y, nm: P[1], armed: 1, car: k2 === "car", inside: !!inB, b: inB, fl }; misFlash("ARMED \u00b7 " + P[1] + " \u00b7 GET CLEAR, THEN SET IT OFF"); }, inB, fl);
+        misFlash(nm + " IS PLANTING IT \u00b7 " + P[1]); return; }
+      if (a === "hold" && f) { misTask(f, "hold", f.x, f.y, 0, null, f.b, f.f); return; }
+      if (a === "come" && f) { f.task = null; return; }
+      if (a === "boom") { if (g.inside || misBombDist() < 300) { misFlash("TOO CLOSE -- GET CLEAR FIRST"); return; } misBoom(); return; }
+      if (a === "car") { const d = first(M.drv);
+        if (key0 === "wait") { if (M.car === "circle" && M.carSpot) { g.car.x = M.carSpot[0]; g.car.y = M.carSpot[1]; } M.car = "wait"; misFlash(d + " SITS TIGHT"); return; }
+        if (key0 === "circle") { if (M.car !== "circle" && g.mode === "foot") { M.carSpot = [g.car.x, g.car.y]; g.car.x = -99999; g.car.y = -99999; } M.car = "circle"; misFlash(d + " PULLS OUT -- CIRCLING THE BLOCK"); return; }
+        if (key0 === "bring") { if (g.inside) { misFlash("COME OUTSIDE FIRST"); return; } const q = placeCarNear(g.p.x, g.p.y); g.car.x = q[0]; g.car.y = q[1]; g.car.ang = q[2]; g.car.vx = g.car.vy = 0; M.car = "wait"; misFlash(d + " PULLS UP"); return; } }
+      if (a === "abort") { misFinish(false, true); return; } };
+    function misBoom() { const M = g.mis, B = M.bomb; if (!B) return;
+      carBoom(B.x, B.y); g.heat = Math.max(g.heat || 0, 2); g.wantedT = Math.max(g.wantedT || 0, 45); try { witnessed(B.x, B.y, 1, true); } catch (e) {}
+      if (B.car) { g.car.x = -99999; g.car.y = -99999; g.car.pool = null; M.carGone = 1; }                  // the car was the bomb
+      const b = M.b, nx = clamp(B.x, b.x, b.x + b.w), ny = clamp(B.y, b.y, b.y + b.h);
+      if (B.inside || Math.hypot(B.x - nx, B.y - ny) < 140) { bombBusiness(b, M.gk); M.bombed = 1; if (M.k === "carbomb") M.got = 1; }
+      if (!g.inside && Math.hypot(g.p.x - B.x, g.p.y - B.y) < 220) g.p.hp = Math.max(1, (g.p.hp || 10) - (g.p.maxHp || 10) * 0.3);
+      M.bomb = null; g.jobBanner = "BOOM"; g.jobNote = M.bombed ? (b.name || "The place") + " -- the front's gone. Get out of here." : "It went off, but not close enough to hurt them.";
+      if (M.got) { M.phase = "away"; g.jobNote += " Back to the scrapyard."; } }
+    G.misDoorFn = () => { const M = g.mis; if (!M || !M.back || g.mode !== "foot") return false; const b = M.b, bs = backSide(b);
+      if (!g.inside) { const [x, y] = wallPt(b, bs, 0.5, 18); if (Math.hypot(g.p.x - x, g.p.y - y) > 55) return false;
+        const [ix, iy] = wallPt(b, bs, 0.5, -34); g.inside = b; g.floor = b.entry || 0; g.insideT = 1; g.pfolk = null; g.p.x = ix; g.p.y = iy; g.p.vx = g.p.vy = 0; M.quiet = 1;
+        misFlash("IN THE BACK WAY"); return true; }
+      if (g.inside === b && g.floor === (b.entry || 0)) { const [ix, iy] = wallPt(b, bs, 0.5, -34); if (Math.hypot(g.p.x - ix, g.p.y - iy) > 55) return false;
+        const [x, y] = wallPt(b, bs, 0.5, 30); g.inside = null; g.floor = 0; g.insideT = 0; g.p.x = x; g.p.y = y; misFlash("OUT THE BACK"); return true; }
+      return false; };
+    function misArrow() { const M = g.mis; if (M.phase === "away") { const H = hideoutB(); return H ? doorPoint(H) : null; } return doorPoint(M.b); }
+    function stepMission(dt) { const M = g.mis; if (!M) return; M.t += dt;
+      if (!g.pescaped || (g.p.hp != null && g.p.hp <= 0)) { misFinish(false); return; }
+      const b = M.b, d0 = doorPoint(b), dd = Math.hypot(g.p.x - d0[0], g.p.y - d0[1]);
+      if (M.phase === "drive" && g.mode === "foot" && (dd < 340 || g.inside === b)) { M.phase = "site"; misFlash(M.drv ? first(M.drv) + " KEEPS THE MOTOR RUNNING" : "ON SITE");
+        g.jobBanner = "ON SITE \u00b7 " + (b.name || addressOf(b)); g.jobNote = misStatus() + " ORDERS: D-pad right or the ORDERS button."; }
+      if (M.phase === "site") {
+        if ((M.k === "robbery" || M.k === "jewels") && g.shop && g.shop.b === b && g.shop.robbedT > M.gt0) M.got = 1;
+        if (M.k === "jewels" && M.safe0 > 0 && econOf(b).safe <= M.safe0 * 0.2) M.got = 1;
+        if (M.got) { M.phase = "away"; g.jobBanner = "GOT IT"; g.jobNote = "Get to the car and back to the scrapyard." + (M.drv && M.car === "circle" ? " Tell " + first(M.drv) + " to BRING THE CAR." : ""); } }
+      if (M.phase === "away") { const H = hideoutB(); if (H) { const h = doorPoint(H); if (g.inside === H || Math.hypot(g.p.x - h[0], g.p.y - h[1]) < 280) misFinish(true); } } }
+    function misFinish(ok, dropped) { const M = g.mis; if (!M) return; g.mis = null; const o = M.op, O = OPS[o.k];
+      g.pfol = (g.pfol || []).filter((f) => !f.mis);
+      if (g.car && M.car === "circle" && M.carSpot && !M.carGone && g.car.x < -9999) { g.car.x = M.carSpot[0]; g.car.y = M.carSpot[1]; }
+      o.live = 0; o.at = nowMin(); o.ride = 1; o.played = 1; o.dropped = dropped ? 1 : 0; o.odds = ok ? 1 : 0; o.bombedAt = M.bombed ? M.b : null;
+      o.extra = ok && o.k === "jewels" ? Math.round(O.pay[0] + Math.random() * (O.pay[1] - O.pay[0])) : 0;          // the stones, fenced
+      if (ok && M.quiet) o.payMul = (o.payMul || 1) + 0.15;
+      const before = g.p.cash || 0; stepOps();
+      const took = (g.p.cash || 0) - M.cash0;
+      g.jobBanner = ok ? "THE JOB'S DONE" : dropped ? "CALLED OFF" : "IT WENT WRONG";
+      g.jobNote = (ok ? "You led it" + (M.quiet ? ", in the back way" : "") + ". $" + Math.max(0, took).toLocaleString() + " all told. " : "") + (g.jobNote || "");
+      void before; }
+    function drawMission() { const M = g.mis; if (!M) return; const b = M.b;
+      if (!g.inside) {
+        if (M.phase !== "away") { const d = doorPoint(b), pu = 0.5 + 0.5 * Math.sin(g.t * 4);
+          ctx.strokeStyle = "rgba(232,196,106," + (0.4 + pu * 0.5) + ")"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(d[0], d[1], 30 + pu * 8, 0, 6.283); ctx.stroke(); }
+        // the back door: shut, or open once the locksmith's done
+        const bs = backSide(b), [x, y] = wallPt(b, bs, 0.5, 0), im = imgs.current[M.back ? "dr_backdoor_open" : "dr_backdoor"], vert = bs === 1 || bs === 3;
+        const w = vert ? 14 : 44, h = vert ? 44 : 14;
+        if (im && im.width) { ctx.save(); ctx.translate(x, y); ctx.rotate([0, Math.PI / 2, Math.PI, -Math.PI / 2][bs]); ctx.drawImage(im, -22, -16, 44, 32); ctx.restore(); }
+        else { ctx.fillStyle = M.back ? "#1a1410" : "#5a4a38"; ctx.fillRect(x - w / 2, y - h / 2, w, h); }
+        if (M.back) { const [ox, oy] = wallPt(b, bs, 0.5, 18); if (Math.hypot(g.p.x - ox, g.p.y - oy) < 55) { ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText("E \u00b7 IN THE BACK", ox, oy - 26); ctx.textAlign = "start"; } } }
+      const B = M.bomb; if (B && (B.inside ? g.inside === B.b && g.floor === B.fl : !g.inside)) {
+        ctx.fillStyle = "#2a2a2a"; ctx.fillRect(B.x - 8, B.y - 6, 16, 12); if (Math.sin(g.t * 9) > 0) { ctx.fillStyle = "#ff3a2a"; ctx.beginPath(); ctx.arc(B.x + 4, B.y - 2, 3, 0, 6.283); ctx.fill(); } } }
+    G.misT = () => { const M = g.mis; return M ? { k: M.k, phase: M.phase, b: [M.b.name, M.b.x | 0, M.b.y | 0, M.b.w | 0, M.b.h | 0, M.b.door && M.b.door.side], fol: misFol().map((f) => [f.name, f.role, f.task && f.task.kind, f.x | 0, f.y | 0]),
+      back: M.back, bomb: M.bomb && M.bomb.nm, got: M.got, car: M.car, carAt: [g.car.x | 0, g.car.y | 0] } : null; };   // test hook
+    G.misBackT = () => { const M = g.mis; return M ? wallPt(M.b, backSide(M.b), 0.5, 18) : null; };
 
     /* ---------- LAYER 443: THE RUSTY NAIL, YOUR PEOPLE ON THE STREET, CASING IN PERSON ----------
        THE RUSTY NAIL (`mercBarB`): the bar nearest the scrapyard becomes the merc bar. SILAS, the
@@ -32664,7 +32915,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText("SILAS \u00b7 BROKER", q.x, q.y - 30); ctx.textAlign = "start";
     }
     function drawTargetArrow() {
-      const tg = g.merc ? doorPoint(g.merc.b) : g.board2 && g.board2.attack ? [g.board2.attack.x, g.board2.attack.y] : !g.inside && g.pescaped && g.mercBar && !g.mercSeen ? doorPoint(g.mercBar) : null;
+      const tg = g.mis ? misArrow() : g.merc ? doorPoint(g.merc.b) : g.board2 && g.board2.attack ? [g.board2.attack.x, g.board2.attack.y] : !g.inside && g.pescaped && g.mercBar && !g.mercSeen ? doorPoint(g.mercBar) : null;
       if (!tg || g.inside) return;
       const dx = tg[0] - g.p.x, dy = tg[1] - g.p.y, d = Math.hypot(dx, dy); if (d < 140) return;
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -39382,7 +39633,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (!g.studentMode) { const before = g.clock == null ? CLOCK.start : g.clock;     // student mode keeps its own (slow) school clock
           g.clock = (before + dt * CLOCK.rate) % 1440;
           if (g.clock < before) { g.day = (g.day || 0) + 1; kestrelReleases(); } }
-        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepBaseFolk(dt); stepFolkWalk(dt); stepPrisonMail(); stepOps(); stepMerc(); stepCornerWar(dt); stepCasing(dt); stepBall(dt);
+        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepBaseFolk(dt); stepFolkWalk(dt); stepPrisonMail(); stepOps(); stepMission(dt); stepMerc(); stepCornerWar(dt); stepCasing(dt); stepBall(dt);
         // anybody who has wandered onto the prison grounds from the street is walked back off
         if ((g.pedCullT = (g.pedCullT || 0) - dt) <= 0) { g.pedCullT = 2; g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y)); }
         if (g.prisonStart) startPrisonMode();
@@ -46188,8 +46439,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
      hosted because the hosted copies repeatedly failed to arrive and chasing that from
      screenshots was costing more than the bytes. */
   const SLOT_IX = { "7": 0, BAR: 1, BELL: 2, PLUM: 3, CHERRY: 4, LEMON: 5 };
-  const btn = (label, sub, onDown, onUp, active, size) => (
+  const btn = (label, sub, onDown, onUp, active, size) => ((G.acts = G.acts || {})[label] = { onDown, onUp, sub }, (   // every on-screen action, for the pad (layer 507)
     <div
+      data-act={label}
       onContextMenu={(e) => e.preventDefault()}
       onPointerDown={(e) => { e.preventDefault(); onDown && onDown(); }}
       onPointerUp={(e) => { e.preventDefault(); onUp && onUp(); }}
@@ -46214,8 +46466,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       <div style={{ fontSize: (size && size < 60) ? 12 : 13, fontWeight: 700 }}>{label}</div>
       {sub && <div style={{ opacity: 0.6, fontSize: 8 }}>{sub}</div>}
     </div>
-  );
+  ));
 
+  G.zoomNow = () => zoomRef.current;     // test hook (layer 507)
   G.zoomStep = (d) => {
     const v = Math.min(3.4, Math.max(0.45, +(zoomRef.current + d).toFixed(2)));
     zoomRef.current = v; setZoomUI(v);
@@ -47750,7 +48003,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         onPointerCancel={stickEnd}
         style={{
           position: "absolute", left: 18, bottom: 22, width: 132, height: 132, borderRadius: "50%",
-          display: hud.title ? "none" : "block",
+          display: hud.title || padOn ? "none" : "block",
           border: "1px solid rgba(217,164,65,0.35)", background: "rgba(12,13,17,0.5)",
           touchAction: "none", zIndex: 30, pointerEvents: "auto",
           userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none",
@@ -47790,6 +48043,28 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         />
       </div>
 
+      {padWheel && (
+        /* THE ACTION WHEEL (layer 507): LB. Every button on screen right now, one per row -- stick / D-pad to move, A to
+           do it, B or LB to put it away. Plus the pad map, so nobody has to remember it. */
+        <div style={{ position: "absolute", inset: 0, zIndex: 58, background: "rgba(6,7,9,0.6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 520, maxWidth: "94%", maxHeight: "88%", overflowY: "auto", background: "rgba(12,13,17,0.96)", border: "1px solid rgba(217,164,65,0.6)",
+            padding: 14, fontFamily: "ui-monospace,Menlo,monospace", color: "#e8d9b5" }}>
+            <div style={{ color: "#e8c46a", fontWeight: 700, letterSpacing: "0.14em", fontSize: 13, marginBottom: 8 }}>ACTION WHEEL</div>
+            <div data-pickcols="2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              {padWheel.map((o) => (
+                <div key={o.label} data-pickopt="1" onClick={() => G.wheelPick && G.wheelPick(o.label)}
+                  style={{ padding: "7px 9px", border: "1px solid rgba(217,164,65,0.35)", background: "rgba(12,13,17,0.9)", cursor: "pointer", fontSize: 12 }}>
+                  <b>{o.label}</b>{o.sub ? <span style={{ opacity: 0.6, fontSize: 10 }}>{" \u00b7 " + o.sub}</span> : null}
+                </div>))}
+              <div data-pickopt="1" onClick={() => G.wheelClose && G.wheelClose()} style={{ padding: "7px 9px", border: "1px solid rgba(217,164,65,0.35)", background: "rgba(12,13,17,0.9)", fontSize: 12 }}><b>CLOSE</b></div>
+            </div>
+            <div style={{ marginTop: 10, fontSize: 10, lineHeight: 1.6, opacity: 0.75 }}>
+              A act · B strike/back · X brake/jump · Y cover · LB this wheel · RB target / draw · LT draw (car: brake) · RT run (car: gas)<br />
+              L3 sprint · R3 hook/rooftops · right stick zoom · START map · VIEW book · D-pad: up night, down pockets/ID, left/right zoom
+            </div>
+          </div>
+        </div>
+      )}
       {mapOpen && (
         <div onClick={() => setMapOpen(false)}
           style={{ position: "absolute", inset: 0, background: "rgba(6,7,9,0.93)", zIndex: 60,
@@ -47971,7 +48246,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       {/* bottom-right: buttons */}
       <div style={{ position: "absolute", right: 18, bottom: 22, display: "flex", flexWrap: "wrap-reverse",
         justifyContent: "flex-end", gap: 8, alignItems: "flex-end", maxWidth: "calc(100vw - 200px)",
-        pointerEvents: "none", display: hud.title ? "none" : "flex" }}>
+        pointerEvents: "none", display: hud.title ? "none" : "flex",
+        visibility: padOn ? "hidden" : "visible" }}>          {/* hidden, not removed, on a pad: the ACTION WHEEL reads what's live from here */}
         {/* The Lion's, and only his. Rio has smoke and Sho has his hands; handing either of
              them slow time would make the swap a costume change. */}
         {hud.who === "lion" && !hud.detMode && btn("LION", hud.lionOn ? "ON" : hud.lion > 4 ? "slow time" : "empty",
@@ -48160,6 +48436,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               () => { if (G.current.auto) { G.current.auto = null; } else G.pickOpen && G.pickOpen("drive"); }, null, hud.autoOn)}
             {G.current && G.current.pescaped && G.current.inside && G.current.inside.biz && !G.current.inside.hideout && !G.current.inside.mercBar &&
               btn(((G.current.board2 && G.current.board2.cased) || []).some((c) => c.b === G.current.inside) ? "ROB" : "CASE", "this place", () => G.caseShopFn && G.caseShopFn(), null, false)}
+            {G.current && G.current.mis && btn("ORDERS", "your people", () => G.pickOpen && G.pickOpen("misorders"), null, false)}
             {G.current && G.coverOK && G.coverOK() && btn("COVER", G.current.p.cover ? "get up" : "get down", () => G.coverFn && G.coverFn(), null, !!G.current.p.cover)}
             {G.current && G.bankOK && G.bankOK() && btn("ROB BANK", "everybody down", () => G.bankFn && G.bankFn(), null, false)}
             {G.current && G.stickOK && G.stickOK() && btn("STICK UP", "the register", () => G.stickFn && G.stickFn(), null, false)}
@@ -48184,7 +48461,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         position: "absolute", bottom: 6, left: 0, right: 0, textAlign: "center",
         fontFamily: mono, fontSize: 9, letterSpacing: "0.14em", color: "rgba(232,217,181,0.35)", pointerEvents: "none",
       }}>
-        WASD · SHIFT SPRINT · CAR: W GAS / S REVERSE / SPACE E-BRAKE · E DOORS-CAR · F STRIKE · N NIGHT
+        {padOn ? "A ACT · B STRIKE/BACK · X BRAKE/JUMP · Y COVER · LB ACTION WHEEL · RB TARGET · LT DRAW (BRAKE) · RT RUN (GAS) · START MAP · VIEW BOOK" + (G.current && G.current.mis ? " · D-PAD RIGHT ORDERS" : "")
+          : "WASD · SHIFT SPRINT · CAR: W GAS / S REVERSE / SPACE E-BRAKE · E DOORS-CAR · F STRIKE · N NIGHT"}
       </div>
 
       {!ready && (
