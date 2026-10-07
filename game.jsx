@@ -240,11 +240,71 @@ const carSpecialFor = (c, who, mode) => {
 const WRECK_M = [{ k: "wreck_shell", len: 118, w: 50 }, { k: "wreck_frame", len: 122, w: 52 }];
 const WRECK_LIFE = 150;
 const carThirst = (c) => (c && c.m && CARTHIRST[c.m.k]) || 1;
-const carStat = (c) => (c && c.m && CARSTAT[c.m.k]) || { s: 1, a: 1, g: 1 };
+const carStat = (c) => (c && c.m && CARSTAT[c.m.k]) || (c && c.skin && c.skin.k && carModel(c.skin.k)) || { s: 1, a: 1, g: 1 };   // the player's car too, by its make (layer 511)
 /* Makes and models. Five marques, because a city with one manufacturer is a catalogue and a
    car you can name is a car you remember stealing. VANTRY is cheap, HOLLOWAY is what the city
    buys in bulk, MARROW is the one with a performance line, OSSIAN builds trucks, KESTREL makes
    the bikes. The three hero cars keep the names you gave them. */
+/* ---------- LAYER 511: THE MAKES ----------
+   Ten car companies, every car in the city one of theirs, from the junk to the money. Each make has a TIER
+   (1 poor .. 5 luxury), a home town, and its logo (assets/logos/logo_<make>.png -- drawn as a name badge until the
+   plate is in). MODELS gives every sprite key its make, model and year; MODEL_RE catches the families. The stats
+   (s top speed, a pickup, g grip) are CARSTAT where a car already had one, else the model's own, else the make's
+   house feel -- and they now drive the PLAYER's car too (carStat reads the skin). */
+const MAKES = {
+  vantry:    { nm: "VANTRY",    tier: 1, home: "Gary, Indiana",          feel: { s: 0.90, a: 1.08, g: 1.10 }, line: "Cheap, light, and it rusts if you look at it." },
+  holloway:  { nm: "HOLLOWAY",  tier: 1, home: "Kenosha",                feel: { s: 0.95, a: 0.92, g: 0.94 }, line: "Every cab and every grandmother in Raven Hook." },
+  ossian:    { nm: "OSSIAN",    tier: 1, home: "the Yards, Raven Hook",  feel: { s: 0.86, a: 0.84, g: 0.86 }, line: "Trucks and vans. Built to haul, not to hurry." },
+  marrow:    { nm: "MARROW",    tier: 2, home: "Detroit",                feel: { s: 1.00, a: 0.97, g: 0.97 }, line: "The middle of the road. The police buy them by the hundred." },
+  iron:      { nm: "IRON",      tier: 3, home: "Flint",                  feel: { s: 1.14, a: 1.12, g: 1.00 }, line: "American muscle. Big engine, bad brakes." },
+  duquesne:  { nm: "DUQUESNE",  tier: 3, home: "Pittsburgh",             feel: { s: 1.06, a: 1.04, g: 0.98 }, line: "Personal luxury: long hoods, velour, a turbo if you ask." },
+  corvane:   { nm: "CORVANE",   tier: 3, home: "Yokohama",               feel: { s: 1.12, a: 1.16, g: 1.08 }, line: "The imports. Turbos, targas, and they start every morning." },
+  brandt:    { nm: "BRANDT",    tier: 4, home: "Stuttgart",              feel: { s: 1.16, a: 1.10, g: 1.14 }, line: "German. Expensive to buy, expensive to fix, worth it." },
+  grandview: { nm: "GRANDVIEW", tier: 5, home: "Lake Forest",            feel: { s: 1.04, a: 0.96, g: 0.92 }, line: "Land yachts for aldermen and the men who own them." },
+  aurelle:   { nm: "AURELLE",   tier: 5, home: "Turin",                  feel: { s: 1.24, a: 1.18, g: 1.06 }, line: "Wedges and gull-wings. Nobody in this town earns one honestly." },
+};
+const MODELS = {
+  comp_hatch: ["vantry", "SPRITE", 1979], comp_hatch2: ["vantry", "SPRITE GL", 1981],
+  taxi: ["holloway", "CHECKER", 1977], sedan_tan: ["holloway", "REGENT", 1976], sedan_grey: ["holloway", "REGENT", 1978],
+  sedan_orange: ["holloway", "REGENT", 1974], sedan_brown: ["holloway", "REGENT", 1979], wagon_teal: ["holloway", "ESTATE", 1979],
+  ef_car: ["holloway", "SENTINEL", 1985],
+  sedan_dred: ["marrow", "CONSUL", 1982], sedan_blue: ["marrow", "CONSUL", 1983], sedan_maroon: ["marrow", "CONSUL LX", 1984],
+  sedan_red: ["marrow", "CONSUL SS", 1985], cruiser: ["marrow", "PATROLLER", 1984], hp_car: ["marrow", "PATROLLER", 1983],
+  hh_det: ["marrow", "INTERCEPTOR", 1985], pd_cruiser: ["marrow", "PATROLLER", 1985], pd_unmarked: ["marrow", "INTERCEPTOR", 1985],
+  pd_malcolm_car: ["marrow", "INTERCEPTOR", 1986],
+  pickup: ["ossian", "HAULER", 1974], hp_truck: ["ossian", "PLOUGH", 1980], kenny_truck: ["ossian", "TRAILHAND", 1982],
+  vh_drive_van: ["ossian", "CARGOLINE", 1978], car_crew_van: ["ossian", "CARGOLINE", 1977], vh_ecl_van: ["ossian", "CARGOLINE", 1983],
+  car_box_truck: ["ossian", "CARGOMASTER", 1981], hh_sec_van: ["ossian", "CORRECTIONS VAN", 1984], pd_swatvan: ["ossian", "CARGOLINE SWAT", 1985],
+  pd_coroner: ["ossian", "CARGOLINE", 1982], pd_csu: ["ossian", "CARGOLINE", 1984], bk_truck: ["ossian", "STRONGBOX", 1983],
+  coupe_green: ["iron", "MONTE", 1979], coupe_dgreen: ["iron", "MONTE", 1980],
+  car_crew_leroy: ["iron", "BOLT MACH", 1970], car_crew_ras: ["iron", "RAMPART R/T", 1969],
+  car_crew_viejo: ["duquesne", "BEL ROYALE", 1964],
+  buy_coupe: ["corvane", "CORSA COUPE", 1983], buy_turbo: ["corvane", "TURBO RS", 1985], buy_fastback: ["iron", "BOLT FASTBACK", 1968],
+  buy_gn_black: ["duquesne", "NIGHT REGAL GN", 1986], buy_gn_red: ["duquesne", "NIGHT REGAL T", 1985], buy_gn_white: ["duquesne", "NIGHT REGAL T", 1984],
+  buy_delorean_b: ["aurelle", "DM-12", 1982], buy_delorean_c: ["aurelle", "DM-12", 1983],
+  nfc_red_turbo: ["corvane", "TURBO RS", 1986], nfc_blue_targa: ["corvane", "TARGA 280", 1984], nfc_red_targa: ["corvane", "TARGA 280", 1985],
+  nfc_silver_wedge: ["aurelle", "VENTO", 1985], nfc_gold_wedge: ["aurelle", "VENTO ORO", 1986], nfc_white_wedge: ["aurelle", "VENTO", 1984],
+  nfc_teal_strake: ["brandt", "STRAKE 928", 1985], nfc_yellow_wing: ["brandt", "SPYDER", 1984],
+  nfc_black_coupe: ["duquesne", "COUPE DE VILLE", 1983], nfc_green_coupe: ["duquesne", "COUPE DE VILLE", 1981],
+  nfc_cream_bird: ["grandview", "SKYBIRD", 1982], nfc_black_gold: ["grandview", "SOVEREIGN", 1986],
+  sho_car: ["aurelle", "SHO STOPPER (ONE OFF)", 1986],
+  // the bikes (layer 512): the motorcycles, the scooter, Luna, and the bicycles
+  moto: ["corvane", "KESTREL 500", 1983], moto_black: ["corvane", "KESTREL 500 NOIR", 1984], moto_red: ["corvane", "KESTREL 750", 1985],
+  chopper: ["iron", "WOLF CHOPPER", 1972], scooter: ["vantry", "PONY", 1980], luna: ["aurelle", "LUNA (ONE OFF)", 1986],
+  vh_kuru_bike: ["corvane", "RACER (KURU'S)", 1986], vh_mvp_atv: ["ossian", "QUAD", 1985], vh_mons_rod: ["iron", "MONSTRUO ROD (ONE OFF)", 1957],
+  bike_player: ["vantry", "SPRINT BMX", 1985],
+};
+const MODEL_RE = [[/^bike_v[1-4]$/, ["vantry", "SPRINT BMX", 1984]], [/^bike_v/, ["corvane", "TEN-SPEED", 1982]], [/^moto/, ["corvane", "KESTREL 500", 1983]], [/^buy_sedan_/, ["brandt", "500 SEL", 1983]], [/^hv_0[0-4]/, ["ossian", "ROADKING", 1980]], [/^hv_/, ["ossian", "TRAILER", 1979]],
+  [/^pd_/, ["marrow", "PATROLLER", 1984]], [/van/, ["ossian", "CARGOLINE", 1979]], [/truck|pickup/, ["ossian", "HAULER", 1976]], [/^nfc_/, ["corvane", "TARGA 280", 1984]]];
+// the car a key is: { make, mk (the MAKES entry), model, year, tier, s, a, g, full }
+function carModel(key) {
+  key = String(key || "").replace(/_flip$/, "");
+  let r = MODELS[key]; if (!r) { const f = MODEL_RE.find(([re]) => re.test(key)); r = f ? f[1] : null; }
+  if (!r) r = /bus/.test(key) ? null : ["holloway", "REGENT", 1978];
+  if (!r) return { make: null, mk: null, model: "RAVEN HOOK TRANSIT", year: 1979, tier: 1, s: 0.72, a: 0.62, g: 0.66, full: "RAVEN HOOK TRANSIT" };
+  const mk = MAKES[r[0]], st = CARSTAT[key] || mk.feel;
+  return { make: r[0], mk, model: r[1], year: r[2], tier: mk.tier, s: st.s, a: st.a, g: st.g, full: mk.nm + " " + r[1] };
+}
 const CARNAME = {
   comp_hatch: "VANTRY SPRITE", comp_hatch2: "VANTRY SPRITE GL",
   taxi: "HOLLOWAY CHECKER", sedan_tan: "HOLLOWAY REGENT",
@@ -261,8 +321,8 @@ const CARNAME = {
   vh_mons_rod: "THE MONSTRUO ROD", vh_drive_van: "MASTERDRIVE VAN",
 };
 const MOTONAME = {
-  moto: "KESTREL 500", moto_black: "KESTREL 500 NOIR", moto_red: "KESTREL 750",
-  chopper: "WOLF IRON", scooter: "VANTRY PONY",
+  moto: "CORVANE KESTREL 500", moto_black: "CORVANE KESTREL 500 NOIR", moto_red: "CORVANE KESTREL 750",
+  chopper: "IRON WOLF CHOPPER", scooter: "VANTRY PONY",
   luna: "LUNA",              // Maxine's, and the only lavender light in the city
 };
 /* Lamp colour per model. Everything runs a warm tungsten beam because that is what a 1986
@@ -272,7 +332,7 @@ const MOTO_LAMP = {
   luna: { core: "212,178,255", beam: "196,150,255" },
 };
 const LAMP_DEFAULT = { core: "255,250,225", beam: "255,246,210" };
-const vehName = (k) => CARNAME[k] || MOTONAME[k]
+const vehName = (k) => (MODELS[k] ? carModel(k).full : null) || CARNAME[k] || MOTONAME[k]      // the make's name first (layer 512)
   || (k || "CAR").toUpperCase().replace(/_/g, " ");
 /* Two named vehicles. They sit in CARM so every system that already knows how to draw, damage,
    park and steal a car handles them with no special case. */
@@ -3613,13 +3673,15 @@ const CREW = [
     face: "pt_crew_ras", faceCiv: "pt_crew_ras", line: "Easy, bredren. Time pass whether you fight it or not." },
 ];
 /* THE HIRES (layer 438): three looks for each role, plate + face, assets/hires/. */
-const HIRE_ROLES = ["dealer", "driver", "shooter", "bomber", "lookout", "mechanic", "forger", "enforcer", "safecracker", "fence", "fixer", "chemist"];
+const HIRE_ROLES = ["dealer", "driver", "shooter", "bomber", "lookout", "mechanic", "forger", "enforcer", "safecracker", "fence", "fixer", "chemist", "thief", "locksmith"];   // thief + locksmith: art owed (layer 509)
 for (const r of HIRE_ROLES) for (let v = 1; v <= 3; v++) for (const k of ["yt_hire_" + r + "_" + v, "pt_hire_" + r + "_" + v]) PD_ART[k] = "assets/hires/" + k + ".png";
 for (const c of CREW) for (const k of ["yt_crew_" + c.id, "yt_crew_" + c.id + "_in", c.face, c.faceCiv]) PD_ART[k] = "assets/crew/" + k + ".png";
 /* CARS THE PLAYER CAN BUY (nose up). One is waiting at the garage when he gets it. */
-const BUY_CARS = ["buy_coupe", "buy_fastback", "buy_turbo", "buy_delorean_a", "buy_delorean_b", "buy_delorean_c", "buy_sedan_red",
+const BUY_CARS = ["buy_coupe", "buy_fastback", "buy_turbo", "buy_delorean_b", "buy_delorean_c", "buy_sedan_red",      // buy_delorean_a (the white one) cut, layer 511
   "buy_sedan_blue", "buy_sedan_green", "buy_sedan_yellow", "buy_sedan_grey", "buy_sedan_orange", "buy_gn_black", "buy_gn_red", "buy_gn_white"];
 for (const k of BUY_CARS.concat(CREW.map((c) => c.car))) PD_ART[k] = "assets/cars/" + k + ".png";
+for (const k of ["car_crew_van", "car_box_truck"]) PD_ART[k] = "assets/cars/" + k + ".png";
+for (const k in MAKES) PD_ART["logo_" + k] = "assets/logos/logo_" + k + ".png";                    // the ten makes' badges (layer 511: art owed)      // the crew's van, the hijack's box truck (layer 509: art owed)
 const SCRAP_KEYS = ["bs_bench", "bs_bunk", "bs_cot", "bs_drums", "bs_gasmasks", "bs_generator", "bs_generator_b", "bs_grate", "bs_gunrack",
   "bs_ladderhole", "bs_maptable", "bs_radio", "bs_sandbags", "bs_shelves", "bs_slab_a", "bs_slab_b", "bs_vault", "bs_watertank", "rf_hatch",
   "rf_hatch_open", "rf_ladder", "sy_backhoe", "sy_backhoe_b", "sy_container", "sy_crane", "sy_crane_b", "sy_crusher", "sy_cubes", "sy_drum_a",
@@ -11558,7 +11620,14 @@ export default function IronLionLayer004() {
         const cols = document.querySelector("[data-pickcols]") ? 2 : 1;
         const down = B(13) || ay > 0.6, up = B(12) || ay < -0.6, right = B(15) || ax > 0.6, left = B(14) || ax < -0.6;
         const dy = cols === 1 ? (down || right ? 1 : up || left ? -1 : 0) : (down ? 2 : up ? -2 : right ? 1 : left ? -1 : 0);
-        navT -= 1 / 60; if (dy && navT <= 0) { sel = (sel + dy + L.length) % L.length; navT = 0.22; } if (!dy) navT = 0;
+        /* LAYER 509: move the way the stick points, on screen -- the card table and any wrapped row of buttons is a grid,
+           so up/down goes to the nearest card above/below, left/right to the next one along. Falls back to the list order. */
+        const spatial = (dx2, dy2) => { const R = L.map((el) => el.getBoundingClientRect()), c = R[sel]; if (!c) return -1; const cx = c.left + c.width / 2, cy = c.top + c.height / 2; let best = -1, bd = 1e9;
+          R.forEach((r, i) => { if (i === sel) return; const x = r.left + r.width / 2 - cx, y = r.top + r.height / 2 - cy, along = x * dx2 + y * dy2; if (along <= 4) return;
+            const d = along + Math.abs(x * dy2 + y * dx2) * 2.5; if (d < bd) { bd = d; best = i; } }); return best; };
+        navT -= 1 / 60;
+        if (dy && navT <= 0) { const dir = down ? [0, 1] : up ? [0, -1] : right ? [1, 0] : [-1, 0], nx = spatial(dir[0], dir[1]);
+          sel = nx >= 0 ? nx : (sel + dy + L.length) % L.length; navT = 0.22; } if (!dy) navT = 0;
         mark(L);
         if (B(0) && !was[0]) { L[sel] && L[sel].click(); sel = 0; }
         if (B(1) && !was[1]) { G.wheelClose(); if (g) g.pickOpen = null; G.pickFn && G.pickFn("close"); sel = 0; }
@@ -11672,7 +11741,7 @@ export default function IronLionLayer004() {
     }
     // park the player's own car where it stands, then step into the other one
     g.car.x = best.x; g.car.y = best.y; g.car.ang = best.ang;
-    g.car.vx = 0; g.car.vy = 0; g.car.skin = best.m;
+    g.car.vx = 0; g.car.vy = 0; g.car.skin = best.m; g.car.idn = best.idn || null;          // its plate comes with it (layer 511)
     g.car.tough = 1;                                  // a street car is not the Lion's car
     g.car.crush = null; g.car.dents = []; g.car.dmg = 0;
     g.car.fuel = 40 + Math.random() * 55;
@@ -28413,15 +28482,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
       g.inside = null; g.floor = 0; g.insideT = 0; g.mode = "car";
       g.car.x = d[0] + out[0] * 90; g.car.y = d[1] + out[1] * 90; g.car.ang = Math.atan2(out[1], out[0]); g.car.vx = 0; g.car.vy = 0;
-      g.car.skin = { k: c.k, len: 104, w: 46 }; g.car.crush = null; g.car.dents = []; g.car.dmg = 0; g.car.fuel = 100; g.car.pool = c;
+      g.car.skin = { k: c.k, len: 104, w: 46 }; g.car.crush = null; g.car.dents = []; g.car.dmg = 0; g.car.fuel = 100; g.car.pool = c; g.car.idn = c.idn || null;
       g.car.tough = 1.6; g.car.armored = 1; g.car.runflat = 1;                     // the crew's cars: plated and on run-flats (layer 505)
       g.p.x = g.car.x; g.p.y = g.car.y; g.cam.x = g.p.x; g.cam.y = g.p.y;
       g.jobBanner = "OUT OF THE YARD"; g.jobNote = c.nm + ". Bring it back to the door and E puts it back in " + stallName(n) + "."; };
     G.motorParkFn = () => { const H = hideoutB(); if (!g.pescaped || !H || g.mode !== "car" || !g.car) return false;
       const d = doorPoint(H); if (Math.hypot(g.car.x - d[0], g.car.y - d[1]) > 170) return false;
-      const k = (g.car.skin && g.car.skin.k) || "sedan", nm = (g.car.pool && g.car.pool.nm) || k.replace(/_/g, " ").toUpperCase();
+      const k = (g.car.skin && g.car.skin.k) || "sedan", nm = (g.car.pool && g.car.pool.nm) || k.replace(/_/g, " ").toUpperCase(), idn = g.car.idn;
       const want = g.car.pool ? g.car.pool.slot : null;
       if (!motorAdd(k, nm, want)) { g.pickupFlash = { nm: "lift:THE MOTOR POOL'S FULL (20)", t: 1.4 }; return true; }
+      { const c2 = motorPool().slots[g.motorLast]; if (c2 && idn) c2.idn = idn; }                    // its plate stays on it
       const n = g.motorLast;
       g.car.pool = null; g.car.x = -99999; g.car.y = -99999; g.car.vx = g.car.vy = 0;          // in its stall, off the street
       g.mode = "foot"; g.inside = H; g.floor = SY_POOL; g.insideT = 1; g.pfolk = null;
@@ -31731,7 +31801,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           following: (g.pfol || []).some((f) => f.crew === C.id) }); }
       for (const m of B.men || []) { if (!m.id) m.id = (B.nextId = (B.nextId || 0) + 1); if (!m.job) m.job = "wait";
         const vv = m.role === "hacker" ? 1 : (m.v || 1);                                  // the hacker has one plate (layer 503)
-        const art = m.role === "locksmith" ? "safecracker" : m.role;                    // ART OWED: the locksmith's own plate + face (layer 508)
+        // a trade with no plate yet wears a near one (layer 509): the car thief the driver's, the locksmith the safecracker's
+        const art = imgs.current["yt_hire_" + m.role + "_" + vv] && imgs.current["yt_hire_" + m.role + "_" + vv].width ? m.role : ({ thief: "driver", locksmith: "safecracker" })[m.role] || m.role;
         out.push({ key: "m:" + m.id, m, name: hireName(m), role: m.role, yt: m.yt || "yt_hire_" + art + "_" + vv, tall: m.tall || 1.25,
           face: m.face || "assets/hires/pt_hire_" + art + "_" + vv + ".png", rec: m, home: (m.id % 2) * SY_GARAGE }); }   // shelter or the garage, never the parking floor
       return out;
@@ -32173,6 +32244,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       robbery:   { nm: "ROB A STORE", need: { driver: 1, shooter: 1 }, mins: 120, pay: [1500, 4000], risk: 0.22, heat: 1, rep: 0, gain: 15, cased: 1 },
       chop:      { nm: "STEAL CARS TO ORDER", need: { mechanic: 1, driver: 1 }, mins: 150, pay: [1200, 3500], risk: 0.15, heat: 1, rep: 50, gain: 10 },
       racket:    { nm: "PUT A SHOP ON PROTECTION", need: { enforcer: 1 }, mins: 120, pay: [0, 0], risk: 0.12, heat: 0, rep: 100, gain: 12 },
+      semi:      { nm: "HIJACK A SEMI", need: { driver: 1, shooter: 1, fence: 1 }, mins: 240, pay: [10000, 22000], risk: 0.30, heat: 2, rep: 200, gain: 35 },   // layer 510
       hijack:    { nm: "HIJACK A DELIVERY TRUCK", need: { driver: 1, shooter: 1, fence: 1 }, mins: 200, pay: [4000, 9000], risk: 0.25, heat: 1, rep: 150, gain: 25 },
       papers:    { nm: "NEW PAPERS (DROP YOUR HEAT)", need: { forger: 1 }, mins: 180, pay: [0, 0], risk: 0.08, heat: 0, rep: 150, gain: 5, clean: 1 },
       sellpaper: { nm: "SELL FORGED PAPERS", need: { forger: 1 }, mins: 240, pay: [800, 1800], risk: 0.10, heat: 0, rep: 150, gain: 5 },
@@ -32234,8 +32306,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     G.bombT = (gk) => { const b = gangFront(gk || Object.keys(g.gwar.gangs)[0]); if (b) bombBusiness(b, gk || Object.keys(g.gwar.gangs)[0]); return b ? [b.name, b.x | 0, b.y | 0, b.w | 0, b.h | 0] : null; };   // test hook
     const RIDE = { car: { nm: "CAR", seats: 4, cargo: 1 }, van: { nm: "VAN", seats: 8, cargo: 1.25 }, truck: { nm: "BOX TRUCK", seats: 3, cargo: 1.6 } };
-    const WHEELS = { robbery: 1, hijack: 1, armored: 1, jewels: 1, celeb: 1, carbomb: 1, hit: 1, favor: 1, chop: 1 };
-    const LOOT = { robbery: 1, hijack: 1, armored: 1, jewels: 1, celeb: 1 };
+    const WHEELS = { semi: 1, robbery: 1, hijack: 1, armored: 1, jewels: 1, celeb: 1, carbomb: 1, hit: 1, favor: 1, chop: 1 };
+    const LOOT = { semi: 1, robbery: 1, hijack: 1, armored: 1, jewels: 1, celeb: 1 };
     const crewSize = (O) => Object.values(O.need).reduce((a, n) => a + n, 0);
     function ridesFree() { const B = g.board2 || {}, busy = new Set(); for (const o of B.ops || []) for (const id of o.rides || []) busy.add(id); return (B.rides || []).filter((r) => !busy.has(r.id)); }
     // the rides for a job: enough seats, the most room first (a car bomb takes one car, nothing else)
@@ -32310,16 +32382,17 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }
         if (!L.length) g.boardSaid = g.boardSaid || "You don't know anybody inside well enough.";
         opts.push({ id: "bd:view:main", label: "BACK" });
-      } else if (g.boardView === "plan") {
-        const gangs = g.gwar ? Object.keys(g.gwar.gangs) : [];
-        for (const k in OPS) { const O = OPS[k]; if ((g.rep || 0) < O.rep) continue;            // not open to you yet
+      } else if (g.boardView === "plan" || /^on~/.test(g.boardView || "")) {
+        const gangs = g.gwar ? Object.keys(g.gwar.gangs) : [], onK = /^on~/.test(g.boardView) ? g.boardView.slice(3) : null;
+        for (const k in OPS) { const O = OPS[k]; if (onK && k !== onK) continue; if ((g.rep || 0) < O.rep) continue;            // not open to you yet
           if (O.cased && !(B.cased || []).some((c) => c.for === k || (!c.for && k === "robbery"))) {
             if (k === "jewels") opts.push({ id: "bd:op:casejewels", label: "CASE ALDRIDGE'S FIRST (A LOOKOUT)" }); continue; }
           const ok = Object.keys(O.need).every((r) => boardFree(r) >= O.need[r]) && (!WHEELS[k] || !!pickRides(k));
           const need = Object.keys(O.need).map((r) => O.need[r] + " " + HIRES[r].nm).join(", ") + (k === "carbomb" ? " + A CAR" : WHEELS[k] ? " + WHEELS FOR " + crewSize(O) : "");
-          if (O.gang) { for (const gk of gangs) opts.push({ id: "bd:op:" + k + ":" + gk, label: (ok ? "" : "\u2717 ") + O.nm + " \u00b7 " + (GANG_LABEL[gk] || gk) + " \u00b7 " + need }); }
-          else opts.push({ id: "bd:op:" + k, label: (ok ? "" : "\u2717 ") + O.nm + " \u00b7 " + need }); }
-        opts.push({ id: "bd:view:main", label: "BACK" });
+          if (O.gang && g.boardView === "plan") { opts.push({ id: "bd:view:on~" + k, label: (ok ? "" : "\u2717 ") + O.nm + " \u00b7 PICK THE GANG \u00b7 " + need, card: "assets/cards/card_blank.png", dim: !ok }); }   // one card, then their cards (layer 509)
+          else if (O.gang) { for (const gk of gangs) opts.push({ id: "bd:op:" + k + ":" + gk, label: (ok ? "" : "\u2717 ") + O.nm + " \u00b7 " + (GANG_LABEL[gk] || gk) + " \u00b7 " + need, card: cardFor(k, gk), dim: !ok }); }
+          else opts.push({ id: "bd:op:" + k, label: (ok ? "" : "\u2717 ") + O.nm + " \u00b7 " + need, card: cardFor(k, null), dim: !ok }); }
+        opts.push({ id: onK ? "bd:view:plan" : "bd:view:main", label: "BACK" });
       } else {
         opts.push({ id: "bd:view:hire", label: "HIRE PEOPLE" }, { id: "bd:view:people", label: "YOUR PEOPLE \u00b7 GIVE ORDERS" }, { id: "bd:view:plan", label: "PLAN A JOB" },
                   { id: "bd:view:gangs", label: "THE GANGS AND YOU" }, { id: "bd:view:kestrel", label: "GET A MAN OUT OF KESTREL" }, { id: "close", label: "WALK AWAY" });
@@ -32360,8 +32433,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const send = jobOdds(D.k, D.gk, D.tgtPeek, team, false), ride = jobOdds(D.k, D.gk, D.tgtPeek, team, true);
       g.boardSaid = O.nm + (D.gk ? " \u00b7 " + (GANG_LABEL[D.gk] || D.gk) : "") + ".  TEAM: " + (team.map((p) => p.name.split(" ")[0] + " " + stars(skillOf(p))).join(", ") || "nobody free") +
         ".  AGAINST: " + def.txt + ".  ODDS: " + Math.round(send * 100) + "% -- " + Math.round(ride * 100) + "% with you on it.";
-      const lead = MIS_JOBS[D.k] ? { id: "bd:go:lead", label: "LEAD IT -- YOU, THEM AND THE CAR, FOR REAL (" + Math.round(ride * 100) + "%)" } : { id: "bd:go:ride", label: "RIDE WITH THEM (" + Math.round(ride * 100) + "%)" };   // layer 508
-      return [{ id: "bd:go:send", label: "SEND THEM (" + Math.round(send * 100) + "%)" }, lead, { id: "bd:view:plan", label: "NOT THIS ONE" }]; }
+      const lead = MIS_JOBS[D.k] ? { id: "bd:go:lead", label: "LEAD IT -- YOU, THEM AND THE CARS, FOR REAL (" + Math.round(ride * 100) + "%)" } : { id: "bd:go:ride", label: "RIDE WITH THEM (" + Math.round(ride * 100) + "%)" };   // layer 508
+      g.boardSaid += "\n" + seatLine(D);                                                                     // layer 509: seats and who else comes
+      const more = [], have = pickTeam(D.k).concat((D.extra || []).map(personByKey).filter(Boolean));
+      for (const r of EXTRA_ROLES) if (extraPeople(have, [r]).length) more.push({ id: "bd:x:" + r, label: "+ BRING A " + HIRES[r].nm });
+      if ((D.extra || []).length) more.push({ id: "bd:x:clear", label: "\u2212 LEAVE THE EXTRAS HOME" });
+      return [{ id: "bd:go:send", label: "SEND THEM (" + Math.round(send * 100) + "%)" }, lead].concat(more, [{ id: "bd:view:plan", label: "NOT THIS ONE" }]); }
     // riding along: the job plays out in three beats
     const BEATS = [
       { t: "THE APPROACH", s: (J) => J.driver + " brings the car round the block twice. Nobody on the corner looks twice.", o: [["GO IN QUIET", 0.05, -0.10], ["GO IN FAST", -0.05, 0.10]] },
@@ -32379,6 +32456,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       G.pickOpen("jobplay"); }
     G.opsPick = (id) => {
       const B = g.board2, [, a, k, gk] = id.split(":");
+      if (a === "x") { const D = g.opDraft; if (!D) return; if (k === "clear") D.extra = [];                       // layer 509: bring someone extra
+        else { const have = pickTeam(D.k).concat((D.extra || []).map(personByKey).filter(Boolean)), p = extraPeople(have, [k])[0]; if (p) (D.extra = D.extra || []).push(p.key); } return; }
+      if (a === "go" && k === "lead") { const D = g.opDraft; if (!D) return; const why = misCheck(D); if (why) { g.boardSaid = why; return; } g.misExtra = (D.extra || []).map(personByKey).filter(Boolean); g.misTgt = D.T; }
       if (a === "go") { const D = g.opDraft; if (!D) return; g.opGo = k; G.opsPick("bd:op:" + D.k + (D.gk ? ":" + D.gk : "")); g.opGo = null; return; }      // layer 500
       if (a === "ride") { jobPlayPick(+k); return; }
       if (a === "op" && OPS[k] && !g.opGo && k !== "casejewels") { const O = OPS[k];                                   // WHO GOES first
@@ -32413,7 +32493,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if ((g.rep || 0) < O.rep) { g.boardSaid = "That's too big for somebody the street doesn't know yet."; return; }
         if (O.cost && (g.p.cash || 0) < O.cost) { g.boardSaid = "That costs $" + O.cost + " up front."; return; }
         if (!Object.keys(O.need).every((r) => boardFree(r) >= O.need[r])) { g.boardSaid = "You don't have the people free for that."; return; }
-        const rides = WHEELS[k] ? pickRides(k) : [];
+        const rides = WHEELS[k] ? (pickRides(k) || (g.opGo === "lead" ? [] : null)) : [];          // led: the wheels are the motor pool's (layer 509)
         if (!rides) { g.boardSaid = k === "carbomb" ? "You need a car to put the bomb in -- have a car thief steal one." : "You need wheels for " + crewSize(O) + " -- not enough seats free. (Car 4, van 8, truck 3.)"; return; }
         if (O.cost) g.p.cash -= O.cost;
         if (O.gang && gk && (g.gpact || {})[gk] && g.gpact[gk].until > nowMin() && O.stand < 0) {     // breaking a pact
@@ -32423,7 +32503,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const team = pickTeam(k), ride = g.opGo === "ride" || g.opGo === "lead";
         const op = { k, gang: gk || null, at: nowMin() + O.mins, tgt, rides: rides.map((r) => r.id), team: team.map((p) => p.key), odds: jobOdds(k, gk, tgt, team, ride), payMul: 1 + team.reduce((a, p) => a + Math.max(0, skillOf(p) - 3) * 0.08, 0) / Math.max(1, team.length) * team.length / Math.max(1, team.length) };
         B.ops.push(op); g.opDraft = null;
-        if (g.opGo === "lead") { if (misStart(op, team)) { g.boardView = null; return; } }     // played for real (layer 508); no target -> runs as SEND
+        if (g.opGo === "lead") { if (misStart(op, team, g.misExtra)) { g.boardView = null; g.misExtra = null; return; }
+          B.ops.splice(B.ops.indexOf(op), 1); if (tgt) (B.cased = B.cased || []).push(tgt); if (O.cost) g.p.cash += O.cost; g.boardView = "confirm"; g.opDraft = { k, gk: gk || null, tgtPeek: tgt }; return; }   // couldn't lead it: nothing spent     // played for real (layer 508); no target -> runs as SEND
         if (ride) { const drv = team.find((p) => p.role === "driver"); g.jobRide = { o: op, beat: 0, odds: op.odds, payMul: op.payMul, driver: drv ? drv.name.split(" ")[0] : "Your driver", guard: !!(tgt && tgt.guard) || k === "armored" || k === "jewels" };
           g.boardView = null; G.pickOpen("jobplay"); return; } g.boardSaid = O.nm + " -- set. " + Math.round(O.mins / 60) + " hours." + (rides.length ? " Taking " + rides.map((r) => RIDE[r.type].nm.toLowerCase()).join(" + ") + "." : ""); g.boardView = null; return; }
     };
@@ -32486,7 +32567,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const bad = o.dropped ? true : o.odds != null ? Math.random() > o.odds : Math.random() < Math.max(0.03, risk);      // the odds were set when it started (layer 500)
         let note;
         const used = (B.rides || []).filter((r) => (o.rides || []).includes(r.id));
-        if (bad) B.rides = (B.rides || []).filter((r) => !used.includes(r) || Math.random() < 0.5);            // half the rides don't come back
+        if (bad && !o.dropped) B.rides = (B.rides || []).filter((r) => !used.includes(r) || Math.random() < 0.5);            // half the rides don't come back (none lost when you just walked away -- layer 509)
         else if (o.k === "carbomb") B.rides = (B.rides || []).filter((r) => !used.includes(r));                // the car was the bomb
         if (!bad && O.jam) g.jamUntil = nowMin() + 360;                                                     // the hacker's six hours
         if (!bad && O.ride) { (B.rides = B.rides || []).push({ id: (B.rideId = (B.rideId || 0) + 1), type: O.ride }); }
@@ -32516,7 +32597,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           let bombedAt = null;
           if (o.k === "carbomb" && o.gang && !o.played) { const fb = gangFront(o.gang); if (fb) { bombBusiness(fb, o.gang); bombedAt = fb; } }
           if (o.played && o.bombedAt) bombedAt = o.bombedAt;                                                       // you set it off yourself
-          if (O.gang && g.gwar && g.gwar.gangs[o.gang]) { const G3 = g.gwar.gangs[o.gang]; G3.cash = Math.max(0, (G3.cash || 0) - O.dmg);
+          if (O.gang && g.gwar && g.gwar.gangs[o.gang]) { const G3 = g.gwar.gangs[o.gang]; G3.cash = Math.max(0, (G3.cash || 0) - (O.dmg || 0));
             if (typeof warLog === "function") warLog("somebody " + (o.k === "carbomb" ? "blew up a car" : "put down a man") + " of " + (GANG_LABEL[o.gang] || o.gang)); }
           note = O.nm + " -- DONE" + (pay ? ". $" + pay + "." : o.k === "corner" ? ". The corner is yours." : o.k === "racket" ? ". Another shop pays you now." :
             o.k === "casestore" ? ". " + B.cased[B.cased.length - 1].nm + ": $" + B.cased[B.cased.length - 1].cash + " in the till" + (B.cased[B.cased.length - 1].guard ? ", an armed guard." : ", no guard.") :
@@ -32528,96 +32609,213 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
     }
 
-    /* ---------- LAYER 508: CREW MISSIONS, PLAYED FOR REAL ----------
-       On the board, WHO GOES now offers LEAD IT for the jobs that happen at a place (ROB A STORE, THE JEWELRY HEIST, CAR
-       BOMB ON A GANG). SEND THEM still runs on the clock as text; every other job keeps the old RIDE WITH THEM beats.
-       LEAD IT: you're out the scrapyard gate in a car from the motor pool, your people riding with you (the driver at the
-       wheel side, the rest as followers who get out when you get out), a gold arrow to the target. Out of the car within
-       sight of the door and you're ON SITE: the driver keeps the motor running. ORDERS (D-pad right / the ORDERS button /
-       the action wheel) -- on the spot, by trade:
-         LOCKSMITH or SAFECRACKER  OPEN THE BACK DOOR -- walks round to the back wall, works it, then follows again. E at the
-                                   open back door takes you in (and out) the back: quieter, +15% on the take.
-         SAFECRACKER               CRACK THE SAFE -- once he's inside with you: walks to the safe, works it, the safe's yours.
-         BOMB MAKER                PLANT IT at the front door / the back door / the side wall / OUR CAR parked out front /
-                                   under the counter (inside) -- then SET IT OFF once you're 300 clear. Near enough the
-                                   building, it's blown: the place is shut three days (the bombed-business plates).
-         DRIVER                    WAIT HERE / CIRCLE THE BLOCK (the car's off the street) / BRING THE CAR (pulls up by you).
-         ANYONE                    HOLD THIS SPOT / COME WITH ME.        And: CALL IT OFF.
-       Done when: the store's register is stuck up (robbery), the safe or the register is cleaned out (jewels), or the bomb
-       took the front off (car bomb) -- then GET AWAY: back to the scrapyard door. The job settles on the board with what you
-       actually took (jewels: the stones fenced on top); your people get their skill, you get the respect. Caught or down,
-       it went wrong. A locksmith who's free tags along on a store job without being asked. */
-    const MIS_JOBS = { robbery: 1, jewels: 1, carbomb: 1 };
+    /* ---------- LAYERS 508-509: CREW MISSIONS, PLAYED FOR REAL ----------
+       Every job on the board can be LED (509): WHO GOES -> LEAD IT. SEND THEM is still the text-on-the-clock version.
+       LEAD IT puts you at the scrapyard gate behind the wheel with the team aboard -- a car out of the motor pool (4 seats),
+       a stolen VAN from the board's rides when there are more than four of you (8), and when one vehicle isn't enough a
+       SECOND one follows you as a convoy (`M.convoy`, a trFree traffic shell that rides your trail 150 back; its people get
+       out beside it). Two vehicles max. Extra people can be brought along on WHO GOES (BRING ANOTHER ...).
+       The jobs, by kind (MIS_KIND), and what each trade does on them (ORDERS: D-pad right / the ORDERS button / the wheel):
+         store   ROB A STORE        stick up the register. LOCKSMITH/SAFECRACKER opens the back door (E: in the back way, +15%).
+         safe    JEWELS / CELEB     clean out the safe: SAFECRACKER cracks it once he's inside with you; the FIXER squares the
+                                    desk first (+15%). The stones / the penthouse take are fenced on top.
+         bomb    CAR BOMB           BOMB MAKER plants it (front, back, side wall, our car out front, under the counter) -> SET IT OFF.
+         hit     HIT / FAVOR        THE MARK stands outside the front with a bodyguard. Put him down -- or SHOOTER: TAKE HIM OUT.
+                                    A FAVOR is the same hit on a man of a gang THEY'RE against, and they owe you for it.
+         route   ARMORED / HIJACK   THE TRUCK runs a fixed route (drawn, dashed) once the countdown's up. Stop it: DRIVER blocks
+                                    the road with our car (BLOCK THE ROAD HERE -- the second car's driver can too), BOMB MAKER
+                                    plants on the route (goes off under it), SHOOTER takes the tires as it passes, or RAM it until
+                                    it dies. Stopped: the guards get out (two shotguns on the armored car, the driver on a
+                                    hijack). Armored: E at the back to LOAD THE BAGS. Hijack: E takes the wheel of the truck --
+                                    drive it home, the fence moves the load. If it reaches the end of the route, it got away.
+         corner  A CORNER           the DEALER takes the corner you walk him to (his spot is where you stood him).
+         case    CASE A STORE       the LOOKOUT watches the place from across the street -- and the file has the real store.
+         racket  PROTECTION         the ENFORCER leans on the owner (inside with you) -- and that shop is the one that pays.
+         errand  PAPERS / SELL / A COP / THE CAMERAS   drive the man to the place and he does his thing at the door.
+         steal   STEAL A CAR / VAN / BOX TRUCK         the CAR THIEF takes the one you find; it's in the motor pool after.
+         chop    CARS TO ORDER      the MECHANIC hot-wires the car on the order; E takes the wheel, our car goes home with
+                                    the driver; get it to the scrapyard.
+       Anyone: HOLD THIS SPOT / COME WITH ME. Drivers: WAIT HERE / CIRCLE THE BLOCK / BRING THE CAR. CALL IT OFF.
+       Done -> (the quick jobs settle on the spot) GET AWAY to the scrapyard -> it settles on the board with `o.played`:
+       stepOps pays only `o.extra` on top of what you took, and the spot / the cased file / the bombed front are the REAL
+       ones you used. Down or re-arrested = it went wrong. */
+    const MIS_KIND = { robbery: "store", jewels: "safe", celeb: "safe", carbomb: "bomb", hit: "hit", favor: "hit", armored: "route", hijack: "route", semi: "route",
+      corner: "corner", casestore: "case", racket: "racket", papers: "errand", sellpaper: "errand", cop: "errand", jam: "errand",
+      stealcar: "steal", stealvan: "steal", stealtruck: "steal", chop: "chop" };
+    const MIS_JOBS = {}; for (const k in OPS) if (MIS_KIND[k]) MIS_JOBS[k] = 1;
+    const ERRAND = { papers: ["forger", "MAKE THE PAPERS", /print|office|copy|stationer/], sellpaper: ["forger", "MOVE THE PAPERS", /bar|club|pool|diner/],
+      cop: ["fixer", "TALK TO HIS COP", null], jam: ["hacker", "CUT THE LINES", /phone|office|radio|tv|tower/] };
+    const SEATS = { car: 4, van: 8, truck: 3 };
     const MIS_PLANTS = [["front", "THE FRONT DOOR"], ["back", "THE BACK DOOR"], ["side", "THE SIDE WALL"], ["car", "OUR CAR, OUT FRONT"], ["counter", "UNDER THE COUNTER"]];
+    const STEAL_M = { car: () => cpick(CARM.filter((m) => !m.bus && m.k !== "cruiser" && m.k !== "taxi")), van: () => ({ k: vanKey(), len: 122, w: 64 }), truck: () => truckM() };
+    function vanKey() { return imgs.current.car_crew_van && imgs.current.car_crew_van.width ? "car_crew_van" : "vh_drive_van"; }   // the rusty green Cargoline (layer 511)
+    function truckKey() { return imgs.current.car_box_truck && imgs.current.car_box_truck.width ? "car_box_truck" : "hp_truck"; }
+    const truckM = () => truckKey() === "car_box_truck" ? { k: "car_box_truck", len: 132, w: 60 } : { k: "hp_truck", len: 118, w: 60 };   // the City Express box truck (layer 510)
+    /* A sprite turned round once, for plates drawn nose-DOWN (the semi tractors): kept as k + "_flip" in imgs. */
+    function flipKey(k) { const f = k + "_flip"; if (imgs.current[f]) return f; const im = imgs.current[k]; if (!im || !im.width) return k;
+      try { const c = document.createElement("canvas"); c.width = im.width; c.height = im.height; const x = c.getContext("2d"); x.translate(c.width, c.height); x.rotate(Math.PI); x.drawImage(im, 0, 0); imgs.current[f] = c; return f; } catch (e) { return k; } }
     const wallPt = (b, side, pos, out) => side === 0 ? [b.x + b.w * pos, b.y - out] : side === 2 ? [b.x + b.w * pos, b.y + b.h + out] : side === 3 ? [b.x - out, b.y + b.h * pos] : [b.x + b.w + out, b.y + b.h * pos];
     const backSide = (b) => ((b.door ? b.door.side : 2) + 2) % 4;
     const misFol = () => (g.pfol || []).filter((f) => f.mis);
     const first = (nm) => (nm || "").split(" ")[0].toUpperCase();
-    function misTarget(k, gk, tgt) {
-      if (k === "carbomb") return gk ? gangFront(gk) : null;
-      if (k === "robbery" && tgt && tgt.b) return tgt.b;
-      const H = hideoutB(), hx = H ? H.x : g.p.x, hy = H ? H.y : g.p.y; let best = null, bd = 1e12;
+    const misPt = () => { const M = g.mis; return M.b ? doorPoint(M.b) : M.pt ? [M.pt.x, M.pt.y] : M.truck ? [M.truck.x, M.truck.y] : [g.p.x, g.p.y]; };
+    const kindOf = (k) => MIS_KIND[k] || "store";
+    // the nearest building that fits, scored by distance from an ideal range off the scrapyard
+    function findBld(ok, ideal) { const H = hideoutB(), hx = H ? H.x : g.p.x, hy = H ? H.y : g.p.y; let best = null, bd = 1e12;
       for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); if (!c) continue;
-        for (const b of c.blds || []) { if (!b.door || !b.biz || b.hideout || b.mercBar || b.inPrison || b.landmark || b.uterm || (b.bombed && b.bombed.until > nowMin())) continue;
-          const jew = /ALDRIDGE|JEWEL/.test(b.name || "") || /jewel/.test(b.biz);
-          if (k === "jewels" ? !jew : (jew || /club|casino|cardroom|bank|airport|terminal/.test(b.biz))) continue;
-          const d = Math.hypot(b.x - hx, b.y - hy), sc = k === "jewels" ? d : Math.abs(d - 2200);
-          if (sc < bd) { bd = sc; best = b; } } }
-      if (best && tgt && k === "robbery") tgt.b = best;
-      return best;
-    }
-    function misStart(op, team) {
-      const b = misTarget(op.k, op.gang, op.tgt), H = hideoutB(); if (!b || !H) return false;
-      op.at = nowMin() + 1e7; op.live = 1;                                   // it doesn't settle on the clock: you settle it
-      const drv = team.find((p) => p.role === "driver"), extra = [];
-      if (op.k === "robbery") { const busy = opBusyKeys(); const ls = basePeople().find((p) => (p.role === "locksmith" || p.role === "safecracker") && !isOut(p) && !busy.has(p.key) && !team.includes(p)); if (ls) extra.push(ls); }
-      const walkers = team.filter((p) => p !== drv).concat(extra);
+        for (const b of c.blds || []) { if (!b.door || b.hideout || b.mercBar || b.inPrison || b.landmark || b.uterm || (b.bombed && b.bombed.until > nowMin()) || !ok(b)) continue;
+          const sc = Math.abs(Math.hypot(b.x - hx, b.y - hy) - (ideal || 0)); if (sc < bd) { bd = sc; best = b; } } }
+      return best; }
+    const isStore = (b) => b.biz && !/club|casino|cardroom|bank|airport|terminal|jewel|hotel/.test(b.biz) && !/ALDRIDGE/.test(b.name || "");
+    // a point by a door, out on the street, so far from the yard
+    function streetPt(r0, r1) { const H = hideoutB(); if (!H) return null;
+      for (let t = 0; t < 80; t++) { const a = Math.random() * 6.283, r = r0 + Math.random() * (r1 - r0);
+        const c = getCell(Math.floor((H.x + Math.cos(a) * r) / PITCH), Math.floor((H.y + Math.sin(a) * r) / PITCH));
+        const b = c && (c.blds || []).find((q) => q.door && !q.inPrison && !q.landmark && !q.hideout); if (!b) continue;
+        const d = doorPoint(b), o = [[0, -1], [1, 0], [0, 1], [-1, 0]][b.door.side] || [0, 1];
+        return { x: d[0] + o[0] * 70, y: d[1] + o[1] * 70, ang: b.door.side === 0 || b.door.side === 2 ? 0 : Math.PI / 2, addr: addressOf(b), b }; }
+      return null; }
+    // THE ROUTE: an L along the grid -- six blocks one way, three the other -- every leg a road you can drive
+    function misRoute(near) {
+      for (let t = 0; t < 80; t++) {
+        const i0 = clamp(Math.round(near[0] / PITCH) - 3 + ((t / 10) | 0) * (t % 2 ? 1 : -1) + ((Math.random() * 3) | 0) - 1, 1, N - 8), j0 = clamp(Math.round(near[1] / PITCH) + ((Math.random() * 3) | 0) - 1, 1, N - 2);
+        const di = Math.random() < 0.5 ? 1 : -1, i1 = clamp(i0 + di * 6, 1, N - 1), dj = Math.random() < 0.5 ? 1 : -1, j1 = clamp(j0 + dj * 3, 1, N - 1);
+        const legs = []; let ok = true;
+        for (let i = i0; i !== i1; i += di) { if (!canDrive("h", j0, i, di)) { ok = false; break; } legs.push({ axis: "h", si: j0, dir: di, from: i }); }
+        for (let j = j0; ok && j !== j1; j += dj) { if (!canDrive("v", i1, j, dj)) { ok = false; break; } legs.push({ axis: "v", si: i1, dir: dj, from: j }); }
+        if (!ok || legs.length < 6) continue;
+        const pts = legs.map((L) => L.axis === "h" ? [SX(L.from), laneY(L.si, L.dir)] : [laneX(L.si, L.dir), SX(L.from)]);
+        const e = legs[legs.length - 1]; pts.push(e.axis === "h" ? [SX(e.from + e.dir), laneY(e.si, e.dir)] : [laneX(e.si, e.dir), SX(e.from + e.dir)]);
+        if (pts.some((p) => onDeckSpan(p[0], p[1]))) continue;
+        return pts; }
+      return null; }
+    const rivalOf = (gk) => { const L = g.gwar ? Object.keys(g.gwar.gangs).filter((q) => q !== gk) : []; return L.length ? cpick(L) : null; };
+    function misTarget(k, gk, tgt) {
+      const kd = kindOf(k), H = hideoutB();
+      if (kd === "bomb") return gk ? { b: gangFront(gk) } : null;
+      if (kd === "hit") { const vg = k === "favor" ? rivalOf(gk) : gk; const b = vg ? gangFront(vg) : null; return b ? { b, vg } : null; }
+      if (kd === "store") { if (tgt && tgt.b) return { b: tgt.b }; const b = findBld(isStore, 2200); if (b && tgt) tgt.b = b; return b ? { b } : null; }
+      if (kd === "case" || kd === "racket") { const taken = new Set(((g.board2 && g.board2.spots) || []).map((q) => q.b).filter(Boolean)); const b = findBld((q) => isStore(q) && !taken.has(q), 1800); return b ? { b } : null; }
+      if (kd === "safe") { const b = k === "jewels" ? findBld((q) => /ALDRIDGE|JEWEL/.test(q.name || "") || /jewel/.test(q.biz || ""), 0) : findBld((q) => /hotel/.test(q.biz || "") || /HOTEL|TOWER|ARMS/.test(q.name || ""), 2500); return b && b.biz ? { b } : b ? { b } : null; }
+      if (kd === "errand") { const E = ERRAND[k]; const b = k === "cop" ? findBld((q) => q.kind === "precinct", 0) : findBld((q) => q.biz && E[2].test(q.biz), 1500) || findBld((q) => !!q.biz, 1500); return b ? { b } : null; }
+      if (kd === "corner") { const s = spotNear(H); return s ? { pt: s } : null; }
+      if (kd === "steal" || kd === "chop") { const s = streetPt(1600, 2800); return s ? { pt: s } : null; }
+      if (kd === "route") { const s = streetPt(1800, 3000); if (!s) return null; const pts = misRoute([s.x, s.y]); return pts ? { route: pts } : null; }
+      return null; }
+    // the people free to bring along, beyond what the job needs
+    const EXTRA_ROLES = ["shooter", "lookout", "locksmith", "bomber", "safecracker", "enforcer", "driver", "mechanic", "thief"];
+    function extraPeople(team, roles) { const busy = opBusyKeys(), out = [];
+      for (const r of roles || []) { const p = basePeople().filter((q) => q.role === r && !isOut(q) && !busy.has(q.key) && !team.includes(q) && !out.includes(q)).sort((a, b) => skillOf(b) - skillOf(a))[0]; if (p) out.push(p); }
+      return out; }
+    // the vehicles: the pool's cars (4), a stolen van (8) when there are more than four of you; two vehicles at most
+    function misVehicles(n, own) { const M0 = motorPool(), cars = M0.slots.map((c, i) => (c ? i : -1)).filter((i) => i >= 0), out = []; let seats = 0;
+      const rides = ridesFree().concat(((g.board2 && g.board2.rides) || []).filter((r) => (own || []).includes(r.id)));     // the job's own rides count
+      if (n > SEATS.car) { const vi = rides.findIndex((r) => r.type === "van"); if (vi >= 0) { out.push({ kind: "van", ride: rides.splice(vi, 1)[0] }); seats += SEATS.van; } }
+      while (seats < n && out.length < 2) { if (cars.length) { out.push({ kind: "car", slot: cars.shift() }); seats += SEATS.car; continue; }
+        const r = rides.shift(); if (!r) break; out.push({ kind: r.type, ride: r }); seats += SEATS[r.type]; }
+      if (!out.length) { out.push({ kind: "car", spare: 1 }); seats = SEATS.car; }
+      return { list: out, seats, ok: seats >= n }; }
+    function vehSkin(V) { if (V.kind === "car" && V.slot != null) { const c = motorPool().slots[V.slot]; if (c) return c.k; } return V.kind === "van" ? vanKey() : V.kind === "truck" ? truckKey() : "buy_sedan_grey"; }
+    function misStart(op, team, extra) {
+      const T = g.misTgt || misTarget(op.k, op.gang, op.tgt), H = hideoutB(); g.misTgt = null; if (!T || !H) return false;
+      if (T.b && op.tgt && kindOf(op.k) === "store") op.tgt.b = T.b;
+      const all = team.concat((extra || []).filter((p) => !team.includes(p)));
+      if (kindOf(op.k) === "store" && !all.some((p) => p.role === "locksmith" || p.role === "safecracker")) all.push(...extraPeople(all, ["locksmith"]));   // a free locksmith tags along
+      const VV = misVehicles(1 + all.length, op.rides); if (!VV.ok) { g.boardSaid = "Not enough seats for " + (1 + all.length) + " -- that's " + VV.seats + ". Steal a van (8 seats) or keep cars in the motor pool."; return false; }
+      op.at = nowMin() + 1e7; op.live = 1;
+      const drivers = all.filter((p) => p.role === "driver"), drv = drivers[0] || null;
+      const walkers = all.filter((p) => p !== drv);
       const d = doorPoint(H), out = [[0, -1], [1, 0], [0, 1], [-1, 0]][H.door.side] || [0, 1];
-      const M0 = motorPool(), n = M0.slots.findIndex(Boolean), c = n >= 0 ? M0.slots[n] : null; if (c) { M0.slots[n] = null; c.slot = n; }
+      // the lead vehicle: you drive it
+      const V0 = VV.list[0], M0 = motorPool(); let c = null;
+      if (V0.slot != null) { c = M0.slots[V0.slot]; M0.slots[V0.slot] = null; if (c) c.slot = V0.slot; }
       g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
       g.inside = null; g.floor = 0; g.insideT = 0; g.mode = "car"; g.roof = null;
       g.car.x = d[0] + out[0] * 90; g.car.y = d[1] + out[1] * 90; g.car.ang = Math.atan2(out[1], out[0]); g.car.vx = 0; g.car.vy = 0;
-      g.car.skin = { k: c ? c.k : "buy_sedan_grey", len: 104, w: 46 }; g.car.crush = null; g.car.dents = []; g.car.dmg = 0; g.car.fuel = 100; g.car.pool = c;
-      g.car.tough = 1.6; g.car.armored = 1; g.car.runflat = 1;
+      const k0 = c ? c.k : vehSkin(V0); g.car.skin = { k: k0, len: V0.kind === "van" ? 122 : 104, w: V0.kind === "van" ? 60 : 46 };
+      g.car.crush = null; g.car.dents = []; g.car.dmg = 0; g.car.fuel = 100; g.car.pool = c; g.car.tough = 1.6; g.car.armored = 1; g.car.runflat = 1;
       g.p.x = g.car.x; g.p.y = g.car.y; g.cam.x = g.p.x; g.cam.y = g.p.y;
+      // the second vehicle, if one: it follows you
+      let convoy = null; const V1 = VV.list[1];
+      if (V1) { let c1 = null; if (V1.slot != null) { c1 = M0.slots[V1.slot]; M0.slots[V1.slot] = null; if (c1) c1.slot = V1.slot; }
+        const sk = c1 ? c1.k : vehSkin(V1), v = { x: g.car.x - out[0] * 150, y: g.car.y - out[1] * 150, ang: g.car.ang, spd: 0, cruise: 0, brake: 1, dead: 1, parked: 1, named: 1, trFree: 1, misConvoy: 1,
+          m: { k: sk, len: V1.kind === "van" ? 122 : 104, w: V1.kind === "van" ? 60 : 46 } };
+        g.traffic.push(v); convoy = { v, pool: c1, kind: V1.kind, trail: [], seats: SEATS[V1.kind] || 4, drv: drivers[1] ? drivers[1].name : null }; }
+      // who rides where: the lead seats you, your driver and two more (a van: six more); the rest go in the second car
+      const leadSeats = (SEATS[V0.kind] || 4) - 1 - (drv ? 1 : 0);
       g.pfol = (g.pfol || []).filter((f) => !f.mis);
-      for (const p of walkers) g.pfol.push({ mis: 1, key: p.key, role: p.role, name: p.name, yt: p.yt, tall: p.tall, x: g.p.x, y: g.p.y, vx: 0, vy: 0, b: null, f: 0, cd: 0, lag: 0, angry: 0, down: 0, riding: 1, jit: 1, anim: 0, bang: 0 });
-      g.mis = { op, k: op.k, gk: op.gang, b, phase: "drive", drv: drv ? drv.name : null, car: "with", bomb: null, back: 0, got: 0,
-        safe0: b.biz ? econOf(b).safe : 0, cash0: g.p.cash || 0, gt0: g.t, t: 0 };
+      walkers.forEach((p, i) => { g.pfol.push({ mis: 1, key: p.key, role: p.role, name: p.name, yt: p.yt, tall: p.tall, x: g.p.x, y: g.p.y, vx: 0, vy: 0, b: null, f: 0, cd: 0, lag: 0, angry: 0, down: 0,
+        riding: 1, jit: 1, anim: 0, bang: 0, seat: i < leadSeats || !convoy ? "lead" : "convoy" }); });
+      const kd = kindOf(op.k), b = T.b || null;
+      g.mis = { op, k: op.k, kd, gk: op.gang, vg: T.vg || null, b, pt: T.pt || null, phase: "drive", drv: drv ? drv.name : null, car: "with", bomb: null, back: 0, got: 0,
+        safe0: b && b.biz ? econOf(b).safe : 0, cash0: g.p.cash || 0, gt0: g.t, t: 0, convoy, lastMode: "car", rides: VV.list.filter((q) => q.ride).map((q) => q.ride.id) };
+      const M = g.mis;
+      if (kd === "route") M.truck = { pts: T.route, i: 0, x: T.route[0][0], y: T.route[0][1], ang: 0, spd: 0, hp: 100, state: "wait", wait: 75, cd: 0 };
+      if (kd === "steal" || kd === "chop") { const m = kd === "chop" ? { k: cpick(["buy_turbo", "buy_fastback", "buy_delorean_b", "buy_gn_black", "buy_gn_red"]), len: 104, w: 46 } : STEAL_M[OPS[op.k].ride || "car"]();
+        M.prize = { x: M.pt.x, y: M.pt.y, ang: M.pt.ang, spd: 0, cruise: 0, brake: 1, dead: 1, parked: 1, named: 1, trFree: 1, misPrize: 1, m }; g.traffic.push(M.prize); }
       g.misStarted = 1; g.misSaid = null;
-      g.jobBanner = OPS[op.k].nm; g.jobNote = "Drive to " + (b.name || addressOf(b)) + " -- follow the gold arrow. " + (walkers.length ? walkers.map((p) => p.name.split(" ")[0]).join(", ") + " ride with you. " : "") + "ORDERS on the spot.";
+      const where = b ? (b.name || addressOf(b)) : M.pt ? (M.pt.addr || "the spot") : "the route";
+      g.jobBanner = OPS[op.k].nm;
+      g.jobNote = (kd === "route" ? "The truck rolls in " + M.truck.wait + "s -- get on its route (dashed) and set the trap. " : "Drive to " + where + " -- follow the gold arrow. ") +
+        (walkers.length ? walkers.map((p) => p.name.split(" ")[0]).join(", ") + (convoy ? " (two vehicles)" : "") + " with you. " : "") + "ORDERS on the spot.";
       return true;
     }
     function misStatus() { const M = g.mis; if (!M) return "";
       const who = misFol().map((f) => first(f.name) + (f.task ? (f.task.kind === "hold" ? " (holding)" : f.task.need ? " (working " + Math.round(100 * f.task.w / f.task.need) + "%)" : " (on his way)") : " (with you)")).join(", ");
-      const car = !M.drv ? "" : M.carGone ? " The car's gone." : M.car === "circle" ? " " + first(M.drv) + " is circling the block." : " " + first(M.drv) + " is at the wheel.";
-      const goal = M.phase === "drive" ? "Get to " + (M.b.name || "the place") + "." : M.phase === "away" ? "GET AWAY -- back to the scrapyard." :
-        M.k === "carbomb" ? "Have it planted, get clear, set it off." : M.k === "jewels" ? "Clean out the safe (or stick up the counter)." : "Stick up the register.";
-      return goal + (who ? " " + who + "." : "") + car + (M.back ? " The back door's open." : "") + (M.bomb ? " A bomb is armed at " + M.bomb.nm.toLowerCase() + "." : ""); }
-    const misCarNear = () => { const M = g.mis, d = doorPoint(M.b); return g.car && !M.carGone && M.car !== "circle" && Math.hypot(g.car.x - d[0], g.car.y - d[1]) < 260; };
+      const car = !M.drv ? "" : M.carGone ? " The car's gone." : M.car === "circle" ? " " + first(M.drv) + " is circling the block." : M.block ? " " + first(M.drv) + " has the road blocked." : " " + first(M.drv) + " is at the wheel.";
+      const T = M.truck, tr = T ? (T.state === "wait" ? " The truck rolls in " + Math.ceil(T.wait) + "s." : T.state === "run" ? " The truck is ROLLING." : T.state === "stopped" ? " The truck is STOPPED." : "") : "";
+      const goal = M.phase === "drive" ? (M.kd === "route" ? "Get on the route." : "Get there.") : M.phase === "away" ? "GET AWAY -- back to the scrapyard." : ({
+        store: "Stick up the register.", safe: "Clean out the safe (or stick up the counter).", bomb: "Have it planted, get clear, set it off.", hit: M.markCar && M.markCar.wired ? (/in|driving|arrived/.test(M.markCar.st) ? "He's in the car. SET IT OFF (within 900) -- here, or at his place." : "His car's wired. Wait for him to get in.") : "Put the mark down -- or have the bomb maker wire his car.",
+        route: T && T.state === "stopped" ? (M.k === "armored" ? "Deal with the guards, then E at the back: LOAD THE BAGS." : M.k === "semi" ? "Deal with the trucker, then E: take the rig -- the trailer comes with it." : "Deal with the driver, then E: take the truck.") : "Stop the truck: block the road, bomb the route, take its tires, or ram it.",
+        corner: "Walk the dealer to his corner.", case: "Have the lookout watch the place.", racket: "Take the enforcer in to the owner.",
+        errand: "Have him do it at the door.", steal: "Have the thief take it.", chop: M.prize && M.prize.hot ? "E: take the wheel. Get it to the scrapyard." : "Have the mechanic hot-wire it." })[M.kd];
+      return goal + tr + (who ? " " + who + "." : "") + car + (M.back ? " The back door's open." : "") + (M.bomb ? " A bomb is armed at " + M.bomb.nm.toLowerCase() + "." : ""); }
+    const misCarNear = () => { const M = g.mis, d = misPt(); return g.car && !M.carGone && M.car !== "circle" && Math.hypot(g.car.x - d[0], g.car.y - d[1]) < 260; };
     const misBombDist = () => { const B = g.mis && g.mis.bomb; return B ? Math.hypot(g.p.x - B.x, g.p.y - B.y) : 1e9; };
-    function misPanel() { const M = g.mis; if (!M) return null; const opts = [];
-      for (const f of misFol()) { const fk = f.key.replace(/:/g, "~"), nm = first(f.name), withMe = f.b === g.inside && f.f === g.floor;
-        if ((f.role === "locksmith" || f.role === "safecracker") && !M.back && M.phase !== "drive") opts.push({ id: "mis:back:" + fk, label: nm + " \u00b7 OPEN THE BACK DOOR" });
-        if (f.role === "safecracker" && g.inside === M.b && withMe && M.b.biz && econOf(M.b).safe > 0) opts.push({ id: "mis:safe:" + fk, label: nm + " \u00b7 CRACK THE SAFE" });
-        if (f.role === "bomber" && !M.bomb && M.phase !== "drive") for (const [k2, l] of MIS_PLANTS) {
-          if (k2 === "counter" ? g.inside !== M.b : g.inside) continue; if (k2 === "car" && !misCarNear()) continue;
-          opts.push({ id: "mis:plant:" + fk + ":" + k2, label: nm + " \u00b7 PLANT IT: " + l }); }
+    function routeNear(x, y) { const T = g.mis && g.mis.truck; if (!T) return null; let best = null, bd = 1e12;
+      for (let i = 0; i < T.pts.length - 1; i++) { const a = T.pts[i], b2 = T.pts[i + 1], dx = b2[0] - a[0], dy = b2[1] - a[1], L2 = dx * dx + dy * dy || 1;
+        const t = clamp(((x - a[0]) * dx + (y - a[1]) * dy) / L2, 0, 1), px = a[0] + dx * t, py = a[1] + dy * t, d = Math.hypot(x - px, y - py);
+        if (d < bd && i + t > T.i + 0.3) { bd = d; best = { x: px, y: py, d, seg: i + t, ang: Math.atan2(dy, dx) }; } }
+      return best; }
+    function misPanel() { const M = g.mis; if (!M) return null; const opts = [], kd = M.kd, on = M.phase !== "drive", rn = kd === "route" ? routeNear(g.p.x, g.p.y) : null, onRoute = rn && rn.d < 260;
+      for (const f of misFol()) { const fk = f.key.replace(/:/g, "~"), nm = first(f.name), withMe = f.b === g.inside && f.f === g.floor, r = f.role, add = (id, l) => opts.push({ id: "mis:" + id + ":" + fk, label: nm + " \u00b7 " + l });
+        if (on && (r === "locksmith" || r === "safecracker") && M.b && !M.back && (kd === "store" || kd === "safe" || kd === "racket")) add("back", "OPEN THE BACK DOOR");
+        if (r === "safecracker" && M.b && g.inside === M.b && withMe && M.b.biz && econOf(M.b).safe > 0) add("safe", "CRACK THE SAFE");
+        if (r === "fixer" && kd === "safe" && on && !M.quiet && !g.inside) add("desk", "SQUARE THE DESK");
+        if (r === "bomber" && !M.bomb && on && kd !== "route" && M.b) for (const [k2, l] of MIS_PLANTS) {
+          if (k2 === "counter" ? g.inside !== M.b : g.inside) continue; if (k2 === "car" && !misCarNear()) continue; add("plant~" + k2, "PLANT IT: " + l); }
+        if (r === "bomber" && !M.bomb && kd === "route" && onRoute && M.truck.state !== "stopped") add("rbomb", "PLANT IT ON THE ROUTE, RIGHT HERE");
+        if (r === "shooter" && kd === "route" && onRoute && M.truck.state !== "stopped" && !(f.task && f.task.tires)) add("tires", "TAKE ITS TIRES FROM HERE");
+        if (r === "shooter" && kd === "hit" && M.mark && M.mark.hp > 0 && !g.inside && !(M.markCar && /in|driving|arrived/.test(M.markCar.st))) add("take", "TAKE HIM OUT");
+        if (r === "bomber" && kd === "hit" && M.markCar && !M.markCar.wired && !M.markCar.burnt && M.markCar.st === "parked" && !g.inside) add("wire", "WIRE HIS CAR");
+        if (r === "lookout" && kd === "case" && on && !g.inside) add("watch", "WATCH THE PLACE");
+        if (r === "dealer" && kd === "corner" && on && !g.inside) add("corner", "TAKE THIS CORNER");
+        if (r === "enforcer" && kd === "racket" && M.b && g.inside === M.b && withMe) add("lean", "LEAN ON THE OWNER");
+        if (kd === "errand" && r === ERRAND[M.k][0] && on && !g.inside) add("errand", ERRAND[M.k][1]);
+        if (r === "thief" && kd === "steal" && on && M.prize && !g.inside) add("steal", "TAKE IT");
+        if (r === "mechanic" && kd === "chop" && on && M.prize && !M.prize.hot && !g.inside) add("hotwire", "HOT-WIRE IT");
         opts.push(f.task && f.task.kind === "hold" ? { id: "mis:come:" + fk, label: nm + " \u00b7 COME WITH ME" } : f.task ? { id: "mis:come:" + fk, label: nm + " \u00b7 DROP IT, COME WITH ME" } : { id: "mis:hold:" + fk, label: nm + " \u00b7 HOLD THIS SPOT" }); }
-      if (M.bomb && M.bomb.armed) opts.push({ id: "mis:boom", label: "SET IT OFF" + (misBombDist() < 300 || g.inside ? " (GET CLEAR FIRST)" : "") });
-      if (M.drv && !M.carGone && M.phase !== "drive") { const d = first(M.drv); opts.push({ id: "mis:car:wait", label: d + " \u00b7 WAIT HERE" }, { id: "mis:car:circle", label: d + " \u00b7 CIRCLE THE BLOCK" }, { id: "mis:car:bring", label: d + " \u00b7 BRING THE CAR" }); }
+      if (M.bomb && M.bomb.armed && !M.bomb.route) opts.push({ id: "mis:boom", label: "SET IT OFF" + (misBombDist() < 300 || g.inside ? " (GET CLEAR FIRST)" : "") });
+      if (M.markCar && M.markCar.wired && !M.markCar.burnt) { const dd = Math.hypot(g.p.x - M.markCar.v.x, g.p.y - M.markCar.v.y);
+        opts.push({ id: "mis:markboom", label: "SET IT OFF \u00b7 HIS CAR" + (dd > MARK.reach ? " (OUT OF RANGE)" : dd < MARK.clear ? " (GET CLEAR FIRST)" : /in|driving|arrived/.test(M.markCar.st) ? " \u00b7 HE'S IN IT" : " \u00b7 HE'S NOT IN IT") }); }
+      if (M.drv && !M.carGone && on) { const d = first(M.drv);
+        if (kd === "route" && onRoute && M.truck.state !== "stopped" && g.mode === "foot" && misCarNearMe()) opts.push({ id: "mis:block", label: d + " \u00b7 BLOCK THE ROAD HERE" });
+        opts.push({ id: "mis:car:wait", label: d + " \u00b7 WAIT HERE" }, { id: "mis:car:circle", label: d + " \u00b7 CIRCLE THE BLOCK" }, { id: "mis:car:bring", label: d + " \u00b7 BRING THE CAR" }); }
+      if (M.convoy && kd === "route" && onRoute && M.truck.state !== "stopped" && Math.hypot(M.convoy.v.x - g.p.x, M.convoy.v.y - g.p.y) < 400)
+        opts.push({ id: "mis:block2", label: (M.convoy.drv ? first(M.convoy.drv) : "THE SECOND CAR") + " \u00b7 BLOCK THE ROAD WITH THE SECOND CAR" });
       opts.push({ id: "mis:abort", label: "CALL IT OFF" }, { id: "close", label: "CARRY ON" });
       return { title: "ORDERS \u00b7 " + OPS[M.k].nm, face: null, text: g.misSaid || misStatus(), opts }; }
+    const misCarNearMe = () => g.car && Math.hypot(g.car.x - g.p.x, g.car.y - g.p.y) < 420 && !g.mis.carGone;
     function misTask(f, kind, x, y, need, done, b2, fl) { f.task = { kind, x, y, need: need || 0, w: 0, done, b: b2 || null, fl: fl || 0 }; }
     function misStepTask(f, dt) { const T = f.task; if (!T) return false;
       if (f.b !== T.b || f.f !== T.fl) {                                    // off to somewhere you aren't: he goes the way you'd go
-        f.b = T.b; f.f = T.fl; if (T.b) { f.x = T.x; f.y = T.y + 30; } else { const dp = g.mis ? doorPoint(g.mis.b) : [T.x, T.y]; f.x = dp[0]; f.y = dp[1]; } }
+        f.b = T.b; f.f = T.fl; if (T.b) { f.x = T.x; f.y = T.y + 30; } else { const dp = g.mis ? misPt() : [T.x, T.y]; f.x = dp[0]; f.y = dp[1]; } }
       if (Math.hypot(T.x - f.x, T.y - f.y) > (T.b ? 250 : 900)) { f.x = T.x + 24; f.y = T.y + 24; }       // indoors (or a long way): he's just there
       const dx = T.x - f.x, dy = T.y - f.y, d = Math.hypot(dx, dy);
-      if (d > 8) { const sp = Math.min(PFOL.spd, d / Math.max(dt, 1e-3)); f.x += dx / d * sp * dt; f.y += dy / d * sp * dt; f.vx = dx / d * sp; f.vy = dy / d * sp; f.anim = (f.anim || 0) + dt; f.bang = Math.atan2(dy, dx);
+      if (d > 8) { const sp = Math.min(PFOL.spd * 1.3, d / Math.max(dt, 1e-3)); f.x += dx / d * sp * dt; f.y += dy / d * sp * dt; f.vx = dx / d * sp; f.vy = dy / d * sp; f.anim = (f.anim || 0) + dt; f.bang = Math.atan2(dy, dx);
         if (f.b === g.inside && f.f === g.floor && g.mode === "foot") collideCrew(f);
         f.stuck = Math.hypot(f.x - (f.lx || 0), f.y - (f.ly || 0)) < 0.5 ? (f.stuck || 0) + dt : 0; f.lx = f.x; f.ly = f.y;
-        if (f.stuck > 1.5 || f.b !== g.inside) { if (f.stuck > 1.5 || d > 600) { f.x = T.x; f.y = T.y; } f.stuck = 0; }
+        if (f.stuck > 1.5) { f.x = T.x; f.y = T.y; f.stuck = 0; }
         return true; }
       f.vx = 0; f.vy = 0;
       if (T.need) { T.w += dt; if (T.w >= T.need) { const cb = T.done; f.task = null; if (cb) cb(f); } }
@@ -32628,23 +32826,46 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const c = getCell(i, j); if (!c) continue; for (const b of c.blds || []) if (px > b.x - 40 && px < b.x + b.w + 40 && py > b.y - 40 && py < b.y + b.h + 40) return true; } return false; };
       for (let r = 70; r < 420; r += 30) for (let k = 0; k < 12; k++) { const a = k / 12 * 6.283, px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; if (!bad(px, py)) return [px, py, a + Math.PI / 2]; }
       return [x + 90, y, 0]; }
+    // the quick jobs are done the moment the man does his thing
+    function misQuickDone(f, line) { const M = g.mis; if (!M) return; M.got = 1; if (line) misFlash(line); misFinish(true); }
     G.misPick = (id) => { const M = g.mis; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); if (!M) return;
-      const [, a, key0, k2] = id.split(":"), key = (key0 || "").replace(/~/g, ":"), f = misFol().find((q) => q.key === key), nm = f ? first(f.name) : "";   // keys carry ':' -- sent as '~'
-      void key0;
-      const b = M.b, ds = b.door ? b.door.side : 2, dp = b.door ? b.door.pos : 0.5;
-      if (a === "back" && f) { const [x, y] = wallPt(b, backSide(b), 0.5, 20);
+      const parts = id.split(":"), a0 = parts[1], key0 = parts[2] || "", [a, k2] = a0.split("~"), key = key0.replace(/~/g, ":"), f = misFol().find((q) => q.key === key), nm = f ? first(f.name) : "";
+      const b = M.b, ds = b && b.door ? b.door.side : 2, dp = b && b.door ? b.door.pos : 0.5;
+      if (a === "back" && f && b) { const [x, y] = wallPt(b, backSide(b), 0.5, 20);
         misTask(f, "back", x, y, 5, () => { M.back = 1; misFlash(nm + " HAS THE BACK DOOR OPEN"); }); misFlash(nm + " HEADS ROUND THE BACK"); return; }
-      if (a === "safe" && f) { const s2 = bizSafe(b); if (!s2) return;
+      if (a === "safe" && f && b) { const s2 = bizSafe(b); if (!s2) return;
         misTask(f, "safe", s2.x + s2.w / 2, s2.y + s2.h + 18, 8, () => { const e = econOf(b), take = e.safe; e.safe = 0; g.p.cash = (g.p.cash || 0) + take; M.got = 1;
           misFlash(nm + " CRACKED IT \u00b7 +$" + take.toLocaleString()); }, b, b.entry || 0); misFlash(nm + " GOES TO WORK ON THE SAFE"); return; }
-      if (a === "plant" && f) { const P = MIS_PLANTS.find((q) => q[0] === k2); if (!P) return; let x, y, inB = null, fl = 0;
+      if (a === "desk" && f && b) { const [x, y] = wallPt(b, ds, dp, 26); misTask(f, "desk", x, y, 5, () => { M.quiet = 1; misFlash(nm + " SQUARED THE DESK \u00b7 NOBODY SAW YOU GO UP"); }); return; }
+      if (a === "plant" && f && b) { const P = MIS_PLANTS.find((q) => q[0] === k2); if (!P) return; let x, y, inB = null, fl = 0;
         if (k2 === "front") [x, y] = wallPt(b, ds, dp, 22); else if (k2 === "back") [x, y] = wallPt(b, backSide(b), 0.5, 22);
         else if (k2 === "side") [x, y] = wallPt(b, (ds + 1) % 4, 0.5, 22); else if (k2 === "car") { x = g.car.x; y = g.car.y + 28; } else { x = g.p.x; y = g.p.y; inB = b; fl = g.floor; }
         misTask(f, "plant", x, y, 6, () => { M.bomb = { x, y, nm: P[1], armed: 1, car: k2 === "car", inside: !!inB, b: inB, fl }; misFlash("ARMED \u00b7 " + P[1] + " \u00b7 GET CLEAR, THEN SET IT OFF"); }, inB, fl);
         misFlash(nm + " IS PLANTING IT \u00b7 " + P[1]); return; }
+      if (a === "rbomb" && f) { const rn = routeNear(g.p.x, g.p.y); if (!rn) return;
+        misTask(f, "plant", rn.x + 30, rn.y + 30, 6, () => { M.bomb = { x: rn.x, y: rn.y, nm: "THE ROUTE", armed: 1, route: 1, seg: rn.seg }; misFlash("ON THE ROUTE \u00b7 IT GOES OFF UNDER THE TRUCK"); }); misFlash(nm + " IS PLANTING IT IN THE ROAD"); return; }
+      if (a === "tires" && f) { const rn = routeNear(g.p.x, g.p.y); if (!rn) return; misTask(f, "hold", rn.x + Math.cos(rn.ang + 1.57) * 120, rn.y + Math.sin(rn.ang + 1.57) * 120, 0, null, null, 0); f.task.tires = 1; misFlash(nm + " TAKES COVER BY THE ROAD"); return; }
+      if (a === "wire" && f && M.markCar) { const v = M.markCar.v; misTask(f, "wire", v.x + 26, v.y + 26, 6, () => { M.markCar.wired = 1; M.markCar.leave = MARK.leave;
+          misFlash("HIS CAR'S WIRED \u00b7 GET CLEAR"); g.jobNote = "Wired. He'll be out in " + MARK.leave + "s. SET IT OFF when he's in -- or follow him home and do it there."; }); misFlash(nm + " GOES TO WORK ON HIS CAR"); return; }
+      if (a === "markboom" && M.markCar) { const dd = Math.hypot(g.p.x - M.markCar.v.x, g.p.y - M.markCar.v.y);
+        if (dd > MARK.reach) { misFlash("OUT OF RANGE -- GET CLOSER"); return; } if (dd < MARK.clear || g.inside) { misFlash("TOO CLOSE -- GET CLEAR FIRST"); return; } markBoom(); return; }
+      if (a === "take" && f && M.mark) { const mk = M.mark; misTask(f, "take", mk.x + 40, mk.y + 40, 2, () => { if (M.mark && M.mark.hp > 0) { M.mark.hp = 0; M.mark.dead = 1; if (M.markCrew) M.markCrew.state = "hostile"; misFlash(nm + " PUT HIM DOWN"); try { witnessed(mk.x, mk.y, 1, true); } catch (e) {} } }); return; }
+      if (a === "watch" && f && b) { const o = [[0, -1], [1, 0], [0, 1], [-1, 0]][ds] || [0, 1], [x, y] = wallPt(b, ds, dp, 120);
+        misTask(f, "watch", x + o[0] * 10, y + o[1] * 10, 10, () => misQuickDone(f, nm + " HAS THE PLACE CASED")); return; }
+      if (a === "corner" && f) { const x = g.p.x, y = g.p.y; M.pt = { ...(M.pt || {}), x, y }; misTask(f, "corner", x + 20, y + 10, 3, () => misQuickDone(f, nm + " HAS THE CORNER")); return; }
+      if (a === "lean" && f && b) { const S = g.shop, kp = S && S.folk && S.folk.find((q) => q.keeper && q.hp > 0); const x = kp ? kp.x : g.p.x, y = kp ? kp.y + 30 : g.p.y;
+        misTask(f, "lean", x, y, 6, () => misQuickDone(f, nm + " HAD A WORD \u00b7 THEY PAY YOU NOW"), b, g.floor); return; }
+      if (a === "errand" && f && b) { const [x, y] = wallPt(b, ds, dp, 16); misTask(f, "errand", x, y, 8, () => misQuickDone(f, nm + " \u00b7 DONE")); misFlash(nm + " GOES IN"); return; }
+      if (a === "steal" && f && M.prize) { const P = M.prize; misTask(f, "steal", P.x + 30, P.y, 6, () => {
+          M.stoleK = P.m.k; const i = g.traffic.indexOf(P); if (i >= 0) g.traffic.splice(i, 1); M.prize = null; g.pfol = (g.pfol || []).filter((q) => q !== f);
+          misQuickDone(f, nm + " IS GONE WITH IT \u00b7 IT'LL BE IN THE YARD"); }); return; }
+      if (a === "hotwire" && f && M.prize) { const P = M.prize; misTask(f, "hotwire", P.x + 30, P.y, 6, () => { P.hot = 1; misFlash("IT'S RUNNING \u00b7 E TO TAKE THE WHEEL"); }); return; }
       if (a === "hold" && f) { misTask(f, "hold", f.x, f.y, 0, null, f.b, f.f); return; }
       if (a === "come" && f) { f.task = null; return; }
       if (a === "boom") { if (g.inside || misBombDist() < 300) { misFlash("TOO CLOSE -- GET CLEAR FIRST"); return; } misBoom(); return; }
+      if (a === "block" || a === "block2") { const rn = routeNear(g.p.x, g.p.y); if (!rn) return; const v = a === "block" ? null : M.convoy.v, ang = rn.ang + Math.PI / 2;
+        if (v) { v.x = rn.x; v.y = rn.y; v.ang = ang; M.convoy.block = 1; } else { g.car.x = rn.x; g.car.y = rn.y; g.car.ang = ang; g.car.vx = g.car.vy = 0; M.car = "wait"; }
+        (M.blocks = M.blocks || []).push({ x: rn.x, y: rn.y, seg: rn.seg }); misFlash((v ? "THE SECOND CAR" : first(M.drv)) + " PUTS IT ACROSS THE ROAD"); return; }
       if (a === "car") { const d = first(M.drv);
         if (key0 === "wait") { if (M.car === "circle" && M.carSpot) { g.car.x = M.carSpot[0]; g.car.y = M.carSpot[1]; } M.car = "wait"; misFlash(d + " SITS TIGHT"); return; }
         if (key0 === "circle") { if (M.car !== "circle" && g.mode === "foot") { M.carSpot = [g.car.x, g.car.y]; g.car.x = -99999; g.car.y = -99999; } M.car = "circle"; misFlash(d + " PULLS OUT -- CIRCLING THE BLOCK"); return; }
@@ -32653,55 +32874,221 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function misBoom() { const M = g.mis, B = M.bomb; if (!B) return;
       carBoom(B.x, B.y); g.heat = Math.max(g.heat || 0, 2); g.wantedT = Math.max(g.wantedT || 0, 45); try { witnessed(B.x, B.y, 1, true); } catch (e) {}
       if (B.car) { g.car.x = -99999; g.car.y = -99999; g.car.pool = null; M.carGone = 1; }                  // the car was the bomb
-      const b = M.b, nx = clamp(B.x, b.x, b.x + b.w), ny = clamp(B.y, b.y, b.y + b.h);
-      if (B.inside || Math.hypot(B.x - nx, B.y - ny) < 140) { bombBusiness(b, M.gk); M.bombed = 1; if (M.k === "carbomb") M.got = 1; }
+      const b = M.b;
+      if (b) { const nx = clamp(B.x, b.x, b.x + b.w), ny = clamp(B.y, b.y, b.y + b.h);
+        if (B.inside || Math.hypot(B.x - nx, B.y - ny) < 140) { bombBusiness(b, M.gk); M.bombed = 1; if (M.kd === "bomb") M.got = 1; } }
       if (!g.inside && Math.hypot(g.p.x - B.x, g.p.y - B.y) < 220) g.p.hp = Math.max(1, (g.p.hp || 10) - (g.p.maxHp || 10) * 0.3);
-      M.bomb = null; g.jobBanner = "BOOM"; g.jobNote = M.bombed ? (b.name || "The place") + " -- the front's gone. Get out of here." : "It went off, but not close enough to hurt them.";
+      M.bomb = null; g.jobBanner = "BOOM"; g.jobNote = M.bombed ? ((b && b.name) || "The place") + " -- the front's gone. Get out of here." : "It went off.";
       if (M.got) { M.phase = "away"; g.jobNote += " Back to the scrapyard."; } }
-    G.misDoorFn = () => { const M = g.mis; if (!M || !M.back || g.mode !== "foot") return false; const b = M.b, bs = backSide(b);
+    // E: the back door, the armored car's back, a hot-wired car, a stopped truck to drive
+    G.misDoorFn = () => { const M = g.mis; if (!M || g.mode !== "foot") return false;
+      const T = M.truck;
+      if (T && T.state === "stopped" && !g.inside && Math.hypot(g.p.x - T.x, g.p.y - T.y) < 110) {
+        if ((M.guards || []).some((q) => q.hp > 0 && Math.hypot(q.x - T.x, q.y - T.y) < 600)) { misFlash("NOT WITH THEM STILL STANDING"); return true; }
+        if (M.k === "armored") { if (!M.loading && !M.got) { M.loading = 5; misFlash("LOADING THE BAGS..."); } return true; }
+        // the hijack: you take the wheel of the truck, our car goes home with the driver
+        if (g.car.pool) motorAdd(g.car.pool.k, g.car.pool.nm, g.car.pool.slot);
+        g.car.x = T.x; g.car.y = T.y; g.car.ang = T.ang; g.car.vx = g.car.vy = 0; g.car.skin = { k: T.v.m.k, len: T.v.m.len, w: T.v.m.w }; g.car.pool = null; g.car.tough = 2; g.car.dmg = 0;
+        const i = g.traffic.indexOf(T.v); if (i >= 0) g.traffic.splice(i, 1); T.state = "taken"; M.got = 1; M.phase = "away"; g.mode = "car";
+        if (T.tv) { M.tow = T.tv; g.car.skin = { k: flipKey(T.rig.tk), len: 104, w: 44 }; g.car.tough = 2.6; }        // the rig: you drive the tractor, the trailer swings behind
+        g.jobBanner = M.k === "semi" ? "THE RIG'S YOURS" : "THE TRUCK'S YOURS"; g.jobNote = "Drive it to the scrapyard -- the fence is waiting." + (M.drv ? " " + first(M.drv) + " takes our car home." : ""); return true; }
+      if (M.prize && M.prize.hot && !g.inside && Math.hypot(g.p.x - M.prize.x, g.p.y - M.prize.y) < 110) { const P = M.prize;
+        if (g.car.pool) motorAdd(g.car.pool.k, g.car.pool.nm, g.car.pool.slot);
+        g.car.x = P.x; g.car.y = P.y; g.car.ang = P.ang || 0; g.car.vx = g.car.vy = 0; g.car.skin = { k: P.m.k, len: P.m.len, w: P.m.w }; g.car.pool = null; g.car.tough = 1; g.car.dmg = 0;
+        const i = g.traffic.indexOf(P); if (i >= 0) g.traffic.splice(i, 1); M.prize = null; M.got = 1; M.phase = "away"; g.mode = "car";
+        g.jobBanner = "IT'S YOURS"; g.jobNote = "Get it to the scrapyard in one piece." + (M.drv ? " " + first(M.drv) + " takes our car home." : ""); return true; }
+      if (!M.back || !M.b) return false; const b = M.b, bs = backSide(b);
       if (!g.inside) { const [x, y] = wallPt(b, bs, 0.5, 18); if (Math.hypot(g.p.x - x, g.p.y - y) > 55) return false;
         const [ix, iy] = wallPt(b, bs, 0.5, -34); g.inside = b; g.floor = b.entry || 0; g.insideT = 1; g.pfolk = null; g.p.x = ix; g.p.y = iy; g.p.vx = g.p.vy = 0; M.quiet = 1;
         misFlash("IN THE BACK WAY"); return true; }
       if (g.inside === b && g.floor === (b.entry || 0)) { const [ix, iy] = wallPt(b, bs, 0.5, -34); if (Math.hypot(g.p.x - ix, g.p.y - iy) > 55) return false;
         const [x, y] = wallPt(b, bs, 0.5, 30); g.inside = null; g.floor = 0; g.insideT = 0; g.p.x = x; g.p.y = y; misFlash("OUT THE BACK"); return true; }
       return false; };
-    function misArrow() { const M = g.mis; if (M.phase === "away") { const H = hideoutB(); return H ? doorPoint(H) : null; } return doorPoint(M.b); }
+    function misArrow() { const M = g.mis; if (M.phase === "away") { const H = hideoutB(); return H ? doorPoint(H) : null; }
+      if (M.kd === "route") { const T = M.truck; if (T.state === "stopped") return [T.x, T.y]; const rn = routeNear(g.p.x, g.p.y); if (rn && rn.d < 260) return null; const p = T.pts[Math.min(T.pts.length - 1, Math.max(T.i + 2, Math.floor(T.pts.length / 2)))]; return p; }
+      if (M.prize) return [M.prize.x, M.prize.y];
+      if (M.markCar && !M.markCar.burnt && /driving|arrived|in/.test(M.markCar.st)) return [M.markCar.v.x, M.markCar.v.y];     // follow him
+      return misPt(); }
+    // THE TRUCK: drives its route once the clock's up; stops for a blockade, a bomb, its tires, or enough ramming
+    function stepTruck(dt) { const M = g.mis, T = M.truck; if (!T || T.state === "taken" || T.state === "gone") return;
+      if (!T.v) { const sm = M.k === "semi";
+        if (sm) T.rig = { tk: cpick(TRACTORS), trk: cpick(TRAILERS) };
+        T.v = { x: T.x, y: T.y, ang: 0, spd: 0, cruise: 0, brake: 1, dead: 1, parked: 1, named: 1, trFree: 1, misTruck: 1,
+          m: M.k === "armored" ? { k: "bk_truck", len: 128, w: 56 } : sm ? { k: flipKey(T.rig.tk), len: 104, w: 44 } : truckM() }; g.traffic.push(T.v);
+        if (sm) { T.tv = { x: T.x, y: T.y, ang: 0, spd: 0, cruise: 0, brake: 1, dead: 1, parked: 1, named: 1, trFree: 1, misTrailer: 1, m: { k: T.rig.trk, len: 168, w: 42 } }; g.traffic.push(T.tv); } }
+      if (g.traffic.indexOf(T.v) < 0) g.traffic.push(T.v);
+      if (T.tv && T.state !== "taken" && g.traffic.indexOf(T.tv) < 0) g.traffic.push(T.tv);
+      if (T.rig && T.v.m.k === T.rig.tk) T.v.m = { k: flipKey(T.rig.tk), len: 104, w: 44 };          // the plate loaded since: turn it round
+      const stop = (why) => { if (T.state === "stopped") return; T.state = "stopped"; T.spd = 0; g.jobBanner = "THE TRUCK'S STOPPED"; g.jobNote = why;
+        // out they come
+        const gang = M.k === "armored" ? "mob_old" : (M.gk || "kings"), n = M.k === "armored" ? 2 : 1;      // the hijacks: the man at the wheel
+        let cr = null; try { cr = warCrew(gang, T.x + 40, T.y + 40, n); } catch (e) { cr = null; }
+        if (cr) { cr.state = "hostile"; cr.misGuards = 1; for (const q of cr.members) { q.wpn = M.k === "armored" ? "shotgun" : q.wpn || "pistol"; q.guardTag = M.k === "armored" ? "GUARD" : "DRIVER"; if (T.bombed) q.hp = Math.max(1, Math.round(q.hp * 0.4)); } M.guards = cr.members; M.guardCrew = cr; } };
+      if (T.state === "wait") { T.wait -= dt; if (T.wait <= 0) { T.state = "run"; misFlash("THE TRUCK IS ROLLING"); } }
+      if (T.state === "run") {
+        T.spd = Math.min(T.max || 170, T.spd + 90 * dt);
+        const a = T.pts[T.i], b2 = T.pts[T.i + 1]; if (!b2) { T.state = "gone"; g.jobBanner = "IT GOT AWAY"; g.jobNote = "The truck made its stop. Nothing to show for it."; misFinish(false, true); return; }
+        const dx = b2[0] - T.x, dy = b2[1] - T.y, d = Math.hypot(dx, dy); T.ang = Math.atan2(b2[1] - a[1], b2[0] - a[0]);
+        if (d <= T.spd * dt) { T.x = b2[0]; T.y = b2[1]; T.i++; } else { T.x += dx / d * T.spd * dt; T.y += dy / d * T.spd * dt; }
+        const seg = T.i + (1 - Math.min(1, d / Math.max(1, Math.hypot(b2[0] - a[0], b2[1] - a[1]))));
+        for (const B of M.blocks || []) if (B.seg > seg && Math.hypot(B.x - T.x, B.y - T.y) < 190) { stop("Blocked. It's boxed in -- the guards are getting out."); break; }
+        const Bm = M.bomb; if (Bm && Bm.route && Math.hypot(Bm.x - T.x, Bm.y - T.y) < 90) { carBoom(T.x, T.y); M.bomb = null; T.bombed = 1; T.hp = 20; g.heat = Math.max(g.heat || 0, 2); g.wantedT = Math.max(g.wantedT || 0, 45); stop("The road went up under it. They're crawling out."); }
+        for (const f of misFol()) if (f.task && f.task.tires && Math.hypot(f.x - T.x, f.y - T.y) < 200) { stop(first(f.name) + " took its tires. It's on the rims."); f.task = null; break; }
+        // ramming it
+        T.cd -= dt;
+        if (g.mode === "car" && T.cd <= 0 && Math.hypot(g.car.x - T.x, g.car.y - T.y) < 85) { const sp = Math.hypot(g.car.vx || 0, g.car.vy || 0);
+          if (sp > 90) { T.hp -= Math.min(45, sp / 8); T.cd = 0.8; g.shake = Math.max(g.shake || 0, 8); if (T.hp <= 0) stop("You ran it off the road."); else misFlash("IT'S HURT \u00b7 " + Math.max(0, Math.round(T.hp)) + "%"); } } }
+      T.v.x = T.x; T.v.y = T.y; T.v.ang = T.ang;
+      if (T.tv && T.state !== "taken") hitchTrailer(T.tv, T.x, T.y, T.ang, 104);
+      if (T.state === "stopped" && M.k === "armored") T.v.m = { k: M.got ? "bk_truck_open" : "bk_truck", len: 128, w: 56 };
+      if (M.loading) { if (g.mode !== "foot" || Math.hypot(g.p.x - T.x, g.p.y - T.y) > 140) { M.loading = 0; misFlash("YOU LEFT THE BAGS"); }
+        else { M.loading -= dt; if (M.loading <= 0) { M.loading = 0; const O = OPS[M.k], take = Math.round(O.pay[0] + Math.random() * (O.pay[1] - O.pay[0])); g.p.cash = (g.p.cash || 0) + take; M.got = 1; M.phase = "away";
+          g.jobBanner = "THE BAGS ARE IN THE CAR"; g.jobNote = "+$" + take.toLocaleString() + ". Back to the scrapyard."; } } } }
     function stepMission(dt) { const M = g.mis; if (!M) return; M.t += dt;
       if (!g.pescaped || (g.p.hp != null && g.p.hp <= 0)) { misFinish(false); return; }
-      const b = M.b, d0 = doorPoint(b), dd = Math.hypot(g.p.x - d0[0], g.p.y - d0[1]);
-      if (M.phase === "drive" && g.mode === "foot" && (dd < 340 || g.inside === b)) { M.phase = "site"; misFlash(M.drv ? first(M.drv) + " KEEPS THE MOTOR RUNNING" : "ON SITE");
-        g.jobBanner = "ON SITE \u00b7 " + (b.name || addressOf(b)); g.jobNote = misStatus() + " ORDERS: D-pad right or the ORDERS button."; }
-      if (M.phase === "site") {
-        if ((M.k === "robbery" || M.k === "jewels") && g.shop && g.shop.b === b && g.shop.robbedT > M.gt0) M.got = 1;
-        if (M.k === "jewels" && M.safe0 > 0 && econOf(b).safe <= M.safe0 * 0.2) M.got = 1;
-        if (M.got) { M.phase = "away"; g.jobBanner = "GOT IT"; g.jobNote = "Get to the car and back to the scrapyard." + (M.drv && M.car === "circle" ? " Tell " + first(M.drv) + " to BRING THE CAR." : ""); } }
+      // the convoy rides your trail; its people get out beside it
+      const C = M.convoy; if (C && C.v) { if (g.traffic.indexOf(C.v) < 0) g.traffic.push(C.v);
+        if (g.mode === "car" && !C.block) { const tr = C.trail, last = tr[tr.length - 1]; if (!last || Math.hypot(g.car.x - last[0], g.car.y - last[1]) > 14) tr.push([g.car.x, g.car.y]); if (tr.length > 80) tr.shift();
+          let acc = 0, px = g.car.x, py = g.car.y, i = tr.length - 1; for (; i >= 0; i--) { acc += Math.hypot(tr[i][0] - px, tr[i][1] - py); px = tr[i][0]; py = tr[i][1]; if (acc > 150) break; }
+          if (i >= 0) { const nx = i + 1 < tr.length ? tr[i + 1] : [g.car.x, g.car.y]; C.v.x = tr[i][0]; C.v.y = tr[i][1]; if (Math.hypot(nx[0] - tr[i][0], nx[1] - tr[i][1]) > 1) C.v.ang = Math.atan2(nx[1] - tr[i][1], nx[0] - tr[i][0]); } }
+        if (M.lastMode !== "foot" && g.mode === "foot" && Math.hypot(C.v.x - g.car.x, C.v.y - g.car.y) > 600) { C.v.x = g.car.x - Math.cos(g.car.ang) * 150; C.v.y = g.car.y - Math.sin(g.car.ang) * 150; C.v.ang = g.car.ang; }   // it kept up
+        if (M.lastMode !== "foot" && g.mode === "foot") misFol().forEach((f, n) => { if (f.seat === "convoy" && !f.task) { f.x = C.v.x + 20 + n * 6; f.y = C.v.y + 26; } }); }
+      M.lastMode = g.mode;
+      if (M.tow) { if (g.traffic.indexOf(M.tow) < 0) g.traffic.push(M.tow); if (g.mode === "car") hitchTrailer(M.tow, g.car.x, g.car.y, g.car.ang, 104); }
+      if (M.kd === "route") stepTruck(dt);
+      if (M.kd === "hit") stepMarkCar(dt);
+      if (!g.mis) return;
+      const d0 = misPt(), dd = Math.hypot(g.p.x - d0[0], g.p.y - d0[1]);
+      if (M.phase === "drive" && g.mode === "foot" && (M.kd === "route" ? (routeNear(g.p.x, g.p.y) || { d: 1e9 }).d < 400 || M.truck.state === "stopped" : dd < 340 || (M.b && g.inside === M.b))) {
+        M.phase = "site"; misFlash(M.drv ? first(M.drv) + " KEEPS THE MOTOR RUNNING" : "ON SITE");
+        g.jobBanner = "ON SITE" + (M.b ? " \u00b7 " + (M.b.name || addressOf(M.b)) : ""); g.jobNote = misStatus() + " ORDERS: D-pad right or the ORDERS button."; }
+      // the mark, out front with a man of his, once you're close
+      if (M.kd === "hit" && !M.mark && M.b && Math.hypot(g.p.x - d0[0], g.p.y - d0[1]) < 1100) { try { const o = [[0, -1], [1, 0], [0, 1], [-1, 0]][M.b.door.side] || [0, 1];
+          const cr = warCrew(M.vg || M.gk || "kings", d0[0] + o[0] * 50, d0[1] + o[1] * 50, 2); cr.misMark = 1; M.markCrew = cr; M.mark = cr.members[0]; M.mark.markTag = 1; M.mark.hp = Math.max(M.mark.hp, 6);
+          spawnMarkCar(M, d0, o); } catch (e) {} }
+      if (M.phase === "site" || M.phase === "drive") {
+        const b = M.b;
+        if ((M.kd === "store" || M.kd === "safe") && b && g.shop && g.shop.b === b && g.shop.robbedT > M.gt0) M.got = 1;
+        if (M.kd === "safe" && M.safe0 > 0 && b && econOf(b).safe <= M.safe0 * 0.2) M.got = 1;
+        if (M.kd === "hit" && M.mark && M.mark.hp <= 0) M.got = 1;
+        if (M.got && M.phase !== "away") { M.phase = "away"; g.jobBanner = "GOT IT"; g.jobNote = "Get to the car and back to the scrapyard." + (M.drv && M.car === "circle" ? " Tell " + first(M.drv) + " to BRING THE CAR." : ""); } }
       if (M.phase === "away") { const H = hideoutB(); if (H) { const h = doorPoint(H); if (g.inside === H || Math.hypot(g.p.x - h[0], g.p.y - h[1]) < 280) misFinish(true); } } }
-    function misFinish(ok, dropped) { const M = g.mis; if (!M) return; g.mis = null; const o = M.op, O = OPS[o.k];
+    function misFinish(ok, dropped) { const M = g.mis; if (!M) return; g.mis = null; const o = M.op, O = OPS[o.k], B = g.board2;
       g.pfol = (g.pfol || []).filter((f) => !f.mis);
       if (g.car && M.car === "circle" && M.carSpot && !M.carGone && g.car.x < -9999) { g.car.x = M.carSpot[0]; g.car.y = M.carSpot[1]; }
-      o.live = 0; o.at = nowMin(); o.ride = 1; o.played = 1; o.dropped = dropped ? 1 : 0; o.odds = ok ? 1 : 0; o.bombedAt = M.bombed ? M.b : null;
-      o.extra = ok && o.k === "jewels" ? Math.round(O.pay[0] + Math.random() * (O.pay[1] - O.pay[0])) : 0;          // the stones, fenced
+      // the second vehicle goes home on its own; a pool car back in its stall
+      if (M.convoy) { const i = g.traffic.indexOf(M.convoy.v); if (i >= 0) g.traffic.splice(i, 1); if (M.convoy.pool) motorAdd(M.convoy.pool.k, M.convoy.pool.nm, M.convoy.pool.slot); }
+      for (const x of [M.prize, M.truck && M.truck.v, M.truck && M.truck.tv, M.tow, M.markCar && !M.markCar.burnt && M.markCar.v]) if (x) { const i = g.traffic.indexOf(x); if (i >= 0) g.traffic.splice(i, 1); }
+      if (M.guardCrew) M.guardCrew.state = "hang";
+      o.live = 0; o.at = nowMin(); o.ride = 1; o.played = 1; o.dropped = dropped ? 1 : 0; o.odds = ok ? 1 : 0; o.bombedAt = M.baseHit || (M.bombed ? M.b : null);
+      // what the board pays on top of what you took with your own hands
+      o.extra = !ok ? 0 : (M.kd === "safe" || o.k === "hijack" || o.k === "semi" || o.k === "chop") ? Math.round(O.pay[0] + Math.random() * (O.pay[1] - O.pay[0])) : o.k === "sellpaper" ? Math.round(O.pay[0] + Math.random() * (O.pay[1] - O.pay[0])) : 0;
       if (ok && M.quiet) o.payMul = (o.payMul || 1) + 0.15;
-      const before = g.p.cash || 0; stepOps();
+      const nSpots = ((B && B.spots) || []).length, nCased = ((B && B.cased) || []).length;
+      const ridesBefore = ((B && B.rides) || []).length;
+      stepOps();
+      // the REAL place: the corner you stood him on, the shop that pays, the store you cased
+      if (ok && B) { const sp = B.spots || [];
+        if (o.k === "corner" && sp.length > nSpots && M.pt) Object.assign(sp[sp.length - 1], { x: M.pt.x, y: M.pt.y, addr: M.pt.addr || sp[sp.length - 1].addr });
+        if (o.k === "racket" && sp.length > nSpots && M.b) { const d = doorPoint(M.b); Object.assign(sp[sp.length - 1], { x: d[0] + 30, y: d[1] + 30, addr: addressOf(M.b), nm: M.b.name, b: M.b }); }
+        if (o.k === "casestore" && (B.cased || []).length > nCased && M.b) { const c = B.cased[B.cased.length - 1]; c.b = M.b; c.nm = M.b.name || addressOf(M.b); if (M.b.biz) c.cash = Math.round(econOf(M.b).till);
+          g.jobNote = OPS.casestore.nm + " -- DONE. " + c.nm + ": $" + c.cash + " in the till" + (c.guard ? ", an armed guard." : ", no guard.") + " +" + OPS.casestore.gain + " respect."; }
+        if (OPS[o.k].ride && (B.rides || []).length > ridesBefore) { const r = B.rides[B.rides.length - 1]; const sk = r.type === "van" ? vanKey() : r.type === "truck" ? truckKey() : (M.stoleK || "buy_sedan_grey");
+          motorAdd(sk, (r.type === "van" ? "THE VAN" : r.type === "truck" ? "THE BOX TRUCK" : "A STOLEN CAR") + " #" + r.id); } }
+      if (ok && M.baseHit && g.gwar && g.gwar.gangs[M.vg || M.gk]) { const G5 = g.gwar.gangs[M.vg || M.gk]; G5.cash = Math.max(0, (G5.cash || 0) - 4000); moveStand(M.vg || M.gk, -15); }
       const took = (g.p.cash || 0) - M.cash0;
       g.jobBanner = ok ? "THE JOB'S DONE" : dropped ? "CALLED OFF" : "IT WENT WRONG";
-      g.jobNote = (ok ? "You led it" + (M.quiet ? ", in the back way" : "") + ". $" + Math.max(0, took).toLocaleString() + " all told. " : "") + (g.jobNote || "");
-      void before; }
+      g.jobNote = (ok ? "You led it" + (M.quiet ? ", nice and quiet" : "") + "." + (took > 0 ? " $" + took.toLocaleString() + " all told." : "") + " " : "") + (g.jobNote || ""); }
     function drawMission() { const M = g.mis; if (!M) return; const b = M.b;
       if (!g.inside) {
-        if (M.phase !== "away") { const d = doorPoint(b), pu = 0.5 + 0.5 * Math.sin(g.t * 4);
+        if (M.phase !== "away" && (b || M.pt)) { const d = misPt(), pu = 0.5 + 0.5 * Math.sin(g.t * 4);
           ctx.strokeStyle = "rgba(232,196,106," + (0.4 + pu * 0.5) + ")"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(d[0], d[1], 30 + pu * 8, 0, 6.283); ctx.stroke(); }
-        // the back door: shut, or open once the locksmith's done
-        const bs = backSide(b), [x, y] = wallPt(b, bs, 0.5, 0), im = imgs.current[M.back ? "dr_backdoor_open" : "dr_backdoor"], vert = bs === 1 || bs === 3;
-        const w = vert ? 14 : 44, h = vert ? 44 : 14;
-        if (im && im.width) { ctx.save(); ctx.translate(x, y); ctx.rotate([0, Math.PI / 2, Math.PI, -Math.PI / 2][bs]); ctx.drawImage(im, -22, -16, 44, 32); ctx.restore(); }
-        else { ctx.fillStyle = M.back ? "#1a1410" : "#5a4a38"; ctx.fillRect(x - w / 2, y - h / 2, w, h); }
-        if (M.back) { const [ox, oy] = wallPt(b, bs, 0.5, 18); if (Math.hypot(g.p.x - ox, g.p.y - oy) < 55) { ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText("E \u00b7 IN THE BACK", ox, oy - 26); ctx.textAlign = "start"; } } }
+        if (b && (M.kd === "store" || M.kd === "safe" || M.kd === "racket")) { const bs = backSide(b), [x, y] = wallPt(b, bs, 0.5, 0), im = imgs.current[M.back ? "dr_backdoor_open" : "dr_backdoor"], vert = bs === 1 || bs === 3;
+          if (im && im.width) { ctx.save(); ctx.translate(x, y); ctx.rotate([0, Math.PI / 2, Math.PI, -Math.PI / 2][bs]); ctx.drawImage(im, -22, -16, 44, 32); ctx.restore(); }
+          else { ctx.fillStyle = M.back ? "#1a1410" : "#5a4a38"; ctx.fillRect(x - (vert ? 7 : 22), y - (vert ? 22 : 7), vert ? 14 : 44, vert ? 44 : 14); }
+          if (M.back) { const [ox, oy] = wallPt(b, bs, 0.5, 18); if (Math.hypot(g.p.x - ox, g.p.y - oy) < 55) { ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText("E \u00b7 IN THE BACK", ox, oy - 26); ctx.textAlign = "start"; } } }
+        // the route, dashed, and the truck's tag
+        const T = M.truck; if (T && T.state !== "taken") { ctx.save(); ctx.setLineDash([18, 14]); ctx.strokeStyle = "rgba(232,196,106,0.55)"; ctx.lineWidth = 5; ctx.beginPath();
+          T.pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+          ctx.font = "700 11px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = T.state === "stopped" ? "#ff7a5a" : "#e8c46a";
+          ctx.fillText(T.state === "wait" ? "THE TRUCK \u00b7 ROLLS IN " + Math.ceil(T.wait) + "s" : T.state === "run" ? "THE TRUCK \u00b7 " + Math.max(0, Math.round(T.hp)) + "%" : M.got ? "" : M.k === "armored" ? "E \u00b7 LOAD THE BAGS" : M.k === "semi" ? "E \u00b7 TAKE THE RIG" : "E \u00b7 TAKE THE TRUCK", T.x, T.y - 80);
+          if (M.loading) { const k = 1 - M.loading / 5; ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(T.x - 30, T.y - 72, 60, 7); ctx.fillStyle = "#e8c46a"; ctx.fillRect(T.x - 29, T.y - 71, 58 * k, 5); }
+          ctx.textAlign = "start";
+          for (const B of M.blocks || []) { ctx.strokeStyle = "rgba(255,120,90,0.6)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(B.x, B.y, 120, 0, 6.283); ctx.stroke(); } }
+        if (M.prize) { ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a";
+          ctx.fillText(M.prize.hot ? "E \u00b7 TAKE THE WHEEL" : M.kd === "chop" ? "THE CAR ON THE ORDER" : "THE ONE YOU WANT", M.prize.x, M.prize.y - 64); ctx.textAlign = "start"; }
+        const MC = M.markCar, inCar = MC && !MC.burnt && /in|driving|arrived/.test(MC.st);
+        if (M.mark && M.mark.hp > 0 && !inCar) { ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#ff6a4a"; ctx.fillText("THE MARK", M.mark.x, M.mark.y - 44); ctx.textAlign = "start"; }
+        if (MC && !MC.burnt) { ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = inCar ? "#ff6a4a" : "#e8c46a";
+          ctx.fillText(inCar ? "THE MARK" + (MC.wired ? " \u00b7 WIRED" : "") + (MC.st === "arrived" ? " \u00b7 " + Math.ceil(MC.wait) + "s" : "") : MC.wired ? "HIS CAR \u00b7 WIRED" : "HIS CAR", MC.v.x, MC.v.y - 54); ctx.textAlign = "start";
+          if (MC.wired && Math.sin(g.t * 9) > 0) { ctx.fillStyle = "#ff3a2a"; ctx.beginPath(); ctx.arc(MC.v.x, MC.v.y, 4, 0, 6.283); ctx.fill(); } } }
       const B = M.bomb; if (B && (B.inside ? g.inside === B.b && g.floor === B.fl : !g.inside)) {
         ctx.fillStyle = "#2a2a2a"; ctx.fillRect(B.x - 8, B.y - 6, 16, 12); if (Math.sin(g.t * 9) > 0) { ctx.fillStyle = "#ff3a2a"; ctx.beginPath(); ctx.arc(B.x + 4, B.y - 2, 3, 0, 6.283); ctx.fill(); } } }
-    G.misT = () => { const M = g.mis; return M ? { k: M.k, phase: M.phase, b: [M.b.name, M.b.x | 0, M.b.y | 0, M.b.w | 0, M.b.h | 0, M.b.door && M.b.door.side], fol: misFol().map((f) => [f.name, f.role, f.task && f.task.kind, f.x | 0, f.y | 0]),
-      back: M.back, bomb: M.bomb && M.bomb.nm, got: M.got, car: M.car, carAt: [g.car.x | 0, g.car.y | 0] } : null; };   // test hook
-    G.misBackT = () => { const M = g.mis; return M ? wallPt(M.b, backSide(M.b), 0.5, 18) : null; };
+    G.misT = () => { const M = g.mis; return M ? { k: M.k, kd: M.kd, phase: M.phase, b: M.b ? [M.b.name, M.b.x | 0, M.b.y | 0, M.b.w | 0, M.b.h | 0, M.b.door && M.b.door.side] : null, pt: M.pt ? [M.pt.x | 0, M.pt.y | 0] : null,
+      fol: misFol().map((f) => [f.name, f.role, f.task && f.task.kind, f.x | 0, f.y | 0, f.seat]), back: M.back, bomb: M.bomb && M.bomb.nm, got: M.got, car: M.car, carAt: [g.car.x | 0, g.car.y | 0],
+      convoy: M.convoy ? [M.convoy.v.m.k, M.convoy.v.x | 0, M.convoy.v.y | 0, M.convoy.kind] : null, truck: M.truck ? { state: M.truck.state, i: M.truck.i, n: M.truck.pts.length, x: M.truck.x | 0, y: M.truck.y | 0, hp: M.truck.hp, wait: M.truck.wait, pts: M.truck.pts.map((p) => [p[0] | 0, p[1] | 0]) } : null,
+      prize: M.prize ? [M.prize.m.k, M.prize.x | 0, M.prize.y | 0, !!M.prize.hot] : null, markCar: M.markCar ? { st: M.markCar.st, wired: !!M.markCar.wired, burnt: !!M.markCar.burnt, x: M.markCar.v.x | 0, y: M.markCar.v.y | 0, base: M.markCar.base && M.markCar.base.name, wait: M.markCar.wait } : null,
+      tow: M.tow ? [M.tow.m.k, M.tow.x | 0, M.tow.y | 0] : null, rig: M.truck && M.truck.rig ? [M.truck.v.m.k, M.truck.tv && M.truck.tv.m.k] : null, mark: M.mark ? [M.mark.x | 0, M.mark.y | 0, M.mark.hp] : null, guards: (M.guards || []).map((q) => q.hp) } : null; };   // test hook
+    G.misBackT = () => { const M = g.mis; return M && M.b ? wallPt(M.b, backSide(M.b), 0.5, 18) : null; };
+    G.routeNearT = (x, y) => routeNear(x, y);
+    /* A TRAILER ON A HITCH (layer 510): the fifth wheel sits 0.30 of the tractor back from its middle; the trailer's
+       middle hangs half its length behind that, swinging toward the hitch -- an articulated rig, the same geometry the
+       expressway semis are drawn with. Used for the semi on its route and behind you once it's yours. */
+    function hitchTrailer(tv, x, y, ang, len) { const hx = x - Math.cos(ang) * len * 0.30, hy = y - Math.sin(ang) * len * 0.30, L = tv.m.len;
+      if (!tv.hooked) { tv.x = hx - Math.cos(ang) * L * 0.5; tv.y = hy - Math.sin(ang) * L * 0.5; tv.ang = ang; tv.hooked = 1; return; }
+      const dx = hx - tv.x, dy = hy - tv.y, d = Math.hypot(dx, dy) || 1; tv.ang = Math.atan2(dy, dx); tv.x = hx - dx / d * L * 0.5; tv.y = hy - dy / d * L * 0.5; }
+    /* THE MARK'S CAR (layer 510). On a hit, his car is parked out front. A BOMB MAKER can WIRE HIS CAR (6 s). Then he comes
+       out (15 s later), walks to it and gets in -- SET IT OFF right there, or let him drive and FOLLOW him: he drives to one of
+       his gang's places (another front, a boss's base) and sits a while in the car out front. Blow it there and it takes the
+       front off the place too (bombBusiness, an extra $4000 off the gang and their standing drops further). The detonator
+       reaches 900; you have to be 200 clear. If he sits too long at the base he goes in -- and he's back on foot by the door. */
+    const MARK = { leave: 15, sit: 3, spd: 150, wait: 25, reach: 900, clear: 200 };
+    function markBase(M) { const vg = M.vg || M.gk; let b = null;
+      try { const S = leaderSiteList().find((q) => q.gang === vg && q.b && q.b !== M.b && q.b.door); if (S) b = S.b; } catch (e) {}
+      if (!b) { const s2 = streetPt(2200, 3400); b = s2 && s2.b; }
+      return b; }
+    function markPath(x0, y0, x1, y1) { const i0 = Math.round(x0 / PITCH), j0 = Math.round(y0 / PITCH), i1 = Math.round(x1 / PITCH), j1 = Math.round(y1 / PITCH);
+      return [[x0, y0], [SX(i0), SX(j0)], [SX(i1), SX(j0)], [SX(i1), SX(j1)], [x1, y1]]; }
+    function spawnMarkCar(M, d0, o) { const sd = [-o[1], o[0]], m = cpick(CARM.filter((q) => !q.bus && q.k !== "cruiser" && q.k !== "taxi"));
+      const x = d0[0] + o[0] * 95 + sd[0] * 150, y = d0[1] + o[1] * 95 + sd[1] * 150, ang = Math.atan2(sd[1], sd[0]);
+      M.markCar = { st: "parked", v: { x, y, ang, spd: 0, cruise: 0, brake: 1, dead: 1, parked: 1, named: 1, trFree: 1, misMarkCar: 1, m: { k: m.k, len: m.len, w: m.w } } }; g.traffic.push(M.markCar.v); }
+    function stepMarkCar(dt) { const M = g.mis, C = M.markCar; if (!C) return; const v = C.v;
+      if (!C.burnt && g.traffic.indexOf(v) < 0) g.traffic.push(v);
+      const mk = M.mark; if (!mk || C.burnt) return;
+      if (C.st === "parked" && C.wired) { C.leave -= dt; if (C.leave <= 0) { C.st = "walking"; misFlash("HE'S COMING OUT"); } }
+      if (C.st === "walking") { if (mk.hp <= 0) { C.st = "parked"; return; }
+        const dx = v.x - mk.x, dy = v.y - mk.y, d = Math.hypot(dx, dy); mk.x += dx / d * 70 * dt; mk.y += dy / d * 70 * dt; mk.hx = mk.x; mk.hy = mk.y;
+        if (d < 34) { const cr = M.markCrew, i = cr ? cr.members.indexOf(mk) : -1; if (i >= 0) cr.members.splice(i, 1); C.st = "in"; C.sit = MARK.sit; misFlash("HE'S IN THE CAR"); g.jobNote = "He's in. SET IT OFF now -- or let him drive and follow him home."; } }
+      if (C.st === "in") { mk.x = v.x; mk.y = v.y; C.sit -= dt; if (C.sit <= 0) { const b = markBase(M); if (!b) { C.st = "arrived"; C.wait = MARK.wait; return; } C.base = b; const d = doorPoint(b);
+          C.path = markPath(v.x, v.y, d[0], d[1]); C.i = 0; C.st = "driving"; misFlash("HE'S PULLING OUT \u00b7 FOLLOW HIM"); } }
+      if (C.st === "driving") { const p = C.path[C.i + 1]; if (!p) { C.st = "arrived"; C.wait = MARK.wait; misFlash("HE'S PARKED AT " + ((C.base && C.base.name) || "HIS PLACE")); return; }
+        const dx = p[0] - v.x, dy = p[1] - v.y, d = Math.hypot(dx, dy), st = MARK.spd * (C.fast || 1) * dt;
+        if (d > 1) v.ang = Math.atan2(dy, dx); if (d <= st) { v.x = p[0]; v.y = p[1]; C.i++; } else { v.x += dx / d * st; v.y += dy / d * st; } mk.x = v.x; mk.y = v.y; }
+      if (C.st === "arrived") { mk.x = v.x; mk.y = v.y; C.wait -= dt;
+        if (C.wait <= 0) { C.st = "gone"; const d = C.base ? doorPoint(C.base) : [v.x, v.y]; mk.x = d[0]; mk.y = d[1]; mk.hx = mk.x; mk.hy = mk.y;
+          try { const cr = warCrew(M.vg || M.gk || "kings", d[0], d[1], 1); cr.members[0] = mk; M.markCrew = cr; } catch (e) {}
+          g.jobBanner = "HE WENT INSIDE"; g.jobNote = "You waited too long. He's on foot by the door -- finish it the hard way."; } } }
+    function markBoom() { const M = g.mis, C = M.markCar, v = C.v, mk = M.mark;
+      carBoom(v.x, v.y); g.heat = Math.max(g.heat || 0, 2); g.wantedT = Math.max(g.wantedT || 0, 45); try { witnessed(v.x, v.y, 1, true); } catch (e) {}
+      v.m = { k: "car_burnt", len: v.m.len, w: v.m.w }; C.burnt = 1; C.wired = 0;
+      if (mk && mk.hp > 0 && (C.st === "in" || C.st === "driving" || C.st === "arrived" || Math.hypot(mk.x - v.x, mk.y - v.y) < 120)) { mk.hp = 0; mk.dead = 1; M.got = 1; }
+      const b = C.base || M.b; if (b) { const nx = clamp(v.x, b.x, b.x + b.w), ny = clamp(v.y, b.y, b.y + b.h); if (Math.hypot(v.x - nx, v.y - ny) < 260) { bombBusiness(b, M.vg || M.gk); M.bombed = 1; M.baseHit = b; } }
+      if (!g.inside && Math.hypot(g.p.x - v.x, g.p.y - v.y) < 220) g.p.hp = Math.max(1, (g.p.hp || 10) - (g.p.maxHp || 10) * 0.3);
+      g.jobBanner = "BOOM"; g.jobNote = (M.got ? "He was in it. " : "He wasn't in it. ") + (M.baseHit ? "It took the front off " + (M.baseHit.name || "their place") + " too. " : "") + (M.got ? "Back to the scrapyard." : "");
+      if (M.got) M.phase = "away"; }
+    // can it be led? (a place to do it, and seats for everybody) -- asked before the op goes on the board
+    function misCheck(D) { const team = pickTeam(D.k), extra = (D.extra || []).map(personByKey).filter(Boolean), T = misTarget(D.k, D.gk, D.tgtPeek ? { ...D.tgtPeek } : null);
+      if (!T) return "There's nowhere in town to do that one right now."; D.T = T;          // the place is picked once, here
+      const n = 1 + team.length + extra.filter((p) => !team.includes(p)).length, VV = misVehicles(n, pickRides(D.k) ? pickRides(D.k).map((r) => r.id) : []);
+      return VV.ok ? null : "Not enough seats for " + n + " -- that's " + VV.seats + ". A van seats 8: have a car thief steal one. Or keep cars in the motor pool."; }
+    function seatLine(D) { const team = pickTeam(D.k), extra = (D.extra || []).map(personByKey).filter(Boolean), n = 1 + team.length + extra.length, VV = misVehicles(n, []);
+      return "SEATS: " + n + " (you" + (team.length + extra.length ? " + " + (team.length + extra.length) : "") + ") -- " + VV.list.map((q) => q.kind === "car" ? "a car (4)" : q.kind === "van" ? "a van (8)" : "a box truck (3)").join(" + ") + (VV.ok ? "" : " -- NOT ENOUGH") +
+        (extra.length ? ".  BRINGING: " + extra.map((p) => p.name.split(" ")[0] + " (" + HIRES[p.role].nm.toLowerCase() + ")").join(", ") : ""); }
+    /* THE CARD TABLE (layer 509, the cards from layer 502): PLAN A JOB lays every job out as a card -- a gang job on that
+       gang's card, a job in town on the city's crest, the house's own work on the blank. */
+    const CARD_OF = { mob: "mob_old", mob_old: "mob_old", mob_young: "mob_young", deuce: "deuce", wolves: "wolves", chi: "chi", irish: "irish", barrio: "barrio", brack: "brack", kings: "kings", gomez: "gomez", sec: "sec" };
+    const HOUSE_JOBS = { papers: 1, sellpaper: 1, cop: 1, jam: 1, stealcar: 1, stealvan: 1, stealtruck: 1 };
+    const cardFor = (k, gk) => "assets/cards/card_" + (gk ? (CARD_OF[gk] || "city") : HOUSE_JOBS[k] ? "blank" : "city") + ".png";
 
     /* ---------- LAYER 443: THE RUSTY NAIL, YOUR PEOPLE ON THE STREET, CASING IN PERSON ----------
        THE RUSTY NAIL (`mercBarB`): the bar nearest the scrapyard becomes the merc bar. SILAS, the
@@ -33019,22 +33406,23 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const OWNER_F = ["James", "Robert", "Linda", "Mary", "Walter", "Dolores", "Frank", "Carl", "Anthony", "Gloria", "Leon", "Teresa", "Earl", "Vincent", "Rosa", "Dwayne"];
     const OWNER_L = ["Kowalski", "Washington", "Moretti", "O'Brien", "Jackson", "Nguyen", "Delgado", "Brooks", "Sullivan", "Petrov", "Greene", "Castillo", "Walsh", "Harris"];
     function carInfo(v) {
-      if (v.idn) return v.idn;
-      const key = String((v.m && v.m.k) || ""), L = (v.m && v.m.len) || 100;
+      const key = String((v.m && v.m.k) || (v.skin && v.skin.k) || v.model || v.cardK || "").replace(/_flip$/, ""), L = (v.m && v.m.len) || (v.skin && v.skin.len) || 100;
+      if (v.idn && (!v.idn.k || v.idn.k === key)) return v.idn;                 // a car keeps its papers until it's a different car (layer 511)
       let h = 2166136261; for (const ch of key + (v.x | 0) + (v.y | 0) + Math.random()) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
       const pick = (a, s) => a[(h >>> s) % a.length];
       const byKey = CAR_BY_KEY.find(([re]) => re.test(key));
-      const model = byKey ? byKey[1] : pick(L > 125 ? CAR_POOLS.big : L < 88 ? CAR_POOLS.small : v.m && v.m.van ? CAR_POOLS.van : CAR_POOLS.sedan, 3);
+      const CM = carModel(key), model = CM.full; void byKey; void L;                 // the make and model (layer 511), not a real-world one
       const colWord = CAR_COLS.find((c) => key.toUpperCase().indexOf(c) >= 0) || (/orange/.test(key) ? "ORANGE" : null);
       const colour = colWord || (key === "car_crew_viejo" ? "PURPLE" : key === "car_crew_leroy" ? "GREEN" : key === "car_crew_ras" ? "ORANGE" : pick(CAR_COLS, 7));
       const L3 = "ABCDEFGHJKLMNPRSTUVWXYZ";
       const plate = L3[h % 23] + L3[(h >>> 5) % 23] + L3[(h >>> 10) % 23] + " " + (100 + ((h >>> 15) % 900));
       const police = /^pd_/.test(key) || v.patrol;
-      return (v.idn = { model, colour, plate: police ? "MUNICIPAL" : plate,
-        owner: police ? "RAVEN HOOK P.D." : v.owner === "player" ? "(A SHELL COMPANY)" : pick(OWNER_F, 11) + " " + pick(OWNER_L, 17),
+      return (v.idn = { k: key, model, colour, year: CM.year, make: CM.make, plate: police ? "MUNICIPAL" : plate,
+        owner: police ? "RAVEN HOOK P.D." : (v.owner === "player" || v.pool) ? "(A SHELL COMPANY)" : pick(OWNER_F, 11) + " " + pick(OWNER_L, 17),
         stolen: !police && ((h >>> 20) % 100) < 4 });
     }
     G.markHitCarFn = (v) => markHitCar(v);   // test hook
+    G.carInfoFn = (v) => carInfo(v);          // the car card reads the plate (layer 511)
     function platesPanel() {
       const L = (g.traffic || []).filter((v) => v !== activeVeh() && !v.bus && Math.hypot(v.x - g.p.x, v.y - g.p.y) < 700)
         .sort((a, b) => Math.hypot(a.x - g.p.x, a.y - g.p.y) - Math.hypot(b.x - g.p.x, b.y - g.p.y)).slice(0, 7);
@@ -34720,8 +35108,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const DEALERS = [["SMILIN' SAL'S MOTORS", "hood", "rf_dealer_show"], ["LAKESHORE AUTO PLAZA", "uptown", "rf_dealer_show"], ["KOWALSKI BROS. USED CARS", "industrial", "rf_z_ind_b", "trailer"]];
     // a roof plate's front is its bottom edge: turned to face the door's side (a north door is flipped by drawBuildingExt itself)
     const roofFor = (base, b) => base + (b.door && b.door.side === 1 ? "_r" : b.door && b.door.side === 3 ? "_l" : "");
-    const CAR_PRICE = (k) => /delorean/.test(k) ? 25000 : /gn_/.test(k) ? 18000 : /turbo/.test(k) ? 15000 : /fastback/.test(k) ? 12000 : /coupe/.test(k) ? 9000 : 6000;
-    const carNice = (k) => /delorean/.test(k) ? "DeLorean DMC-12" : /gn_/.test(k) ? "Buick Grand National" : /turbo/.test(k) ? "Turbo coupe" : /fastback/.test(k) ? "Mustang fastback" : /coupe/.test(k) ? "Two-door coupe" : "Four-door sedan";
+    // layer 511: the price and the name come off the make -- tier, then the model's own feel
+    const CAR_PRICE = (k) => { const M = carModel(k); return Math.round(([0, 3500, 7000, 11000, 18000, 28000][M.tier] || 6000) * (0.85 + (M.s + M.a + M.g - 3) * 0.9) / 100) * 100; };
+    const carNice = (k) => { const M = carModel(k); return (M.mk ? M.mk.nm + " " : "") + M.model + " '" + String(M.year).slice(2); };
     function dealers() {
       if (g.dealersB) return g.dealersB; const out = [], used = new Set();
       for (const [nm, zone, roof, extra] of DEALERS) {
@@ -34828,10 +35217,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.repairFn = () => { const R = g.repairB; if (!R || (g.mode !== "car" && g.mode !== "civ")) return false; const d = doorPoint(R); const v = activeVeh(); if (!v || Math.hypot(v.x - d[0], v.y - d[1]) > 140) return false;
       g.repairSaid = null; G.pickOpen("repair"); return true; };
     function repairPanel() { const v = activeVeh(); if (!v) return null; const bad = Math.min(1, (v.crush || 0) + (v.dmg || 0) + (v.dents ? v.dents.length * 0.05 : 0) + (v.hit ? 0.3 : 0)), cost = Math.round(150 + bad * 1200);
-      return { title: "EDDIE'S AUTO BODY & REPAIR", face: null, text: g.repairSaid || "\u201cWhat'd you do to it?\u201d Eddie walks round it, wiping his hands. Fix: $" + cost + ". Respray: $400. You have $" + (g.p.cash || 0) + ".",
-        opts: [{ id: "rep:fix:" + cost, label: "FIX IT ($" + cost + ")" }, { id: "rep:paint", label: "RESPRAY ($400)" }, { id: "close", label: "NEVER MIND" }] }; }
+      return { title: "EDDIE'S AUTO BODY & REPAIR", face: null, text: g.repairSaid || "\u201cWhat'd you do to it?\u201d Eddie walks round it, wiping his hands. Fix: $" + cost + ". Plates: $250. You have $" + (g.p.cash || 0) + ".",
+        opts: [{ id: "rep:fix:" + cost, label: "FIX IT ($" + cost + ")" }, { id: "rep:plates", label: "SWAP THE PLATES ($250)" }, { id: "close", label: "NEVER MIND" }] }; }
     function repairAct(a, n) { const v = activeVeh(); if (!v) return;
       if (a === "fix") { const cost = +n; if ((g.p.cash || 0) < cost) { g.repairSaid = "\u201cCash first, pal.\u201d"; return; } g.p.cash -= cost; v.crush = 0; v.dmg = 0; v.dents = []; v.hit = null; v.idn = v.idn ? { ...v.idn, flag: null } : v.idn; g.repairSaid = "Good as new. \u201cTry not to do that again.\u201d"; }
+      /* SWAP THE PLATES (layer 511, instead of the respray): new numbers off a wreck in Eddie's back lot. The car's no
+         longer the one on the sheet -- not stolen, not the hit-and-run -- and a point of heat comes off you. */
+      if (a === "plates") { if ((g.p.cash || 0) < 250) { g.repairSaid = "\u201cCash first, pal.\u201d"; return; } g.p.cash -= 250; const I = carInfo(v), L3 = "ABCDEFGHJKLMNPRSTUVWXYZ";
+        const np = L3[(Math.random() * 23) | 0] + L3[(Math.random() * 23) | 0] + L3[(Math.random() * 23) | 0] + " " + (100 + ((Math.random() * 900) | 0));
+        v.idn = { ...I, plate: np, stolen: false, flag: null, owner: "(A SHELL COMPANY)" }; v.hit = null; v.plateSwaps = (v.plateSwaps || 0) + 1; if (g.heat) g.heat = Math.max(0, g.heat - 1);
+        g.repairSaid = "Eddie's kid has the old plates off and new ones on in four minutes. " + np + ". \u201cNever saw it.\u201d"; return; }
       if (a === "paint") { if ((g.p.cash || 0) < 400) { g.repairSaid = "\u201cCash first, pal.\u201d"; return; } g.p.cash -= 400; v.respray = (v.respray || 0) + 1; v.tint = cpick(["#3a5a8a", "#8a2a2a", "#2a6a3a", "#c8c0a8", "#222428"]); if (g.heat) g.heat = Math.max(0, g.heat - 1); g.repairSaid = "A new coat. Nobody's looking for this colour."; } }
     function kestrelRoster() {
       if (g.kestrel) return g.kestrel;
@@ -47522,8 +47917,17 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           {hud.pick.text && (
             <div style={{ fontSize: 11, lineHeight: 1.5, color: "#e8d9b5", marginTop: 8, maxWidth: 600, maxHeight: 150,
               overflowY: "auto", whiteSpace: "pre-line" }}>{hud.pick.text}</div>)}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-            {hud.pick.opts.map((o) => (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12, maxHeight: hud.pick.opts.some((q) => q.card) ? "52vh" : "none", overflowY: "auto" }}>
+            {hud.pick.opts.map((o) => o.card ? (
+              /* THE CARD TABLE (layer 509): a job on its card -- the gang's, the city's crest, or the blank */
+              <div key={o.id} data-pickopt="1" onClick={() => G.pickFn && G.pickFn(o.id)}
+                style={{ width: 196, height: 116, position: "relative", border: "1px solid rgba(217,164,65,0.55)", cursor: "pointer", overflow: "hidden",
+                  background: "linear-gradient(160deg, #2a241a, #15120d)", opacity: o.dim ? 0.55 : 1, boxShadow: "0 3px 10px rgba(0,0,0,0.55)" }}>
+                <img src={o.card} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "5px 7px", background: "linear-gradient(transparent, rgba(8,7,5,0.92) 30%)",
+                  fontSize: 9, lineHeight: 1.3, letterSpacing: "0.06em", color: "#f1e4c2" }}>{o.label}</div>
+              </div>) : (
               <div key={o.id} data-pickopt="1" onClick={() => G.pickFn && G.pickFn(o.id)}
                 style={{ padding: "9px 12px", border: "1px solid rgba(111,168,220,0.6)", cursor: "pointer",
                   fontSize: 11, letterSpacing: "0.10em", color: "#e8d9b5", background: "rgba(12,13,17,0.9)",
@@ -48043,6 +48447,27 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         />
       </div>
 
+      {/* THE CAR CARD (layer 511): in a car, top right under the zoom -- the make's badge, the model and year, the plate. */}
+      {(() => { const g0 = G.current; if (!g0 || hud.title) return null;
+        const onBicycle = !!(g0.stu && g0.stu.bike && g0.stu.bike.on), V = g0.mode === "car" ? g0.car : g0.mode === "moto" ? g0.moto : null;     // cars, motorcycles, bicycles (layer 512)
+        if (!V && !onBicycle) return null;
+        const k = onBicycle ? "bike_player" : g0.mode === "moto" ? (g0.moto.model || (g0.moto.skin && g0.moto.skin.k) || "moto") : (V.skin && V.skin.k); if (!k) return null;
+        if (V && g0.mode === "moto") V.cardK = k;
+        const I = !onBicycle && G.carInfoFn ? G.carInfoFn(V) : null, M = carModel(k), tier = "$".repeat(M.tier || 1);
+        return (<div style={{ position: "absolute", right: 184, top: 46, width: 172, zIndex: 20, fontFamily: mono, color: "#e8d9b5", textAlign: "right", pointerEvents: "none" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6, minHeight: 26 }}>
+            {M.make && <img key={M.make} src={"assets/logos/logo_" + M.make + ".png"} alt=""
+              onError={(e) => { e.currentTarget.style.display = "none"; const n = e.currentTarget.nextSibling; if (n) n.style.display = "block"; }}
+              style={{ height: 28, maxWidth: 110, objectFit: "contain" }} />}
+            <div style={{ display: M.make ? "none" : "block", fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", color: "#e8c46a" }}>{M.mk ? M.mk.nm : ""}</div>
+          </div>
+          <div style={{ fontSize: 10, letterSpacing: "0.10em", marginTop: 2 }}>{M.model + " \u00b7 " + M.year}</div>
+          <div style={{ fontSize: 8, opacity: 0.6, letterSpacing: "0.12em" }}>{tier + (onBicycle ? " \u00b7 BICYCLE" : " \u00b7 TOP " + Math.round(M.s * 100) + " \u00b7 PICKUP " + Math.round(M.a * 100) + " \u00b7 GRIP " + Math.round(M.g * 100))}</div>
+          {I && I.plate && <div style={{ display: "inline-block", marginTop: 4, padding: "1px 6px 2px", background: "#f2efe4", border: "2px solid #1d2a4a", borderRadius: 3, color: "#1d2a4a", textAlign: "center", minWidth: g0.mode === "moto" ? 52 : 74 }}>
+            <div style={{ fontSize: 6, letterSpacing: "0.18em", lineHeight: 1.2 }}>ILLINOIS</div>
+            <div style={{ fontSize: g0.mode === "moto" ? 10 : 12, fontWeight: 700, letterSpacing: "0.12em", lineHeight: 1.1 }}>{I.plate}</div>
+            <div style={{ fontSize: 5, letterSpacing: "0.14em", color: "#7a2a2a", lineHeight: 1.2 }}>{g0.mode === "moto" ? "MOTORCYCLE" : "LAND OF LINCOLN"}</div></div>}
+        </div>); })()}
       {padWheel && (
         /* THE ACTION WHEEL (layer 507): LB. Every button on screen right now, one per row -- stick / D-pad to move, A to
            do it, B or LB to put it away. Plus the pad map, so nobody has to remember it. */
