@@ -11418,6 +11418,14 @@ export default function IronLionLayer004() {
     const settle = () => { if (--left === 0) setReady(true); };
     // never hang on a stalled request: start regardless after a few seconds
     setTimeout(() => setReady(true), 6000);
+    /* LAYER 513: THE LOAD QUEUE. Every image used to be requested at once -- five thousand requests in the same
+       instant. A phone browser queues them; the Xbox browser runs out of connections/memory and FAILS a couple of
+       thousand of them (net::ERR_INSUFFICIENT_RESOURCES), which the counter then reported as "missing" though the
+       files are on the server. Now at most LOADQ.max are in flight, and a load that fails is tried LOADQ.tries more
+       times (a beat apart) before it counts as missing. */
+    const LOADQ = { max: 32, tries: 2, gap: 600 }; let inFlight = 0; const waiting = [];
+    const pump = () => { while (inFlight < LOADQ.max && waiting.length) { const f = waiting.shift(); inFlight++; f(); } };
+    const release = (im) => { if (im.__rel) return; im.__rel = 1; inFlight = Math.max(0, inFlight - 1); pump(); };
     keys.forEach((k) => {
       const im = new Image();
       im.onload = () => {
@@ -11439,9 +11447,12 @@ export default function IronLionLayer004() {
           c2.drawImage(im, -im.width / 2, -im.height / 2);
           imgs.current[k] = cv;
         }
-        settle();
+        settle(); release(im);
       };
       im.onerror = () => {
+        // a network hiccup is not a missing file: try again, a beat later, before counting it (layer 513)
+        im.__net = (im.__net || 0) + 1;
+        if (im.__net <= LOADQ.tries && !/^data:/.test(all[k] || "")) { setTimeout(() => { im.src = assetURL(all[k]); }, LOADQ.gap * im.__net); return; }
         /* ONE RETRY ON THE OTHER LAYOUT before declaring anything missing. A cuts folder can
            reasonably live either at the repo root or under assets/, and picking wrong cost a
            whole round of "the files are there and the game cannot see them". Rather than
@@ -11490,14 +11501,15 @@ export default function IronLionLayer004() {
            other is an afternoon; you could not tell which you had. */
         if (!g0.missingPath) g0.missingPath = all[k];
         if (failed <= 12) console.warn("asset missing:", all[k]);
-        settle();
+        settle(); release(im);
       };
       /* Set crossOrigin BEFORE src or the browser caches the request without CORS and the
          bakes throw later. Harmless on same-origin and on data: URIs. */
       if (ASSET_BASE) im.crossOrigin = "anonymous";
-      im.src = assetURL(all[k]);
       imgs.current[k] = im;
+      waiting.push(() => { im.src = assetURL(all[k]); });          // queued, not fired all at once (layer 513)
     });
+    pump();
   }, []);
 
   /* ---- init state ---- */
