@@ -3639,10 +3639,27 @@ for (const k of WI_STREET) PD_ART[k] = "assets/ui/" + k + ".png";
 const OVERHEAD_ICON = { pistol_auto: "wi_beretta", beretta: "wi_beretta", revolver: "wi_snub", rifle_auto: "wi_ar15", rifle_bolt: "wi_hunting",
   shotgun_long: "wi_pump", shotgun_short: "wi_sawnoff", smg_hk: "wi_mac10", smg_uzi: "wi_uzi", tommy: "wi_uzi", bat: "wi_bat", knife: "wi_bayonet",
   grenade: "wi_grenade", molotov: "wi_molotov", katana: "wi_machete", longsword: "wi_machete", machete: "wi_machete", crowbar: "wi_crowbar",
-  nightstick: "wi_nightstick", taser: "wi_taser", mace: "wi_mace", colt: "wi_colt" };
+  nightstick: "wi_nightstick", taser: "wi_taser", mace: "wi_mace", colt: "wi_colt",
+  // layer 501: the keys that had art but no entry
+  revolver_long: "wi_revolver", revolver_snub: "wi_snub", pistol_compact: "wi_pistol", pistol_large: "wi_colt", pistol_saw: "wi_pistol", bottle: "wi_bottle",
+  knuckles: "wi_knuckles", razor: "wi_razor", zipgun: "wi_zipgun", pencil: "wi_pencil", sniper: "wi_hunting", tireiron: "wi_tireiron", chain: "wi_chain", cryo: "wi_cryo", laser: "wi_laser" };
+for (const k of ["wi_chain", "wi_cryo", "wi_laser", "wi_tommy"]) PD_ART[k] = PD_ART[k] || "assets/weapons/" + k + ".png";
+OVERHEAD_ICON.tommy = "wi_tommy";
+/* layer 503: FX frames, the motorcycle wrecks, the hacker, the club dancers */
+for (const [k, n] of [["fx_boom", 8], ["fx_pop", 6], ["fx_flash", 6], ["fx_spark", 3], ["fx_smoke", 4], ["fx_fire", 4], ["fx_dust", 4], ["fx_blood", 4], ["fx_glass", 4]])
+  for (let i = 1; i <= n; i++) PD_ART[k + "_" + i] = "assets/fx/" + k + "_" + i + ".png";
+PD_ART.moto_wreck_a = "assets/vehicles/moto_wreck_a.png"; PD_ART.moto_wreck_b = "assets/vehicles/moto_wreck_b.png";
+PD_ART.yt_hire_hacker_1 = "assets/hires/yt_hire_hacker_1.png";
+for (let n = 1; n <= 8; n++) PD_ART["yt_dn_" + n] = "assets/club/yt_dn_" + n + ".png";
 const ALLEY_KEYS = ["al_can", "al_can_open", "al_dumpster", "al_dumpster_open", "al_bag_a", "al_bag_b", "al_bag_c", "al_garbage_truck", "al_pigeon_a",
   "al_pigeon_b", "al_pigeon_c", "al_pigeon_d", "al_pigeon_fly_a", "al_pigeon_fly_b", "al_gate", "al_fire_escape", "al_pallets"];
 for (const k of ALLEY_KEYS) PD_ART[k] = "assets/alley/" + k + ".png";
+/* layer 504: alley clutter, the people back there, graffiti, and the doors / fences / fire escapes (registered for the
+   back-door + climbing build) */
+for (const k of ["puddle_a", "puddle_b", "puddle_c", "vent", "mattress", "crates", "boxes", "cans", "bottles", "cart", "barrel", "papers"]) PD_ART["al2_" + k] = "assets/alley/al2_" + k + ".png";
+for (const k of ["drunk", "homeless", "dealer", "lookout", "dice", "girl", "junkie", "rat", "cat"]) PD_ART["alp_" + k] = "assets/alley/alp_" + k + ".png";
+for (let n = 1; n <= 14; n++) PD_ART["gfx_" + n] = "assets/alley/gfx_" + n + ".png";
+for (const k of ["backdoor", "backdoor_open", "steeldoor", "dock", "fence", "fe_landing", "fe_ladder", "fence_razor", "roof_ladder"]) PD_ART["dr_" + k] = "assets/alley/dr_" + k + ".png";
 const SCHOOL_KIT2 = ["sch_hoop_side_w", "sch_bus2", "sch_hoop_up", "sch_court_v", "sch_chalkboard", "sch_teacherdesk", "sch_teacherdesk_b", "sch_studentdesk", "sch_flag", "sch_clock", "sch_bookstack_a", "sch_bookstack_b",
   "sch_bookcase", "sch_bookcase_b", "sch_bin", "sch_bin_b", "sch_worldmap", "sch_cafe_table", "sch_servingline", "sch_tray", "sch_tray_full", "sch_milk", "sch_cup",
   "sch_libshelf", "sch_readtable", "sch_circdesk", "sch_catalogue", "sch_catalogue_b", "sch_bookcart", "sch_couch", "sch_principal_desk", "sch_officedesk",
@@ -3673,7 +3690,8 @@ for (let n = 1; n <= 8; n++) PD_ART["yt_cheer_sa_" + n] = "assets/school/yt_chee
 PD_ART.bank_interior = "assets/bank/bank_interior.png";
 /* LAYER 493: the landmark art, registered for the builds to come (UNION TERMINAL on the El, the container port, the
    airport). Not drawn yet. */
-PD_ART.bank_major_int = "assets/bank/bank_major_int.png"; PD_ART.rf_air_tower = "assets/roofs/rf_air_tower.png"; PD_ART.rf_bombed_roof = "assets/bombed/rf_bombed_roof.png";   // layer 496
+PD_ART.bank_major_int = "assets/bank/bank_major_int.png";
+for (const k of ["deuce", "wolves", "chi", "irish", "mob_young", "barrio", "brack", "kings", "gomez", "mob_old", "sec", "city", "blank"]) PD_ART["card_" + k] = "assets/cards/card_" + k + ".png";   // layer 502: the planning-table cards (by gang key) PD_ART.rf_air_tower = "assets/roofs/rf_air_tower.png"; PD_ART.rf_bombed_roof = "assets/bombed/rf_bombed_roof.png";   // layer 496
 for (const k of ["rf_union_terminal", "rf_po_gate", "rf_air_terminal", "rf_air_hangar"]) PD_ART[k] = "assets/roofs/" + k + ".png";
 for (const k of ["gc_concourse", "gc_platform"]) PD_ART[k] = "assets/station/" + k + ".png";
 for (const k of ["px_gantry", "px_ship"]) PD_ART[k] = "assets/port/" + k + ".png";
@@ -11416,6 +11434,47 @@ export default function IronLionLayer004() {
       air: { h: 0, t: 0, dur: 0, sx: 0, sy: 0 },
     };
   }
+
+  /* ---- gamepad (layer 501) ----------------------------------------------------------------------------------
+     navigator.getGamepads(), polled every frame. LEFT STICK -> the analog move (input.x/y, as the touch stick). A = E
+     (act/enter/talk), B = F (strike), X = SPACE, Y = C (cover), LB / RB = zoom out / in, RT = W (gas), LT = S
+     (brake/reverse), START = N (night), D-PAD = arrows. Buttons fire on the press, held keys stay down while held. */
+  useEffect(() => {
+    /* XBOX (Edge): the browser drives a mouse cursor with the controller unless told not to -- this hands the pad to
+       the page. MENUS: while a panel is open the pad drives it -- stick / D-pad up-down (or left-right) moves the
+       highlight, A picks, B closes -- and A no longer falls through to "act" in the world. (layer 505) */
+    try { if ("gamepadInputEmulation" in navigator) navigator.gamepadInputEmulation = "gamepad"; } catch (e) {}
+    let raf2 = 0; const was = {}; let sel = 0, navT = 0;
+    const menuOpts = () => [...document.querySelectorAll("[data-pickopt]")];
+    const mark = (L) => L.forEach((el, i) => { el.style.outline = i === sel ? "2px solid #ffd65a" : "none"; el.style.background = i === sel ? "rgba(60,50,20,0.95)" : "rgba(12,13,17,0.9)"; });
+    const MAP = { 0: "e", 1: "f", 2: " ", 3: "c", 7: "w", 6: "s", 9: "n", 12: "arrowup", 13: "arrowdown", 14: "arrowleft", 15: "arrowright" };
+    const poll = () => {
+      raf2 = requestAnimationFrame(poll);
+      const pads = navigator.getGamepads ? navigator.getGamepads() : []; const gp = pads && [...pads].find((q) => q && q.connected); if (!gp) return;
+      const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, dz = 0.18;
+      if (Math.hypot(ax, ay) > dz) { input.current.x = ax; input.current.y = ay; input.current.pad = 1; } else if (input.current.pad) { input.current.x = 0; input.current.y = 0; input.current.pad = 0; }
+      const L = menuOpts();
+      if (L.length) {                                          // a panel is open: the pad is the menu
+        if (sel >= L.length) sel = L.length - 1;
+        const dy = (gp.buttons[13] && gp.buttons[13].pressed) || (gp.buttons[15] && gp.buttons[15].pressed) || ay > 0.6 || ax > 0.6 ? 1 : (gp.buttons[12] && gp.buttons[12].pressed) || (gp.buttons[14] && gp.buttons[14].pressed) || ay < -0.6 || ax < -0.6 ? -1 : 0;
+        navT -= 1 / 60; if (dy && navT <= 0) { sel = (sel + dy + L.length) % L.length; navT = 0.22; } if (!dy) navT = 0;
+        mark(L);
+        const a = gp.buttons[0] && gp.buttons[0].pressed, bb = gp.buttons[1] && gp.buttons[1].pressed;
+        if (a && !was[0]) { L[sel] && L[sel].click(); sel = 0; }
+        if (bb && !was[1]) { G.current.pickOpen = null; G.pickFn && G.pickFn("close"); sel = 0; }
+        gp.buttons.forEach((b, i) => { was[i] = b.pressed || b.value > 0.5; });
+        input.current.x = 0; input.current.y = 0; return;
+      }
+      sel = 0;
+      gp.buttons.forEach((b, i) => { const on = b.pressed || b.value > 0.5; const k = MAP[i];
+        if (on && !was[i]) { if (k) { input.current.keys[k] = true; if (k === "e") doAction(); if (k === "f" && G.strikeFn) G.strikeFn(); if (k === "c" && G.coverFn) G.coverFn(); if (k === "n") G.current.nightTarget = G.current.nightTarget > 0.5 ? 0 : 1; }
+          if (i === 4) G.zoomStep && G.zoomStep(-0.15); if (i === 5) G.zoomStep && G.zoomStep(0.15); }
+        if (!on && was[i] && k) input.current.keys[k] = false;
+        was[i] = on; });
+    };
+    raf2 = requestAnimationFrame(poll);
+    return () => cancelAnimationFrame(raf2);
+  }, []);
 
   /* ---- keyboard ---- */
   useEffect(() => {
@@ -20427,7 +20486,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (W.kind === "bomb" && W.car) {
         W.car.fuse -= dt;
         if (W.car.fuse <= 0) {
-          blastAt(W.car.x, W.car.y, "grenade");
+          blastAt(W.car.x, W.car.y, "grenade"); carBoom(W.car.x, W.car.y);
           blastAt(W.car.x, W.car.y, "molotov");     // and it burns after
           W.car.dead = 2; W.car.burn = 6;
           g.warAct = null;
@@ -27921,6 +27980,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     };
     G.coverOK = () => g.mode === "foot" && !inVehicle() && !g.title && (!!g.p.cover || !!coverNear(g.p.x, g.p.y));
     function stepCover(dt) {
+      if (g.mode === "foot" && g.p.wpn && !g.p.holstered) (g.wIcons = g.wIcons || []).push(g.p);       // his own icon over his head (layer 501)
       if (g.p.peekT > 0) g.p.peekT -= dt;
       if (g.sparks) { for (const s of g.sparks) s.t -= dt; g.sparks = g.sparks.filter((s) => s.t > 0); }
       if (!g.p.cover) return;
@@ -28157,6 +28217,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const take = Math.round(e.vault); if (take <= 0) { g.pickupFlash = { nm: "lift:IT'S CLEANED OUT", t: 1.2 }; return true; }
       e.vault = -1; g.p.cash = (g.p.cash || 0) + take; if (g.pescaped) g.rep = (g.rep || 0) + 40;
       g.jobBanner = "THE VAULT \u00b7 " + (b.name || "THE BANK"); g.jobNote = "$" + take.toLocaleString() + " in bags. Every cop in the city is coming."; g.heat = 3; g.wantedT = Math.max(g.wantedT || 0, 150); return true; };
+    G.enterKindT = (re) => { const rx = new RegExp(re); for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); if (!c) continue;   // test hook
+        for (const b of c.blds || []) { if (!b.door || !rx.test(b.kind || "")) continue; const f = b.entry || 0, pl = buildingPlans(b)[f]; g.inside = b; g.floor = f; g.insideT = 1; g.mode = "foot";
+          const r = pl.rooms.slice().sort((a, c2) => (c2.x1 - c2.x0) * (c2.y1 - c2.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))[0]; g.p.x = (r.x0 + r.x1) / 2; g.p.y = (r.y0 + r.y1) / 2 + 40; return [b.kind, pl.rooms.map((q) => q.k).join(" ")]; } } return null; };
     G.enterBankT = (major) => { for (let r = 0; r < 20; r++) for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { if (Math.max(Math.abs(i - 10), Math.abs(j - 10)) !== r) continue; const c = getCell(i, j); if (!c) continue;   // test hook
         for (const b of c.blds || []) { if (!isBank(b) || !b.door) continue; bankArt(b); if (!!major !== (b.artInterior === "bank_major_int")) continue;
           g.inside = b; g.floor = b.entry || 0; g.insideT = 1; g.mode = "foot"; const R = artRect(b); g.p.x = (R.x0 + R.x1) / 2; g.p.y = R.y0 + 0.8 * (R.y1 - R.y0); return [b.name, b.artInterior]; } } return null; };
@@ -28206,7 +28269,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
       g.inside = null; g.floor = 0; g.insideT = 0; g.mode = "car";
       g.car.x = d[0] + out[0] * 90; g.car.y = d[1] + out[1] * 90; g.car.ang = Math.atan2(out[1], out[0]); g.car.vx = 0; g.car.vy = 0;
-      g.car.skin = { k: c.k, len: 104, w: 46 }; g.car.crush = null; g.car.dents = []; g.car.dmg = 0; g.car.fuel = 100; g.car.tough = 1; g.car.pool = c;
+      g.car.skin = { k: c.k, len: 104, w: 46 }; g.car.crush = null; g.car.dents = []; g.car.dmg = 0; g.car.fuel = 100; g.car.pool = c;
+      g.car.tough = 1.6; g.car.armored = 1; g.car.runflat = 1;                     // the crew's cars: plated and on run-flats (layer 505)
       g.p.x = g.car.x; g.p.y = g.car.y; g.cam.x = g.p.x; g.cam.y = g.p.y;
       g.jobBanner = "OUT OF THE YARD"; g.jobNote = c.nm + ". Bring it back to the door and E puts it away."; };
     G.motorParkFn = () => { const H = hideoutB(); if (!g.pescaped || !H || g.mode !== "car" || !g.car) return false;
@@ -28630,6 +28694,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        loud enough that being seen is beside the point -- a gunshot carries. */
     function witnessed(x, y, level, always) {
       if (g.detMode) return;            // he IS the police
+      if (g.jamUntil > (g.pday || 0) * 1440 + (g.clock || 0) && Math.random() < 0.6) return;     // the hacker: cameras dark, calls slow (layer 501)
       if (g.inside && !always) return;
       if (!always && !copsWatching(x, y)) return;
       /* Who they saw. The Lion in the mask and Darius in plain clothes are two different men
@@ -29576,6 +29641,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       night:   { staff: [["CASHIER", "counter"]], cust: [4, 10], act: "browse", till: [300, 1200], safe: [1500, 6000], night: 1 },
       fastfood: { staff: [["CASHIER", "counter"], ["COOK", "kitchen"]], cust: [4, 10], act: "eat", till: [200, 800], safe: [600, 2000], meals: 1 },
       cafe:    { staff: [["BARISTA", "counter"], ["WAITRESS", "floor"]], cust: [3, 8], act: "eat", till: [150, 600], safe: [500, 1800], meals: 1 },
+      club:    { staff: [["BARTENDER", "counter"]], cust: [6, 14], act: "drink", till: [800, 3000], safe: [4000, 12000], night: 1 },
       guns:    { staff: [["CLERK", "counter"]], cust: [1, 3], act: "browse", till: [600, 2000], safe: [3000, 8000], armed: 0.9 },
     };
     // what's for sale, by trade: [name, price, kind, heal]
@@ -29600,7 +29666,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       drink: ["Another one.", "Bears'll blow it again.", "To the old neighborhood.", "Who's buying?", "Put it on my tab."], wait: ["How long's this gonna take?", "I been here an hour."] };
     const bizConf = (b) => BIZ_PLAY[b.biz] || BIZ_PLAY[b.arch] || (b.eatery ? BIZ_PLAY.diner : BIZ_PLAY.grocery);
     const bizKey = (b) => b.key != null ? "k" + b.key : (b.x | 0) + "," + (b.y | 0);
-    function bizMainRoom(pl) { for (const k of ["retail", "gaming", "ffdine", "cafefloor", "barroom", "dining", "reception"]) { const r = pl.rooms.find((q) => q.k === k); if (r) return r; } return null; }
+    function bizMainRoom(pl) { for (const k of ["retail", "gaming", "ffdine", "cafefloor", "barroom", "dining", "floor", "dancefloor", "club", "reception"]) { const r = pl.rooms.find((q) => q.k === k); if (r) return r; }
+      let best = null; for (const r of pl.rooms) { if (/wc|stair|corridor|vestibule|closet|office|stock|kitchen/.test(r.k)) continue; if (!best || (r.x1 - r.x0) * (r.y1 - r.y0) > (best.x1 - best.x0) * (best.y1 - best.y0)) best = r; } return best; }   // the biggest room (layer 504)
     function bizCounterRoom(pl) { return pl.rooms.find((q) => /^(ffcounter|cafeline|barline|bar)$/.test(q.k)) || null; }
     function bizBackRoom(pl) { return pl.rooms.find((q) => /^(stock|ffstore|barcellar|backroom|cafekitchen|ffkitchen|kitchen|conf|bullpen|barback)$/.test(q.k)) || null; }
     function econDay() { return g.prisonMode ? (g.pday || 0) : g.studentMode && g.stu ? g.stu.day : (g.econDayN || 0); }
@@ -29657,7 +29724,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         folk.push({ x, y, hx: x, hy: y, vx: 0, vy: 0, anim: Math.random() * 6, hp: 2, state: "hang", jit: 0.97 + Math.random() * 0.08, act: C.act, seated: !!seat,
           glass: C.act === "drink" || (C.act === "eat" && Math.random() < 0.5), plate: C.act === "eat" && !!seat, wt: 2 + Math.random() * 5, sipT: Math.random() * 6 });
       }
-      return { b, floor, room: r, folk, rob: null, robT: 40 + Math.random() * 60, biz: 1, pts, cr };
+      /* THE CLUB (layer 504): a nightclub or revue gets its dancers -- 4 of the showgirls on the floor in the middle of the
+         room, dancing (a sway, a turn, a bob) -- a cocktail waitress working the tables and a bouncer by the door. */
+      let dancers = null;
+      if (/club|revue|night|cabaret|disco/.test((b.biz || "") + " " + (b.kind || "")) || b.arch === "night") {
+        const cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2, d0 = doorPoint(b);
+        dancers = [0, 1, 2, 3].map((n) => ({ x: cx + (n - 1.5) * 46, y: cy + (n % 2 ? 18 : -18), hx: cx + (n - 1.5) * 46, hy: cy + (n % 2 ? 18 : -18), vx: 0, vy: 0, anim: n, jit: 1, tall: 1.15, yt: "yt_dn_" + (1 + ((n * 5 + (b.x | 0)) % 6)), ph: n * 1.7, dance: 1 }));
+        dancers.push({ x: r.x0 + 60, y: r.y0 + 60, hx: r.x0 + 60, hy: r.y0 + 60, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.15, yt: "yt_dn_7", wt: 0, waitress: 1 });
+        dancers.push({ x: clamp(d0[0], r.x0 + 30, r.x1 - 30), y: clamp(d0[1], r.y0 + 30, r.y1 - 30), vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.35, yt: "yt_dn_8", bouncer: 1 });
+      }
+      return { b, floor, room: r, folk, rob: null, robT: 40 + Math.random() * 60, biz: 1, pts, cr, dancers };
     }
     function stepBizFolk(S, dt) {
       for (const f of S.folk) {
@@ -29678,12 +29754,20 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const dx = f.hx - f.x, dy = f.hy - f.y, d = Math.hypot(dx, dy), sp = f.staff ? 48 : 30;
         if (d > 5) { f.vx = (dx / d) * sp; f.vy = (dy / d) * sp; f.x += f.vx * dt; f.y += f.vy * dt; } else { f.vx = 0; f.vy = 0; }
       }
+      for (const d of S.dancers || []) {      // the club's people (layer 504)
+        if (d.dance) { d.ph += dt; d.x = d.hx + Math.sin(d.ph * 2.2) * 10; d.y = d.hy + Math.cos(d.ph * 1.6) * 5; d.bang = d.ph * 1.3; d.vx = Math.cos(d.ph * 2.2) * 30; d.vy = 0; d.anim += dt * 6; }
+        else if (d.waitress) { d.wt -= dt; if (d.wt <= 0) { d.wt = 3 + Math.random() * 4; d.hx = S.room.x0 + 40 + Math.random() * (S.room.x1 - S.room.x0 - 80); d.hy = S.room.y0 + 40 + Math.random() * (S.room.y1 - S.room.y0 - 80); }
+          const dx = d.hx - d.x, dy = d.hy - d.y, dd = Math.hypot(dx, dy); if (dd > 4) { d.vx = dx / dd * 40; d.vy = dy / dd * 40; d.x += d.vx * dt; d.y += d.vy * dt; d.anim += dt * 4; } else { d.vx = d.vy = 0; } }
+        else { d.vx = d.vy = 0; d.bang = Math.atan2(g.p.y - d.y, g.p.x - d.x); } }
       // the till takes the day's custom as it goes
       const e = econOf(S.b); e.till += dt * 0.15 * S.folk.filter((q) => !q.staff).length;
     }
     // over the folk: labels on staff, a glass or a plate, a lifted drink, a line
     function drawBizExtras() {
       const S = g.shop; if (!S || !S.biz) return;
+      for (const d of S.dancers || []) { const im = imgs.current[d.yt]; if (im && im.width && !d.sized) { d.sized = 1; d.tall *= 26 / (24.6 * im.width / im.height); }
+        drawShadow(d.x, d.y + 2, 9, 4, 0.3); drawYouth(d);
+        if (d.bouncer || d.waitress) { ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText(d.bouncer ? "BOUNCER" : "WAITRESS", d.x, d.y - 28); ctx.textAlign = "start"; } }
       for (const f of S.folk) {
         if (f.staff) { ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText(f.staff, f.x, f.y - 28); ctx.textAlign = "start"; }
         if (f.plate) { ctx.fillStyle = "#e9e4d6"; ctx.beginPath(); ctx.ellipse(f.x + (f.x < S.room.x0 + (S.room.x1 - S.room.x0) / 2 ? 14 : -14), f.y, 7, 5, 0, 0, 6.3); ctx.fill(); }
@@ -29857,6 +29941,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function updateShop(dt) {
       // rebuild whenever the player changes interior or floor
+      if (g.inside && !g.inside.biz && /nightclub|^club$|disco/.test(g.inside.kind || "") && !g.inside.landmark) g.inside.biz = "club";     // the clubs open their doors (layer 504)
       if (!g.inside || !(g.inside.arch || g.inside.biz)) { g.shop = null; return; }
       if (!g.shop || g.shop.b !== g.inside || g.shop.floor !== g.floor) {
         g.shop = makeShopFolk(g.inside, g.floor);
@@ -31472,8 +31557,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         out.push({ key: "c:" + C.id, crew: C.id, name: C.name, role, yt: "yt_crew_" + C.id, tall: C.tall, face: "assets/crew/" + (C.faceCiv || C.face) + ".png", rec, home: 1,
           following: (g.pfol || []).some((f) => f.crew === C.id) }); }
       for (const m of B.men || []) { if (!m.id) m.id = (B.nextId = (B.nextId || 0) + 1); if (!m.job) m.job = "wait";
-        out.push({ key: "m:" + m.id, m, name: hireName(m), role: m.role, yt: m.yt || "yt_hire_" + m.role + "_" + (m.v || 1), tall: m.tall || 1.25,
-          face: m.face || "assets/hires/pt_hire_" + m.role + "_" + (m.v || 1) + ".png", rec: m, home: m.id % 2 }); }
+        const vv = m.role === "hacker" ? 1 : (m.v || 1);                                  // the hacker has one plate (layer 503)
+        out.push({ key: "m:" + m.id, m, name: hireName(m), role: m.role, yt: m.yt || "yt_hire_" + m.role + "_" + vv, tall: m.tall || 1.25,
+          face: m.face || "assets/hires/pt_hire_" + m.role + "_" + vv + ".png", rec: m, home: m.id % 2 }); }
       return out;
     }
     const personByKey = (k) => basePeople().find((q) => q.key === k);
@@ -31892,7 +31978,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       driver:      { nm: "DRIVER", cost: 600, crew: "viejo", rep: 0 },
       shooter:     { nm: "SHOOTER", cost: 800, crew: "leroy", rep: 0 },
       lookout:     { nm: "LOOKOUT", cost: 250, rep: 0 },
-      thief:       { nm: "CAR THIEF", cost: 500, rep: 0 },                       // layer 491: steals the rides jobs run on
+      thief:       { nm: "CAR THIEF", cost: 500, rep: 0 },
+      hacker:      { nm: "HACKER", cost: 1500, rep: 100 },                       // layer 501: cameras dark, calls slow                       // layer 491: steals the rides jobs run on
       mechanic:    { nm: "MECHANIC", cost: 700, rep: 50 },
       enforcer:    { nm: "ENFORCER", cost: 900, rep: 100 },
       fence:       { nm: "FENCE", cost: 1000, rep: 100 },
@@ -31921,6 +32008,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       carbomb:   { nm: "CAR BOMB ON A GANG", need: { bomber: 1, driver: 1 }, mins: 180, pay: [0, 0], risk: 0.28, heat: 2, gang: 1, dmg: 6000, stand: -40, rep: 250, gain: 40 },
       hit:       { nm: "HIT ON A GANG MAN", need: { shooter: 1, lookout: 1 }, mins: 150, pay: [0, 0], risk: 0.25, heat: 1, gang: 1, dmg: 2500, stand: -25, rep: 100, gain: 25 },
       favor:     { nm: "DO A JOB FOR THEM", need: { shooter: 1, driver: 1 }, mins: 180, pay: [500, 1500], risk: 0.15, heat: 1, gang: 1, stand: 25, rep: 0, gain: 10 },
+      jam:       { nm: "KILL THE CAMERAS, SLOW THE CALLS (6 HOURS)", need: { hacker: 1 }, mins: 30, pay: [0, 0], risk: 0.06, heat: 0, rep: 100, gain: 2, jam: 1 },
       stealcar:  { nm: "STEAL A CAR (4 SEATS)", need: { thief: 1 }, mins: 60, pay: [0, 0], risk: 0.10, heat: 0, rep: 0, gain: 2, ride: "car" },
       stealvan:  { nm: "STEAL A VAN (8 SEATS, MORE ROOM)", need: { thief: 1 }, mins: 90, pay: [0, 0], risk: 0.14, heat: 0, rep: 0, gain: 3, ride: "van" },
       stealtruck:{ nm: "STEAL A BOX TRUCK (3 SEATS, MOST ROOM)", need: { thief: 1 }, mins: 120, pay: [0, 0], risk: 0.18, heat: 1, rep: 50, gain: 4, ride: "truck" },
@@ -32223,6 +32311,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const used = (B.rides || []).filter((r) => (o.rides || []).includes(r.id));
         if (bad) B.rides = (B.rides || []).filter((r) => !used.includes(r) || Math.random() < 0.5);            // half the rides don't come back
         else if (o.k === "carbomb") B.rides = (B.rides || []).filter((r) => !used.includes(r));                // the car was the bomb
+        if (!bad && O.jam) g.jamUntil = nowMin() + 360;                                                     // the hacker's six hours
         if (!bad && O.ride) { (B.rides = B.rides || []).push({ id: (B.rideId = (B.rideId || 0) + 1), type: O.ride }); }
         if (bad) {   // it went wrong: somebody is lost (a hire, never the crew), and heat
           const role = Object.keys(O.need).find((r) => (B.hires[r] || 0) > 0);
@@ -32897,6 +32986,17 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else { out.push({ t: "al_can", x: x - 14, y, w: 18, h: 22, solid: 1 }); out.push({ t: rnd() < 0.5 ? "al_can_open" : "al_can", x: x + 10, y: y + 2, w: 22, h: 24, solid: 1 }); }
         out.push({ t: cpick(["al_bag_a", "al_bag_b", "al_bag_c"]), x: x + 36, y: y + 14, w: 16, h: 16 });
         if (rnd() < 0.35) out.push({ t: "al_pallets", x: x - 44, y: y + 6, w: 30, h: 22 });
+        // layer 504: the alley's clutter, a tag on the wall, and somebody living back here
+        const CL = ["al2_puddle_a", "al2_puddle_b", "al2_puddle_c", "al2_vent", "al2_mattress", "al2_crates", "al2_boxes", "al2_cans", "al2_bottles", "al2_cart", "al2_barrel", "al2_papers"];
+        const CLS = { al2_puddle_a: [70, 34], al2_puddle_b: [52, 26], al2_puddle_c: [40, 20], al2_vent: [40, 40], al2_mattress: [62, 40], al2_crates: [56, 36], al2_boxes: [52, 40],
+          al2_cans: [50, 38], al2_bottles: [40, 30], al2_cart: [46, 40], al2_barrel: [26, 34], al2_papers: [44, 32] };
+        const SOL = { al2_crates: 1, al2_cart: 1, al2_barrel: 1, al2_mattress: 0 };
+        for (let m = 0, nn = 2 + Math.floor(rnd() * 3); m < nn; m++) { const t = CL[Math.floor(rnd() * CL.length)], ax = x + (rnd() - 0.5) * 160, ay = y + (rnd() - 0.5) * 110;
+          if (!free(ax, ay, 22)) continue; out.push({ t, x: ax, y: ay, w: CLS[t][0], h: CLS[t][1], solid: SOL[t] ? 1 : 0, flat: /puddle|papers|vent/.test(t) ? 1 : 0 }); }
+        if (rnd() < 0.7) out.push({ t: "gfx_" + (1 + Math.floor(rnd() * 14)), x: x + (rnd() - 0.5) * 120, y: y - 30 - rnd() * 20, w: 70, h: 40, flat: 1, alpha: 0.85 });
+        if (rnd() < 0.55) { const P = ["alp_drunk", "alp_homeless", "alp_dealer", "alp_lookout", "alp_dice", "alp_girl", "alp_junkie"][Math.floor(rnd() * 7)], ax = x + (rnd() - 0.5) * 140, ay = y + 40 + rnd() * 40;
+          if (free(ax, ay, 20)) out.push({ t: P, x: ax, y: ay, w: P === "alp_dice" ? 70 : 34, h: P === "alp_dice" ? 70 : 46, person: 1 }); }
+        if (rnd() < 0.4) out.push({ t: rnd() < 0.5 ? "alp_rat" : "alp_cat", x: x + (rnd() - 0.5) * 120, y: y + (rnd() - 0.5) * 80, w: 26, h: 18, critter: 1, hx: 0, hy: 0 });
         if (rnd() < 0.6) for (let p = 0; p < 3; p++) out.push({ t: "al_pigeon_" + "abcd"[p % 4], x: x + (rnd() - 0.5) * 90, y: y + 34 + rnd() * 30, w: 12, h: 10, bird: 1, hx: 0, hy: 0 });
       }
       for (const q of out) if (q.bird) { q.hx = q.x; q.hy = q.y; }
@@ -32921,7 +33021,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (im && im.width) ctx.drawImage(im, q.x - q.w / 2, q.y - q.h / 2 - (q.fly ? 10 : 0), q.fly ? q.w * 1.4 : q.w, q.fly ? q.h * 1.4 : q.h);
           continue; }
         const im = imgs.current[q.t]; if (!im || !im.width) continue;
-        const sc = Math.min(q.w / im.width, q.h / im.height); ctx.drawImage(im, q.x - im.width * sc / 2, q.y - im.height * sc / 2, im.width * sc, im.height * sc);
+        if (q.critter) { if (!q.hx) { q.hx = q.x; q.hy = q.y; } q.x = q.hx + Math.sin(g.t * 0.9 + q.hy) * 30; q.y = q.hy + Math.cos(g.t * 0.7 + q.hx) * 10; }
+        if (q.alpha) ctx.globalAlpha = q.alpha;
+        const sc = Math.min(q.w / im.width, q.h / im.height); ctx.drawImage(im, q.x - im.width * sc / 2, q.y - im.height * sc / 2, im.width * sc, im.height * sc); if (q.alpha) ctx.globalAlpha = 1;
       }
       stepGarbageTruck();
     }
@@ -37372,6 +37474,20 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         t: 0, life: t, kind, byPlayer: !!byPlayer, spin: Math.random() * 6.28,
       });
     }
+    /* CAR BOOMS (layer 501): a car going up gets its own fireball -- 0.4 s flash to 170 wide, a rolling orange ball,
+       black smoke climbing for 3 s -- and a hard shake. */
+    function carBoom(x, y) { (g.booms = g.booms || []).push({ x, y, t: 0 }); g.shake = Math.max(g.shake || 0, 16); sfxImpact && sfxImpact(1); }
+    function drawBooms() { const L = g.booms; if (!L || !L.length) return;
+      for (let n = L.length - 1; n >= 0; n--) { const b = L[n]; b.t += 1 / 60; if (b.t > 3) { L.splice(n, 1); continue; }
+        const k = Math.min(1, b.t / 0.4);
+        for (let s2 = 0; s2 < 7; s2++) { const tt = b.t - s2 * 0.12; if (tt <= 0) continue; const r = 30 + tt * 40, a = Math.max(0, 0.55 - tt * 0.17);
+          ctx.fillStyle = "rgba(25,22,20," + a + ")"; ctx.beginPath(); ctx.arc(b.x + Math.sin(s2 * 1.7) * 30, b.y - tt * 60, r, 0, 6.3); ctx.fill(); }
+        const fr = imgs.current["fx_boom_" + Math.min(8, 1 + Math.floor(b.t / 0.18))];
+        if (b.t < 1.44 && fr && fr.width) { const S = 120 + Math.min(1, b.t / 0.5) * 150; ctx.drawImage(fr, b.x - S / 2, b.y - S / 2, S, S * fr.height / fr.width); continue; }   // your explosion frames (layer 503)
+        if (b.t < 1.1) { const R = 40 + k * 130, gr = ctx.createRadialGradient(b.x, b.y, 2, b.x, b.y, R), a = Math.max(0, 1 - b.t / 1.1);
+          gr.addColorStop(0, "rgba(255,250,220," + a + ")"); gr.addColorStop(0.35, "rgba(255,170,40," + a * 0.9 + ")"); gr.addColorStop(0.75, "rgba(200,60,10," + a * 0.6 + ")"); gr.addColorStop(1, "rgba(80,20,0,0)");
+          ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(b.x, b.y, R, 0, 6.3); ctx.fill(); } }
+    }
     function blastAt(x, y, kind) {
       const R = kind === "grenade" ? 92 : 74;
       const dmg = kind === "grenade" ? 9 : 5;
@@ -38095,7 +38211,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           v.dmg = Math.min(1.4, d + dt * 0.06);
           if (v.onFire > 4.5 + Math.random()) {
             // it goes up, and the blast is the same one a grenade makes
-            blastAt(v.x, v.y, "grenade");
+            blastAt(v.x, v.y, "grenade"); carBoom(v.x, v.y);
             g.traffic.splice(n, 1);
             continue;
           }
@@ -39570,7 +39686,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (kind === 9) p.__draw();
       }
       if (g.inside && g.insideT > 0.5) { drawHoopsOver(); drawBizExtras(); }
-      drawCover(); drawBombed(view);    // the backboards and rims over the heads of whoever's under them (layer 481)
+      drawCover(); drawBombed(view); drawBooms();    // the backboards and rims over the heads of whoever's under them (layer 481)
       if (!g.inside) {
         // Roofs belong ABOVE the sorted building list, not before it -- drawn early, every
         // building painted straight over the roof and the man standing on it.
@@ -47052,7 +47168,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               overflowY: "auto", whiteSpace: "pre-line" }}>{hud.pick.text}</div>)}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
             {hud.pick.opts.map((o) => (
-              <div key={o.id} onClick={() => G.pickFn && G.pickFn(o.id)}
+              <div key={o.id} data-pickopt="1" onClick={() => G.pickFn && G.pickFn(o.id)}
                 style={{ padding: "9px 12px", border: "1px solid rgba(111,168,220,0.6)", cursor: "pointer",
                   fontSize: 11, letterSpacing: "0.10em", color: "#e8d9b5", background: "rgba(12,13,17,0.9)",
                   display: "flex", alignItems: "center", gap: 8 }}>
