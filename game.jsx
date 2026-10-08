@@ -3685,6 +3685,12 @@ const CREW = [
   { id: "ras", name: "Ras Leroy", no: "0876", car: "car_crew_ras", tall: 1.28,
     face: "pt_crew_ras", faceCiv: "pt_crew_ras", line: "Easy, bredren. Time pass whether you fight it or not." },
 ];
+/* "WHAT HAPPENS WHEN WE GET OUT?" -- each of them has his own answer (layer 519). */
+const CREW_OUT = {
+  viejo: "There's a scrapyard on the Yards side, belongs to a cousin of mine. Fence, a garage, a hole under the floor. We go there, we lay low, we get cars, we get work. Slow at first, mijo. Then not so slow.",
+  leroy: "First thing? A steak, rare. Second thing, I find out who put my name in that file. Then we get paid -- every corner in this city owes somebody, and it's gonna be us. In that order.",
+  ras: "Wheels, bredren. Put me behind a wheel and nothing in this city catches us. You point, I drive. We make money slow and spend it slower.",
+};
 /* THE HIRES (layer 438): three looks for each role, plate + face, assets/hires/. */
 const HIRE_ROLES = ["dealer", "driver", "shooter", "bomber", "lookout", "mechanic", "forger", "enforcer", "safecracker", "fence", "fixer", "chemist", "thief", "locksmith"];   // thief + locksmith: art owed (layer 509)
 for (const r of HIRE_ROLES) for (let v = 1; v <= 3; v++) for (const k of ["yt_hire_" + r + "_" + v, "pt_hire_" + r + "_" + v]) PD_ART[k] = "assets/hires/" + k + ".png";
@@ -3781,7 +3787,9 @@ for (let n = 1; n <= 8; n++) PD_ART["yt_bk_" + n] = "assets/bank/bk_" + n + ".pn
 for (let n = 1; n <= 9; n++) PD_ART["air_tile_" + n] = "assets/airport/air_tile_" + n + ".png";
 for (let n = 1; n <= 4; n++) PD_ART["air_plane_" + n] = "assets/airport/air_plane_" + n + ".png";
 for (let n = 1; n <= 6; n++) PD_ART["air_veh_" + n] = "assets/airport/air_veh_" + n + ".png";
-for (const k of ["rf_bombed_a", "rf_bombed_b", "rf_bombed_c", "car_burnt"]) PD_ART[k] = "assets/bombed/" + k + ".png";    // layer 492
+for (const k of ["rf_bombed_a", "rf_bombed_b", "rf_bombed_c", "car_burnt"]) PD_ART[k] = "assets/bombed/" + k + ".png";
+// layer 520: the craters and what a bomb throws round (art_520.zip)
+for (const k of ["rf_crater_a", "rf_crater_b", "deb_bricks_a", "deb_bricks_b", "deb_logs_a", "deb_logs_b", "deb_logs_c", "deb_paper_a", "deb_paper_b"]) PD_ART[k] = "assets/bombed/" + k + ".png";    // layer 492
 for (let n = 1; n <= 15; n++) PD_ART["pt_stu_x" + n] = "assets/school/pt_stu_x" + n + ".png";                          // spare student portraits (not used yet)     // layer 487: the bank cutaway, for the bank interior build
 const DEALER_ROOFS = ["rf_dealer_show", "rf_dealer_wire", "rf_repair"];
 const DEALER_KIT = ["dl_stall", "dl_price", "dl_sale", "dl_tubeman", "dl_pennants", "dl_lotlight", "dl_trailer"];
@@ -11885,9 +11893,22 @@ export default function IronLionLayer004() {
       const dc = G.driverCard && G.driverCard(); if (dc) list.push({ label: "DRIVER", sub: dc.name + (dc.driving ? " \u00b7 driving" : " \u00b7 orders"), icon: dc.face });
       for (const l of live()) if (A[l] && l !== "E" && l !== "DRIVER") list.push({ label: l, sub: A[l].sub || "" });
       list.push({ label: "FAST TRAVEL", sub: "airport \u00b7 train \u00b7 port \u00b7 home" });     // always there (layer 514)
-      setPadWheel(list); };
-    G.wheelClose = () => setPadWheel(null);
-    G.wheelPick = (l) => { G.wheelClose(); if (l === "DRIVER") { setTimeout(() => G.driverOpen && G.driverOpen(), 30); return; } if (l === "FAST TRAVEL") { setTimeout(() => G.hubOpen && G.hubOpen(), 30); return; } setTimeout(() => tap([l]), 30); };
+      const g0w = G.current; if (g0w && g0w.prisonMode && g0w.pescaped) { list.push({ label: "CREW RULES", sub: "who we fight" }, { label: "SIT-DOWN", sub: g0w.sit ? "set" : "call one" }); }   // layer 519
+      list.push({ label: "WEAPONS", sub: "the weapon wheel" });     // layer 520: a wheel of its own
+      if (g0w && g0w.prisonMode) list.push({ label: "POCKETS", sub: "what's on you" });
+      setPadWheel({ kind: "action", title: "ACTION WHEEL", items: list.filter((o, i, A) => A.findIndex((q) => q.label === o.label) === i) });
+      const gg = G.current; if (gg && !gg.paused) { gg.paused = true; gg.wheelPause = 1; } };
+    /* THE RADIAL WHEELS (layer 520): the action wheel, the WEAPON wheel and the POCKETS wheel are all a ring now. The stick
+       points at a slot (the nearest one round the ring), the D-pad steps round it, A takes it, B / LB put it away; the
+       middle names whatever is lit. G.radialOpen({kind, title, items:[{label, sub, icon, id}]}) -- an item with an id
+       goes through G.pickFn, one without is an action-wheel entry. */
+    G.radialOpen = (spec) => { if (!spec || !spec.items || !spec.items.length) return false; setPadWheel(spec);
+      const gg = G.current; if (gg && !gg.paused) { gg.paused = true; gg.wheelPause = 1; } return true; };     // the world holds while the wheel is open (layer 519)
+    G.wheelClose = () => { setPadWheel(null); const gg = G.current; if (gg && gg.wheelPause) { gg.wheelPause = 0; gg.paused = false; } };
+    G.wheelPick = (l) => { G.wheelClose(); if (l === "DRIVER") { setTimeout(() => G.driverOpen && G.driverOpen(), 30); return; }
+      if (l === "WEAPONS") { setTimeout(() => G.weaponWheel && G.weaponWheel(), 30); return; }
+      if (l === "POCKETS") { setTimeout(() => G.pocketsWheel && G.pocketsWheel(), 30); return; }
+      if (l === "CREW RULES" || l === "SIT-DOWN") { setTimeout(() => { const gg = G.current; if (l === "SIT-DOWN") gg.sitView = "gang"; G.pickOpen && G.pickOpen(l === "CREW RULES" ? "crewrules" : "sitcall"); }, 30); return; } if (l === "FAST TRAVEL") { setTimeout(() => G.hubOpen && G.hubOpen(), 30); return; } setTimeout(() => tap([l]), 30); };
     const closeSomething = () => { const g = G.current;
       if (g && g.mapOpen) { setMapOpen(false); return true; }
       if (g && g.bookOpen && G.bookFn) { G.bookFn(); return true; }
@@ -11904,8 +11925,18 @@ export default function IronLionLayer004() {
       const L = menuOpts();
       if (L.length) {                                          // a panel is open (or the wheel): the pad is the menu
         if (sel >= L.length) sel = L.length - 1;
-        // the wheel is two columns: up/down jump a row, left/right step across; ordinary panels are one list
-        const cols = document.querySelector("[data-pickcols]") ? 2 : 1;
+        // the wheel is a ring (layer 520): the stick points at a slot, the D-pad steps round; ordinary panels are one list
+        const cols = 1, ring = document.querySelector("[data-pickradial]");
+        if (ring) { const n = L.length - 1, mag = Math.hypot(ax, ay);          // the last option is CLOSE, in the middle
+          if (sel >= L.length) sel = 0;
+          if (mag > 0.55 && n > 0) { const a = Math.atan2(ay, ax); sel = Math.round((((a + Math.PI / 2) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) / (2 * Math.PI / n)) % n; navT = 0.22; }
+          else { const st = B(15) || B(13) ? 1 : B(14) || B(12) ? -1 : 0; navT -= 1 / 60;
+            if (st && navT <= 0) { sel = sel >= n ? (st > 0 ? 0 : n - 1) : (sel + st + n) % n; navT = 0.22; } if (!st) navT = Math.min(navT, 0); }
+          mark(L); const info = document.querySelector("[data-radialinfo]"); if (info && L[sel]) { const t = L[sel].getAttribute("data-info") || ""; if (info.textContent !== t) info.textContent = t; }
+          if (B(0) && !was[0]) { L[sel] && L[sel].click(); sel = 0; }
+          if ((B(1) && !was[1]) || (B(4) && !was[4])) { G.wheelClose(); sel = 0; }
+          for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i);
+          input.current.x = 0; input.current.y = 0; input.current.run = false; return; }
         const down = B(13) || ay > 0.6, up = B(12) || ay < -0.6, right = B(15) || ax > 0.6, left = B(14) || ax < -0.6;
         const dy = cols === 1 ? (down || right ? 1 : up || left ? -1 : 0) : (down ? 2 : up ? -2 : right ? 1 : left ? -1 : 0);
         /* LAYER 509: move the way the stick points, on screen -- the card table and any wrapped row of buttons is a grid,
@@ -11944,7 +11975,7 @@ export default function IronLionLayer004() {
       if (!sprint && !B(7) && was.sprintOn) input.current.run = false; was.sprintOn = !!sprint;
       if (press(11)) G.cursorLockToggle && G.cursorLockToggle();   // R3: lock / free the browser's cursor (layer 518; HOOK is on the wheel)
       if (press(12) && g) g.nightTarget = g.nightTarget > 0.5 ? 0 : 1;
-      if (press(13)) tap(["POCKETS", "ID"]);
+      if (press(13)) { if (!(g && g.prisonMode && G.pocketsWheel && G.pocketsWheel())) tap(["POCKETS", "ID"]); }
       if (press(14)) G.zoomStep && G.zoomStep(-0.15);
       if (press(15)) { if (g && g.mis && G.pickOpen) G.pickOpen("misorders"); else G.zoomStep && G.zoomStep(0.15); }   // on a job: ORDERS (layer 508)
       if (Math.abs(ry) > 0.3 && G.zoomStep) G.zoomStep(-ry * 0.025);     // right stick: zoom
@@ -11965,6 +11996,8 @@ export default function IronLionLayer004() {
       if (k === "f" && G.strikeFn) G.strikeFn();
       if (k === "t" && G.current.studentMode && G.pickOpen) G.pickOpen("stuskip");   // fast forward (student mode)
       if (k === "c" && G.coverFn) G.coverFn();                                         // cover (layer 490)
+      if (k === "q" && G.weaponWheel) G.weaponWheel();                                 // the weapon wheel (layer 520)
+      if (k === "i" && G.pocketsWheel && G.current && G.current.prisonMode) G.pocketsWheel();
       if (k === "n") G.current.nightTarget = G.current.nightTarget > 0.5 ? 0 : 1;
       if (k === "h" && G.hydroFn) G.hydroFn();          // hydraulics, in a lowrider
       if (k === "-" || k === "_") G.zoomStep && G.zoomStep(-0.15);
@@ -13768,6 +13801,8 @@ export default function IronLionLayer004() {
       for (const t of Object.values(W.turfs)) {
         if (!t.owner) continue;
         const G = W.gangs[t.owner]; if (!G) continue;
+        if (t.downUntil) { if (t.downUntil > nowMin()) continue;          // bombed: nothing off this turf till it reopens (layer 520)
+          t.downUntil = 0; t.push = 0; for (const d of t.dens) d.level = 1; }     // reopened: the houses start over
         G.cash += WAR.street * dt;                 // the street pays something even with no house on it
         if (!t.dens.length) continue;
         let cash = 0;
@@ -14689,7 +14724,7 @@ export default function IronLionLayer004() {
       if (R && Math.random() < 0.4) { R.say = 3.4; R.line = cpick(["SHE ONLY CALLS WHEN YOU'RE ON.", "'YOU'RE CLOSEST, MALCOLM.' SURE.", "DISPATCH LOVES YOU, DETECTIVE."]); }
     }
     function stepCase(dt) {
-      stepWar(dt); stepTrial(dt); stepDispatch(dt);
+      stepWar(dt); stepTrial(dt); stepDispatch(dt); if (G.stepGunRat) G.stepGunRat();
       stepPartner(dt); stepAutopilot(dt); stepDriveTalk(dt); stepPrisonIntro(dt); stepSlideDoors(dt); alleyCollide(); stepStudent(dt); if (g.studentMode) { stepStudentLife(dt); danceStep(); stepCurfew(); stepBusRoute(dt); stepTeam(); stepBullies(); } stepRivalMsgs(); stepDeskPhone(); stepConvictClothes(); stepBackup(dt); stepK9(dt); stepCasings(dt); stepSquad(dt); stepGumball(dt);
       const D = detectives();
       if (g.detStart && D) {
@@ -16151,7 +16186,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return;
       }
       // she drives it: moved along the road at a normal speed, turned to where she is going
-      const sp = Math.min(A.spd || DET.drive, last || !A.who ? d * 3 : Math.max(A.spd ? A.spd * 0.45 : 120, d * 3));
+      let sp = Math.min(A.spd || DET.drive, last || !A.who ? d * 3 : Math.max(A.spd ? A.spd * 0.45 : 120, d * 3));
+      /* A GOOD DRIVER DOESN'T HIT THINGS (layer 519): a car in his lane ahead and he eases off, then waits behind it --
+         unless he's losing the cops, when he squeezes past (the hop below) instead of queueing. */
+      if (A.who) { const hx = dx / d, hy = dy / d; let near = 1e9;
+        for (const o of g.traffic.concat(policeCars().filter(Boolean))) { if (!o || o === v || !Number.isFinite(o.x)) continue;
+          const rx = o.x - v.x, ry = o.y - v.y, ah = rx * hx + ry * hy; if (ah <= 0 || ah > 190) continue;
+          if (Math.abs(-rx * hy + ry * hx) > 40) continue; if (ah < near) near = ah; }
+        A.brk = near < 190 && !A.lose && !A.escape; if (A.brk) sp = Math.min(sp, Math.max(0, (near - 75) * 2.2)); }
       v.x += dx / d * sp * dt; v.y += dy / d * sp * dt;
       /* She moves it; the car's own physics must not move it a second time on the same speed,
          or she drives at double. Its velocity is left at rest and the speedometer is fed
@@ -16161,7 +16203,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          squeezes past whatever's in the way (a hop along the road), and after three tries takes the next corner */
       if (A.who) { A.chkT = (A.chkT || 0) + dt;
         if (A.chkT >= 1) { const gain = (A.chkD ?? d + 999) - d; A.chkT = 0; A.chkD = d;
-          if (gain < 40 && d > 60) { A.stuckN = (A.stuckN || 0) + 1; const hop = Math.min(110, d - 20); v.x += dx / d * hop; v.y += dy / d * hop;
+          if (gain < 40 && d > 60) { A.stuckN = (A.stuckN || 0) + 1; const hop = A.brk && A.stuckN < 3 ? 0 : Math.min(110, d - 20); v.x += dx / d * hop; v.y += dy / d * hop;
             if (A.stuckN >= 3) { A.stuckN = 0; A.chkD = undefined; if (A.i < A.pts.length - 1) A.i++; else if (!ccarLegEnd(A, v)) { g.auto = null; return; } } }
           else A.stuckN = 0; } }
       const want = Math.atan2(dy, dx);
@@ -16476,6 +16518,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "pockets") return pocketsPanel();
       if (kind === "opsboard") return opsPanel();
       if (kind === "baseman") return baseManPanel();
+      if (kind === "outfit") return outfitPanel();
+      if (kind === "armory") return armoryPanel();
       if (kind === "bizshop") return bizShopPanel();
       if (kind === "artstaff") return artStaffPanel();
       if (kind === "motorpool") return motorPanel();
@@ -16498,6 +16542,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "fasttravel") return fastTravelPanel();
       if (kind === "hubs") return hubsPanel();
       if (kind === "don") return donPanel();
+      if (kind === "crewrules") return crewRulesPanel();
+      if (kind === "sit") return sitPanel();
+      if (kind === "sitcall") return sitCallPanel();
       if (kind === "wardenpc") return wardenPcPanel();
       if (kind === "repair") return repairPanel();
       if (kind === "stucoach") return coachPanel();
@@ -16634,9 +16681,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("bd:")) { G.opsPick(id); if (!g.jobRide && !g.misStarted) G.pickOpen("opsboard"); g.misStarted = 0; return; }
       else if (id.startsWith("mis:")) { G.misPick && G.misPick(id); return; }
       else if (id.startsWith("ccar:")) { G.ccarPick && G.ccarPick(id); return; }
-      else if (id.startsWith("don:")) { donAct(id.slice(4)); return; }                           // Don Matteo (layer 516)
+      else if (id.startsWith("don:")) { donAct(id.slice(4)); return; }
+      else if (id.startsWith("eng:")) { const E = engage(), k = id.slice(4); E[k] = E[k] ? 0 : 1; G.pickOpen("crewrules"); return; }   // crew rules (layer 519)
+      else if (id.startsWith("sit:")) { sitAct(id.slice(4)); return; }
+      else if (id.startsWith("sc:")) { sitCallAct(id); return; }                           // Don Matteo (layer 516)
       else if (id.startsWith("hub:")) { G.hubGo && G.hubGo(id.slice(4)); return; }               // fast travel (layer 514)                // the car command (layer 514)                 // the job's orders (layer 508)
-      else if (id.startsWith("bm:open:")) { g.bmKey = id.slice(8); g.bmSaid = null; G.pickOpen("baseman"); return; }
+      else if (id.startsWith("bm:open:")) { g.bmKey = id.slice(8); g.bmSaid = null; g.bmView = null; G.pickOpen("baseman"); return; }
+      else if (id.startsWith("otf:")) { G.outfitPick(id); G.pickOpen("outfit"); return; }          // layer 520
+      else if (id.startsWith("arm:")) { G.armoryPick(id); G.pickOpen("armory"); return; }
+      else if (id.startsWith("wsel:")) { G.wheelWeapon(id.slice(5)); return; }
       else if (id.startsWith("bm:")) { G.baseManPick(id); G.pickOpen("baseman"); return; }
       else if (id.startsWith("biz:")) { G.bizPick(id); G.pickOpen("bizshop"); return; }
       else if (id.startsWith("mp:take:")) { G.motorPick(id); return; }
@@ -16646,7 +16699,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("pocket:")) { G.pocketUse(id.slice(7)); if (g.pickOpen) G.pickOpen("pockets"); return; }
       else if (id === "crewx:follow" || id === "crewx:stay") { const q = g.pescaped ? crewFolk(g.crewMate) : (prisonFolk() || []).find((x) => x.crew === g.crewMate);
         if (q) { if (id === "crewx:follow") folStart(q); else folStop(q); } g.crewSaid = id === "crewx:follow" ? "Lead the way." : "I'll hold it down here."; G.pickOpen("crew"); g.crewSaid = null; return; }
-      else if (id.startsWith("crewx:")) { g.crewSaid = "Out there? I've got a car and I owe you. You call, I come."; G.pickOpen("crew"); g.crewSaid = null; return; }
+      else if (id.startsWith("crewx:")) { g.crewSaid = CREW_OUT[g.crewMate] || "Out there? I've got a car and I owe you. You call, I come."; G.pickOpen("crew"); g.crewSaid = null; return; }
       else if (id.startsWith("carver:")) G.carverFn(id.slice(7));
       else if (id.startsWith("open:")) { g.fileText = null; G.pickOpen(id.slice(5)); return; }
       else if (id.startsWith("gz:")) { G.gomezPick(id); return; }
@@ -17794,7 +17847,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          57-90% on the gang sheets, so at parity they read a size bigger than everyone else. */
       const h = 30 * (p.jit || 1) * 0.82 * (p.tall || 1) * (YT_SCALE[p.yt] || 1), w = h * (im.width / im.height);
       const sp = Math.hypot(p.vx || 0, p.vy || 0);
-      const face = (p.bang != null && angOverride == null && sp <= 10) ? p.bang : Math.atan2(p.vy, p.vx);
+      const face = p.faceLock != null && angOverride == null ? p.faceLock : (p.bang != null && angOverride == null && sp <= 10) ? p.bang : Math.atan2(p.vy, p.vx);
       const ang = angOverride != null ? angOverride : face + YOUTH_FACE;
       const off = backOff || 0;
       const bang = p.bang != null ? p.bang : face;
@@ -19898,7 +19951,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (ov && swap.get(nv) === ov && Array.isArray(nv)) { ov.length = 0; for (const e of nv) ov.push(e); }
         else g[k] = nv; }
       // caches that are rebuilt on their own: start them fresh
-      g.pfolk = null; g.pickOpen = null; g.title = false; g.plateShow = null; g.airport = undefined;
+      g.pfolk = null; g.pickOpen = null; g.title = false; g.plateShow = null; g.airport = undefined; g.wheelPause = 0; g.paused = false;
       if (o.zoom) { zoomRef.current = o.zoom; setZoomUI(o.zoom); }
       return true; }
     function saveGame() {
@@ -21257,8 +21310,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const dv = DIRV[p.dir] || [0, 1];
         ang = Math.atan2(dv[1], dv[0]) + Math.PI / 2 + TOPDOWN_FACE;
       } else {
-        ang = moving ? Math.atan2(p.vy, p.vx) + Math.PI / 2 + TOPDOWN_FACE : (g.topAng || 0);
-        if (moving) g.topAng = ang;
+        const la = heroLockAng();                   // locked on: face him (layer 519)
+        ang = la != null ? la + Math.PI / 2 + TOPDOWN_FACE : moving ? Math.atan2(p.vy, p.vx) + Math.PI / 2 + TOPDOWN_FACE : (g.topAng || 0);
+        if (moving || la != null) g.topAng = ang;
       }
       const d = GANGTOP_CELL * GANGTOP_SCALE;
       drawShadow(p.x, p.y + 2, d * 0.26, d * 0.16, 0.38);
@@ -27435,6 +27489,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             if (g.crews.filter((c2) => c2.gang === cr.gang).length < 5) spawnMobCrew(cr.x, cr.y);
           }
         }
+        else if (cr.angryMe > 0) { cr.angryMe -= dt; cr.state = "hostile"; }      // you hurt one of theirs (layer 519)
         else if (d < 100 && (g.night > 0.5 || cr.indoor)) cr.state = "hostile";
         else if (d < 250) cr.state = cr.state === "hostile" ? "hostile" : "watch";
         else cr.state = "hang";
@@ -28522,11 +28577,37 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       });
     }
     // parked cars, roadblocks and police cars are SOLID boxes to your car
+    /* TRAFFIC KEEPS ITS DISTANCE (layer 519). Street cars had no collision with each other and drove over one
+       another; near you, every pair is now pushed apart -- three circles down each body, the width of the car. */
+    function trafficSeparate() {
+      if (g.inside) return;
+      const cx = g.cam ? g.cam.x : g.p.x, cy = g.cam ? g.cam.y : g.p.y;
+      const L = g.traffic.filter((v) => Number.isFinite(v.x) && !v.bus && !v.isTrailer && Math.abs(v.x - cx) < 1800 && Math.abs(v.y - cy) < 1800 && v !== activeVeh());
+      for (let a = 0; a < L.length; a++) for (let b = a + 1; b < L.length; b++) {
+        const A = L[a], B = L[b];
+        if (Math.abs(A.x - B.x) > 130 || Math.abs(A.y - B.y) > 130) continue;
+        const aL = (A.m && A.m.len) || 104, aW = (A.m && A.m.w) || 48, bL = (B.m && B.m.len) || 104, bW = (B.m && B.m.w) || 48;
+        const r = (aW + bW) / 4;
+        for (const oa of [-0.3, 0, 0.3]) for (const ob of [-0.3, 0, 0.3]) {
+          const ax = A.x + Math.cos(A.ang) * aL * oa, ay = A.y + Math.sin(A.ang) * aL * oa;
+          const bx = B.x + Math.cos(B.ang) * bL * ob, by = B.y + Math.sin(B.ang) * bL * ob;
+          const dx = bx - ax, dy = by - ay, d = Math.hypot(dx, dy);
+          if (d >= r || d < 0.01) continue;
+          const pen = (r - d) / 2, ux = dx / d, uy = dy / d;
+          const wa = A.dead || A.parked ? 0.2 : 1, wb = B.dead || B.parked ? 0.2 : 1, ws = wa + wb;
+          A.x -= ux * pen * 2 * wa / ws; A.y -= uy * pen * 2 * wa / ws; B.x += ux * pen * 2 * wb / ws; B.y += uy * pen * 2 * wb / ws;
+          // the one behind brakes
+          const aheadA = (B.x - A.x) * Math.cos(A.ang) + (B.y - A.y) * Math.sin(A.ang);
+          if (aheadA > 0 && A.spd) A.spd *= 0.8; else if (aheadA < 0 && B.spd) B.spd *= 0.8;
+        }
+      }
+    }
     function solidCars() {
       if (!inVehicle() || g.onFwy || g.inside) return;
       const pc = activeVeh(); if (!pc || !Number.isFinite(pc.x)) return;
       const L = (pc.m && pc.m.len) || (g.mode === "moto" ? 60 : 108), W = (pc.m && pc.m.w) || (g.mode === "moto" ? 20 : 50);
-      const list = g.traffic.filter((v) => v !== pc && (v.dead || v.block)).concat(policeCars().filter((v) => v && v !== pc));
+      // every car on the street is a solid box now, moving or parked (layer 519: moving traffic was a circle and you drove over bonnets)
+      const list = g.traffic.filter((v) => v !== pc && !v.misConvoy).concat(policeCars().filter((v) => v && v !== pc));
       const ha = Math.cos(pc.ang), hb = Math.sin(pc.ang);
       for (const v of list) {
         if (!Number.isFinite(v.x) || Math.abs(v.x - pc.x) > 190 || Math.abs(v.y - pc.y) > 190) continue;
@@ -28548,8 +28629,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             if (-dot > 90) { g.shake = Math.max(g.shake || 0, Math.min(12, -dot / 35)); sfxImpact(clamp(-dot / 300, 0.35, 1));
               applyDamage(pc, -dot, v.x, v.y, L, W); applyDamage(v, -dot * 1.2, px, py, vl, vw);
               if (v.block && -dot > 260) { v.ang += (Math.random() - 0.5) * 0.4; v.x -= nx * 14; v.y -= ny * 14; }
-              if (v.m && v.m.k === "cruiser" && !g.detMode && -dot > 150) { g.heat = Math.max(g.heat || 0, 2); g.wantedT = Math.max(g.wantedT || 0, 90);
-                g.wantedAs = g.who === "lion" ? (g.plain ? "darius" : "lion") : g.who; } } }
+              /* HIT A COP CAR AND THEY'RE ON YOU; hit anyone's car in front of a cop and they come too (layer 519) */
+              const cop = (v.m && (v.m.k === "cruiser" || /^pd_/.test(v.m.k || ""))) || v.patrol || v.chasing;
+              if (cop && !g.detMode && -dot > 110) witnessed(pc.x, pc.y, 2, true);
+              else if (!g.detMode && -dot > 150 && !g.studentMode) witnessed(pc.x, pc.y, 1, false); } }
         }
       }
     }
@@ -29066,14 +29149,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         g.choppers = g.choppers || [];
         const have = (k) => g.choppers.some((h) => h.kind === k && !h.leaving);
         const pv = inVehicle() ? activeVeh() : g.p;
-        if (g.chaseT > 120 && !have("news"))
+        // sooner (layer 519): the birds came at two and three minutes, and no chase lasted that long
+        if (g.chaseT > 40 && !have("news"))
           g.choppers.push({ kind: "news", x: pv.x - 900, y: pv.y - 900, ang: 0, alt: 1 });
         /* And a gap between birds. Without this the ninety-second fuel limit did nothing --
            the old one turns for home, `have("police")` stops counting it that same frame, and a
            fresh one lifts off immediately. Forty-five seconds of clear sky is the window the
            whole air-support idea is worth having: it is when you actually get away. */
         g.heliCd = Math.max(0, (g.heliCd || 0) - dt);
-        if (g.chaseT > 180 && !have("police") && g.heliCd <= 0) {
+        if (g.chaseT > ((g.heat || 0) >= 3 ? 20 : 60) && !have("police") && g.heliCd <= 0) {
           g.choppers.push({ kind: "police", x: pv.x + 900, y: pv.y - 900, ang: 0, alt: 1, onStation: 0 });
           g.pickupFlash = { nm: "air_unit_overhead", t: 2.6 };
         }
@@ -30350,6 +30434,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       diner:  [["CUP OF COFFEE", 1, "drink", 1], ["SLICE OF PIE", 2, "food", 2], ["BURGER AND FRIES", 4, "food", 4], ["STEAK AND EGGS", 6, "food", 6], ["BLUE PLATE SPECIAL", 5, "food", 5]],
       pawn:   [["BRASS KNUCKLES", 25], ["TRANSISTOR RADIO", 30], ["WRISTWATCH", 60], ["GOLD CHAIN", 120], ["SELL WHAT YOU'RE CARRYING", 0, "sell"]],
     };
+    /* RAVEN HOOK FIREARMS (layer 521): guns you can BUY, not cheat. [name, price, "gun", 0, weapon key, under the
+       counter]. Over the counter needs a clean record: no heat on you, and an escaped con needs NEW PAPERS (the
+       forger's job) -- without them the clerk only sells under the counter, at double, and one time in five he
+       picks up the phone after you leave. Under-the-counter guns (sawed-off, AR, Uzi) need 100 respect or a
+       reason he knows you. BOX OF ROUNDS fills every gun you own. */
+    BIZ_MENU.guns = [["SNUB-NOSE .38", 220, "gun", 0, "revolver_snub"], [".357 REVOLVER", 300, "gun", 0, "revolver"], ["9MM AUTOMATIC", 380, "gun", 0, "pistol_auto"],
+      ["BERETTA 92", 450, "gun", 0, "beretta"], ["PUMP SHOTGUN", 420, "gun", 0, "shotgun_long"], ["HUNTING RIFLE", 650, "gun", 0, "rifle_bolt"],
+      ["SAWED-OFF", 500, "gun", 0, "shotgun_short", 1], ["AR, FULL AUTO", 1600, "gun", 0, "rifle_auto", 1], ["UZI", 1800, "gun", 0, "smg_uzi", 1],
+      ["BOX OF ROUNDS", 20, "ammo"]];
     ["pub", "tavern"].forEach((k) => { BIZ_MENU[k] = BIZ_MENU.bar; });
     ["pizza", "chicken", "soul", "taqueria", "noodle", "italian"].forEach((k) => { BIZ_MENU[k] = BIZ_MENU.diner; });
     ["grocer", "general", "news", "deli"].forEach((k) => { BIZ_MENU[k] = BIZ_MENU.corner; });
@@ -30499,7 +30592,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return { title: (b.name || "THE PAWN SHOP") + " \u00b7 SELLING", face: null,
           text: g.bizSaid || (L.length ? "\u201cLet's see what you got.\u201d He has $" + Math.round(e.till).toLocaleString() + " in the till." : "\u201cYou got nothing I want.\u201d"),
           opts: L.map((q) => ({ id: q.id, label: q.nm.toUpperCase() + " \u00b7 $" + q.val, icon: ITEM_ICON[q.nm] ? "assets/items/it_" + ITEM_ICON[q.nm] + ".png" : null })).concat([{ id: "biz:back:0", label: "BACK" }, { id: "close", label: "THAT'S ALL" }]) }; }
-      const opts = (M || []).map((it, n) => ({ id: "biz:buy:" + n, label: it[0] + (it[1] ? " \u00b7 $" + it[1] : ""), icon: ITEM_ICON[it[0]] ? "assets/items/it_" + ITEM_ICON[it[0]] + ".png" : null }));
+      const opts = (M || []).map((it, n) => it[2] === "gun" ? gunOpt(it, n) : ({ id: "biz:buy:" + n, label: it[0] + (it[1] ? " \u00b7 $" + it[1] : ""), icon: ITEM_ICON[it[0]] ? "assets/items/it_" + ITEM_ICON[it[0]] + ".png" : null })).filter(Boolean);
+      if (b.biz === "guns") g.bizSaid = g.bizSaid || gunGreeting();
       opts.push({ id: "close", label: "THAT'S ALL" });
       return { title: (b.name || "THE STORE") + " \u00b7 THE COUNTER", face: null,
         text: g.bizSaid || (M ? "\u201cWhat can I get you?\u201d You have $" + (g.p.cash || 0).toLocaleString() + "." : "\u201cHelp you?\u201d Nothing here you'd buy over the counter."), opts };
@@ -30513,6 +30607,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (kind === "bag") g.p.bag.splice(+arg, 1); else if (kind === "gun") g.rack = g.rack.filter((k) => k !== arg); else g.pinv = [];
         e2.till -= q.val; g.p.cash = (g.p.cash || 0) + q.val; g.bizSaid = "He turns it over, nods, counts out $" + q.val + ". You have $" + g.p.cash.toLocaleString() + "."; return; } const b = S.b, M = BIZ_MENU[b.biz] || [], it = M[+id.split(":")[2]]; if (!it) return; const e = econOf(b);
       if (it[2] === "sell") { g.bizView = "sell"; g.bizSaid = null; return; }
+      if (it[2] === "gun" || it[2] === "ammo") { buyGun(it, e); return; }                                   // layer 521
       if ((g.p.cash || 0) < it[1]) { g.bizSaid = "\u201cThat's $" + it[1] + ". You're short.\u201d"; return; }
       g.p.cash -= it[1]; e.till += it[1];
       if (it[3]) g.p.hp = Math.min(g.p.maxHp || 10, (g.p.hp || 0) + it[3]);
@@ -30520,6 +30615,40 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (it[2] === "round") { for (const q of S.folk) if (!q.staff) { q.glass = true; q.say = 2.6; q.line = cpick(["Cheers!", "Salud!", "You're all right.", "Thanks, pal."]); } g.rep = (g.rep || 0) + (g.pescaped ? 3 : 0); }
       g.bizSaid = "You buy " + it[0].toLowerCase() + (it[3] ? " -- feels better." : ".") + " $" + (g.p.cash || 0).toLocaleString() + " left.";
     };
+    // layer 521: the gun counter
+    const gunDirty = () => (g.heat || 0) > 0 || (g.wantedT || 0) > 0 || (g.prisonMode && g.pescaped && !g.ppapers);
+    const gunUnder = () => (g.rep || 0) >= 100 || gunDirty();
+    const gunPrice = (it) => it[1] * (gunDirty() ? 2 : 1);
+    function gunOpt(it, n) { if (it[5] && !gunUnder()) return null;
+      const ic = wIconOf(it[4]), own = (g.rack || []).includes(it[4]) || g.p.wpn === it[4];
+      return { id: "biz:buy:" + n, label: (it[5] || gunDirty() ? "UNDER THE COUNTER \u00b7 " : "") + it[0] + " \u00b7 $" + gunPrice(it) + (own ? " \u00b7 YOU HAVE ONE (ROUNDS)" : ""), icon: ic && PD_ART[ic] ? PD_ART[ic] : null }; }
+    function gunGreeting() { if (g.who && g.who !== "lion" && !g.prisonMode && !g.detMode) return "\u201cHow old are you? Get out of here, kid.\u201d";
+      return gunDirty() ? "\u201cI know that face. I don't sell to it. Not over the counter.\u201d He glances at the door. \u201cBack room's double, cash.\u201d You have $" + (g.p.cash || 0).toLocaleString() + "."
+        : "\u201cWhat'll it be? Ten-day wait's for out-of-towners.\u201d You have $" + (g.p.cash || 0).toLocaleString() + "."; }
+    function buyGun(it, e) {
+      if (g.who && g.who !== "lion" && !g.prisonMode && !g.detMode) { g.bizSaid = "\u201cNot to a kid.\u201d"; return; }
+      const A = (g.ammoBy = g.ammoBy || {});
+      if (it[2] === "ammo") { if ((g.p.cash || 0) < it[1]) { g.bizSaid = "\u201cTwenty bucks. You're short.\u201d"; return; }
+        const L = (g.rack || []).filter((k) => WPN_AMMO[k]); if (!L.length && !(g.p.wpn && WPN_AMMO[g.p.wpn])) { g.bizSaid = "\u201cRounds for what?\u201d"; return; }
+        g.p.cash -= it[1]; e.till += it[1]; for (const k of L) A[k] = WPN_AMMO[k]; if (g.p.wpn && WPN_AMMO[g.p.wpn]) g.p.ammo = WPN_AMMO[g.p.wpn];
+        setHud((h) => ({ ...h, ammo: g.p.ammo })); g.bizSaid = "A box of rounds. Every gun you own is full. $" + g.p.cash.toLocaleString() + " left."; return; }
+      if (it[5] && !gunUnder()) return;
+      const k = it[4], price = gunPrice(it);
+      if ((g.p.cash || 0) < price) { g.bizSaid = "\u201cThat's $" + price + ". Come back with it.\u201d"; return; }
+      g.p.cash -= price; e.till += price;
+      g.rack = g.rack || []; if (!g.rack.includes(k)) g.rack.push(k);
+      if (g.p.wpn && g.p.wpn !== k) A[g.p.wpn] = g.p.ammo;
+      g.p.wpn = k; g.p.ammo = WPN_AMMO[k] || 6; A[k] = g.p.ammo; g.p.holstered = true;
+      setHud((h) => ({ ...h, wpn: k, ammo: g.p.ammo, holstered: true }));
+      const dirty = gunDirty() || it[5];
+      g.bizSaid = (dirty ? "He wraps it in a rag and slides it across. \u201cYou didn't get it here.\u201d" : "He writes it in the book and hands it over, boxed.") + " " + it[0] + " -- holstered. Q for the weapon wheel. $" + g.p.cash.toLocaleString() + " left.";
+      if (dirty && gunDirty() && Math.random() < 0.2) { g.gunRat = { at: nowMin() + 20 }; }        // he calls it in once you're gone
+    }
+    function stepGunRat() { const R = g.gunRat; if (!R || nowMin() < R.at) return; g.gunRat = null;
+      g.heat = Math.max(g.heat || 0, 2); g.wantedT = Math.max(g.wantedT || 0, 40);
+      g.jobBanner = "THE GUN SHOP CALLED IT IN"; g.jobNote = "The clerk gave the cops your description. They're looking for you."; }
+    G.stepGunRat = stepGunRat;
+    G.gunDirtyT = () => [gunDirty(), g.heat, g.wantedT, g.ppapers, g.prisonMode, g.pescaped];   // test hook
     // STICK UP
     const stickKeeper = () => { const S = g.shop; return S && S.biz && (S.folk.find((q) => q.keeper && q.hp > 0) || null); };
     G.stickOK = () => { const S = g.shop, k = stickKeeper(); return !!(k && !S.stick && g.mode === "foot" && g.p.wpn && !g.p.holstered && Math.hypot(k.x - g.p.x, k.y - g.p.y) < 150); };
@@ -30892,6 +31021,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (r.k === "pguard") { const gk = b.pwomen ? pick(PR_PEOPLE.guardW) : pick(PR_PEOPLE.guard); add(r, gk, { guard: 1, tall: GUARD_TALL[gk] || 1.3, castFace: GUARD_FACE[gk] ? GUARD_FACE[gk][0] : null,
           cast: { sex: b.pwomen ? "f" : "m", tone: GUARD_FACE[gk] ? GUARD_FACE[gk][1] : "mid" } }); }
       }
+      if (g.pgone) { const now0 = nowMin(); for (let i = folk.length - 1; i >= 0; i--) { const t0 = g.pgone[folkKey(folk[i])]; if (t0 && t0 > now0) folk.splice(i, 1); } }   // shot: the infirmary or the morgue (layer 520)
       try { nightAndShowers(folk, b, pl, ph); } catch (e) {}
       try { folkTransition(prevFolk, folk, b); } catch (e) {}
       g.pfolk = { b, f: g.floor, folk, ph };
@@ -31248,6 +31378,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       const M = g.pmission;
       // out: the shot-caller business is over (layer 518)
+      if (g.pescaped && g.sit) return { head: "SIT-DOWN \u00b7 " + (GANG_LABEL[g.sit.gk] || g.sit.gk), sub: "Meet at " + g.sit.at.label + " -- " + Math.round(Math.hypot(g.sit.at.x - g.p.x, g.sit.at.y - g.p.y) / 21) + "m (red on the map). Come on foot." };
       if (g.pescaped) return { head: "OUT \u00b7 RUN THE CREW", sub: g.mis ? "On a job -- ORDERS for your people." : "The board's in the scrapyard garage: hire, plan, send them out. Keep your head down." };
       if (g.hole) return { head: "THE HOLE", sub: Math.ceil(g.hole.left / 60) + " hours to go." };
       if (g.pgang) return { head: "YOU RIDE WITH " + PRISON_GANGS[g.pgang].nm, sub: "Their guards look the other way for you." };
@@ -31501,16 +31632,22 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (atk && !g.pAtkWas && g.inside) {
         const gun = g.pwpn === "zipgun" || g.pwpn === "gun";
         const reach = gun ? PGUN.range : 44;
-        const v = F0.filter((q) => !q.guard && !q.store && !q.down && !q.crew && !q.warden && dist(q) < reach).sort((a, b) => dist(a) - dist(b))[0];
+        let v = F0.filter((q) => !q.guard && !q.store && !q.down && !q.crew && !q.warden && dist(q) < reach).sort((a, b) => dist(a) - dist(b))[0];
         if (gun) {
           if (g.pwpn === "gun" && (g.pammo === undefined)) g.pammo = PGUN.ammo;
           g.pshot = { x: v ? v.x : g.p.x + Math.cos(g.board.ang) * PGUN.range, y: v ? v.y : g.p.y + Math.sin(g.board.ang) * PGUN.range, t: 0.18 };
           if (typeof playSfx === "function") try { playSfx("gunshot"); } catch (e) {}
           if (g.pwpn === "zipgun") { const k = g.pinv.indexOf("zipgun"); if (k >= 0) g.pinv.splice(k, 1); g.pickupFlash = { nm: "lift:THE ZIP GUN COMES APART IN YOUR HAND", t: 2 }; g.pwpn = null; }
           else if (--g.pammo <= 0) { const k = g.pinv.indexOf("gun"); if (k >= 0) g.pinv.splice(k, 1); g.pwpn = null; g.pammo = undefined; g.pickupFlash = { nm: "lift:EMPTY. YOU DROP IT.", t: 2 }; }
+          if (Math.random() < PRISON_GUN.misfire) { v = null; g.pmisfire = 1; g.p.hp = g.pescaped ? 1 : 0;           // it blew up in your hand (layer 520)
+            g.pickupFlash = { nm: "lift:MISFIRE -- IT WENT OFF IN YOUR HAND", t: 2.6 }; }
         }
         if (v) {
-          if (g.pwpn || gun) { v.down = 1; relViolence(F0, v); }
+          if (gun) { v.down = 1; v.hosp = PRISON_GUN.hosp; relViolence(F0, v);                                      // layer 520: always the infirmary, 60% dead
+            const dead = Math.random() < PRISON_GUN.kill, key = folkKey(v); v.killed = dead ? 1 : 0;
+            (g.pgone = g.pgone || {})[key] = dead ? 1e12 : nowMin() + 2 * 1440;
+            g.pickupFlash = { nm: "lift:" + (dead ? (v.name ? v.name.toUpperCase() + " IS " : "HE'S ") + "DEAD" : (v.name ? v.name.toUpperCase() : "HE") + " GOES TO THE INFIRMARY"), t: 2.6 }; }
+          else if (g.pwpn) { v.down = 1; relViolence(F0, v); }
           else { v.hits = (v.hits || 0) + 1; v.angry = 1; if (v.hits >= PFIGHT.hits) { v.down = 1; relViolence(F0, v); } }
           // his people come for you
           const gang = v.inmate && v.inmate.gang;
@@ -31529,10 +31666,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (q.swing <= 0) { q.swing = PFIGHT.every; g.p.hp = (g.p.hp || 0) - (q.hitman ? PC.hitDmg : PFIGHT.dmg); g.hurtT = 0.25;
           g.pickupFlash = { nm: "lift:HIT \u00b7 " + Math.max(0, g.p.hp | 0) + " HP", t: 0.9 }; }
       }
-      if (g.p.hp <= 0 && !g.hole) {   // you go down: the infirmary, and the clock runs
+      if (g.p.hp <= 0 && !g.hole && g.pescaped) {   // out in the city and down: back to Kestrel in the jumpsuit (layer 519)
+        g.p.hp = Math.max(30, (g.p.maxHp || 100) * 0.5); arrestPlayer(); g.jobNote = "You went down in the street. You woke up cuffed to the rail of a Kestrel ambulance -- 72 hours in the SHU."; }
+      else if (g.p.hp <= 0 && !g.hole) {   // you go down: the infirmary, and the clock runs
         g.p.hp = g.p.maxHp || 10; for (const q of F0) q.angry = 0; g.phunts = null; g.palarm = 0;
         g.hole = { left: PFIGHT.infirmary * 60, hours: PFIGHT.infirmary, why: "the infirmary" };
         g.jobBanner = "THE INFIRMARY \u00b7 " + PFIGHT.infirmary + " HOURS"; g.jobNote = "You lost that one. They stitched you up.";
+        if (g.pmisfire) { g.pmisfire = 0; g.jobBanner = "MISFIRE \u00b7 THE INFIRMARY \u00b7 " + PFIGHT.infirmary + " HOURS"; g.jobNote = "The gun blew up in your hand. They picked metal out of you all night."; }
         if (g.pdebt && g.pdebt.hit) { g.pdebt = null; g.jobNote = "The hit landed. Your debt is paid -- the hard way."; }
       }
       if (g.palarm > 0) g.palarm -= dt;
@@ -32277,9 +32417,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         out.push({ key: "c:" + C.id, crew: C.id, name: C.name, role, yt: "yt_crew_" + C.id, tall: C.tall, face: "assets/crew/" + (C.faceCiv || C.face) + ".png", rec, home: SY_GARAGE,
           following: (g.pfol || []).some((f) => f.crew === C.id) }); }
       for (const m of B.men || []) { if (!m.id) m.id = (B.nextId = (B.nextId || 0) + 1); if (!m.job) m.job = "wait";
-        const vv = m.role === "hacker" ? 1 : (m.v || 1);                                  // the hacker has one plate (layer 503)
+        const ar = m.art || m.role, vv = ar === "hacker" ? 1 : (m.v || 1);              // the hacker has one plate (layer 503); a man keeps his look when his trade changes (layer 520)
         // a trade with no plate yet wears a near one (layer 509): the car thief the driver's, the locksmith the safecracker's
-        const art = imgs.current["yt_hire_" + m.role + "_" + vv] && imgs.current["yt_hire_" + m.role + "_" + vv].width ? m.role : ({ thief: "driver", locksmith: "safecracker" })[m.role] || m.role;
+        const art = imgs.current["yt_hire_" + ar + "_" + vv] && imgs.current["yt_hire_" + ar + "_" + vv].width ? ar : ({ thief: "driver", locksmith: "safecracker" })[ar] || ar;
         out.push({ key: "m:" + m.id, m, name: hireName(m), role: m.role, yt: m.yt || "yt_hire_" + art + "_" + vv, tall: m.tall || 1.25,
           face: m.face || "assets/hires/pt_hire_" + art + "_" + vv + ".png", rec: m, home: (m.id % 2) * SY_GARAGE }); }   // shelter or the garage, never the parking floor
       return out;
@@ -32296,7 +32436,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (p.following) return "with you";
       if (busy && busy.has(p.key)) return "on a board job";
       return r.job === "deal" ? (sp ? "on a corner, " + sp.addr : "heading out to a corner") : r.job === "guard" ? (sp ? "guarding " + sp.addr : "guarding a corner")
-        : r.job === "guardbase" ? "guarding the yard" : r.job === "hustle" ? "hustling" : r.job === "jail" ? "picked up -- back in " + Math.max(1, Math.ceil((r.until - nowMin()) / 60)) + "h" : "at the yard"; }
+        : r.job === "guardbase" ? "guarding the yard" : r.job === "hustle" ? "hustling" : r.job === "jail" ? (r.hosp ? "in the hospital -- back in " : "picked up -- back in ") + Math.max(1, Math.ceil((r.until - nowMin()) / 60)) + "h" : "at the yard"; }
     // the walkers: one record per person at the base
     function baseRoom(f) { const H = hideoutB(); const pl = H && buildingPlans(H)[f]; return pl ? { pl, r: pl.rooms[0] } : null; }
     function baseSpot(f) { const R = baseRoom(f); if (!R || !R.r) return null; const { pl, r } = R, st = pl.stair;
@@ -32376,6 +32516,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     };
     function baseManPanel() {
       const p = personByKey(g.bmKey); if (!p) return null;
+      if (g.bmView) { const V = bmSubPanel(p); if (V) return V; g.bmView = null; }                      // layer 520
       const B = g.board2 || {}, r = p.rec, busy = opBusyKeys().has(p.key), opts = [];
       const canGuard = GUARDS[p.role] || p.crew, free = boardFree(p.role) > 0 || isOut(p);
       if (busy) {}
@@ -32388,15 +32529,19 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         opts.push({ id: "bm:hustle", label: "PULL HUSTLES ON THE STREET" });
       }
       if (p.crew && !isOut(p) && !busy) opts.push(p.following ? { id: "bm:stay", label: "STAY HERE" } : { id: "bm:follow", label: "WITH ME" });
+      opts.push(...bmExtraOpts(p));
+      opts.push({ id: "bm:cut", label: "GIVE HIM A CUT \u00b7 $500" });
       opts.push({ id: "bm:talk", label: "WHAT'S ON YOUR MIND?" }, { id: "close", label: "LATER" });
       const said = g.bmSaid || cpick((BARKS[p.crew] || []).concat(BARKS[p.role] || []).concat(BARKS.any));
       g.bmSaid = said;
-      return { title: p.name.toUpperCase() + " \u00b7 " + HIRES[p.role].nm + " \u00b7 " + jobText(p, busy ? new Set([p.key]) : null).toUpperCase(), face: p.face,
-        text: "\u201c" + said + "\u201d" + (busy ? "  He's tied up on a board job." : !free ? "  (Every " + HIRES[p.role].nm.toLowerCase() + " you have is busy.)" : ""), opts };
+      return { title: p.name.toUpperCase() + " \u00b7 " + HIRES[p.role].nm + " \u00b7 " + jobText(p, busy ? new Set([p.key]) : null).toUpperCase() + " \u00b7 LOYALTY " + loyalOf(p.key) + " (" + loyalWord(loyalOf(p.key)) + ")", face: p.face,
+        text: "\u201c" + said + "\u201d" + (busy ? "  He's tied up on a board job." : !free ? "  (Every " + HIRES[p.role].nm.toLowerCase() + " you have is busy.)" : "") + "\n" + OUT_RANK[rankOf(p)] + " \u00b7 " + statText(p), opts };
     }
     G.baseManPick = (id) => {
       const [, a, x] = id.split(":"), p = personByKey(g.bmKey); if (!p) return;
+      if (a === "x") { bmX(p, id.split(":").slice(2)); return; }                                       // layer 520
       if (a === "talk") { g.bmSaid = cpick((BARKS[p.crew] || []).concat(BARKS[p.role] || []).concat(BARKS.any)); return; }
+      if (a === "cut") { if ((g.p.cash || 0) < 500) { g.bmSaid = "With what money?"; return; } g.p.cash -= 500; loyalAdd(p.key, 12); g.bmSaid = loyalOf(p.key) >= 80 ? "You didn't have to. I'd have stayed anyway." : "Appreciate it. I won't forget."; return; }
       if (a === "follow" || a === "stay") { const q = crewFolk(p.crew); if (q) { if (a === "follow") folStart(q); else folStop(q); }
         g.bmSaid = a === "follow" ? "Right behind you." : "I'll be here."; if (g.bfolk) delete g.bfolk[p.key]; return; }
       if (a !== "wait" && !isOut(p) && boardFree(p.role) <= 0) { g.bmSaid = "Every " + HIRES[p.role].nm.toLowerCase() + " you got is tied up on a job."; return; }
@@ -32408,7 +32553,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     };
     // the board's YOUR PEOPLE: everybody and what he's doing; pick one to give him an order
     function peopleOpts() { const busy = opBusyKeys();
-      return basePeople().map((p) => ({ id: "bm:open:" + p.key, label: p.name.toUpperCase() + " " + stars(skillOf(p)) + " \u00b7 " + HIRES[p.role].nm + " \u00b7 " + jobText(p, busy).toUpperCase() })); }
+      return basePeople().map((p) => ({ id: "bm:open:" + p.key, label: p.name.toUpperCase() + " " + stars(skillOf(p)) + " \u00b7 " + HIRES[p.role].nm + (rankOf(p) !== "soldier" ? " \u00b7 " + OUT_RANK[rankOf(p)] : "") + " \u00b7 " + jobText(p, busy).toUpperCase() + " \u00b7 " + loyalWord(loyalOf(p.key)) })); }
     function drawBark(x, y, text) {
       ctx.save(); ctx.font = "600 10px system-ui, sans-serif"; const wds = text.split(" "), lines = []; let ln = "";
       for (const w of wds) { const t2 = ln ? ln + " " + w : w; if (ctx.measureText(t2).width > 150 && ln) { lines.push(ln); ln = w; } else ln = t2; } if (ln) lines.push(ln);
@@ -32789,19 +32934,32 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const c = getCell(i, j); if (!c) continue; for (const b of c.blds || []) { if (!b.biz || !live(b)) continue; const d = Math.hypot(b.x - cx, b.y - cy); if (d < bd) { bd = d; best = b; } } }
       return best;
     }
-    function bombBusiness(b, gk) {
-      b.bombed = { at: nowMin(), until: nowMin() + 3 * 1440, gang: gk, plate: b.w * b.h > 300 * 300 ? "rf_bombed_roof" : ["rf_bombed_a", "rf_bombed_b", "rf_bombed_c"][(Math.random() * 3) | 0] };   // big buildings: the roof-only plate
+    function bombBusiness(b, gk, by) {
+      const days = 2 + ((Math.random() * 4) | 0), big = b.w * b.h > 300 * 300;                          // 2-5 days (layer 520)
+      const plates = big ? ["rf_bombed_roof", "rf_crater_a", "rf_crater_b"] : ["rf_crater_a", "rf_crater_b", "rf_crater_a", "rf_bombed_a", "rf_bombed_b", "rf_bombed_c"];
+      b.bombed = { at: nowMin(), until: nowMin() + days * 1440, days, gang: gk, by: by || "me", plate: cpick(plates), deb: debrisSet(4 + ((Math.random() * 4) | 0)) };
       g.bombedList = (g.bombedList || []).filter((q) => q !== b).concat([b]);
+      // the gang's money off that turf stops till it reopens; then its houses start over (warIncome)
+      const [ti, tj] = turfOf(b.x + b.w / 2, b.y + b.h / 2), t = g.gwar && g.gwar.turfs[turfKey(ti, tj)];
+      if (t) { t.downUntil = Math.max(t.downUntil || 0, b.bombed.until); t.downGang = gk; }
+      heatZone(b.x + b.w / 2, b.y + b.h / 2, by || "me", days);
     }
     const bombedNow = (b) => b && b.bombed && b.bombed.until > nowMin();
     function drawBombed(view) {
+      drawSpotCraters(view);
       const L = g.bombedList; if (!L || !L.length || g.inside) return;
       for (let n = L.length - 1; n >= 0; n--) { const b = L[n];
         if (!bombedNow(b)) { if (b.bombed) { g.jobBanner = "REOPENED"; g.jobNote = (b.name || "A gang front") + " has its doors open again."; } b.bombed = null; L.splice(n, 1); continue; }
         if (b.x > view.x1 + 200 || b.x + b.w < view.x0 - 200 || b.y > view.y1 + 200 || b.y + b.h < view.y0 - 200) continue;
         const im = imgs.current[b.bombed.plate];
-        if (im && im.width) ctx.drawImage(im, b.x - 8, b.y - 8, b.w + 16, b.h + 16);
+        if (/^rf_crater/.test(b.bombed.plate)) {        // a crater: the lot is rubble, the pit in the middle (layer 520)
+          ctx.fillStyle = "#3a332b"; ctx.fillRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8);
+          ctx.fillStyle = "rgba(90,78,62,0.5)"; for (let k = 0; k < 14; k++) { const h1 = ((b.x * 7 + b.y * 13 + k * 977) % 1000) / 1000, h2 = ((b.x * 11 + k * 541) % 1000) / 1000; ctx.fillRect(b.x + h1 * b.w, b.y + h2 * b.h, 6 + h1 * 10, 4 + h2 * 8); }
+          if (im && im.width) { const sc = Math.min(b.w * 0.92 / im.width, b.h * 0.92 / im.height), w = im.width * sc, h = im.height * sc; ctx.drawImage(im, b.x + (b.w - w) / 2, b.y + (b.h - h) / 2, w, h); }
+          else { ctx.fillStyle = "rgba(15,12,10,0.8)"; ctx.beginPath(); ctx.ellipse(b.x + b.w / 2, b.y + b.h / 2, b.w * 0.4, b.h * 0.4, 0, 0, 6.3); ctx.fill(); }
+        } else if (im && im.width) ctx.drawImage(im, b.x - 8, b.y - 8, b.w + 16, b.h + 16);
         else { ctx.fillStyle = "rgba(15,12,10,0.7)"; ctx.fillRect(b.x, b.y, b.w, b.h); }
+        drawDebris(b.bombed.deb, b.x, b.y, b.w, b.h);
         // the car out front, burnt, and the scorch under it
         const d = doorPoint(b), side = b.door.side, out = [[0, -1], [1, 0], [0, 1], [-1, 0]][side] || [0, 1];
         const cx = d[0] + out[0] * 70, cy = d[1] + out[1] * 70, ang = side === 0 || side === 2 ? 0 : Math.PI / 2;
@@ -32845,6 +33003,450 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function moveStand(gk, d) { const S = (g.gstand = g.gstand || {}); S[gk] = clamp((S[gk] || 0) + d, -100, 100);
       const P = (g.gpact || {})[gk]; if (P && P.until > nowMin() && S[gk] < 40) S[gk] = 40; }
     function pactCost(gk) { const G3 = g.gwar && g.gwar.gangs[gk]; return Math.round(PACT.base + (G3 ? (G3.cash || 0) * PACT.perCash : 0) - standOf(gk) * 20); }
+    /* ---------- LAYER 519: CREW RULES, LOYALTY, GANGS THAT HIT BACK, SIT-DOWNS ----------
+       CREW RULES (g.engage): who your people fight -- COPS, GANGSTERS, CIVILIANS, each on or off. A gang you have a
+       PACT with is left alone unless it comes at you. Your people with you on foot (or riding with you) shoot at what
+       the rules allow, in range.
+       LOYALTY (g.loyal[key], 0..100): every one of your people thinks something of you. A job that goes right with him
+       on it lifts it, one that goes wrong or gets called off drops it, a cut of the money buys it. Down low a man is a
+       risk: he talks to the police (a raid on the yard) or walks out with some of your cash.
+       GANGS HIT BACK: hurt one of theirs and the whole crew is on you -- unless you have a pact, in which case they
+       want a SIT-DOWN instead (and a pact only survives so many "accidents").
+       SIT-DOWNS: at one of their businesses or at your yard. Like court: they say their piece, you answer -- RESPECT,
+       STAND FIRM, PAY, or THREATEN -- three rounds, and their temper decides it. You can call one yourself from the
+       board: make peace (a pact), declare war, trade men, or point them at a rival. */
+    const SIT_GANGS = ["kings", "wolves", "mob_old", "mob_young", "chi", "irish", "barrio", "brack"];
+    const SIT_LIKES = { mob_old: "respect", mob_young: "money", kings: "firm", wolves: "threat", chi: "money", irish: "firm", barrio: "respect", brack: "threat" };
+    const SIT_TRADE = { mob_old: "fixer", mob_young: "enforcer", kings: "dealer", wolves: "driver", chi: "hacker", irish: "enforcer", barrio: "shooter", brack: "bomber" };
+    const gangNm = (gk) => GANG_LABEL[gk] || String(gk || "").toUpperCase();
+    const crewGK = (cr) => cr && (cr.gang === "mob" ? (cr.wing === "old" ? "mob_old" : "mob_young") : cr.gang);
+    const pactOn = (gk) => { const P = (g.gpact || {})[gk]; return !!(P && P.until > nowMin()); };
+    const ENG0 = { cops: 1, gangs: 1, civs: 0 };
+    const engage = () => (g.engage = g.engage || { ...ENG0 });
+    // ---- loyalty
+    const loyal0 = (key) => (/^c:/.test(key) ? 70 : 55);
+    const loyalOf = (key) => { const L = (g.loyal = g.loyal || {}); if (L[key] == null) L[key] = loyal0(key); return L[key]; };
+    function loyalAdd(key, d) { const L = (g.loyal = g.loyal || {}); L[key] = clamp(loyalOf(key) + d, /^c:/.test(key) ? 20 : 0, 100); }
+    const loyalWord = (v) => v >= 80 ? "RIDE OR DIE" : v >= 60 ? "LOYAL" : v >= 40 ? "STEADY" : v >= 25 ? "SHAKY" : "A RISK";
+    G.loyalT = () => basePeople().map((p) => p.name + ":" + loyalOf(p.key));     // test hook
+    function stepLoyalty(dt) {
+      if (!g.pescaped) return;
+      g.loyCd = (g.loyCd == null ? 150 : g.loyCd) - dt; if (g.loyCd > 0) return; g.loyCd = 150 + Math.random() * 90;
+      const risky = basePeople().filter((p) => loyalOf(p.key) < 25 && !p.crew);
+      if (!risky.length || Math.random() > 0.5) return;
+      const p = cpick(risky), B = g.board2 || {};
+      if (Math.random() < 0.5) {   // HE TALKED
+        const H = hideoutB(); g.heat = Math.max(g.heat || 0, 2); g.wantedT = Math.max(g.wantedT || 0, 90);
+        if (H) { const d = doorPoint(H); try { escalatePolice(d[0], d[1], 1); } catch (e) {} }
+        g.jobBanner = "SOMEBODY TALKED"; g.jobNote = p.name + " had a quiet word with the RHPD. They know about the yard. (He's gone.)";
+      } else {                     // HE WALKED, WITH SOME OF YOUR MONEY
+        const took = Math.min(Math.round((g.p.cash || 0) * 0.12), 3000); g.p.cash = Math.max(0, (g.p.cash || 0) - took);
+        g.jobBanner = "A TRAITOR"; g.jobNote = p.name + " cleared out" + (took ? " with $" + took + " of yours" : "") + ". Word is he's selling what he knows.";
+      }
+      // he's off the payroll either way
+      if (p.m) { B.men = (B.men || []).filter((m) => m !== p.m); if (B.hires && B.hires[p.role]) B.hires[p.role] = Math.max(0, B.hires[p.role] - 1); }
+      delete (g.loyal || {})[p.key];
+    }
+    // ---- your people fight what the rules say
+    function crewEngage(dt) {
+      if (!g.pescaped || !g.pfol || !g.pfol.length || g.title) return;
+      const E = engage(), inCar = g.mode === "car";
+      for (const f of g.pfol) {
+        if (f.task || f.down) continue;
+        if (!inCar && (f.b !== g.inside || f.f !== g.floor)) continue;
+        const fx = inCar ? g.p.x : f.x, fy = inCar ? g.p.y : f.y, R = inCar ? 380 : 420;
+        f.fireCd = (f.fireCd == null ? 1 : f.fireCd) - dt; if (f.fireCd > 0) continue;
+        let best = null, bd = R, kind = null;
+        const see = (o, k) => { if (!o || !Number.isFinite(o.x) || (o.hp != null && o.hp <= 0)) return; const d = Math.hypot(o.x - fx, o.y - fy); if (d < bd) { bd = d; best = o; kind = k; } };
+        if (E.cops && ((g.heat || 0) > 0)) for (const u of policeUnits()) see(u, "cop");
+        if (E.gangs && !g.inside) for (const cr of g.crews || []) { const gk = crewGK(cr); if (pactOn(gk) && !(cr.angryMe > 0)) continue;
+          if (!(cr.state === "hostile" || cr.angryMe > 0 || standOf(gk) <= -10)) continue; for (const m of cr.members || []) see(m, "gang"); }
+        if (E.civs && !g.inside && !inCar) for (const q of g.peds || []) see(q, "civ");
+        if (!best) { f.fireCd = 0.4; continue; }
+        f.fireCd = (inCar ? 1.4 : 1.0) + Math.random() * 0.6;
+        const a = Math.atan2(best.y - fy, best.x - fx);
+        if (kind === "civ") { best.mode = "panic"; best.timer = 2.5; best.fx = best.x - fx; best.fy = best.y - fy; best.fly = 0.4; best.vx = Math.cos(a) * 160; best.vy = Math.sin(a) * 160; witnessed(best.x, best.y, 1, false); continue; }
+        f.bang = a; f.muzzle = 0.14;
+        try { sfxGunshot(); } catch (e) {}
+        scatter(fx, fy, 380);
+        fireBullet({ x: fx + Math.cos(a) * 18, y: fy + Math.sin(a) * 18 }, a + (Math.random() - 0.5) * 0.18, 960, 2.2, R + 40, true, null);
+        if (kind === "gang") for (const cr of g.crews || []) if ((cr.members || []).includes(best)) gangHurt(cr, true);
+        witnessed(fx, fy, 1, false);
+      }
+    }
+    function crewRulesPanel() {
+      const E = engage(), on = (k) => (E[k] ? "ON " : "OFF") + " \u00b7 ";
+      return { title: "CREW RULES \u00b7 WHO WE FIGHT", face: null,
+        text: "Your people with you shoot at what's switched on. A gang you have a pact with is left alone unless it starts it." + (g.pfol && g.pfol.length ? "" : " (Nobody's with you right now.)"),
+        opts: [{ id: "eng:cops", label: on("cops") + "COPS (when they're on us)" }, { id: "eng:gangs", label: on("gangs") + "GANGSTERS (not our pacts)" },
+               { id: "eng:civs", label: on("civs") + "CIVILIANS" }, { id: "close", label: "DONE" }] };
+    }
+    // ---- gangs hit back
+    function gangHurt(cr, byCrew) {
+      const gk = crewGK(cr); if (!gk) return;
+      if (pactOn(gk) && !(cr.angryMe > 0)) {
+        const H = (g.pactHits = g.pactHits || {}); H[gk] = (H[gk] || 0) + 1; cr.state = cr.rival ? cr.state : "watch";
+        if (H[gk] >= 4) { g.gpact[gk].until = 0; moveStand(gk, -60); g.jobBanner = "PACT BROKEN"; g.jobNote = gangNm(gk) + ": that's too many accidents. It's war."; H[gk] = 0; return; }
+        if (!g.sit && !(g.sitAsk && g.sitAsk.gk === gk)) { sitCall(gk, "hurt", "theirs"); }
+        return;
+      }
+      if (!(cr.angryMe > 0)) moveStand(gk, -4);
+      for (const c2 of g.crews || []) if (crewGK(c2) === gk && Math.hypot(c2.x - cr.x, c2.y - cr.y) < 1100) { c2.angryMe = 45; c2.state = "hostile"; }
+    }
+    G.gangHurtT = (n) => { const cr = (g.crews || [])[n || 0]; if (cr) gangHurt(cr); return cr && [crewGK(cr), cr.angryMe, cr.state, !!g.sit]; };   // test hook
+    // ---- sit-downs
+    function sitPlace(gk, where) {
+      if (where === "mine") { const H = hideoutB(); if (H && H.door) { const d = doorPoint(H); return { x: d[0], y: d[1] + 50, b: H, label: "YOUR YARD" }; } }
+      const b = gangFront(gk); if (b && b.door) { const d = doorPoint(b); return { x: d[0], y: d[1], b, label: (b.name || addressOf(b) || "THEIR PLACE").toUpperCase() }; }
+      return null;
+    }
+    function sitCall(gk, agenda, where, extra) {
+      const at = sitPlace(gk, where); if (!at) { g.pickupFlash = { nm: "lift:NOWHERE TO MEET " + gangNm(gk), t: 2 }; return false; }
+      g.sit = { gk, agenda, where, at, round: 0, temper: clamp(40 - standOf(gk) * 0.3, 10, 80), log: [], extra: extra || null, set: nowMin(), theirs: agenda === "hurt" };
+      g.jobBanner = "SIT-DOWN \u00b7 " + gangNm(gk); g.jobNote = (agenda === "hurt" ? gangNm(gk) + " want to talk about one of theirs. " : "") + "Meet at " + at.label + ". Come on foot.";
+      g.pickupFlash = { nm: "lift:SIT-DOWN \u00b7 " + gangNm(gk) + " \u00b7 " + at.label, t: 3 };
+      return true;
+    }
+    function stepSit(dt) {
+      const S = g.sit; if (!S || g.pickOpen) return;
+      if (nowMin() - S.set > 2 * 1440) { moveStand(S.gk, -15); g.jobBanner = "STOOD UP"; g.jobNote = gangNm(S.gk) + " waited two days. They won't forget it."; g.sit = null; return; }
+      if (g.mode !== "foot") return;
+      const at = S.at, here = (g.inside && g.inside === at.b) || (!g.inside && Math.hypot(g.p.x - at.x, g.p.y - at.y) < 170);
+      if (here && !S.open) { S.open = 1; if (S.agenda === "war") { sitWar(S); return; } G.pickOpen("sit"); }
+      if (!here) S.open = 0;
+    }
+    const SIT_OPEN = {
+      hurt: ["You put hands on one of ours. We have a pact. So tell me why I shouldn't tear it up.", "One of our boys is in the hospital. You did that. Talk."],
+      peace: ["You asked for this. Say what you came to say.", "Peace. Everybody wants peace until it costs them something."],
+      trade: ["You want to swap people. Who's worth what?", "A man for a man. Go on."],
+      rival: ["You want us to go to war for you. Interesting.", "You came here to point at somebody. Who?"],
+    };
+    const SIT_PUSH = ["And how do I know you mean it?", "My people are watching me right now. Give me something.", "Last chance to make this right."];
+    function sitPanel() {
+      const S = g.sit; if (!S) return null;
+      if (S.done) return { title: "THE SIT-DOWN \u00b7 " + gangNm(S.gk), face: null, text: S.log.join("\n"), opts: [{ id: "sit:end", label: "LEAVE" }] };
+      const line = S.round === 0 ? cpick(SIT_OPEN[S.agenda] || SIT_OPEN.peace) : cpick(SIT_PUSH);
+      S.said = S.said || line;
+      const cost = Math.max(500, Math.round(pactCost(S.gk) * 0.25));
+      const tm = S.temper < 30 ? "calm" : S.temper < 60 ? "wary" : "hot";
+      return { title: "THE SIT-DOWN \u00b7 " + gangNm(S.gk) + " \u00b7 ROUND " + (S.round + 1) + " OF 3", face: null,
+        text: (S.log.length ? S.log.slice(-2).join("\n") + "\n\n" : "") + "\u201c" + S.said + "\u201d\n(The table is " + tm + ".)",
+        opts: [{ id: "sit:respect", label: "SHOW RESPECT \u00b7 \u201cYour house. I hear you.\u201d" }, { id: "sit:firm", label: "STAND FIRM \u00b7 \u201cIt happened. Here's why.\u201d" },
+               { id: "sit:money", label: "PAY \u00b7 $" + cost + " ON THE TABLE" }, { id: "sit:threat", label: "THREATEN \u00b7 \u201cRemember who you're sitting with.\u201d" },
+               { id: "sit:walk", label: "WALK OUT" }] };
+    }
+    function sitAct(a) {
+      const S = g.sit; if (!S) return;
+      if (a === "end") { g.sit = null; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return; }
+      if (a === "walk") { S.temper = 100; S.round = 3; }
+      else {
+        let d = a === "respect" ? -12 : a === "firm" ? (S.agenda === "hurt" ? 2 : -6) : a === "money" ? -20 : 16;
+        if (a === "threat" && (g.rep || 0) >= 500) d = -8;                              // a FEARED man's threat lands
+        if (SIT_LIKES[S.gk] === a) d -= 10;
+        if (a === "money") { const cost = Math.max(500, Math.round(pactCost(S.gk) * 0.25)); if ((g.p.cash || 0) < cost) { S.log.push("You reach for money you don't have. They notice."); d = 12; } else g.p.cash -= cost; }
+        S.temper = clamp(S.temper + d + (Math.random() - 0.5) * 8, 0, 100);
+        S.log.push({ respect: "You give them their due.", firm: "You don't back down.", money: "Cash goes on the table.", threat: "You lean in and let them see it." }[a] + " (" + (d <= -10 ? "it lands" : d < 0 ? "they listen" : "they bristle") + ")");
+        S.round++; S.said = null;
+      }
+      if (S.round >= 3) sitResolve(S);
+      G.pickOpen("sit");
+    }
+    function sitResolve(S) {
+      S.done = 1; const gk = S.gk, nm = gangNm(gk);
+      if (S.temper <= 35) {
+        if (S.agenda === "hurt") { moveStand(gk, 5); (g.pactHits || {})[gk] = 0; S.log.push("DEAL. \u201cFine. It's forgotten. Once.\u201d The pact holds."); }
+        else if (S.agenda === "peace") { (g.gpact = g.gpact || {})[gk] = { until: nowMin() + PACT.days * 1440 }; moveStand(gk, 25); S.log.push("PEACE. Hands across the table: a pact with " + nm + " for " + PACT.days + " days."); }
+        else if (S.agenda === "trade") { const B = g.board2 = g.board2 || { hires: {}, ops: [], corners: 0 }, give = S.extra, get = SIT_TRADE[gk] || "enforcer";
+          const m = (B.men || []).find((q) => q.role === give);
+          if (m) { B.men = B.men.filter((q) => q !== m); B.hires[give] = Math.max(0, (B.hires[give] || 1) - 1); const v = 1 + ((Math.random() * 3) | 0); B.men.push({ role: get, v }); B.hires[get] = (B.hires[get] || 0) + 1;
+            S.log.push("TRADE. Your " + HIRES[give].nm.toLowerCase() + " goes with them; their " + HIRES[get].nm.toLowerCase() + " comes with you."); }
+          else S.log.push("No deal -- you don't have a " + (HIRES[give] ? HIRES[give].nm.toLowerCase() : "man") + " to give."); }
+        else if (S.agenda === "rival") { const rv = S.extra; moveStand(gk, 5); g.setWar = { a: gk, b: rv, t: 25 }; S.log.push("DONE. \u201c" + gangNm(rv) + "? We've been waiting for an excuse.\u201d Watch the streets."); }
+      } else if (S.temper <= 65) { moveStand(gk, -2); S.log.push("NO DEAL. They hear you out and give you nothing."); }
+      else { moveStand(gk, -60); if (g.gpact && g.gpact[gk]) g.gpact[gk].until = 0;
+        for (const cr of g.crews || []) if (crewGK(cr) === gk) { cr.angryMe = 60; cr.state = "hostile"; }
+        S.log.push("IT GOES BAD. Chairs go over. " + nm + " are at war with you."); }
+      g.jobBanner = "SIT-DOWN \u00b7 " + nm + " \u00b7 OVER"; g.jobNote = S.log[S.log.length - 1];
+    }
+    function sitWar(S) { const gk = S.gk; moveStand(gk, -80); if (g.gpact && g.gpact[gk]) g.gpact[gk].until = 0;
+      for (const cr of g.crews || []) if (crewGK(cr) === gk) { cr.angryMe = 60; cr.state = "hostile"; }
+      g.sit = null; g.jobBanner = "WAR \u00b7 " + gangNm(gk); g.jobNote = "You said it to their faces. Every " + gangNm(gk) + " crew in the city is coming for you."; }
+    // a war you pointed them at: two crews meet near you a little later
+    function stepSetWar(dt) { const W = g.setWar; if (!W) return; W.t -= dt; if (W.t > 0) return; g.setWar = null;
+      const cg = (gk) => gk === "mob_old" ? ["mob", "old"] : gk === "mob_young" ? ["mob", "young"] : [gk, null];
+      const a = Math.random() * 6.283, x = g.p.x + Math.cos(a) * 700, y = g.p.y + Math.sin(a) * 700;
+      try { const [ga, wa] = cg(W.a), [gb, wb] = cg(W.b); const A = warCrew(ga, x, y, 4, wa), B2 = warCrew(gb, x + 90, y + 30, 4, wb);
+        A.rival = B2; B2.rival = A; A.state = "hostile"; B2.state = "hostile"; g.jobBanner = gangNm(W.a) + " vs " + gangNm(W.b); g.jobNote = "The war you started. Somewhere close."; } catch (e) {}
+    }
+    // calling one yourself: from the board (CALL A SIT-DOWN)
+    function sitCallPanel() {
+      const v = g.sitView || "gang", gk = g.sitGK;
+      if (v === "gang") return { title: "CALL A SIT-DOWN \u00b7 WHO", face: null, text: g.sit ? "You already have one set: " + gangNm(g.sit.gk) + " at " + g.sit.at.label + "." : "Pick the family.",
+        opts: SIT_GANGS.filter((k) => GANG_LABEL[k]).map((k) => ({ id: "sc:g:" + k, label: gangNm(k) + " \u00b7 " + standTier(standOf(k)) + (pactOn(k) ? " \u00b7 PACT" : "") })).concat([{ id: "close", label: "NEVER MIND" }]) };
+      if (v === "agenda") return { title: "SIT-DOWN \u00b7 " + gangNm(gk) + " \u00b7 WHAT ABOUT", face: null, text: "What do you want out of it?",
+        opts: [{ id: "sc:a:peace", label: "MAKE PEACE \u00b7 A PACT" }, { id: "sc:a:war", label: "DECLARE WAR" }, { id: "sc:a:trade", label: "TRADE MEN" }, { id: "sc:a:rival", label: "POINT THEM AT A RIVAL" }, { id: "sc:back", label: "BACK" }] };
+      if (v === "trade") return { title: "TRADE \u00b7 WHO DO YOU GIVE", face: null, text: "They'd give you a " + HIRES[SIT_TRADE[gk] || "enforcer"].nm.toLowerCase() + ".",
+        opts: Object.keys((g.board2 && g.board2.hires) || {}).filter((k) => g.board2.hires[k] > 0).map((k) => ({ id: "sc:x:" + k, label: "GIVE A " + HIRES[k].nm })).concat([{ id: "sc:back", label: "BACK" }]) };
+      if (v === "rival") return { title: "POINT " + gangNm(gk) + " AT", face: null, text: "Who do they hit?",
+        opts: SIT_GANGS.filter((k) => k !== gk && GANG_LABEL[k]).map((k) => ({ id: "sc:x:" + k, label: gangNm(k) })).concat([{ id: "sc:back", label: "BACK" }]) };
+      if (v === "where") return { title: "SIT-DOWN \u00b7 WHERE", face: null, text: "Their ground or yours?", opts: [{ id: "sc:w:theirs", label: "ONE OF THEIR PLACES" }, { id: "sc:w:mine", label: "MY YARD" }, { id: "sc:back", label: "BACK" }] };
+      return null;
+    }
+    function sitCallAct(id) { const [, a, x] = id.split(":");
+      if (a === "back") { g.sitView = g.sitView === "where" || g.sitView === "trade" || g.sitView === "rival" ? "agenda" : "gang"; G.pickOpen("sitcall"); return; }
+      if (a === "g") { if (g.sit) { G.pickOpen("sitcall"); return; } g.sitGK = x; g.sitView = "agenda"; G.pickOpen("sitcall"); return; }
+      if (a === "a") { g.sitAgenda = x; g.sitView = x === "trade" ? "trade" : x === "rival" ? "rival" : "where"; G.pickOpen("sitcall"); return; }
+      if (a === "x") { g.sitExtra = x; g.sitView = "where"; G.pickOpen("sitcall"); return; }
+      if (a === "w") { sitCall(g.sitGK, g.sitAgenda, x, g.sitExtra); g.sitView = "gang"; g.sitExtra = null; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); }
+    }
+    /* ---------- LAYER 520: PEOPLE WITH STATS, THE OUTFIT, THE ARMORY, HEAT AFTER A BOMB, THE WHEELS ----------
+       PEOPLE ARE PEOPLE (Donny): a hire is a man with eight STATS (1-10) -- DRIVE, AIM, MUSCLE, STEALTH, BRAINS, NERVE,
+       HANDS (locks, safes, wires, ink), STREET (selling, fencing, who-knows-who). The board's HIRE PEOPLE shows who's
+       around today (four faces, a new lot each day, $100 to see more) with what he's best at; you put him on whichever
+       TRADE you want and his stars in it come from his stats (ROLE_FIT) plus what he's learned on jobs (xp). Gear adds to
+       his stats. THE OUTFIT: you're the boss; two TOP CREW (they can send word inside Kestrel and go make peace for you,
+       and a job with one on it goes +5%), CAPTAINS (each lifts the corners' and shops' take 15%, one per four spots),
+       COURIERS (they carry the money in: without enough, a quarter of the take goes missing -- one per four spots),
+       SOLDIERS (everybody else). AUTO-ASSIGN puts the best-suited in each. */
+    const HSTAT = ["drive", "aim", "muscle", "stealth", "brains", "nerve", "hands", "street"];
+    const STAT_NM = { drive: "DRIVE", aim: "AIM", muscle: "MUSCLE", stealth: "STEALTH", brains: "BRAINS", nerve: "NERVE", hands: "HANDS", street: "STREET" };
+    const ROLE_FIT = {
+      dealer: { street: 2, nerve: 1 }, driver: { drive: 2, nerve: 1 }, shooter: { aim: 2, nerve: 1 }, lookout: { stealth: 2, brains: 1 },
+      locksmith: { hands: 2, stealth: 1 }, thief: { drive: 1, hands: 1, stealth: 1 }, hacker: { brains: 2, hands: 1 }, mechanic: { hands: 2, drive: 1 },
+      enforcer: { muscle: 2, nerve: 1 }, fence: { street: 2, brains: 1 }, forger: { hands: 2, brains: 1 }, bomber: { hands: 1, brains: 1, nerve: 1 },
+      safecracker: { hands: 2, stealth: 1 }, chemist: { brains: 2, hands: 1 }, fixer: { brains: 2, street: 1 },
+    };
+    const CREW_STATS = { viejo: { drive: 10, aim: 4, muscle: 3, stealth: 5, brains: 7, nerve: 8, hands: 6, street: 6 },
+                         leroy: { drive: 4, aim: 8, muscle: 8, stealth: 4, brains: 5, nerve: 8, hands: 3, street: 5 },
+                         ras:   { drive: 3, aim: 4, muscle: 4, stealth: 6, brains: 6, nerve: 5, hands: 4, street: 7 } };
+    const OUT_RANK = { top: "TOP CREW", captain: "CAPTAIN", courier: "COURIER", soldier: "SOLDIER" };
+    const GEAR = {
+      pistol:   { nm: "PISTOL", cost: 400, add: { aim: 2 } },
+      shotgun:  { nm: "SHOTGUN", cost: 700, add: { muscle: 2, aim: 1 } },
+      smg:      { nm: "SUBMACHINE GUN", cost: 1500, add: { aim: 3, nerve: 1 } },
+      rifle:    { nm: "RIFLE", cost: 2000, add: { aim: 4 } },
+      vest:     { nm: "VEST", cost: 600, add: { nerve: 2 }, note: "can live through a job gone wrong" },
+      radio:    { nm: "POLICE SCANNER", cost: 250, add: { stealth: 2 }, note: "busts less likely" },
+      burner:   { nm: "BURNER PHONE", cost: 150, add: { street: 1 }, note: "arrests less likely" },
+      lockpick: { nm: "LOCK PICKS", cost: 300, add: { hands: 2 } },
+    };
+    const GEAR_MAX = 2;
+    function genStats(role) { const st = {}; for (const k of HSTAT) st[k] = 2 + ((Math.random() * 5) | 0);
+      const W = ROLE_FIT[role] || {}; for (const k in W) st[k] = Math.min(10, st[k] + W[k] * (1 + ((Math.random() * 2) | 0)));
+      return st; }
+    function ensureStats(p) { const r = p.rec; if (!r) return {};
+      if (!r.st) r.st = p.crew ? { ...(CREW_STATS[p.crew] || genStats(p.role)) } : genStats(p.role);
+      if (!r.gear) r.gear = []; if (!r.rank) r.rank = "soldier"; return r.st; }
+    function effStats(p) { const st = { ...ensureStats(p) }; for (const k of p.rec.gear || []) { const A = (GEAR[k] || {}).add || {}; for (const s in A) st[s] = Math.min(10, (st[s] || 0) + A[s]); } return st; }
+    function fitStars(st, role) { const W = ROLE_FIT[role] || { nerve: 1 }; let a = 0, n = 0; for (const k in W) { a += (st[k] || 1) * W[k]; n += W[k]; } return clamp(1 + ((a / n) - 1) / 9 * 4, 1, 5); }
+    const roleOpen = (k) => (g.rep || 0) >= HIRES[k].rep;
+    function bestRole(st, openOnly) { let best = null, bv = -1; for (const k in ROLE_FIT) { if (openOnly && !roleOpen(k)) continue; const v = fitStars(st, k); if (v > bv) { bv = v; best = k; } } return best || "dealer"; }
+    function statText(p) { const st = effStats(p), base = ensureStats(p);
+      return HSTAT.map((k) => STAT_NM[k] + " " + st[k] + (st[k] > base[k] ? "+" : "")).join(" \u00b7 ") + "  \u00b7  BEST AT: " + HIRES[bestRole(st)].nm; }
+    const top3 = (st) => HSTAT.slice().sort((a, b) => st[b] - st[a]).slice(0, 3).map((k) => STAT_NM[k] + " " + st[k]).join(" \u00b7 ");
+    const rankOf = (p) => (p.rec && p.rec.rank) || "soldier";
+    function rankCount() { const n = { top: 0, captain: 0, courier: 0, soldier: 0 }; for (const p of basePeople()) n[rankOf(p)]++; return n; }
+    const spotCount = () => { const B = g.board2 || {}; return (B.corners || 0) + liveRackets(); };
+    const liveRackets = () => { const B = g.board2 || {}; return Math.max(0, (B.rackets || 0) - (B.spots || []).filter((s) => s.kind === "racket" && s.bombed && s.bombed.until > nowMin()).length); };
+    function rankRoom(r) { const n = basePeople().length; return r === "top" ? 2 : r === "captain" ? Math.max(1, Math.ceil(spotCount() / 4)) : r === "courier" ? Math.max(1, Math.ceil(spotCount() / 4) + 1) : 99; }
+    function setRank(p, r) { ensureStats(p); if (r !== "soldier" && rankOf(p) !== r && rankCount()[r] >= rankRoom(r)) return false; p.rec.rank = r; return true; }
+    // the day's faces at the board
+    function hirePool(force) { const B = g.board2; if (!B) return [];
+      if (force || !B.pool || B.poolDay !== (g.pday || 0)) { B.poolDay = g.pday || 0; B.pool = [];
+        const open = Object.keys(HIRES).filter(roleOpen);
+        for (let n = 0; n < 4; n++) { const seed = cpick(open), st = genStats(seed), role = bestRole(st, true), f = fitStars(st, role);
+          const id = 1000 + ((Math.random() * 1e6) | 0), nm = HIRE_FIRST[(id * 7) % HIRE_FIRST.length] + " " + HIRE_LAST[(id * 13) % HIRE_LAST.length];
+          B.pool.push({ id, name: nm, seed, role, st, v: 1 + ((Math.random() * 3) | 0), cost: Math.round(HIRES[role].cost * (0.7 + 0.18 * (f - 2)) / 50) * 50 }); } }
+      return B.pool; }
+    function hireCand(k) { const B = g.board2; if (!B) return;
+      if (k === "new") { if ((g.p.cash || 0) < 100) { g.boardSaid = "Asking around costs $100."; return; } g.p.cash -= 100; hirePool(true); g.boardSaid = "New faces. Who do you like?"; return; }
+      const c = (B.pool || []).find((q) => q.id === +k); if (!c) return;
+      if (peopleCount() >= repTier()[2]) { g.boardSaid = "The street won't follow more than " + repTier()[2] + " people behind a " + repTier()[1].toLowerCase() + ". Earn more respect."; return; }
+      if ((g.p.cash || 0) < c.cost) { g.boardSaid = "He wants $" + c.cost + ". You have $" + (g.p.cash || 0) + "."; return; }
+      g.p.cash -= c.cost; B.hires[c.role] = (B.hires[c.role] || 0) + 1;
+      (B.men = B.men || []).push({ role: c.role, art: c.seed, v: c.v, name: c.name, st: c.st, gear: [], rank: "soldier" });
+      B.pool = B.pool.filter((q) => q !== c); B.lastFace = "assets/hires/pt_hire_" + (c.seed === "hacker" ? "hacker" : c.seed) + "_" + (c.seed === "hacker" ? 1 : c.v) + ".png";
+      g.boardSaid = c.name + " is on the payroll, as your " + HIRES[c.role].nm.toLowerCase() + ". (Change his trade or rank from YOUR PEOPLE.)"; }
+    function setTrade(p, k) { const B = g.board2; if (!B || p.crew || !HIRES[k] || p.role === k) return false;
+      if (!roleOpen(k)) return false;
+      B.hires[p.role] = Math.max(0, (B.hires[p.role] || 1) - 1); B.hires[k] = (B.hires[k] || 0) + 1;
+      if (!p.m.art) p.m.art = p.m.role; p.m.role = k; if (p.m.job === "deal" && !/^(dealer|chemist)$/.test(k)) setJob(p, "wait"); return true; }
+    function autoAssign() { const L = basePeople(); L.forEach(ensureStats);
+      for (const p of L) if (!p.crew) { const k = bestRole(effStats(p), true); if (k !== p.role) setTrade(p, k); }
+      for (const p of L) p.rec.rank = "soldier";
+      const score = { top: (s) => s.brains + s.nerve + s.street, captain: (s) => s.street + s.muscle + s.nerve, courier: (s) => s.drive + s.stealth + s.nerve };
+      const left = basePeople().slice();
+      for (const r of ["top", "captain", "courier"]) { left.sort((a, b) => score[r](effStats(b)) - score[r](effStats(a)) + (r === "top" ? (loyalOf(b.key) - loyalOf(a.key)) / 20 : 0));
+        let room = rankRoom(r); if (r !== "top") room = Math.min(room, Math.max(0, Math.floor((left.length - 1) / 2)));
+        for (let i = 0; i < room && left.length; i++) { const p = left.shift(); p.rec.rank = r; } }
+      g.boardSaid = "Everybody's where he's best. " + outfitLine(); }
+    function outfitLine() { const L = basePeople(), by = (r) => L.filter((p) => rankOf(p) === r).map((p) => p.name.split(" ")[0]).join(", ") || "nobody";
+      return "BOSS: you. TOP CREW: " + by("top") + ". CAPTAINS: " + by("captain") + ". COURIERS: " + by("courier") + ". SOLDIERS: " + L.filter((p) => rankOf(p) === "soldier").length + "."; }
+    function outfitPanel() { const opts = [{ id: "otf:auto", label: "AUTO-ASSIGN \u00b7 THE BEST-SUITED IN EVERY SPOT" }];
+      for (const r of ["top", "captain", "courier", "soldier"]) for (const p of basePeople().filter((q) => rankOf(q) === r)) { ensureStats(p);
+        opts.push({ id: "bm:open:" + p.key, label: OUT_RANK[r] + " \u00b7 " + p.name.toUpperCase() + " \u00b7 " + HIRES[p.role].nm + " " + stars(skillOf(p)) + " \u00b7 " + top3(effStats(p)), icon: p.face }); }
+      opts.push({ id: "open:opsboard", label: "BACK TO THE BOARD" });
+      const n = rankCount();
+      return { title: "THE OUTFIT \u00b7 TOP CREW " + n.top + "/2 \u00b7 CAPTAINS " + n.captain + "/" + rankRoom("captain") + " \u00b7 COURIERS " + n.courier + "/" + rankRoom("courier"), face: null,
+        text: (g.otfSaid ? g.otfSaid + "  " : "") + outfitLine() + "  Top crew send word inside and make peace for you. Captains lift the take. Couriers bring it in -- short on them, a quarter goes missing.", opts }; }
+    G.outfitPick = (id) => { const a = id.split(":")[1]; if (a === "auto") { autoAssign(); g.otfSaid = g.boardSaid; } };
+    // THE ARMORY: what the outfit owns, and who's carrying it
+    function armoryPanel() { const B = g.board2 || {}, A = (B.armory = B.armory || {}), opts = [];
+      for (const k in GEAR) { const G2 = GEAR[k]; opts.push({ id: "arm:buy:" + k, label: "BUY A " + G2.nm + " \u00b7 $" + G2.cost + " \u00b7 IN STOCK " + (A[k] || 0) + " \u00b7 " + Object.keys(G2.add).map((s) => "+" + G2.add[s] + " " + STAT_NM[s]).join(" ") + (G2.note ? " \u00b7 " + G2.note : "") }); }
+      for (const k in GEAR_GUN) if (A[k] > 0) opts.push({ id: "arm:self:" + k, label: "TAKE THE " + GEAR[k].nm + " FOR YOURSELF \u00b7 " + A[k] + " IN THE LOCKER" });   // layer 521
+      opts.push({ id: "open:opsboard", label: "BACK TO THE BOARD" });
+      const out = basePeople().filter((p) => (p.rec.gear || []).length).map((p) => p.name.split(" ")[0] + ": " + p.rec.gear.map((k) => GEAR[k].nm.toLowerCase()).join(", "));
+      return { title: "THE ARMORY \u00b7 $" + (g.p.cash || 0), face: null, text: (g.armSaid ? g.armSaid + "  " : "") + "In the locker: " + (Object.keys(A).filter((k) => A[k] > 0).map((k) => GEAR[k].nm.toLowerCase() + " x" + A[k]).join(", ") || "nothing") + ".  Carried: " + (out.join("; ") || "nothing") + ".  Give it out from a man's own card (YOUR PEOPLE).", opts }; }
+    const GEAR_GUN = { pistol: "beretta", shotgun: "shotgun_long", smg: "smg_uzi", rifle: "rifle_auto" };
+    G.armoryPick = (id) => { const [, a, k] = id.split(":"), B = g.board2; if (!B || !GEAR[k]) return; const A = (B.armory = B.armory || {});
+      if (a === "self") { if (!(A[k] > 0) || !GEAR_GUN[k]) return; A[k]--; const w = GEAR_GUN[k], AB = (g.ammoBy = g.ammoBy || {});
+        g.rack = g.rack || []; if (!g.rack.includes(w)) g.rack.push(w); if (g.p.wpn && g.p.wpn !== w) AB[g.p.wpn] = g.p.ammo;
+        g.p.wpn = w; g.p.ammo = WPN_AMMO[w] || 6; AB[w] = g.p.ammo; g.p.holstered = true; setHud((h) => ({ ...h, wpn: w, ammo: g.p.ammo, holstered: true }));
+        g.armSaid = "The " + GEAR[k].nm.toLowerCase() + " is yours. Holstered -- Q for the weapon wheel."; return; }
+      if (a !== "buy") return;
+      if ((g.p.cash || 0) < GEAR[k].cost) { g.armSaid = "Not enough cash."; return; } g.p.cash -= GEAR[k].cost; A[k] = (A[k] || 0) + 1; g.armSaid = "A " + GEAR[k].nm.toLowerCase() + " goes in the locker."; };
+    // a man's own card: trade, rank, gear, and what the top crew can do
+    function bmSubPanel(p) { const v = g.bmView, B = g.board2 || {}, opts = []; ensureStats(p);
+      if (v === "trade") { for (const k in HIRES) { if (HIRES[k].crew) continue; const f = fitStars(effStats(p), k);
+          opts.push({ id: "bm:x:trade:" + k, label: (roleOpen(k) ? "" : "\u2717 ") + HIRES[k].nm + " " + stars(f) + (p.role === k ? " \u00b7 NOW" : "") + (roleOpen(k) ? "" : " \u00b7 NEEDS " + HIRES[k].rep + " RESPECT"), dim: !roleOpen(k) }); }
+        opts.sort((a, b) => (b.label.split("\u2605").length) - (a.label.split("\u2605").length)); }
+      else if (v === "rank") { for (const r of ["top", "captain", "courier", "soldier"]) opts.push({ id: "bm:x:rank:" + r, label: OUT_RANK[r] + (rankOf(p) === r ? " \u00b7 NOW" : r === "soldier" ? "" : " \u00b7 " + rankCount()[r] + "/" + rankRoom(r)) }); }
+      else if (v === "gear") { const A = (B.armory = B.armory || {});
+        for (const k of p.rec.gear) opts.push({ id: "bm:x:take:" + k, label: "TAKE BACK THE " + GEAR[k].nm });
+        if (p.rec.gear.length < GEAR_MAX) for (const k in GEAR) if (A[k] > 0) opts.push({ id: "bm:x:give:" + k, label: "GIVE HIM A " + GEAR[k].nm + " (" + A[k] + " IN THE LOCKER)" });
+        if (!opts.length) g.bmSaid = "The locker's empty. Buy gear at THE ARMORY on the board."; }
+      else if (v === "peace") { for (const gk of Object.keys((g.gwar && g.gwar.gangs) || {})) { const s = standOf(gk); if (s >= 40) continue;
+          opts.push({ id: "bm:x:peace:" + gk, label: "TO " + (GANG_LABEL[gk] || gk) + " \u00b7 " + standTier(s) + " " + s + " \u00b7 " + Math.round(peaceOdds(p, gk) * 100) + "%" }); }
+        if (!opts.length) g.bmSaid = "Nobody needs talking down right now."; }
+      else return null;
+      opts.push({ id: "bm:x:back", label: "BACK" });
+      return { title: p.name.toUpperCase() + " \u00b7 " + ({ trade: "HIS TRADE", rank: "HIS RANK", gear: "HIS GEAR", peace: "MAKE PEACE FOR YOU" })[v], face: p.face,
+        text: (g.bmSaid ? "\u201c" + g.bmSaid + "\u201d  " : "") + statText(p), opts }; }
+    function bmExtraOpts(p) { ensureStats(p); const o = [];
+      if (!p.crew) o.push({ id: "bm:x:view:trade", label: "TRADE: " + HIRES[p.role].nm + " \u00b7 CHANGE" });
+      o.push({ id: "bm:x:view:rank", label: "RANK: " + OUT_RANK[rankOf(p)] + " \u00b7 CHANGE" });
+      o.push({ id: "bm:x:view:gear", label: "GEAR: " + ((p.rec.gear || []).map((k) => GEAR[k].nm).join(", ") || "NOTHING") + " \u00b7 CHANGE" });
+      if (rankOf(p) === "top" && !(p.rec.job === "jail")) { o.push({ id: "bm:x:word", label: "SEND WORD INSIDE KESTREL \u00b7 $300" }, { id: "bm:x:view:peace", label: "SEND HIM TO MAKE PEACE" }); }
+      return o; }
+    const peaceOdds = (p, gk) => { const s = effStats(p); return clamp(0.25 + (s.brains + s.nerve + s.street) / 30 * 0.5 + standOf(gk) / 400, 0.1, 0.9); };
+    function bmX(p, parts) { const [a, k] = parts, B = g.board2 || {}; ensureStats(p);
+      if (a === "back") { g.bmView = null; return; }
+      if (a === "view") { g.bmView = k; g.bmSaid = null; return; }
+      if (a === "trade") { if (!roleOpen(k)) { g.bmSaid = "Nobody'll back me in that till you've got " + HIRES[k].rep + " respect."; return; }
+        if (setTrade(p, k)) { g.bmSaid = "A " + HIRES[k].nm.toLowerCase() + "? I can do that."; g.bmView = null; } return; }
+      if (a === "rank") { if (!setRank(p, k)) { g.bmSaid = "You already have all the " + OUT_RANK[k].toLowerCase() + "s you can use."; return; }
+        g.bmSaid = k === "top" ? "Right hand. I won't let you down." : k === "captain" ? "My corners'll be the cleanest in the city." : k === "courier" ? "Bag in, bag out. Nobody skims on my watch." : "Whatever you need."; g.bmView = null; return; }
+      if (a === "give") { const A = (B.armory = B.armory || {}); if (!(A[k] > 0) || p.rec.gear.length >= GEAR_MAX) return; A[k]--; p.rec.gear.push(k); g.bmSaid = "Feels right."; return; }
+      if (a === "take") { const i = p.rec.gear.indexOf(k); if (i < 0) return; p.rec.gear.splice(i, 1); const A = (B.armory = B.armory || {}); A[k] = (A[k] || 0) + 1; g.bmSaid = "Back in the locker."; return; }
+      if (a === "word") { if (rankOf(p) !== "top") return; if ((g.p.cash || 0) < 300) { g.bmSaid = "Word costs. A guard wants three hundred."; return; }
+        if ((p.rec.wordDay || -1) === (g.pday || 0)) { g.bmSaid = "I already sent word today. Tomorrow."; return; }
+        g.p.cash -= 300; p.rec.wordDay = g.pday || 0; let n = 0, sooner = 0;
+        for (const R of Object.values(g.prel || {})) if (R.met && !R.out) { R.disp = clamp((R.disp || 0) + 10, -100, 100); n++; }
+        for (const q of basePeople()) if (q.rec.job === "jail" && q.rec.until > nowMin()) { q.rec.until = Math.max(nowMin() + 60, q.rec.until - 720); sooner++; }
+        g.bmSaid = "Word's going in through a guard I know. " + (n ? n + " men inside hear you remember them. " : "") + (sooner ? sooner + " of ours picked up get a lawyer's visit -- out half a day sooner." : "");
+        loyalAdd(p.key, 3); return; }
+      if (a === "peace") { if (rankOf(p) !== "top" || !k) return; if (p.rec.envoyDay === (g.pday || 0)) { g.bmSaid = "I been out once today. Let it cool."; return; }
+        p.rec.envoyDay = g.pday || 0; const odds = peaceOdds(p, k), nm = GANG_LABEL[k] || k;
+        if (Math.random() < odds) { moveStand(k, 30); for (const cr of g.crews || []) if (crewGK(cr) === k) cr.angryMe = 0;
+          g.bmSaid = "Sat down with " + nm + ". We're square -- for now. They'll keep their people off ours."; g.jobBanner = "PEACE \u00b7 " + nm; g.jobNote = p.name + " talked " + nm + " down. Standing +30."; loyalAdd(p.key, 4); }
+        else { moveStand(k, -5); const hurt = Math.random() < 0.3;
+          if (hurt) { setJob(p, "wait"); p.rec.job = "jail"; p.rec.until = nowMin() + 1440; p.rec.hosp = 1; }
+          g.bmSaid = hurt ? "" : "They wouldn't hear it. Nobody got hurt. This time."; g.jobBanner = "THE TALK WENT BAD"; g.jobNote = nm + " didn't want peace." + (hurt ? " " + p.name + " got worked over -- a day in the hospital." : ""); }
+        g.bmView = null; return; }
+    }
+    /* THE BOMBED BUSINESS, AGAIN (layer 520). Down 2-5 game days (was 3). The plate is one of the CRATERS
+       (rf_crater_a, the brown pit; rf_crater_b, the deep round one) or the old wrecked roofs -- not every building
+       goes the same way -- with BRICKS, BEAMS and PAPER thrown round it (deb_*). While it's down the gang makes
+       NOTHING off that turf (the houses on it are shut too); when it reopens the houses on it start again from level
+       1. And a bomb brings EXTREME HEAT on the hood (heatZone): every game hour, the BOMBER's people there are in
+       trouble -- your dealers get busted, your shops (fronts) raided, your couriers and captains picked up (anywhere,
+       worse the more hoods you've lit); a gang that bombs one of yours loses houses and men to raids the same way. */
+    const DEB_KEYS = ["deb_bricks_a", "deb_bricks_b", "deb_logs_a", "deb_logs_b", "deb_logs_c", "deb_paper_a", "deb_paper_b"];
+    function debrisSet(n) { const out = []; for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, r = 0.36 + Math.random() * 0.2;
+      out.push({ k: cpick(DEB_KEYS), u: 0.5 + Math.cos(a) * r, v: 0.5 + Math.sin(a) * r, s: 0.7 + Math.random() * 0.5, f: Math.random() < 0.5 ? -1 : 1 }); } return out; }
+    function heatZone(x, y, by, days, why) { const [ti, tj] = turfOf(x, y), key = turfKey(ti, tj), until = nowMin() + days * 1440;
+      const H = (g.hot = (g.hot || []).filter((z) => z.until > nowMin() && !(z.key === key && z.by === by)));
+      H.push({ key, by, until, x, y, why: why || "a bomb" });
+      const t = g.gwar && g.gwar.turfs[key]; if (t) t.heat = WAR.heat.cap; return key; }
+    const hotNow = () => (g.hot || []).filter((z) => z.until > nowMin());
+    const spotTurf = (s) => { const [ti, tj] = turfOf(s.x, s.y); return turfKey(ti, tj); };
+    function bustMan(p, hours, why) { if (!p) return; setJob(p, "wait"); p.rec.job = "jail"; p.rec.until = nowMin() + hours * 60; p.rec.hosp = 0;
+      g.jobBanner = "PICKED UP"; g.jobNote = p.name + " " + why + " Out in " + Math.round(hours / 24) + " day" + (hours > 36 ? "s" : "") + "."; if (typeof bookNote === "function") bookNote("PICKED UP: " + p.name + " -- " + why); }
+    const lowRisk = (p) => { const st = effStats(p), gear = p.rec.gear || []; return (1.3 - st.stealth / 15 - st.street / 30) * (gear.includes("radio") ? 0.7 : 1) * (gear.includes("burner") ? 0.7 : 1); };
+    function stepHot() {
+      const now = nowMin(), hr = Math.floor(now / 60); if (g.hotHr === undefined) g.hotHr = hr; if (hr <= g.hotHr) return;
+      const steps = Math.min(24, hr - g.hotHr); g.hotHr = hr;
+      const Z = hotNow(); g.hot = Z; if (!Z.length) return;
+      const mine = Z.filter((z) => z.by === "me"), mineK = new Set(mine.map((z) => z.key)), B = g.board2;
+      for (let s = 0; s < steps; s++) {
+        if (B && mine.length) {
+          for (const sp of (B.spots || []).slice()) { if (sp.bombed && sp.bombed.until > now) continue; const hot = mineK.has(spotTurf(sp));
+            if (sp.kind === "corner") { const p = sp.who && personByKey(sp.who); if (!p) continue;
+              if (Math.random() < (hot ? 0.08 : 0.015) * lowRisk(p)) bustMan(p, 24 + ((Math.random() * 24) | 0), "got busted on the corner at " + sp.addr + " -- the hood's crawling with cops since the bomb."); }
+            else if (sp.kind === "racket" && hot && Math.random() < 0.05) { const i = B.spots.indexOf(sp); B.spots.splice(i, 1); B.rackets = Math.max(0, (B.rackets || 0) - 1);
+              const fine = Math.min(Math.round((g.p.cash || 0) * 0.2), 1000 + ((Math.random() * 2000) | 0)); g.p.cash = Math.max(0, (g.p.cash || 0) - fine);
+              const gp = sp.guard && personByKey(sp.guard); if (gp) bustMan(gp, 48, "was guarding the shop when it got raided.");
+              g.jobBanner = "RAIDED"; g.jobNote = "The cops tossed your shop at " + sp.addr + " -- it's closed and they took $" + fine + ". It's the heat from the bomb."; } }
+          for (const p of basePeople()) { const r = rankOf(p); if ((r !== "courier" && r !== "captain") || p.rec.job === "jail" || p.following) continue;
+            const odds = Math.min(0.12, (r === "courier" ? 0.03 : 0.02) * mine.length) * lowRisk(p);
+            if (Math.random() < odds) bustMan(p, r === "courier" ? 48 : 72, r === "courier" ? "got stopped with the bag -- the cops are stopping everybody since the bomb." : "got picked up for questioning about the bomb."); }
+        }
+        // a gang that lit a hood: its houses and men there
+        for (const z of Z) { if (z.by === "me" || !g.gwar) continue; const G5 = g.gwar.gangs[z.by], t = g.gwar.turfs[z.key]; if (!G5) continue;
+          G5.cash = Math.max(0, (G5.cash || 0) * 0.99);
+          if (t && t.owner === z.by && t.dens.length && Math.random() < 0.06) { t.dens.pop(); warLog("the cops raided a " + (GANG_LABEL[z.by] || z.by) + " house after the bomb"); }
+          if (Math.random() < 0.02) { const seat = G5.seats.find((q) => q.state === "free" && q.title !== WAR_SEATS[0]); if (seat) { seat.state = "prison"; seat.known = true; warLog(seat.name + " of " + (GANG_LABEL[z.by] || z.by) + " was picked up about the bomb"); } } }
+      }
+      // walking into a hot hood: say so once
+      const [pti, ptj] = turfOf(g.p.x, g.p.y), pk = turfKey(pti, ptj), here = Z.find((z) => z.key === pk);
+      if (here && g.hotSaid !== pk + ":" + here.until) { g.hotSaid = pk + ":" + here.until; g.pickupFlash = { nm: "lift:HOT HOOD \u00b7 " + (here.by === "me" ? "YOUR BOMB" : (GANG_LABEL[here.by] || here.by) + "'S BOMB") + " \u00b7 COPS EVERYWHERE", t: 2.6 }; }
+    }
+    // a gang hits back with a bomb on one of your shops
+    function gangBombsYou(gk) { const B = g.board2; if (!B) return false;
+      const sp = (B.spots || []).find((s) => s.kind === "racket" && !(s.bombed && s.bombed.until > nowMin())); if (!sp) return false;
+      const days = 2 + ((Math.random() * 4) | 0); sp.bombed = { at: nowMin(), until: nowMin() + days * 1440, gang: gk, days, plate: cpick(["rf_crater_a", "rf_crater_b"]), deb: debrisSet(4) };
+      heatZone(sp.x, sp.y, gk, days);
+      g.jobBanner = (GANG_LABEL[gk] || gk).toUpperCase() + " BOMBED YOUR SHOP"; g.jobNote = sp.addr + " is a hole in the ground for " + days + " days -- no money off it. The cops are all over that hood now, and on them."; return true; }
+    function drawSpotCraters(view) { const B = g.board2; if (!B || g.inside) return;
+      for (const sp of B.spots || []) { const Bm = sp.bombed; if (!Bm) continue;
+        if (Bm.until <= nowMin()) { sp.bombed = null; g.jobBanner = "REOPENED"; g.jobNote = "Your shop at " + sp.addr + " is open again."; continue; }
+        if (sp.x < view.x0 - 200 || sp.x > view.x1 + 200 || sp.y < view.y0 - 200 || sp.y > view.y1 + 200) continue;
+        const im = imgs.current[Bm.plate], S = 120; if (im && im.width) ctx.drawImage(im, sp.x - S / 2, sp.y - S / 2 * im.height / im.width, S, S * im.height / im.width);
+        else { ctx.fillStyle = "rgba(20,15,10,0.8)"; ctx.beginPath(); ctx.ellipse(sp.x, sp.y, 50, 36, 0, 0, 6.3); ctx.fill(); }
+        drawDebris(Bm.deb, sp.x - S / 2, sp.y - S / 2, S, S); } }
+    function drawDebris(deb, x, y, w, h) { for (const d of deb || []) { const im = imgs.current[d.k]; if (!im || !im.width) continue;
+      const dw = Math.min(64, Math.max(30, Math.min(w, h) * 0.22)) * d.s, dh = dw * im.height / im.width;
+      ctx.save(); ctx.translate(x + d.u * w, y + d.v * h); ctx.scale(d.f, 1); ctx.drawImage(im, -dw / 2, -dh / 2, dw, dh); ctx.restore(); } }
+    G.hotT = () => hotNow().map((z) => [z.key, z.by, Math.round((z.until - nowMin()) / 60)]);    // test hooks
+    G.gangBombT = (gk) => gangBombsYou(gk);
+    G.statsT = () => basePeople().map((p) => [p.key, p.role, rankOf(p), Math.round(skillOf(p) * 10) / 10, top3(effStats(p)), (p.rec.gear || []).join("+")]);
+    /* THE WEAPON WHEEL and THE POCKETS WHEEL (layer 520): rings, like the action wheel. Q / the WEAPONS slot on the
+       action wheel: every gun and blade you have (the rack, what's in your hand; inside Kestrel what's in your pockets)
+       and HOLSTER. D-pad down / I / the POCKETS button: everything in your pockets, round a ring. */
+    const wpnNm = (k) => (CONTRABAND[k] && CONTRABAND[k].nm) || String(k).replace(/_/g, " ").toUpperCase();
+    const wpnIco = (k) => { const ic = (g.prisonMode && !g.pescaped && HEAD_ICON[k]) || wIconOf(k); return ic && PD_ART[ic] ? PD_ART[ic] : null; };
+    G.weaponWheel = () => { const items = [];
+      if (g.prisonMode && !g.pescaped) { const seen = new Set();
+        for (const k of g.pinv || []) if (PWPN[k] && !seen.has(k)) { seen.add(k); items.push({ label: wpnNm(k), sub: g.pwpn === k ? "out -- take it to put it away" : k === "zipgun" || k === "gun" ? "one bad shot can put YOU in the infirmary" : "pull it out", icon: wpnIco(k), id: "pocket:" + k }); }
+        if (g.pwpn) items.push({ label: "BARE HANDS", sub: "put it away", id: "pocket:" + g.pwpn }); }
+      else { const L = (g.rack || []).slice(); if (g.p.wpn && !L.includes(g.p.wpn)) L.unshift(g.p.wpn);
+        for (const k of L) items.push({ label: wpnNm(k), sub: k === g.p.wpn ? (g.p.holstered ? "holstered" : "in your hand") + (WPN_AMMO[k] ? " \u00b7 " + (g.p.ammo || 0) + " rounds" : "") : "draw it", icon: wpnIco(k), id: "wsel:" + k });
+        if (L.length) items.push({ label: "HOLSTER", sub: "hands empty", id: "wsel:none" }); }
+      if (!items.length) { g.pickupFlash = { nm: "lift:NOTHING TO PULL", t: 1.4 }; return false; }
+      return G.radialOpen({ kind: "weapons", title: "WEAPON WHEEL", items }); };
+    G.wheelWeapon = (k) => { const A = (g.ammoBy = g.ammoBy || {});
+      if (k === "none") { g.p.holstered = true; setHud((h) => ({ ...h, holstered: true })); return; }
+      if (g.p.wpn && g.p.wpn !== k) A[g.p.wpn] = g.p.ammo;
+      if (g.p.wpn !== k) { g.p.wpn = k; g.p.ammo = A[k] != null ? A[k] : (WPN_AMMO[k] != null ? WPN_AMMO[k] : 6); }
+      g.p.holstered = false; setHud((h) => ({ ...h, wpn: k, ammo: g.p.ammo, holstered: false })); };
+    G.pocketsWheel = () => { if (!g.prisonMode) return false; g.pocketSaid = null; const P = pocketsPanel();
+      const items = P.opts.filter((o) => o.id !== "close").map((o) => { const k = o.id.slice(7); return { label: o.label, short: k === "cigs" ? "SMOKE" : (CONTRABAND[k] || {}).nm || o.label, icon: o.icon, id: o.id }; });
+      if (!items.length) items.push({ label: "NOTHING", sub: "empty pockets", id: "close" });
+      return G.radialOpen({ kind: "pockets", title: "POCKETS", text: P.text, items }); };
+    /* PRISON PISTOLS (layer 520: Donny's odds). A zip gun or a smuggled pistol: the man you hit goes to the infirmary
+       every time (PRISON_GUN.hosp), dies 60% of the time (gone from Kestrel for good) -- and 25% of the time the thing
+       blows up in YOUR hand and you're the one in the infirmary. */
+    const PRISON_GUN = { hosp: 1, kill: 0.6, misfire: 0.25 };
     /* Getting a man out: expensive by design (Donny). */
     const SPRING = { law: { cost: 15000, mins: 3 * 1440, chance: 0.55 }, brk: { cost: 30000, mins: 18 * 60, chance: 0.70 } };
     const nowMin = () => (g.pday || 0) * 1440 + (g.clock || 0);
@@ -32863,8 +33465,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const opts = [];
       if (g.boardView === "hire") {
         const cap = repTier()[2];
-        for (const k in HIRES) { const H = HIRES[k], lock = (g.rep || 0) < H.rep;
-          opts.push({ id: "bd:hire:" + k, label: (lock ? "\u2717 " : "") + "HIRE A " + H.nm + " \u00b7 $" + H.cost + (lock ? " \u00b7 NEEDS " + H.rep + " RESPECT" : " \u00b7 HAVE " + boardHave(k)) }); }
+        /* layer 520: not trades, people -- who's around today, his stats and what he'd be best at */
+        for (const c of hirePool()) opts.push({ id: "bd:cand:" + c.id, label: c.name.toUpperCase() + " \u00b7 BEST AS " + HIRES[c.role].nm + " " + stars(fitStars(c.st, c.role)) + " \u00b7 $" + c.cost + " \u00b7 " + top3(c.st),
+          icon: "assets/hires/pt_hire_" + c.seed + "_" + (c.seed === "hacker" ? 1 : c.v) + ".png" });
+        opts.push({ id: "bd:cand:new", label: "ASK AROUND FOR OTHER PEOPLE \u00b7 $100" });
         g.boardSaid = g.boardSaid || ("You have " + peopleCount() + " of the " + cap + " people a " + repTier()[1].toLowerCase() + " can keep.");
         opts.push({ id: "bd:view:main", label: "BACK" });
       } else if (g.boardView === "confirm" && g.opDraft) {
@@ -32905,7 +33509,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         opts.push({ id: onK ? "bd:view:plan" : "bd:view:main", label: "BACK" });
       } else {
         opts.push({ id: "bd:view:hire", label: "HIRE PEOPLE" }, { id: "bd:view:people", label: "YOUR PEOPLE \u00b7 GIVE ORDERS" }, { id: "bd:view:plan", label: "PLAN A JOB" },
-                  { id: "bd:view:gangs", label: "THE GANGS AND YOU" }, { id: "bd:view:kestrel", label: "GET A MAN OUT OF KESTREL" }, { id: "close", label: "WALK AWAY" });
+                  { id: "bd:view:gangs", label: "THE GANGS AND YOU" }, { id: "open:sitcall", label: "CALL A SIT-DOWN" }, { id: "open:crewrules", label: "CREW RULES \u00b7 WHO WE FIGHT" },
+                  { id: "open:outfit", label: "THE OUTFIT \u00b7 TOP CREW, CAPTAINS, COURIERS" }, { id: "open:armory", label: "THE ARMORY \u00b7 GEAR" },
+                  { id: "bd:view:kestrel", label: "GET A MAN OUT OF KESTREL" }, { id: "close", label: "WALK AWAY" });
       }
       const staff = Object.keys(HIRES).map((k) => HIRES[k].nm.toLowerCase() + " " + boardFree(k) + "/" + boardHave(k)).join(", ");
       const running = B.ops.map((o) => OPS[o.k].nm.toLowerCase() + " (" + Math.max(0, Math.ceil((o.at - nowMin()) / 60)) + "h)").join("; ");
@@ -32925,7 +33531,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          the risk: gone wrong with you on it costs you blood and heat; gone right pays you more respect.
        Skill also lifts the take (+8% a star above 3). */
     const CREW_SKILL = { viejo: 5, leroy: 4, ras: 3 };
-    const skillOf = (p) => p.crew ? CREW_SKILL[p.crew] || 3 : (p.m.skill || (p.m.skill = Math.max(1, Math.min(5, Math.round(1.5 + Math.random() * 2 + (HIRES[p.role].cost >= 1500 ? 1 : 0))))));
+    // layer 520: stars come from his stats in this trade (ROLE_FIT) plus what jobs taught him
+    const skillOf = (p) => { const f = fitStars(effStats(p), p.role); return clamp(p.crew ? Math.max(CREW_SKILL[p.crew] || 3, f) : f + ((p.m && p.m.xp) || 0), 1, 5); };
     const stars = (n) => "\u2605".repeat(Math.round(n)) + "\u2606".repeat(5 - Math.round(n));
     function pickTeam(k) { const O = OPS[k], busy = opBusyKeys(), team = [];
       for (const r in O.need) { const L = basePeople().filter((p) => p.role === r && !isOut(p) && !busy.has(p.key) && !p.following).sort((a, b) => skillOf(b) - skillOf(a)); team.push(...L.slice(0, O.need[r])); }
@@ -32938,7 +33545,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (Object.keys(g.gstand || {}).some((q) => standTier(standOf(q)) === "WAR")) { d += 0.08; out.push("you're at war"); }
       return { d, txt: out.join(", ") || "nothing much" }; }
     function jobOdds(k, gk, tgt, team, ride) { const O = OPS[k], avg = team.length ? team.reduce((a, p) => a + skillOf(p), 0) / team.length : 2.5;
-      return clamp(1 - O.risk + (avg - 2.5) * 0.07 - jobDefence(k, gk, tgt).d + (ride ? 0.12 : 0), 0.1, 0.95); }
+      return clamp(1 - O.risk + (avg - 2.5) * 0.07 - jobDefence(k, gk, tgt).d + (ride ? 0.12 : 0) + (team.some((p) => rankOf(p) === "top") ? 0.05 : 0), 0.1, 0.95); }
     function confirmPanelOpts() { const D = g.opDraft, O = OPS[D.k], team = pickTeam(D.k), def = jobDefence(D.k, D.gk, D.tgtPeek);
       const send = jobOdds(D.k, D.gk, D.tgtPeek, team, false), ride = jobOdds(D.k, D.gk, D.tgtPeek, team, true);
       g.boardSaid = O.nm + (D.gk ? " \u00b7 " + (GANG_LABEL[D.gk] || D.gk) : "") + ".  TEAM: " + (team.map((p) => p.name.split(" ")[0] + " " + stars(skillOf(p))).join(", ") || "nobody free") +
@@ -32966,6 +33573,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       G.pickOpen("jobplay"); }
     G.opsPick = (id) => {
       const B = g.board2, [, a, k, gk] = id.split(":");
+      if (a === "cand") { hireCand(k); return; }                                                                   // layer 520
       if (a === "x") { const D = g.opDraft; if (!D) return; if (k === "clear") D.extra = [];                       // layer 509: bring someone extra
         else { const have = pickTeam(D.k).concat((D.extra || []).map(personByKey).filter(Boolean)), p = extraPeople(have, [k])[0]; if (p) (D.extra = D.extra || []).push(p.key); } return; }
       if (a === "go" && k === "lead") { const D = g.opDraft; if (!D) return; const why = misCheck(D); if (why) { g.boardSaid = why; return; } g.misExtra = (D.extra || []).map(personByKey).filter(Boolean); g.misTgt = D.T; }
@@ -33045,13 +33653,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (!first) {
           // corners (a chemist of your own doubles what they clear) and protection
           const chem = (B.hires.chemist || 0) > 0 ? 2 : 1;
-          const inc = (B.corners || 0) * 250 * chem + (B.rackets || 0) * 400;
+          let inc = (B.corners || 0) * 250 * chem + liveRackets() * 400;           // a bombed shop pays nothing (layer 520)
+          if (inc) { const R = rankCount(), sp = Math.max(1, spotCount());     // the outfit: captains lift it, couriers bring it in
+            inc *= 1 + Math.min(R.captain, Math.ceil(sp / 4)) * 0.15; inc *= 0.75 + 0.25 * Math.min(1, R.courier * 4 / sp); inc = Math.round(inc); }
           if (inc) { g.p.cash = (g.p.cash || 0) + inc; g.pickupFlash = { nm: "lift:THE DAY'S TAKE \u00b7 +$" + inc, t: 2 }; }
           g.rep = Math.max(0, (g.rep || 0) - 3);                  // respect fades if you sit still
-          for (const fb of g.bombedList || []) if (fb.bombed && fb.bombed.gang && g.gwar && g.gwar.gangs[fb.bombed.gang]) { const G4 = g.gwar.gangs[fb.bombed.gang]; G4.cash = Math.max(0, (G4.cash || 0) - 800); }   // a shut front costs them
           // gangs at war hit you
           for (const gk of Object.keys(g.gstand || {})) if (standTier(standOf(gk)) === "WAR" && Math.random() < 0.5 * Math.pow(0.7, baseGuards())) {     // men at the gate (layer 482)
-            if ((B.spots || []).length && !B.attack) { const sp = cpick(B.spots); B.attack = { spot: sp, x: sp.x, y: sp.y, gk, t: CORNER_DEF };
+            if (Math.random() < 0.3 && gangBombsYou(gk)) {}                 // layer 520: sometimes it's a bomb
+            else if ((B.spots || []).length && !B.attack) { const sp = cpick(B.spots); B.attack = { spot: sp, x: sp.x, y: sp.y, gk, t: CORNER_DEF };
               g.jobBanner = (GANG_LABEL[gk] || gk).toUpperCase() + " ARE HITTING YOUR " + (sp.kind === "corner" ? "CORNER" : "SHOP"); g.jobNote = sp.addr + ". " + CORNER_DEF + " seconds. Follow the red arrow."; }
             else if (B.attack) {}
             else if (B.corners) { B.corners--; g.jobBanner = "HIT BY " + (GANG_LABEL[gk] || gk).toUpperCase(); g.jobNote = "They took one of your corners."; }
@@ -33083,8 +33693,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (!bad && O.ride) { (B.rides = B.rides || []).push({ id: (B.rideId = (B.rideId || 0) + 1), type: O.ride }); }
         if (bad) {   // it went wrong: somebody is lost (a hire, never the crew), and heat
           const role = Object.keys(O.need).find((r) => (B.hires[r] || 0) > 0);
-          if (role && !o.dropped) { B.hires[role]--; let m = (B.men || []).findIndex((q) => q.role === role && (!q.job || q.job === "wait")); if (m < 0) m = (B.men || []).findIndex((q) => q.role === role); if (m >= 0) B.men.splice(m, 1); }
-          note = o.dropped ? O.nm + " -- YOU DROPPED IT AND RAN. Nobody lost, nothing taken." : O.nm + " WENT WRONG" + (role ? " -- you lost a " + HIRES[role].nm.toLowerCase() : "") + ".";
+          let vested = null;
+          if (role && !o.dropped) { let m = (B.men || []).findIndex((q) => q.role === role && (!q.job || q.job === "wait")); if (m < 0) m = (B.men || []).findIndex((q) => q.role === role);
+            const M = m >= 0 ? B.men[m] : null;
+            if (M && (M.gear || []).includes("vest") && Math.random() < 0.6) { vested = M; M.job = "jail"; M.until = now + 2880; M.hosp = 1; }    // the vest took it (layer 520)
+            else { B.hires[role]--; if (m >= 0) B.men.splice(m, 1); } }
+          note = o.dropped ? O.nm + " -- YOU DROPPED IT AND RAN. Nobody lost, nothing taken." : O.nm + " WENT WRONG" + (vested ? " -- " + hireName(vested) + "'s vest stopped it; he's in the hospital two days" : role ? " -- you lost a " + HIRES[role].nm.toLowerCase() : "") + ".";
           if (o.ride && !o.dropped) { g.p.hp = Math.max(1, (g.p.hp || 10) - (g.p.maxHp || 10) * 0.4); g.heat = Math.max(g.heat || 0, 2 + (O.heat || 0) > 3 ? 3 : 2 + (O.heat || 0)); note += " You took a bullet getting out."; }
           g.rep = Math.max(0, (g.rep || 0) - Math.round((O.gain || 0) / 2));
           g.heat = Math.max(g.heat || 0, 1 + O.heat); g.wantedT = Math.max(g.wantedT || 0, 30);
@@ -33094,13 +33708,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (LOOT[o.k] && used.length) pay = Math.round(pay * Math.max(...used.map((r) => RIDE[r.type].cargo)));     // more room, more taken
           if (o.played) pay = o.extra || 0;                                                                          // a job you led: the money was what you took (layer 508)
           if (o.payMul) pay = Math.round(pay * o.payMul);                                                            // skill, and how you played it
-          for (const key of o.team || []) { const p = personByKey(key); if (p && p.m) p.m.skill = Math.min(5, (p.m.skill || 2) + 0.25); }   // they get better
+          for (const key of o.team || []) { const p = personByKey(key); if (p && p.m) p.m.xp = Math.min(2, (p.m.xp || 0) + 0.25); }   // they get better
           if (o.ride) g.rep = (g.rep || 0) + Math.round((O.gain || 0) / 2);                                          // you were there
           g.p.cash = (g.p.cash || 0) + pay;
           if (o.k === "corner") { B.corners++; addSpot("corner", "dealer"); }
           if (o.k === "racket") { B.rackets = (B.rackets || 0) + 1; addSpot("racket", "enforcer"); }
           g.rep = (g.rep || 0) + (O.gain || 0);
-          if (O.clean) { g.heat = 0; g.wantedT = 0; g.pcivvies = 1; }
+          if (O.clean) { g.heat = 0; g.wantedT = 0; g.pcivvies = 1; } if (o.k === "papers") g.ppapers = 1;     // layer 521: papers let you buy over a gun counter
           if (o.k === "casestore") { const nm = o.jewel ? "ALDRIDGE FINE JEWELRY" : cpick(["CORNER LIQUOR", "SAL'S PAWN", "QUIK-MART", "ROYAL DRUGS", "THE GOLD NUGGET BAR", "MARINO'S GROCERY"]);
             (B.cased = B.cased || []).push({ nm, for: o.jewel ? "jewels" : null, guard: Math.random() < 0.4, cash: 1500 + ((Math.random() * 4000) | 0) }); }
           if (O.gang && o.gang) moveStand(o.gang, O.stand || 0);
@@ -33111,7 +33725,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             if (typeof warLog === "function") warLog("somebody " + (o.k === "carbomb" ? "blew up a car" : "put down a man") + " of " + (GANG_LABEL[o.gang] || o.gang)); }
           note = O.nm + " -- DONE" + (pay ? ". $" + pay + "." : o.k === "corner" ? ". The corner is yours." : o.k === "racket" ? ". Another shop pays you now." :
             o.k === "casestore" ? ". " + B.cased[B.cased.length - 1].nm + ": $" + B.cased[B.cased.length - 1].cash + " in the till" + (B.cased[B.cased.length - 1].guard ? ", an armed guard." : ", no guard.") :
-            bombedAt ? ". Their car went up outside " + (bombedAt.name || "their place") + " and took the front off -- closed for three days." :
+            bombedAt ? ". Their car went up outside " + (bombedAt.name || "their place") + " and left a crater -- shut " + ((bombedAt.bombed && bombedAt.bombed.days) || 3) + " days, nothing off that turf for them. The hood's hot now: watch your corners." :
             O.clean ? ". Your heat is gone." : O.ride ? ". A " + RIDE[O.ride].nm.toLowerCase() + " is in the yard." : O.gang ? ". " + (GANG_LABEL[o.gang] || "They") + (O.stand > 0 ? " owe you one." : " felt it.") : ".") + (O.gain ? " +" + O.gain + " respect." : "");
           if (O.heat) { g.heat = Math.max(g.heat || 0, O.heat); g.wantedT = Math.max(g.wantedT || 0, 20); }
         }
@@ -33635,6 +34249,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (M.got && M.phase !== "away") { M.phase = "away"; g.jobBanner = "GOT IT"; g.jobNote = "Get to the car and back to the scrapyard." + (M.drv && M.car === "circle" ? " Tell " + first(M.drv) + " to BRING THE CAR." : ""); } }
       if (M.phase === "away") { const H = hideoutB(); if (H) { const h = doorPoint(H); if (g.inside === H || Math.hypot(g.p.x - h[0], g.p.y - h[1]) < 280) misFinish(true); } } }
     function misFinish(ok, dropped) { const M = g.mis; if (!M) return; g.mis = null; const o = M.op, O = OPS[o.k], B = g.board2;
+      try { for (const f of (g.pfol || []).filter((q) => q.mis)) loyalAdd(f.key, ok ? 6 : dropped ? -4 : -7); } catch (e) {}      // loyalty (layer 519)
       g.pfol = (g.pfol || []).filter((f) => !f.mis);
       if (g.car && M.car === "circle" && M.carSpot && !M.carGone && g.car.x < -9999) { g.car.x = M.carSpot[0]; g.car.y = M.carSpot[1]; }
       // the second vehicle goes home on its own; a pool car back in its stall
@@ -36368,7 +36983,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         for (const f of federals()) consider(f);
         /* A LOCK YOU CHOSE beats the nearest man. Held for as long as he is alive and in range,
            so a burst stays on one target instead of drifting to whoever wandered closer. */
-        if (g.lockOn && g.lockOn.hp > 0 && Number.isFinite(g.lockOn.x)
+        if (lockAlive(g.lockOn)
           && Math.hypot(g.lockOn.x - g.p.x, g.lockOn.y - g.p.y) < st.range * 1.2) {
           best = g.lockOn;
           bd = Math.hypot(best.x - g.p.x, best.y - g.p.y);
@@ -36471,7 +37086,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
              tension is most of what the mask is for. */
           witnessed(m.x, m.y, m.hp <= 0 ? 2 : 1, false);
           m.vx = (dx / d) * 250 * lionHit; m.vy = (dy / d) * 250 * lionHit;
-          cr.state = "hostile";
+          cr.state = "hostile"; try { gangHurt(cr); } catch (e) {}
           g.shake = Math.max(g.shake, 6);
           if (m.hp <= 0) { dropLoot(m.x, m.y, LOOT_KING); dropWeapon(m); g.kingsTurfHeat = Math.max(0, g.kingsTurfHeat - 9); }
         }
@@ -37791,7 +38406,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             wreckReaction(v, pcs * (heavy ? 1.45 : 1), ux, uy);
             // ram a patrol car and they come after you; outrun them and a detective picks
             // up the file instead -- the heat does not vanish, it changes hands
+            if (!g.detMode && !(v.m && v.m.k === "cruiser")) witnessed(pc.x, pc.y, 1, false);    // a cop who saw it comes (layer 519)
             if (v.m && v.m.k === "cruiser" && !g.detMode) {
+              witnessed(pc.x, pc.y, 2, true);                     // and a cruiser you hit is a pursuit, at once
               g.suspicion = Math.min(100, g.suspicion + 26);
               g.pursuit = Math.max(g.pursuit || 0, 26);
               g.copScene = [pc.x, pc.y];
@@ -38776,6 +39393,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.translate(-g.p.x, -g.p.y);
       try { drawHeroBodyGrounded(); } finally { ctx.restore(); }
     }
+    /* LOCKED ON (layer 519): a target is alive if it has hp left, or -- a car -- isn't a wreck. While you hold a lock
+       with your gun out, you FACE him, walking or standing. */
+    function lockAlive(L) { return !!L && Number.isFinite(L.x) && (L.hp != null ? L.hp > 0 : !L.wreck && (L.dmg || 0) < 0.96); }
+    function heroLockAng() { const L = g.lockOn; if (!lockAlive(L) || g.mode !== "foot" || !g.p.wpn || g.p.holstered) return null; return Math.atan2(L.y - g.p.y, L.x - g.p.x); }
     function drawHeroBodyGrounded() {
       /* If you are not the Lion, you are not drawn as him. `who` was changing and the sprite
          was not, so the swap was cosmetic in reverse -- the roster said Rio and the man on
@@ -38816,7 +39437,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       if (conv && conv.width) {
         drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
-        drawYouth({ x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1, tall: 1.0, yt: g.studentMode ? skey : pkey, bang: g.p.face != null ? g.p.face : g.board.ang,
+        drawYouth({ x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1, tall: 1.0, yt: g.studentMode ? skey : pkey, bang: g.p.face != null ? g.p.face : g.board.ang, faceLock: heroLockAng(),
                     swing: Math.max(g.p.atk || 0, g.p.punT || 0), swingDur: (g.p.punT || 0) > 0 ? (g.p.punDur || 0.18) : 0.26,
                     move: (g.p.punT || 0) > 0 ? (g.p.punMove || "jab") : "swing" });
         return;
@@ -38825,7 +39446,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (malc && malc.width) {
         drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
         drawYouth({ x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1.06,
-                    yt: "yt_malcolm", bang: g.board.ang, wpn: g.p.holstered ? null : g.p.wpn,
+                    yt: "yt_malcolm", bang: g.board.ang, faceLock: heroLockAng(), wpn: g.p.holstered ? null : g.p.wpn,
                     swing: Math.max(g.p.atk || 0, g.p.punT || 0),
                     swingDur: (g.p.punT || 0) > 0 ? (g.p.punDur || 0.18) : 0.26,
                     move: (g.p.punT || 0) > 0 ? (g.p.punMove || "jab") : "swing" });
@@ -38838,7 +39459,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (plate && imgs.current[plate]) {
           drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
           const u = { x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1,
-                      yt: plate, bang: g.board.ang,
+                      yt: plate, bang: g.board.ang, faceLock: heroLockAng(),
                       tall: heroTall(r),
                       wpn: g.p.holstered ? null : g.p.wpn,
                       // a bat carried at rest looked like a plank glued to his hip
@@ -39213,15 +39834,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
            one thing a street is full of did nothing -- and cover is what makes a gunfight a
            position rather than a race. A round that hits bodywork damages it and stops. */
         let gone = false;
-        for (const v of g.traffic) {
-          if (v.fwy) continue;
-          const rr = (v.rad || 20) + 4;
+        for (const v of g.traffic.concat(policeCars().filter(Boolean))) {
+          if (v.fwy || !Number.isFinite(v.x)) continue;
+          const rr = (v.rad || 20) + 12;
           const dxv = b.x - sx, dyv = b.y - sy, l2 = dxv * dxv + dyv * dyv || 1;
           let tv = ((v.x - sx) * dxv + (v.y - sy) * dyv) / l2;
           tv = Math.max(0, Math.min(1, tv));
           if (Math.hypot(v.x - (sx + dxv * tv), v.y - (sy + dyv * tv)) > rr) continue;
           v.dmg = (v.dmg || 0) + b.dmg * 0.10;     // a car soaks a lot before it minds
           v.hitFx = 0.12;
+          if (b.byPlayer && !g.detMode && v.m && (v.m.k === "cruiser" || /^pd_/.test(v.m.k || ""))) witnessed(v.x, v.y, 2, true);   // shooting a cop car: they're on you (layer 519)
           gone = true;
           break;
         }
@@ -39229,7 +39851,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (b.byPlayer) {
           for (const cr of g.crews) {
             if (cr.indoor ? (cr.indoor !== g.inside || cr.indoorFloor !== g.floor) : g.inside) continue;
-            for (const m of cr.members) if (hit(m)) { gone = true; break; }
+            for (const m of cr.members) if (hit(m)) { gone = true; try { gangHurt(cr); } catch (e) {} break; }
             if (gone) break;
           }
           /* THE MEN ON A DISTRO DOOR AND IN THE TOWER. Not on this list either, so every round
@@ -40507,6 +41129,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       // the car, then the player on top
       if (!inVehicle()) pip(g.car.x, g.car.y, 3.2, "#7fd0ff", "rgba(255,255,255,0.85)");
+      if (g.sit && g.sit.at) { pip(g.sit.at.x, g.sit.at.y, 4.5, "#ff5a4a", "#ffffff");                 // the sit-down (layer 519)
+        const sdx = g.sit.at.x - cx, sdy = g.sit.at.y - cy; if (Math.hypot(sdx, sdy) > span * 0.48) { const an = Math.atan2(sdy, sdx);
+          ctx.save(); ctx.translate(ox + S / 2 + Math.cos(an) * (S / 2 - 12), oy + S / 2 + Math.sin(an) * (S / 2 - 12)); ctx.rotate(an); ctx.fillStyle = "#ff5a4a";
+          ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-5, -5); ctx.lineTo(-5, 5); ctx.closePath(); ctx.fill(); ctx.restore(); } }
       /* The player pip used the same clipped path as everything else, so on a roof or at the
          edge of the span he could vanish off his own minimap. He is always drawn, always
          last, and clamped inside the frame if he somehow leaves it. */
@@ -40652,7 +41278,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const owned = (g.cut && g.cut.panels && g.cut.panels.length) || g.title ||
           g.lockerOpen || g.travelOpen || g.raceTalk || g.leaderTalk || g.mapOpen ||
           g.garagePick || g.mentorJob || g.truckOpen || g.table || g.tableAsk || g.tickets ||
-          g.cab;
+          g.cab || g.wheelPause;
       // a race owns the event queue: no crime, no gang call, no ambient mission interrupts it
       if (g.race) { g.crime = null; g.warAct = null; g.mentorJob = null; }
         g.pauseOrphan = owned ? 0 : (g.pauseOrphan || 0) + dt;
@@ -40841,7 +41467,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       resolveTrafficOverlap();
       updateItems(dt, g.cam.x, g.cam.y);
       updatePolice(dt);
-      stepCopChase(dt); solidCars(); stepBizEcon(dt); stepCover(dt); stepArtFolk(dt); stepBank(dt); unionTerm(); airport();      // the police chase you; parked cars, blocks and cruisers are solid (layer 483)
+      stepCopChase(dt); solidCars(); trafficSeparate(); stepBizEcon(dt); stepCover(dt); stepArtFolk(dt); stepBank(dt); unionTerm(); airport();      // the police chase you; parked cars, blocks and cruisers are solid (layer 483)
       updateDetectives(dt);
       updateWeather(dt);
       /* THE KNOCKOUT. Fourteen separate Math.max(0, ...) calls clamp the player's health and
@@ -40893,7 +41519,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (!g.studentMode) { const before = g.clock == null ? CLOCK.start : g.clock;     // student mode keeps its own (slow) school clock
           g.clock = (before + dt * CLOCK.rate) % 1440;
           if (g.clock < before) { g.day = (g.day || 0) + 1; kestrelReleases(); } }
-        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepBaseFolk(dt); stepFolkWalk(dt); stepPrisonMail(); stepOps(); stepMission(dt); stepMerc(); stepCornerWar(dt); stepCasing(dt); stepBall(dt);
+        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepHot(); stepGunRat(); crewEngage(dt); stepLoyalty(dt); stepSit(dt); stepSetWar(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepBaseFolk(dt); stepFolkWalk(dt); stepPrisonMail(); stepOps(); stepMission(dt); stepMerc(); stepCornerWar(dt); stepCasing(dt); stepBall(dt);
         // anybody who has wandered onto the prison grounds from the street is walked back off
         if ((g.pedCullT = (g.pedCullT || 0) - dt) <= 0) { g.pedCullT = 2; g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y)); }
         if (g.prisonStart) startPrisonMode();
@@ -40987,7 +41613,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         g.p.grdCd = Math.max(0, (g.p.grdCd || 0) - dt);
         g.p.hidden = (g.p.grdT > 0 && G0 && G0.hide) ? 1 : (g.p.hidden && !G0 ? g.p.hidden : 0);
       }
-      if (g.p.hp <= 0 && !((g.arrested || 0) > 0)) downHero("ko");
+      /* KILLED BY THE COPS (layer 519): you don't just get up somewhere -- you wake up in custody. An escaped con goes
+         back to Kestrel in the jumpsuit (the SHU, like a recapture); anyone else with the police on him is booked. */
+      if (g.p.hp <= 0 && !((g.arrested || 0) > 0) && g.prisonMode && g.pescaped) { g.p.hp = Math.max(30, (g.p.maxHp || 100) * 0.5); arrestPlayer(); g.jobNote = "You went down in the street. You woke up in a Kestrel ambulance, cuffed to the rail -- 72 hours in the SHU."; }
+      else if (g.p.hp <= 0 && !((g.arrested || 0) > 0) && ((g.heat || 0) > 0 || (g.wantedT || 0) > 0) && !g.prisonMode && !g.studentMode) downHero("arrest");
+      else if (g.p.hp <= 0 && !((g.arrested || 0) > 0)) downHero("ko");
       if (!g.inside) updateChatter(dt);
       /* NOT gated on !g.inside any more. updateCrews is written to handle being indoors -- it
          has `if (!cr.indoor && g.inside) continue;` a few lines in, and spawnCourt/spawnThrone
@@ -41357,7 +41987,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       drawArrivals();
       /* The lock, drawn on the man himself. A target you cannot see you have chosen is a
          setting, not a mechanic. */
-      if (g.lockOn && g.lockOn.hp > 0 && Number.isFinite(g.lockOn.x)) {
+      if (lockAlive(g.lockOn)) {
         const L = g.lockOn, pu = 0.6 + 0.4 * Math.sin(g.t * 6);
         ctx.strokeStyle = `rgba(232,120,90,${0.55 + 0.35 * pu})`;
         ctx.lineWidth = 2;
@@ -41776,7 +42406,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             entry: g.inside ? (g.inside.entry || 0) : 0,
             hunt: !!(g.fisHunt && g.fisHunt.on),
             roarCd: g.roarCd || 0,
-            locked: !!(g.lockOn && g.lockOn.hp > 0),
+            locked: lockAlive(g.lockOn),
             obj: g.prisonMode ? prisonObjective() : jobObjective(),
             crime: g.crime ? { place: g.crime.place, result: g.crime.result,
               code: g.crime.code, label: g.crime.label,
@@ -46882,8 +47512,18 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (gg.job && gg.job.boss) add(gg.job.boss);
       for (const u of policeUnits()) add(u);
       for (const f of federals()) add(f);
+      if (gg.crime && gg.crime.thugs) for (const t of gg.crime.thugs) add(t);
+      /* ...and then anything else you could put a round into (layer 519): police cars, the cars around you, the
+         people on the street. The fight comes first in the cycle, the rest after it. */
+      const fightN = list.length;
+      const addCar = (v) => { if (!v || !Number.isFinite(v.x) || v.wreck || (v.dmg || 0) >= 0.96 || v === (inVehicle() ? activeVeh() : null)) return;
+        if (Math.hypot(v.x - p.x, v.y - p.y) > 520) return; list.push(v); };
+      if (!gg.inside) { for (const v of policeCars()) addCar(v); for (const v of gg.traffic || []) addCar(v);
+        for (const q of gg.peds || []) add(q); }
       if (!list.length) { gg.lockOn = null; gg.pickupFlash = { nm: "no_target", t: 1.2 }; return false; }
-      list.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
+      const dd = (o) => Math.hypot(o.x - p.x, o.y - p.y);
+      const head = list.slice(0, fightN).sort((a, b) => dd(a) - dd(b)), tail = list.slice(fightN).sort((a, b) => dd(a) - dd(b));
+      list.length = 0; list.push(...head, ...tail);
       const i = gg.lockOn ? list.indexOf(gg.lockOn) : -1;
       gg.lockOn = list[(i + 1) % list.length];
       gg.pickupFlash = { nm: "locked", t: 1.2 };
@@ -49362,30 +50002,40 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             <div style={{ position: "absolute", left: "16%", right: "16%", top: "76%", fontSize: Math.max(4, ph * 0.09), letterSpacing: "0.12em", textAlign: "center", lineHeight: 1, color: "#7a2a2a", whiteSpace: "nowrap", overflow: "hidden" }}>{moto ? "MOTORCYCLE" : STATE_MOTTO}</div>
           </div>}
         </>); })()}
-      {padWheel && (
-        /* THE ACTION WHEEL (layer 507): LB. Every button on screen right now, one per row -- stick / D-pad to move, A to
-           do it, B or LB to put it away. Plus the pad map, so nobody has to remember it. */
-        <div style={{ position: "absolute", inset: 0, zIndex: 58, background: "rgba(6,7,9,0.6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: 520, maxWidth: "94%", maxHeight: "88%", overflowY: "auto", background: "rgba(12,13,17,0.96)", border: "1px solid rgba(217,164,65,0.6)",
-            padding: 14, fontFamily: "ui-monospace,Menlo,monospace", color: "#e8d9b5" }}>
-            <div style={{ color: "#e8c46a", fontWeight: 700, letterSpacing: "0.14em", fontSize: 13, marginBottom: 8 }}>ACTION WHEEL</div>
-            <div data-pickcols="2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-              {padWheel.map((o) => (
-                <div key={o.label} data-pickopt="1" onClick={() => G.wheelPick && G.wheelPick(o.label)}
-                  style={{ padding: "7px 9px", border: "1px solid rgba(217,164,65,0.35)", background: "rgba(12,13,17,0.9)", cursor: "pointer", fontSize: 12 }}>
-                  {o.icon && <img src={o.icon} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
-                    style={{ width: 34, height: 34, objectFit: "contain", verticalAlign: "middle", marginRight: 8, border: "1px solid rgba(217,164,65,0.6)", background: "#15120d", imageRendering: "pixelated" }} />}
-                  <b>{o.label}</b>{o.sub ? <span style={{ opacity: 0.6, fontSize: 10 }}>{" \u00b7 " + o.sub}</span> : null}
-                </div>))}
-              <div data-pickopt="1" onClick={() => G.wheelClose && G.wheelClose()} style={{ padding: "7px 9px", border: "1px solid rgba(217,164,65,0.35)", background: "rgba(12,13,17,0.9)", fontSize: 12 }}><b>CLOSE</b></div>
-            </div>
-            <div style={{ marginTop: 10, fontSize: 10, lineHeight: 1.6, opacity: 0.75 }}>
-              A act · B strike/back · X brake/jump · Y cover · LB this wheel · RB target / draw · LT draw (car: brake) · RT run (car: gas)<br />
-              L3 sprint · R3 lock/free the cursor · right stick zoom · START map · VIEW book · D-pad: up night, down pockets/ID, left/right zoom
+      {padWheel && (() => {
+        /* THE WHEELS (layer 520: a ring; layer 507 was a list). Every slot round the edge, CLOSE in the middle, and the
+           middle names the slot that's lit. Mouse: hover lights it, click takes it. Pad: see the poll. */
+        const W0 = padWheel.items ? padWheel : { kind: "action", title: "ACTION WHEEL", items: padWheel }, items = W0.items, n = items.length;
+        const pick = (o) => { if (o.id) { G.wheelClose && G.wheelClose(); setTimeout(() => G.pickFn && G.pickFn(o.id), 20); } else G.wheelPick && G.wheelPick(o.label); };
+        let chip = 0.23, rad = 0.4; for (let k = 0; k < 6; k++) { rad = 0.5 - chip / 2 - 0.02; chip = Math.min(0.23, 2 * rad * Math.sin(Math.PI / Math.max(2, n)) * 0.94); } rad = 0.5 - chip / 2 - 0.02;
+        const info = (o) => o.label + (o.sub ? " \u00b7 " + o.sub : "");
+        const setInfo = (t) => { const el = document.querySelector("[data-radialinfo]"); if (el) el.textContent = t; };
+        return (
+        <div onClick={() => G.wheelClose && G.wheelClose()} style={{ position: "absolute", inset: 0, zIndex: 58, background: "rgba(6,7,9,0.62)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
+          <div data-pickradial="1" onClick={(e) => e.stopPropagation()} style={{ position: "relative", width: "min(600px, 94vw, 84vh)", height: "min(600px, 94vw, 84vh)", fontFamily: "ui-monospace,Menlo,monospace", color: "#e8d9b5" }}>
+            <div style={{ position: "absolute", inset: "2%", borderRadius: "50%", border: "2px solid rgba(217,164,65,0.55)", background: "radial-gradient(circle, rgba(18,17,14,0.96) 0%, rgba(12,13,17,0.9) 62%, rgba(12,13,17,0.55) 100%)" }} />
+            <div style={{ position: "absolute", left: "50%", top: "50%", width: (1 - 2 * chip - 0.12) * 100 + "%", height: (1 - 2 * chip - 0.12) * 100 + "%", transform: "translate(-50%,-50%)", borderRadius: "50%", border: "1px dashed rgba(217,164,65,0.3)" }} />
+            {items.map((o, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n, x = 50 + Math.cos(a) * rad * 100, y = 50 + Math.sin(a) * rad * 100;
+              return (
+              <div key={o.label + i} data-pickopt="1" data-info={info(o)} onClick={() => pick(o)} onMouseEnter={() => setInfo(info(o))}
+                style={{ position: "absolute", left: x + "%", top: y + "%", width: chip * 100 + "%", height: chip * 100 + "%", transform: "translate(-50%,-50%)", borderRadius: "50%",
+                  border: "1px solid rgba(217,164,65,0.5)", background: "rgba(12,13,17,0.9)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  textAlign: "center", overflow: "hidden", boxSizing: "border-box", padding: 4, opacity: o.dim ? 0.45 : 1 }}>
+                {o.icon && <img src={o.icon} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: "62%", height: "44%", objectFit: "contain", imageRendering: "pixelated" }} />}
+                <b style={{ fontSize: n > 14 ? 8 : 10, lineHeight: 1.1, letterSpacing: "0.04em" }}>{o.short || o.label}</b>
+              </div>); })}
+            <div data-pickopt="1" data-info="CLOSE" onClick={() => G.wheelClose && G.wheelClose()} onMouseEnter={() => setInfo("CLOSE")}
+              style={{ position: "absolute", left: "50%", top: "50%", width: "30%", height: "30%", transform: "translate(-50%,-50%)", borderRadius: "50%", border: "1px solid rgba(217,164,65,0.6)",
+                background: "rgba(12,13,17,0.92)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 8, boxSizing: "border-box", cursor: "pointer" }}>
+              <div style={{ color: "#e8c46a", fontWeight: 700, letterSpacing: "0.14em", fontSize: 11 }}>{W0.title}</div>
+              <div data-radialinfo="1" style={{ fontSize: 10, marginTop: 6, lineHeight: 1.35, opacity: 0.9 }}>{W0.text || "point the stick \u00b7 A to take it"}</div>
+              <div style={{ fontSize: 8, marginTop: 6, opacity: 0.55 }}>B / LB / tap here to close</div>
             </div>
           </div>
-        </div>
-      )}
+          {W0.kind === "action" && <div style={{ marginTop: 8, maxWidth: "94%", fontSize: 9, lineHeight: 1.5, opacity: 0.7, color: "#e8d9b5", fontFamily: "ui-monospace,Menlo,monospace", textAlign: "center" }}>
+            A act · B strike/back · X brake/jump · Y cover · LB this wheel · RB target / draw · LT draw (car: brake) · RT run (car: gas) · L3 sprint · R3 cursor · START map · VIEW book · D-pad down pockets/ID · Q weapons
+          </div>}
+        </div>); })()}
       {mapOpen && (
         <div onClick={() => setMapOpen(false)}
           style={{ position: "absolute", inset: 0, background: "rgba(6,7,9,0.93)", zIndex: 60,
@@ -49774,7 +50424,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             {G.current && G.current.studentMode && btn("SCHED", "where to be", () => { G.pickOpen && G.pickOpen("stusched"); }, null, false)}
             {G.current && G.current.studentMode && btn("SKIP", "fast forward", () => { G.pickOpen && G.pickOpen("stuskip"); }, null, false)}
             {G.current && G.current.studentMode && G.current.stu && G.current.stu.bike && G.current.stu.bike.on && btn("HOP", "bunny hop", () => G.bikeHop && G.bikeHop(), null, false)}
-            {G.current && G.current.prisonMode && btn("POCKETS", ((G.current.pinv || []).length) + " on you", () => { G.current.pocketSaid = null; G.pickOpen && G.pickOpen("pockets"); }, null, false)}
+            {G.current && G.current.prisonMode && btn("POCKETS", ((G.current.pinv || []).length) + " on you", () => { G.current.pocketSaid = null; (G.pocketsWheel && G.pocketsWheel()) || (G.pickOpen && G.pickOpen("pockets")); }, null, false)}
             {btn("BOOK", hud.bookOpen ? "shut it" : (hud.bookN || 0) + " names",
               () => G.bookFn && G.bookFn(), null, hud.bookOpen)}
             {hud.atCiv && btn("ID", hud.idOpen ? "put back" : "ask for it",
