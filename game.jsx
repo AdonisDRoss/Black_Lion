@@ -3694,7 +3694,7 @@ for (const k of ["tx_bunker", "tx_bunker_b", "tx_shack_wood"]) PD_ART[k] = "asse
 const MB_KEYS = ["mb_shelf_a", "mb_shelf_b", "mb_stool", "mb_stools_pair", "mb_counter", "mb_stool_b", "mb_stool_c", "mb_stool_d", "mb_pool",
   "mb_dartboard", "mb_booth_l", "mb_booth_r", "mb_table", "mb_jukebox", "mb_notice", "mb_neon", "mb_cigmachine", "mb_crates"];
 for (const k of MB_KEYS) PD_ART[k] = "assets/bar/" + k + ".png";
-for (const k of ["ui_plate", "car_dmg_front", "car_dmg_glass", "car_dmg_blood"]) PD_ART[k] = "assets/ui/" + k + ".png";   // layer 446
+for (const k of ["ui_plate", "car_dmg_front", "car_dmg_glass", "car_dmg_blood", "ui_cuffs"]) PD_ART[k] = "assets/ui/" + k + ".png";   // layer 446
 /* LAYER 453: street + police weapon icons, the alley kit, the two schools, blacktop. */
 const WI_STREET = ["wi_snub", "wi_beretta", "wi_colt", "wi_uzi", "wi_mac10", "wi_pump", "wi_sawnoff", "wi_hunting", "wi_ar15", "wi_nightstick",
   "wi_taser", "wi_mace", "wi_machete", "wi_crowbar", "wi_molotov", "wi_grenade"];
@@ -5884,6 +5884,9 @@ function getCell(i, j) {
   c = { i, j, x0, y0, x1, y1, lx0, ly0, lx1, ly1, type, det, walls, blds, zone,
         barriers: barriers.length ? barriers : null,
         piers: piers.length ? piers : null };
+  // each building's state as the city made it: the exact save writes only what changed since (layer 514)
+  for (const b of blds) { const O = {}; for (const k of Object.keys(b)) { const v = b[k]; if (v !== null && typeof v === "object") { try { O[k] = JSON.stringify(v); } catch (e) {} } else O[k] = v; }
+    Object.defineProperty(b, "__orig", { value: O, enumerable: false, writable: true }); }
   cells.set(key, c);
   return c;
 }
@@ -10330,6 +10333,106 @@ function doorPoint(b) {
   return [b.x + b.w + 6, b.y + b.h * p];
 }
 
+/* THE STATE (layer 514): Raven Hook isn't in a real one. The State of KESTREL -- the prison was always Kestrel
+   State -- "THE FOUNDRY STATE" on every plate. Nothing in the game names a real state any more. */
+const STATE_NM = "KESTREL", STATE_MOTTO = "THE FOUNDRY STATE";
+const MM_CARD_H = 62;          // the car card's height over the minimap (layer 514)
+/* ---------- LAYER 514: THE LOADING SCREEN ----------
+   Replaces the black "LOADING RAVEN HOOK..." line. The city at night across the back (a skyline drawn here, so it
+   needs no file), and the four you can be in Raven Hook stepping up one at a time -- THE LION, THE COP, THE CON,
+   THE KID -- each over a place in the city, with the load counter under them. Art: assets/ui/load_<who>.png
+   (a standing figure, transparent) and assets/ui/load_bg_<n>.jpg (a wide city shot) take over when they're in the
+   repo; until then each figure falls back to the art already in the game. */
+const LOAD_CAST = [
+  { who: "lion", nm: "THE LION", sub: "DARIUS · THE VIGILANTE", art: ["assets/ui/load_lion.png", "assets/heroes/yt_lion_hero.png"], col: "#d9a441", place: "THE SCRAPYARD · THE YARDS" },
+  { who: "cop", nm: "THE COP", sub: "DET. MALCOLM · RHPD", art: ["assets/ui/load_cop.png", "assets/heroes/pt_malcolm.png"], col: "#6fa8dc", place: "THE PRECINCT · DOWNTOWN" },
+  { who: "con", nm: "THE CON", sub: "INMATE · KESTREL STATE", art: ["assets/ui/load_con.png", "assets/prison/pt_pr_player.png"], col: "#d27a3a", place: "KESTREL STATE · THE COUNTY" },
+  { who: "kid", nm: "THE KID", sub: "STUDENT · CENTRAL HIGH", art: ["assets/ui/load_kid.png", "assets/school/pt_stu_player_ch.png"], col: "#7fc47f", place: "CENTRAL HIGH · THE SIXTH WARD" },
+];
+const LOAD_TIPS = ["Every block has a shot caller.", "A plate swap at Eddie's costs less than a paint job.",
+  "Hold LB for the action wheel.", "The game saves itself -- CONTINUE puts you back exactly where you were.",
+  "Cops remember the car, not the face."];
+// one skyline, drawn once: towers with lit windows, a water tower, the bridge
+function loadSkyline(cv) {
+  const w = cv.width = 960, h = cv.height = 300, c = cv.getContext("2d");
+  let s = 1986; const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  for (const [layer, top, col, win] of [[0, 0.30, "#14161d", 0.10], [1, 0.45, "#0d0f14", 0.22]]) {
+    let x = -10;
+    while (x < w) { const bw = 30 + r() * (layer ? 60 : 45), bh = h * (top + r() * (layer ? 0.4 : 0.55));
+      c.fillStyle = col; c.fillRect(x, h - bh, bw, bh);
+      if (r() < 0.25) c.fillRect(x + bw / 2 - 1, h - bh - 18, 2, 18);          // an antenna
+      for (let yy = h - bh + 8; yy < h - 6; yy += 9) for (let xx = x + 5; xx < x + bw - 6; xx += 8)
+        if (r() < win) { c.fillStyle = r() < 0.8 ? "rgba(255,206,120,0.75)" : "rgba(170,210,255,0.6)"; c.fillRect(xx, yy, 3, 4); c.fillStyle = col; }
+      x += bw + (layer ? 2 : 6) + r() * 6; }
+  }
+  // the water tower and the bridge over the river
+  c.fillStyle = "#0d0f14"; c.fillRect(120, h - 200, 46, 30); c.fillRect(126, h - 170, 3, 60); c.fillRect(157, h - 170, 3, 60);
+  c.strokeStyle = "#0d0f14"; c.lineWidth = 3; c.beginPath(); c.moveTo(640, h - 60); c.quadraticCurveTo(760, h - 150, 880, h - 60); c.stroke();
+  for (let q = 0; q <= 12; q++) { const xx = 640 + q * 20, yy = h - 60 - Math.sin(q / 12 * Math.PI) * 45; c.fillRect(xx - 1, yy, 2, h - 60 - yy); }
+}
+function LoadingScreen({ mono }) {
+  const [t, setT] = React.useState(0);
+  const [prog, setProg] = React.useState({ total: 0, left: 0 });
+  const [bad, setBad] = React.useState({});
+  const [bgOk, setBgOk] = React.useState({});      // a city shot that loaded: the drawn skyline steps back for it
+  const sky = React.useRef(null);
+  React.useEffect(() => { if (sky.current) try { loadSkyline(sky.current); } catch (e) {}
+    const t0 = Date.now();
+    const iv = setInterval(() => { setT((Date.now() - t0) / 1000); const W = window.__ironlion || {};
+      setProg({ total: W.loadTotal || 0, left: W.loadLeft || 0 }); }, 100);
+    return () => clearInterval(iv); }, []);
+  const SLOT = 2.4, n = Math.floor(t / SLOT) % LOAD_CAST.length, f = (t % SLOT) / SLOT, P = LOAD_CAST[n];
+  const done = prog.total ? (prog.total - prog.left) : 0, pct = prog.total ? Math.min(1, done / prog.total) : Math.min(0.9, t / 6);
+  const fade = f < 0.15 ? f / 0.15 : f > 0.85 ? (1 - f) / 0.15 : 1;
+  const src = (p) => (bad[p.who] || 0) < p.art.length ? p.art[bad[p.who] || 0] : null;
+  const tip = LOAD_TIPS[Math.floor(t / (SLOT * 2)) % LOAD_TIPS.length];
+  return (
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(#05060a 0%, #101425 55%, #2a1c22 100%)", fontFamily: mono, zIndex: 50 }}>
+      {/* a wide city shot, if one's been dropped in; the drawn skyline otherwise */}
+      <img key={"bg" + n} src={"assets/ui/load_bg_" + (n + 1) + ".jpg"} alt="" onLoad={() => setBgOk((b) => ({ ...b, [n]: 1 }))} onError={(e) => { e.currentTarget.style.display = "none"; }}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.7 * fade }} />
+      <canvas ref={sky} style={{ position: "absolute", left: 0, right: 0, bottom: "18%", width: "100%", height: "38%", opacity: bgOk[n] ? 0 : 0.95, transition: "opacity .4s" }} />
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "18%", background: bgOk[n] ? "linear-gradient(rgba(7,8,11,0), #07080b 45%)" : "#07080b" }} />
+      {/* a searchlight sweeping the sky */}
+      <div style={{ position: "absolute", left: "50%", bottom: "18%", width: 4, height: "80%", transformOrigin: "50% 100%",
+        transform: "rotate(" + (Math.sin(t * 0.6) * 35) + "deg)", background: "linear-gradient(rgba(255,240,200,0), rgba(255,240,200,0.10))", filter: "blur(6px)" }} />
+      {/* the four, small along the bottom, the one up now lit */}
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: "4%", display: "flex", justifyContent: "center", gap: "4vw" }}>
+        {LOAD_CAST.map((p, i) => (
+          <div key={p.who} style={{ textAlign: "center", opacity: i === n ? 1 : 0.35, transition: "opacity .4s" }}>
+            <div style={{ width: 46, height: 46, margin: "0 auto", border: "1px solid " + (i === n ? p.col : "rgba(255,255,255,0.15)"), background: "rgba(0,0,0,0.5)", overflow: "hidden" }}>
+              {src(p) && <img src={src(p)} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", imageRendering: "pixelated" }}
+                onError={() => { const i0 = bad[p.who] || 0; setBad((b) => ({ ...b, [p.who]: Math.max(b[p.who] || 0, i0 + 1) })); }} />}
+            </div>
+            <div style={{ fontSize: 8, letterSpacing: "0.2em", color: i === n ? p.col : "#8a8576", marginTop: 4 }}>{p.nm}</div>
+          </div>))}
+      </div>
+      {/* the one up now, big */}
+      <div style={{ position: "absolute", left: "50%", bottom: "19%", transform: "translateX(-50%) translateY(" + ((1 - fade) * 14) + "px)", opacity: fade, textAlign: "center" }}>
+        <div style={{ width: "min(46vw, 300px)", height: "min(40vh, 300px)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+          {src(P) && <img src={src(P)} alt="" style={{ height: "100%", maxWidth: "100%", objectFit: "contain", objectPosition: "50% 100%", imageRendering: "pixelated", filter: "drop-shadow(0 0 18px " + P.col + "55)" }}
+            onError={() => { const i0 = bad[P.who] || 0; setBad((b) => ({ ...b, [P.who]: Math.max(b[P.who] || 0, i0 + 1) })); }} />}
+        </div>
+      </div>
+      <div style={{ position: "absolute", top: "8%", left: 0, right: 0, textAlign: "center" }}>
+        <div style={{ fontSize: 9, letterSpacing: "0.55em", color: "rgba(232,217,181,0.55)" }}>RAVEN HOOK {"·"} 1986</div>
+        <div style={{ fontSize: "clamp(26px, 8vw, 54px)", fontWeight: 700, letterSpacing: "0.14em", color: "#e8d9b5", textShadow: "0 0 22px rgba(217,164,65,0.5)" }}>IRON LION</div>
+        <div style={{ marginTop: 18, opacity: fade }}>
+          <div style={{ fontSize: 16, letterSpacing: "0.3em", color: P.col }}>{P.nm}</div>
+          <div style={{ fontSize: 9, letterSpacing: "0.25em", color: "#cfc6ae", marginTop: 4 }}>{P.sub}</div>
+          <div style={{ fontSize: 9, letterSpacing: "0.25em", color: "rgba(232,217,181,0.45)", marginTop: 3 }}>{P.place}</div>
+        </div>
+      </div>
+      {/* the counter */}
+      <div style={{ position: "absolute", left: "50%", bottom: "calc(4% + 72px)", transform: "translateX(-50%)", width: "min(70vw, 420px)", textAlign: "center" }}>
+        <div style={{ height: 3, background: "rgba(255,255,255,0.1)" }}><div style={{ height: "100%", width: (pct * 100).toFixed(1) + "%", background: "#d9a441", transition: "width .2s" }} /></div>
+        <div style={{ fontSize: 9, letterSpacing: "0.22em", color: "#d9a441", marginTop: 6 }}>
+          {"LOADING RAVEN HOOK · " + (prog.total ? done + " / " + prog.total : Math.round(pct * 100) + "%")}</div>
+        <div style={{ fontSize: 9, letterSpacing: "0.08em", color: "rgba(232,217,181,0.5)", marginTop: 6 }}>{tip}</div>
+      </div>
+    </div>);
+}
+
 export default function IronLionLayer004() {
   // the missing-files list: its own state, so the HUD's per-frame refresh cannot close it
   const [missOpen, setMissOpen] = useState(false);
@@ -10338,6 +10441,9 @@ export default function IronLionLayer004() {
   const G = useRef(null);
   const input = useRef({ x: 0, y: 0, run: false, brake: false, keys: {} });
   const [ready, setReady] = useState(false);
+  // the loading screen stays up at least one full beat, so a fast load doesn't just flash it (layer 514)
+  const [loadMin, setLoadMin] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setLoadMin(true), 2600); return () => clearTimeout(t); }, []);
   const zoomRef = useRef(1);
     /* ---------- procedural sound engine (Web Audio, no external files) ---------- */
     const audio = useRef(null);
@@ -11415,7 +11521,8 @@ export default function IronLionLayer004() {
        first pass settles rather than waiting on the last file. */
     let failed = 0;
     const g0 = (window.__ironlion = window.__ironlion || {});
-    const settle = () => { if (--left === 0) setReady(true); };
+    g0.loadTotal = keys.length; g0.loadLeft = left;          // the loading screen reads these (layer 514)
+    const settle = () => { g0.loadLeft = Math.max(0, left - 1); if (--left === 0) setReady(true); };
     // never hang on a stalled request: start regardless after a few seconds
     setTimeout(() => setReady(true), 6000);
     /* LAYER 513: THE LOAD QUEUE. Every image used to be requested at once -- five thousand requests in the same
@@ -11452,7 +11559,9 @@ export default function IronLionLayer004() {
       im.onerror = () => {
         // a network hiccup is not a missing file: try again, a beat later, before counting it (layer 513)
         im.__net = (im.__net || 0) + 1;
-        if (im.__net <= LOADQ.tries && !/^data:/.test(all[k] || "")) { setTimeout(() => { im.src = assetURL(all[k]); }, LOADQ.gap * im.__net); return; }
+        /* the slot is handed back while it waits, so a few dead files can't hold the whole queue still */
+        if (im.__net <= LOADQ.tries && !/^data:/.test(all[k] || "")) { inFlight = Math.max(0, inFlight - 1); pump();
+          setTimeout(() => { waiting.push(() => { im.src = assetURL(all[k]); }); pump(); }, LOADQ.gap * im.__net); return; }
         /* ONE RETRY ON THE OTHER LAYOUT before declaring anything missing. A cuts folder can
            reasonably live either at the repo root or under assets/, and picking wrong cost a
            whole round of "the files are there and the game cannot see them". Rather than
@@ -11609,9 +11718,10 @@ export default function IronLionLayer004() {
     G.padTap = tap; G.inputT = () => ({ run: !!input.current.run, x: input.current.x, y: input.current.y, w: !!input.current.keys.w, s: !!input.current.keys.s, sp: !!input.current.keys[" "] });   // test hook
     const openWheel = () => { const A = G.acts || {}, list = [];
       for (const l of live()) if (A[l] && l !== "E") list.push({ label: l, sub: A[l].sub || "" });
+      list.push({ label: "FAST TRAVEL", sub: "airport \u00b7 train \u00b7 port \u00b7 home" });     // always there (layer 514)
       setPadWheel(list); };
     G.wheelClose = () => setPadWheel(null);
-    G.wheelPick = (l) => { G.wheelClose(); setTimeout(() => tap([l]), 30); };
+    G.wheelPick = (l) => { G.wheelClose(); if (l === "FAST TRAVEL") { setTimeout(() => G.hubOpen && G.hubOpen(), 30); return; } setTimeout(() => tap([l]), 30); };
     const closeSomething = () => { const g = G.current;
       if (g && g.mapOpen) { setMapOpen(false); return true; }
       if (g && g.bookOpen && G.bookFn) { G.bookFn(); return true; }
@@ -11649,7 +11759,7 @@ export default function IronLionLayer004() {
       }
       sel = 0;
       const K = input.current.keys, press = (i) => B(i) && !was[i];
-      if (g && g.mapOpen) { if (press(9) || press(1)) setMapOpen(false); for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i); return; }
+      if (g && g.mapOpen) { if (press(9) || press(1)) setMapOpen(false); if (press(0)) { setMapOpen(false); setTimeout(() => G.hubOpen && G.hubOpen(), 60); } for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i); return; }
       if (press(0)) doAction();
       if (press(1)) { if (!closeSomething() && G.strikeFn) G.strikeFn(); }
       const rel = (i) => !B(i) && was[i];                       // only touch a key on a press or a release, so the keyboard still works
@@ -11800,6 +11910,17 @@ export default function IronLionLayer004() {
   function doAction() {
     const g = G.current;
     if (g.pintro) { G.introSkip && G.introSkip(); return; }             // E skips the bus
+    /* STAIRS FIRST (layer 514). Standing ON a stair, E is the stairs -- before anyone you could talk to, a car in the
+       garage bay, a table, a locker. It used to be asked last, so a man or a parked car near the stairwell won. */
+    if (g.mode === "foot" && g.inside && G.stairFn) {
+      const st = G.stairFn();
+      if (st === 1 && g.floor < g.inside.floors - 1) {
+        if (G.vipBlockFn && G.vipBlockFn(g.floor + 1)) return;
+        if (G.floorLockFn && G.floorLockFn(g.floor + 1)) return;
+        g.floor++; G.toStairFn && G.toStairFn(); return;
+      }
+      if (st === -1 && g.floor > 0) { g.floor--; G.toStairFn && G.toStairFn(); return; }
+    }
     if (G.motorParkFn && G.motorParkFn()) return;                        // a car back into the motor pool (layer 497)
     if (g.roof && G.roofHatchFn && G.roofHatchFn()) return;
     if (g.inside && G.ladderUpFn && G.ladderUpFn()) return;
@@ -13115,7 +13236,7 @@ export default function IronLionLayer004() {
         ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.fillRect(x0, y0 + CH * 0.17, CW, 2);
         ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 2; ctx.strokeRect(x0 + 1, y0 + 1, CW - 2, CH - 2);
         ctx.fillStyle = "#e8e2d0"; ctx.font = "700 11px ui-monospace, monospace";
-        ctx.fillText("RAVEN HOOK \u00b7 STATE OF ILLINOIS", x0 + 10, y0 + CH * 0.11);
+        ctx.fillText("RAVEN HOOK \u00b7 STATE OF " + STATE_NM, x0 + 10, y0 + CH * 0.11);
       }
       // the photograph
       const px = x0 + CW * 0.075, py = y0 + CH * 0.33, pw = CW * 0.27, ph = pw * 1.16;
@@ -15849,8 +15970,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          on top of an outdoor one and, when it was indoors, drove at the wall. The last point is
          pulled back onto the road and she stops short of it. */
       const last = A.i >= A.pts.length - 1;
-      if (d < (last ? DET.park || 150 : DET.arrive)) {
+      if (d < (last ? (A.who && A.loop == null && !A.lose ? 40 : A.who ? DET.arrive : DET.park || 150) : DET.arrive)) {
         A.i++;
+        if (A.i >= A.pts.length && A.who) { if (!ccarLegEnd(A, v)) { g.auto = null; v.vx = 0; v.vy = 0; v.fwd = 0; } return; }   // your people driving (layer 514)
         if (A.i >= A.pts.length) {
           g.auto = null; v.vx = 0; v.vy = 0; v.fwd = 0;
           const R = partner(); if (R) { R.say = 2.6; R.line = "WE'RE HERE."; }
@@ -15859,12 +15981,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return;
       }
       // she drives it: moved along the road at a normal speed, turned to where she is going
-      const sp = Math.min(DET.drive, d * 3);
+      const sp = Math.min(A.spd || DET.drive, last || !A.who ? d * 3 : Math.max(A.spd ? A.spd * 0.45 : 120, d * 3));
       v.x += dx / d * sp * dt; v.y += dy / d * sp * dt;
       /* She moves it; the car's own physics must not move it a second time on the same speed,
          or she drives at double. Its velocity is left at rest and the speedometer is fed
          separately. */
       v.vx = 0; v.vy = 0; v.fwd = 0; g.autoSpd = sp;
+      // your people don't sit pinned against a wall: no headway for a second and he takes the next corner (layer 514)
+      if (A.who) { const dd = Math.hypot(v.x - (A.lx ?? v.x), v.y - (A.ly ?? v.y)); A.stk = dd < sp * dt * 0.3 ? (A.stk || 0) + dt : 0; A.lx = v.x; A.ly = v.y;
+        if (A.stk > 1) { A.stk = 0; A.lx = A.ly = undefined; if (A.i < A.pts.length - 1) A.i++; else if (!ccarLegEnd(A, v)) { g.auto = null; return; } } }
       const want = Math.atan2(dy, dx);
       let da = want - v.ang; while (da > Math.PI) da -= 6.283; while (da < -Math.PI) da += 6.283;
       v.ang += da * Math.min(1, dt * 6);
@@ -16181,6 +16306,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "motorpool") return motorPanel();
       if (kind === "jobplay") return jobPlayPanel();
       if (kind === "misorders") return misPanel();
+      if (kind === "ccar") return ccarPanel();
       if (kind === "merc") return mercPanel();
       if (kind === "pool") return poolPanel();
       if (kind === "plates") return platesPanel();
@@ -16195,6 +16321,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "stuhang") return hangPanel();
       if (kind === "dealer") return dealerPanel();
       if (kind === "fasttravel") return fastTravelPanel();
+      if (kind === "hubs") return hubsPanel();
       if (kind === "wardenpc") return wardenPcPanel();
       if (kind === "repair") return repairPanel();
       if (kind === "stucoach") return coachPanel();
@@ -16329,7 +16456,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("merc:")) { G.mercPick(id); G.pickOpen("merc"); return; }
       else if (id.startsWith("bd:ride:")) { G.opsPick(id); return; }
       else if (id.startsWith("bd:")) { G.opsPick(id); if (!g.jobRide && !g.misStarted) G.pickOpen("opsboard"); g.misStarted = 0; return; }
-      else if (id.startsWith("mis:")) { G.misPick && G.misPick(id); return; }                 // the job's orders (layer 508)
+      else if (id.startsWith("mis:")) { G.misPick && G.misPick(id); return; }
+      else if (id.startsWith("ccar:")) { G.ccarPick && G.ccarPick(id); return; }
+      else if (id.startsWith("hub:")) { G.hubGo && G.hubGo(id.slice(4)); return; }               // fast travel (layer 514)                // the car command (layer 514)                 // the job's orders (layer 508)
       else if (id.startsWith("bm:open:")) { g.bmKey = id.slice(8); g.bmSaid = null; G.pickOpen("baseman"); return; }
       else if (id.startsWith("bm:")) { G.baseManPick(id); G.pickOpen("baseman"); return; }
       else if (id.startsWith("biz:")) { G.bizPick(id); G.pickOpen("bizshop"); return; }
@@ -17803,6 +17932,18 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return { x0: SX(PRISON.i0) + 120, y0: SX(PRISON.j0) + 120,
                x1: SX(PRISON.i1 + 1) - 120, y1: SX(PRISON.j1 + 1) - 120 };
     }
+    /* THE GATE AND THE TOWERS, over the people (layer 514). The gate house spans the sally port; drawn on the ground
+       pass, the man walked ON TOP of it. Now it is laid after everyone, with the roofs, so the prison intro walks
+       you and the C.O. in UNDER it. */
+    function drawPrisonOver(view) {
+      const b = PRISON_BOX, W2 = b.x1 - b.x0, H2 = b.y1 - b.y0;
+      if (view && (view.x1 < b.x0 - 400 || view.x0 > b.x1 + 400 || view.y1 < b.y0 - 400 || view.y0 > b.y1 + 400)) return;
+      const prop = (k, x, y, w) => { const im = imgs.current[k]; if (!im || !im.width) return;
+        const h = w * (im.height / im.width); ctx.drawImage(im, x - w / 2, y - h / 2, w, h); };
+      for (const [tx, ty] of [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1], [b.x0, b.y0 + H2 / 2], [b.x1, b.y0 + H2 / 2]])
+        prop("pr_roof_tower", tx, ty, 110);
+      prop("pr_roof_gate", b.x0 + W2 * 0.5, b.y0 + 30, 330);
+    }
     function drawPrison() {
       /* THE GROUND UNDER THE CAMPUS. The buildings are real now (landmarks with their roofs on),
          so this only lays the dirt outside, the concrete inside the wall, the yard and the things
@@ -17877,9 +18018,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       fenceRun(yx, yy, gm - Y.gate / 2, yy); fenceRun(gm + Y.gate / 2, yy, yx + yw, yy);
       fenceRun(yx, yy + yh, yx + yw, yy + yh); fenceRun(yx, yy, yx, yy + yh); fenceRun(yx + yw, yy, yx + yw, yy + yh);
       // towers on the corners and the middle of the long walls; the gate over the gap
-      for (const [tx, ty] of [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1], [b.x0, b.y0 + H2 / 2], [b.x1, b.y0 + H2 / 2]])
-        prop("pr_roof_tower", tx, ty, 110);
-      prop("pr_roof_gate", b.x0 + W2 * 0.5, b.y0 + 30, 330);
+      // (the towers and the gate are drawn OVER the people now -- drawPrisonOver, layer 514 -- you walk under the gate)
       // floodlight masts
       for (let q = 0.2; q < 1; q += 0.3) { prop("yd_flood", b.x0 + 60, b.y0 + H2 * q, 50); prop("yd_flood", b.x1 - 60, b.y0 + H2 * q, 50); }
       // searchlights sweeping after dark
@@ -19485,16 +19624,110 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         } : null,
       };
     }
+    /* ---------- LAYER 514: THE EXACT SAVE ----------
+       The old save kept a few hundred bytes of the Lion's numbers. This one keeps the WHOLE game state -- every field of
+       `g` (the mode you're in, where you stand, the floor, the car, your people, the board, the motor pool, a job in
+       progress, the clock) -- plus what's been done TO the city (a building renamed, bombed, made the scrapyard),
+       and puts it all back exactly. How:
+         - `g` is walked as a graph: an object met twice is written once and referenced ($id / $r), so g.inside and
+           g.hideout stay the SAME building and a job on the board stays the job you're leading.
+         - a building is written as where it lives ({$b: [i, j, n]}): the city is rebuilt from its seed, the building
+           is looked up, nothing about the world is copied.
+         - what changed on buildings since the city made them (getCell keeps each building's first state in `__orig`)
+           is written as a diff and laid back over them.
+         - images, canvases, audio, DOM nodes and functions are left out; Maps and Sets keep their entries.
+       ~150 kB, localStorage. Saved every 25 s of play, from SAVE NOW, and the moment the page is hidden or closed.
+       CONTINUE on the title loads it and drops you exactly where you were. */
+    const SNAP_V = 3;
+    function bldIndex() { const m = new Map(); for (const c of cells.values()) (c.blds || []).forEach((b, n) => m.set(b, [c.i, c.j, n])); return m; }
+    function snapEncode(root, bmap, ids) {
+      const plain = (v) => { const p = Object.getPrototypeOf(v); return p === Object.prototype || p === null; };
+      const enc = (v) => {
+        if (v === null || v === undefined) return v === null ? null : { $u: 1 };
+        const t = typeof v;
+        if (t === "number") return Number.isFinite(v) ? v : { $n: String(v) };
+        if (t === "string" || t === "boolean") return v;
+        if (t === "function" || t === "symbol" || t === "bigint") return { $u: 1 };
+        if (bmap.has(v)) return { $b: bmap.get(v) };
+        if (ids.has(v)) return { $r: ids.get(v) };
+        if (v instanceof Map) { const id = ids.size; ids.set(v, id); return { $id: id, $map: [...v.entries()].map(([a, b]) => [enc(a), enc(b)]) }; }
+        if (v instanceof Set) { const id = ids.size; ids.set(v, id); return { $id: id, $set: [...v].map(enc) }; }
+        if (Array.isArray(v)) { const id = ids.size; ids.set(v, id); return { $id: id, $a: v.map(enc) }; }
+        if (ArrayBuffer.isView(v)) return { $a: Array.from(v) };
+        if (!plain(v)) return { $u: 1 };                               // an Image, a canvas, audio, a DOM node: not saved
+        const id = ids.size; ids.set(v, id); const o = { $id: id };
+        for (const k of Object.keys(v)) { const e = enc(v[k]); if (!(e && e.$u)) o[k] = e; }
+        return o; };
+      return enc(root); }
+    function snapDecode(root) { const ids = new Map(), fix = [];
+      const dec = (v) => {
+        if (v === null || typeof v !== "object") return v;
+        if (v.$u) return undefined; if (v.$n) return Number(v.$n);
+        if (v.$b) { const c = getCell(v.$b[0], v.$b[1]); return c && c.blds ? c.blds[v.$b[2]] : null; }
+        if (v.$r !== undefined) { if (ids.has(v.$r)) return ids.get(v.$r); const h = { __pending: v.$r }; fix.push(h); return h; }
+        if (v.$map) { const m = new Map(); ids.set(v.$id, m); for (const [a, b] of v.$map) m.set(dec(a), dec(b)); return m; }
+        if (v.$set) { const s2 = new Set(); ids.set(v.$id, s2); for (const a of v.$set) s2.add(dec(a)); return s2; }
+        if (v.$a) { const a = []; if (v.$id !== undefined) ids.set(v.$id, a); for (const x of v.$a) a.push(dec(x)); return a; }
+        const o = {}; if (v.$id !== undefined) ids.set(v.$id, o);
+        for (const k of Object.keys(v)) { if (k === "$id") continue; o[k] = dec(v[k]); }
+        return o; };
+      const out = dec(root);
+      // a reference that pointed forward: swap the placeholder for the real thing, anywhere it landed
+      if (fix.length) { const seen = new Set(); const walk = (x) => { if (!x || typeof x !== "object" || seen.has(x)) return; seen.add(x);
+          if (x instanceof Map) { for (const [a, b] of x) { if (b && b.__pending !== undefined) x.set(a, ids.get(b.__pending)); else walk(b); } return; }
+          for (const k of Object.keys(x)) { const y = x[k]; if (y && y.__pending !== undefined) x[k] = ids.get(y.__pending); else walk(y); } };
+        walk(out); }
+      return out; }
+    // what's been done to the city's buildings since it made them
+    const BLD_SKIP = /^(_|plans$|__orig$)/;
+    function bldDiff(bmap, ids) { const out = [];
+      for (const c of cells.values()) (c.blds || []).forEach((b, n) => { const O = b.__orig; if (!O) return; const d = {};
+        for (const k of Object.keys(b)) { if (BLD_SKIP.test(k)) continue; const v = b[k];
+          if (v !== null && typeof v === "object") { let same = false; try { same = k in O && JSON.stringify(v) === O[k]; } catch (e) { same = false; } if (!same) d[k] = snapEncode(v, bmap, ids); }
+          else if (!(k in O) || O[k] !== v) d[k] = v === undefined ? { $u: 1 } : snapEncode(v, bmap, ids); }
+        for (const k of Object.keys(O)) if (!(k in b)) d[k] = { $u: 1 };
+        if (Object.keys(d).length) out.push([c.i, c.j, n, d]); });
+      return out; }
+    function collectSnap() { const bmap = bldIndex(), ids = new Map();
+      const state = snapEncode(g, bmap, ids), blds = bldDiff(bmap, ids);
+      return { v: SNAP_V, t: Date.now(), zoom: zoomRef.current, state, blds }; }
+    function applySnap(o) { if (!o || o.v !== SNAP_V) return false;
+      const S = snapDecode({ $id: -1, s: o.state, b: { $a: o.blds.map((r) => ({ $a: [r[0], r[1], r[2], r[3]] })) } });
+      for (const r of S.b || []) { const c = getCell(r[0], r[1]), b = c && c.blds && c.blds[r[2]]; if (!b) continue;
+        for (const k of Object.keys(r[3])) { const v = r[3][k]; if (v === undefined) delete b[k]; else b[k] = v; } }
+      const st = S.s || {}, swap = new Map();
+      /* Top-level objects are filled IN PLACE (code anywhere may hold g.p or g.car), and every reference to the loaded
+         copy is pointed at the live one. */
+      const isPlain = (v) => v && typeof v === "object" && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
+      for (const k of Object.keys(st)) { const nv = st[k], ov = g[k];
+        if (isPlain(nv) && isPlain(ov)) { for (const q of Object.keys(ov)) if (!(q in nv) && typeof ov[q] !== "function") delete ov[q]; swap.set(nv, ov); }
+        else if (Array.isArray(nv) && Array.isArray(ov)) swap.set(nv, ov); }
+      const seen = new Set(), fixRef = (x) => { if (!x || typeof x !== "object" || seen.has(x)) return; seen.add(x);
+        if (x instanceof Map) { for (const [a, b] of x) { if (swap.has(b)) x.set(a, swap.get(b)); else fixRef(b); } return; }
+        if (x instanceof Set) { for (const a of [...x]) { if (swap.has(a)) { x.delete(a); x.add(swap.get(a)); } else fixRef(a); } return; }
+        for (const q of Object.keys(x)) { const y = x[q]; if (swap.has(y)) x[q] = swap.get(y); else fixRef(y); } };
+      for (const k of Object.keys(st)) fixRef(st[k]);
+      for (const k of Object.keys(st)) { const nv = st[k], ov = g[k];
+        if (ov && swap.get(nv) === ov && isPlain(nv)) Object.assign(ov, nv);
+        else if (ov && swap.get(nv) === ov && Array.isArray(nv)) { ov.length = 0; for (const e of nv) ov.push(e); }
+        else g[k] = nv; }
+      // caches that are rebuilt on their own: start them fresh
+      g.pfolk = null; g.pickOpen = null; g.title = false; g.plateShow = null;
+      if (o.zoom) { zoomRef.current = o.zoom; setZoomUI(o.zoom); }
+      return true; }
     function saveGame() {
       try {
-        window.localStorage.setItem(SAVE_KEY, JSON.stringify(collectSave()));
+        let snap = null; try { snap = JSON.stringify(collectSnap()); } catch (e) { snap = null; console.warn("exact save failed", e); }
+        const lite = JSON.stringify(collectSave());
+        window.localStorage.setItem(SAVE_KEY, snap || lite);
+        try { window.localStorage.setItem(SAVE_KEY + ":lite", lite); } catch (e) {}   // the numbers alone, for a mode start
         g.savedAt = g.t;
         return true;
       } catch (e) { return false; }
     }
-    function loadSave() {
+    function loadSave(lite) {
       try {
-        const raw = window.localStorage.getItem(SAVE_KEY);
+        const raw = (lite && window.localStorage.getItem(SAVE_KEY + ":lite")) || window.localStorage.getItem(SAVE_KEY);
         return raw ? JSON.parse(raw) : null;
       } catch (e) { return null; }
     }
@@ -19559,7 +19792,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return true;
     }
     function clearSave() {
-      try { window.localStorage.removeItem(SAVE_KEY); return true; } catch (e) { return false; }
+      try { window.localStorage.removeItem(SAVE_KEY); window.localStorage.removeItem(SAVE_KEY + ":lite"); return true; } catch (e) { return false; }
     }
 
     /* Five street crimes broken up with the victim still standing. Flashpoint saves count
@@ -23170,7 +23403,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     /* OPPONENT SCHOOLS for the basketball team: a different school every game night, in its colours.
        Their players are drawn from a grey plate tinted to the school (tintPlate) -- the grey team
        sheet when it comes (yt_opp_1..6), a jock plate until then. */
-    const OPP_SCHOOLS = [["LINCOLN PARK", "#2a5a2a"], ["ST. BRENDAN'S", "#2a3a8a"], ["CALUMET TECH", "#8a5a1a"], ["NORTH SHORE PREP", "#4a1a6a"],
+    const OPP_SCHOOLS = [["MERCER PARK", "#2a5a2a"], ["ST. BRENDAN'S", "#2a3a8a"], ["FOUNDRY TECH", "#8a5a1a"], ["NORTH SHORE PREP", "#4a1a6a"],
       ["SOUTH HOOK HIGH", "#8a1a1a"], ["BRIDGEPORT", "#1a6a6a"], ["WESTSIDE VOCATIONAL", "#5a5a5a"], ["HOLY NAME", "#c8a020"], ["GARFIELD", "#a03a6a"], ["LAKEVIEW", "#2a7ac8"]];
     const tintCache = {};
     function tintPlate(key, col) {
@@ -28526,7 +28759,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else { ctx.fillStyle = /crew_viejo/.test(c.k) ? "#6a3f8a" : /crew_leroy/.test(c.k) ? "#3f7a46" : /crew_ras/.test(c.k) ? "#b0652a" : "#4d5a6a"; ctx.fillRect(-W / 2, -Hh / 2, W, Hh);
           ctx.fillStyle = "rgba(160,200,230,0.5)"; ctx.fillRect(-W / 2 + 4, -Hh / 2 + Hh * 0.18, W - 8, Hh * 0.18); }
         ctx.restore();
-        if (poolNear(70) === p.slot) { ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center";
+        if (poolNear(70) === p.slot && !nearStair()) {              // on the stairs, E is the stairs (layer 514) ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center";
           const tx = cx, ty = cy + 4;                              // on the car itself, not under your feet in the lane
           ctx.fillStyle = "rgba(0,0,0,0.6)"; const tw = ctx.measureText("E \u00b7 TAKE IT OUT \u00b7 " + c.nm).width + 12; ctx.fillRect(tx - tw / 2, ty - 11, tw, 15);
           ctx.fillStyle = "#e8c46a"; ctx.fillText("E \u00b7 TAKE IT OUT \u00b7 " + c.nm, tx, ty); } }
@@ -32046,6 +32279,39 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#7ab8ff"; ctx.fillText("C.O. HARLAN", I.co.x, I.co.y - 32); ctx.textAlign = "start";
     }
     G.introSkip = () => prisonIntroEnd();
+    /* HANDCUFFS OVER THE HEAD (layer 514): anyone under arrest wears them over his head until he's in a cell -- the
+       street racer you collared waiting on the wagon, the men the Lion put down at a crime till the wagon takes them,
+       you and the other new fish on the walk into Kestrel (off at the cell door), and you when the cops take you.
+       Art: assets/ui/ui_cuffs.png if it's in; drawn by hand till then. */
+    function drawCuffIcon(x, y) {
+      const bob = Math.sin(g.t * 3 + x * 0.01) * 1.5, yy = y + bob, im = imgs.current.ui_cuffs;
+      if (im && im.width) { const w = 22, h = w * im.height / im.width; ctx.drawImage(im, x - w / 2, yy - h / 2, w, h); return; }
+      // two cuffs on a short chain, tipped, each with its hinge block -- reads as cuffs, not glasses
+      ctx.save(); ctx.translate(x, yy); ctx.rotate(-0.38); ctx.lineCap = "round"; ctx.lineJoin = "round";
+      for (const [lw, col] of [[4.6, "rgba(10,12,16,0.9)"], [2.2, "#d4dde6"]]) {
+        ctx.strokeStyle = col; ctx.lineWidth = lw;
+        ctx.beginPath(); ctx.ellipse(-9, 0, 5, 5.6, 0, 0, 6.283); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(9, 0, 5, 5.6, 0, 0, 6.283); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(-2.2, 0, 2.2, 1.5, 0, 0, 6.283); ctx.stroke();      // the chain: two links
+        ctx.beginPath(); ctx.ellipse(2.2, 0, 2.2, 1.5, 0, 0, 6.283); ctx.stroke(); }
+      ctx.fillStyle = "rgba(10,12,16,0.9)"; ctx.fillRect(-16.5, -3.5, 4, 7); ctx.fillRect(12.5, -3.5, 4, 7);
+      ctx.fillStyle = "#aeb8c4"; ctx.fillRect(-15.8, -2.7, 2.6, 5.4); ctx.fillRect(13.2, -2.7, 2.6, 5.4);  // the hinge blocks
+      ctx.fillStyle = "#ffffff"; ctx.globalAlpha = 0.75; ctx.fillRect(-11, -4.5, 2, 2); ctx.fillRect(7, -4.5, 2, 2);
+      ctx.restore();
+    }
+    function cuffMarks() {
+      const out = [];
+      if (!g.inside) {
+        const R = g.race; for (const rv of (R && R.rivals) || []) { const d = rv.drv; if (d && d.cuffed && !d.gone) out.push([d.x, d.y - 40]); }
+        const cr = g.crime; if (cr && cr.thugs) for (const t of cr.thugs) if (t.hp <= 0) out.push([t.x, t.y - 30]);
+      }
+      const I = g.pintro;
+      if (I && !I.done && (I.st === "out") === !g.inside) { out.push([g.p.x, g.p.y - 46]); for (const o of I.fish) out.push([o.x, o.y - 46]); }
+      else if ((g.arrested || 0) > 0) out.push([g.p.x, g.p.y - 46]);
+      return out;
+    }
+    function drawCuffMarks() { for (const [x, y] of cuffMarks()) drawCuffIcon(x, y); }
+    G.cuffT = () => cuffMarks().length;      // test hook
     function prisonIntroEnd() {
       const I = g.pintro; if (!I) return;
       g.pintro = null; g.driveTalk = null;
@@ -32759,7 +33025,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       walkers.forEach((p, i) => { g.pfol.push({ mis: 1, key: p.key, role: p.role, name: p.name, yt: p.yt, tall: p.tall, x: g.p.x, y: g.p.y, vx: 0, vy: 0, b: null, f: 0, cd: 0, lag: 0, angry: 0, down: 0,
         riding: 1, jit: 1, anim: 0, bang: 0, seat: i < leadSeats || !convoy ? "lead" : "convoy" }); });
       const kd = kindOf(op.k), b = T.b || null;
-      g.mis = { op, k: op.k, kd, gk: op.gang, vg: T.vg || null, b, pt: T.pt || null, phase: "drive", drv: drv ? drv.name : null, car: "with", bomb: null, back: 0, got: 0,
+      g.mis = { op, k: op.k, kd, gk: op.gang, vg: T.vg || null, b, pt: T.pt || null, phase: "drive", drv: drv ? drv.name : null, drvYt: drv ? drv.yt || null : null, car: "with", bomb: null, back: 0, got: 0,
         safe0: b && b.biz ? econOf(b).safe : 0, cash0: g.p.cash || 0, gt0: g.t, t: 0, convoy, lastMode: "car", rides: VV.list.filter((q) => q.ride).map((q) => q.ride.id) };
       const M = g.mis;
       if (kd === "route") M.truck = { pts: T.route, i: 0, x: T.route[0][0], y: T.route[0][1], ang: 0, spd: 0, hp: 100, state: "wait", wait: 75, cd: 0 };
@@ -32818,6 +33084,115 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       opts.push({ id: "mis:abort", label: "CALL IT OFF" }, { id: "close", label: "CARRY ON" });
       return { title: "ORDERS \u00b7 " + OPS[M.k].nm, face: null, text: g.misSaid || misStatus(), opts }; }
     const misCarNearMe = () => g.car && Math.hypot(g.car.x - g.p.x, g.car.y - g.p.y) < 420 && !g.mis.carGone;
+    /* ---------- LAYER 514: THE CAR COMMAND ----------
+       In a car with any of your people, CAR (on the action wheel, or the on-screen button): everyone in the car, by
+       face. Pick one and he takes the wheel -- you ride, hands free (lean out and shoot: the same as riding with
+       Ramos). Anyone can DRIVE TO a place -- the job, the scrapyard, a place you've cased, Eddie's, and the city's main
+       places (always on the list). A DRIVER (the role) can do more: LOSE 'EM (fast and twisting; with nobody seeing
+       you, the heat runs off twice as fast), GET US OUT (flat out to the scrapyard), CIRCLE THE BLOCK (round and round
+       till you say), DRIVE SLOW (a crawl -- the route he's on, or round the block -- for a drive-by). I'LL DRIVE takes
+       the wheel back. Built on the autopilot (g.auto) Ramos drives with. */
+    const CCAR = { spd: 300, drv: 340, fast: 470, slow: 95, loseFar: [2400, 3600] };
+    const CCAR_MAIN = /UNION TERMINAL|KESTREL STATE|CITY HALL|THE STADIUM|COURTHOUSE|THE PORT|STARLITE|HOLLOWAY PARK|CHRONICLE|VANCE TOWER/;
+    function carCrew() {
+      if (g.mode !== "car" || g.inside) return [];
+      const out = [], M = g.mis;
+      if (M && M.drv && !M.carGone && M.car === "with") out.push({ key: "drv", name: M.drv, role: "driver", yt: M.drvYt || null });
+      for (const f of g.pfol || []) if (!f.task && f.seat !== "convoy" && !f.down) out.push({ key: f.key, name: f.name || "YOUR MAN", role: f.role || "crew", yt: f.yt || null, crew: f.crew || null });
+      return out;
+    }
+    G.carCrewN = () => { try { return carCrew().length; } catch (e) { return 0; } };
+    function crewFace(P) {
+      if (P.crew) { const C = CREW.find((q) => q.id === P.crew); if (C && C.face) return "assets/crew/" + C.face + ".png"; }
+      const yt = P.yt || ""; return PD_ART[yt.replace(/^yt_/, "pt_")] || PD_ART[yt] || null;
+    }
+    function ccarDests() {
+      const out = [], at = (b, dist) => { const dp = doorPoint(b), sd = b.door ? b.door.side : 2, o = [[0, -1], [1, 0], [0, 1], [-1, 0]][sd] || [0, 1];
+        return [dp[0] + o[0] * (dist || 140), dp[1] + o[1] * (dist || 140)]; };
+      if (g.mis) { const p = misPt(), M = g.mis; out.push({ label: "THE JOB · " + (M.b ? (M.b.name || addressOf(M.b)) : M.pt ? (M.pt.addr || "THE SPOT") : "THE ROUTE").toUpperCase(), x: p[0], y: p[1] }); }
+      const H = hideoutB(); if (H && H.door) { const [x, y] = at(H); out.push({ label: "THE SCRAPYARD", x, y, home: 1 }); }
+      for (const C of (g.board2 && g.board2.cased) || []) if (C.b && C.b.door) { const [x, y] = at(C.b); out.push({ label: "CASED · " + (C.nm || "A STORE"), x, y }); }
+      if (g.repairB && g.repairB.door) { const [x, y] = at(g.repairB); out.push({ label: "EDDIE'S · PLATES & REPAIRS", x, y }); }
+      try { const seen = {}; for (const r of rolodex()) if (CCAR_MAIN.test(r.label) && !seen[r.label]) { seen[r.label] = 1; out.push({ label: r.label, x: r.x, y: r.y }); } } catch (e) {}
+      return out.slice(0, 16);
+    }
+    // a loop round the block he's on: the four corners, kept to the right lane
+    function blockLoop(v, spd) {
+      const i = clamp(Math.round(v.x / PITCH), 0, N - 1), j = clamp(Math.round(v.y / PITCH), 0, N - 1);
+      const C4 = [[SX(i), SX(j)], [SX(i + 1), SX(j)], [SX(i + 1), SX(j + 1)], [SX(i), SX(j + 1)]];
+      const pre = roadRoute(v.x, v.y, C4[0][0], C4[0][1]);
+      // each corner pulled into the lane of both roads that meet there -- the same offset roadRoute gives a turn
+      const off = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, onV = Math.abs(ux) < Math.abs(uy);
+        const hw = onV ? halfW(clamp(Math.round(a[0] / PITCH), 0, N)) : halfW(clamp(Math.round(a[1] / PITCH), 0, N)); return [-uy * hw * LANE, ux * hw * LANE]; };
+      const loop = C4.map((c, k) => { const o1 = off(C4[(k + 3) % 4], c), o2 = off(c, C4[(k + 1) % 4]); return [c[0] + o1[0] + o2[0], c[1] + o1[1] + o2[1]]; });
+      return { pts: pre.slice(0, -1).concat(loop), i: 0, loop: pre.length - 1, spd };
+    }
+    function loseLeg(v) {
+      const a = Math.random() * 6.283, R = CCAR.loseFar[0] + Math.random() * (CCAR.loseFar[1] - CCAR.loseFar[0]);
+      const tx = clamp(v.x + Math.cos(a) * R, SX(1), SX(N - 1)), ty = clamp(v.y + Math.sin(a) * R, SX(1), SX(N - 1));
+      // through a corner on the way, so it isn't one straight run
+      const mx = SX(clamp(Math.round((v.x + tx) / 2 / PITCH + (Math.random() < 0.5 ? -1 : 1)), 1, N - 1)), my = SX(clamp(Math.round((v.y + ty) / 2 / PITCH), 1, N - 1));
+      return roadRoute(v.x, v.y, mx, my).concat(roadRoute(mx, my, tx, ty).slice(1));
+    }
+    function crewDrive(P, mode, dest) {
+      const v = activeVeh(); if (!v || !P) return;
+      const nm = first(P.name), base = P.role === "driver" ? CCAR.drv : CCAR.spd, A0 = g.auto;
+      let A = null, line = "";
+      if (mode === "to" && dest) { A = { pts: roadRoute(v.x, v.y, dest.x, dest.y).concat([[dest.x, dest.y]]), i: 0, spd: base }; line = "TO " + dest.label.split(" · ")[0]; }
+      else if (mode === "circle") { A = blockLoop(v, base * 0.8); line = "CIRCLING THE BLOCK"; }
+      else if (mode === "slow") { A = A0 && A0.who === nm && A0.pts ? { ...A0, spd: CCAR.slow, mode: "slow" } : blockLoop(v, CCAR.slow); line = "NICE AND SLOW -- GET READY"; }
+      else if (mode === "lose") { A = { pts: loseLeg(v), i: 0, spd: CCAR.fast, lose: 1 }; line = "HOLD ON -- LOSING 'EM"; }
+      else if (mode === "escape") { const H = ccarDests().find((q) => q.home);
+        A = H ? { pts: roadRoute(v.x, v.y, H.x, H.y).concat([[H.x, H.y]]), i: 0, spd: CCAR.fast, escape: 1 } : { pts: loseLeg(v), i: 0, spd: CCAR.fast, lose: 1 }; line = "GETTING US OUT"; }
+      if (!A) return;
+      A.who = nm; A.whoKey = P.key; A.mode = A.mode || mode; A.label = dest ? dest.label : null;
+      g.auto = A; g.canAimDriving = true;
+      g.pickupFlash = { nm: "lift:" + nm + " · " + line, t: 2 };
+    }
+    function ccarPanel() {
+      const L = carCrew(), A = g.auto, view = g.ccView || "who";
+      if (!L.length) { g.ccView = null; return { title: "THE CAR", face: null, text: "Nobody in here but you.", opts: [{ id: "close", label: "OK" }] }; }
+      const P = L.find((q) => q.key === g.ccWho) || null;
+      const driving = A && A.who ? A.who + " has the wheel" + (A.mode === "to" && A.label ? " -- headed to " + A.label + "." : A.mode === "circle" ? ", circling the block." : A.mode === "slow" ? ", crawling." : A.lose ? ", losing them." : A.escape ? ", getting you out." : ".") : null;
+      if (view === "who" || !P) {
+        const opts = L.map((q, n) => ({ id: "ccar:who:" + n, label: first(q.name) + " · " + (q.role || "crew").toUpperCase() + (A && A.whoKey === q.key ? " · DRIVING" : ""), card: crewFace(q) || "assets/ui/ui_badge.png" }));
+        if (A) opts.push({ id: "ccar:me", label: "I'LL DRIVE" });
+        opts.push({ id: "close", label: "NEVER MIND" });
+        return { title: "THE CAR · WHO DRIVES", face: null, text: g.ccSaid || driving || "Everybody in the car. Pick who takes the wheel.", opts };
+      }
+      if (view === "where") {
+        const D = (g.ccDests = ccarDests());
+        const opts = D.map((d, n) => ({ id: "ccar:to:" + n, label: d.label }));
+        opts.push({ id: "ccar:back", label: "BACK" });
+        return { title: first(P.name) + " · WHERE TO", face: crewFace(P), text: "Name it.", opts };
+      }
+      const isDrv = P.role === "driver", opts = [{ id: "ccar:o:where", label: "DRIVE TO…" }];
+      if (isDrv) opts.push({ id: "ccar:o:lose", label: "LOSE 'EM" + ((g.heat || 0) > 0 ? "" : " (NOBODY ON US)") }, { id: "ccar:o:escape", label: "GET US OUT · THE SCRAPYARD, FAST" },
+        { id: "ccar:o:circle", label: "CIRCLE THE BLOCK" }, { id: "ccar:o:slow", label: "DRIVE SLOW · DRIVE-BY" });
+      if (A) opts.push({ id: "ccar:me", label: "PULL OVER · I'LL DRIVE" });
+      opts.push({ id: "ccar:back", label: "BACK" });
+      return { title: first(P.name) + " · " + (P.role || "crew").toUpperCase(), face: crewFace(P),
+        text: driving || (isDrv ? "“Where we going? I can do it fast or I can do it slow.”" : "“I can drive. Don't ask me to do anything fancy.”"), opts };
+    }
+    G.ccarPick = (id) => {
+      const L = carCrew(), [, a, b] = id.split(":");
+      if (a === "who") { const P = L[+b]; if (P) { g.ccWho = P.key; g.ccView = "orders"; } G.pickOpen("ccar"); return; }
+      if (a === "back") { g.ccView = g.ccView === "where" ? "orders" : "who"; G.pickOpen("ccar"); return; }
+      if (a === "me") { const nm = g.auto && g.auto.who; g.auto = null; g.canAimDriving = false; const v = activeVeh(); if (v) { v.vx = 0; v.vy = 0; v.fwd = 0; }
+        g.pickupFlash = { nm: "lift:" + (nm ? nm + " PULLS OVER · " : "") + "YOUR WHEEL", t: 1.8 }; g.ccView = "who"; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return; }
+      const P = L.find((q) => q.key === g.ccWho); if (!P) { g.ccView = "who"; G.pickOpen("ccar"); return; }
+      if (a === "o" && b === "where") { g.ccView = "where"; G.pickOpen("ccar"); return; }
+      if (a === "o") crewDrive(P, b);
+      if (a === "to") crewDrive(P, "to", (g.ccDests || [])[+b]);
+      g.ccView = "who"; g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+    };
+    // the end of a leg: a loop goes round again, LOSE 'EM keeps going till the heat's off, everyone else stops
+    function ccarLegEnd(A, v) {
+      if (A.loop != null) { A.i = A.loop; return true; }
+      if (A.lose && (g.heat || 0) > 0) { A.pts = loseLeg(v); A.i = 0; return true; }
+      g.pickupFlash = { nm: "lift:" + A.who + " · " + (A.lose ? "WE LOST 'EM" : A.escape ? "WE'RE CLEAR" : "WE'RE HERE"), t: 2 };
+      return false;
+    }
     function misTask(f, kind, x, y, need, done, b2, fl) { f.task = { kind, x, y, need: need || 0, w: 0, done, b: b2 || null, fl: fl || 0 }; }
     function misStepTask(f, dt) { const T = f.task; if (!T) return false;
       if (f.b !== T.b || f.f !== T.fl) {                                    // off to somewhere you aren't: he goes the way you'd go
@@ -33130,6 +33505,60 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        stairs stay) and gets the back bar and counter with stools along the top, the pool table in the
        middle, booths and a table on the right (Silas sits there), the jukebox, cigarette machine and
        crates along the bottom, the notice board, neon and dartboard on the walls. */
+    /* ---------- LAYER 514: FAST TRAVEL, EVERY MODE ----------
+       Three public places you can always get to -- THE AIRPORT, UNION TERMINAL (the train) and THE PORT -- plus your
+       own HOME for the mode you're in (the den, the precinct, the scrapyard, the house). From the action wheel (FAST
+       TRAVEL), the map (the button, or A on the pad). Half an hour on the clock. In a car, the car comes with you.
+       Not from inside Kestrel, not with the police on you, not in the middle of a job. */
+    function hubTargets() {
+      const out = [], front = (b, dist) => { const dp = doorPoint(b), sd = b.door ? b.door.side : 2, o = [[0, -1], [1, 0], [0, 1], [-1, 0]][sd] || [0, 1];
+        return [dp[0] + o[0] * (dist || 120), dp[1] + o[1] * (dist || 120)]; };
+      try { const A = airport(); if (A && A.term && A.term.door) { const [x, y] = front(A.term); out.push({ id: "air", label: "THE AIRPORT", sub: "Raven Hook Municipal", x, y }); } } catch (e) {}
+      try { const U = unionTerm(); if (U && U.door) { const [x, y] = front(U); out.push({ id: "train", label: "UNION TERMINAL", sub: "the train", x, y }); } } catch (e) {}
+      try { const t = TRAVEL.find((q) => q.name === "THE PORT"); if (t) { let c = corner(t.i, t.j, 0);
+          const b = visibleBuildings({ x0: SX(t.i), x1: SX(t.i + 1), y0: SX(t.j), y1: SX(t.j + 1) }).find((q) => q.landmark);
+          if (b) c = [b.x + b.w / 2, b.y + b.h + (b.stair ? b.stair.depth + 34 : 60)];
+          out.push({ id: "port", label: "THE PORT", sub: "the quay", x: c[0], y: c[1] }); } } catch (e) {}
+      let H = null, hl = "HOME", hs = "home";
+      try {
+        if (g.studentMode) { H = studentHome(); hl = "HOME"; hs = "the house"; }
+        else if (g.detMode) { H = precinctB(); hl = "THE PRECINCT"; }
+        else if (g.prisonMode) { H = g.pescaped ? hideoutB() : null; hl = "THE SCRAPYARD"; }
+        else { H = denOf(); hl = "THE DEN"; }
+      } catch (e) { H = null; }
+      if (H && H.door) { const [x, y] = front(H, 90); out.push({ id: "home", label: hl, sub: hs, x, y }); }
+      return out;
+    }
+    function hubBlock() {
+      if (g.prisonMode && !g.pescaped) return "Not from inside Kestrel.";
+      if (g.pintro || g.hole) return "Not now.";
+      if ((g.heat || 0) > 0 || (g.wantedT || 0) > 0) return "Not with the police on you. Lose them first.";
+      if (g.mis) return "Not in the middle of a job -- finish it or call it off.";
+      if (g.mode !== "foot" && g.mode !== "car") return "Get off the bike first.";
+      return null;
+    }
+    function hubsPanel() {
+      const why = hubBlock(), L = hubTargets();
+      return { title: "FAST TRAVEL", face: null, text: g.hubSaid || why || "Where to? Half an hour, door to door." + (g.mode === "car" ? " The car comes with you." : ""),
+        opts: (why ? [] : L.map((t) => ({ id: "hub:" + t.id, label: t.label + " · " + t.sub.toUpperCase() }))).concat([{ id: "close", label: "STAY HERE" }]) };
+    }
+    function hubGo(id) {
+      const why = hubBlock(); if (why) { g.hubSaid = why; G.pickOpen("hubs"); return; }
+      const t = hubTargets().find((q) => q.id === id); if (!t) return;
+      const inCar = g.mode === "car";
+      g.inside = null; g.floor = 0; g.insideT = 0; g.roof = null; g.sewer = false; g.onPlat = null; g.onFwy = false; g.auto = null;
+      if (inCar) { g.car.x = t.x; g.car.y = t.y; g.car.vx = 0; g.car.vy = 0; g.car.fwd = 0; }
+      g.p.x = t.x; g.p.y = t.y; g.p.vx = 0; g.p.vy = 0; g.cam.x = t.x; g.cam.y = t.y;
+      if (g.partner) { g.partner.x = t.x + 40; g.partner.y = t.y + 26; }
+      for (const f of g.pfol || []) { f.x = t.x - 30; f.y = t.y + 20; f.b = null; f.f = 0; }
+      if (g.clock != null) g.clock = ((g.clock || 0) + 30) % 1440;
+      g.hubSaid = null; g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+      g.jobBanner = t.label; g.jobNote = inCar ? "Half an hour on the road." : "Half an hour later, you're there.";
+      g.pickupFlash = { nm: "lift:" + t.label, t: 2 };
+    }
+    G.hubGo = hubGo;
+    G.hubOpen = () => { const gg = G.current; if (!gg || gg.title) return; gg.hubSaid = null; G.pickOpen("hubs"); };
+    G.hubT = () => hubTargets().map((t) => t.id + ":" + Math.round(t.x) + "," + Math.round(t.y));   // test hook
     /* FAST TRAVEL TO THE SCRAPYARD (layer 477): out of Kestrel, any office computer in the city (a
        "computer" / "pd_computer" prop -- and one now sits in the Rusty Nail's corner) lets you set up the
        back way: E at it -> GO TO THE SCRAPYARD, and you are at the garage door half an hour later. */
@@ -33402,7 +33831,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     /* ---------- LAYER 446: MAKES, MODELS, PLATES, AND DAMAGE ----------
        Every car has an identity (`carInfo(v)`, made once and kept on it): a make and model (from its
        sprite where the sprite says -- a Grand National, a DeLorean, the lowrider -- else from a pool by
-       size), a colour (from the sprite's name where it has one), an Illinois plate, and a registered
+       size), a colour (from the sprite's name where it has one), a Kestrel plate, and a registered
        owner. RUN PLATES (the button, detective mode, in a car): the cars around you as a list; pick one
        and its plate comes up on screen with who it belongs to and whether it is flagged. */
     const CAR_POOLS = {
@@ -33453,12 +33882,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function drawPlateShow() {
       const S = g.plateShow; if (!S) return; S.t -= 1 / 60; if (S.t <= 0) { g.plateShow = null; return; }
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = Math.min(1, S.t);
-      const W = ctx.canvas.width, sc = Math.max(1, W / 1280), pw = 240 * sc, ph = pw * 170 / 365, x = (W - pw) / 2, y = ctx.canvas.height * 0.2;   // centre, clear of the minimap
+      const W = ctx.canvas.width, sc = Math.max(1, W / 1280), pw = 240 * sc, PIM = imgs.current.ui_plate, ph = pw * (PIM && PIM.width ? PIM.height / PIM.width : 220 / 412), x = (W - pw) / 2, y = ctx.canvas.height * 0.2;   // centre, clear of the minimap
       const im = imgs.current.ui_plate;
       if (im && im.width) ctx.drawImage(im, x, y, pw, ph); else { ctx.fillStyle = "#f2f0ea"; ctx.fillRect(x, y, pw, ph); }
-      ctx.textAlign = "center"; ctx.fillStyle = "#1a3a8a"; ctx.font = "700 " + (11 * sc) + "px monospace"; ctx.fillText("ILLINOIS", x + pw * 0.42, y + ph * 0.22);
-      ctx.fillStyle = "#0e1c4a"; ctx.font = "900 " + (40 * sc) + "px monospace"; ctx.fillText(S.I.plate, x + pw / 2, y + ph * 0.66);
-      ctx.fillStyle = "#1a3a8a"; ctx.font = "700 " + (9 * sc) + "px monospace"; ctx.fillText("LAND OF LINCOLN", x + pw / 2, y + ph * 0.88);
+      ctx.textAlign = "center"; ctx.fillStyle = "#1a3a8a"; ctx.font = "700 " + (11 * sc) + "px monospace"; ctx.fillText(STATE_NM, x + pw * 0.47, y + ph * 0.19);
+      ctx.fillStyle = "#0e1c4a"; ctx.font = "900 " + (40 * sc) + "px monospace"; ctx.fillText(S.I.plate, x + pw / 2, y + ph * 0.64);
+      ctx.fillStyle = "#1a3a8a"; ctx.font = "700 " + (9 * sc) + "px monospace"; ctx.fillText(STATE_MOTTO, x + pw / 2, y + ph * 0.87);
       ctx.fillStyle = "rgba(8,10,12,0.8)"; ctx.fillRect(x - 90 * sc, y + ph + 6 * sc, pw + 180 * sc, 44 * sc);
       ctx.fillStyle = S.I.stolen ? "#ff6a5a" : "#e8e0c8"; ctx.font = "700 " + (10 * sc) + "px monospace";
       ctx.fillText(S.I.colour + " " + S.I.model, x + pw / 2, y + ph + 20 * sc);
@@ -34032,7 +34461,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ENGLISH: [["Who wrote 'Romeo and Juliet'?", ["Shakespeare", "Dickens", "Hemingway"], 0], ["A word that means the opposite of another is a...", ["synonym", "antonym", "homonym"], 1], ["'The Great Gatsby' was written by...", ["Steinbeck", "Fitzgerald", "Twain"], 1], ["'Call me Ishmael' opens which novel?", ["Moby-Dick", "Treasure Island", "The Odyssey"], 0], ["A comparison using 'like' or 'as' is a...", ["metaphor", "simile", "hyperbole"], 1], ["Who wrote 'To Kill a Mockingbird'?", ["Harper Lee", "Toni Morrison", "J.D. Salinger"], 0], ["The main character of a story is the...", ["antagonist", "narrator", "protagonist"], 2], ["Holden Caulfield is in which book?", ["The Outsiders", "The Catcher in the Rye", "Lord of the Flies"], 1], ["'The Raven' was written by...", ["Edgar Allan Poe", "Robert Frost", "Walt Whitman"], 0], ["A noun names a...", ["action", "person, place or thing", "description"], 1], ["Who wrote 'Of Mice and Men'?", ["Steinbeck", "Hemingway", "Orwell"], 0], ["'1984' was written by...", ["Aldous Huxley", "George Orwell", "Ray Bradbury"], 1], ["A haiku has how many lines?", ["three", "five", "fourteen"], 0], ["A sonnet has how many lines?", ["twelve", "fourteen", "ten"], 1], ["Ponyboy is the narrator of...", ["The Outsiders", "Rumble Fish", "A Separate Peace"], 0]],
       MATH: [["What is 12 x 12?", ["124", "144", "132"], 1], ["Solve: 3x = 27", ["x = 7", "x = 9", "x = 8"], 1], ["The angles of a triangle add up to...", ["180", "360", "90"], 0], ["What is 15% of 200?", ["20", "30", "15"], 1], ["The square root of 81 is...", ["8", "9", "7"], 1], ["Pi is about...", ["3.14", "2.71", "1.61"], 0], ["Solve: 2x + 4 = 10", ["x = 2", "x = 3", "x = 4"], 1], ["A right angle is...", ["45 degrees", "90 degrees", "180 degrees"], 1], ["What is 7 cubed?", ["343", "49", "21"], 0], ["The area of a 5 by 4 rectangle is...", ["9", "18", "20"], 2], ["0.25 as a fraction is...", ["1/4", "1/5", "2/5"], 0], ["What is -3 x -4?", ["-12", "12", "7"], 1], ["A triangle with all sides equal is...", ["isosceles", "scalene", "equilateral"], 2], ["The slope of a flat line is...", ["zero", "one", "undefined"], 0], ["What is 2 to the 10th?", ["1024", "512", "2048"], 0]],
       SCIENCE: [["H2O is...", ["salt", "water", "oxygen"], 1], ["The powerhouse of the cell is the...", ["nucleus", "ribosome", "mitochondria"], 2], ["The closest star to Earth is...", ["the Sun", "Sirius", "Polaris"], 0], ["Plants make food by...", ["respiration", "photosynthesis", "digestion"], 1], ["The chemical symbol for gold is...", ["Go", "Gd", "Au"], 2], ["Newton's first law is about...", ["inertia", "gravity only", "sound"], 0], ["The red planet is...", ["Venus", "Mars", "Jupiter"], 1], ["Water boils at... (sea level)", ["100 C", "90 C", "212 C"], 0], ["DNA's shape is a...", ["single strand", "double helix", "triple ring"], 1], ["The hardest natural substance:", ["iron", "quartz", "diamond"], 2], ["Sound travels fastest through...", ["air", "water", "steel"], 2], ["Atoms with the same protons but different neutrons are...", ["ions", "isotopes", "isomers"], 1], ["The space shuttle Challenger was lost in...", ["1986", "1981", "1984"], 0], ["NaCl is...", ["table salt", "baking soda", "bleach"], 0], ["The largest organ of the body is the...", ["liver", "skin", "heart"], 1]],
-      HISTORY: [["The Declaration of Independence was signed in...", ["1812", "1776", "1865"], 1], ["Chicago's Great Fire was in...", ["1871", "1906", "1929"], 0], ["The first man on the Moon:", ["Glenn", "Armstrong", "Aldrin"], 1], ["The Civil War ended in...", ["1865", "1861", "1877"], 0], ["Who was president during the New Deal?", ["Hoover", "F. D. Roosevelt", "Truman"], 1], ["The Berlin Wall went up in...", ["1961", "1945", "1972"], 0], ["Who gave the 'I Have a Dream' speech?", ["Malcolm X", "Martin Luther King Jr.", "Medgar Evers"], 1], ["The 19th Amendment gave women...", ["the vote", "jury duty", "property rights"], 0], ["Who is president in 1986?", ["Carter", "Reagan", "Bush"], 1], ["The stock market crashed in...", ["1929", "1933", "1919"], 0], ["Pearl Harbor was attacked in...", ["1939", "1941", "1944"], 1], ["The first U.S. president was...", ["Adams", "Jefferson", "Washington"], 2], ["Rosa Parks' bus boycott was in...", ["Montgomery", "Selma", "Birmingham"], 0], ["Watergate brought down...", ["Nixon", "Ford", "Johnson"], 0], ["The Louisiana Purchase was from...", ["Spain", "France", "Britain"], 1]],
+      HISTORY: [["The Declaration of Independence was signed in...", ["1812", "1776", "1865"], 1], ["The Great Raven Hook Fire was in...", ["1871", "1906", "1929"], 0], ["The first man on the Moon:", ["Glenn", "Armstrong", "Aldrin"], 1], ["The Civil War ended in...", ["1865", "1861", "1877"], 0], ["Who was president during the New Deal?", ["Hoover", "F. D. Roosevelt", "Truman"], 1], ["The Berlin Wall went up in...", ["1961", "1945", "1972"], 0], ["Who gave the 'I Have a Dream' speech?", ["Malcolm X", "Martin Luther King Jr.", "Medgar Evers"], 1], ["The 19th Amendment gave women...", ["the vote", "jury duty", "property rights"], 0], ["Who is president in 1986?", ["Carter", "Reagan", "Bush"], 1], ["The stock market crashed in...", ["1929", "1933", "1919"], 0], ["Pearl Harbor was attacked in...", ["1939", "1941", "1944"], 1], ["The first U.S. president was...", ["Adams", "Jefferson", "Washington"], 2], ["Rosa Parks' bus boycott was in...", ["Montgomery", "Selma", "Birmingham"], 0], ["Watergate brought down...", ["Nixon", "Ford", "Johnson"], 0], ["The Louisiana Purchase was from...", ["Spain", "France", "Britain"], 1]],
       ART: [["Who painted the Mona Lisa?", ["Van Gogh", "Da Vinci", "Picasso"], 1], ["Red + yellow makes...", ["orange", "green", "purple"], 0], ["Warhol painted cans of...", ["beans", "soup", "paint"], 1], ["Who cut off part of his ear?", ["Van Gogh", "Monet", "Dali"], 0], ["The primary colors are...", ["red, yellow, blue", "red, green, blue", "black, white, grey"], 0], ["Who painted melting clocks?", ["Dali", "Magritte", "Miro"], 0], ["Cubism was started by Picasso and...", ["Braque", "Matisse", "Kandinsky"], 0], ["Blue + yellow makes...", ["green", "orange", "brown"], 0], ["Michelangelo painted the ceiling of the...", ["Louvre", "Sistine Chapel", "Parthenon"], 1], ["'The Starry Night' is by...", ["Van Gogh", "Gauguin", "Cezanne"], 0], ["Chicago's 'Picasso' sculpture is in...", ["Daley Plaza", "Grant Park", "Navy Pier"], 0], ["Keith Haring's art started in the...", ["subway", "sewers", "circus"], 0], ["A painting of fruit and objects is a...", ["landscape", "still life", "portrait"], 1], ["Colors opposite on the wheel are...", ["analogous", "complementary", "primary"], 1], ["Basquiat was first known as...", ["SAMO", "BANKSY", "CRASH"], 0]],
     };
     /* THE NEIGHBOURHOOD (layer 468): his house is in the most residential block within three blocks of
@@ -36748,7 +37177,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
            sixty clear seconds is what it takes to lose them. */
         const seen = copsWatching(g.p.x, g.p.y);
         // ninety clear seconds, and being watched holds the clock rather than running it
-        if (!seen) g.wantedT -= dt;
+        if (!seen) g.wantedT -= dt * (g.auto && g.auto.lose ? 2 : 1);     // a driver losing them (layer 514) sheds it twice as fast
         else g.wantedT = Math.max(g.wantedT, 12);
         if (g.wantedT <= 0) { g.heat = 0; g.wantedT = 0; }
       }
@@ -39500,7 +39929,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
     function drawMinimap() {
       const S = Math.min(150, Math.max(96, Math.min(W, H) * 0.22));
-      const pad = 12, ox = W - S - pad, oy = pad + 46;
+      /* In a car (or on a bike) the CAR CARD sits above the map and the plate under it (layer 514): the map moves down
+         to make room, and tells the HUD where it is (g.mm) so both line up with it at any screen size. */
+      const carded = g.mode === "car" || g.mode === "moto" || !!(g.stu && g.stu.bike && g.stu.bike.on);
+      const pad = 12, ox = W - S - pad, oy = carded ? pad + MM_CARD_H + 4 : pad + 46;
+      g.mm = { x: ox, y: oy, S, carded };
       const span = 9800;
       const cx = inVehicle() ? activeVeh().x : g.p.x;
       const cy = inVehicle() ? activeVeh().y : g.p.y;
@@ -39895,11 +40328,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!g.title) updateCrime(dt);
       if (!g.title) updateShop(dt);
       if (!g.title) updateComp(dt);
-      /* Autosave every 25 seconds of play, and never during the title. Cheap -- the payload is
-         a few hundred bytes because the world is not in it. */
+      /* Autosave every 25 seconds of play, and never during the title. The exact save (layer 514) is ~150 kB: the
+         city itself is rebuilt from its seed, only g and what changed on buildings are written. */
       if (!g.title) {
         g.saveCd = (g.saveCd == null ? 25 : g.saveCd) - dt;
         if (g.saveCd <= 0) { saveGame(); g.saveCd = 25; }
+        if (!window.__ilHide) { window.__ilHide = 1;     // the page going away (tab switched, app closed, Xbox home): save right then
+          const bye = () => { const gg = G.current; if (gg && !gg.title) saveGame(); };
+          window.addEventListener("pagehide", bye); document.addEventListener("visibilitychange", () => { if (document.hidden) bye(); }); }
       }
       if (!g.title) updateThrown(dt);
       if (!g.title) updateBlasts(dt);
@@ -40447,7 +40883,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (kind === 9) p.__draw();
       }
       if (g.inside && g.insideT > 0.5) { drawHoopsOver(); drawBizExtras(); }
-      drawCover(); drawBombed(view); drawBooms();    // the backboards and rims over the heads of whoever's under them (layer 481)
+      drawCover(); drawBombed(view); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
       if (!g.inside) {
         // Roofs belong ABOVE the sorted building list, not before it -- drawn early, every
         // building painted straight over the roof and the man standing on it.
@@ -40459,6 +40895,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }
         drawShopRoofs(view);
         drawSlicks();
+        drawPrisonOver(view);
         drawRockets();
         drawMuzzles();
         drawGrab();
@@ -40996,10 +41433,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.saveFn = () => { const ok = saveGame();
       G.current.pickupFlash = { nm: ok ? "saved" : "save_failed", t: 1.8 }; };
     G.hasSaveFn = () => !!loadSave();
-    G.loadFn = () => {
+    /* G.loadFn() puts back the exact moment; G.loadFn("lite") only the Lion's numbers (a mode start from the title
+       begins its own scene and carries the cash and progress in). */
+    G.loadFn = (lite) => {
       const gg = G.current;
-      const o = loadSave();
+      const o = loadSave(lite);
       if (!o) return false;
+      if (o.v === SNAP_V && lite) return false;
+      if (o.v === SNAP_V) { let ok = false; try { ok = applySnap(o); } catch (e) { console.warn("exact load failed", e); ok = false; }
+        if (ok) { setHud((h) => ({ ...h, title: false, cash: gg.p.cash, wpn: gg.p.wpn, ammo: gg.p.ammo, pick: null })); return "exact"; } return false; }
       applySave(o);
       setHud((h) => ({ ...h, cash: gg.p.cash, wpn: gg.p.wpn, ammo: gg.p.ammo }));
       return true;
@@ -47220,10 +47662,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               const gg = G.current;
               // a save is picked up here rather than on boot, so the attract screen is always
               // the same city and starting fresh is still one tap away
-              if (G.loadFn) G.loadFn();
+              const how = G.loadFn ? G.loadFn() : false;
               gg.title = false;
-              gg.nightTarget = 0;
-              gg.bootDen = true;               // drop back into the den properly
+              if (how !== "exact") {           // an exact save already has you where you were
+                gg.nightTarget = 0;
+                gg.bootDen = true;             // drop back into the den properly
+              }
               setHud((h) => ({ ...h, title: false }));
             }}
             style={{ marginTop: 34, padding: "13px 42px", border: `1px solid ${C.gold}`,
@@ -47237,7 +47681,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           <div
             onClick={() => {
               const gg = G.current;
-              if (G.loadFn) G.loadFn();
+              if (G.loadFn) G.loadFn("lite");
               gg.title = false; gg.nightTarget = 0; gg.bootDen = false; gg.detStart = true;
               setHud((h) => ({ ...h, title: false }));
             }}
@@ -48459,27 +48903,39 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         />
       </div>
 
-      {/* THE CAR CARD (layer 511): in a car, top right under the zoom -- the make's badge, the model and year, the plate. */}
+      {/* THE CAR CARD (layer 511; moved layer 514): in a car, ABOVE the minimap and as wide as it -- the make's badge,
+          the model and year, the numbers -- and the PLATE under the map: the plate art (ui_plate) with the state in the
+          top slot, the number, the motto, the year sticker in the corner. */}
       {(() => { const g0 = G.current; if (!g0 || hud.title) return null;
         const onBicycle = !!(g0.stu && g0.stu.bike && g0.stu.bike.on), V = g0.mode === "car" ? g0.car : g0.mode === "moto" ? g0.moto : null;     // cars, motorcycles, bicycles (layer 512)
         if (!V && !onBicycle) return null;
         const k = onBicycle ? "bike_player" : g0.mode === "moto" ? (g0.moto.model || (g0.moto.skin && g0.moto.skin.k) || "moto") : (V.skin && V.skin.k); if (!k) return null;
         if (V && g0.mode === "moto") V.cardK = k;
         const I = !onBicycle && G.carInfoFn ? G.carInfoFn(V) : null, M = carModel(k), tier = "$".repeat(M.tier || 1);
-        return (<div style={{ position: "absolute", right: 184, top: 46, width: 172, zIndex: 20, fontFamily: mono, color: "#e8d9b5", textAlign: "right", pointerEvents: "none" }}>
-          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6, minHeight: 26 }}>
-            {M.make && <img key={M.make} src={"assets/logos/logo_" + M.make + ".png"} alt=""
-              onError={(e) => { e.currentTarget.style.display = "none"; const n = e.currentTarget.nextSibling; if (n) n.style.display = "block"; }}
-              style={{ height: 28, maxWidth: 110, objectFit: "contain" }} />}
-            <div style={{ display: M.make ? "none" : "block", fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", color: "#e8c46a" }}>{M.mk ? M.mk.nm : ""}</div>
+        const mm = g0.mm || { S: 150, y: 12 + MM_CARD_H + 4 }, S = mm.S, pw = Math.min(S, 132), ph = pw * 220 / 412, moto = g0.mode === "moto";
+        return (<>
+          <div style={{ position: "absolute", right: 12, top: 12, width: S, height: MM_CARD_H, zIndex: 20, fontFamily: mono, color: "#e8d9b5", pointerEvents: "none",
+            background: "rgba(10,11,14,0.82)", border: "1px solid rgba(217,164,65,0.35)", boxSizing: "border-box", padding: "3px 6px", overflow: "hidden", textAlign: "center" }}>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, height: 24 }}>
+              {M.make && <img key={M.make} src={"assets/logos/logo_" + M.make + ".png"} alt=""
+                onError={(e) => { e.currentTarget.style.display = "none"; const n = e.currentTarget.nextSibling; if (n) n.style.display = "block"; }}
+                style={{ height: 22, maxWidth: S * 0.62, objectFit: "contain" }} />}
+              <div style={{ display: M.make ? "none" : "block", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", color: "#e8c46a" }}>{M.mk ? M.mk.nm : ""}</div>
+              <div style={{ fontSize: 8, color: "#e8c46a", letterSpacing: "0.05em" }}>{tier}</div>
+            </div>
+            <div style={{ fontSize: S < 120 ? 8 : 9, letterSpacing: "0.08em", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{M.model + " \u00b7 " + M.year}</div>
+            <div style={{ fontSize: 7, opacity: 0.6, letterSpacing: "0.06em", whiteSpace: "nowrap", overflow: "hidden" }}>{onBicycle ? "BICYCLE" : "TOP " + Math.round(M.s * 100) + " \u00b7 PICK " + Math.round(M.a * 100) + " \u00b7 GRIP " + Math.round(M.g * 100)}</div>
           </div>
-          <div style={{ fontSize: 10, letterSpacing: "0.10em", marginTop: 2 }}>{M.model + " \u00b7 " + M.year}</div>
-          <div style={{ fontSize: 8, opacity: 0.6, letterSpacing: "0.12em" }}>{tier + (onBicycle ? " \u00b7 BICYCLE" : " \u00b7 TOP " + Math.round(M.s * 100) + " \u00b7 PICKUP " + Math.round(M.a * 100) + " \u00b7 GRIP " + Math.round(M.g * 100))}</div>
-          {I && I.plate && <div style={{ display: "inline-block", marginTop: 4, padding: "1px 6px 2px", background: "#f2efe4", border: "2px solid #1d2a4a", borderRadius: 3, color: "#1d2a4a", textAlign: "center", minWidth: g0.mode === "moto" ? 52 : 74 }}>
-            <div style={{ fontSize: 6, letterSpacing: "0.18em", lineHeight: 1.2 }}>ILLINOIS</div>
-            <div style={{ fontSize: g0.mode === "moto" ? 10 : 12, fontWeight: 700, letterSpacing: "0.12em", lineHeight: 1.1 }}>{I.plate}</div>
-            <div style={{ fontSize: 5, letterSpacing: "0.14em", color: "#7a2a2a", lineHeight: 1.2 }}>{g0.mode === "moto" ? "MOTORCYCLE" : "LAND OF LINCOLN"}</div></div>}
-        </div>); })()}
+          {I && I.plate && <div style={{ position: "absolute", right: 12 + (S - pw) / 2, top: mm.y + S + 6, width: pw, height: ph, zIndex: 20, pointerEvents: "none", fontFamily: mono, color: "#1d2a4a" }}>
+            <img src="assets/ui/ui_plate.png" alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", imageRendering: "pixelated" }} />
+            <div style={{ position: "absolute", inset: 0, background: "#f2efe4", border: "2px solid #1d2a4a", borderRadius: 4, zIndex: -1 }} />
+            <div style={{ position: "absolute", left: "27%", width: "40%", top: "8%", height: "16%", fontSize: Math.max(5, ph * 0.12), fontWeight: 700, letterSpacing: "0.16em", textAlign: "center", lineHeight: (ph * 0.16) + "px", color: "#1a3a8a" }}>{STATE_NM}</div>
+            <div style={{ position: "absolute", left: "82%", width: "11%", top: "9%", height: "13%", fontSize: Math.max(4, ph * 0.09), fontWeight: 700, textAlign: "center", lineHeight: (ph * 0.13) + "px", color: "#7a2a2a" }}>{"'" + String(M.year || 86).slice(-2)}</div>
+            <div style={{ position: "absolute", left: 0, right: 0, top: "34%", fontSize: ph * (moto ? 0.26 : 0.30), fontWeight: 900, letterSpacing: "0.08em", textAlign: "center", lineHeight: 1, color: "#0e1c4a" }}>{I.plate}</div>
+            <div style={{ position: "absolute", left: "16%", right: "16%", top: "76%", fontSize: Math.max(4, ph * 0.09), letterSpacing: "0.12em", textAlign: "center", lineHeight: 1, color: "#7a2a2a", whiteSpace: "nowrap", overflow: "hidden" }}>{moto ? "MOTORCYCLE" : STATE_MOTTO}</div>
+          </div>}
+        </>); })()}
       {padWheel && (
         /* THE ACTION WHEEL (layer 507): LB. Every button on screen right now, one per row -- stick / D-pad to move, A to
            do it, B or LB to put it away. Plus the pad map, so nobody has to remember it. */
@@ -48533,6 +48989,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               border: `1px solid ${C.gold}`, color: C.gold, fontSize: 10,
               letterSpacing: "0.16em", background: "rgba(232,196,106,0.08)" }}>
             PUT A ROGUE ON THE BOARD
+          </div>
+          {/* FAST TRAVEL (layer 514): the airport, the train, the port, home. A on the pad. */}
+          <div onClick={(e) => { e.stopPropagation(); setMapOpen(false); setTimeout(() => G.hubOpen && G.hubOpen(), 60); }}
+            style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "7px 12px",
+              border: "1px solid #6fa8dc", color: "#cfe0f2", fontSize: 10,
+              letterSpacing: "0.16em", background: "rgba(111,168,220,0.08)" }}>
+            FAST TRAVEL {padOn ? "(A)" : ""} {"\u00b7"} AIRPORT {"\u00b7"} TRAIN {"\u00b7"} PORT {"\u00b7"} HOME
           </div>
           <div onClick={(e) => { e.stopPropagation();
                                  if (G.raceNowFn) G.raceNowFn();
@@ -48874,6 +49337,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             {G.current && G.current.pescaped && G.current.inside && G.current.inside.biz && !G.current.inside.hideout && !G.current.inside.mercBar &&
               btn(((G.current.board2 && G.current.board2.cased) || []).some((c) => c.b === G.current.inside) ? "ROB" : "CASE", "this place", () => G.caseShopFn && G.caseShopFn(), null, false)}
             {G.current && G.current.mis && btn("ORDERS", "your people", () => G.pickOpen && G.pickOpen("misorders"), null, false)}
+            {G.current && G.current.mode === "car" && G.carCrewN && G.carCrewN() > 0 && btn("CAR", G.current.auto && G.current.auto.who ? G.current.auto.who.toLowerCase() + " driving" : "who drives",
+              () => { const gg = G.current; gg.ccView = "who"; gg.ccSaid = null; G.pickOpen && G.pickOpen("ccar"); }, null, !!(G.current.auto && G.current.auto.who))}
             {G.current && G.coverOK && G.coverOK() && btn("COVER", G.current.p.cover ? "get up" : "get down", () => G.coverFn && G.coverFn(), null, !!G.current.p.cover)}
             {G.current && G.bankOK && G.bankOK() && btn("ROB BANK", "everybody down", () => G.bankFn && G.bankFn(), null, false)}
             {G.current && G.stickOK && G.stickOK() && btn("STICK UP", "the register", () => G.stickFn && G.stickFn(), null, false)}
@@ -48902,12 +49367,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           : "WASD · SHIFT SPRINT · CAR: W GAS / S REVERSE / SPACE E-BRAKE · E DOORS-CAR · F STRIKE · N NIGHT"}
       </div>
 
-      {!ready && (
-        <div style={{
-          position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-          background: "#0b0c0f", color: C.gold, fontFamily: mono, fontSize: 12, letterSpacing: "0.2em",
-        }}>LOADING RAVEN HOOK…</div>
-      )}
+      {(!ready || !loadMin) && <LoadingScreen mono={mono} />}
     </div>
   );
 }
