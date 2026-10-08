@@ -2590,7 +2590,7 @@ const NPCM = {
   vy_sold3: { fw: 14, order: "walk_idle" },
 };
 const MAPART = {
-  map_atlas: "assets/map_atlas.webp",
+  map_atlas: "assets/map_atlas.png",
 };
 const DKP = {
   dk_plain: "assets/dk_plain.webp",
@@ -2927,6 +2927,11 @@ const MAP_ZONE_COL = {
   barrio: "#664a28", cemetery: "#2a3828", northend: "#4a4038", civic: "#40485a", stadium: "#3a4a3e",
   neonflats: "#583a4c", neon: "#583a4c", county: "#34402c", kestrel: "#3a3e36", mountain: "#3a3a36",
 };
+/* The painted atlas's fit to the world grid, in image pixels: img_px = world_units * MM_S? + MM_O?.
+   Measured off the art itself (both expressway crossings, both axes) and checked against a third
+   landmark nowhere near either crossing -- not eyeballed, not assumed square. Module scope because
+   both the small corner minimap and the full map screen draw from the same one image. */
+const MM_SX = 0.0265, MM_OX = 27.5, MM_SY = 0.026242, MM_OY = 39;
 function mapBase() {
   if (mapBase._c) return mapBase._c;
   const S = 1024, span = SX(N), k = S / span;
@@ -11031,19 +11036,28 @@ export default function IronLionLayer004() {
       x.fillStyle = "#15161a";
       x.fillRect(ox, oy, span * k, span * k);
 
-      /* ---------- the atlas ----------
-         A painted map instead of coloured rectangles. It is aligned by LANDMARK, not by
-         corner: the artwork's expressway cross is measured against the real one, which gives
-         an affine world->image fit. The artwork's proportions are not the world's, so the
-         two axes get different scales -- that is fine, because nothing on top of it is
-         painted. Every dot is still computed from world coordinates, so the markers stay
-         exact even where the drawing wanders. */
+      /* ---------- the atlas ---------- */
       let painted = false;
       {
-        const base = mapBase();
-        x.save(); x.imageSmoothingEnabled = true;
-        x.drawImage(base, ox, oy, span * k, span * k);
-        x.restore();
+        /* The hand-painted atlas, back again -- but fitted by MEASUREMENT this time, not eyeballed.
+           Its two expressway crossings were located in the art (both legs, both axes) and checked
+           against a third landmark (Kestrel State, nowhere near either crossing) before trusting it;
+           all three came back aligned to within a couple of pixels. The source rect below is the
+           art's own built-in border cropped off, so world (0,0)-(SX(N),SX(N)) lands exactly on the
+           same destination rect the procedural canvas used -- every pip and route line downstream
+           still plots from world coordinates and needs no changes. Falls back to the procedural
+           mapBase() if the art hasn't loaded (or isn't in the build) rather than showing nothing. */
+        const MM = imgs.current.map_atlas;
+        if (MM && MM.width) {
+          x.save(); x.imageSmoothingEnabled = true;
+          x.drawImage(MM, MM_OX, MM_OY, span * MM_SX, span * MM_SY, ox, oy, span * k, span * k);
+          x.restore();
+        } else {
+          const base = mapBase();
+          x.save(); x.imageSmoothingEnabled = true;
+          x.drawImage(base, ox, oy, span * k, span * k);
+          x.restore();
+        }
         painted = true;
       }
       /* WHO HOLDS WHAT. The war's turfs washed in their crew's colour, borders between owners,
@@ -11284,10 +11298,30 @@ export default function IronLionLayer004() {
       // live incidents and story missions
       if (g) {
         const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 220);
-        if (g.crime && !g.crime.result)
+        // the same two-way test: in a civilian car this put your blip on the parked motorcycle
+        const v = g.mode === "foot" ? g.p
+          : (g.mode === "car" ? g.car : g.mode === "moto" ? g.moto : g.civ);
+        // a dashed line from wherever you are now to a world point -- the route, not just the pip
+        const routeLine = (wx1, wy1, col) => {
+          const [ax, ay] = P(v.x, v.y), [bx, by] = P(wx1, wy1);
+          x.save(); x.strokeStyle = col; x.lineWidth = 2; x.setLineDash([7, 5]);
+          x.beginPath(); x.moveTo(ax, ay); x.lineTo(bx, by); x.stroke();
+          x.setLineDash([]); x.restore();
+        };
+        if (g.crime && !g.crime.result) {
+          routeLine(g.crime.x, g.crime.y, `rgba(235,70,60,${0.5 + pulse * 0.3})`);
           pip(g.crime.x, g.crime.y, 5 + pulse * 2.5, `rgba(235,70,60,${0.6 + pulse * 0.4})`, "#fff");
+        }
         if (g.race) {
           const R2 = g.race;
+          // the whole course, start to finish, not just the dots: your line, then checkpoint to
+          // checkpoint. Ones already taken are left off so the drawn line is what is still ahead.
+          const left = R2.state === "running" ? R2.cps.slice(R2.at || 0) : R2.cps;
+          x.save(); x.strokeStyle = "rgba(242,194,78,0.8)"; x.lineWidth = 2; x.setLineDash([7, 5]);
+          x.beginPath();
+          const [sx0, sy0] = P(v.x, v.y); x.moveTo(sx0, sy0);
+          for (const cp of left) { const [lx, ly] = P(cp.x, cp.y); x.lineTo(lx, ly); }
+          x.stroke(); x.setLineDash([]); x.restore();
           pip(R2.x, R2.y, 5, "#6cf06c", "#fff");
           const f2 = R2.cps[R2.cps.length - 1];
           pip(f2.x, f2.y, 5, "#e8d9b5", "#fff");
@@ -11296,9 +11330,6 @@ export default function IronLionLayer004() {
         for (const m of g.missions || [])
           if (m.show) pip(m.x, m.y, 5.5, m.active ? "#f2c24e" : "#8fd8ff", "#fff");
         // the player last, so nothing hides it
-        // the same two-way test: in a civilian car this put your blip on the parked motorcycle
-        const v = g.mode === "foot" ? g.p
-          : (g.mode === "car" ? g.car : g.mode === "moto" ? g.moto : g.civ);
         const [px, py] = P(v.x, v.y);
         x.save(); x.translate(px, py); x.rotate((v.ang || 0) + Math.PI / 2);
         x.fillStyle = "#ffffff";
@@ -40981,11 +41012,20 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.beginPath(); ctx.rect(ox, oy, S, S); ctx.clip();
       ctx.fillStyle = "rgba(10,11,14,0.82)"; ctx.fillRect(ox, oy, S, S);
       ctx.translate(ox + S / 2, oy + S / 2); ctx.scale(k, k); ctx.translate(-cx, -cy);
-      ctx.strokeStyle = "rgba(217,164,65,0.35)";
-      for (let i = 0; i <= N; i++) {
-        ctx.lineWidth = (i % AVE_EVERY === 0 ? 22 : 10);
-        ctx.beginPath(); ctx.moveTo(SX(i), WORLD_MIN); ctx.lineTo(SX(i), WORLD_MAX); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(WORLD_MIN, SX(i)); ctx.lineTo(WORLD_MAX, SX(i)); ctx.stroke();
+      // the same painted atlas as the full map (see MM_* below), windowed to the span around
+      // you instead of the whole city. dest is in WORLD units because ctx is already scaled/
+      // translated above; source is in image pixels, via the same measured fit as the atlas.
+      const MMm = imgs.current.map_atlas;
+      if (MMm && MMm.width) {
+        const sx2 = (cx - span / 2) * MM_SX + MM_OX, sy2 = (cy - span / 2) * MM_SY + MM_OY;
+        ctx.drawImage(MMm, sx2, sy2, span * MM_SX, span * MM_SY, cx - span / 2, cy - span / 2, span, span);
+      } else {
+        ctx.strokeStyle = "rgba(217,164,65,0.35)";
+        for (let i = 0; i <= N; i++) {
+          ctx.lineWidth = (i % AVE_EVERY === 0 ? 22 : 10);
+          ctx.beginPath(); ctx.moveTo(SX(i), WORLD_MIN); ctx.lineTo(SX(i), WORLD_MAX); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(WORLD_MIN, SX(i)); ctx.lineTo(WORLD_MAX, SX(i)); ctx.stroke();
+        }
       }
       // Kings turf, tinted by how firm their grip currently is -- gold and solid when strong,
       // thin and flickering while contested, gone gray once the block's actually unclaimed
@@ -41110,11 +41150,21 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else pip(SX(CLUB_CELL.i) + PITCH / 2, SX(CLUB_CELL.j) + PITCH / 2, 4.4, "#d46ff0", "#ffffff");
       // the den, pulsed so home always reads first
       pip(denX, denY, 4.6 + 0.9 * Math.sin(g.t * 2.2), "#ff6fc0", "#ffffff");
+      // a dashed line from here to a world point, clipped the same as every pip
+      const mmLine = (pts, col) => {
+        ctx.save(); ctx.beginPath(); ctx.rect(ox, oy, S, S); ctx.clip();
+        ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        pts.forEach((pt, n2) => { const [lx, ly] = toMap(pt.x, pt.y); n2 === 0 ? ctx.moveTo(lx, ly) : ctx.lineTo(lx, ly); });
+        ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+      };
+      if (g.crime && !g.crime.result) mmLine([g.p, g.crime], `rgba(235,70,60,${0.45 + 0.35 * Math.sin(g.t * 7)})`);
       // an active race: the line you are heading for, and the rest of the course behind it
       if (g.race && g.race.state !== "done") {
         const R = g.race;
         const fin = R.cps[R.cps.length - 1];
         if (R.state === "running") {
+          mmLine([g.p, ...R.cps.slice(R.at)], "rgba(242,194,78,0.6)");
           R.cps.forEach((cp, k) => {
             if (k < R.at) return;                       // already taken
             const next = k === R.at;
@@ -41124,6 +41174,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           pip(fin.x, fin.y, 4, "#e8d9b5", "#ffffff");
         } else {
           // not started: point at the start line and the organiser
+          mmLine([g.p, R], "rgba(108,240,108,0.6)");
           pip(R.x, R.y, 4.4 + 0.9 * Math.sin(g.t * 3), "#6cf06c", "#ffffff");
         }
       }
