@@ -11039,14 +11039,15 @@ export default function IronLionLayer004() {
       /* ---------- the atlas ---------- */
       let painted = false;
       {
-        /* The hand-painted atlas, back again -- but fitted by MEASUREMENT this time, not eyeballed.
-           Its two expressway crossings were located in the art (both legs, both axes) and checked
-           against a third landmark (Kestrel State, nowhere near either crossing) before trusting it;
-           all three came back aligned to within a couple of pixels. The source rect below is the
-           art's own built-in border cropped off, so world (0,0)-(SX(N),SX(N)) lands exactly on the
-           same destination rect the procedural canvas used -- every pip and route line downstream
-           still plots from world coordinates and needs no changes. Falls back to the procedural
-           mapBase() if the art hasn't loaded (or isn't in the build) rather than showing nothing. */
+        /* The hand-painted atlas -- fitted by MEASUREMENT, not eyeballed. Its two expressway
+           crossings were located in the art (both legs, both axes) and checked against a third
+           landmark (Kestrel State, nowhere near either crossing) before trusting it; all three
+           came back aligned to within a couple of pixels. The source rect below is the art's
+           own built-in border cropped off, so world (0,0)-(SX(N),SX(N)) lands exactly on the
+           same destination rect the procedural canvas used -- every pip and route line
+           downstream still plots from world coordinates and needs no changes. Falls back to the
+           procedural mapBase() if the art hasn't loaded (or isn't in the build) rather than
+           showing nothing. */
         const MM = imgs.current.map_atlas;
         if (MM && MM.width) {
           x.save(); x.imageSmoothingEnabled = true;
@@ -11308,7 +11309,8 @@ export default function IronLionLayer004() {
           x.beginPath(); x.moveTo(ax, ay); x.lineTo(bx, by); x.stroke();
           x.setLineDash([]); x.restore();
         };
-        if (g.crime && !g.crime.result) {
+        // no police band at school -- Darius isn't catching calls between periods
+        if (g.crime && !g.crime.result && !g.studentMode) {
           routeLine(g.crime.x, g.crime.y, `rgba(235,70,60,${0.5 + pulse * 0.3})`);
           pip(g.crime.x, g.crime.y, 5 + pulse * 2.5, `rgba(235,70,60,${0.6 + pulse * 0.4})`, "#fff");
         }
@@ -11329,6 +11331,9 @@ export default function IronLionLayer004() {
         }
         for (const m of g.missions || [])
           if (m.show) pip(m.x, m.y, 5.5, m.active ? "#f2c24e" : "#8fd8ff", "#fff");
+        // whichever one of those is the CURRENT objective also gets a line, same as a race or a call
+        const activeM2 = (g.missions || []).find((m) => m.active);
+        if (activeM2) routeLine(activeM2.x, activeM2.y, "rgba(242,194,78,0.75)");
         // the player last, so nothing hides it
         const [px, py] = P(v.x, v.y);
         x.save(); x.translate(px, py); x.rotate((v.ang || 0) + Math.PI / 2);
@@ -41043,7 +41048,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (const v of g.traffic) { ctx.beginPath(); ctx.arc(v.x, v.y, 34, 0, 6.3); ctx.fill(); }
       ctx.fillStyle = "rgba(200,205,215,0.55)";
       for (const p of g.peds) { ctx.beginPath(); ctx.arc(p.x, p.y, 22, 0, 6.3); ctx.fill(); }
-      if (g.crime) {
+      // no police band at school -- Darius isn't catching calls between periods
+      if (g.crime && !g.studentMode) {
         ctx.fillStyle = g.crime.result ? "rgba(120,220,140,0.9)" : `rgba(235,70,60,${0.55 + 0.45 * Math.sin(g.t * 7)})`;
         ctx.beginPath(); ctx.arc(g.crime.x, g.crime.y, 90, 0, 6.3); ctx.fill();
       }
@@ -41158,7 +41164,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         pts.forEach((pt, n2) => { const [lx, ly] = toMap(pt.x, pt.y); n2 === 0 ? ctx.moveTo(lx, ly) : ctx.lineTo(lx, ly); });
         ctx.stroke(); ctx.setLineDash([]); ctx.restore();
       };
-      if (g.crime && !g.crime.result) mmLine([g.p, g.crime], `rgba(235,70,60,${0.45 + 0.35 * Math.sin(g.t * 7)})`);
+      // no police band at school -- Darius isn't catching calls between periods
+      if (g.crime && !g.crime.result && !g.studentMode) mmLine([g.p, g.crime], `rgba(235,70,60,${0.45 + 0.35 * Math.sin(g.t * 7)})`);
+      // whatever story objective is currently active -- the one thing besides a race or a
+      // crime that the game itself calls out as "where you're headed", so it gets a line too
+      const activeM = (g.missions || []).find((m) => m.active);
+      if (activeM) {
+        mmLine([g.p, activeM], "rgba(242,194,78,0.6)");
+        pip(activeM.x, activeM.y, 4.4 + 0.9 * Math.sin(g.t * 3), "#f2c24e", "#ffffff");
+      }
       // an active race: the line you are heading for, and the rest of the course behind it
       if (g.race && g.race.state !== "done") {
         const R = g.race;
@@ -42150,7 +42164,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.fillStyle = `rgba(150,26,20,${0.42 * (g.hurt / 0.35)})`;
         ctx.fillRect(0, 0, W, H);
       }
-      if (g.crime && !g.crime.result) {
+      // no police band at school -- Darius isn't catching calls between periods
+      if (g.crime && !g.crime.result && !g.studentMode) {
         const sx0 = (g.crime.x - g.cam.x) * z + W / 2, sy0 = (g.crime.y - g.cam.y) * z + H / 2;
         if (sx0 < 30 || sx0 > W - 30 || sy0 < 90 || sy0 > H - 120) {
           const a = Math.atan2(sy0 - H / 2, sx0 - W / 2);
