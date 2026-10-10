@@ -239,8 +239,10 @@ const carSpecialFor = (c, who, mode) => {
    you fought in, short enough that the city does not silt up with them. */
 const WRECK_M = [{ k: "wreck_shell", len: 118, w: 50 }, { k: "wreck_frame", len: 122, w: 52 }];
 const WRECK_LIFE = 150;
-const carThirst = (c) => (c && c.m && CARTHIRST[c.m.k]) || 1;
-const carStat = (c) => (c && c.m && CARSTAT[c.m.k]) || (c && c.skin && c.skin.k && carModel(c.skin.k)) || { s: 1, a: 1, g: 1 };   // the player's car too, by its make (layer 511)
+const carThirst0 = (c) => (c && c.m && CARTHIRST[c.m.k]) || 1;
+const carThirst = (c) => { const b = carThirst0(c), m = c && c.pool && c.pool.mods, e = m && partOf("engine", m.engine); return e ? b * e.th : b; };   // layer 468: the engine drinks what it drinks
+const carStat0 = (c) => (c && c.m && CARSTAT[c.m.k]) || (c && c.skin && c.skin.k && carModel(c.skin.k)) || { s: 1, a: 1, g: 1 };   // the player's car too, by its make (layer 511)
+const carStat = (c) => { const b = carStat0(c), m = c && c.pool && c.pool.mods; return m ? partsStat(b, m) : b; };   // layer 468: parts ride on the car (c.pool = its stall slot)
 /* Makes and models. Five marques, because a city with one manufacturer is a catalogue and a
    car you can name is a car you remember stealing. VANTRY is cheap, HOLLOWAY is what the city
    buys in bulk, MARROW is the one with a performance line, OSSIAN builds trucks, KESTREL makes
@@ -3824,6 +3826,51 @@ PD_ART.ac_pockets = "assets/ui/ac_pockets.png";
 PD_ART.ac_fasttravel = "assets/ui/ac_fasttravel.png";
 PD_ART.ac_crewrules = "assets/ui/ac_crewrules.png";
 PD_ART.ac_sitdown = "assets/ui/ac_sitdown.png";
+
+/* GARAGE PARTS (layer 468). The scrapyard MECHANIC edits a car parked in the motor pool: a wheel of parts, then a shop for
+   the part with prices. Everything lives on the pool slot as slot.mods = { engine, brakes, plating, wing, paint, nitro:{t,n} }
+   and is read by carStat / carThirst / the brake line in stepCar / partsApply (armour + paint) -- so it rides with the car
+   out of the stall and back in (G.motorParkFn copies mods to the new slot). s = top speed, a = acceleration, th = fuel
+   thirst, g = grip, tough = damage taken (lower is harder to hurt), br = braking. Art: assets/parts/<img>.png */
+const PARTS_ART = "assets/parts/";
+const PARTS = {
+  engine: { nm: "ENGINE", sub: "stock is whatever the car came with", icon: "en_t_gtr", list: [
+    { k: "f_flat", nm: "FACTORY ECONOMY BLOCK", img: "en_f_flat", price: 500, s: 0.98, a: 0.97, th: 0.85, note: "SIPS FUEL" },
+    { k: "f_sbc", nm: "FACTORY SMALL-BLOCK V8", img: "en_f_sbc", price: 1200, s: 1.02, a: 1.03, th: 1.0, note: "THE DEFAULT" },
+    { k: "f_v8", nm: "FACTORY 80s POWER V8", img: "en_f_v8", price: 1800, s: 1.05, a: 1.06, th: 1.1, note: "DETROIT IRON" },
+    { k: "t_sr20", nm: "SR20DET TURBO", img: "en_t_sr20", price: 4200, s: 1.14, a: 1.10, th: 1.1, note: "TURBO" },
+    { k: "t_v8", nm: "SINGLE-TURBO V8", img: "en_t_v8", price: 6800, s: 1.20, a: 1.12, th: 1.3, note: "TURBO" },
+    { k: "t_rotary", nm: "TWIN-TURBO ROTARY", img: "en_t_rotary", price: 8800, s: 1.16, a: 1.18, th: 1.5, note: "TURBO \u00b7 THIRSTY" },
+    { k: "t_gtr", nm: "TWIN-TURBO V6 GTR", img: "en_t_gtr", price: 14500, s: 1.26, a: 1.20, th: 1.35, note: "TURBO \u00b7 THE BEST" },
+    { k: "s_orange", nm: "BOOST BLOWER", img: "en_s_orange", price: 3200, s: 1.05, a: 1.20, th: 1.15, note: "SUPERCHARGER" },
+    { k: "s_red", nm: "SUPERCHARGED V8", img: "en_s_red", price: 5200, s: 1.08, a: 1.26, th: 1.25, note: "SUPERCHARGER" },
+    { k: "s_gold", nm: "GIVE'ER BLOWER", img: "en_s_gold", price: 7400, s: 1.10, a: 1.32, th: 1.4, note: "SUPERCHARGER" },
+    { k: "s_purple", nm: "PERFORMANCE V8", img: "en_s_purple", price: 10500, s: 1.13, a: 1.36, th: 1.3, note: "SUPERCHARGER \u00b7 THE BEST" } ] },
+  brakes: { nm: "BRAKES", sub: "stop on a dime", icon: "br_3", list: [
+    { k: "1", nm: "BASIC BRAKES", img: "br_1", price: 400, br: 1.0, note: "STOCK FEEL" },
+    { k: "2", nm: "PERFORMANCE BRAKES", img: "br_2", price: 1400, br: 1.4, note: "BRAKES 40% HARDER" },
+    { k: "3", nm: "RACING BRAKES", img: "br_3", price: 3200, br: 1.8, note: "BRAKES 80% HARDER" } ] },
+  plating: { nm: "PLATING", sub: "armour for the body", icon: "pt_3_2", list: [
+    { k: "1", nm: "LIGHT PLATING", img: "pt_1_1", price: 800, tough: 0.85, s: 0.99, a: 0.99, note: "TAKES 15% LESS DAMAGE" },
+    { k: "2", nm: "REINFORCED PLATING", img: "pt_2_4", price: 2200, tough: 0.70, s: 0.97, a: 0.97, note: "30% LESS \u00b7 A LITTLE HEAVIER" },
+    { k: "3", nm: "HEAVY ARMOR PLATING", img: "pt_3_2", price: 5000, tough: 0.50, s: 0.94, a: 0.94, note: "HALF DAMAGE \u00b7 HEAVY" } ] },
+  wing: { nm: "WING", sub: "grip at speed", icon: "wg_4_3", list: [] },
+  paint: { nm: "PAINT", sub: "respray", icon: "pl_01", list: [] },
+  nitro: { nm: "NITROUS", sub: "the world slows, you don't", icon: "nx_nos", list: [
+    { k: "bos", nm: "BOS NITROUS SYSTEMS \u00b7 3 SHOTS", img: "nx_bos", price: 2000, secs: 7, note: "7 SECONDS OF SLOW-MO" },
+    { k: "nos", nm: "NOS NITROUS OXIDE \u00b7 3 SHOTS", img: "nx_nos", price: 3500, secs: 11, note: "11 SECONDS OF SLOW-MO" } ] } };
+{ const WN = [["LIP SPOILER", 300, 1.04, ["RED", "BLUE", "GREEN", "YELLOW"]], ["STREET WING", 700, 1.08, ["WHITE", "BLACK", "SILVER", "ORANGE"]],
+    ["TOURING WING", 1400, 1.12, ["NAVY", "MAROON", "TEAL", "PURPLE"]], ["RACE WING", 2600, 1.18, ["GOLD", "CARBON", "PINK", "CYAN"]]];
+  WN.forEach(([nm, price, gr, cols], r) => cols.forEach((c, i) => PARTS.wing.list.push({ k: "wg_" + (r + 1) + "_" + (i + 1), nm: nm + " \u00b7 " + c, img: "wg_" + (r + 1) + "_" + (i + 1), price, g: gr, note: "GRIP +" + Math.round((gr - 1) * 100) + "%" })));
+  for (const [k, nm, hex] of [["pl_01","RED","#e40c0c"],["pl_02","ORANGE","#fc840c"],["pl_03","YELLOW","#fcfc0c"],["pl_04","LIME","#9cfc0c"],["pl_05","GREEN","#0cfc0c"],["pl_06","CYAN","#0cfcfc"],["pl_07","BLUE","#0c6ce4"],["pl_08","PURPLE","#6c0ccc"],["pl_09","MAGENTA","#9c84cc"],["pl_10","PINK","#fc549c"],["pl_11","LIGHT PINK","#fcb4cc"],["pl_12","BROWN","#843c24"],["pl_13","TEAL","#0c9c84"],["pl_14","OLIVE","#84840c"],["pl_15","FOREST GREEN","#0c540c"],["pl_16","NAVY","#0c246c"],["pl_17","INDIGO","#3c2484"],["pl_18","MAROON","#6c0c24"],["pl_19","SILVER","#b4cccc"],["pl_20","GOLD","#e4b424"],["pl_21","BRONZE","#9c6c3c"],["pl_22","COPPER","#cc843c"],["pl_23","GUNMETAL","#848484"],["pl_24","BLACK","#1c1c22"],["pl_25","MINT","#6cfccc"],["pl_26","SKY BLUE","#6cccfc"],["pl_27","CRIMSON","#840c0c"],["pl_28","LAVENDER","#ccb4fc"],["pl_29","IVORY","#fcfccc"],["pl_30","TAN","#ccb484"],["pl_31","VIOLET","#540c6c"],["pl_32","LEMON","#e4e40c"],["pl_33","TANGERINE","#e46c0c"],["pl_34","MIDNIGHT","#242454"],["pl_35","PERIWINKLE","#6c84cc"],["pl_36","DEEP TEAL","#0c5454"],["pl_37","SUNSET PEARL","#e49c3c"],["pl_38","OIL SLICK","#9c6c9c"],["pl_39","MOSS","#54540c"],["pl_40","KELLY GREEN","#3c840c"],["pl_41","SEAFOAM","#84e484"]]) PARTS.paint.list.push({ k, nm, img: k, price: 350, hex, note: "RESPRAY" }); }
+for (const cat in PARTS) for (const it of PARTS[cat].list) PD_ART["pa_" + it.img] = PARTS_ART + it.img + ".png";
+const partOf = (cat, k) => (k != null && PARTS[cat] && PARTS[cat].list.find((q) => q.k === k)) || null;
+function partsStat(b, m) { const e = partOf("engine", m.engine), p = partOf("plating", m.plating), w = partOf("wing", m.wing);
+  return { ...b, s: b.s * (e ? e.s : 1) * (p ? p.s : 1), a: b.a * (e ? e.a : 1) * (p ? p.a : 1), g: b.g * (w ? w.g : 1) }; }
+const brakeMul = (c) => { const b = c && c.pool && c.pool.mods && partOf("brakes", c.pool.mods.brakes); return b ? b.br : 1; };
+// armour and paint go on the body when a car leaves its stall
+function partsApply(car, slot) { const m = slot && slot.mods; if (!m) return; const p = partOf("plating", m.plating); if (p) car.tough = car.tough * p.tough;
+  const c = partOf("paint", m.paint); if (c) { car.tint = c.hex; car.respray = Math.max(1, car.respray || 0); } }
 // THE CREW CHOPPER (layer 467): a second chopper plate, distinct from the Lion's own
 // (vh_lion_chop, assets/heroes/) -- this one's a stolen gunship the crew flies home, not
 // something he keeps at his own place. Nose-up art, same convention as every other vehicle
@@ -12007,6 +12054,7 @@ export default function IronLionLayer004() {
       const k = e.key.toLowerCase();
       input.current.keys[k] = true;
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
+      if (k === "b" && G.turboFn) G.turboFn();                                         // nitrous (layer 468)
       if (k === "e") doAction();
       if (k === "f" && G.strikeFn) G.strikeFn();
       if (k === "t" && G.current.studentMode && G.pickOpen) G.pickOpen("stuskip");   // fast forward (student mode)
@@ -12984,15 +13032,16 @@ export default function IronLionLayer004() {
       const OFFROAD_OK = { kenny_truck: 0.96, hp_truck: 0.94, vh_mvp_atv: 1.0 };
       const grassMul = !offRoad ? 1 : (OFFROAD_OK[c.m && c.m.k] || 0.62);
       const boost = ((g.turboT > 0 && c === (inVehicle() ? activeVeh() : null)) ? 1.15 : 1) *
-                    (c === g.car && g.carBoost ? g.carBoost : 1);      // Kowalski's work
+                    (c === g.car && g.carBoost ? g.carBoost : 1) *      // Kowalski's work
+                    nitroMul(c);                                       // layer 468: BOS / NOS
       const MAX = topSpeed * rough * (empty ? 0.16 : 1) * wreckMul * CS.s * grassMul * boost;
       // the named cars drink at double, which is the price of surviving a chase in one
       c.fuel = Math.max(0, c.fuel - dt * (0.14 + Math.abs(throttle) * 0.30) * carThirst(c));
 
-      const accel = (isMoto ? 495 : isCiv ? 360 : 440) * wreckMul * lionBoost() * CS.a;
+      const accel = (isMoto ? 495 : isCiv ? 360 : 440) * wreckMul * lionBoost() * CS.a * (nitroMul(c) > 1 ? 1.6 : 1);
       if (throttle > 0.05) fwd += accel * rough * throttle * dt * (empty ? 0.3 : 1);
       else if (throttle < -0.05) {
-        if (fwd > 8) fwd -= 780 * dt;
+        if (fwd > 8) fwd -= 780 * dt * brakeMul(c);
         else fwd = Math.max(fwd - 320 * dt, -180);
       } else fwd *= Math.exp(-(isMoto ? 1.75 : 1.15) * dt);   // engine braking: rolling off slows you
       if (hand) fwd *= Math.exp(-2.2 * dt);
@@ -16527,6 +16576,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "trunk") return { title: "THE TRUNK", opts: DET.trunk.map(([k, nm]) => ({ id: "wpn:" + k, label: nm })).concat([{ id: "close", label: "SHUT IT" }]) };
       if (kind && kind.startsWith("gomez:")) return gomezPanel(kind.slice(6));
       if (kind && kind.startsWith("house:")) return housePanel(kind.slice(6));
+      if (kind && kind.startsWith("gp:")) return garagePanel(kind.slice(3));
       if (kind && kind.startsWith("det:")) {
         const d = (g.dets && g.dets.four || []).find((q) => q.id === kind.slice(4));
         if (!d) return { title: "", opts: [{ id: "close", label: "BACK" }] };
@@ -16708,6 +16758,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id === "ft:go") { fastTravelGo(); return; }
       else if (id.startsWith("wpc:")) { wardenPcGo(id.slice(4)); return; }
       else if (id === "deal:buy") { dealerBuy(); G.pickOpen("dealer"); return; }
+      else if (id.startsWith("gp:")) { garagePick(id.slice(3)); return; }
       else if (id.startsWith("rep:")) { const [, a, n] = id.split(":"); repairAct(a, n); G.pickOpen("repair"); return; }
       else if (id.startsWith("stu:")) { G.stuPick(id); if (g.pickOpen) G.pickOpen(g.pickOpen); return; }
       else if (id.startsWith("sleep:")) { G.sleepPick(id.slice(6)); return; }
@@ -29058,7 +29109,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.inside = null; g.floor = 0; g.insideT = 0; g.mode = "car";
       g.car.x = d[0] + out[0] * 90; g.car.y = d[1] + out[1] * 90; g.car.ang = Math.atan2(out[1], out[0]); g.car.vx = 0; g.car.vy = 0;
       g.car.skin = { k: c.k, len: 104, w: 46 }; g.car.crush = null; g.car.dents = []; g.car.dmg = 0; g.car.fuel = 100; g.car.pool = c; g.car.idn = c.idn || null;
-      g.car.tough = PLAYER_TOUGH.crew; g.car.armored = 1; g.car.runflat = 1;                     // the crew's cars: plated and on run-flats (layer 505)
+      g.car.tough = PLAYER_TOUGH.crew; g.car.armored = 1; g.car.runflat = 1; partsApply(g.car, c);                     // the crew's cars: plated and on run-flats (layer 505)
       g.car.flying = 0;
       g.p.x = g.car.x; g.p.y = g.car.y; g.cam.x = g.p.x; g.cam.y = g.p.y;
       g.jobBanner = "OUT OF THE YARD"; g.jobNote = c.nm + ". Bring it back to the door and E puts it back in " + stallName(n) + "."; };
@@ -29067,7 +29118,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const k = (g.car.skin && g.car.skin.k) || "sedan", nm = (g.car.pool && g.car.pool.nm) || k.replace(/_/g, " ").toUpperCase(), idn = g.car.idn;
       const want = g.car.pool ? g.car.pool.slot : null;
       if (!motorAdd(k, nm, want)) { g.pickupFlash = { nm: "lift:THE MOTOR POOL'S FULL (20)", t: 1.4 }; return true; }
-      { const c2 = motorPool().slots[g.motorLast]; if (c2 && idn) c2.idn = idn; }                    // its plate stays on it
+      { const c2 = motorPool().slots[g.motorLast]; if (c2 && idn) c2.idn = idn; if (c2 && g.car.pool && g.car.pool.mods) c2.mods = g.car.pool.mods; }       // parts stay on it                    // its plate stays on it
       const n = g.motorLast;
       g.car.pool = null; g.car.x = -99999; g.car.y = -99999; g.car.vx = g.car.vy = 0;          // in its stall, off the street
       g.mode = "foot"; g.inside = H; g.floor = SY_POOL; g.insideT = 1; g.pfolk = null;
@@ -33365,7 +33416,53 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       opts.push({ id: "bm:x:back", label: "BACK" });
       return { title: p.name.toUpperCase() + " \u00b7 " + ({ trade: "HIS TRADE", rank: "HIS RANK", gear: "HIS GEAR", peace: "MAKE PEACE FOR YOU" })[v], face: p.face,
         text: (g.bmSaid ? "\u201c" + g.bmSaid + "\u201d  " : "") + statText(p), opts }; }
+    /* GARAGE PARTS (layer 468): talk to a hired MECHANIC at the scrapyard -> pick a car in the motor pool -> a WHEEL of parts ->
+       the shop for that part, with prices. PARTS (top of the file) is the catalogue; the mods live on the pool slot. */
+    function gpSlot() { const M = motorPool(); return M.slots[g.gpSlot] || null; }
+    function nitroOf(v) { const m = v && v.pool && v.pool.mods; return (m && m.nitro) || null; }
+    function nitroMul(c) { return (g.nitroT || 0) > 0 && c === (inVehicle() ? activeVeh() : null) ? 1.7 : 1; }
+    function nitroFire(v) { const nx = nitroOf(v);
+      if ((g.nitroT || 0) > 0) return false;
+      if (nx.n <= 0) { g.pickupFlash = { nm: "lift:" + nx.t.toUpperCase() + " TANK EMPTY \u00b7 REFILL AT THE YARD", t: 1.8 }; return false; }
+      nx.n--; g.nitroT = nx.t === "nos" ? 11 : 7; g.shake = Math.max(g.shake || 0, 7);
+      v.vx = (v.vx || 0) * 1.25; v.vy = (v.vy || 0) * 1.25;
+      g.pickupFlash = { nm: "lift:" + nx.t.toUpperCase() + "! " + nx.n + " LEFT", t: 1.6 }; return true; }
+    function garageWheel() { const s = gpSlot(); if (!s) { g.pickupFlash = { nm: "lift:THAT CAR'S GONE FROM THE STALL", t: 1.6 }; return; } const m = s.mods || {};
+      const cur = (cat, k) => { const q = partOf(cat, k); return q ? q.nm.toLowerCase() : "stock"; };
+      G.radialOpen({ kind: "garage", title: s.nm + " \u00b7 PARTS", items: [
+        { label: "ENGINE", sub: cur("engine", m.engine), icon: PD_ART.pa_en_t_gtr, id: "gp:cat:engine" },
+        { label: "BRAKES", sub: cur("brakes", m.brakes), icon: PD_ART.pa_br_3, id: "gp:cat:brakes" },
+        { label: "PLATING", sub: cur("plating", m.plating), icon: PD_ART.pa_pt_3_2, id: "gp:cat:plating" },
+        { label: "WING", sub: cur("wing", m.wing), icon: PD_ART.pa_wg_4_3, id: "gp:cat:wing" },
+        { label: "PAINT", sub: cur("paint", m.paint), icon: PD_ART.pa_pl_01, id: "gp:cat:paint" },
+        { label: "NITROUS", sub: m.nitro ? m.nitro.t.toUpperCase() + " \u00b7 " + m.nitro.n + " shots" : "none", icon: PD_ART.pa_nx_nos, id: "gp:cat:nitro" }] }); }
+    function garagePanel(kind) {
+      if (kind === "cars") return { title: "WHICH CAR?", text: "\u201cWhich one you want me under the hood of?\u201d", opts: motorPool().slots.map((c, n) => c ? { id: "gp:car:" + n, label: stallName(n) + " \u00b7 " + c.nm } : null).filter(Boolean).concat([{ id: "close", label: "LATER" }]) };
+      const s = gpSlot(), P = PARTS[kind]; if (!s || !P) return null; const m = s.mods || {}, have = kind === "nitro" ? (m.nitro && m.nitro.t) : m[kind];
+      const opts = P.list.map((q) => ({ id: "gp:buy:" + kind + ":" + q.k, card: PD_ART["pa_" + q.img], contain: true, dim: String(have) === q.k,
+        label: (String(have) === q.k ? "\u2713 " : "") + q.nm + " \u00b7 $" + q.price.toLocaleString() + (q.note ? " \u00b7 " + q.note : "") }));
+      if (kind === "nitro" && m.nitro) opts.unshift({ id: "gp:buy:nitro:refill", label: "REFILL THE " + m.nitro.t.toUpperCase() + " TANK \u00b7 $" + (m.nitro.t === "nos" ? 700 : 400) + " A SHOT (" + m.nitro.n + "/3)" });
+      opts.push({ id: "gp:back", label: "BACK TO THE WHEEL" }, { id: "close", label: "DONE" });
+      return { title: P.nm + " \u00b7 " + s.nm + " \u00b7 $" + (g.p.cash || 0).toLocaleString(), text: g.gpSaid || ("\u201c" + P.sub + ".\u201d  Pick one and it's on the car by morning."), opts }; }
+    function garagePick(id) { const [a, x, y] = id.split(":");
+      const close = () => { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); };
+      if (a === "open") { const n = motorPool().slots.map((c, i) => c ? i : -1).filter((i) => i >= 0);
+        if (!n.length) { g.bmSaid = "There's nothing in the pool to work on, boss."; G.pickOpen("baseman"); return; }
+        if (n.length === 1) { g.gpSlot = n[0]; close(); setTimeout(garageWheel, 20); } else G.pickOpen("gp:cars"); return; }
+      if (a === "car") { g.gpSlot = +x; close(); setTimeout(garageWheel, 20); return; }
+      if (a === "cat") { g.gpSaid = null; G.pickOpen("gp:" + x); return; }
+      if (a === "back") { close(); setTimeout(garageWheel, 20); return; }
+      if (a === "buy") { const s = gpSlot(); if (!s) return; const m = (s.mods = s.mods || {});
+        if (x === "nitro" && y === "refill") { const nx = m.nitro, c1 = nx && nx.t === "nos" ? 700 : 400; if (!nx || nx.n >= 3) { g.gpSaid = "\u201cShe's full.\u201d"; }
+          else if ((g.p.cash || 0) < c1) g.gpSaid = "\u201cCash first, boss.\u201d"; else { g.p.cash -= c1; nx.n++; g.gpSaid = "\u201cTopped her off. " + nx.n + " shots.\u201d"; } G.pickOpen("gp:nitro"); return; }
+        const q = partOf(x, y); if (!q) return;
+        if ((x === "nitro" ? (m.nitro && m.nitro.t) : m[x]) === y) { g.gpSaid = "\u201cIt's already on there.\u201d"; }
+        else if ((g.p.cash || 0) < q.price) g.gpSaid = "\u201cThat's $" + q.price.toLocaleString() + ". You got $" + (g.p.cash || 0).toLocaleString() + ".\u201d";
+        else { g.p.cash -= q.price; if (x === "nitro") m.nitro = { t: y, n: 3 }; else m[x] = y;
+          g.gpSaid = "\u201c" + q.nm.toLowerCase() + ". Nice. Take her round the block.\u201d"; g.pickupFlash = { nm: "lift:" + q.nm, t: 1.4 }; }
+        G.pickOpen("gp:" + x); return; } }
     function bmExtraOpts(p) { ensureStats(p); const o = [];
+      if (p.role === "mechanic") o.push({ id: "gp:open", label: "WORK ON A CAR \u00b7 PARTS & TUNING" });       // layer 468
       if (!p.crew) o.push({ id: "bm:x:view:trade", label: "TRADE: " + HIRES[p.role].nm + " \u00b7 CHANGE" });
       o.push({ id: "bm:x:view:rank", label: "RANK: " + OUT_RANK[rankOf(p)] + " \u00b7 CHANGE" });
       o.push({ id: "bm:x:view:gear", label: "GEAR: " + ((p.rec.gear || []).map((k) => GEAR[k].nm).join(", ") || "NOTHING") + " \u00b7 CHANGE" });
@@ -41356,12 +41453,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       // real elapsed time, kept aside: the meter has to drain in wall-clock seconds or a
       // 3-second charge would last 3 / TIMESCALE seconds and the cost would be meaningless
       const rdt = dt;
+      if ((g.nitroT || 0) > 0 && !g.paused) g.nitroT = Math.max(0, g.nitroT - rdt);      // layer 468: real seconds, not slowed seconds
       updateLion(rdt);
       if (g.lionOn) dt *= LION_SCALE;
       /* The SHO STOPPER's boost rides the Lion's own time scale rather than inventing a second
          one. Double speed at normal time is unusable -- the corner arrives before you do --
          so the world slows and he keeps the road. The meter drains on rdt like the Lion's,
          so three seconds of boost is three real seconds. */
+      else if ((g.nitroT || 0) > 0) dt *= 0.5;                  // layer 468: BOS 7s / NOS 11s -- the world crawls, the car does not
       else if ((g.turboSlow || 0) > 0) dt *= 0.62;
       // paused: skip the whole tick. The canvas keeps whatever was last drawn, which is
       // exactly what you want sitting behind a map overlay.
@@ -42266,8 +42365,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             hero: !!(g.hero && g.hero[g.who]), stars: g.p.stars || 0, chain: g.p.chain || 0,
             turbo: (() => { const v = inVehicle() ? activeVeh() : null;
                             const k = v && ((v.m && v.m.k) || (v.skin && v.skin.k) || v.k);
-                            return k === "sho_car"; })(),
-            turboCd: g.turboCd || 0, turboOn: g.turboT || 0, blowCd: g.p.blowCd || 0,
+                            return k === "sho_car" || !!nitroOf(v); })(),
+            turboCd: g.turboCd || 0, turboOn: g.turboT || g.nitroT || 0, blowCd: g.p.blowCd || 0,
             grdCd: g.p.grdCd || 0, grdOn: (g.p.grdT || 0) > 0,
             grdNm: (GUARD[g.who] || {}).nm || "",
             towOn: !!g.towTo, dogLoose: !!g.dogLoose,
@@ -46963,6 +47062,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        that you cannot hold a chase together with it. Only in his own car. */
     function turboBoost() {
       const v = inVehicle() ? activeVeh() : null;
+      if (nitroOf(v)) return nitroFire(v);                       // layer 468: a tank in the car beats everything
       const k = v && ((v.m && v.m.k) || (v.skin && v.skin.k) || v.k);
       if (k !== "sho_car") { g.pickupFlash = { nm: "no_boost_in_this_car", t: 1.1 }; return false; }
       if ((g.turboCd || 0) > 0) return false;
@@ -49574,7 +49674,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                 style={{ width: 196, height: 116, position: "relative", border: "1px solid rgba(217,164,65,0.55)", cursor: "pointer", overflow: "hidden",
                   background: "linear-gradient(160deg, #2a241a, #15120d)", opacity: o.dim ? 0.55 : 1, boxShadow: "0 3px 10px rgba(0,0,0,0.55)" }}>
                 <img src={o.card} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
-                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                  style={o.contain ? { position: "absolute", inset: 0, width: "100%", height: "100%", boxSizing: "border-box", padding: "8px 8px 34px", objectFit: "contain", imageRendering: "pixelated" } : { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
                 <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "5px 7px", background: "linear-gradient(transparent, rgba(8,7,5,0.92) 30%)",
                   fontSize: 9, lineHeight: 1.3, letterSpacing: "0.06em", color: "#f1e4c2" }}>{o.label}</div>
               </div>) : (
