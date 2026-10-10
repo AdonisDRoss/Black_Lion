@@ -3816,6 +3816,20 @@ const HEAD_ICON = { shank: "wi_bayonet", razor: "wi_razor", pencil: "wi_pencil",
 for (const k of ["wi_bat", "wi_bayonet", "wi_bottle", "wi_knuckles", "wi_pencil", "wi_pistol", "wi_razor", "wi_revolver", "wi_shotgun", "wi_tireiron", "wi_zipgun"])
   PD_ART[k] = "assets/ui/" + k + ".png";
 PD_ART.wi_empty = "assets/ui/wi_empty.png";   // HOLSTER / BARE HANDS on the weapon wheel -- the one slot with no weapon key to look an icon up by
+// the ACTION WHEEL's own fixed slots (layer 520 wheel; these were text-only before this session) -- DRIVER already
+// gets a face, everything else on it (TALK, RADIO, HYDRO, the hero powers...) comes from live context and has no
+// single icon to give it, so just these five, always the same meaning wherever they turn up on the wheel.
+PD_ART.ac_weapons = "assets/ui/ac_weapons.png";
+PD_ART.ac_pockets = "assets/ui/ac_pockets.png";
+PD_ART.ac_fasttravel = "assets/ui/ac_fasttravel.png";
+PD_ART.ac_crewrules = "assets/ui/ac_crewrules.png";
+PD_ART.ac_sitdown = "assets/ui/ac_sitdown.png";
+// THE CREW CHOPPER (layer 467): a second chopper plate, distinct from the Lion's own
+// (vh_lion_chop, assets/heroes/) -- this one's a stolen gunship the crew flies home, not
+// something he keeps at his own place. Nose-up art, same convention as every other vehicle
+// plate in the game, so it drops straight into drawCar/drawFlyingCar's existing rotate math.
+PD_ART.vh_crew_chop = "assets/vehicles/vh_crew_chop.png";
+PD_ART.px_pilot = "assets/crew/px_pilot.png";   // the PILOT hire's face/portrait
 const PITCH = 1500;           // 71 m between street centrelines
 const AVE_EVERY = 4;          // every 4th line is a wide avenue
 /* THE LIGHTS. One clock for the whole city: north-south runs, then amber, then east-west, then
@@ -11893,10 +11907,10 @@ export default function IronLionLayer004() {
       // in a car with your people: the DRIVER first, with his face (layer 517)
       const dc = G.driverCard && G.driverCard(); if (dc) list.push({ label: "DRIVER", sub: dc.name + (dc.driving ? " \u00b7 driving" : " \u00b7 orders"), icon: dc.face });
       for (const l of live()) if (A[l] && l !== "E" && l !== "DRIVER") list.push({ label: l, sub: A[l].sub || "" });
-      list.push({ label: "FAST TRAVEL", sub: "airport \u00b7 train \u00b7 port \u00b7 home" });     // always there (layer 514)
-      const g0w = G.current; if (g0w && g0w.prisonMode && g0w.pescaped) { list.push({ label: "CREW RULES", sub: "who we fight" }, { label: "SIT-DOWN", sub: g0w.sit ? "set" : "call one" }); }   // layer 519
-      list.push({ label: "WEAPONS", sub: "the weapon wheel" });     // layer 520: a wheel of its own
-      if (g0w && g0w.prisonMode) list.push({ label: "POCKETS", sub: "what's on you" });
+      list.push({ label: "FAST TRAVEL", sub: "airport \u00b7 train \u00b7 port \u00b7 home", icon: PD_ART.ac_fasttravel });     // always there (layer 514)
+      const g0w = G.current; if (g0w && g0w.prisonMode && g0w.pescaped) { list.push({ label: "CREW RULES", sub: "who we fight", icon: PD_ART.ac_crewrules }, { label: "SIT-DOWN", sub: g0w.sit ? "set" : "call one", icon: PD_ART.ac_sitdown }); }   // layer 519
+      list.push({ label: "WEAPONS", sub: "the weapon wheel", icon: PD_ART.ac_weapons });     // layer 520: a wheel of its own
+      if (g0w && g0w.prisonMode) list.push({ label: "POCKETS", sub: "what's on you", icon: PD_ART.ac_pockets });
       setPadWheel({ kind: "action", title: "ACTION WHEEL", items: list.filter((o, i, A) => A.findIndex((q) => q.label === o.label) === i) });
       const gg = G.current; if (gg && !gg.paused) { gg.paused = true; gg.wheelPause = 1; } };
     /* THE RADIAL WHEELS (layer 520): the action wheel, the WEAPON wheel and the POCKETS wheel are all a ring now. The stick
@@ -12066,6 +12080,7 @@ export default function IronLionLayer004() {
     g.car.vx = 0; g.car.vy = 0; g.car.skin = best.m; g.car.idn = best.idn || null;          // its plate comes with it (layer 511)
     g.car.tough = PLAYER_TOUGH.street;                // a street car is not the Lion's car -- but the one you drive holds up (layer 517)
     g.car.crush = null; g.car.dents = []; g.car.dmg = 0;
+    g.car.flying = 0;    // layer 467: the crew chopper is a flag on this same body -- any OTHER car you get into has to clear it
     g.car.fuel = 40 + Math.random() * 55;
     /* Somebody was driving it. The car used to simply vanish from traffic and reappear under
        the player, which meant a hijacking with no victim -- and the whole point of the mask is
@@ -12903,8 +12918,32 @@ export default function IronLionLayer004() {
       return g.mode === "car" ? g.car : g.mode === "moto" ? g.moto : g.mode === "civ" ? g.civ : null;
     }
     function inVehicle() { return g.mode === "car" || g.mode === "moto" || g.mode === "civ"; }
+    const FLY_CAR = { spd: 520, turn: 7 };
+    // THE STOLEN CHOPPER (layer 467): `flying` is a flag on the same g.car body everything else
+    // uses -- not a new vehicle type -- so every system that already reads g.car (the mission's
+    // "away" phase, g.p tracking it, the HUD) keeps working with zero changes. This function is
+    // what replaces the entire rest of stepCar when it's set: no road, no grip, no fuel, no
+    // collision -- it's airborne. Same nose-forward turn-toward-heading as stepFly (layer 466),
+    // just renamed locally since it operates on a car body instead of g.fly.
+    function stepFlyingCar(dt, c) {
+      const inp = input.current, k = inp.keys || {};
+      const ax = (inp.x || 0) + (k["d"] || k["arrowright"] ? 1 : 0) - (k["a"] || k["arrowleft"] ? 1 : 0);
+      const ay = (inp.y || 0) + (k["s"] || k["arrowdown"] ? 1 : 0) - (k["w"] || k["arrowup"] ? 1 : 0);
+      c.x += ax * FLY_CAR.spd * dt; c.y += ay * FLY_CAR.spd * dt;
+      c.rotor = (c.rotor || 0) + dt * 26;
+      if (ax || ay) {
+        const target = Math.atan2(ay, ax), cur = c.ang || 0;
+        let diff = target - cur; while (diff > Math.PI) diff -= 2 * Math.PI; while (diff < -Math.PI) diff += 2 * Math.PI;
+        const step = FLY_CAR.turn * dt;
+        c.ang = Math.abs(diff) <= step ? target : cur + Math.sign(diff) * step;
+      }
+      c.x = clamp(c.x, WORLD_MIN + 26, WORLD_MAX - 26);
+      c.y = clamp(c.y, WORLD_MIN + 26, WORLD_MAX - 26);
+      c.vx = 0; c.vy = 0;
+    }
     function stepCar(dt, c) {
       c = c || g.car;
+      if (c.flying) { stepFlyingCar(dt, c); return; }
       const isMoto = c === g.moto;
       const inp = input.current, k = inp.keys;
       const gasOn = inp.gas || k["w"] || k["arrowup"];
@@ -29020,6 +29059,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.car.x = d[0] + out[0] * 90; g.car.y = d[1] + out[1] * 90; g.car.ang = Math.atan2(out[1], out[0]); g.car.vx = 0; g.car.vy = 0;
       g.car.skin = { k: c.k, len: 104, w: 46 }; g.car.crush = null; g.car.dents = []; g.car.dmg = 0; g.car.fuel = 100; g.car.pool = c; g.car.idn = c.idn || null;
       g.car.tough = PLAYER_TOUGH.crew; g.car.armored = 1; g.car.runflat = 1;                     // the crew's cars: plated and on run-flats (layer 505)
+      g.car.flying = 0;
       g.p.x = g.car.x; g.p.y = g.car.y; g.cam.x = g.p.x; g.cam.y = g.p.y;
       g.jobBanner = "OUT OF THE YARD"; g.jobNote = c.nm + ". Bring it back to the door and E puts it back in " + stallName(n) + "."; };
     G.motorParkFn = () => { const H = hideoutB(); if (!g.pescaped || !H || g.mode !== "car" || !g.car) return false;
@@ -32890,6 +32930,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       safecracker: { nm: "SAFECRACKER", cost: 2000, rep: 250 },
       chemist:     { nm: "CHEMIST", cost: 2500, rep: 350 },
       fixer:       { nm: "FIXER", cost: 4000, rep: 500 },
+      pilot:       { nm: "PILOT", cost: 3000, rep: 300 },                         // layer 467: flies the crew chopper home once it's stolen, and lets you fly it after
     };
     /* THE JOBS. need = people tied up while it runs; rep = respect needed to even plan it; gain =
        respect it earns when it goes right (half of it lost when it goes wrong). case: needs a CASED
@@ -32915,6 +32956,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       stealcar:  { nm: "STEAL A CAR (4 SEATS)", need: { thief: 1 }, mins: 60, pay: [0, 0], risk: 0.10, heat: 0, rep: 0, gain: 2, ride: "car" },
       stealvan:  { nm: "STEAL A VAN (8 SEATS, MORE ROOM)", need: { thief: 1 }, mins: 90, pay: [0, 0], risk: 0.14, heat: 0, rep: 0, gain: 3, ride: "van" },
       stealtruck:{ nm: "STEAL A BOX TRUCK (3 SEATS, MOST ROOM)", need: { thief: 1 }, mins: 120, pay: [0, 0], risk: 0.18, heat: 1, rep: 50, gain: 4, ride: "truck" },
+      stealchopper:{ nm: "STEAL A CHOPPER", need: { pilot: 1, driver: 1 }, mins: 240, pay: [0, 0], risk: 0.30, heat: 2, rep: 400, gain: 50 },   // layer 467: NOT `ride:` -- it doesn't fit a motor-pool stall; misFinish parks it on its own pad instead
     };
     /* RIDES (layer 491). A job that goes somewhere needs wheels: B.rides, stolen to order by a CAR THIEF (the three
        STEAL ops). Every job with `wheels` needs seats for everyone on it -- a car seats 4, a van 8, a box truck 3 -- so a
@@ -33770,13 +33812,19 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          steal   STEAL A CAR / VAN / BOX TRUCK         the CAR THIEF takes the one you find; it's in the motor pool after.
          chop    CARS TO ORDER      the MECHANIC hot-wires the car on the order; E takes the wheel, our car goes home with
                                     the driver; get it to the scrapyard.
+         chopper STEAL A CHOPPER    the PILOT preps the rotors; E climbs in and FLIES it home -- no road, no collision,
+                                    nose turns to face wherever you steer (layer 467). Lands itself the moment you're
+                                    back in range of the scrapyard, same "away"-phase proximity check as driving one
+                                    home. Parks for good after on its own pad there (g.crewChop), same showpiece
+                                    treatment as the Lion's own chopper at his place -- not re-enterable, by the same
+                                    precedent (his is __ironlion.fly()-only too).
        Anyone: HOLD THIS SPOT / COME WITH ME. Drivers: WAIT HERE / CIRCLE THE BLOCK / BRING THE CAR. CALL IT OFF.
        Done -> (the quick jobs settle on the spot) GET AWAY to the scrapyard -> it settles on the board with `o.played`:
        stepOps pays only `o.extra` on top of what you took, and the spot / the cased file / the bombed front are the REAL
        ones you used. Down or re-arrested = it went wrong. */
     const MIS_KIND = { robbery: "store", jewels: "safe", celeb: "safe", carbomb: "bomb", hit: "hit", favor: "hit", armored: "route", hijack: "route", semi: "route",
       corner: "corner", casestore: "case", racket: "racket", papers: "errand", sellpaper: "errand", cop: "errand", jam: "errand",
-      stealcar: "steal", stealvan: "steal", stealtruck: "steal", chop: "chop" };
+      stealcar: "steal", stealvan: "steal", stealtruck: "steal", chop: "chop", stealchopper: "chopper" };
     const MIS_JOBS = {}; for (const k in OPS) if (MIS_KIND[k]) MIS_JOBS[k] = 1;
     const ERRAND = { papers: ["forger", "MAKE THE PAPERS", /print|office|copy|stationer/], sellpaper: ["forger", "MOVE THE PAPERS", /bar|club|pool|diner/],
       cop: ["fixer", "TALK TO HIS COP", null], jam: ["hacker", "CUT THE LINES", /phone|office|radio|tv|tower/] };
@@ -33834,7 +33882,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kd === "safe") { const b = k === "jewels" ? findBld((q) => /ALDRIDGE|JEWEL/.test(q.name || "") || /jewel/.test(q.biz || ""), 0) : findBld((q) => /hotel/.test(q.biz || "") || /HOTEL|TOWER|ARMS/.test(q.name || ""), 2500); return b && b.biz ? { b } : b ? { b } : null; }
       if (kd === "errand") { const E = ERRAND[k]; const b = k === "cop" ? findBld((q) => q.kind === "precinct", 0) : findBld((q) => q.biz && E[2].test(q.biz), 1500) || findBld((q) => !!q.biz, 1500); return b ? { b } : null; }
       if (kd === "corner") { const s = spotNear(H); return s ? { pt: s } : null; }
-      if (kd === "steal" || kd === "chop") { const s = streetPt(1600, 2800); return s ? { pt: s } : null; }
+      if (kd === "steal" || kd === "chop" || kd === "chopper") { const s = streetPt(1600, 2800); return s ? { pt: s } : null; }
       if (kd === "route") { const s = streetPt(1800, 3000); if (!s) return null; const pts = misRoute([s.x, s.y]); return pts ? { route: pts } : null; }
       return null; }
     // the people free to bring along, beyond what the job needs
@@ -33868,7 +33916,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.inside = null; g.floor = 0; g.insideT = 0; g.mode = "car"; g.roof = null;
       g.car.x = d[0] + out[0] * 90; g.car.y = d[1] + out[1] * 90; g.car.ang = Math.atan2(out[1], out[0]); g.car.vx = 0; g.car.vy = 0;
       const k0 = c ? c.k : vehSkin(V0); g.car.skin = { k: k0, len: V0.kind === "van" ? 122 : 104, w: V0.kind === "van" ? 60 : 46 };
-      g.car.crush = null; g.car.dents = []; g.car.dmg = 0; g.car.fuel = 100; g.car.pool = c; g.car.tough = PLAYER_TOUGH.crew; g.car.armored = 1; g.car.runflat = 1;
+      g.car.crush = null; g.car.dents = []; g.car.dmg = 0; g.car.fuel = 100; g.car.pool = c; g.car.tough = PLAYER_TOUGH.crew; g.car.armored = 1; g.car.runflat = 1; g.car.flying = 0;
       g.p.x = g.car.x; g.p.y = g.car.y; g.cam.x = g.p.x; g.cam.y = g.p.y;
       // the second vehicle, if one: it follows you
       let convoy = null; const V1 = VV.list[1];
@@ -33886,7 +33934,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         safe0: b && b.biz ? econOf(b).safe : 0, cash0: g.p.cash || 0, gt0: g.t, t: 0, convoy, lastMode: "car", rides: VV.list.filter((q) => q.ride).map((q) => q.ride.id) };
       const M = g.mis;
       if (kd === "route") M.truck = { pts: T.route, i: 0, x: T.route[0][0], y: T.route[0][1], ang: 0, spd: 0, hp: 100, state: "wait", wait: 75, cd: 0 };
-      if (kd === "steal" || kd === "chop") { const m = kd === "chop" ? { k: cpick(["buy_turbo", "buy_fastback", "buy_delorean_b", "buy_gn_black", "buy_gn_red"]), len: 104, w: 46 } : STEAL_M[OPS[op.k].ride || "car"]();
+      if (kd === "steal" || kd === "chop" || kd === "chopper") { const m = kd === "chop" ? { k: cpick(["buy_turbo", "buy_fastback", "buy_delorean_b", "buy_gn_black", "buy_gn_red"]), len: 104, w: 46 }
+        : kd === "chopper" ? { k: "vh_crew_chop", len: 150 } : STEAL_M[OPS[op.k].ride || "car"]();   // w omitted: falls back to the plate's own aspect (nose-up art, same as drawCar)
         M.prize = { x: M.pt.x, y: M.pt.y, ang: M.pt.ang, spd: 0, cruise: 0, brake: 1, dead: 1, parked: 1, named: 1, trFree: 1, misPrize: 1, m }; g.traffic.push(M.prize); }
       g.misStarted = 1; g.misSaid = null;
       const where = b ? (b.name || addressOf(b)) : M.pt ? (M.pt.addr || "the spot") : "the route";
@@ -33903,7 +33952,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         store: "Stick up the register.", safe: "Clean out the safe (or stick up the counter).", bomb: "Have it planted, get clear, set it off.", hit: M.markCar && M.markCar.wired ? (/in|driving|arrived/.test(M.markCar.st) ? "He's in the car. SET IT OFF (within 900) -- here, or at his place." : "His car's wired. Wait for him to get in.") : "Put the mark down -- or have the bomb maker wire his car.",
         route: T && T.state === "stopped" ? (M.k === "armored" ? "Deal with the guards, then E at the back: LOAD THE BAGS." : M.k === "semi" ? "Deal with the trucker, then E: take the rig -- the trailer comes with it." : "Deal with the driver, then E: take the truck.") : "Stop the truck: block the road, bomb the route, take its tires, or ram it.",
         corner: "Walk the dealer to his corner.", case: "Have the lookout watch the place.", racket: "Take the enforcer in to the owner.",
-        errand: "Have him do it at the door.", steal: "Have the thief take it.", chop: M.prize && M.prize.hot ? "E: take the wheel. Get it to the scrapyard." : "Have the mechanic hot-wire it." })[M.kd];
+        errand: "Have him do it at the door.", steal: "Have the thief take it.", chop: M.prize && M.prize.hot ? "E: take the wheel. Get it to the scrapyard." : "Have the mechanic hot-wire it.",
+        chopper: M.prize && M.prize.hot ? "E: climb in. Fly it home to the scrapyard pad." : "Have the pilot prep the rotors." })[M.kd];
       return goal + tr + (who ? " " + who + "." : "") + car + (M.back ? " The back door's open." : "") + (M.bomb ? " A bomb is armed at " + M.bomb.nm.toLowerCase() + "." : ""); }
     const misCarNear = () => { const M = g.mis, d = misPt(); return g.car && !M.carGone && M.car !== "circle" && Math.hypot(g.car.x - d[0], g.car.y - d[1]) < 260; };
     const misBombDist = () => { const B = g.mis && g.mis.bomb; return B ? Math.hypot(g.p.x - B.x, g.p.y - B.y) : 1e9; };
@@ -33929,6 +33979,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (kd === "errand" && r === ERRAND[M.k][0] && on && !g.inside) add("errand", ERRAND[M.k][1]);
         if (r === "thief" && kd === "steal" && on && M.prize && !g.inside) add("steal", "TAKE IT");
         if (r === "mechanic" && kd === "chop" && on && M.prize && !M.prize.hot && !g.inside) add("hotwire", "HOT-WIRE IT");
+        if (r === "pilot" && kd === "chopper" && on && M.prize && !M.prize.hot && !g.inside) add("prepchop", "PREP THE ROTORS");
         opts.push(f.task && f.task.kind === "hold" ? { id: "mis:come:" + fk, label: nm + " \u00b7 COME WITH ME" } : f.task ? { id: "mis:come:" + fk, label: nm + " \u00b7 DROP IT, COME WITH ME" } : { id: "mis:hold:" + fk, label: nm + " \u00b7 HOLD THIS SPOT" }); }
       if (M.bomb && M.bomb.armed && !M.bomb.route) opts.push({ id: "mis:boom", label: "SET IT OFF" + (misBombDist() < 300 || g.inside ? " (GET CLEAR FIRST)" : "") });
       if (M.markCar && M.markCar.wired && !M.markCar.burnt) { const dd = Math.hypot(g.p.x - M.markCar.v.x, g.p.y - M.markCar.v.y);
@@ -34146,6 +34197,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           M.stoleK = P.m.k; const i = g.traffic.indexOf(P); if (i >= 0) g.traffic.splice(i, 1); M.prize = null; g.pfol = (g.pfol || []).filter((q) => q !== f);
           misQuickDone(f, nm + " IS GONE WITH IT \u00b7 IT'LL BE IN THE YARD"); }); return; }
       if (a === "hotwire" && f && M.prize) { const P = M.prize; misTask(f, "hotwire", P.x + 30, P.y, 6, () => { P.hot = 1; misFlash("IT'S RUNNING \u00b7 E TO TAKE THE WHEEL"); }); return; }
+      if (a === "prepchop" && f && M.prize) { const P = M.prize; misTask(f, "prepchop", P.x + 30, P.y, 6, () => { P.hot = 1; misFlash("SHE'S READY \u00b7 E TO CLIMB IN"); }); return; }
       if (a === "hold" && f) { misTask(f, "hold", f.x, f.y, 0, null, f.b, f.f); return; }
       if (a === "come" && f) { f.task = null; return; }
       if (a === "boom") { if (g.inside || misBombDist() < 300) { misFlash("TOO CLOSE -- GET CLEAR FIRST"); return; } misBoom(); return; }
@@ -34174,15 +34226,22 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (M.k === "armored") { if (!M.loading && !M.got) { M.loading = 5; misFlash("LOADING THE BAGS..."); } return true; }
         // the hijack: you take the wheel of the truck, our car goes home with the driver
         if (g.car.pool) motorAdd(g.car.pool.k, g.car.pool.nm, g.car.pool.slot);
-        g.car.x = T.x; g.car.y = T.y; g.car.ang = T.ang; g.car.vx = g.car.vy = 0; g.car.skin = { k: T.v.m.k, len: T.v.m.len, w: T.v.m.w }; g.car.pool = null; g.car.tough = PLAYER_TOUGH.street; g.car.dmg = 0;
+        g.car.x = T.x; g.car.y = T.y; g.car.ang = T.ang; g.car.vx = g.car.vy = 0; g.car.skin = { k: T.v.m.k, len: T.v.m.len, w: T.v.m.w }; g.car.pool = null; g.car.tough = PLAYER_TOUGH.street; g.car.dmg = 0; g.car.flying = 0;
         const i = g.traffic.indexOf(T.v); if (i >= 0) g.traffic.splice(i, 1); T.state = "taken"; M.got = 1; M.phase = "away"; g.mode = "car";
         if (T.tv) { M.tow = T.tv; g.car.skin = { k: flipKey(T.rig.tk), len: 104, w: 44 }; g.car.tough = PLAYER_TOUGH.rig; }        // the rig: you drive the tractor, the trailer swings behind
         g.jobBanner = M.k === "semi" ? "THE RIG'S YOURS" : "THE TRUCK'S YOURS"; g.jobNote = "Drive it to the scrapyard -- the fence is waiting." + (M.drv ? " " + first(M.drv) + " takes our car home." : ""); return true; }
       if (M.prize && M.prize.hot && !g.inside && Math.hypot(g.p.x - M.prize.x, g.p.y - M.prize.y) < 110) { const P = M.prize;
         if (g.car.pool) motorAdd(g.car.pool.k, g.car.pool.nm, g.car.pool.slot);
         g.car.x = P.x; g.car.y = P.y; g.car.ang = P.ang || 0; g.car.vx = g.car.vy = 0; g.car.skin = { k: P.m.k, len: P.m.len, w: P.m.w }; g.car.pool = null; g.car.tough = PLAYER_TOUGH.street; g.car.dmg = 0;
+        // THE CHOPPER (layer 467): same prize-swap every steal job already does, but this prize
+        // flies. `flying` on the car body is the only new state -- stepCar/drawCar branch on it
+        // at the very top, straight to stepFlyingCar/drawFlyingCar, so every ground-only rule in
+        // between (road grip, fuel, collision, damage) never runs for it. M.phase "away" and the
+        // scrapyard-door finish check in misStep are unchanged -- they just watch g.p, and g.p
+        // tracks g.car every frame regardless of how it's moving.
+        g.car.flying = M.kd === "chopper" ? 1 : 0;
         const i = g.traffic.indexOf(P); if (i >= 0) g.traffic.splice(i, 1); M.prize = null; M.got = 1; M.phase = "away"; g.mode = "car";
-        g.jobBanner = "IT'S YOURS"; g.jobNote = "Get it to the scrapyard in one piece." + (M.drv ? " " + first(M.drv) + " takes our car home." : ""); return true; }
+        g.jobBanner = "IT'S YOURS"; g.jobNote = (M.kd === "chopper" ? "Fly it home -- the pad's at the scrapyard." : "Get it to the scrapyard in one piece.") + (M.drv ? " " + first(M.drv) + " takes our car home." : ""); return true; }
       if (!M.back || !M.b) return false; const b = M.b, bs = backSide(b);
       if (!g.inside) { const [x, y] = wallPt(b, bs, 0.5, 18); if (Math.hypot(g.p.x - x, g.p.y - y) > 55) return false;
         const [ix, iy] = wallPt(b, bs, 0.5, -34); g.inside = b; g.floor = b.entry || 0; g.insideT = 1; g.pfolk = null; g.p.x = ix; g.p.y = iy; g.p.vx = g.p.vy = 0; M.quiet = 1;
@@ -34283,6 +34342,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (OPS[o.k].ride && (B.rides || []).length > ridesBefore) { const r = B.rides[B.rides.length - 1]; const sk = r.type === "van" ? vanKey() : r.type === "truck" ? truckKey() : (M.stoleK || "buy_sedan_grey");
           motorAdd(sk, (r.type === "van" ? "THE VAN" : r.type === "truck" ? "THE BOX TRUCK" : "A STOLEN CAR") + " #" + r.id); } }
       if (ok && M.baseHit && g.gwar && g.gwar.gangs[M.vg || M.gk]) { const G5 = g.gwar.gangs[M.vg || M.gk]; G5.cash = Math.max(0, (G5.cash || 0) - 4000); moveStand(M.vg || M.gk, -15); }
+      // THE CHOPPER'S HOME (layer 467): no `ride:` on this op -- it doesn't fit a motor-pool
+      // stall -- so it never touches the generic rides/motorAdd block above. Landing it (g.car
+      // still has `flying` set here, right up until the next line clears it) just raises a flag;
+      // drawCrewChopPad reads it to park the plate on its own pad at the scrapyard from now on.
+      if (ok && o.k === "stealchopper") g.crewChop = 1;
+      if (g.car) g.car.flying = 0;   // whatever just finished, you're on the ground (or about to be) from here
       const took = (g.p.cash || 0) - M.cash0;
       g.jobBanner = ok ? "THE JOB'S DONE" : dropped ? "CALLED OFF" : "IT WENT WRONG";
       g.jobNote = (ok ? "You led it" + (M.quiet ? ", nice and quiet" : "") + "." + (took > 0 ? " $" + took.toLocaleString() + " all told." : "") + " " : "") + (g.jobNote || ""); }
@@ -34303,7 +34368,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           ctx.textAlign = "start";
           for (const B of M.blocks || []) { ctx.strokeStyle = "rgba(255,120,90,0.6)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(B.x, B.y, 120, 0, 6.283); ctx.stroke(); } }
         if (M.prize) { ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a";
-          ctx.fillText(M.prize.hot ? "E \u00b7 TAKE THE WHEEL" : M.kd === "chop" ? "THE CAR ON THE ORDER" : "THE ONE YOU WANT", M.prize.x, M.prize.y - 64); ctx.textAlign = "start"; }
+          ctx.fillText(M.prize.hot ? (M.kd === "chopper" ? "E \u00b7 CLIMB IN" : "E \u00b7 TAKE THE WHEEL") : M.kd === "chop" ? "THE CAR ON THE ORDER" : M.kd === "chopper" ? "THE CHOPPER" : "THE ONE YOU WANT", M.prize.x, M.prize.y - 64); ctx.textAlign = "start"; }
         const MC = M.markCar, inCar = MC && !MC.burnt && /in|driving|arrived/.test(MC.st);
         if (M.mark && M.mark.hp > 0 && !inCar) { ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#ff6a4a"; ctx.fillText("THE MARK", M.mark.x, M.mark.y - 44); ctx.textAlign = "start"; }
         if (MC && !MC.burnt) { ctx.font = "700 10px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = inCar ? "#ff6a4a" : "#e8c46a";
@@ -40714,7 +40779,26 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
     }
 
+    function drawFlyingCar() {
+      const c = g.car, im = imgs.current.vh_crew_chop;
+      if (!im || !im.width) return;
+      const L = 150, w = L * (im.width / im.height);
+      drawShadow(c.x + 22, c.y + 28, w * 0.34, L * 0.3, 0.3);
+      ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.ang + Math.PI / 2);
+      ctx.drawImage(im, -w / 2, -L / 2, w, L);
+      // the rotor blur: the plate's own blades are painted still, so this draws two more arcs
+      // spinning at different rates over the top -- same trick as drawFly/drawChopper, so the
+      // whole game's choppers read consistently whether they're yours, a mission's, or an NPC's.
+      ctx.strokeStyle = "rgba(214,222,236,0.4)"; ctx.lineWidth = 3;
+      const t = c.rotor || 0;
+      for (const [r, s] of [[62, 16], [44, -21]]) {
+        const a = t * s;
+        ctx.beginPath(); ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); ctx.lineTo(-Math.cos(a) * r, -Math.sin(a) * r); ctx.stroke();
+      }
+      ctx.restore();
+    }
     function drawCar() {
+      if (g.car.flying) { drawFlyingCar(); return; }
       if (g.car.sunk && !inVehicle()) {
         // a drowned car is a silhouette under the surface, not a car
         const im0 = imgs.current.car;
@@ -42041,6 +42125,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       drawSnipers();
       drawDistros();
       drawChopPad();
+      drawCrewChopPad();
       drawFly();
       drawSky();
       if (!g.inside) drawWeather();
@@ -45410,7 +45495,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        watching is the real thing and not a paused screenshot.
        The camera is written AFTER the normal camera has run, which is why this lives in the
        update and not the draw: set it in the draw and whatever drew first used the old one. */
-    const FLY = { spd: 1150, up: 0.55 };
+    const FLY = { spd: 1150, up: 0.55, turn: 9 };
     function stepFly(dt) {
       if (!g.fly) return;
       const inp = input.current, k = inp.keys || {};
@@ -45419,6 +45504,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.fly.x += ax * FLY.spd * dt;
       g.fly.y += ay * FLY.spd * dt;
       g.fly.t = (g.fly.t || 0) + dt;
+      // NOSE-FORWARD (layer 467 fix): it used to just translate, so strafing left/right flew the
+      // disc sideways instead of turning to face where you're going. Whenever there's real stick
+      // input, turn the heading toward it (not snap -- `turn` rad/s so a quick tap doesn't spin it
+      // on a dime); with the stick centred, keep the last heading rather than facing (0,0).
+      if (ax || ay) {
+        const target = Math.atan2(ay, ax), cur = g.fly.ang || 0;
+        let diff = target - cur; while (diff > Math.PI) diff -= 2 * Math.PI; while (diff < -Math.PI) diff += 2 * Math.PI;
+        const step = FLY.turn * dt;
+        g.fly.ang = Math.abs(diff) <= step ? target : cur + Math.sign(diff) * step;
+      }
       g.cam.x = g.fly.x; g.cam.y = g.fly.y;
     }
     function drawFly() {
@@ -45430,6 +45525,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.fillStyle = "rgba(8,8,12,0.28)";
       ctx.beginPath(); ctx.ellipse(x + 26, y + 34, 30, 13, 0, 0, 6.3); ctx.fill();
       ctx.translate(x, y);
+      // nose-forward: same convention as drawChopper -- the plate is painted nose-up, ang=0 is
+      // east, so rotate by ang + 90 deg to point the nose the way it's actually heading.
+      ctx.rotate((g.fly.ang || 0) + Math.PI / 2);
       /* The plate has its rotor painted on, so the DRAWN rotor is a second disc over the top --
          two arcs at different rates, which is what stops a still image reading as a hover. */
       const cim = imgs.current.vh_lion_chop;
@@ -45463,6 +45561,29 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const x = b.x + b.w + 62, y = b.y + b.h - 40;
       if (Math.hypot(g.p.x - x, g.p.y - y) > 1100) return;
       const im = imgs.current.vh_lion_chop;
+      ctx.save();
+      ctx.strokeStyle = "rgba(232,196,106,0.35)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, 86, 0, 6.3); ctx.stroke();
+      ctx.restore();
+      if (im && im.width) {
+        const h = 150, w = h * (im.width / im.height);
+        ctx.drawImage(im, x - w / 2, y - h / 2, w, h);
+      }
+    }
+    /* THE CREW'S OWN PAD (layer 467). Separate from drawChopPad above on purpose: that one is
+       the Lion's personal ride at HIS place (denOf()); this is the crew chopper, stolen on
+       STEAL A CHOPPER and flown home, parked at the SCRAPYARD (hideoutB()) instead -- different
+       building, different flag (g.crewChop, set once in misFinish), same drawing trick. Sits on
+       the opposite corner of the lot from the SCRAP_KEYS prop placements so it doesn't stack on
+       the crane / scrap pile / wrecks already laid out there. Hidden while you're actually
+       flying it (g.car.flying) so it isn't drawn twice. */
+    function drawCrewChopPad() {
+      if (!g.crewChop || g.inside || (g.mode === "car" && g.car && g.car.flying)) return;
+      const b = hideoutB();
+      if (!b) return;
+      const x = b.x - 90, y = b.y + b.h - 40;
+      if (Math.hypot(g.p.x - x, g.p.y - y) > 1100) return;
+      const im = imgs.current.vh_crew_chop;
       ctx.save();
       ctx.strokeStyle = "rgba(232,196,106,0.35)"; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(x, y, 86, 0, 6.3); ctx.stroke();
