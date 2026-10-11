@@ -4976,6 +4976,11 @@ for (const k of ["gs_canopy", "gs_pumps", "gs_shop", "tx_gs_forecourt",
 /* layer 469: Stan's, Joe's, Tasty's, Kum n Pay (assets/city/) and the supercharger sprites the hood draws (assets/parts/) */
 for (const k of ["st_roof_garage", "st_roof_office", "jo_roof", "km_roof", "km_canopy", "km_pumps2", "km_pump1", "km_floor", "km_tires", "km_ext",
                  "tt_roof", "tt_canopy", "tt_pump", "tt_pump_2", "tt_pump_b", "tt_truck", "tt_tire"]) CITY_ART[k] = "assets/city/" + k + ".png";
+// THE NEW RIGS (layer 471): three cab liveries for the whole TRACTORS pool, and two flatbed
+// trailers the chopper sits on at the Steal a Chopper site. Nose-DOWN art, same convention as
+// the tractors they replace -- grille at the BOTTOM of the plate, fifth wheel at the top.
+for (const k of ["tr_cab_blue", "tr_cab_red", "tr_cab_brown", "tr_flatbed_wood", "tr_flatbed_metal"])
+  CITY_ART[k] = "assets/vehicles/" + k + ".png";
 for (const k of ["s_red", "s_gold", "s_orange", "s_purple"]) CITY_ART["pa_en_" + k] = "assets/parts/en_" + k + ".png";
 const SOV2_ART = {};
 for (const k of ["sv_arch", "sv_pillar", "sv_stair", "sv_manhole", "sv_desk", "sv_map_table",
@@ -21910,13 +21915,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.globalAlpha = inside ? 0.18 : 1;
         ctx.fillStyle = "rgba(0,0,0,0.40)";
         ctx.fillRect(r.x + 6, r.y + 8, r.w, r.h);
-        ctx.fillStyle = "#4e4b45";
-        ctx.fillRect(r.x, r.y, r.w, r.h);
-        // corrugated roof ribs, running the length of the shed
-        ctx.fillStyle = "rgba(0,0,0,0.16)";
-        for (let q = r.x + 10; q < r.x + r.w; q += 22) ctx.fillRect(q, r.y, 8, r.h);
-        ctx.fillStyle = "rgba(255,255,255,0.08)";
-        ctx.fillRect(r.x, r.y, r.w, 5);
+        // JOE'S (layer 471): a branded roof plate, falling back to the plain shed if it hasn't loaded
+        if (!plateOver("jo_roof", r)) {
+          ctx.fillStyle = "#4e4b45";
+          ctx.fillRect(r.x, r.y, r.w, r.h);
+          // corrugated roof ribs, running the length of the shed
+          ctx.fillStyle = "rgba(0,0,0,0.16)";
+          for (let q = r.x + 10; q < r.x + r.w; q += 22) ctx.fillRect(q, r.y, 8, r.h);
+          ctx.fillStyle = "rgba(255,255,255,0.08)";
+          ctx.fillRect(r.x, r.y, r.w, 5);
+        }
         // the door openings are holes in the roof edge so the bays read as entrances
         ctx.globalAlpha = 1;
         ctx.fillStyle = "rgba(217,164,65,0.45)";
@@ -34128,7 +34136,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kd === "route") M.truck = { pts: T.route, i: 0, x: T.route[0][0], y: T.route[0][1], ang: 0, spd: 0, hp: 100, state: "wait", wait: 75, cd: 0 };
       if (kd === "steal" || kd === "chop" || kd === "chopper") { const m = kd === "chop" ? { k: cpick(["buy_turbo", "buy_fastback", "buy_delorean_b", "buy_gn_black", "buy_gn_red"]), len: 104, w: 46 }
         : kd === "chopper" ? { k: "vh_crew_chop", len: 150 } : STEAL_M[OPS[op.k].ride || "car"]();   // w omitted: falls back to the plate's own aspect (nose-up art, same as drawCar)
-        M.prize = { x: M.pt.x, y: M.pt.y, ang: M.pt.ang, spd: 0, cruise: 0, brake: 1, dead: 1, parked: 1, named: 1, trFree: 1, misPrize: 1, m }; g.traffic.push(M.prize); }
+        M.prize = { x: M.pt.x, y: M.pt.y, ang: M.pt.ang, spd: 0, cruise: 0, brake: 1, dead: 1, parked: 1, named: 1, trFree: 1, misPrize: 1, m }; g.traffic.push(M.prize);
+        /* layer 471: she arrived on a flatbed -- a rig parked alongside the chopper, purely dressing
+           (not coupled to it, not interactive). Cleaned up with the rest of the mission props below. */
+        if (kd === "chopper") { const fb = cpick(["tr_flatbed_wood", "tr_flatbed_metal"]), cab = cpick(TRACTORS);
+          const bx = M.pt.x - Math.sin(M.pt.ang) * 150, by = M.pt.y + Math.cos(M.pt.ang) * 150;
+          M.rigTrailer = { x: bx, y: by, ang: M.pt.ang, spd: 0, dead: 1, parked: 1, named: 1, trFree: 1, m: { k: fb, len: 180, w: 72 } };
+          M.rigCab = { x: bx - Math.cos(M.pt.ang) * 150, y: by - Math.sin(M.pt.ang) * 150, ang: M.pt.ang, spd: 0, dead: 1, parked: 1, named: 1, trFree: 1, m: { k: cab, len: 104, w: 44 } };
+          g.traffic.push(M.rigTrailer, M.rigCab); } }
       g.misStarted = 1; g.misSaid = null;
       const where = b ? (b.name || addressOf(b)) : M.pt ? (M.pt.addr || "the spot") : "the route";
       g.jobBanner = OPS[op.k].nm;
@@ -34516,7 +34531,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.car && M.car === "circle" && M.carSpot && !M.carGone && g.car.x < -9999) { g.car.x = M.carSpot[0]; g.car.y = M.carSpot[1]; }
       // the second vehicle goes home on its own; a pool car back in its stall
       if (M.convoy) { const i = g.traffic.indexOf(M.convoy.v); if (i >= 0) g.traffic.splice(i, 1); if (M.convoy.pool) motorAdd(M.convoy.pool.k, M.convoy.pool.nm, M.convoy.pool.slot); }
-      for (const x of [M.prize, M.truck && M.truck.v, M.truck && M.truck.tv, M.tow, M.markCar && !M.markCar.burnt && M.markCar.v]) if (x) { const i = g.traffic.indexOf(x); if (i >= 0) g.traffic.splice(i, 1); }
+      for (const x of [M.prize, M.truck && M.truck.v, M.truck && M.truck.tv, M.tow, M.markCar && !M.markCar.burnt && M.markCar.v, M.rigTrailer, M.rigCab]) if (x) { const i = g.traffic.indexOf(x); if (i >= 0) g.traffic.splice(i, 1); }
       if (M.guardCrew) M.guardCrew.state = "hang";
       o.live = 0; o.at = nowMin(); o.ride = 1; o.played = 1; o.dropped = dropped ? 1 : 0; o.odds = ok ? 1 : 0; o.bombedAt = M.baseHit || (M.bombed ? M.b : null);
       // what the board pays on top of what you took with your own hands
@@ -37712,7 +37727,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        in the game. Flipping them here is one line; renaming the convention would mean
        touching every car. The rig looked reversed because of this. */
     const TRACTOR_FLIP = Math.PI;
-    const TRACTORS = ["hv_00", "hv_01", "hv_02", "hv_03", "hv_04"];
+    const TRACTORS = ["tr_cab_blue", "tr_cab_red", "tr_cab_brown"];   // layer 471: the whole pool reskinned, trailers (hv_05-10) untouched
     const TRAILERS = ["hv_05", "hv_06", "hv_07", "hv_08", "hv_09", "hv_10"];
     const COACHES  = [{ k: "hv_11", len: 210, w: 62 }, { k: "hv_12", len: 210, w: 68 },
                       { k: "hv_13", len: 205, w: 63 }];
