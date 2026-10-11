@@ -3858,6 +3858,13 @@ const PARTS = {
   light: { nm: "LIGHTS", sub: "headlight colour and a glow under the car", icon: "pl_01", list: [] },
   tires: { nm: "TIRES", sub: "full speed on dirt and grass", icon: "tt_tire", list: [
     { k: "offroad", nm: "OFF-ROAD TIRES", img: "tt_tire", src: "assets/city/tt_tire.png", price: 1800, note: "REGULAR SPEED OFF THE ROAD" } ] },
+  weapons: { nm: "WEAPONS", sub: "bolted to the car; refills are cheaper than the kit", icon: "wx_turret", list: [
+    { k: "oil", nm: "OIL SLICK", img: "wx_oil_3", src: "assets/carwpn/wx_oil_3.png", price: 1500, ammo: 3, note: "DROPS BEHIND \u00b7 CARS SPIN \u00b7 KEY Z" },
+    { k: "cal", nm: "CALTROPS", img: "wx_cal_one", src: "assets/carwpn/wx_cal_one.png", price: 1800, ammo: 3, note: "FLATS THE TIRES BEHIND YOU \u00b7 KEY X" },
+    { k: "smoke", nm: "SMOKE SCREEN", img: "wx_smoke_2", src: "assets/carwpn/wx_smoke_2.png", price: 2000, ammo: 3, note: "COPS LOSE YOU IN IT \u00b7 KEY V" },
+    { k: "missile", nm: "MISSILE RACK", img: "wx_missile", src: "assets/carwpn/wx_missile.png", price: 6000, ammo: 3, note: "3 MISSILES, FORWARD \u00b7 KEY M" },
+    { k: "turret", nm: "HOOD MINI-TURRETS", img: "wx_turret", src: "assets/carwpn/wx_turret.png", price: 7500, ammo: 300, note: "ONE EACH SIDE, FORWARD, AUTO \u00b7 300 RDS" },
+    { k: "mg", nm: "ROOF MACHINE GUN", img: "wx_mg", src: "assets/carwpn/wx_mg.png", price: 9000, ammo: 500, note: "AUTO-AIMS AT THREATS \u00b7 500 RDS" } ] },
   nitro: { nm: "NITROUS", sub: "the world slows, you don't", icon: "nx_nos", list: [
     { k: "bos", nm: "BOS NITROUS SYSTEMS \u00b7 3 SHOTS", img: "nx_bos", price: 2000, secs: 7, note: "7 SECONDS OF SLOW-MO" },
     { k: "nos", nm: "NOS NITROUS OXIDE \u00b7 3 SHOTS", img: "nx_nos", price: 3500, secs: 11, note: "11 SECONDS OF SLOW-MO" } ] } };
@@ -4976,12 +4983,9 @@ for (const k of ["gs_canopy", "gs_pumps", "gs_shop", "tx_gs_forecourt",
 /* layer 469: Stan's, Joe's, Tasty's, Kum n Pay (assets/city/) and the supercharger sprites the hood draws (assets/parts/) */
 for (const k of ["st_roof_garage", "st_roof_office", "jo_roof", "km_roof", "km_canopy", "km_pumps2", "km_pump1", "km_floor", "km_tires", "km_ext",
                  "tt_roof", "tt_canopy", "tt_pump", "tt_pump_2", "tt_pump_b", "tt_truck", "tt_tire"]) CITY_ART[k] = "assets/city/" + k + ".png";
-// THE NEW RIGS (layer 471): three cab liveries for the whole TRACTORS pool, and two flatbed
-// trailers the chopper sits on at the Steal a Chopper site. Nose-DOWN art, same convention as
-// the tractors they replace -- grille at the BOTTOM of the plate, fifth wheel at the top.
-for (const k of ["tr_cab_blue", "tr_cab_red", "tr_cab_brown", "tr_flatbed_wood", "tr_flatbed_metal"])
-  CITY_ART[k] = "assets/vehicles/" + k + ".png";
 for (const k of ["s_red", "s_gold", "s_orange", "s_purple"]) CITY_ART["pa_en_" + k] = "assets/parts/en_" + k + ".png";
+for (const k of ["tx_alley_gravel", "tx_alley_cobble", "rh_roof_1", "rh_roof_2", "rh_roof_3", "rh_roof_4", "rh_roof_5", "rh_roof_6"]) CITY_ART[k] = "assets/city/" + k + ".png";   // layer 472: alley textures + row-house roofs (not placed yet)
+for (const k of ["wx_cal_1", "wx_cal_2", "wx_cal_3", "wx_cal_one", "wx_mg", "wx_missile", "wx_oil_1", "wx_oil_2", "wx_oil_3", "wx_smoke_1", "wx_smoke_2", "wx_smoke_3", "wx_turret", "wx_turret_fire"]) CITY_ART[k] = "assets/carwpn/" + k + ".png";   // layer 471
 const SOV2_ART = {};
 for (const k of ["sv_arch", "sv_pillar", "sv_stair", "sv_manhole", "sv_desk", "sv_map_table",
                  "sv_switchgear", "sv_strongdoor", "sv_crates_a", "sv_crates_b",
@@ -12069,7 +12073,8 @@ export default function IronLionLayer004() {
       const k = e.key.toLowerCase();
       input.current.keys[k] = true;
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
-      if (k === "b" && G.turboFn) G.turboFn();                                         // nitrous (layer 468)
+      if (k === "b" && G.turboFn) G.turboFn();
+      if (G.cwFn) { if (k === "z") G.cwFn("oil"); else if (k === "x") G.cwFn("cal"); else if (k === "v") G.cwFn("smoke"); else if (k === "m") G.cwFn("missile"); else if (k === "g") G.cwFn("auto"); }   // layer 471                                         // nitrous (layer 468)
       if (k === "e") doAction();
       if (k === "f" && G.strikeFn) G.strikeFn();
       if (k === "t" && G.current.studentMode && G.pickOpen) G.pickOpen("stuskip");   // fast forward (student mode)
@@ -21915,16 +21920,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.globalAlpha = inside ? 0.18 : 1;
         ctx.fillStyle = "rgba(0,0,0,0.40)";
         ctx.fillRect(r.x + 6, r.y + 8, r.w, r.h);
-        // JOE'S (layer 471): a branded roof plate, falling back to the plain shed if it hasn't loaded
-        if (!plateOver("jo_roof", r)) {
-          ctx.fillStyle = "#4e4b45";
-          ctx.fillRect(r.x, r.y, r.w, r.h);
-          // corrugated roof ribs, running the length of the shed
-          ctx.fillStyle = "rgba(0,0,0,0.16)";
-          for (let q = r.x + 10; q < r.x + r.w; q += 22) ctx.fillRect(q, r.y, 8, r.h);
-          ctx.fillStyle = "rgba(255,255,255,0.08)";
-          ctx.fillRect(r.x, r.y, r.w, 5);
-        }
+        ctx.fillStyle = "#4e4b45";
+        ctx.fillRect(r.x, r.y, r.w, r.h);
+        // corrugated roof ribs, running the length of the shed
+        ctx.fillStyle = "rgba(0,0,0,0.16)";
+        for (let q = r.x + 10; q < r.x + r.w; q += 22) ctx.fillRect(q, r.y, 8, r.h);
+        ctx.fillStyle = "rgba(255,255,255,0.08)";
+        ctx.fillRect(r.x, r.y, r.w, 5);
         // the door openings are holes in the roof edge so the bays read as entrances
         ctx.globalAlpha = 1;
         ctx.fillStyle = "rgba(217,164,65,0.45)";
@@ -33464,12 +33466,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         { label: "PLATING", sub: cur("plating", m.plating), icon: PD_ART.pa_pt_3_2, id: "gp:cat:plating" },
         { label: "WING", sub: cur("wing", m.wing), icon: PD_ART.pa_wg_4_3, id: "gp:cat:wing" },
         { label: "LIGHTS", sub: cur("light", m.light), icon: PD_ART.pa_pl_01, id: "gp:cat:light" },
+        { label: "WEAPONS", sub: m.wpn ? Object.keys(m.wpn).length + " mounted" : "none", icon: PD_ART.pa_wx_turret, id: "gp:cat:weapons" },
         { label: "TIRES", sub: cur("tires", m.tires), icon: PD_ART.pa_tt_tire, id: "gp:cat:tires" },
         { label: "NITROUS", sub: m.nitro ? m.nitro.t.toUpperCase() + " \u00b7 " + m.nitro.n + " shots" : "none", icon: PD_ART.pa_nx_nos, id: "gp:cat:nitro" }] }); }
     function garagePanel(kind) {
       if (kind === "cars") return { title: "WHICH CAR?", text: "\u201cWhich one you want me under the hood of?\u201d", opts: motorPool().slots.map((c, n) => c ? { id: "gp:car:" + n, label: stallName(n) + " \u00b7 " + c.nm } : null).filter(Boolean).concat([{ id: "close", label: "LATER" }]) };
       const s = gpSlot(), P = PARTS[kind]; if (!s || !P) return null; const m = s.mods || {}, have = kind === "nitro" ? (m.nitro && m.nitro.t) : m[kind];
-      const opts = P.list.map((q) => ({ id: "gp:buy:" + kind + ":" + q.k, card: PD_ART["pa_" + q.img], contain: true, dim: String(have) === q.k,
+      const opts = kind === "weapons" ? gpWpnOpts(m) : P.list.map((q) => ({ id: "gp:buy:" + kind + ":" + q.k, card: PD_ART["pa_" + q.img], contain: true, dim: String(have) === q.k,
         label: (String(have) === q.k ? "\u2713 " : "") + q.nm + " \u00b7 $" + q.price.toLocaleString() + (q.note ? " \u00b7 " + q.note : "") }));
       if (kind === "nitro" && m.nitro) opts.unshift({ id: "gp:buy:nitro:refill", label: "REFILL THE " + m.nitro.t.toUpperCase() + " TANK \u00b7 $" + (m.nitro.t === "nos" ? 700 : 400) + " A SHOT (" + m.nitro.n + "/3)" });
       opts.push({ id: "gp:back", label: "BACK TO THE WHEEL" }, { id: "close", label: "DONE" });
@@ -33486,6 +33489,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (a === "buy") { const s = gpSlot(); if (!s) return; const m = (s.mods = s.mods || {});
         if (x === "nitro" && y === "refill") { const nx = m.nitro, c1 = nx && nx.t === "nos" ? 700 : 400; if (!nx || nx.n >= 3) { g.gpSaid = "\u201cShe's full.\u201d"; }
           else if ((g.p.cash || 0) < c1) g.gpSaid = "\u201cCash first, boss.\u201d"; else { g.p.cash -= c1; nx.n++; g.gpSaid = "\u201cTopped her off. " + nx.n + " shots.\u201d"; } G.pickOpen("gp:nitro"); return; }
+        if (x === "weapons") { const q = partOf("weapons", y); if (!q) return; const w = (m.wpn = m.wpn || {}), owned = w[y] != null, cost = owned ? Math.round(q.price * 0.3) : q.price;
+          if (owned && w[y] >= q.ammo) g.gpSaid = "\u201cShe's full.\u201d"; else if ((g.p.cash || 0) < cost) g.gpSaid = "\u201c$" + cost.toLocaleString() + ". You got $" + (g.p.cash || 0).toLocaleString() + ".\u201d";
+          else { g.p.cash -= cost; w[y] = q.ammo; g.gpSaid = "\u201c" + (owned ? "Reloaded" : "Bolted on") + ": " + q.nm.toLowerCase() + ".\u201d"; g.pickupFlash = { nm: "lift:" + q.nm, t: 1.4 }; }
+          G.pickOpen("gp:weapons"); return; }
         const q = partOf(x, y); if (!q) return;
         if ((x === "nitro" ? (m.nitro && m.nitro.t) : m[x]) === y) { g.gpSaid = "\u201cIt's already on there.\u201d"; }
         else if ((g.p.cash || 0) < q.price) g.gpSaid = "\u201cThat's $" + q.price.toLocaleString() + ". You got $" + (g.p.cash || 0).toLocaleString() + ".\u201d";
@@ -33564,6 +33571,83 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           const q = { x: D.x, y: D.y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt: D.yt, bang: Math.PI / 2 };
           drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q);
           ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#ff9a7a"; ctx.fillText(D.nm, q.x, q.y - 28); ctx.textAlign = "start"; } } }
+    /* CAR WEAPONS (layer 471). Bought on the WEAPONS slot of the parts wheel (mechanic at the yard, Stan's), kept as mods.wpn = { oil, cal, smoke,
+       missile, turret, mg } -> rounds / uses left (a key that is missing = not fitted). Rear drops: OIL Z, CALTROPS X, SMOKE V; MISSILE M fires
+       ahead; the HOOD MINI-TURRETS (one each side, forward) and the ROOF MACHINE GUN (turns to the nearest threat) auto-fire; G toggles auto.
+       Hazards live in g.hz and only touch OTHER cars. TWO COPS TO A CAR: any police car you shoot or blow up gets crew [driver, passenger];
+       when the DRIVER goes down the car loses its chase and rolls to a stop (driverDown). */
+    function wpnOf(v) { const m = modsOf(v); return (m && m.wpn) || null; }
+    function cwHud() { const v = inVehicle() ? activeVeh() : null, W = v && v === g.car && wpnOf(v); return W ? { ...W, auto: g.cwAuto !== false } : null; }
+    const isCopCar = (v) => !!v && !!v.m && /cruiser|^pd_/.test(v.m.k || "");
+    function cwCars() { return (g.traffic || []).concat(policeCars().filter(Boolean)).filter((v) => v && v !== g.car && !v.wreck && Number.isFinite(v.x)); }
+    function crewHit(v, dmg) { if (!isCopCar(v) || v.driverDown) return; v.crew = v.crew || [{ hp: 5 }, { hp: 5 }];
+      const live = v.crew.filter((q) => q.hp > 0); if (!live.length) return; const t = live[(Math.random() * live.length) | 0]; t.hp -= dmg * 1.3;
+      if (t.hp <= 0 && t === v.crew[0]) { v.driverDown = 1; v.chasing = 0; v.cruise = 0; g.pickupFlash = { nm: "lift:COP DOWN \u00b7 THE CAR ROLLS TO A STOP", t: 1.8 }; } }
+    function wpnTargets(r) { const out = [], px = g.p.x, py = g.p.y;
+      for (const v of cwCars()) if ((isCopCar(v) || (v.patrol && v.chasing)) && !v.driverDown && Math.hypot(v.x - px, v.y - py) < r) out.push(v);
+      for (const u of policeUnits()) if (u && u.hp > 0 && Number.isFinite(u.x) && Math.hypot(u.x - px, u.y - py) < r) out.push(u);
+      for (const cr of (g.crews || [])) if (cr && cr.state === "hostile" && !cr.indoor) for (const m of (cr.members || [])) if (m && m.hp > 0 && Math.hypot(m.x - px, m.y - py) < r) out.push(m);
+      return out; }
+    G.cwFn = (k) => { const v = inVehicle() ? activeVeh() : null, W = v && v === g.car && wpnOf(v); if (!W) return false;
+      if (k === "auto") { g.cwAuto = g.cwAuto === false; g.pickupFlash = { nm: "lift:AUTO GUNS " + (g.cwAuto ? "ON" : "OFF"), t: 1.2 }; return true; }
+      if (W[k] == null) return false; if ((g.cwCd || 0) > 0) return false;
+      if (W[k] <= 0) { g.pickupFlash = { nm: "lift:OUT OF " + k.toUpperCase(), t: 1.2 }; return false; }
+      W[k]--; g.cwCd = k === "missile" ? 0.9 : 0.5; const cs = Math.cos(v.ang), sn = Math.sin(v.ang), L = (v.m && v.m.len) || 108;
+      (g.hz = g.hz || []);
+      if (k === "oil") g.hz.push({ k: "oil", x: v.x - cs * L * 0.8, y: v.y - sn * L * 0.8, r: 46, t: 0, life: 14, rot: Math.random() * 6.28, img: "wx_oil_" + (1 + ((Math.random() * 3) | 0)) });
+      else if (k === "cal") g.hz.push({ k: "cal", x: v.x - cs * L * 0.8, y: v.y - sn * L * 0.8, r: 44, t: 0, life: 18, rot: Math.random() * 6.28, img: "wx_cal_" + (1 + ((Math.random() * 3) | 0)) });
+      else if (k === "smoke") g.hz.push({ k: "smoke", x: v.x - cs * L * 0.9, y: v.y - sn * L * 0.9, r: 120, t: 0, life: 9, rot: 0, img: "wx_smoke_" + (1 + ((Math.random() * 3) | 0)) });
+      else if (k === "missile") (g.msl = g.msl || []).push({ x: v.x + cs * L * 0.5, y: v.y + sn * L * 0.5, ang: v.ang, left: 950, t: 0 });
+      return true; };
+    function mslBlast(x, y) { carBoom(x, y); blastAt(x, y, "grenade"); witnessed(x, y, 3, true);
+      for (const v of cwCars()) if (Math.hypot(v.x - x, v.y - y) < 130) { v.dmg = (v.dmg || 0) + 0.6; v.hitFx = 0.25; crewHit(v, 6); crewHit(v, 6); crewHit(v, 6); } }
+    function stepCarWeapons(dt) { g.cwCd = Math.max(0, (g.cwCd || 0) - dt); g.cwTurFx = Math.max(0, (g.cwTurFx || 0) - dt);
+      const cars = cwCars(), H = g.hz || [];
+      for (let i = H.length - 1; i >= 0; i--) { const h = H[i]; h.t += dt; if (h.t > h.life) { H.splice(i, 1); continue; }
+        for (const v of cars) { if (v.dead || Math.hypot(v.x - h.x, v.y - h.y) > h.r) continue;
+          if (h.k === "oil") { v.spd *= Math.max(0, 1 - 1.6 * dt); v.ang += Math.sin(performance.now() / 90 + v.x * 0.01) * 2.4 * dt; v.oiled = 1; }
+          else if (h.k === "cal") { v.flat = 8; }
+          else if (h.k === "smoke") { v.spd *= Math.max(0, 1 - 0.8 * dt); if (v.patrol || isCopCar(v)) v.chasing = 0; } }
+        if (h.k === "smoke" && (g.heat || 0) > 0 && Math.hypot(g.p.x - h.x, g.p.y - h.y) < h.r + 40) g.copLost = Math.max(0, (g.copLost == null ? LOSE_AFTER : g.copLost) - dt * 3); }   // lose them in it
+      for (const v of cars) { if (v.flat > 0) { v.flat -= dt; v.cruise = Math.min(v.cruise || 0, 70); v.spd = Math.max(-70, Math.min(70, v.spd || 0)); }
+        if (v.driverDown && !v.dead) { v.chasing = 0; v.cruise = 0; v.spd *= Math.max(0, 1 - 1.4 * dt);
+          if (Math.abs(v.spd) < 5) { v.spd = 0; v.dead = 1; v.brake = 1; v.patrol = 0; } } }
+      const M = g.msl || [];
+      for (let i = M.length - 1; i >= 0; i--) { const q = M[i]; const st = 760 * dt; q.x += Math.cos(q.ang) * st; q.y += Math.sin(q.ang) * st; q.left -= st; q.t += dt;
+        let boom = q.left <= 0; if (!boom) for (const v of cars) if (Math.hypot(v.x - q.x, v.y - q.y) < (v.rad || 22) + 14) { boom = true; break; }
+        if (!boom) for (const u of wpnTargets(9999)) if (Math.hypot(u.x - q.x, u.y - q.y) < 22) { boom = true; break; }
+        if (boom) { M.splice(i, 1); mslBlast(q.x, q.y); } }
+      const v = inVehicle() ? activeVeh() : null, W = v && v === g.car && wpnOf(v); if (!W) return;
+      if (g.cwAuto === false) return;
+      const cs = Math.cos(v.ang), sn = Math.sin(v.ang);
+      if (W.turret > 0) { g.cwTurT = Math.max(0, (g.cwTurT || 0) - dt);
+        if (g.cwTurT <= 0) { const T = wpnTargets(540).filter((t) => { const da = Math.atan2(t.y - v.y, t.x - v.x) - v.ang; return Math.abs(Math.atan2(Math.sin(da), Math.cos(da))) < 0.38; });
+          if (T.length) { g.cwTurT = 0.11; g.cwSide = -(g.cwSide || 1); const L = (v.m && v.m.len) || 108, w = (v.m && v.m.w) || 46, fx = v.x + cs * L * 0.30 - sn * g.cwSide * w * 0.27, fy = v.y + sn * L * 0.30 + cs * g.cwSide * w * 0.27;
+            fireBullet({ x: fx, y: fy }, v.ang + (Math.random() - 0.5) * 0.06, 950, 1.3, 560, true); W.turret--; g.cwTurFx = 0.06; } } }
+      const T2 = W.mg > 0 ? wpnTargets(470) : [];
+      if (T2.length) { T2.sort((a, b) => Math.hypot(a.x - v.x, a.y - v.y) - Math.hypot(b.x - v.x, b.y - v.y)); const t = T2[0], want = Math.atan2(t.y - v.y, t.x - v.x), cur = g.cwAim == null ? v.ang : g.cwAim;
+        let d = Math.atan2(Math.sin(want - cur), Math.cos(want - cur)); g.cwAim = cur + Math.max(-9 * dt, Math.min(9 * dt, d));
+        g.cwMgT = Math.max(0, (g.cwMgT || 0) - dt);
+        if (g.cwMgT <= 0 && Math.abs(d) < 0.25) { g.cwMgT = 0.065; fireBullet({ x: v.x + Math.cos(g.cwAim) * 26, y: v.y + Math.sin(g.cwAim) * 26 }, g.cwAim + (Math.random() - 0.5) * 0.07, 1000, 1.1, true); W.mg--; g.cwMgFx = 0.05; } }
+      else g.cwAim = v.ang; g.cwMgFx = Math.max(0, (g.cwMgFx || 0) - dt); }
+    function drawHazards(pass) { const H = g.hz || [];
+      if (pass === 0) for (const h of H) { if (h.k === "smoke") continue; const im = imgs.current[h.img]; if (!im || !im.width) continue;
+        const fade = Math.min(1, (h.life - h.t) / 2), S = h.r * 2.1, hh = S * im.height / im.width;
+        ctx.save(); ctx.globalAlpha = 0.95 * fade; ctx.translate(h.x, h.y); ctx.rotate(h.rot); ctx.drawImage(im, -S / 2, -hh / 2, S, hh); ctx.restore(); }
+      else { for (const h of H) { if (h.k !== "smoke") continue; const im = imgs.current[h.img]; if (!im || !im.width) continue;
+          const k = Math.min(1, h.t / 0.9), fade = Math.min(1, (h.life - h.t) / 2.5), S = h.r * 2 * (0.4 + 0.6 * k);
+          ctx.save(); ctx.globalAlpha = 0.9 * fade; ctx.drawImage(im, h.x - S / 2, h.y - S / 2, S, S * im.height / im.width); ctx.restore(); }
+        for (const q of g.msl || []) { const im = imgs.current.wx_missile; if (!im || !im.width) continue; const S = 56, hh = S * im.height / im.width;
+          ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.ang + Math.PI); ctx.drawImage(im, -S / 2, -hh / 2, S, hh); ctx.restore(); } } }
+    function drawCarWeapons(c, L, w) { const W = wpnOf(c); if (!W || c !== g.car) return;
+      if (W.turret != null) { const im = imgs.current.wx_turret; if (im && im.width) { const S = w * 0.30, hh = S * im.height / im.width;
+          for (const sx of [-1, 1]) { ctx.save(); ctx.translate(sx * w * 0.27, -L * 0.30); ctx.drawImage(im, -S / 2, -hh * 0.55, S, hh);
+            if ((g.cwTurFx || 0) > 0) { ctx.fillStyle = "#ffd25a"; ctx.beginPath(); ctx.arc(0, -hh * 0.62, 2.6, 0, 6.3); ctx.fill(); } ctx.restore(); } } }
+      if (W.mg != null) { const im = imgs.current.wx_mg; if (im && im.width) { const S = L * 0.46, hh = S * im.height / im.width, phi = (g.cwAim == null ? c.ang : g.cwAim) - (c.ang + Math.PI / 2);
+          ctx.save(); ctx.translate(0, L * 0.02); ctx.rotate(phi - Math.PI); ctx.drawImage(im, -S * 0.62, -hh / 2, S, hh);
+          if ((g.cwMgFx || 0) > 0) { ctx.fillStyle = "#ffd25a"; ctx.beginPath(); ctx.arc(-S * 0.64, 0, 2.4, 0, 6.3); ctx.fill(); } ctx.restore(); } } }
+    function gpWpnOpts(m) { const w = m.wpn || {}; return PARTS.weapons.list.map((q) => { const own = w[q.k] != null;
+      return { id: "gp:buy:weapons:" + q.k, card: PD_ART["pa_" + q.img], contain: true, label: q.nm + " \u00b7 " + (own ? "HAVE " + w[q.k] + " \u00b7 REFILL $" + Math.round(q.price * 0.3).toLocaleString() : "$" + q.price.toLocaleString()) + " \u00b7 " + q.note }; }); }
     function bmExtraOpts(p) { ensureStats(p); const o = [];
       if (p.role === "mechanic") o.push({ id: "gp:open", label: "WORK ON A CAR \u00b7 PARTS & TUNING" });       // layer 468
       if (!p.crew) o.push({ id: "bm:x:view:trade", label: "TRADE: " + HIRES[p.role].nm + " \u00b7 CHANGE" });
@@ -34136,14 +34220,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kd === "route") M.truck = { pts: T.route, i: 0, x: T.route[0][0], y: T.route[0][1], ang: 0, spd: 0, hp: 100, state: "wait", wait: 75, cd: 0 };
       if (kd === "steal" || kd === "chop" || kd === "chopper") { const m = kd === "chop" ? { k: cpick(["buy_turbo", "buy_fastback", "buy_delorean_b", "buy_gn_black", "buy_gn_red"]), len: 104, w: 46 }
         : kd === "chopper" ? { k: "vh_crew_chop", len: 150 } : STEAL_M[OPS[op.k].ride || "car"]();   // w omitted: falls back to the plate's own aspect (nose-up art, same as drawCar)
-        M.prize = { x: M.pt.x, y: M.pt.y, ang: M.pt.ang, spd: 0, cruise: 0, brake: 1, dead: 1, parked: 1, named: 1, trFree: 1, misPrize: 1, m }; g.traffic.push(M.prize);
-        /* layer 471: she arrived on a flatbed -- a rig parked alongside the chopper, purely dressing
-           (not coupled to it, not interactive). Cleaned up with the rest of the mission props below. */
-        if (kd === "chopper") { const fb = cpick(["tr_flatbed_wood", "tr_flatbed_metal"]), cab = cpick(TRACTORS);
-          const bx = M.pt.x - Math.sin(M.pt.ang) * 150, by = M.pt.y + Math.cos(M.pt.ang) * 150;
-          M.rigTrailer = { x: bx, y: by, ang: M.pt.ang, spd: 0, dead: 1, parked: 1, named: 1, trFree: 1, m: { k: fb, len: 180, w: 72 } };
-          M.rigCab = { x: bx - Math.cos(M.pt.ang) * 150, y: by - Math.sin(M.pt.ang) * 150, ang: M.pt.ang, spd: 0, dead: 1, parked: 1, named: 1, trFree: 1, m: { k: cab, len: 104, w: 44 } };
-          g.traffic.push(M.rigTrailer, M.rigCab); } }
+        M.prize = { x: M.pt.x, y: M.pt.y, ang: M.pt.ang, spd: 0, cruise: 0, brake: 1, dead: 1, parked: 1, named: 1, trFree: 1, misPrize: 1, m }; g.traffic.push(M.prize); }
       g.misStarted = 1; g.misSaid = null;
       const where = b ? (b.name || addressOf(b)) : M.pt ? (M.pt.addr || "the spot") : "the route";
       g.jobBanner = OPS[op.k].nm;
@@ -34531,7 +34608,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.car && M.car === "circle" && M.carSpot && !M.carGone && g.car.x < -9999) { g.car.x = M.carSpot[0]; g.car.y = M.carSpot[1]; }
       // the second vehicle goes home on its own; a pool car back in its stall
       if (M.convoy) { const i = g.traffic.indexOf(M.convoy.v); if (i >= 0) g.traffic.splice(i, 1); if (M.convoy.pool) motorAdd(M.convoy.pool.k, M.convoy.pool.nm, M.convoy.pool.slot); }
-      for (const x of [M.prize, M.truck && M.truck.v, M.truck && M.truck.tv, M.tow, M.markCar && !M.markCar.burnt && M.markCar.v, M.rigTrailer, M.rigCab]) if (x) { const i = g.traffic.indexOf(x); if (i >= 0) g.traffic.splice(i, 1); }
+      for (const x of [M.prize, M.truck && M.truck.v, M.truck && M.truck.tv, M.tow, M.markCar && !M.markCar.burnt && M.markCar.v]) if (x) { const i = g.traffic.indexOf(x); if (i >= 0) g.traffic.splice(i, 1); }
       if (M.guardCrew) M.guardCrew.state = "hang";
       o.live = 0; o.at = nowMin(); o.ride = 1; o.played = 1; o.dropped = dropped ? 1 : 0; o.odds = ok ? 1 : 0; o.bombedAt = M.baseHit || (M.bombed ? M.b : null);
       // what the board pays on top of what you took with your own hands
@@ -36800,7 +36877,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const D0 = out[0]; if (D0) { let best = null, bd = 1e12; const ci = Math.floor(D0.b.x / PITCH), cj = Math.floor(D0.b.y / PITCH);
         for (let i = ci - 2; i <= ci + 2; i++) for (let j = cj - 2; j <= cj + 2; j++) { const c = getCell(i, j); if (!c) continue;
           for (const b of c.blds || []) { if (!b.door || b.dealer || b.school || b.landmark || b.homeOf || b.stuHome || b.pd || b.hideout || b.mercBar) continue; const d = Math.hypot(b.x - D0.b.x, b.y - D0.b.y); if (d > 200 && d < bd) { bd = d; best = b; } } }
-        if (best) { best.repair = 1; best.name = "STAN'S GARAGE"; best.roofKey = "st_roof_garage"; best._plate = undefined; g.repairB = best; } }
+        if (best) { best.repair = 1; best.name = "STAN'S GARAGE"; best.roofKey = "st_roof_garage"; best._plate = undefined; g.repairB = best;
+          const bc = getCell(Math.floor(best.x / PITCH), Math.floor(best.y / PITCH)); if (bc) { bc.type = 4; bc.lawn = false; } }       // layer 472: sits on concrete, not a lawn }
       return (g.dealersB = out);
     }
     function drawDealers(view) {
@@ -37727,7 +37805,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        in the game. Flipping them here is one line; renaming the convention would mean
        touching every car. The rig looked reversed because of this. */
     const TRACTOR_FLIP = Math.PI;
-    const TRACTORS = ["tr_cab_blue", "tr_cab_red", "tr_cab_brown"];   // layer 471: the whole pool reskinned, trailers (hv_05-10) untouched
+    const TRACTORS = ["hv_00", "hv_01", "hv_02", "hv_03", "hv_04"];
     const TRAILERS = ["hv_05", "hv_06", "hv_07", "hv_08", "hv_09", "hv_10"];
     const COACHES  = [{ k: "hv_11", len: 210, w: 62 }, { k: "hv_12", len: 210, w: 68 },
                       { k: "hv_13", len: 205, w: 63 }];
@@ -39387,7 +39465,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         // the Arden bank keeps a forecourt, not a front lawn
         if (c.zone === "arden" && !isBankCell(i, j) && !isFoodCell(i, j) && !isTradeCell(i, j)
             && !isPawnCell(i, j) && !isJewelCell(i, j)) { drawArdenYard(c); continue; }
-        ctx.fillStyle = c.lawn ? PF("grass", "#3f5a33")
+        ctx.fillStyle = (c.lawn || (inOldTown(i, j) && (c.type === 0 || c.type === 2 || c.type === 3))) ? PF("grass", "#3f5a33")      // layer 472: Old Town was all gravel
           : c.type === 0 ? PF("gravel", C.gravel) : c.type === 1 ? PF("lot", C.lotAsphalt) : c.type === 2 ? PF("dirt", C.dirt) : c.type === 3 ? PF("dirt", "#34322c") : PF("slab", "#3d3d3b");
         ctx.fillRect(c.lx0, c.ly0, lw, lh);
         /* A KEPT LAWN. Paths first, then a clipped hedge along the kerb with gaps where the paths
@@ -40126,6 +40204,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (Math.hypot(v.x - (sx + dxv * tv), v.y - (sy + dyv * tv)) > rr) continue;
           v.dmg = (v.dmg || 0) + b.dmg * 0.10;     // a car soaks a lot before it minds
           v.hitFx = 0.12;
+          if (b.byPlayer) crewHit(v, b.dmg);                          // layer 471: two cops to a car
           if (b.byPlayer && !g.detMode && v.m && (v.m.k === "cruiser" || /^pd_/.test(v.m.k || ""))) witnessed(v.x, v.y, 2, true);   // shooting a cop car: they're on you (layer 519)
           gone = true;
           break;
@@ -41030,6 +41109,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (c.lightHex) drawUnderglow(c.lightHex, w, L);
       drawBody(im, w, L, c);
       drawHoodBlower(c, L);
+      drawCarWeapons(c, L, w);
       ctx.restore();
       drawDamageFx(c, L);
       // brake lights
@@ -42173,7 +42253,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       // can paint across the roof he is on
       if (!g.inside) for (const b of blds)
         drawList.push([b === g.roof ? 1e9 : b.y + b.h, 4, b, 0]);
-      if (!g.inside) drawTraffic();
+      if (!g.inside) { drawHazards(0); drawTraffic(); drawHazards(1); }
       if (!g.inside) drawRace();
       if (!g.inside) drawBoss();
       if (!g.inside) drawLeaders(view);
@@ -42520,6 +42600,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             atTable: nearTable() || !!nearDealer(),
             atDealer: !!nearDealer(),
             gasAct: gasPrompt(),
+            cw: cwHud(),
             /* Which building and which floor plan. "the casino has no tables" and "I am not in
                the casino" look identical from the outside, and this tells them apart. */
             /* The loader writes to `window.__ironlion`, NOT to the game object -- reading
@@ -47200,6 +47281,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       stepRockets(dt);
       stepSpinOuts(dt);
       stepWrecks(dt);
+      stepCarWeapons(dt);
       stepCarChase(dt);
       stepJob(dt);
     }
@@ -50673,6 +50755,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               () => { G.guardFn && G.guardFn(); }, null, !!hud.grdOn)}
             {!hud.cab && hud.turbo && btn("BOOST", (hud.turboCd || 0) > 0 ? Math.ceil(hud.turboCd) + "s" : "ready",
               () => { G.turboFn && G.turboFn(); }, null, (hud.turboOn || 0) > 0)}
+            {!hud.cab && hud.cw && [["oil", "OIL"], ["cal", "SPIKES"], ["smoke", "SMOKE"], ["missile", "MISSILE"]].map(([k, nm]) => hud.cw[k] != null && btn(nm, hud.cw[k] + " left", () => { G.cwFn && G.cwFn(k); }, null, false))}
+            {!hud.cab && hud.cw && (hud.cw.turret != null || hud.cw.mg != null) && btn("AUTO GUNS", hud.cw.auto ? "on" : "off", () => { G.cwFn && G.cwFn("auto"); }, null, !!hud.cw.auto)}
             {!hud.cab && hud.who === "rio" && btn(hud.dogLoose ? "LEAD" : "TOW",
               hud.dogLoose ? "clip her on" : hud.towOn ? "stop" : "where to",
               () => G.towFn(), null, false, 56)}
