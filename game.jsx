@@ -1695,7 +1695,7 @@ const OT_PROPS = ["ot_lamp", "ot_fountain", "ot_stall", "ot_trough", "ot_bollard
 for (const k of OT_PLATES) PD_ART[k] = "assets/city/" + k + ".png";
 for (const k of OT_PROPS) PD_ART[k] = "assets/oldtown/" + k + ".png";
 // what the houses sell, bagged and loose
-for (const k of ["stone", "leaf", "diamond"]) {
+for (const k of ["stone", "leaf", "diamond", "sky"]) {
   PD_ART["dr_" + k] = "assets/drugs/dr_" + k + ".png";
   PD_ART["dr_" + k + "_bag"] = "assets/drugs/dr_" + k + "_bag.png";
 }
