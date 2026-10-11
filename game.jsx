@@ -240,9 +240,9 @@ const carSpecialFor = (c, who, mode) => {
 const WRECK_M = [{ k: "wreck_shell", len: 118, w: 50 }, { k: "wreck_frame", len: 122, w: 52 }];
 const WRECK_LIFE = 150;
 const carThirst0 = (c) => (c && c.m && CARTHIRST[c.m.k]) || 1;
-const carThirst = (c) => { const b = carThirst0(c), m = c && c.pool && c.pool.mods, e = m && partOf("engine", m.engine); return e ? b * e.th : b; };   // layer 468: the engine drinks what it drinks
+const carThirst = (c) => { const b = carThirst0(c), m = modsOf(c), e = m && partOf("engine", m.engine); return e ? b * e.th : b; };   // layer 468: the engine drinks what it drinks
 const carStat0 = (c) => (c && c.m && CARSTAT[c.m.k]) || (c && c.skin && c.skin.k && carModel(c.skin.k)) || { s: 1, a: 1, g: 1 };   // the player's car too, by its make (layer 511)
-const carStat = (c) => { const b = carStat0(c), m = c && c.pool && c.pool.mods; return m ? partsStat(b, m) : b; };   // layer 468: parts ride on the car (c.pool = its stall slot)
+const carStat = (c) => { const b = carStat0(c), m = modsOf(c); return m ? partsStat(b, m) : b; };   // layer 468: parts ride on the car (c.pool = its stall slot)
 /* Makes and models. Five marques, because a city with one manufacturer is a catalogue and a
    car you can name is a car you remember stealing. VANTRY is cheap, HOLLOWAY is what the city
    buys in bulk, MARROW is the one with a performance line, OSSIAN builds trucks, KESTREL makes
@@ -3855,22 +3855,28 @@ const PARTS = {
     { k: "2", nm: "REINFORCED PLATING", img: "pt_2_4", price: 2200, tough: 0.70, s: 0.97, a: 0.97, note: "30% LESS \u00b7 A LITTLE HEAVIER" },
     { k: "3", nm: "HEAVY ARMOR PLATING", img: "pt_3_2", price: 5000, tough: 0.50, s: 0.94, a: 0.94, note: "HALF DAMAGE \u00b7 HEAVY" } ] },
   wing: { nm: "WING", sub: "grip at speed", icon: "wg_4_3", list: [] },
-  paint: { nm: "PAINT", sub: "respray", icon: "pl_01", list: [] },
+  light: { nm: "LIGHTS", sub: "headlight colour and a glow under the car", icon: "pl_01", list: [] },
+  tires: { nm: "TIRES", sub: "full speed on dirt and grass", icon: "tt_tire", list: [
+    { k: "offroad", nm: "OFF-ROAD TIRES", img: "tt_tire", src: "assets/city/tt_tire.png", price: 1800, note: "REGULAR SPEED OFF THE ROAD" } ] },
   nitro: { nm: "NITROUS", sub: "the world slows, you don't", icon: "nx_nos", list: [
     { k: "bos", nm: "BOS NITROUS SYSTEMS \u00b7 3 SHOTS", img: "nx_bos", price: 2000, secs: 7, note: "7 SECONDS OF SLOW-MO" },
     { k: "nos", nm: "NOS NITROUS OXIDE \u00b7 3 SHOTS", img: "nx_nos", price: 3500, secs: 11, note: "11 SECONDS OF SLOW-MO" } ] } };
 { const WN = [["LIP SPOILER", 300, 1.04, ["RED", "BLUE", "GREEN", "YELLOW"]], ["STREET WING", 700, 1.08, ["WHITE", "BLACK", "SILVER", "ORANGE"]],
     ["TOURING WING", 1400, 1.12, ["NAVY", "MAROON", "TEAL", "PURPLE"]], ["RACE WING", 2600, 1.18, ["GOLD", "CARBON", "PINK", "CYAN"]]];
   WN.forEach(([nm, price, gr, cols], r) => cols.forEach((c, i) => PARTS.wing.list.push({ k: "wg_" + (r + 1) + "_" + (i + 1), nm: nm + " \u00b7 " + c, img: "wg_" + (r + 1) + "_" + (i + 1), price, g: gr, note: "GRIP +" + Math.round((gr - 1) * 100) + "%" })));
-  for (const [k, nm, hex] of [["pl_01","RED","#e40c0c"],["pl_02","ORANGE","#fc840c"],["pl_03","YELLOW","#fcfc0c"],["pl_04","LIME","#9cfc0c"],["pl_05","GREEN","#0cfc0c"],["pl_06","CYAN","#0cfcfc"],["pl_07","BLUE","#0c6ce4"],["pl_08","PURPLE","#6c0ccc"],["pl_09","MAGENTA","#9c84cc"],["pl_10","PINK","#fc549c"],["pl_11","LIGHT PINK","#fcb4cc"],["pl_12","BROWN","#843c24"],["pl_13","TEAL","#0c9c84"],["pl_14","OLIVE","#84840c"],["pl_15","FOREST GREEN","#0c540c"],["pl_16","NAVY","#0c246c"],["pl_17","INDIGO","#3c2484"],["pl_18","MAROON","#6c0c24"],["pl_19","SILVER","#b4cccc"],["pl_20","GOLD","#e4b424"],["pl_21","BRONZE","#9c6c3c"],["pl_22","COPPER","#cc843c"],["pl_23","GUNMETAL","#848484"],["pl_24","BLACK","#1c1c22"],["pl_25","MINT","#6cfccc"],["pl_26","SKY BLUE","#6cccfc"],["pl_27","CRIMSON","#840c0c"],["pl_28","LAVENDER","#ccb4fc"],["pl_29","IVORY","#fcfccc"],["pl_30","TAN","#ccb484"],["pl_31","VIOLET","#540c6c"],["pl_32","LEMON","#e4e40c"],["pl_33","TANGERINE","#e46c0c"],["pl_34","MIDNIGHT","#242454"],["pl_35","PERIWINKLE","#6c84cc"],["pl_36","DEEP TEAL","#0c5454"],["pl_37","SUNSET PEARL","#e49c3c"],["pl_38","OIL SLICK","#9c6c9c"],["pl_39","MOSS","#54540c"],["pl_40","KELLY GREEN","#3c840c"],["pl_41","SEAFOAM","#84e484"]]) PARTS.paint.list.push({ k, nm, img: k, price: 350, hex, note: "RESPRAY" }); }
-for (const cat in PARTS) for (const it of PARTS[cat].list) PD_ART["pa_" + it.img] = PARTS_ART + it.img + ".png";
+  for (const [k, nm, hex] of [["pl_01","RED","#e40c0c"],["pl_02","ORANGE","#fc840c"],["pl_03","YELLOW","#fcfc0c"],["pl_04","LIME","#9cfc0c"],["pl_05","GREEN","#0cfc0c"],["pl_06","CYAN","#0cfcfc"],["pl_07","BLUE","#0c6ce4"],["pl_08","PURPLE","#6c0ccc"],["pl_09","MAGENTA","#9c84cc"],["pl_10","PINK","#fc549c"],["pl_11","LIGHT PINK","#fcb4cc"],["pl_12","BROWN","#843c24"],["pl_13","TEAL","#0c9c84"],["pl_14","OLIVE","#84840c"],["pl_15","FOREST GREEN","#0c540c"],["pl_16","NAVY","#0c246c"],["pl_17","INDIGO","#3c2484"],["pl_18","MAROON","#6c0c24"],["pl_19","SILVER","#b4cccc"],["pl_20","GOLD","#e4b424"],["pl_21","BRONZE","#9c6c3c"],["pl_22","COPPER","#cc843c"],["pl_23","GUNMETAL","#848484"],["pl_24","BLACK","#1c1c22"],["pl_25","MINT","#6cfccc"],["pl_26","SKY BLUE","#6cccfc"],["pl_27","CRIMSON","#840c0c"],["pl_28","LAVENDER","#ccb4fc"],["pl_29","IVORY","#fcfccc"],["pl_30","TAN","#ccb484"],["pl_31","VIOLET","#540c6c"],["pl_32","LEMON","#e4e40c"],["pl_33","TANGERINE","#e46c0c"],["pl_34","MIDNIGHT","#242454"],["pl_35","PERIWINKLE","#6c84cc"],["pl_36","DEEP TEAL","#0c5454"],["pl_37","SUNSET PEARL","#e49c3c"],["pl_38","OIL SLICK","#9c6c9c"],["pl_39","MOSS","#54540c"],["pl_40","KELLY GREEN","#3c840c"],["pl_41","SEAFOAM","#84e484"]]) PARTS.light.list.push({ k, nm, img: k, price: 250, hex, note: "HEADLIGHTS + UNDERGLOW" }); }
+for (const cat in PARTS) for (const it of PARTS[cat].list) PD_ART["pa_" + it.img] = it.src || (PARTS_ART + it.img + ".png");
+const modsOf = (c) => (c && ((c.pool && c.pool.mods) || c.mods)) || null;   // a pool car keeps them on its stall slot, any other car on itself
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(",");
+const offroadTires = (c) => { const m = modsOf(c); return !!(m && m.tires === "offroad"); };
 const partOf = (cat, k) => (k != null && PARTS[cat] && PARTS[cat].list.find((q) => q.k === k)) || null;
 function partsStat(b, m) { const e = partOf("engine", m.engine), p = partOf("plating", m.plating), w = partOf("wing", m.wing);
   return { ...b, s: b.s * (e ? e.s : 1) * (p ? p.s : 1), a: b.a * (e ? e.a : 1) * (p ? p.a : 1), g: b.g * (w ? w.g : 1) }; }
-const brakeMul = (c) => { const b = c && c.pool && c.pool.mods && partOf("brakes", c.pool.mods.brakes); return b ? b.br : 1; };
+const brakeMul = (c) => { const mm = modsOf(c), b = mm && partOf("brakes", mm.brakes); return b ? b.br : 1; };
 // armour and paint go on the body when a car leaves its stall
-function partsApply(car, slot) { const m = slot && slot.mods; if (!m) return; const p = partOf("plating", m.plating); if (p) car.tough = car.tough * p.tough;
-  const c = partOf("paint", m.paint); if (c) { car.tint = c.hex; car.respray = Math.max(1, car.respray || 0); } }
+function partsApply(car, slot) { const m = slot && slot.mods; if (!m) return; const p = partOf("plating", m.plating);
+  if (car.toughBase == null) car.toughBase = car.tough != null ? car.tough : 1; if (p) car.tough = car.toughBase * p.tough;   // idempotent: buying again does not stack
+  const l = partOf("light", m.light); car.lightHex = l ? l.hex : null; }
 // THE CREW CHOPPER (layer 467): a second chopper plate, distinct from the Lion's own
 // (vh_lion_chop, assets/heroes/) -- this one's a stolen gunship the crew flies home, not
 // something he keeps at his own place. Nose-up art, same convention as every other vehicle
@@ -4967,6 +4973,10 @@ for (const k of ["gs_canopy", "gs_pumps", "gs_shop", "tx_gs_forecourt",
                  "veh_fis_trans", "fis_mech", "fis_mech_wreck", "tc_ruin",
                  "fis_badge_silver", "fis_badge_gold"])
   CITY_ART[k] = "assets/city/" + k + ".png";
+/* layer 469: Stan's, Joe's, Tasty's, Kum n Pay (assets/city/) and the supercharger sprites the hood draws (assets/parts/) */
+for (const k of ["st_roof_garage", "st_roof_office", "jo_roof", "km_roof", "km_canopy", "km_pumps2", "km_pump1", "km_floor", "km_tires", "km_ext",
+                 "tt_roof", "tt_canopy", "tt_pump", "tt_pump_2", "tt_pump_b", "tt_truck", "tt_tire"]) CITY_ART[k] = "assets/city/" + k + ".png";
+for (const k of ["s_red", "s_gold", "s_orange", "s_purple"]) CITY_ART["pa_en_" + k] = "assets/parts/en_" + k + ".png";
 const SOV2_ART = {};
 for (const k of ["sv_arch", "sv_pillar", "sv_stair", "sv_manhole", "sv_desk", "sv_map_table",
                  "sv_switchgear", "sv_strongdoor", "sv_crates_a", "sv_crates_b",
@@ -13030,7 +13040,7 @@ export default function IronLionLayer004() {
          in the fleet built for it. That is the whole reason to take Kenny's truck. */
       const offRoad = !onRoad(c.x, c.y);
       const OFFROAD_OK = { kenny_truck: 0.96, hp_truck: 0.94, vh_mvp_atv: 1.0 };
-      const grassMul = !offRoad ? 1 : (OFFROAD_OK[c.m && c.m.k] || 0.62);
+      const grassMul = !offRoad ? 1 : (OFFROAD_OK[c.m && c.m.k] || (offroadTires(c) ? 0.97 : 0.62));
       const boost = ((g.turboT > 0 && c === (inVehicle() ? activeVeh() : null)) ? 1.15 : 1) *
                     (c === g.car && g.carBoost ? g.carBoost : 1) *      // Kowalski's work
                     nitroMul(c);                                       // layer 468: BOS / NOS
@@ -18811,7 +18821,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return true;
     };
     function drawGasStation(c) {
-      const fore = imgs.current["tx_gs_forecourt"];
+      const fore = (gasBrand(c) === "km" && imgs.current.km_floor && imgs.current.km_floor.width) ? imgs.current.km_floor : imgs.current["tx_gs_forecourt"];
       const fp = fore && fore.width ? ctx.createPattern(fore, "repeat") : null;
       ctx.fillStyle = fp || PF("lot", C.lotAsphalt);
       ctx.fillRect(c.lx0, c.ly0, c.lx1 - c.lx0, c.ly1 - c.ly0);
@@ -18861,12 +18871,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.fillRect(cp.x + 12, cp.y + 12, cp.w - 24, cp.h - 24);
       const spots = gasSpots(c);
       for (const [px, py] of spots) {
-        // kerbed island under each pair
-        ctx.fillStyle = "#5d5b55";
-        ctx.fillRect(px - 34, py - 16, 88, 34);
-        ctx.fillStyle = "rgba(226,217,181,0.26)";
-        ctx.fillRect(px - 34, py - 16, 88, 4);
-        if (!propSprite("pump", px - 12, py - 12, 30, 26)) {
+        const nbk = gasBrand(c), kimg = imgs.current.km_pump1, kok = nbk === "km" && kimg && kimg.width;
+        if (!kok) {                                                       // kerbed island under each pair (Kum n Pay's art brings its own)
+          ctx.fillStyle = "#5d5b55";
+          ctx.fillRect(px - 34, py - 16, 88, 34);
+          ctx.fillStyle = "rgba(226,217,181,0.26)";
+          ctx.fillRect(px - 34, py - 16, 88, 4);
+        }
+        if (kok) gasProp("km_pump1", px + 10, py + 20, 62, 1);
+        else if (nbk === "tt" && gasProp("tt_pump", px + 1, py + 14, 24, 1)) { /* Tasty's pump */ }
+        else if (!propSprite("pump", px - 12, py - 12, 30, 26)) {
           // flat top-down pump: body, hose reel, nozzle boot -- all axis-aligned
           ctx.fillStyle = "#c9c3b2"; ctx.fillRect(px - 12, py - 12, 26, 24);
           ctx.fillStyle = "#8e3a30"; ctx.fillRect(px - 12, py - 12, 26, 6);
@@ -18906,25 +18920,29 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.globalAlpha = under ? 0.22 : 1;
         ctx.fillStyle = "rgba(0,0,0,0.42)";
         ctx.fillRect(cp.x + 8, cp.y + 12, cp.w, cp.h);
-        ctx.fillStyle = "#d8d2c2";
-        ctx.fillRect(cp.x, cp.y, cp.w, cp.h);
-        ctx.fillStyle = "#8e3a30";
-        ctx.fillRect(cp.x, cp.y, cp.w, 16);
-        ctx.fillRect(cp.x, cp.y + cp.h - 16, cp.w, 16);
-        ctx.fillStyle = "rgba(0,0,0,0.10)";
-        for (let q = cp.x + 20; q < cp.x + cp.w; q += 40) ctx.fillRect(q, cp.y + 16, 3, cp.h - 32);
+        if (!gasCanopyArt(c, cp)) {
+          ctx.fillStyle = "#d8d2c2";
+          ctx.fillRect(cp.x, cp.y, cp.w, cp.h);
+          ctx.fillStyle = "#8e3a30";
+          ctx.fillRect(cp.x, cp.y, cp.w, 16);
+          ctx.fillRect(cp.x, cp.y + cp.h - 16, cp.w, 16);
+          ctx.fillStyle = "rgba(0,0,0,0.10)";
+          for (let q = cp.x + 20; q < cp.x + cp.w; q += 40) ctx.fillRect(q, cp.y + 16, 3, cp.h - 32);
+        }
         ctx.globalAlpha = 1;
         // shop roof
         const inShop = inRect(pv.x, pv.y, sh);
         ctx.globalAlpha = inShop ? 0.20 : 1;
         ctx.fillStyle = "rgba(0,0,0,0.40)";
         ctx.fillRect(sh.x + 6, sh.y + 8, sh.w, sh.h);
-        ctx.fillStyle = "#4d4a44";
-        ctx.fillRect(sh.x, sh.y, sh.w, sh.h);
-        ctx.fillStyle = "rgba(255,255,255,0.07)";
-        ctx.fillRect(sh.x, sh.y, sh.w, 5);
-        ctx.fillStyle = "rgba(0,0,0,0.16)";
-        ctx.fillRect(sh.x + sh.w * 0.5 - 22, sh.y + 20, 44, 30);   // roof plant
+        if (!gasRoofArt(c, sh)) {
+          ctx.fillStyle = "#4d4a44";
+          ctx.fillRect(sh.x, sh.y, sh.w, sh.h);
+          ctx.fillStyle = "rgba(255,255,255,0.07)";
+          ctx.fillRect(sh.x, sh.y, sh.w, 5);
+          ctx.fillStyle = "rgba(0,0,0,0.16)";
+          ctx.fillRect(sh.x + sh.w * 0.5 - 22, sh.y + 20, 44, 30);   // roof plant
+        }
         ctx.globalAlpha = 1;
       }
     }
@@ -33418,8 +33436,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         text: (g.bmSaid ? "\u201c" + g.bmSaid + "\u201d  " : "") + statText(p), opts }; }
     /* GARAGE PARTS (layer 468): talk to a hired MECHANIC at the scrapyard -> pick a car in the motor pool -> a WHEEL of parts ->
        the shop for that part, with prices. PARTS (top of the file) is the catalogue; the mods live on the pool slot. */
-    function gpSlot() { const M = motorPool(); return M.slots[g.gpSlot] || null; }
-    function nitroOf(v) { const m = v && v.pool && v.pool.mods; return (m && m.nitro) || null; }
+    function gpSlot() { if (g.gpSlot === "car") { const v = activeVeh(); return v && v === g.car ? (v.pool || v) : null; } const M = motorPool(); return M.slots[g.gpSlot] || null; }   // "car" = the one you drove up in (Stan's)
+    function nitroOf(v) { const m = modsOf(v); return (m && m.nitro) || null; }
     function nitroMul(c) { return (g.nitroT || 0) > 0 && c === (inVehicle() ? activeVeh() : null) ? 1.7 : 1; }
     function nitroFire(v) { const nx = nitroOf(v);
       if ((g.nitroT || 0) > 0) return false;
@@ -33429,12 +33447,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.pickupFlash = { nm: "lift:" + nx.t.toUpperCase() + "! " + nx.n + " LEFT", t: 1.6 }; return true; }
     function garageWheel() { const s = gpSlot(); if (!s) { g.pickupFlash = { nm: "lift:THAT CAR'S GONE FROM THE STALL", t: 1.6 }; return; } const m = s.mods || {};
       const cur = (cat, k) => { const q = partOf(cat, k); return q ? q.nm.toLowerCase() : "stock"; };
-      G.radialOpen({ kind: "garage", title: s.nm + " \u00b7 PARTS", items: [
+      G.radialOpen({ kind: "garage", title: (s.nm || "YOUR CAR") + " \u00b7 PARTS", items: [
         { label: "ENGINE", sub: cur("engine", m.engine), icon: PD_ART.pa_en_t_gtr, id: "gp:cat:engine" },
         { label: "BRAKES", sub: cur("brakes", m.brakes), icon: PD_ART.pa_br_3, id: "gp:cat:brakes" },
         { label: "PLATING", sub: cur("plating", m.plating), icon: PD_ART.pa_pt_3_2, id: "gp:cat:plating" },
         { label: "WING", sub: cur("wing", m.wing), icon: PD_ART.pa_wg_4_3, id: "gp:cat:wing" },
-        { label: "PAINT", sub: cur("paint", m.paint), icon: PD_ART.pa_pl_01, id: "gp:cat:paint" },
+        { label: "LIGHTS", sub: cur("light", m.light), icon: PD_ART.pa_pl_01, id: "gp:cat:light" },
+        { label: "TIRES", sub: cur("tires", m.tires), icon: PD_ART.pa_tt_tire, id: "gp:cat:tires" },
         { label: "NITROUS", sub: m.nitro ? m.nitro.t.toUpperCase() + " \u00b7 " + m.nitro.n + " shots" : "none", icon: PD_ART.pa_nx_nos, id: "gp:cat:nitro" }] }); }
     function garagePanel(kind) {
       if (kind === "cars") return { title: "WHICH CAR?", text: "\u201cWhich one you want me under the hood of?\u201d", opts: motorPool().slots.map((c, n) => c ? { id: "gp:car:" + n, label: stallName(n) + " \u00b7 " + c.nm } : null).filter(Boolean).concat([{ id: "close", label: "LATER" }]) };
@@ -33443,12 +33462,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         label: (String(have) === q.k ? "\u2713 " : "") + q.nm + " \u00b7 $" + q.price.toLocaleString() + (q.note ? " \u00b7 " + q.note : "") }));
       if (kind === "nitro" && m.nitro) opts.unshift({ id: "gp:buy:nitro:refill", label: "REFILL THE " + m.nitro.t.toUpperCase() + " TANK \u00b7 $" + (m.nitro.t === "nos" ? 700 : 400) + " A SHOT (" + m.nitro.n + "/3)" });
       opts.push({ id: "gp:back", label: "BACK TO THE WHEEL" }, { id: "close", label: "DONE" });
-      return { title: P.nm + " \u00b7 " + s.nm + " \u00b7 $" + (g.p.cash || 0).toLocaleString(), text: g.gpSaid || ("\u201c" + P.sub + ".\u201d  Pick one and it's on the car by morning."), opts }; }
+      return { title: P.nm + " \u00b7 " + (s.nm || "YOUR CAR") + " \u00b7 $" + (g.p.cash || 0).toLocaleString(), text: g.gpSaid || ("\u201c" + P.sub + ".\u201d  Pick one and it's on the car by morning."), opts }; }
     function garagePick(id) { const [a, x, y] = id.split(":");
       const close = () => { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); };
       if (a === "open") { const n = motorPool().slots.map((c, i) => c ? i : -1).filter((i) => i >= 0);
         if (!n.length) { g.bmSaid = "There's nothing in the pool to work on, boss."; G.pickOpen("baseman"); return; }
         if (n.length === 1) { g.gpSlot = n[0]; close(); setTimeout(garageWheel, 20); } else G.pickOpen("gp:cars"); return; }
+      if (a === "mine") { g.gpSlot = "car"; close(); setTimeout(garageWheel, 20); return; }
       if (a === "car") { g.gpSlot = +x; close(); setTimeout(garageWheel, 20); return; }
       if (a === "cat") { g.gpSaid = null; G.pickOpen("gp:" + x); return; }
       if (a === "back") { close(); setTimeout(garageWheel, 20); return; }
@@ -33459,8 +33479,22 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if ((x === "nitro" ? (m.nitro && m.nitro.t) : m[x]) === y) { g.gpSaid = "\u201cIt's already on there.\u201d"; }
         else if ((g.p.cash || 0) < q.price) g.gpSaid = "\u201cThat's $" + q.price.toLocaleString() + ". You got $" + (g.p.cash || 0).toLocaleString() + ".\u201d";
         else { g.p.cash -= q.price; if (x === "nitro") m.nitro = { t: y, n: 3 }; else m[x] = y;
-          g.gpSaid = "\u201c" + q.nm.toLowerCase() + ". Nice. Take her round the block.\u201d"; g.pickupFlash = { nm: "lift:" + q.nm, t: 1.4 }; }
+          g.gpSaid = "\u201c" + q.nm.toLowerCase() + ". Nice. Take her round the block.\u201d"; g.pickupFlash = { nm: "lift:" + q.nm, t: 1.4 }; if (g.car && (s === g.car || g.car.pool === s)) partsApply(g.car, s); }
         G.pickOpen("gp:" + x); return; } }
+    /* layer 469: lights under and in front of the car, the blower on the hood, the new station art */
+    function drawUnderglow(hex, w, L) { const rgb = hexRgb(hex); ctx.save(); ctx.globalCompositeOperation = "lighter";
+      const gr = ctx.createRadialGradient(0, 0, L * 0.12, 0, 0, L * 0.78), a = 0.30 + 0.35 * (g.night || 0);
+      gr.addColorStop(0, `rgba(${rgb},${a})`); gr.addColorStop(1, `rgba(${rgb},0)`);
+      ctx.scale(w / L * 1.55, 1); ctx.fillStyle = gr; ctx.fillRect(-L, -L, L * 2, L * 2); ctx.restore(); }
+    function drawHoodBlower(c, L) { const m = modsOf(c), e = m && partOf("engine", m.engine); if (!e || e.k.charAt(0) !== "s") return;
+      const ei = imgs.current["pa_" + e.img]; if (!ei || !ei.width) return;
+      const EL = L * 0.36, EW = ei.height * (EL / ei.width);
+      ctx.save(); ctx.translate(0, -L * 0.30); ctx.rotate(Math.PI / 2);          // art is nose-up, the blower's belt end points at the nose
+      ctx.drawImage(ei, -EL / 2, -EW / 2, EL, EW); ctx.restore(); }
+    function gasBrand(c) { return ((Math.floor(c.lx0 / PITCH) + Math.floor(c.ly0 / PITCH)) & 1) ? "km" : "tt"; }   // Kum n Pay or Tasty's, by cell
+    function gasCanopyArt(c, r) { const km = gasBrand(c) === "km", im = imgs.current[km ? "km_canopy" : "tt_canopy"]; if (!im || !im.width) return false;
+      if (km) ctx.drawImage(im, 0, im.height * 0.27, im.width, im.height * 0.46, r.x, r.y, r.w, r.h); else ctx.drawImage(im, r.x, r.y, r.w, r.h); return true; }
+    function gasRoofArt(c, r) { const im = imgs.current[gasBrand(c) === "km" ? "km_roof" : "tt_roof"]; if (!im || !im.width) return false; ctx.drawImage(im, r.x, r.y, r.w, r.h); return true; }
     function bmExtraOpts(p) { ensureStats(p); const o = [];
       if (p.role === "mechanic") o.push({ id: "gp:open", label: "WORK ON A CAR \u00b7 PARTS & TUNING" });       // layer 468
       if (!p.crew) o.push({ id: "bm:x:view:trade", label: "TRADE: " + HIRES[p.role].nm + " \u00b7 CHANGE" });
@@ -36690,7 +36724,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const D0 = out[0]; if (D0) { let best = null, bd = 1e12; const ci = Math.floor(D0.b.x / PITCH), cj = Math.floor(D0.b.y / PITCH);
         for (let i = ci - 2; i <= ci + 2; i++) for (let j = cj - 2; j <= cj + 2; j++) { const c = getCell(i, j); if (!c) continue;
           for (const b of c.blds || []) { if (!b.door || b.dealer || b.school || b.landmark || b.homeOf || b.stuHome || b.pd || b.hideout || b.mercBar) continue; const d = Math.hypot(b.x - D0.b.x, b.y - D0.b.y); if (d > 200 && d < bd) { bd = d; best = b; } } }
-        if (best) { best.repair = 1; best.name = "EDDIE'S AUTO BODY & REPAIR"; best.roofKey = roofFor("rf_repair", best); best._plate = undefined; g.repairB = best; } }
+        if (best) { best.repair = 1; best.name = "STAN'S GARAGE"; best.roofKey = "st_roof_garage"; best._plate = undefined; g.repairB = best; } }
       return (g.dealersB = out);
     }
     function drawDealers(view) {
@@ -36747,8 +36781,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.repairFn = () => { const R = g.repairB; if (!R || (g.mode !== "car" && g.mode !== "civ")) return false; const d = doorPoint(R); const v = activeVeh(); if (!v || Math.hypot(v.x - d[0], v.y - d[1]) > 140) return false;
       g.repairSaid = null; G.pickOpen("repair"); return true; };
     function repairPanel() { const v = activeVeh(); if (!v) return null; const bad = Math.min(1, (v.crush || 0) + (v.dmg || 0) + (v.dents ? v.dents.length * 0.05 : 0) + (v.hit ? 0.3 : 0)), cost = Math.round(150 + bad * 1200);
-      return { title: "EDDIE'S AUTO BODY & REPAIR", face: null, text: g.repairSaid || "\u201cWhat'd you do to it?\u201d Eddie walks round it, wiping his hands. Fix: $" + cost + ". Plates: $250. You have $" + (g.p.cash || 0) + ".",
-        opts: [{ id: "rep:fix:" + cost, label: "FIX IT ($" + cost + ")" }, { id: "rep:plates", label: "SWAP THE PLATES ($250)" }, { id: "close", label: "NEVER MIND" }] }; }
+      return { title: "STAN'S GARAGE", face: null, text: g.repairSaid || "\u201cWhat'd you do to it?\u201d Stan walks round it, wiping his hands. Fix: $" + cost + ". Plates: $250. You have $" + (g.p.cash || 0) + ".",
+        opts: [{ id: "rep:fix:" + cost, label: "FIX IT ($" + cost + ")" }].concat(v === g.car ? [{ id: "gp:mine", label: "UPGRADE & TUNE MY CAR" }] : []).concat([ { id: "rep:plates", label: "SWAP THE PLATES ($250)" }, { id: "close", label: "NEVER MIND" }]) }; }
     function repairAct(a, n) { const v = activeVeh(); if (!v) return;
       if (a === "fix") { const cost = +n; if ((g.p.cash || 0) < cost) { g.repairSaid = "\u201cCash first, pal.\u201d"; return; } g.p.cash -= cost; v.crush = 0; v.dmg = 0; v.dents = []; v.hit = null; v.idn = v.idn ? { ...v.idn, flag: null } : v.idn; g.repairSaid = "Good as new. \u201cTry not to do that again.\u201d"; }
       /* SWAP THE PLATES (layer 511, instead of the respray): new numbers off a wreck in Eddie's back lot. The car's no
@@ -40917,7 +40951,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.save();
       ctx.translate(c.x, c.y); ctx.rotate(c.ang + Math.PI / 2);
       drawShadow(2, 6, w * 0.44, L * 0.42, 0.35);
+      if (c.lightHex) drawUnderglow(c.lightHex, w, L);
       drawBody(im, w, L, c);
+      drawHoodBlower(c, L);
       ctx.restore();
       drawDamageFx(c, L);
       // brake lights
@@ -41131,9 +41167,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.mode === "car") {
         const c = g.car, fx = Math.cos(c.ang), fy = Math.sin(c.ang);
         const gx = c.x + fx * 46, gy = c.y + fy * 46;
-        const gr = ctx.createRadialGradient(gx, gy, 6, gx, gy, 330);
-        gr.addColorStop(0, `rgba(255,240,200,${0.5 * n})`);
-        gr.addColorStop(1, "rgba(255,240,200,0)");
+        const gr = ctx.createRadialGradient(gx, gy, 6, gx, gy, 330), hlc = c.lightHex ? hexRgb(c.lightHex) : "255,240,200";
+        gr.addColorStop(0, `rgba(${hlc},${0.5 * n})`);
+        gr.addColorStop(1, `rgba(${hlc},0)`);
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(gx - fy * 26, gy + fx * 26);
