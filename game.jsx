@@ -12392,6 +12392,7 @@ export default function IronLionLayer004() {
     /* After the door, for the same reason the table is: a truck parked near an entrance should
        not stop you going inside. Walking up to something never beats walking into something. */
     if (g.mode === "foot" && !g.inside && G.truckFn && G.truckFn()) return;
+    if (g.mode === "foot" && !g.inside && G.gasShopFn && G.gasShopFn()) return;       // layer 470: the counter / the dealer at the station
     if (g.mode === "foot" && g.onPlat == null) {
       mountNearest();
     } else {
@@ -16552,7 +16553,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function drawBackup(view) {
       if (g.inside) return;
       if (g.prisonMode) { drawPrisonIntro(); if (g.pintro) drawPrisonOver(view);    // the line walks UNDER the gate house (layer 518: the intro folk were drawn after it)
-        drawBlockLabels(view); drawBasketball(view); drawHideoutYard(view); drawStreetPeople(view); drawYardGuards(view); drawTunnelSpots(); drawMission(); drawFollowers(); drawPrisonFx(); drawTargetArrow(); }
+        drawBlockLabels(view); drawBasketball(view); drawHideoutYard(view); drawStreetPeople(view); drawGasDealers(view); drawYardGuards(view); drawTunnelSpots(); drawMission(); drawFollowers(); drawPrisonFx(); drawTargetArrow(); }
       drawK9();
       for (const c of g.backup || []) {
         const im = imgs.current[c.m.k];
@@ -16587,6 +16588,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind && kind.startsWith("gomez:")) return gomezPanel(kind.slice(6));
       if (kind && kind.startsWith("house:")) return housePanel(kind.slice(6));
       if (kind && kind.startsWith("gp:")) return garagePanel(kind.slice(3));
+      if (kind && kind.startsWith("gs:")) return gasPanel(kind.slice(3));
       if (kind && kind.startsWith("det:")) {
         const d = (g.dets && g.dets.four || []).find((q) => q.id === kind.slice(4));
         if (!d) return { title: "", opts: [{ id: "close", label: "BACK" }] };
@@ -16769,6 +16771,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("wpc:")) { wardenPcGo(id.slice(4)); return; }
       else if (id === "deal:buy") { dealerBuy(); G.pickOpen("dealer"); return; }
       else if (id.startsWith("gp:")) { garagePick(id.slice(3)); return; }
+      else if (id.startsWith("gs:")) { gasPick(id.slice(3)); return; }
       else if (id.startsWith("rep:")) { const [, a, n] = id.split(":"); repairAct(a, n); G.pickOpen("repair"); return; }
       else if (id.startsWith("stu:")) { G.stuPick(id); if (g.pickOpen) G.pickOpen(g.pickOpen); return; }
       else if (id.startsWith("sleep:")) { G.sleepPick(id.slice(6)); return; }
@@ -33495,6 +33498,64 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function gasCanopyArt(c, r) { const km = gasBrand(c) === "km", im = imgs.current[km ? "km_canopy" : "tt_canopy"]; if (!im || !im.width) return false;
       if (km) ctx.drawImage(im, 0, im.height * 0.27, im.width, im.height * 0.46, r.x, r.y, r.w, r.h); else ctx.drawImage(im, r.x, r.y, r.w, r.h); return true; }
     function gasRoofArt(c, r) { const im = imgs.current[gasBrand(c) === "km" ? "km_roof" : "tt_roof"]; if (!im || !im.width) return false; ctx.drawImage(im, r.x, r.y, r.w, r.h); return true; }
+    /* THE COUNTER AND THE CORNER (layer 470). Every gas station now has a shop you can walk up to on foot:
+       [E] at the counter = SNACKS & DRINKS (the same overlay and the same ITEM_FX the food trucks use, so soda is stamina and a hot dog is
+       health) and, when somebody is working the lot, WHO'S WORKING THE LOT. A dealer is "working near" a station when (a) one of YOUR
+       corners (B.spots, kind corner) is within 700 of it -- he sells at his cut-price -- or (b) the war turf the station stands on has an
+       owner: that gang's man stands at the shop corner at night (and by day at one station in three). What he sells is what that turf's
+       gang sells (WAR_GANGS[k].drugs plus the drugs of any houses on the turf). Bags go to g.p.drugs. */
+    const GAS_MENU = [["soda", 1], ["chips", 1], ["chocolate", 1], ["coffee", 1], ["hotdog", 2], ["sandwich", 3], ["apple", 1], ["beer", 2]];
+    const DRUG_PRICE = { leaf: 20, stone: 35, diamond: 60, sky: 120 };
+    const gasName = (c) => (gasBrand(c) === "km" ? "KUM N PAY" : "TASTY'S");
+    function gasStations() { const out = []; for (const gc of GAS_CELLS) { const c = getCell(gc.i, gc.j); if (c) out.push(c); } return out; }
+    function areaDrugs(x, y) { const W = warInit(), t = W.turfs[turfKey(...turfOf(x, y))];
+      if (!t || !t.owner) return { drugs: ["leaf"], gang: null };
+      const set = new Set(WAR_GANGS[t.owner] ? WAR_GANGS[t.owner].drugs : (t.owner === "deuce" ? ["sky", "stone"] : ["leaf"]));
+      for (const d of t.dens || []) set.add(d.drug);
+      return { drugs: Array.from(set), gang: t.owner }; }
+    function gasDealers(c) { const sh = gasShop(c), cx = sh.x + sh.w / 2, cy = sh.y + sh.h / 2, out = [], B = g.board2, K = Math.floor(c.lx0 / PITCH) * 31 + Math.floor(c.ly0 / PITCH);
+      for (const s of (B && B.spots) || []) if (s.kind === "corner" && Math.hypot(s.x - cx, s.y - cy) < 700)
+        out.push({ mine: 1, x: s.x, y: s.y, nm: "YOUR DEALER", drugs: areaDrugs(s.x, s.y).drugs });
+      const A = areaDrugs(cx, cy);
+      if (A.gang && ((g.night || 0) > 0.15 || K % 3 === 0))
+        out.push({ mine: 0, x: sh.x - 24, y: sh.y + sh.h + 8, nm: (GANG_LABEL[A.gang] || "LOCAL") + " DEALER", gang: A.gang, drugs: A.drugs, yt: "yt_hire_dealer_" + (1 + (Math.abs(K) % 3)) });
+      return out; }
+    function gasNear() { if (g.mode !== "foot" || g.inside) return null;
+      for (const c of gasStations()) { const sh = gasShop(c);
+        if (Math.abs(g.p.x - (sh.x + sh.w / 2)) > 800 || Math.abs(g.p.y - (sh.y + sh.h / 2)) > 800) continue;
+        for (const D of gasDealers(c)) if (Math.hypot(g.p.x - D.x, g.p.y - D.y) < 58) return { c, D };
+        if (Math.hypot(g.p.x - (sh.x + 68), g.p.y - (sh.y + 33)) < 90) return { c, D: null }; }
+      return null; }
+    const gasPrompt = () => { const n = gasNear(); return n ? (n.D ? "BUY FROM THE " + n.D.nm : "BUY SNACKS & DRINKS") : ""; };
+    G.gasShopFn = () => { const n = gasNear(); if (!n) return false; g.gasAt = n.c; g.gasDealer = n.D; g.gasSaid = null; G.pickOpen(n.D ? "gs:deal" : "gs:shop"); return true; };
+    function gasPanel(kind) { const c = g.gasAt; if (!c) return null; const cash = g.p.cash || 0, hold = g.p.drugs || {};
+      if (kind === "shop") return { title: gasName(c) + " \u00b7 $" + cash.toLocaleString(), face: null, text: g.gasSaid || "\u201cHelp you?\u201d  The clerk doesn't look up from his paper.",
+        opts: [{ id: "gs:snacks", label: "SNACKS & DRINKS" }].concat(gasDealers(c).length ? [{ id: "gs:street", label: "WHO'S WORKING THE LOT?" }] : []).concat([{ id: "close", label: "NOTHING" }]) };
+      if (kind === "deal") { const D = g.gasDealer; if (!D) return null;
+        const have = Object.keys(hold).filter((k) => hold[k] > 0).map((k) => DRUGS[k].nm + " x" + hold[k]).join(", ") || "NOTHING";
+        const px = (k) => Math.round(DRUG_PRICE[k] * (D.mine ? 0.8 : 1)), opts = [];
+        for (const k of D.drugs) { opts.push({ id: "gs:buy:" + k + ":1", icon: "assets/drugs/dr_" + k + "_bag.png", label: DRUGS[k].nm + " \u00b7 1 BAG \u00b7 $" + px(k) });
+          opts.push({ id: "gs:buy:" + k + ":5", icon: "assets/drugs/dr_" + k + "_bag.png", label: DRUGS[k].nm + " \u00b7 5 BAGS \u00b7 $" + px(k) * 5 }); }
+        return { title: D.nm + " \u00b7 $" + cash.toLocaleString(), face: null,
+          text: (g.gasSaid || (D.mine ? "\u201cBoss. Same as the street, cheaper for you.\u201d" : "\u201cYou buying or you looking? " + (GANG_LABEL[D.gang] || "Local") + " product.\u201d")) + "\n\nYOU HOLD: " + have,
+          opts: opts.concat([{ id: "close", label: "WALK AWAY" }]) }; }
+      return null; }
+    function gasPick(id) { const [a, k, n] = id.split(":"), c = g.gasAt;
+      if (a === "snacks") { const t = { name: gasName(c) + " \u00b7 THE SHELVES", menu: GAS_MENU }; g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+        setTimeout(() => { g.truckOpen = t; g.paused = true; setHud((h) => ({ ...h, truck: { name: t.name, menu: t.menu } })); }, 20); return; }
+      if (a === "street") { const Ds = gasDealers(c); const D = Ds.find((d) => d.mine) || Ds[0]; if (!D) return; g.gasDealer = D;
+        g.gasSaid = "\u201c" + (D.mine ? "Your man's working the corner down the way" : "Kid by the corner of the lot") + ". Sells " + D.drugs.map((q) => DRUGS[q].nm.toLowerCase()).join(" and ") + ". I didn't see nothing.\u201d"; G.pickOpen("gs:deal"); return; }
+      if (a === "buy") { const D = g.gasDealer; if (!D || D.drugs.indexOf(k) < 0) return; const q = +n, cost = Math.round(DRUG_PRICE[k] * (D.mine ? 0.8 : 1)) * q;
+        if ((g.p.cash || 0) < cost) g.gasSaid = "\u201cCome back when you've got it.\u201d";
+        else { g.p.cash -= cost; g.p.drugs = g.p.drugs || {}; g.p.drugs[k] = (g.p.drugs[k] || 0) + q;
+          g.gasSaid = "\u201cPleasure.\u201d  " + q + " bag" + (q > 1 ? "s" : "") + " of " + DRUGS[k].nm.toLowerCase() + ", $" + cost + "."; g.pickupFlash = { nm: "lift:" + q + " " + DRUGS[k].nm + " BAG" + (q > 1 ? "S" : ""), t: 1.4 }; }
+        G.pickOpen("gs:deal"); } }
+    function drawGasDealers(view) { if (g.inside) return;
+      for (const c of gasStations()) { const sh = gasShop(c); if (sh.x > view.x1 + 120 || sh.x + sh.w < view.x0 - 120 || sh.y > view.y1 + 120 || sh.y + sh.h < view.y0 - 120) continue;
+        for (const D of gasDealers(c)) { if (D.mine) continue;
+          const q = { x: D.x, y: D.y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt: D.yt, bang: Math.PI / 2 };
+          drawShadow(q.x, q.y + 2, 9, 4, 0.3); drawYouth(q);
+          ctx.font = "700 8px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#ff9a7a"; ctx.fillText(D.nm, q.x, q.y - 28); ctx.textAlign = "start"; } } }
     function bmExtraOpts(p) { ensureStats(p); const o = [];
       if (p.role === "mechanic") o.push({ id: "gp:open", label: "WORK ON A CAR \u00b7 PARTS & TUNING" });       // layer 468
       if (!p.crew) o.push({ id: "bm:x:view:trade", label: "TRADE: " + HIRES[p.role].nm + " \u00b7 CHANGE" });
@@ -42443,6 +42504,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             atTruck: (() => { const t = nearTruck(); return t ? t.name : null; })(),
             atTable: nearTable() || !!nearDealer(),
             atDealer: !!nearDealer(),
+            gasAct: gasPrompt(),
             /* Which building and which floor plan. "the casino has no tables" and "I am not in
                the casino" look identical from the outside, and this tells them apart. */
             /* The loader writes to `window.__ironlion`, NOT to the game object -- reading
@@ -49179,6 +49241,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       {hud.atTable && (
         <div style={{ marginTop: 8, fontSize: 10, color: C.gold, letterSpacing: "0.12em" }}>
           [E] {hud.atDealer ? "TALK TO THE DEALER" : "SIT DOWN"}
+        </div>
+      )}
+      {hud.gasAct && !hud.atTable && (
+        <div style={{ marginTop: 8, fontSize: 10, color: C.gold, letterSpacing: "0.12em" }}>
+          [E] {hud.gasAct}
         </div>
       )}
       {hud.tableAsk && (
