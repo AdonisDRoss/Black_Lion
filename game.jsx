@@ -3688,7 +3688,7 @@ const CREW = [
     face: "pt_crew_viejo", faceCiv: "pt_crew_viejo_civ", line: "Sit down, mijo. Nobody touches you at my table." },
   { id: "leroy", name: "Leroy Banks", no: "5512", car: "car_crew_leroy", tall: 1.25,
     face: "pt_crew_leroy", faceCiv: "pt_crew_leroy_civ", line: "You keep your head down, I keep your back. That's the deal." },
-  { id: "ras", name: "Ras Leroy", no: "0876", car: "car_crew_ras", tall: 1.28,
+  { id: "ras", name: "Ras Campbell", no: "0876", car: "car_crew_ras", tall: 1.28,
     face: "pt_crew_ras", faceCiv: "pt_crew_ras", line: "Easy, bredren. Time pass whether you fight it or not." },
 ];
 /* "WHAT HAPPENS WHEN WE GET OUT?" -- each of them has his own answer (layer 519). */
@@ -3700,6 +3700,17 @@ const CREW_OUT = {
 /* THE HIRES (layer 438): three looks for each role, plate + face, assets/hires/. */
 const HIRE_ROLES = ["dealer", "driver", "shooter", "bomber", "lookout", "mechanic", "forger", "enforcer", "safecracker", "fence", "fixer", "chemist", "thief", "locksmith"];   // thief + locksmith: art owed (layer 509)
 for (const r of HIRE_ROLES) for (let v = 1; v <= 3; v++) for (const k of ["yt_hire_" + r + "_" + v, "pt_hire_" + r + "_" + v]) PD_ART[k] = "assets/hires/" + k + ".png";
+/* THE BRATVA (layer 486): Donny's six Boznov henchmen, top-down, assets/crew/yt_bratva_1..6 -- 1 spiky hair in the grey
+   bomber, 2 buzz cut in the grey bomber, 3 the beanie and leather, 4 the brown corduroy blazer, 5 the striped sweater,
+   6 the maroon blazer. The first street art the Boznovs have ever had. */
+const BRATVA_YT = [1, 2, 3, 4, 5, 6].map((i) => "yt_bratva_" + i);
+/* THE FAMILY ON THEIR FEET (layer 489): Donny's top row -- the busts -- are their top-down plates; the bottom row stays
+   their profile pictures (pt_bozni_*). A bust has no arms, so drawYouth draws a pair in the jacket's colour (YT_ARMS). */
+for (const k of ["vlad", "victor", "grigori", "katya"]) PD_ART["yt_bozni_" + k] = "assets/crew/bust_bozni_" + k + ".png";
+const YT_ARMS = { yt_bozni_vlad: ["#3d4149", "#c9967a"], yt_bozni_victor: ["#4a6f9c", "#b88262"], yt_bozni_grigori: ["#1d1e22", "#c4927a"], yt_bozni_katya: ["#18181c", "#efc7aa"] };
+PD_ART.it_hippie_bag = "assets/items/it_hippie_bag.png";      // the Happy Hippie duffel: the money bags (layer 489)
+// card_rus: the Bratva's card, Donny's art (layer 492) -- registered with the other cards
+for (const k of BRATVA_YT) PD_ART[k] = "assets/crew/" + k + ".png";
 for (const c of CREW) for (const k of ["yt_crew_" + c.id, "yt_crew_" + c.id + "_in", c.face, c.faceCiv]) PD_ART[k] = "assets/crew/" + k + ".png";
 /* CARS THE PLAYER CAN BUY (nose up). One is waiting at the garage when he gets it. */
 const BUY_CARS = ["buy_coupe", "buy_fastback", "buy_turbo", "buy_delorean_b", "buy_delorean_c", "buy_sedan_red",      // buy_delorean_a (the white one) cut, layer 511
@@ -3781,7 +3792,7 @@ PD_ART.bank_interior = "assets/bank/bank_interior.png";
 /* LAYER 493: the landmark art, registered for the builds to come (UNION TERMINAL on the El, the container port, the
    airport). Not drawn yet. */
 PD_ART.bank_major_int = "assets/bank/bank_major_int.png";
-for (const k of ["deuce", "wolves", "chi", "irish", "mob_young", "barrio", "brack", "kings", "gomez", "mob_old", "sec", "city", "blank"]) PD_ART["card_" + k] = "assets/cards/card_" + k + ".png";   // layer 502: the planning-table cards (by gang key) PD_ART.rf_air_tower = "assets/roofs/rf_air_tower.png"; PD_ART.rf_bombed_roof = "assets/bombed/rf_bombed_roof.png";   // layer 496
+for (const k of ["deuce", "wolves", "chi", "irish", "mob_young", "barrio", "brack", "kings", "gomez", "mob_old", "sec", "city", "blank", "rus"]) PD_ART["card_" + k] = "assets/cards/card_" + k + ".png";   // layer 502: the planning-table cards (by gang key) PD_ART.rf_air_tower = "assets/roofs/rf_air_tower.png"; PD_ART.rf_bombed_roof = "assets/bombed/rf_bombed_roof.png";   // layer 496
 for (const k of ["rf_union_terminal", "rf_po_gate", "rf_air_terminal", "rf_air_hangar"]) PD_ART[k] = "assets/roofs/" + k + ".png";
 for (const k of ["gc_concourse", "gc_platform"]) PD_ART[k] = "assets/station/" + k + ".png";
 for (const k of ["px_gantry", "px_ship"]) PD_ART[k] = "assets/port/" + k + ".png";
@@ -6354,6 +6365,7 @@ const DOORW = 48;          // 2.2m. 34 was a doorway two people could not pass i
                             // mathematically impossible to walk through no matter how carefully aimed
 
 function floorKind(b, f) {
+  if (b.aptArt) return "aptart";                                    // Palm Court (layer 477): one open floor, the painted flats do the rest
   if (b.stuHome) return f === 0 ? "stuhome" : "stuupper";          // student mode: downstairs living + kitchen, upstairs the bedrooms
   if (b.school) return f === 0 ? "school_g" : f === 1 ? "school_c" : "office";     // the schools: ground + classrooms (layer 456)
   if (b.mercBar && f === (b.entry || 0)) return "mercbar";          // the Rusty Nail: one open room
@@ -6523,7 +6535,9 @@ function makeFloor(b, f, rnd) {
   let hub = -1;
   const horiz = b.w >= b.h;
 
-  if (kind === "house_g1") {
+  if (kind === "aptart") {
+    hub = put(0, 0, GX - 1, GY - 1, "aptopen");                      // layer 477: the picture is the plan (fitArtFloor)
+  } else if (kind === "house_g1") {
     // single storey: living, kitchen, hall, bath, ONE bedroom
     const hy = Math.max(1, GY - 2);
     const mx = Math.max(1, Math.round(GX * 0.55));
@@ -7428,6 +7442,10 @@ function makeFloor(b, f, rnd) {
     ? { x: b.x + WT + 12, y: b.y + b.h - WT - 50, w: 64, h: 38 }
     : kind === "motorpool"
     ? poolLayout(b).stair                                   // the end of the lane (layer 506)
+    : kind === "aptart"
+    ? (() => { const [sx, sy] = artFrac(b, 0.5, 0.19); return { x: sx - 32, y: sy - 19, w: 64, h: 38 }; })()   // the top of the hall (layer 477)
+    : b.happyHippy
+    ? { x: b.x + b.w * 0.5 - 32, y: b.y + b.h - WT - 52, w: 64, h: 38 }    // the Happy Hippy: bottom middle, both floors (layer 477)
     : kind === "gymfloor"
     ? { x: b.x + b.w * (0.5 + GYM_STAIR.fx) - 32, y: b.y + b.h * (0.5 + GYM_STAIR.fy) - 19, w: 64, h: 38 }
     : {
@@ -9579,6 +9597,12 @@ function mkB(bx, by, bw, bh, floors, kind, rnd, key) {
    entry floor once, finds the rooms that touch the door's face, and moves the door to the middle
    of the one with the most wall on that side (the hall first, if it has one), then throws the
    plan away so it is rebuilt with the door where it belongs. */
+/* A PAINTED PICTURE FACES ITS DOOR (layer 477). Every painted floor and roof is drawn with its front at the bottom; a
+   building with b.artFace turns it so the bottom is on the door side: south 0, west a quarter clockwise, north a half,
+   east a quarter back. artTurn is that quarter count; artFrac maps picture fractions onto the footprint. */
+function artTurn(b) { if (!b || !b.artFace || !b.door) return null; return [2, 3, 0, 1][b.door.side]; }
+function artFrac(b, fx, fy) { const t = artTurn(b) || 0, W = b.w, H = b.h;
+  return t === 1 ? [b.x + (1 - fy) * W, b.y + fx * H] : t === 2 ? [b.x + (1 - fx) * W, b.y + (1 - fy) * H] : t === 3 ? [b.x + fy * W, b.y + (1 - fx) * H] : [b.x + fx * W, b.y + fy * H]; }
 function settleDoor(b) {
   if (!b || !b.door) return;
   b.plans = null;
@@ -9855,8 +9879,14 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     b.retail = true; b.eatery = kd !== "gunshop";
     if (bar) { b.style = bar.style; b.biz = "bar"; b.signKey = BAR_KIT[bar.style].sign; }
     else if (kd === "cafe") { b.biz = "cafe"; b.signKey = "sign_marquee"; }
-    else { b.biz = "guns"; b.signKey = "sign_wood"; b.name = "RAVEN HOOK FIREARMS"; }
+    else { b.biz = "guns"; b.signKey = "sign_wood"; b.name = "RIGHT TO ARMS"; }
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+    /* RIGHT TO ARMS (layer 477, Donny's roof and floor): the four gun shops are the chain now. Footprint to the art
+       (about 2.1 : 1, long side on the street), the door in the middle of the street face, roof and floor turned to it. */
+    if (kd === "gunshop") { const s = b.door.side, L = Math.min(Math.max(LW, LH) * 0.78, 600), S2 = L / 2.1, cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+      if (s === 0 || s === 2) { b.w = Math.min(L, LW - 60); b.h = b.w / 2.1; } else { b.h = Math.min(L, LH - 60); b.w = b.h / 2.1; }
+      b.x = clamp(cx - b.w / 2, lx0 + 20, lx1 - 20 - b.w); b.y = clamp(cy - b.h / 2, ly0 + 20, ly1 - 20 - b.h); void S2;
+      b.door.pos = 0.5; b.roofKey = "rf_gun_store"; b.artFace = 1; b.artFloors = { 0: "int_gun_store" }; b.artCounter = [0.85, 0.19]; b.plans = null; }
     return dryOut(out);
   }
   /* Both go in AHEAD of every zone branch, including the water branch -- an island building
@@ -10549,12 +10579,23 @@ const GAME_TITLE = "RAVEN HOOK", GAME_KICKER = "1986", GAME_TAG = "THE LION \u00
    they folded at the first hit. Now every car you drive is stiffer than the street's. */
 const PLAYER_TOUGH = { lion: 0.24, crew: 0.2, street: 0.38, rig: 0.3 };
 // art the code is ready for but that hasn't been made yet -- it falls back quietly instead of counting as missing
-const OPTIONAL_ART = new Set(["ui_cuffs", "pr_roof_donblock", "plate_emblem", "rf_bozni_manor"]);   // the manor roof is still coming (layer 476)
+const OPTIONAL_ART = new Set(["ui_cuffs", "pr_roof_donblock", "plate_emblem"]);   // the manor roof came in with layer 477
 /* LAYER 476 ART (art_476.zip): the Boznov fronts' roofs, the painted interiors, the brothers' faces, the utility crew. */
 for (const k of ["rf_raven_auto", "rf_ravens_nest", "rf_rusty_nail", "rf_happy_hippy", "rf_bozni_manor", "pl_pole_top"]) PD_ART[k] = "assets/city/" + k + ".png";
 for (const k of ["int_strip_club", "int_raven_auto", "int_bozni_f0", "int_bozni_f1", "int_bar_long"]) PD_ART[k] = "assets/interiors/" + k + ".png";
 for (const k of ["yt_rhu_worker"]) PD_ART[k] = "assets/crew/" + k + ".png";
 PD_ART.vh_rhu_truck = "assets/vehicles/vh_rhu_truck.png"; PD_ART.tx_ot_cobble = "assets/tex/tx_ot_cobble.png";
+/* LAYER 477 ART (art_477.zip): the manor roof, Palm Court (the roof, the pool, the planters, the four painted floors -- built from
+   Donny's furniture, bathroom and carpet sheets, which ship as assets/home2/), RIGHT TO ARMS (roof + floor), the Happy Hippy's club. */
+/* REY'S OUTFITS (layer 483, Donny's art, skin taken a shade darker): changed at the closet in 1A or any dresser -- a wheel. */
+const REY_FITS = { street: { nm: "STREET CLOTHES", k: "yt_player_civ" }, track: { nm: "THE TRACKSUIT", k: "yt_rey_track" }, suit: { nm: "THE SUIT", k: "yt_rey_suit" },
+  work: { nm: "THE WORK JACKET", k: "yt_rey_work" }, workvest: { nm: "THE WORK VEST", k: "yt_rey_workvest" }, leather: { nm: "THE LEATHER VEST", k: "yt_rey_leather" } };
+for (const k of ["track", "suit", "work", "workvest", "leather"]) PD_ART["yt_rey_" + k] = "assets/prison/yt_rey_" + k + ".png";
+PD_ART.vh_hippy_truck = "assets/vehicles/vh_hippy_truck.png";   // the Happy Hippie Laundry Co. truck (layer 485)
+PD_ART.pr_phone_booth = "assets/city/pr_phone_booth.png"; PD_ART.fu_phone = "assets/home2/fu_phone.png";   // layer 480
+for (const k of ["rf_apartment", "rf_gun_store", "ap_pool", "ap_tree_big", "ap_tree_small", "ap_fountain"]) PD_ART[k] = "assets/city/" + k + ".png";
+for (const k of ["int_apt_long_f0", "int_apt_long_f1", "int_apt_side_f0", "int_apt_side_f1", "int_gun_store", "int_happy_hippy"]) PD_ART[k] = "assets/interiors/" + k + ".png";
+for (const k of ["tx_pool_water", "tx_carpet_blue", "tx_carpet_tan"]) PD_ART[k] = "assets/tex/" + k + ".png";
 // Don Matteo's men in the Old Block (layer 516)
 const DON_MEN = ["Nunzio Ferrante", "Carmine 'The Nail' Lupo", "Vito Zerilli", "Benny Agostino"];
 /* ART ON DEMAND (layer 516): what loads before the game starts, and the memory budget after that. */
@@ -12244,6 +12285,7 @@ export default function IronLionLayer004() {
   function doAction() {
     const g = G.current;
     if (g.pintro) { G.introSkip && G.introSkip(); return; }             // E skips the bus
+    if (G.truckFn && G.truckFn()) return;                                 // the Happy Hippy's laundry truck, before its door (layer 485)
     /* STAIRS FIRST (layer 514). Standing ON a stair, E is the stairs -- before anyone you could talk to, a car in the
        garage bay, a table, a locker. It used to be asked last, so a man or a parked car near the stairwell won. */
     if (g.mode === "foot" && g.inside && G.stairFn) {
@@ -12265,7 +12307,26 @@ export default function IronLionLayer004() {
     if (g.inside && G.motorFn && G.motorFn()) return;                // the motor pool (layer 497)
     if (G.misDoorFn && G.misDoorFn()) return;                        // a job's back door (layer 508)
     if (g.inside && G.vaultFn && G.vaultFn()) return;                // the open vault (layer 496)
+    if (g.inside && G.bkTalkFn && G.bkTalkFn()) return;               // the manager (Mission 9, layer 490)
     if (g.inside && G.artTalkFn && G.artTalkFn()) return;            // the terminal's / airport's people (layer 495)
+    if (G.lotStealFn && G.lotStealFn()) return;                      // hot-wire the lot car (Mission 3, layer 480)
+    if (G.pabloCarFn && G.pabloCarFn()) return;                      // Pablo's car at the kerb (Mission 4, layer 481)
+    if (G.grappleFn && G.grappleFn()) return;                        // the hook (Mission 4, layer 482)
+    if (G.courierBagFn && G.courierBagFn()) return;                  // the runner's bag (Mission 5, layer 484)
+    if (G.muscleFn && G.muscleFn()) return;                          // the laundromat muscle (Mission 6, layer 485)
+    if (g.inside && G.pabloHangFn && G.pabloHangFn()) return;        // Pablo at his table (layer 489)
+    if (g.inside && G.partyFn && G.partyFn()) return;                // the party / the Hippy's bar (layer 487)
+    if (G.mtCarFn && G.mtCarFn()) return;                            // Pablo's car at the yard (Missions 8-9, layer 488)
+    if (G.bkCarFn && G.bkCarFn()) return;                            // Pablo at the kerb after the bank: LOAD THE BAGS
+    if (G.bkTrunkFn && G.bkTrunkFn()) return;                        // the trunk at the Hippie: UNLOAD (layer 490)
+
+    if (G.backroomFn && G.backroomFn()) return;                      // RIGHT TO ARMS' back room (layer 482)
+    if (g.inside && G.aptSpotFn && G.aptSpotFn()) return;            // the closet, the phone, the mail
+    if (G.objWheelFn && G.objWheelFn(false)) return;                 // every thing has a wheel (layer 481)
+    if (!g.inside && G.boothFn && G.boothFn()) return;               // a phone booth (layer 480)
+    if (g.inside && G.hippyFn && G.hippyFn()) return;                // the Happy Hippy's back-room door (layer 477)
+    if (g.inside && G.aptBedFn && G.aptBedFn()) return;              // your bed at Palm Court (layer 477)
+    if (g.inside && G.aptSpotFn && G.aptSpotFn()) return;            // the closet, the phone, the mail (layer 479)
     if (g.inside && G.safeFn && G.safeFn()) return;                  // the safe in the back (layer 485)
     if (g.inside && G.bizTalkFn && G.bizTalkFn()) return;            // the counter: what they sell
     if (g.inside && G.baseTalkFn && G.baseTalkFn()) return;          // your people at the yard (the board wins when it's nearer)
@@ -12342,7 +12403,8 @@ export default function IronLionLayer004() {
       if (who && who.store) { g.storeMan = who; g.storeSaid = null; G.pickOpen("pstore"); return; }
       if (who && who.shot) { g.shotCaller = who; g.gangSaid = null; G.pickOpen("pgang"); return; }
       if (G.laundryFn && G.laundryFn()) return;
-      // a hiding place: the stash menu
+      // a hiding place: its wheel (STASH + what it's for), then the stash menu (layer 481)
+      if (G.objWheelFn && G.objWheelFn(true)) return;
       if (G.stashOpenFn && G.stashOpenFn()) return;
     }
     if (g.mode === "foot" && g.inside && g.inside.inPrison && G.myCellFn && G.myCellFn()) return;
@@ -12995,7 +13057,8 @@ export default function IronLionLayer004() {
       if (g.studentMode && stepBike(dt)) return;            // on the bike: its own movement
       const len = Math.hypot(ix, iy);
       if (len > 1) { ix /= len; iy /= len; }
-      const wantRun = inp.run || k["shift"];
+      if (g.p.sneak && (g.mode !== "foot" || inVehicle())) g.p.sneak = 0;
+      const wantRun = (inp.run || k["shift"]) && !g.p.sneak;
       const running = wantRun && g.p.stamina > 1;
       // swimming is slower than walking and running does not help much
       const dep = g.depth || 0;
@@ -13003,7 +13066,7 @@ export default function IronLionLayer004() {
       /* 214 sprinting is a jog next to traffic. Sho at 1.62 tops about 347, which is a slow
          car -- he can run a block down with one and that is the point of him. */
       const kSlow = g.who === "kenny" ? 0.78 : 1;
-      const spd = (running ? 214 : 116) * lionBoost() * swimMul * shoSpeed() * kSlow;
+      const spd = (running ? 214 : 116) * lionBoost() * swimMul * shoSpeed() * kSlow * (g.p.sneak ? 0.55 : 1);
       /* Sho's legs are his whole kit. He runs at car speed and barely tires -- that is the
          reason to take him rather than the man with the gadgets or the man with the gun. */
       if (running) g.p.stamina = Math.max(0, g.p.stamina - dt * (g.who === "sho" ? 1.6 : 5.5));
@@ -16684,6 +16747,24 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "opsboard") return opsPanel();
       if (kind === "baseman") return baseManPanel();
       if (kind === "boznov") return bozPanel();
+      if (kind === "hippy") return hippyPanel();                        // layer 477
+      if (kind === "storyfail") return storyFailPanel();                 // layer 478
+      if (kind === "storybye") return storyByePanel();
+      if (kind === "pablo") return pabloPanel();                         // layer 480
+      if (kind === "pablowatch") return pabloWatchPanel();               // layer 481
+      if (kind === "r2a") return r2aPanel();                             // layer 482
+      if (kind === "katya1") return katyaPanel(1);
+      if (kind === "alonzo" || kind === "leroyyard") return fridayPanel(kind);       // layer 484
+      if (kind && kind.startsWith("allin_")) return allinPanel(kind);               // layer 485
+      if (kind === "wash_leroy" || kind === "wash_ras") return washPanel(kind);
+      if (kind && kind.startsWith("party_")) return partyPanel(kind);                  // layer 487
+      if (kind && (kind.startsWith("mt_") || kind.startsWith("bk_"))) return mtPanel(kind);   // layer 488
+      if (kind === "pablo_hang") return pabloHangPanel();                              // layer 489
+      if (kind && (kind.startsWith("co_") || kind.startsWith("ne_"))) return coPanel(kind);   // layer 491
+      if (kind === "katya2") return katyaPanel(2);
+      if (kind === "phone") return phonePanel();
+      if (kind === "aptbed") return aptBedPanel();
+      if (kind && kind.startsWith("apt_")) return aptSpotPanel(kind.slice(4));      // layer 479
       if (kind === "outfit") return outfitPanel();
       if (kind === "armory") return armoryPanel();
       if (kind === "bizshop") return bizShopPanel();
@@ -16722,6 +16803,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "pcards") return pcardsPanel();
       if (kind === "crew") {
         const C = CREW.find((q) => q.id === g.crewMate); if (!C) return null;
+        { const sp = storyCrewPanel(C); if (sp) return sp; }                       // Last Day In (layer 478)
         return { title: C.name.toUpperCase() + " \u00b7 YOUR PEOPLE", face: "assets/crew/" + C.face + ".png",
           text: g.crewSaid || (g.pescaped ? C.outLine || "We're out. Where to?" : C.line),
           opts: [{ id: "crewx:out", label: "WHAT HAPPENS WHEN WE GET OUT?" },
@@ -16856,7 +16938,18 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("hub:")) { G.hubGo && G.hubGo(id.slice(4)); return; }               // fast travel (layer 514)                // the car command (layer 514)                 // the job's orders (layer 508)
       else if (id.startsWith("bm:open:")) { g.bmKey = id.slice(8); g.bmSaid = null; g.bmView = null; G.pickOpen("baseman"); return; }
       else if (id.startsWith("otf:")) { G.outfitPick(id); G.pickOpen("outfit"); return; }          // layer 520
-      else if (id.startsWith("bz:")) { G.bozPick(id); G.pickOpen("boznov"); return; }               // layer 476
+      else if (id.startsWith("bz:")) { G.bozPick(id); G.pickOpen("boznov"); return; }
+      else if (id.startsWith("story:")) { G.storyPick(id.slice(6)); return; }   // layer 478
+      else if (id.startsWith("fit:")) { const k = id.slice(4); if (REY_FITS[k]) { g.pfit = k; g.pcivvies = 1; g.pickupFlash = { nm: "lift:" + REY_FITS[k].nm, t: 1.4 }; } return; }   // layer 483
+      else if (id.startsWith("ow:")) { G.owPick(id); return; }                  // layer 481
+      else if (id.startsWith("r2a:")) { if (G.r2aPick(id.slice(4)) !== "x") G.pickOpen("r2a"); return; }   // layer 482
+      else if (id.startsWith("os:")) { G.osPick(id); return; }
+      else if (id.startsWith("ph:")) { G.phPick(id); return; }
+      else if (id.startsWith("watch:")) { g.watchOn = !g.watchOn; g.pickupFlash = { nm: "lift:" + (g.watchOn ? "THE WATCH GOES ON YOUR WRIST" : "THE WATCH GOES IN YOUR POCKET"), t: 1.4 }; setTimeout(() => G.pocketsWheel && G.pocketsWheel(), 40); return; }
+      else if (id.startsWith("phone:")) { const [, a, n] = id.split(":"); if (G.phonePick(a, n) !== "gone") G.pickOpen("phone"); return; }   // layer 480
+      else if (id.startsWith("hh:")) { const r = G.hippyPick(id); if (r === "open") G.pickOpen("hippy"); else if (r !== "table") { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); } return; }   // layer 477
+      else if (id.startsWith("aptx:")) { G.aptPick(id); G.pickOpen(g.pickOpen); return; }     // layer 479
+      else if (id === "apt:save") { g.aptSaid = saveGame() ? "Saved. CONTINUE on the title brings you back right here." : "Couldn't save -- the browser said no."; G.pickOpen("aptbed"); return; }               // layer 476
       else if (id.startsWith("arm:")) { G.armoryPick(id); G.pickOpen("armory"); return; }
       else if (id.startsWith("wsel:")) { G.wheelWeapon(id.slice(5)); return; }
       else if (id.startsWith("bm:")) { G.baseManPick(id); G.pickOpen("baseman"); return; }
@@ -18038,7 +18131,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.fillStyle = "#15161b";
       ctx.fillRect(-lw * 0.27, h * 0.40 + stride, lw * 0.21, h * 0.10);
       ctx.fillRect(lw * 0.06, h * 0.40 - stride, lw * 0.21, h * 0.10);
+      { const AR = YT_ARMS[p.yt]; if (AR) { const aw = w * 0.15;                  // a bust's arms (layer 489), swinging against the legs
+          for (const sd of [-1, 1]) { const sw = -sd * stride * 0.8, ax = sd * w * 0.40 - aw / 2; ctx.fillStyle = AR[0]; ctx.fillRect(ax, -h * 0.06, aw, h * 0.40 + sw);
+            ctx.fillStyle = AR[1]; ctx.beginPath(); ctx.arc(ax + aw / 2, h * 0.36 + sw, aw * 0.48, 0, 6.3); ctx.fill(); } } }
       ctx.drawImage(im, -w / 2, -h / 2, w, h);
+      if (p.mask || (g.masks && (p === g.p || p.hero || p.crew || /^(h|c):/.test(p.key || "")))) {        // a black ski mask (the bank job, layer 490)
+        const hr = Math.min(w * 0.15, h * 0.17), hy = -h / 2 + hr * 1.05; ctx.fillStyle = "#0d0d10"; ctx.beginPath(); ctx.ellipse(0, hy, hr * 1.02, hr * 1.06, 0, 0, 6.3); ctx.fill();
+        ctx.fillStyle = "rgba(225,200,170,0.85)"; ctx.fillRect(-hr * 0.55, hy + hr * 0.25, hr * 0.38, hr * 0.18); ctx.fillRect(hr * 0.17, hy + hr * 0.25, hr * 0.38, hr * 0.18); }
       /* What he is holding. The ally plates are torsos with no weapon layer, so an armed man
          read as an unarmed one -- a held shape in his right hand, sized off the plate. Crude,
          but "he is carrying something" is the part that has to be legible at 40 pixels. */
@@ -18103,6 +18202,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.restore();
       }
       ctx.restore();
+      if (p.bag || (g.bagsOn && (p.hero || p.crew === "leroy" || p.key === "h:locksmith"))) { const bi = imgs.current.it_hippie_bag;   // carrying the money (layer 490)
+        const bw = 30, bh = bi && bi.width ? bw * bi.height / bi.width : 16, by = p.y - h * 0.62 - bh - 2 + Math.sin((g.t || 0) * 4 + p.x) * 1.2;
+        if (bi && bi.width) ctx.drawImage(bi, p.x - bw / 2, by, bw, bh); else { ctx.fillStyle = "#2bb3a0"; ctx.fillRect(p.x - 13, by, 26, 14); } }
       return true;
     }
     function drawPedDown(p) {
@@ -19859,7 +19961,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function tableBet(delta) {
       const t = g.table;
       if (!t || t.stage !== "bet") return;
-      t.bet = Math.max(5, Math.min(200, t.bet + delta));
+      t.bet = Math.max(t.lo || 5, Math.min(t.hi || 200, t.bet + delta * (t.step || 1)));      // high stakes: $500-$5,000 in $500s (layer 485)
       tableSync();
     }
     function tablePlay() {
@@ -19943,6 +20045,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           g.p.cash += pay; t.last = pay;
           runFolk(pay > 0);
           t.msg = pn + (pay ? " \u2014 $" + pay : " \u2014 DEALER TAKES IT");
+          if (G.onPoker) try { G.onPoker(pv, dv, pay, t); } catch (e) {}                       // the story's poker (layer 485)
           t.stage = "bet";
           tableSync(); return;
         }
@@ -20768,7 +20871,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return Math.random() < 0.5 ? [a, b] : [b, a];
     }
     function warCrew(gang, x, y, n, wing) {
-      const members = [];
+      const members = [], bOff = (Math.random() * 6) | 0;   // where in the six Bratva plates this crew starts (layer 486)
       for (let i = 0; i < n; i++) {
         const ang = (i / n) * 6.283 + Math.random() * 0.5;
         const px = x + Math.cos(ang) * (20 + Math.random() * 26);
@@ -20786,14 +20889,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
              turning up as generic gang men.
              NOT called `hx`: that field is already this member's home x, four keys to the
              left. Named hxArt for that reason and no other. */
-          hxArt: (HENCH_POOL[wing] || [])[i % ((HENCH_POOL[wing] || []).length || 1)] || null,
+          hxArt: (HENCH_POOL[wing] || [])[i % ((HENCH_POOL[wing] || []).length || 1)] || (gang === "rus" ? BRATVA_YT[(i + bOff) % 6] : null),
         });
       }
       const cr = { x, y, members, state: "hang", timer: 0, gang, wing: wing || null, war: 1 };
-      if (gang === "rus") return cr;          // the Bratva have no street art yet: a crew that is never put on the street (layer 475)
+      /* layer 475 kept the Bratva off the street for want of art; layer 486 has the art (BRATVA_YT), so they go out like anyone. */
       g.crews.push(cr);
       return cr;
     }
+    G.bratvaT = (n) => { const c = warCrew("rus", g.p.x + 90, g.p.y, n || 4); return c.members.map((m) => m.hxArt); };   // test hook (layer 486)
 
     function startWarAct(cx, cy) {
       if (!g.war || g.warOver || g.warAct) return;
@@ -22712,7 +22816,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         drawShadow(b.x + b.w / 2, b.y + b.h * 0.96, b.w * 0.46, b.h * 0.26, 0.34);
         /* Front of every plate is at the bottom of its frame. A north-facing door needs the
            plate turned so its front looks at the street. */
-        if (b.door && b.door.side === 0) {
+        const tq = artTurn(b);
+        if (tq) {                                       // layer 477: turned, not mirrored, so the lettering reads
+          if (tq === 1) { ctx.translate(b.x + b.w, b.y); ctx.rotate(Math.PI / 2); ctx.drawImage(pk, 0, 0, b.h, b.w); }
+          else if (tq === 2) { ctx.translate(b.x + b.w, b.y + b.h); ctx.rotate(Math.PI); ctx.drawImage(pk, 0, 0, b.w, b.h); }
+          else { ctx.translate(b.x, b.y + b.h); ctx.rotate(-Math.PI / 2); ctx.drawImage(pk, 0, 0, b.h, b.w); }
+        } else if (b.door && b.door.side === 0) {
           ctx.translate(b.x, b.y + b.h); ctx.scale(1, -1);
           ctx.drawImage(pk, 0, 0, b.w, b.h);
         } else {
@@ -25151,6 +25260,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         wpn: armed ? weaponFor(gang, null) : null,
         fleeAt: rk.flee, bounty: rk.pay,
         sheet: makeSheet(gang, rk),
+        ...(gang === "rus" ? { hxArt: BRATVA_YT[(Math.random() * 6) | 0] } : {}),   // layer 486: every Bratva body has a plate
       };
     }
 
@@ -26751,6 +26861,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
     function spawnRace() {
       if (g.race) return;
+      if (g.prisonMode && g.pescaped && g.preleased) return;                 // Rey's story: no street races called in (layer 489)
       const kind = RACE_KINDS[(Math.random() * RACE_KINDS.length) | 0];
       const pv = inVehicle() ? activeVeh() : g.p;
       let si, sj;
@@ -28924,12 +29035,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.coverFn = () => {
       if (g.mode !== "foot" || inVehicle()) return;
       if (g.p.cover) { g.p.cover = null; g.pickupFlash = { nm: "lift:OUT OF COVER", t: 0.9 }; return; }
+      if (g.p.sneak) { g.p.sneak = 0; g.pickupFlash = { nm: "lift:STANDING", t: 0.8 }; return; }
       const C = coverNear(g.p.x, g.p.y);
-      if (!C) { g.pickupFlash = { nm: "lift:NOTHING TO GET BEHIND", t: 1.1 }; return; }
+      /* SNEAK (layer 478): nothing to get behind, so he crouches and walks soft -- slower, no running, and the vision cones of
+         anyone who could see him show (they only show while he's sneaking or in cover). */
+      if (!C) { g.p.sneak = 1; g.pickupFlash = { nm: "lift:SNEAKING \u00b7 C / Y TO STAND", t: 1.2 }; return; }
       g.p.cover = C; g.p.x = C.cx + C.nx * 16; g.p.y = C.cy + C.ny * 16;            // tucked against it
       g.pickupFlash = { nm: "lift:IN COVER \u00b7 " + (C.kind === "full" ? "FULL" : "HALF"), t: 0.9 };
     };
-    G.coverOK = () => g.mode === "foot" && !inVehicle() && !g.title && (!!g.p.cover || !!coverNear(g.p.x, g.p.y));
+    G.coverOK = () => g.mode === "foot" && !inVehicle() && !g.title;                          // cover, or sneak where there's none (layer 478)
     function stepCover(dt) {
       if (g.mode === "foot" && g.p.wpn && !g.p.holstered) (g.wIcons = g.wIcons || []).push(g.p);       // his own icon over his head (layer 501)
       if (g.p.peekT > 0) g.p.peekT -= dt;
@@ -29079,6 +29193,17 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        props go except the stairs / doors / anything listed in keep (redrawn over the art), and ART2_SOLID lays invisible
        blocks over the painted furniture. b.artFloors = { floor: key }. */
     const ART2_SOLID = {
+      /* layer 477: Palm Court's flats (walls and furniture, generated with the pictures), RIGHT TO ARMS, the Happy Hippy's club */
+      int_apt_long_f0: [[0.0, 0.444, 0.0644, 0.476], [0.0984, 0.444, 0.218, 0.476], [0.252, 0.444, 0.3717, 0.476], [0.4057, 0.444, 0.452, 0.476], [0.3214, 0.0, 0.3294, 0.46], [0.1678, 0.0, 0.1758, 0.46], [0.0669, 0.056, 0.1049, 0.248], [0.1119, 0.06, 0.1199, 0.1], [0.2376, 0.056, 0.2596, 0.232], [0.2666, 0.06, 0.2746, 0.1], [0.3334, 0.06, 0.3554, 0.244], [0.3907, 0.052, 0.4027, 0.124], [0.426, 0.064, 0.442, 0.112], [0.008, 0.872, 0.028, 0.968], [0.008, 0.504, 0.026, 0.576], [0.007, 0.608, 0.025, 0.696], [0.0784, 0.674, 0.1184, 0.834], [0.2804, 0.876, 0.3524, 0.964], [0.3014, 0.726, 0.3314, 0.782], [0.3034, 0.496, 0.3294, 0.568], [0.548, 0.444, 0.5943, 0.476], [0.6283, 0.444, 0.748, 0.476], [0.782, 0.444, 0.9016, 0.476], [0.9356, 0.444, 1.0, 0.476], [0.6706, 0.0, 0.6786, 0.46], [0.8242, 0.0, 0.8322, 0.46], [0.8951, 0.056, 0.9331, 0.248], [0.8801, 0.06, 0.8881, 0.1], [0.7404, 0.056, 0.7624, 0.232], [0.7254, 0.06, 0.7334, 0.1], [0.6446, 0.06, 0.6666, 0.244], [0.5973, 0.052, 0.6093, 0.124], [0.558, 0.064, 0.574, 0.112], [0.972, 0.872, 0.992, 0.968], [0.974, 0.504, 0.992, 0.576], [0.975, 0.608, 0.993, 0.696], [0.8816, 0.674, 0.9216, 0.834], [0.6476, 0.876, 0.7196, 0.964], [0.6686, 0.726, 0.6986, 0.782], [0.6706, 0.496, 0.6966, 0.568], [0.448, 0.0, 0.456, 0.732], [0.448, 0.868, 0.456, 1.0], [0.544, 0.0, 0.552, 0.732], [0.544, 0.868, 0.552, 1.0]],
+      int_apt_long_f1: [[0.0, 0.444, 0.0644, 0.476], [0.0984, 0.444, 0.218, 0.476], [0.252, 0.444, 0.3717, 0.476], [0.4057, 0.444, 0.452, 0.476], [0.3214, 0.0, 0.3294, 0.46], [0.1678, 0.0, 0.1758, 0.46], [0.0669, 0.056, 0.1049, 0.248], [0.1119, 0.06, 0.1199, 0.1], [0.2376, 0.056, 0.2596, 0.232], [0.2666, 0.06, 0.2746, 0.1], [0.3334, 0.06, 0.3554, 0.244], [0.3907, 0.052, 0.4027, 0.124], [0.426, 0.064, 0.442, 0.112], [0.008, 0.872, 0.028, 0.968], [0.008, 0.504, 0.026, 0.576], [0.007, 0.608, 0.025, 0.696], [0.0784, 0.674, 0.1184, 0.834], [0.2804, 0.876, 0.3524, 0.964], [0.3014, 0.726, 0.3314, 0.782], [0.3034, 0.496, 0.3294, 0.568], [0.548, 0.444, 0.5943, 0.476], [0.6283, 0.444, 0.748, 0.476], [0.782, 0.444, 0.9016, 0.476], [0.9356, 0.444, 1.0, 0.476], [0.6706, 0.0, 0.6786, 0.46], [0.8242, 0.0, 0.8322, 0.46], [0.8951, 0.056, 0.9331, 0.248], [0.8801, 0.06, 0.8881, 0.1], [0.7404, 0.056, 0.7624, 0.232], [0.7254, 0.06, 0.7334, 0.1], [0.6446, 0.06, 0.6666, 0.244], [0.5973, 0.052, 0.6093, 0.124], [0.558, 0.064, 0.574, 0.112], [0.972, 0.872, 0.992, 0.968], [0.974, 0.504, 0.992, 0.576], [0.975, 0.608, 0.993, 0.696], [0.8816, 0.674, 0.9216, 0.834], [0.6476, 0.876, 0.7196, 0.964], [0.6686, 0.726, 0.6986, 0.782], [0.6706, 0.496, 0.6966, 0.568], [0.448, 0.0, 0.456, 0.732], [0.448, 0.868, 0.456, 1.0], [0.544, 0.0, 0.552, 0.732], [0.544, 0.868, 0.552, 1.0]],
+      int_apt_side_f0: [[0.0, 0.444, 0.0939, 0.476], [0.1546, 0.444, 0.2928, 0.476], [0.3535, 0.444, 0.4143, 0.476], [0.2331, 0.0, 0.2474, 0.46], [0.0862, 0.056, 0.1541, 0.248], [0.1666, 0.06, 0.1809, 0.1], [0.2546, 0.06, 0.2939, 0.244], [0.3309, 0.052, 0.3523, 0.124], [0.3679, 0.064, 0.3964, 0.112], [0.0143, 0.872, 0.05, 0.968], [0.0143, 0.504, 0.0464, 0.576], [0.0125, 0.608, 0.0446, 0.696], [0.0739, 0.674, 0.1453, 0.834], [0.2614, 0.876, 0.3435, 0.964], [0.2756, 0.726, 0.3292, 0.782], [0.2792, 0.496, 0.3256, 0.568], [0.5857, 0.444, 0.6465, 0.476], [0.7072, 0.444, 0.8454, 0.476], [0.9061, 0.444, 1.0, 0.476], [0.7526, 0.0, 0.7669, 0.46], [0.8459, 0.056, 0.9138, 0.248], [0.8191, 0.06, 0.8334, 0.1], [0.7061, 0.06, 0.7454, 0.244], [0.6477, 0.052, 0.6691, 0.124], [0.6036, 0.064, 0.6321, 0.112], [0.95, 0.872, 0.9857, 0.968], [0.9536, 0.504, 0.9857, 0.576], [0.9554, 0.608, 0.9875, 0.696], [0.8547, 0.674, 0.9261, 0.834], [0.6565, 0.876, 0.7386, 0.964], [0.6708, 0.726, 0.7244, 0.782], [0.6744, 0.496, 0.7208, 0.568], [0.4071, 0.0, 0.4214, 0.732], [0.4071, 0.868, 0.4214, 1.0], [0.5786, 0.0, 0.5929, 0.732], [0.5786, 0.868, 0.5929, 1.0]],
+      int_apt_side_f1: [[0.0, 0.444, 0.0939, 0.476], [0.1546, 0.444, 0.2928, 0.476], [0.3535, 0.444, 0.4143, 0.476], [0.2331, 0.0, 0.2474, 0.46], [0.0862, 0.056, 0.1541, 0.248], [0.1666, 0.06, 0.1809, 0.1], [0.2546, 0.06, 0.2939, 0.244], [0.3309, 0.052, 0.3523, 0.124], [0.3679, 0.064, 0.3964, 0.112], [0.0143, 0.872, 0.05, 0.968], [0.0143, 0.504, 0.0464, 0.576], [0.0125, 0.608, 0.0446, 0.696], [0.0739, 0.674, 0.1453, 0.834], [0.2614, 0.876, 0.3435, 0.964], [0.2756, 0.726, 0.3292, 0.782], [0.2792, 0.496, 0.3256, 0.568], [0.5857, 0.444, 0.6465, 0.476], [0.7072, 0.444, 0.8454, 0.476], [0.9061, 0.444, 1.0, 0.476], [0.7526, 0.0, 0.7669, 0.46], [0.8459, 0.056, 0.9138, 0.248], [0.8191, 0.06, 0.8334, 0.1], [0.7061, 0.06, 0.7454, 0.244], [0.6477, 0.052, 0.6691, 0.124], [0.6036, 0.064, 0.6321, 0.112], [0.95, 0.872, 0.9857, 0.968], [0.9536, 0.504, 0.9857, 0.576], [0.9554, 0.608, 0.9875, 0.696], [0.8547, 0.674, 0.9261, 0.834], [0.6565, 0.876, 0.7386, 0.964], [0.6708, 0.726, 0.7244, 0.782], [0.6744, 0.496, 0.7208, 0.568], [0.4071, 0.0, 0.4214, 0.732], [0.4071, 0.868, 0.4214, 1.0], [0.5786, 0.0, 0.5929, 0.732], [0.5786, 0.868, 0.5929, 1.0]],
+      int_gun_store: [[0.0, 0.0, 0.07, 0.92], [0.07, 0.0, 0.43, 0.13], [0.14, 0.24, 0.37, 0.39], [0.13, 0.49, 0.18, 0.80], [0.24, 0.46, 0.37, 0.60], [0.24, 0.69, 0.37, 0.82],
+        [0.42, 0.50, 0.46, 0.81], [0.42, 0.10, 0.46, 0.41], [0.555, 0.10, 0.59, 0.34], [0.56, 0.45, 0.60, 0.80], [0.645, 0.08, 0.70, 0.34], [0.645, 0.24, 0.97, 0.34],
+        [0.69, 0.0, 0.97, 0.14], [0.66, 0.46, 0.96, 0.56], [0.66, 0.67, 0.96, 0.78], [0.96, 0.0, 1.0, 0.92], [0.06, 0.92, 0.45, 1.0], [0.66, 0.89, 0.94, 1.0]],
+      int_happy_hippy: [[0.24, 0.03, 0.43, 0.13], [0.21, 0.13, 0.47, 0.36], [0.52, 0.13, 0.75, 0.33], [0.0, 0.20, 0.06, 0.37], [0.0, 0.365, 0.175, 0.625],
+        [0.0, 0.62, 0.178, 1.0], [0.822, 0.635, 1.0, 1.0], [0.755, 0.64, 0.83, 0.86], [0.755, 0.03, 0.775, 0.37], [0.81, 0.24, 0.93, 0.38], [0.81, 0.47, 0.93, 0.61],
+        [0.34, 0.53, 0.42, 0.61], [0.58, 0.50, 0.66, 0.59], [0.34, 0.77, 0.42, 0.85], [0.58, 0.78, 0.66, 0.86]],
       int_bar_long: [[0.02, 0.03, 0.07, 0.62], [0.16, 0.05, 0.235, 0.80], [0.02, 0.72, 0.235, 0.80], [0.38, 0.03, 0.57, 0.13], [0.60, 0.10, 0.77, 0.33], [0.83, 0.10, 0.95, 0.25], [0.83, 0.34, 0.95, 0.49], [0.82, 0.71, 0.92, 0.88], [0.38, 0.86, 0.58, 0.98]],
       int_strip_club: [[0.43, 0.36, 0.57, 0.66], [0.28, 0.03, 0.47, 0.12], [0.49, 0.03, 0.62, 0.12], [0.65, 0.04, 0.72, 0.13]],
       int_raven_auto: [[0.25, 0.08, 0.395, 0.50], [0.43, 0.30, 0.52, 0.53]],
@@ -29091,23 +29216,32 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const KP = new RegExp("stair|elev|door|hatch|ladder" + (keep ? "|" + keep : ""));
       pl.artOver = (pl.props || []).filter((o) => KP.test(o.t)); pl.props = pl.artOver.slice();
       const W = x1 - x0, H = y1 - y0;
-      pl.artImg = key; pl.artR2 = { x0, y0, x1, y1 }; pl.artRot = W < H;          // every painted floor is wide: a tall room gets it turned a quarter (layer 476)
+      pl.artImg = key; pl.artR2 = { x0, y0, x1, y1 }; pl.artRot = W < H ? 1 : 0;      // every painted floor is wide: a tall room gets it turned a quarter (layer 476)
+      const tq = artTurn(b); if (tq != null) pl.artRot = tq;                          // ...or turned to face its door (b.artFace, layer 477)
+      const hard = /^int_apt_/.test(key);                                              // thin painted walls: exact boxes (layer 477)
       for (const [a, c, d, e] of ART2_SOLID[key] || []) { const [p0x, p0y] = artAt(pl, a, c), [p1x, p1y] = artAt(pl, d, e);
-        pl.props.push({ x: Math.min(p0x, p1x), y: Math.min(p0y, p1y), w: Math.abs(p1x - p0x), h: Math.abs(p1y - p0y), t: "artblock" }); }
-      pl.artCars = (b.artCarsF || []).map((q) => { const [x, y] = artAt(pl, q.fx, q.fy); return { k: q.k, x, y, a: (q.a || 0) + (pl.artRot ? Math.PI / 2 : 0) }; });
+        pl.props.push({ x: Math.min(p0x, p1x), y: Math.min(p0y, p1y), w: Math.abs(p1x - p0x), h: Math.abs(p1y - p0y), t: "artblock", hard: hard ? 1 : undefined }); }
+      pl.artCars = (b.artCarsF || []).map((q) => { const [x, y] = artAt(pl, q.fx, q.fy); return { k: q.k, x, y, a: (q.a || 0) + (pl.artRot || 0) * Math.PI / 2 }; });
       return pl; }
     // a point on the painted floor, by its fractions of the picture (turned with it)
-    const artAt = (pl, fx, fy) => { const R = pl.artR2, W = R.x1 - R.x0, H = R.y1 - R.y0; return pl.artRot ? [R.x0 + (1 - fy) * W, R.y0 + fx * H] : [R.x0 + fx * W, R.y0 + fy * H]; };
-    function drawArtFloor() { const b = g.inside; if (!b || !b.artFloors || !b.artFloors[g.floor]) return; const pl = fitArtFloor(b, g.floor, b.artFloors[g.floor], b.artKeep); if (!pl || !pl.artR2) return;
+    const artAt = (pl, fx, fy) => { const R = pl.artR2, W = R.x1 - R.x0, H = R.y1 - R.y0, t = pl.artRot || 0;
+      return t === 1 ? [R.x0 + (1 - fy) * W, R.y0 + fx * H] : t === 2 ? [R.x0 + (1 - fx) * W, R.y0 + (1 - fy) * H] : t === 3 ? [R.x0 + fy * W, R.y0 + (1 - fx) * H] : [R.x0 + fx * W, R.y0 + fy * H]; };
+    function drawArtFloor() { const b = g.inside; if (b && b.happyHippy && !b.artFloors) b.artFloors = { 0: "int_happy_hippy" };   // the club downstairs (layer 477; old saves too)
+      if (!b || !b.artFloors || !b.artFloors[g.floor]) return; const pl = fitArtFloor(b, g.floor, b.artFloors[g.floor], b.artKeep); if (!pl || !pl.artR2) return;
       const R = pl.artR2, im = imgs.current[pl.artImg], W = R.x1 - R.x0, H = R.y1 - R.y0;
-      if (im && im.width) { if (pl.artRot) { ctx.save(); ctx.translate(R.x0 + W, R.y0); ctx.rotate(Math.PI / 2); ctx.drawImage(im, 0, 0, H, W); ctx.restore(); } else ctx.drawImage(im, R.x0, R.y0, W, H); }
+      if (im && im.width) { const t = pl.artRot || 0;
+        if (t === 1) { ctx.save(); ctx.translate(R.x0 + W, R.y0); ctx.rotate(Math.PI / 2); ctx.drawImage(im, 0, 0, H, W); ctx.restore(); }
+        else if (t === 2) { ctx.save(); ctx.translate(R.x0 + W, R.y0 + H); ctx.rotate(Math.PI); ctx.drawImage(im, 0, 0, W, H); ctx.restore(); }
+        else if (t === 3) { ctx.save(); ctx.translate(R.x0, R.y0 + H); ctx.rotate(-Math.PI / 2); ctx.drawImage(im, 0, 0, H, W); ctx.restore(); }
+        else ctx.drawImage(im, R.x0, R.y0, W, H); }
       else { ctx.fillStyle = "#2a2622"; ctx.fillRect(R.x0, R.y0, W, H); }
       for (const o of pl.artOver || []) if (!/stair/.test(o.t)) propSprite(o.t, o.x, o.y, o.w, o.h);
-      const st = pl.stair; if (st && st.w > 0) { ctx.fillStyle = "rgba(20,18,16,0.85)"; ctx.fillRect(st.x, st.y, st.w, st.h); ctx.fillStyle = "rgba(220,205,160,0.6)";
+      const st = pl.stair; if (st && st.w > 0 && (b.floors || 1) > 1) { ctx.fillStyle = "rgba(20,18,16,0.85)"; ctx.fillRect(st.x, st.y, st.w, st.h); ctx.fillStyle = "rgba(220,205,160,0.6)";
         for (let q = 0; q < 6; q++) ctx.fillRect(st.x + 3, st.y + 3 + q * (st.h - 6) / 6, st.w - 6, 2); }
       for (const c of pl.artCars || []) { const ci = imgs.current[c.k]; if (ci && ci.width) { ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.a || 0); ctx.drawImage(ci, -23, -50, 46, 100); ctx.restore(); } } }
     function drawArtInterior() {
       drawArtFloor();                                                                   // layer 476
+      drawAptDoors(); drawAptSpots(); drawHippy();                                      // layers 477-479
       const b = g.inside; bankArt(b); if (!b || !b.artInterior || g.floor !== (b.entry || 0)) return; const R = artRect(b); if (!R) return;
       const im = imgs.current[b.artInterior]; if (im && im.width) ctx.drawImage(im, R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0);
       const F = g.artFolk; if (!F || F.b !== b) return;
@@ -29202,7 +29336,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (J.t >= 6 && !J.tillDone) { J.tillDone = 1; const take = Math.round(e.till + (/major/.test(J.b.artInterior) ? 6000 : 2500)); e.till = 0; g.p.cash = (g.p.cash || 0) + take;
         g.pickupFlash = { nm: "lift:THE DRAWERS \u00b7 +$" + take.toLocaleString(), t: 1.6 }; }
       const m = J.mgr; if (!m || !J.lockAt || pl.vaultOpen) return;
-      if (!g.p.wpn || g.p.holstered || Math.hypot(m.x - g.p.x, m.y - g.p.y) > 520) { m.held = 1; m.tx = m.x; m.ty = m.y; J.paused = 1; return; }
+      if (!J.coop && (!g.p.wpn || g.p.holstered || Math.hypot(m.x - g.p.x, m.y - g.p.y) > 520)) { m.held = 1; m.tx = m.x; m.ty = m.y; J.paused = 1; return; }
       J.paused = 0; m.held = 0; m.tx = J.lockAt[0]; m.ty = J.lockAt[1]; m.rush = 40 + 90 * J.fear;
       if (Math.hypot(m.x - J.lockAt[0], m.y - J.lockAt[1]) < 14) { J.unlock += dt;
         if (J.unlock >= J.need) { pl.vaultOpen = 1; pl.props = pl.props.filter((p) => p.t !== "artlock");
@@ -29211,10 +29345,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.vaultFn = () => { const b = g.inside; if (!isBank(b) || g.mode !== "foot") return false; const pl = buildingPlans(b)[b.entry || 0]; if (!pl || !pl.artR || !pl.vaultOpen) return false;
       const V = ART_VAULT[b.artInterior], R = pl.artR, vx = R.x0 + V[0] * (R.x1 - R.x0), vy = R.y0 + V[1] * (R.y1 - R.y0);
       if (Math.hypot(vx - g.p.x, vy - g.p.y) > 90) return false;
+      if (bkBags()) return true;                                                                  // Mission 9: the bags (layer 490)
+      if (g.story && g.story.id === "bankjob") return true;
       const e = econOf(b); if (!e.vault) e.vault = /major/.test(b.artInterior) ? 60000 + Math.random() * 60000 : 18000 + Math.random() * 20000;
       const take = Math.round(e.vault); if (take <= 0) { g.pickupFlash = { nm: "lift:IT'S CLEANED OUT", t: 1.2 }; return true; }
       e.vault = -1; g.p.cash = (g.p.cash || 0) + take; if (g.pescaped) g.rep = (g.rep || 0) + 40;
-      g.jobBanner = "THE VAULT \u00b7 " + (b.name || "THE BANK"); g.jobNote = "$" + take.toLocaleString() + " in bags. Every cop in the city is coming."; g.heat = 3; g.wantedT = Math.max(g.wantedT || 0, 150); return true; };
+      g.jobBanner = "THE VAULT \u00b7 " + (b.name || "THE BANK"); g.jobNote = "$" + take.toLocaleString() + " in bags. Every cop in the city is coming."; g.heat = 3; g.wantedT = Math.max(g.wantedT || 0, 150);
+      { const S = g.story; if (S && S.id === "bankjob" && S.step === 5) { S.take = take; S.step = 6; storyMark("THE BAGS · GET OUT"); if (S.quiet) { g.heat = 1; g.wantedT = Math.min(g.wantedT || 0, 40); }
+          g.driveTalk = { who: "THE LOOKOUT (RADIO)", text: S.quiet ? "“Street's quiet. Walk, don't run.”" : "“Somebody hit the button -- cops two minutes out! MOVE!”", t: 6 }; } }   // layer 488
+      return true; };
     G.enterKindT = (re) => { const rx = new RegExp(re); for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); if (!c) continue;   // test hook
         for (const b of c.blds || []) { if (!b.door || !rx.test(b.kind || "")) continue; const f = b.entry || 0, pl = buildingPlans(b)[f]; g.inside = b; g.floor = f; g.insideT = 1; g.mode = "foot";
           const r = pl.rooms.slice().sort((a, c2) => (c2.x1 - c2.x0) * (c2.y1 - c2.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))[0]; g.p.x = (r.x0 + r.x1) / 2; g.p.y = (r.y0 + r.y1) / 2 + 40; return [b.kind, pl.rooms.map((q) => q.k).join(" ")]; } } return null; };
@@ -30250,7 +30389,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const fx = ITEM_FX[nm];
       if (!fx) return;
       if (fx.kind === "food") g.p.hp = Math.min(100, g.p.hp + fx.heal);
-      else if (fx.kind === "drink") g.p.stamina = Math.min(g.p.maxStamina, g.p.stamina + fx.stam);
+      else if (fx.kind === "drink") { g.p.stamina = Math.min(g.p.maxStamina, g.p.stamina + fx.stam); if (nm === "beer" || nm === "flask") boozeDrink(1); }   // layer 487
       else if (fx.kind === "cash") g.p.cash += fx.val;
       g.pickupFlash = { nm, t: 1.4 };
       sfxPickup();
@@ -30594,6 +30733,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
 
     function spawnCrime() {
+      if (g.prisonMode && g.pescaped && g.preleased) return;                 // Rey's story: no scanner calls (layer 489)
       const t = pickCrime();
       const ang = Math.random() * 6.283, rad = 1200 + Math.random() * 1050;
       const cxp = g.p.x + Math.cos(ang) * rad, cyp = g.p.y + Math.sin(ang) * rad;
@@ -30764,14 +30904,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const r = bizMainRoom(pl); if (!r) return null;
       const C = bizConf(b), cr = bizCounterRoom(pl), kr = pl.rooms.find((q) => /kitchen|barback/.test(q.k)), folk = [];
       econOf(b); if (floor === (b.entry || 0)) bizSafe(b);
-      const counterAt = cr ? [(cr.x0 + cr.x1) / 2, (cr.y0 + cr.y1) / 2] : [(r.x0 + r.x1) / 2, r.y1 - 46];
+      let counterAt = cr ? [(cr.x0 + cr.x1) / 2, (cr.y0 + cr.y1) / 2] : [(r.x0 + r.x1) / 2, r.y1 - 46];
+      const artC = b.artCounter && b.artFloors && b.artFloors[floor] ? fitArtFloor(b, floor, b.artFloors[floor], b.artKeep) : null;   // a painted counter (layer 477)
+      if (artC && artC.artR2) counterAt = artAt(artC, b.artCounter[0], b.artCounter[1]);
       C.staff.forEach(([role, where], n) => {
         let x = counterAt[0] + n * 30, y = counterAt[1];
         if (where === "kitchen" && kr) { x = (kr.x0 + kr.x1) / 2; y = (kr.y0 + kr.y1) / 2; }
         if (where === "floor") { x = (r.x0 + r.x1) / 2; y = (r.y0 + r.y1) / 2; }
         if (where === "door") { const d = doorPoint(b); x = clamp(d[0], r.x0 + 30, r.x1 - 30); y = clamp(d[1], r.y0 + 30, r.y1 - 30); }
         folk.push({ x, y, hx: x, hy: y, vx: 0, vy: 0, anim: Math.random() * 6, hp: 3, state: "hang", jit: 1, staff: role, where, keeper: n === 0 ? 1 : 0, wt: 0,
-          lane: where === "counter" && cr ? cr : null });
+          lane: where === "counter" && cr && !artC ? cr : null });
       });
       const seats = bizSeats(pl, r), pts = bizPoints(pl, r), busy = bizBusy(C), n = Math.round(C.cust[0] + (C.cust[1] - C.cust[0]) * busy);
       for (let i = 0; i < n; i++) {
@@ -30878,6 +31020,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (it[2] === "gun" || it[2] === "ammo") { buyGun(it, e); return; }                                   // layer 521
       if ((g.p.cash || 0) < it[1]) { g.bizSaid = "\u201cThat's $" + it[1] + ". You're short.\u201d"; return; }
       g.p.cash -= it[1]; e.till += it[1];
+      if (it[2] === "drink" && BOOZE_RX.test(it[0])) boozeDrink(boozeCount(it[0]), it[0]);              // layer 487
       if (it[3]) g.p.hp = Math.min(g.p.maxHp || 10, (g.p.hp || 0) + it[3]);
       if (!it[2]) (g.p.bag = g.p.bag || []).push({ nm: it[0], val: it[1] });          // something to keep (or pawn later)
       if (it[2] === "round") { for (const q of S.folk) if (!q.staff) { q.glass = true; q.say = 2.6; q.line = cpick(["Cheers!", "Salud!", "You're all right.", "Thanks, pal."]); } g.rep = (g.rep || 0) + (g.pescaped ? 3 : 0); }
@@ -31323,6 +31466,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.jobBanner = "KESTREL STATE \u00b7 " + wb.name; g.jobNote = "7:00 count. Nobody knows who you are. Yet.";
       g.pdrain = 0;
       prisonIntroStart(wb, pt, cells.length);              // the bus in, then the cell
+      if (!g.storyDone || !g.storyDone.lastday) { prisonIntroEnd(); storyStart("lastday"); g.jobBanner = "KESTREL STATE \u00b7 YOUR LAST DAY"; g.jobNote = "7:00 count. Ten years. Tomorrow you're out."; }   // layer 478: Last Day In
     }
 
     /* ---------- HOMES ---------- */
@@ -31637,6 +31781,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                       else if (J.step === "drying") { J.step = "fold"; g.pickupFlash = { nm: "lift:DRY \u00b7 FOLD IT", t: 2 }; } }
     }
     function prisonObjective() {
+      { const so = storyObjective(); if (so) return so; }                     // layer 478
       const J = g.plaundry;
       if (J) {
         const sub = J.step === "collect" ? "Bags from " + LAUNDRY.blocks.filter((x) => !J.got[x]).join(", ") + " block. E on each block's tier."
@@ -31858,6 +32003,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if ((g.pcigs || 0) >= 1) g.pcigs -= 1; else inv.splice(inv.indexOf("cigs"), 1); }
       else { const i = inv.indexOf(k); if (i < 0) return; inv.splice(i, 1); }
       g.pfx = { k, t: fx.t };
+      if (k === "hooch") boozeDrink(1, "HOOCH");                                                          // layer 487
       if (fx.hp) g.p.hp = Math.min(g.p.maxHp || 10, (g.p.hp || 0) + fx.hp);
       if (fx.stam) g.p.stamina = Math.max(0, (g.p.stamina || 0) - (g.p.maxStamina || 100) * fx.stam);
       g.pickupFlash = { nm: "lift:" + fx.say, t: 2.2 };
@@ -31879,13 +32025,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function stepPrisonFx(dt) {
       const cv = canvasRef.current;
       if (g.pfx) { g.pfx.t -= dt; if (g.pfx.t <= 0) g.pfx = null; }
+      stepBooze(dt); stepMorning(dt);                                                    // layer 487
       const fx = g.pfx && PFX[g.pfx.k];
       let css = fx ? fx.css : "";
       if (fx && fx.sway) css += " "; // the sway is done with a transform below
       if (cv) {
-        const fade = g.pfx && g.pfx.t < 3 ? "" : css;   // the last three seconds, it lifts
+        const fade = ((g.pfx && g.pfx.t < 3 ? "" : css) + " " + boozeCss()).trim();   // the last three seconds, it lifts; the drink on top (layer 487)
         if (cv.style.filter !== fade) cv.style.filter = fade;
-        const tr = fx && fx.sway && g.pfx.t > 3 ? "rotate(" + (Math.sin(g.t * 1.3) * 1.6).toFixed(2) + "deg)" : "";
+        const sw = boozeSway(), tr = fx && fx.sway && g.pfx.t > 3 ? "rotate(" + (Math.sin(g.t * 1.3) * 1.6 + sw).toFixed(2) + "deg)" : sw ? "rotate(" + sw.toFixed(2) + "deg)" : "";
         if (cv.style.transform !== tr) cv.style.transform = tr;
       }
       if (!g.prisonMode) { g.pwpn = null; return; }
@@ -32689,7 +32836,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         // a trade with no plate yet wears a near one (layer 509): the car thief the driver's, the locksmith the safecracker's
         const art = imgs.current["yt_hire_" + ar + "_" + vv] && imgs.current["yt_hire_" + ar + "_" + vv].width ? ar : ({ thief: "driver", locksmith: "safecracker" })[ar] || ar;
         out.push({ key: "m:" + m.id, m, name: hireName(m), role: m.role, yt: m.yt || "yt_hire_" + art + "_" + vv, tall: m.tall || 1.25,
-          face: m.face || (ar === "locksmith" ? "assets/hires/pt_hire_locksmith_" + Math.min(3, vv) + ".png" : "assets/hires/pt_hire_" + art + "_" + vv + ".png"), rec: m, home: (m.id % 2) * SY_GARAGE }); }   // shelter or the garage, never the parking floor
+          face: m.face || "assets/hires/pt_hire_" + art + "_" + vv + ".png", rec: m, home: (m.id % 2) * SY_GARAGE }); }   // shelter or the garage, never the parking floor
       return out;
     }
     const personByKey = (k) => basePeople().find((q) => q.key === k);
@@ -33509,7 +33656,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!r.gear) r.gear = []; if (!r.rank) r.rank = "soldier"; return r.st; }
     function effStats(p) { const st = { ...ensureStats(p) }; for (const k of p.rec.gear || []) { const A = (GEAR[k] || {}).add || {}; for (const s in A) st[s] = Math.min(10, (st[s] || 0) + A[s]); } return st; }
     function fitStars(st, role) { const W = ROLE_FIT[role] || { nerve: 1 }; let a = 0, n = 0; for (const k in W) { a += (st[k] || 1) * W[k]; n += W[k]; } return clamp(1 + ((a / n) - 1) / 9 * 4, 1, 5); }
-    const roleOpen = (k) => (g.rep || 0) >= HIRES[k].rep;
+    const roleOpen = (k) => hireLock() ? hireLock().includes(k) : (g.rep || 0) >= HIRES[k].rep;   // story mode: only what the story's unlocked, respect aside (layers 488, 491)
     function bestRole(st, openOnly) { let best = null, bv = -1; for (const k in ROLE_FIT) { if (openOnly && !roleOpen(k)) continue; const v = fitStars(st, k); if (v > bv) { bv = v; best = k; } } return best || "dealer"; }
     function statText(p) { const st = effStats(p), base = ensureStats(p);
       return HSTAT.map((k) => STAT_NM[k] + " " + st[k] + (st[k] > base[k] ? "+" : "")).join(" \u00b7 ") + "  \u00b7  BEST AT: " + HIRES[bestRole(st)].nm; }
@@ -33523,17 +33670,18 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     // the day's faces at the board
     function hirePool(force) { const B = g.board2; if (!B) return [];
       if (force || !B.pool || B.poolDay !== (g.pday || 0)) { B.poolDay = g.pday || 0; B.pool = [];
-        const open = Object.keys(HIRES).filter(roleOpen);
-        for (let n = 0; n < 4; n++) { const seed = cpick(open), st = genStats(seed), role = bestRole(st, true), f = fitStars(st, role);
+        const open = Object.keys(HIRES).filter(roleOpen), lk = hireLock(), seeds = lk ? (g.hireNeed && g.hireNeed.length ? g.hireNeed.concat(open.filter((k) => !g.hireNeed.includes(k))) : open) : open;
+        for (let n = 0; n < (open.length ? (lk ? Math.min(6, Math.max(4, seeds.length)) : 4) : 0); n++) { const seed = lk ? seeds[n % seeds.length] : cpick(open), st = genStats(seed), role = lk ? seed : bestRole(st, true), f = fitStars(st, role);
           const id = 1000 + ((Math.random() * 1e6) | 0), nm = HIRE_FIRST[(id * 7) % HIRE_FIRST.length] + " " + HIRE_LAST[(id * 13) % HIRE_LAST.length];
           B.pool.push({ id, name: nm, seed, role, st, v: 1 + ((Math.random() * 3) | 0), cost: Math.round(HIRES[role].cost * (0.7 + 0.18 * (f - 2)) / 50) * 50 }); } }
       return B.pool; }
     function hireCand(k) { const B = g.board2; if (!B) return;
       if (k === "new") { if ((g.p.cash || 0) < 100) { g.boardSaid = "Asking around costs $100."; return; } g.p.cash -= 100; hirePool(true); g.boardSaid = "New faces. Who do you like?"; return; }
       const c = (B.pool || []).find((q) => q.id === +k); if (!c) return;
-      if (peopleCount() >= repTier()[2]) { g.boardSaid = "The street won't follow more than " + repTier()[2] + " people behind a " + repTier()[1].toLowerCase() + ". Earn more respect."; return; }
+      const need = g.hireNeed ? g.hireNeed.indexOf(c.role) : -1;                                   // the story's crew always fits (layer 491)
+      if (peopleCount() >= repTier()[2] && need < 0) { g.boardSaid = "The street won't follow more than " + repTier()[2] + " people behind a " + repTier()[1].toLowerCase() + ". Earn more respect."; return; }
       if ((g.p.cash || 0) < c.cost) { g.boardSaid = "He wants $" + c.cost + ". You have $" + (g.p.cash || 0) + "."; return; }
-      g.p.cash -= c.cost; B.hires[c.role] = (B.hires[c.role] || 0) + 1;
+      g.p.cash -= c.cost; B.hires[c.role] = (B.hires[c.role] || 0) + 1; if (need >= 0) g.hireNeed.splice(need, 1);
       (B.men = B.men || []).push({ role: c.role, art: c.seed, v: c.v, name: c.name, st: c.st, gear: [], rank: "soldier" });
       B.pool = B.pool.filter((q) => q !== c); B.lastFace = "assets/hires/pt_hire_" + (c.seed === "hacker" ? "hacker" : c.seed) + "_" + (c.seed === "hacker" ? 1 : c.v) + ".png";
       g.boardSaid = c.name + " is on the payroll, as your " + HIRES[c.role].nm.toLowerCase() + ". (Change his trade or rank from YOUR PEOPLE.)"; }
@@ -33988,6 +34136,48 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (a === "talk") { g.bozSaid = cpick(K.lines); return; }
       if (a === "respect") { if ((g.p.cash || 0) < 2000) { g.bozSaid = "Two thousand. Come back when you have it."; return; } g.p.cash -= 2000; moveStand("rus", 20); g.bozSaid = g.bozK === "victor" ? "Now THAT is how you say hello!" : "Good. We understand each other a little better."; return; }
       if (a === "blocks") { const n = Object.values((g.gwar && g.gwar.turfs) || {}).filter((t) => t.owner === "rus").length; g.bozSaid = "We have " + n + " turfs round your junkyard. Every corner you put a man on, you take from us. Take enough and you will need more than a junkyard to hide in."; return; } }
+    /* THE BACK ROOMS AT THE HAPPY HIPPY (layer 477, Donny): the club in the basement is his picture now (int_happy_hippy: the
+       bar, the band's stage, the hookah lounges, two pool tables, and two private card rooms in the back corners). You do not
+       walk into a card room: a Boznov soldier minds each door (faces: the four regulars, pt_bratva_*). Talk to him (E), pay to
+       sit in, and you are AT the table -- five card draw. Get up and you are back out on the club floor by his door. At war
+       with the Boznovs he won't let you in; on their good side it's half price. */
+    const HIPPY_ROOMS = [{ door: [0.215, 0.82], seat: [0.095, 0.72], table: [0.095, 0.84], v: 1, nm: "THE GREEN ROOM" },
+                         { door: [0.79, 0.93], seat: [0.905, 0.73], table: [0.905, 0.84], v: 3, nm: "THE RED ROOM" }];
+    const HIPPY_BUYIN = 100, HIPPY_CARDS = ["yt_hire_fence_1", "yt_hire_fixer_2", "yt_hire_forger_3", "yt_hire_dealer_2", "yt_hire_fence_3", "yt_hire_fixer_1"];
+    function hippyPl() { const b = g.inside; if (!b || !b.happyHippy || g.floor !== 0) return null; if (!b.artFloors) b.artFloors = { 0: "int_happy_hippy" };
+      const pl = fitArtFloor(b, 0, b.artFloors[0], b.artKeep); return pl && pl.artR2 ? pl : null; }
+    const hippyPrice = () => { const st = g.gwar && g.gwar.gangs && g.gwar.gangs.rus ? standOf("rus") : 0; return st <= -60 ? 0 : st >= 40 ? HIPPY_BUYIN / 2 : HIPPY_BUYIN; };
+    G.hippyFn = () => { const pl = hippyPl(); if (!pl || g.mode !== "foot" || g.table) return false;
+      for (let n = 0; n < HIPPY_ROOMS.length; n++) { const [x, y] = artAt(pl, HIPPY_ROOMS[n].door[0], HIPPY_ROOMS[n].door[1]);
+        if (Math.hypot(g.p.x - x, g.p.y - y) < 64) { g.hippyRoom = n; g.hippySaid = null;
+          const S = g.story; if (S && S.id === "allin" && (S.step === 3 || (S.step === 4 && !S.final))) { G.pickOpen(S.step === 3 ? "allin_door" : "allin_bet"); return true; }   // layer 485
+          G.pickOpen("hippy"); return true; } }
+      return false; };
+    function hippyPanel() { const R = HIPPY_ROOMS[g.hippyRoom || 0], price = hippyPrice();
+      return { title: "THE BACK ROOM · " + R.nm + " · BOZNOV", face: "assets/crew/pt_bratva_" + R.v + ".png",
+        text: "“" + (g.hippySaid || (price ? "Private game. Five card draw, the house deals. $" + price + " and I open the door." : "You? In there? Walk away while you still can.")) + "”",
+        opts: (price ? [{ id: "hh:in", label: "PAY $" + price + " \u00b7 SIT IN" }] : []).concat(g.hippyOwned ? [{ id: "hh:hi", label: "HIGH STAKES \u00b7 $500 TO SIT ($1,000 HANDS)" }] : []).concat([{ id: "hh:who", label: "WHO'S PLAYING?" }, { id: "close", label: "NOT TONIGHT" }]) }; }
+    G.hippyPick = (id) => { const a = id.split(":")[1], R = HIPPY_ROOMS[g.hippyRoom || 0];
+      if (a === "who") { g.hippySaid = cpick(["Doctors. A judge. A man who sells boats. Their money spends the same.", "Victor plays Thursdays. Don't beat Victor.", "Nobody you know, nobody who knows you. That's the point."]); return "open"; }
+      if (a === "hi") { if ((g.p.cash || 0) < 1500) { g.hippySaid = "Five hundred to sit and a thousand a hand. You're short."; return "open"; } g.p.cash -= 500; const pl = hippyPl(); if (!pl) return "close";
+        const [sx, sy] = artAt(pl, R.seat[0], R.seat[1]); g.hippyTable = { room: g.hippyRoom || 0, b: g.inside }; g.p.x = sx; g.p.y = sy; g.cam.x = sx; g.cam.y = sy; g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+        openTable("poker", "THE HAPPY HIPPY \u00b7 HIGH STAKES"); const t = g.table; t.lo = 1000; t.hi = 5000; t.step = 100; t.bet = 1000; return "table"; }       // owned (layer 485)
+      if (a !== "in") return "close"; const price = hippyPrice(); if (!price) return "close";
+      if ((g.p.cash || 0) < price) { g.hippySaid = "$" + price + ". You don't have it. Go wash some clothes upstairs."; return "open"; }
+      const pl = hippyPl(); if (!pl) return "close"; g.p.cash -= price;
+      const [sx, sy] = artAt(pl, R.seat[0], R.seat[1]); g.hippyTable = { room: g.hippyRoom || 0, b: g.inside }; g.p.x = sx; g.p.y = sy; g.p.vx = 0; g.p.vy = 0; g.cam.x = sx; g.cam.y = sy;
+      g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); openTable("poker", "THE HAPPY HIPPY · " + R.nm); return "table"; };
+    // out of the game: back on the club floor by the door you came through
+    function hippyOut() { const H = g.hippyTable; g.hippyTable = null; if (!H || g.inside !== H.b) return; const pl = hippyPl(); if (!pl) return; const R = HIPPY_ROOMS[H.room];
+      const [x, y] = artAt(pl, R.door[0] + (H.room === 0 ? 0.035 : -0.035), R.door[1] - 0.04); g.p.x = x; g.p.y = y; g.cam.x = x; g.cam.y = y; }
+    function drawHippy() { const pl = hippyPl(); if (!pl) { if (g.hippyTable && !g.table) g.hippyTable = null; return; } if (g.hippyTable && !g.table) hippyOut();
+      HIPPY_ROOMS.forEach((R, n) => { const [x, y] = artAt(pl, R.door[0], R.door[1]);                 // the soldier on the door
+        const man = { x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt: "yt_bratva_" + R.v, bang: n === 0 ? Math.PI : 0 }; drawShadow(x, y + 2, 10, 4, 0.3); drawYouth(man);
+        ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e05a5a"; ctx.fillText("BOZNOV · E", x, y - 30); ctx.textAlign = "start";
+        const [tx, ty] = artAt(pl, R.table[0], R.table[1]);                                          // the players at the table
+        [[-0.05, 0], [0.05, 0], [0, 0.09]].forEach(([dx, dy], k) => { const [px, py] = artAt(pl, R.table[0] + dx, R.table[1] + dy);
+          drawYouth({ x: px, y: py, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.1, yt: HIPPY_CARDS[(n * 3 + k) % HIPPY_CARDS.length], bang: Math.atan2(ty - py, tx - px) }); }); }); }
+    G.hippyT = () => { const b = g.inside; return b && b.happyHippy ? { floor: g.floor, art: b.artFloors, table: !!g.table, seat: g.hippyTable ? g.hippyTable.room : null, p: [g.p.x | 0, g.p.y | 0] } : null; };   // test hook
     // the house in Old Town: a wall round it with the gate on the street side (fences collide), drawn with the ground
     function drawBozHouse(view) { if (g.inside) return; const b = g.bozHouseB; if (!b || !b.fences) return; if (b.x > view.x1 + 300 || b.x + b.w < view.x0 - 300 || b.y > view.y1 + 300 || b.y + b.h < view.y0 - 300) return;
       for (const f of b.fences) { ctx.fillStyle = "#3d3a36"; ctx.fillRect(f.x, f.y, f.w, f.h); ctx.fillStyle = "rgba(255,255,255,0.10)"; ctx.fillRect(f.x, f.y, f.w, 3); } }
@@ -34066,6 +34256,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.p.holstered = false; setHud((h) => ({ ...h, wpn: k, ammo: g.p.ammo, holstered: false })); };
     G.pocketsWheel = () => { if (!g.prisonMode) return false; g.pocketSaid = null; const P = pocketsPanel();
       const items = P.opts.filter((o) => o.id !== "close").map((o) => { const k = o.id.slice(7); return { label: o.label, short: k === "cigs" ? "SMOKE" : (CONTRABAND[k] || {}).nm || o.label, icon: o.icon, id: o.id }; });
+      if (g.watchHave) items.push({ label: "THE DAVIES WATCH", short: g.watchOn ? "WATCH · ON" : "WATCH · OFF", sub: g.watchOn ? "on your wrist · take it off" : "in your pocket · put it on", icon: "assets/ui/ui_watch_icon.png", id: "watch:toggle" });   // layer 481
       if (!items.length) items.push({ label: "NOTHING", sub: "empty pockets", id: "close" });
       return G.radialOpen({ kind: "pockets", title: "POCKETS", text: P.text, items }); };
     /* PRISON PISTOLS (layer 520: Donny's odds). A zip gun or a smuggled pistol: the man you hit goes to the infirmary
@@ -34083,6 +34274,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const pl = buildingPlans(b)[0];
       const t = (pl.props || []).find((o) => o.t === "bs_maptable" && Math.hypot(o.x + o.w / 2 - g.p.x, o.y + o.h / 2 - g.p.y) < 70);
       if (!t) return false;
+      { const S = g.story; if (S && S.id === "maptable" && S.step === 1) { G.pickOpen("mt_0"); return true; } if (S && S.id === "maptable" && S.step === 8) { G.pickOpen("mt_plan"); return true; } if (S && S.id === "nest" && S.step === 2) { G.pickOpen("ne_plan"); return true; } }   // layers 488, 491
       g.board2 = g.board2 || { hires: {}, ops: [], corners: 0 }; g.boardSaid = null; G.pickOpen("opsboard"); return true;
     };
     function opsPanel() {
@@ -34597,6 +34789,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const out = [], at = (b, dist) => { const dp = doorPoint(b), sd = b.door ? b.door.side : 2, o = [[0, -1], [1, 0], [0, 1], [-1, 0]][sd] || [0, 1];
         return [dp[0] + o[0] * (dist || 140), dp[1] + o[1] * (dist || 140)]; };
       if (g.mis) { const p = misPt(), M = g.mis; out.push({ label: "THE JOB · " + (M.b ? (M.b.name || addressOf(M.b)) : M.pt ? (M.pt.addr || "THE SPOT") : "THE ROUTE").toUpperCase(), x: p[0], y: p[1] }); }
+      if (g.story && g.story.id === "scrapyard" && g.story.step <= 2) { const T = scrapStakeout(); if (T) out.unshift({ label: "STAKEOUT \u00b7 THE SCRAPYARD", x: T.x, y: T.y }); }   // Mission 4 (layer 481)
+      if (g.story && g.story.id === "scrapyard" && g.story.step >= 4 && g.story.step <= 5) { const gs = namedB((b) => b.name === "RIGHT TO ARMS"); if (gs) { const [x, y] = frontOf(gs); out.unshift({ label: "RIGHT TO ARMS", x, y }); } }
+      if (g.story && g.story.id === "scrapyard" && g.story.step === 6) { const Y = yardBack(); if (Y) out.unshift({ label: "THE SCRAPYARD \u00b7 THE BACK FENCE", x: Y.start[0], y: Y.start[1] }); }
+      for (const d of FRI_D()) out.unshift(d);                                              // Mission 5 (layer 484)
+      { const S = g.story, B = (S && (S.id === "maptable" || S.id === "bankjob")) ? theBank() : null;                // layer 488
+        if (B && S.id === "maptable" && S.step === 4) { const [x, y] = frontOf(B); out.unshift({ label: "FIRST MERCHANTS BANK", x, y }); }
+        if (B && S.id === "bankjob" && S.step === 2) { const T = g.bankPlan === "front" ? frontOf(B) : wallPt(B, backSide(B), 0.5, 160); out.unshift({ label: "FIRST MERCHANTS \u00b7 " + (g.bankPlan === "front" ? "THE FRONT" : "THE BACK"), x: T[0], y: T[1] }); } }
+      if (g.story && g.story.id === "washday" && g.story.step === 3) { const D = washDock(); out.unshift({ label: "KESTREL \u00b7 THE LAUNDRY DOCK \u00b7 BACK IT IN", x: D.x, y: D.y - 160, after: "backin" }); }   // layer 487
+      if (g.story && g.story.id === "washday" && g.story.step === 5) { const H = hippyB(); if (H) { const [x, y] = frontOf(H); out.unshift({ label: "THE HAPPY HIPPY", x, y }); } }
+      if (g.story && g.story.id === "scrapyard" && g.story.step === 10) { const c = aptC(); if (c) out.unshift({ label: "HOME \u00b7 PALM COURT", x: (c.lx0 + c.lx1) / 2, y: c.ly1 + 100 }); }
       const H = hideoutB(); if (H && H.door) { const [x, y] = at(H); out.push({ label: "THE SCRAPYARD", x, y, home: 1 }); }
       for (const C of (g.board2 && g.board2.cased) || []) if (C.b && C.b.door) { const [x, y] = at(C.b); out.push({ label: "CASED · " + (C.nm || "A STORE"), x, y }); }
       if (g.repairB && g.repairB.door) { const [x, y] = at(g.repairB); out.push({ label: "STAN'S · PLATES & REPAIRS", x, y }); }
@@ -34720,6 +34922,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (A.cruise) { A.pts = loseLeg(v); A.i = 0; return true; }
       g.pickupFlash = { nm: "lift:" + A.who + " · " + (A.lose ? "WE LOST 'EM" : A.escape ? "WE'RE CLEAR" : A.after === "gas" ? "FILL HER UP" : A.after === "fix" ? "STAN'S" : A.label && /NORTH|SOUTH|EAST|WEST/.test(A.label) ? "END OF THE ROAD" : "WE'RE HERE"), t: 2 };
       if (A.after === "fix") setTimeout(() => { try { if (G.repairFn && !G.repairFn()) { g.repairSaid = null; G.pickOpen("repair"); } } catch (e) {} }, 300);
+      if (A.after === "backin") washBackIn(v);                                                            // layer 487
       return false;
     }
     function misTask(f, kind, x, y, need, done, b2, fl) { f.task = { kind, x, y, need: need || 0, w: 0, done, b: b2 || null, fl: fl || 0 }; }
@@ -35017,7 +35220,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         (extra.length ? ".  BRINGING: " + extra.map((p) => p.name.split(" ")[0] + " (" + HIRES[p.role].nm.toLowerCase() + ")").join(", ") : ""); }
     /* THE CARD TABLE (layer 509, the cards from layer 502): PLAN A JOB lays every job out as a card -- a gang job on that
        gang's card, a job in town on the city's crest, the house's own work on the blank. */
-    const CARD_OF = { mob: "mob_old", mob_old: "mob_old", mob_young: "mob_young", deuce: "deuce", wolves: "wolves", chi: "chi", irish: "irish", barrio: "barrio", brack: "brack", kings: "kings", gomez: "gomez", sec: "sec" };
+    const CARD_OF = { rus: "rus", mob: "mob_old", mob_old: "mob_old", mob_young: "mob_young", deuce: "deuce", wolves: "wolves", chi: "chi", irish: "irish", barrio: "barrio", brack: "brack", kings: "kings", gomez: "gomez", sec: "sec" };
     const HOUSE_JOBS = { papers: 1, sellpaper: 1, cop: 1, jam: 1, stealcar: 1, stealvan: 1, stealtruck: 1 };
     const cardFor = (k, gk) => "assets/cards/card_" + (gk ? (CARD_OF[gk] || "city") : HOUSE_JOBS[k] ? "blank" : "city") + ".png";
 
@@ -35311,7 +35514,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText("SILAS \u00b7 BROKER", q.x, q.y - 30); ctx.textAlign = "start";
     }
     function drawTargetArrow() {
-      const tg = g.mis ? misArrow() : g.merc ? doorPoint(g.merc.b) : g.board2 && g.board2.attack ? [g.board2.attack.x, g.board2.attack.y] : !g.inside && g.pescaped && g.mercBar && !g.mercSeen ? doorPoint(g.mercBar) : null;
+      const st = storyTarget();                                            // the story first (layer 489); in the story, nothing else unless it's a job you started
+      const tg = st ? st : storyOnly() && !g.mis && !(g.board2 && g.board2.attack) ? null : g.mis ? misArrow() : g.merc ? doorPoint(g.merc.b) : g.board2 && g.board2.attack ? [g.board2.attack.x, g.board2.attack.y] : !g.inside && g.pescaped && g.mercBar && !g.mercSeen ? doorPoint(g.mercBar) : null;
       if (!tg || g.inside) return;
       const dx = tg[0] - g.p.x, dy = tg[1] - g.p.y, d = Math.hypot(dx, dy); if (d < 140) return;
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -35580,6 +35784,1298 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.pball) ball(g.p.x + 10, g.p.y - 4, 4.5);
     }
 
+
+    /* ================= THE STORY (layer 478, Donny's script) =================
+       A mission is a list of objectives. Finishing one is a CHECKPOINT: the whole game is snapshotted (collectSnap, the same
+       snapshot the exact save uses -- kept in storyCk, outside g, so a checkpoint never holds the one before it). MISSION
+       COMPLETE slams in with the pay and the money goes on you; MISSION FAILED (you went down, you were seen, the guards
+       took you) slams in with a panel: RETRY FROM CHECKPOINT (applySnap puts everything back) or QUIT MISSION.
+       LAST DAY IN (Prison Mode): Rey's last full day. Talk to Leroy, Ras and Pablo -- ten years of friends -- and each has
+       a side job that teaches one thing: RAS the stash (POCKETS, your mattress), LEROY the fight (put a man down), PABLO
+       the cake (sneak into the mess hall kitchen, unseen: vision cones). Then the cake and the goodbyes in your cell, then
+       lights out. +$250. */
+    const STORY = { lastday: { nm: "LAST DAY IN", pay: 250 } };
+    let storyCk = null;
+    const SIDE = { ras: "THE STASH", leroy: "THE FIGHT", viejo: "THE CAKE" };
+    const HOMIE = { leroy: "LEROY", ras: "RAS", viejo: "PABLO" };
+    function storyCheckpoint() { try { storyCk = JSON.stringify(collectSnap()); } catch (e) { storyCk = null; } }
+    function storyStart(id) { g.story = { id, step: 0, talked: {}, side: {}, t: 0 }; g.slam = null; storyCheckpoint();
+      g.slam = { kind: "start", title: STORY[id].nm, sub: id === "lastday" ? "KESTREL STATE · 1986 · TEN YEARS IN" : "", t: 0 }; }
+    function storyMark(msg) { storyCheckpoint(); g.pickupFlash = { nm: "lift:" + msg + " · CHECKPOINT", t: 2 }; }
+    function storyComplete() { const S = g.story; if (!S) return; const M = STORY[S.id];
+      g.p.cash = (g.p.cash || 0) + M.pay; g.story = null; storyCk = null; (g.storyDone = g.storyDone || {})[S.id] = 1;
+      g.slam = { kind: "done", title: "MISSION COMPLETE", sub: M.nm, pay: M.pay, t: 0 }; G.sfx && G.sfx("door", 0.8);
+      if (S.id === "lastday") g.storyNext = { id: "dayout", t: 1.5 };
+      if (S.id === "dayout") g.storyNext = { id: "firstout", t: 1.5 };
+      if (S.id === "firstout") g.storyNext = { id: "scrapyard", t: 1.5 };
+      if (S.id === "scrapyard") g.storyNext = { id: "friday", t: 1.5 };
+      if (S.id === "friday") g.storyNext = { id: "allin", t: 1.5 };
+      if (S.id === "allin") g.storyNext = { id: "washday", t: 4 };
+      if (S.id === "washday") g.storyNext = { id: "maptable", t: 5 };                         // layer 488
+      if (S.id === "maptable") g.storyNext = { id: "bankjob", t: 2 };
+      if (S.id === "bankjob") { g.storyNext = { id: "corner", t: 5 }; g.masks = 0; g.bagsOn = 0; }                       // layer 491
+      if (S.id === "corner") g.storyNext = { id: "nest", t: 3 }; }                       // the next morning: DAY OUT (layer 479)
+    function storyFail(why) { if (!g.story || (g.slam && g.slam.kind === "fail")) return;
+      g.slam = { kind: "fail", title: "MISSION FAILED", sub: why, t: 0 }; g.p.vx = 0; g.p.vy = 0; G.pickOpen("storyfail"); }
+    function storyFailPanel() { return { title: "MISSION FAILED · " + ((g.story && STORY[g.story.id].nm) || ""), face: null, text: (g.slam && g.slam.sub) || "",
+      opts: [{ id: "story:retry", label: "RETRY FROM CHECKPOINT" }, { id: "story:quit", label: "QUIT MISSION" }] }; }
+    G.storyPick = (a) => {
+      if (a === "retry") { const ck = storyCk; g.slam = null; g.pickOpen = null; setHud((h) => ({ ...h, pick: null, slam: null }));
+        if (ck) { try { applySnap(JSON.parse(ck)); } catch (e) { g.hudErrStack = String(e && e.stack); } }
+        g.slam = null; g.pickOpen = null; if (g.story) { g.story.watch = null; g.story.grace = 2.5; } g.jobBanner = "CHECKPOINT"; g.jobNote = "Back to the last thing you got done."; return; }
+      if (a === "quit") { g.story = null; storyCk = null; g.slam = null; g.pickOpen = null; setHud((h) => ({ ...h, pick: null, slam: null })); return; }
+      { const S = g.story, close = () => { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); };                 // Missions 6-7 (layer 485)
+        if (a === "allin_down") { if (S && S.step === 2) { S.step = 3; storyMark("DOWNSTAIRS \u00b7 THE DOOR"); } close(); return; }
+        if (a === "allin_sit") { close(); victorTable(false); return; }
+        if (a === "allin_final") { close(); if (S) S.final = 1; victorTable(true); return; }
+        if (a === "allin_cut2") { G.pickOpen("allin_cut2"); return; }
+        if (a === "allin_back") { close(); if (S) { S.step = 6; const H = hippyB(); if (H) { g.inside = H; g.floor = 0; g.mode = "foot"; const pl = hippyPl(); if (pl) { const [x, y] = artAt(pl, 0.5, 0.75); g.p.x = x; g.p.y = y; g.cam.x = x; g.cam.y = y; } } } return; }
+        if (a === "allin_done") { close(); g.pabloAt = "hippy"; g.pfol = (g.pfol || []).filter((f) => f.crew !== "viejo"); if (S && S.id === "allin") storyComplete(); return; }
+        if (a === "wash_go") { close(); if (S && S.step === 0) { S.step = 1; storyMark("THE PLAN"); } return; }
+        if (a === "wash_ras") { close(); g.rasJoined = 1; g.crewJoin = { ...(g.crewJoin || {}), ras: "crew" }; if (S && S.step === 5) { S.step = 6; g.pfol = []; storyMark("RAS IS OUT · DOWNSTAIRS"); } return; }
+        if (/^party_/.test(a)) { partyPick(a); return; }
+        if (/^(mt|bk)_/.test(a)) { mtPick(a); return; }                                    // layer 488
+        if (/^(co|ne)_/.test(a)) { coPick(a); return; }                                      // layer 491
+        if (a === "ph_ride") { close(); g.pfol = (g.pfol || []).filter((f) => f.crew !== "viejo").concat([{ key: "c:viejo", name: "PABLO DIAZ", role: "driver", crew: "viejo", yt: "yt_crew_viejo", x: g.p.x, y: g.p.y, vx: 0, vy: 0, seat: "car", lag: 0, cd: 0, hang: 1 }]);
+          g.driveTalk = { who: "PABLO", text: "“Vámonos. I drive, you shoot, nobody touches the radio.”", t: 4 }; return; } }                                // layer 487
+      if (a === "alonzo") { const S = g.story; if (S && S.id === "friday" && S.step === 5 && (g.p.cash || 0) >= 5000) { g.p.cash -= 5000; S.step = 6; g.pday = (g.pday || 0) + 2; g.clock = 9 * 60; g.nightTarget = 0;
+          storyMark("PAID · MONDAY MORNING"); g.driveTalk = { who: "ALONZO", text: "“Monday, nine o'clock, the front gate. We never met.”", t: 6 }; } g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return; }
+      if (a === "leroyin") { const S = g.story; g.crewJoin = { ...(g.crewJoin || {}), leroy: "the yard" }; g.leroyJoined = 1; g.pfol = (g.pfol || []).filter((f) => f.crew !== "leroy");
+        if (S && S.id === "friday") { S.step = 8; storyMark("LEROY'S IN · HE HAS THE YARD"); } g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return; }
+      if (a === "katya2") { const S = g.story; if (S) S.tonyDown = 1; G.pickOpen("katya2"); return; }
+      if (a === "katya3") { const S = g.story; g.crewJoin = { ...(g.crewJoin || {}), katya: "spy" }; g.katyaSpy = 1; g.yardOurs = 1;
+        if (S && S.id === "scrapyard") { S.step = 10; storyMark("KATYA'S IN \u00b7 YOUR SPY"); const H = hideoutB();
+          if (H) { const dp = doorPoint(H), o = [[0, -1], [1, 0], [0, 1], [-1, 0]][H.door.side] || [0, 1]; g.inside = null; g.floor = 0; g.mode = "car"; g.car.x = dp[0] + o[0] * 160; g.car.y = dp[1] + o[1] * 160; g.car.vx = 0; g.car.vy = 0; g.p.x = g.car.x; g.p.y = g.car.y; g.cam.x = g.p.x; g.cam.y = g.p.y; }
+          g.driveTalk = { who: "KATYA", text: "\u201cThe guards go with me. The yard is yours by morning. My brothers will hear it was Tony's mistake.\u201d", t: 7 }; }
+        g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return; }
+      if (a === "watch") { g.watchHave = 1; g.watchOn = 1; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); g.pickupFlash = { nm: "lift:THE DAVIES WATCH \u00b7 ON YOUR WRIST (POCKETS TO TAKE IT OFF)", t: 3 }; return; }
+      if (a.startsWith("pablo:")) { const S = g.story; if (a === "pablo:no") { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); g.jobBanner = "PABLO"; g.jobNote = "\u201cTen years at your table says it is.\u201d"; }
+        if (S && S.id === "firstout" && S.step === 4) { S.step = 5; g.pabloJoined = 1; g.crewJoin = { ...(g.crewJoin || {}), viejo: "driver" };
+          for (let n = g.traffic.length - 1; n >= 0; n--) if (g.traffic[n].pabloCar) g.traffic.splice(n, 1);
+          storyMark("PABLO'S IN \u00b7 YOUR DRIVER"); g.jobNote = "PABLO: \u201cGet some sleep. I'll come by early.\u201d"; }
+        g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return; }
+      if (a === "bye") { const S = g.story; if (S && S.step === 1) { S.step = 2; storyMark("GOODBYES SAID"); } g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return; }
+      if (a.startsWith("talk:")) { const k = a.slice(5), S = g.story; if (!S) return;
+        if (!S.talked[k]) { S.talked[k] = 1;
+          if (k === "ras") { (g.pinv = g.pinv || []).push("shank"); S.shankBase = shankCount(); g.pickupFlash = { nm: "lift:RAS SLIPS YOU A SHANK · POCKETS (I / D-PAD DOWN) · HIDE IT AT YOUR BUNK", t: 3 }; }
+          if (k === "leroy") g.pickupFlash = { nm: "lift:LEROY · THE FIGHT · SOMEBODY ON YOUR TIER WANTS YOUR SEAT", t: 3 };
+          if (k === "viejo") g.pickupFlash = { nm: "lift:PABLO · THE CAKE · MESS HALL KITCHEN · C TO SNEAK", t: 3 };
+          storyCheckpoint(); }
+        g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); } };
+    const shankCount = () => Object.values(g.stash || {}).reduce((n, a) => n + (a || []).filter((x) => x === "shank").length, 0);
+
+    /* DAY OUT (layer 479, Donny's script): 5 AM, they wake him with a flashlight and walk him out -- no goodbyes. Street
+       clothes, the gate, a cab Ras paid twenty packs for. The cab (EARL) drives a tour: a gas station, the Rusty Nail,
+       RIGHT TO ARMS, Stan's -- each stop he holds, says what the place does, and it goes in the book -- and drops him at Palm
+       Court. Find Building A, 1A (Leroy's key under the mat). In the flat: THE CLOSET, THE PHONE, THE MAIL. Then sleep. +$100.
+       Out is legal: street clothes, `g.preleased`, no warrant (the convict-clothes check needs the jumpsuit). */
+    STORY.dayout = { nm: "DAY OUT", pay: 100 };
+    const EARL = { gas: "Gas station. Pull up to a pump, E, pay inside. Snack counter too -- and whoever owns the block sells out the back.",
+      bar: "The Rusty Nail. A bar for people who need work done. Silas runs it. You'll be back here.",
+      gun: "RIGHT TO ARMS. Gun shop. Clean record buys over the counter. Ten years in -- you ain't got a clean record.",
+      stan: "Stan's. Drive in, he fixes it. Parts, plates, more go -- but Stan don't upgrade for strangers.",
+      home: "This is you. Palm Court. Your boy Ras paid me to the door. Here -- my number. You need a ride, call Earl from any phone. I drive. I don't do nothing else." };
+    const APT_SPOTS = { closet: [0.014, 0.30, "THE CLOSET"], phone: [0.36, 0.86, "THE PHONE"], mail: [0.462, 0.43, "THE MAIL"] };
+    function dayOutBegin() { const B = PRISON_BOX, gx = (B.x0 + B.x1) / 2;
+      g.clock = 5 * 60; g.pcivvies = 1; g.pescaped = 1; g.preleased = 1; g.crewOut = 0; g.pfol = []; g.hole = null; g.palarm = 0; g.phunts = null; g.pfolk = null;
+      g.inside = null; g.floor = 0; g.mode = "foot"; g.p.x = gx; g.p.y = B.y0 - 175; g.p.vx = 0; g.p.vy = 0; g.cam.x = g.p.x; g.cam.y = g.p.y; g.heat = 0; g.wantedT = 0;
+      const was = { x: g.car.x, y: g.car.y, ang: g.car.ang, skin: g.car.skin ? { ...g.car.skin } : null };
+      storyHideRides();                                                                             // no car of your own till you steal one (Mission 3)
+      g.car.x = gx - 170; g.car.y = B.y0 - 205; g.car.ang = 0; g.car.vx = 0; g.car.vy = 0; g.car.skin = { k: "taxi", len: 106, w: 51.3 }; g.car.fuel = 100; g.car.dmg = 0;
+      storyStart("dayout"); g.story.carWas = was; g.story.did = {};
+      g.driveTalk = { who: "C.O. HARLAN", text: "Your buddy Ras set you up. Cost him twenty packs to get that cab out here. Don't waste it.", t: 8 };
+      g.jobBanner = "5:00 AM · KESTREL STATE"; g.jobNote = "Flashlight in your face. No goodbyes. Street clothes from 1976."; }
+    const frontOf = (b) => { const dp = doorPoint(b), o = [[0, -1], [1, 0], [0, 1], [-1, 0]][b.door ? b.door.side : 2] || [0, 1]; return [dp[0] + o[0] * 130, dp[1] + o[1] * 130]; };
+    function namedB(test) { let best = null, bd = 1e12; const hb = g.aptHomeB, hx = hb ? hb.x : g.p.x, hy = hb ? hb.y : g.p.y;
+      for (let i = 0; i < CITY_N; i++) for (let j = 0; j < CITY_N; j++) { const c = getCell(i, j); for (const b of (c && c.blds) || []) if (b.door && test(b)) { const d = Math.hypot(b.x - hx, b.y - hy); if (d < bd) { bd = d; best = b; } } }
+      return best; }
+    function cabStops() { const v = g.car, out = [], add = (k, p, nm) => { if (p && Number.isFinite(p[0])) out.push({ k, x: p[0], y: p[1], nm }); };
+      const G2 = gasNear(v); if (G2) add("gas", [G2.x, G2.y], "A GAS STATION");
+      const rn = namedB((b) => b.mercBar); if (rn) add("bar", frontOf(rn), "THE RUSTY NAIL");
+      const gs = namedB((b) => b.name === "RIGHT TO ARMS"); if (gs) add("gun", frontOf(gs), "RIGHT TO ARMS");
+      stanC(); if (g.repairB) add("stan", frontOf(g.repairB), "STAN'S");
+      const ord = []; let px = v.x, py = v.y; const left = out.slice();                                    // the nearest next, so it's a tour, not a zig-zag
+      while (left.length) { left.sort((a, c) => Math.hypot(a.x - px, a.y - py) - Math.hypot(c.x - px, c.y - py)); const s = left.shift(); ord.push(s); px = s.x; py = s.y; }
+      const c = aptC(); if (c) ord.push({ k: "home", x: (c.lx0 + c.lx1) / 2, y: c.ly1 + 100, nm: "PALM COURT" });
+      return ord; }
+    function cabLeg(S) { const st = S.stops[S.si], v = g.car; if (!st) return;
+      g.auto = { pts: roadRoute(v.x, v.y, st.x, st.y).concat([[st.x, st.y]]), i: 0, sk: "fast", spd: CCAR.fast, who: "EARL", whoKey: "cab", mode: "to", label: st.nm, cab: 1 }; g.canAimDriving = true; S.leg = 1; }
+    function dayOutStep(dt) { const S = g.story;
+      if (S.step === 0) { if (g.mode === "car" && inVehicle()) { S.step = 1; S.stops = cabStops(); S.si = 0; storyMark("IN THE CAB"); cabLeg(S);
+          g.driveTalk = { who: "EARL · THE CAB", text: "Ten years? Man, the whole city changed. Sit back. I'll show you around on the way.", t: 6 }; } return; }
+      if (S.step === 1) {
+        if (g.mode !== "car") { g.auto = null; S.leg = 0; return; }                                   // got out: he waits
+        if (S.wait > 0) { S.wait -= dt; if (S.wait <= 0) { S.si++; if (S.si >= S.stops.length) { S.step = 2; storyMark("PALM COURT"); } else cabLeg(S); } return; }
+        if (!g.auto) { if (!S.leg) { cabLeg(S); return; } const st = S.stops[S.si]; S.leg = 0;
+          g.driveTalk = { who: "EARL · " + st.nm, text: EARL[st.k] || "", t: 7 }; S.wait = st.k === "home" ? 0.5 : 7;
+          if (st.k !== "home" && typeof bookNote === "function") bookNote(st.nm + ": " + (EARL[st.k] || "")); }
+        return; }
+      if (S.step === 2) { if (g.mode === "foot") { const W = S.carWas;
+          // Earl's cab pulls off (a car of its own now -- yours is nowhere: you don't have one)
+          g.traffic.push({ x: g.car.x, y: g.car.y, ang: g.car.ang, spd: 0, cruise: 0, brake: 0, axis: "h", si: 0, dir: 1, k: 0, m: { k: "taxi", len: 106, w: 51.3 }, dead: 0, parked: 1, named: 1, earlCab: 1, trFree: 1, goT: 9,
+            idn: { model: "HOLLOWAY CHECKER", colour: "YELLOW", plate: "CAB 1186", owner: "EARL (RAVEN HOOK CAB)" } });
+          if (W) { g.car.skin = W.skin; S.carWas = null; } g.car.x = -90000; g.car.y = -90000; g.car.vx = 0; g.car.vy = 0;
+          g.earlNum = 1; if (typeof bookNote === "function") bookNote("EARL'S CAB: call from any phone -- a booth on the corner, or yours at home. He drives; he doesn't do jobs.");
+          S.step = 3; storyMark("OUT OF THE CAB"); } return; }
+      if (S.step === 3) { if (g.inside && g.inside === g.aptHomeB) { S.step = 4; storyMark("BUILDING A"); } return; }
+      if (S.step === 4) { if (S.did.closet && S.did.phone && S.did.mail) { S.step = 5; storyMark("HOME"); } return; } }
+    function dayOutObjective() { const S = g.story, nm = "DAY OUT";
+      if (S.step === 0) return { head: nm + " · GET IN THE CAB", sub: "It's at the kerb outside the gate. E to get in. Ras paid for it." };
+      if (S.step === 1) { const st = S.stops && S.stops[S.si]; return { head: nm + " · THE RIDE", sub: g.mode !== "car" ? "Get back in the cab (E)." : "Earl's driving" + (st ? " -- next: " + st.nm : "") + ". Sit back." }; }
+      if (S.step === 2) return { head: nm + " · GET OUT", sub: "E to get out of the cab." };
+      if (S.step === 3) return { head: nm + " · FIND YOUR APARTMENT", sub: "Palm Court, BUILDING A, flat 1A. The key's under the mat." };
+      if (S.step === 4) return { head: nm + " · YOUR PLACE", sub: ["closet", "phone", "mail"].map((k) => (S.did[k] ? "✓ " : "· ") + APT_SPOTS[k][2]).join("   ") + " — E at each." };
+      return { head: nm + " · SLEEP", sub: "E at your bed. Tomorrow you look around." }; }
+    // the flat's things: drawn on the floor, E at each (any time, not just today)
+    function aptSpotNear() { const b = g.inside; if (!b || !b.aptTop || g.floor !== 0 || !b.artFloors) return null; const pl = fitArtFloor(b, 0, b.artFloors[0], b.artKeep); if (!pl || !pl.artR2) return null;
+      for (const k in APT_SPOTS) { const [x, y] = artAt(pl, APT_SPOTS[k][0], APT_SPOTS[k][1]); if (Math.hypot(g.p.x - x, g.p.y - y) < 48) return k; } return null; }
+    function drawAptSpots() { const b = g.inside; if (!b || !b.aptTop || g.floor !== 0 || !b.artFloors) return; const pl = fitArtFloor(b, 0, b.artFloors[0], b.artKeep); if (!pl || !pl.artR2) return;
+      const S = g.story && g.story.id === "dayout" && g.story.step === 4 ? g.story : null;
+      for (const k in APT_SPOTS) { const [x, y] = artAt(pl, APT_SPOTS[k][0], APT_SPOTS[k][1]);
+        if (k === "closet") { ctx.fillStyle = "#5a3b24"; ctx.fillRect(x - 7, y - 24, 14, 48); ctx.fillStyle = "#8a6038"; ctx.fillRect(x - 5, y - 22, 10, 44); ctx.fillStyle = "#d9b26a"; ctx.fillRect(x + 2, y - 3, 2, 6); }
+        if (k === "phone") { const ph = imgs.current.fu_phone; if (ph && ph.width) ctx.drawImage(ph, x - 11, y - 12, 22, 24); else { ctx.fillStyle = "#e8dcc0"; ctx.fillRect(x - 9, y - 9, 18, 18); } }
+        if (k === "mail") { ctx.fillStyle = "#b9b9ae"; ctx.fillRect(x - 5, y - 8, 10, 16); ctx.fillStyle = "#e8c46a"; ctx.fillRect(x - 3, y - 5, 6, 2); }
+        if (S && !S.did[k]) { const pulse = 0.5 + 0.5 * Math.sin((g.t || 0) * 4); ctx.strokeStyle = "rgba(232,196,106," + (0.4 + pulse * 0.5) + ")"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 22, 0, 6.3); ctx.stroke();
+          ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText(APT_SPOTS[k][2] + " · E", x, y - 28); ctx.textAlign = "start"; } } }
+    G.aptSpotFn = () => { if (g.mode !== "foot") return false; const k = aptSpotNear(); if (!k) return false; g.aptSaid = null;
+      if (k === "closet") { const S = g.story && g.story.id === "dayout" ? g.story : null; if (S && S.step === 4) { S.did.closet = 1; storyCheckpoint(); } return G.closetWheel(); }   // a wheel (layer 483)
+      if (k === "phone" && !(g.story && g.story.id === "dayout" && g.story.step === 4 && !g.story.did.phone)) return G.phoneWheel();
+      G.pickOpen("apt_" + k); return true; };
+    G.closetWheel = () => G.radialOpen({ kind: "closet", title: "THE CLOSET", text: g.pfit && REY_FITS[g.pfit] ? "On you: " + REY_FITS[g.pfit].nm.toLowerCase() + "." : "Pick what you wear.",
+      items: Object.keys(REY_FITS).map((k) => ({ label: REY_FITS[k].nm, short: REY_FITS[k].nm.replace("THE ", ""), icon: PD_ART[REY_FITS[k].k] || "assets/prison/yt_player_civ.png", sub: (g.pfit || "street") === k ? "wearing it" : "put it on", id: "fit:" + k })) });
+    function aptSpotPanel(k) { const S = g.story && g.story.id === "dayout" ? g.story : null; if (S && S.step === 4 && !S.did[k]) { S.did[k] = 1; storyCheckpoint(); }
+      if (k === "closet") return { title: "THE CLOSET · 1A", face: null, text: g.aptSaid || "Leroy left two shirts, a jacket and a pair of shoes that almost fit, beside what you walked out in. The closet is where you change. More to hang in it once you've got money.",
+        opts: [{ id: "aptx:wear:76", label: "THE CLOTHES YOU WALKED OUT IN (1976)" }, { id: "aptx:wear:leroy", label: "WHAT LEROY LEFT YOU" }, { id: "close", label: "SHUT IT" }] };
+      if (k === "phone") { if (g.aptSaid) return { title: "THE PHONE \u00b7 1A", face: "assets/crew/pt_crew_leroy_civ.png", text: g.aptSaid, opts: [{ id: "close", label: "HANG UP" }] };
+        if (S && S.step === 4) return { title: "THE PHONE \u00b7 1A", face: "assets/crew/pt_crew_leroy_civ.png", text: "One number in the book, in Leroy's writing.",
+          opts: [{ id: "aptx:call:leroy", label: "CALL LEROY'S SISTER'S PLACE" }, { id: "close", label: "HANG UP" }] };
+        g.phoneView = null; g.phoneSaid = null; setTimeout(() => { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); G.phoneWheel(); }, 20); return phonePanel(); }
+      if (k === "mail") { const M = (g.pmail = g.pmail || []); if (!g.aptMailIn) { g.aptMailIn = 1; M.push({ from: "MOM", day: g.pday || 0, text: "Leroy's sister says you're home. Baby, come by Sunday. I'll make the pie. I never stopped praying. -- Mom" }); }
+        g.mailSaid = null; return mailPanel(); }
+      return null; }
+    G.aptPick = (id) => { const [, a, b] = id.split(":");
+      if (a === "wear") { g.pfit = b; g.aptSaid = b === "76" ? "Wide collar, ten years out of style. It's yours." : "Leroy's shirt. A little big. Smells like his sister's house."; }
+      if (a === "call") g.aptSaid = "LEROY (from his sister's): “You made it! Key under the mat, like I said? Good. Rest, man. Tomorrow you look around. And Rey -- don't go near the Deuce. Not yet.”"; };
+
+    const APT_OBJ = {"int_apt_long_f0":[["bed",0.0859,0.152],["nightstand",0.1159,0.08],["bed",0.2486,0.144],["nightstand",0.2706,0.08],["tub",0.3444,0.152],["toilet",0.3967,0.088],["sink",0.434,0.088],["fridge",0.018,0.92],["stove",0.017,0.54],["ksink",0.016,0.652],["sofa",0.3164,0.92],["tv",0.3164,0.532],["bed",0.9141,0.152],["nightstand",0.8841,0.08],["bed",0.7514,0.144],["nightstand",0.7294,0.08],["tub",0.6556,0.152],["toilet",0.6033,0.088],["sink",0.566,0.088],["fridge",0.982,0.92],["stove",0.983,0.54],["ksink",0.984,0.652],["sofa",0.6836,0.92],["tv",0.6836,0.532]],"int_apt_long_f1":[["bed",0.0859,0.152],["nightstand",0.1159,0.08],["bed",0.2486,0.144],["nightstand",0.2706,0.08],["tub",0.3444,0.152],["toilet",0.3967,0.088],["sink",0.434,0.088],["fridge",0.018,0.92],["stove",0.017,0.54],["ksink",0.016,0.652],["sofa",0.3164,0.92],["tv",0.3164,0.532],["bed",0.9141,0.152],["nightstand",0.8841,0.08],["bed",0.7514,0.144],["nightstand",0.7294,0.08],["tub",0.6556,0.152],["toilet",0.6033,0.088],["sink",0.566,0.088],["fridge",0.982,0.92],["stove",0.983,0.54],["ksink",0.984,0.652],["sofa",0.6836,0.92],["tv",0.6836,0.532]],"int_apt_side_f0":[["bed",0.1201,0.152],["nightstand",0.1737,0.08],["tub",0.2742,0.152],["toilet",0.3416,0.088],["sink",0.3821,0.088],["fridge",0.0321,0.92],["stove",0.0304,0.54],["ksink",0.0286,0.652],["sofa",0.3024,0.92],["tv",0.3024,0.532],["bed",0.8799,0.152],["nightstand",0.8263,0.08],["tub",0.7258,0.152],["toilet",0.6584,0.088],["sink",0.6179,0.088],["fridge",0.9679,0.92],["stove",0.9696,0.54],["ksink",0.9714,0.652],["sofa",0.6976,0.92],["tv",0.6976,0.532]],"int_apt_side_f1":[["bed",0.1201,0.152],["nightstand",0.1737,0.08],["tub",0.2742,0.152],["toilet",0.3416,0.088],["sink",0.3821,0.088],["fridge",0.0321,0.92],["stove",0.0304,0.54],["ksink",0.0286,0.652],["sofa",0.3024,0.92],["tv",0.3024,0.532],["bed",0.8799,0.152],["nightstand",0.8263,0.08],["tub",0.7258,0.152],["toilet",0.6584,0.088],["sink",0.6179,0.088],["fridge",0.9679,0.92],["stove",0.9696,0.54],["ksink",0.9714,0.652],["sofa",0.6976,0.92],["tv",0.6976,0.532]]};
+
+    /* EVERY THING HAS A WHEEL (layer 481, Donny): walk up to a thing, E, and its wheel comes up -- always STASH (any bed, sink,
+       toilet, tub, fridge, stove, nightstand, desk, dresser hides cash, guns and what's in your pockets) plus what the thing is
+       FOR: a bed SLEEP (and SAVE at home), a sink WASH YOUR HANDS, a toilet USE IT, a tub SHOWER, a fridge EAT, a stove COOK,
+       a TV WATCH THE NEWS, a sofa SIT DOWN. In Kestrel the hiding places and your own bunk and desk go through the same wheel.
+       $1,000 is hidden somewhere in 1A (Leroy's sister's man left it). */
+    const OBJ_DO = { bed: [["SLEEP", "sleep"]], sink: [["WASH YOUR HANDS", "wash"]], ksink: [["WASH YOUR HANDS", "wash"]], toilet: [["USE IT", "use"]], tub: [["SHOWER", "shower"]],
+      fridge: [["EAT SOMETHING", "eat"]], stove: [["COOK", "cook"]], tv: [["WATCH THE NEWS", "tv"]], sofa: [["SIT DOWN", "sit"]], nightstand: [], desk: [], dresser: [] };
+    const OBJ_NM = { bed: "THE BED", sink: "THE SINK", ksink: "THE KITCHEN SINK", toilet: "THE TOILET", tub: "THE TUB", fridge: "THE FRIDGE", stove: "THE STOVE", tv: "THE TV", sofa: "THE SOFA", nightstand: "THE NIGHTSTAND", desk: "THE DESK", dresser: "THE DRESSER" };
+    const OBJ_NOSTASH = { tv: 1, sofa: 1 };
+    const kindOfProp = (t) => /bunk|^bed|_bed|bed_/.test(t) ? "bed" : /toilet/.test(t) ? "toilet" : /sink/.test(t) ? "sink" : /tub|shower/.test(t) ? "tub" : /fridge/.test(t) ? "fridge"
+      : /stove|oven/.test(t) ? "stove" : /^tv|_tv|tv_|television/.test(t) ? "tv" : /sofa|couch|sectional/.test(t) ? "sofa" : /nightstand|endtable/.test(t) ? "nightstand" : /desk/.test(t) ? "desk" : /dresser|wardrobe|closet/.test(t) ? "dresser" : null;
+    function objNear() { const b = g.inside; if (!b || g.mode !== "foot") return null; let best = null, bd = 50;
+      const pl = buildingPlans(b)[g.floor]; if (!pl) return null;
+      if (b.artFloors && b.artFloors[g.floor] && APT_OBJ[b.artFloors[g.floor]]) { const P2 = fitArtFloor(b, g.floor, b.artFloors[g.floor], b.artKeep);
+        if (P2 && P2.artR2) for (const [k, fx, fy] of APT_OBJ[b.artFloors[g.floor]]) { const [x, y] = artAt(P2, fx, fy), d = Math.hypot(g.p.x - x, g.p.y - y); if (d < bd) { bd = d; best = { k, x, y, fx, fy }; } } }
+      else for (const o of pl.props || []) { const k = kindOfProp(o.t || ""); if (!k) continue; const x = clamp(g.p.x, o.x, o.x + o.w), y = clamp(g.p.y, o.y, o.y + o.h), d = Math.hypot(g.p.x - x, g.p.y - y);
+        if (d < bd - 10) { bd = d + 10; best = { k, x: o.x + o.w / 2, y: o.y + o.h / 2 }; } }
+      return best; }
+    const osKey = (O) => g.inside.key + ":" + g.floor + ":" + O.k + ":" + Math.round(O.x / 10) + ":" + Math.round(O.y / 10);
+    function osGet(O) { const S = (g.ostash = g.ostash || {}), k = osKey(O);
+      if (!S[k]) { S[k] = { cash: 0, items: [], wpn: [] }; if (g.inside.aptTop && g.floor === 0 && O.k === "toilet" && O.fx != null && O.fx < 0.5) S[k].cash = 1000; }   // the tank in 1A
+      return S[k]; }
+    G.objWheelFn = (prisonPass) => { const b = g.inside; if (!b || g.mode !== "foot") return false;
+      if (b.inPrison) { if (!prisonPass || !g.prisonMode) return false; const q = nearStash(); if (!q) return false;
+        const t = q.o.t || "", k = kindOfProp(t) || (/shelf/.test(t) ? "shelf" : /washers/.test(t) ? "washer" : "spot"), mine = myCellHere(), items = [{ label: "STASH", sub: "hide it or take it", icon: PD_ART.ci_cigs, id: "ow:pstash" }];
+        if (k === "bed" && mine && !g.hole) items.push({ label: "SLEEP", sub: "your bunk", id: "ow:psleep" });
+        if (k === "desk" && mine) items.push({ label: "THE MAIL", sub: ((g.pmail || []).filter((m) => !m.read).length || "no") + " new", id: "mailopen" });
+        if (k === "sink") items.push({ label: "WASH YOUR HANDS", id: "ow:wash" }); if (k === "toilet") items.push({ label: "USE IT", id: "ow:use" });
+        g.owNow = { k, x: q.o.x, y: q.o.y, prison: q }; return G.radialOpen({ kind: "object", title: (mine && k === "bed" ? "YOUR BUNK" : (OBJ_NM[k] || "HIDING PLACE")), items }); }
+      if (prisonPass) return false;
+      const O = objNear(); if (!O) return false; g.owNow = O;
+      const home = !!(b.aptTop && g.floor === 0), items = [];
+      if (!OBJ_NOSTASH[O.k]) { const S = osGet(O), n = (S.cash ? 1 : 0) + S.items.length + S.wpn.length; items.push({ label: "STASH", sub: n ? n + " thing" + (n > 1 ? "s" : "") + " in it" : "empty", icon: PD_ART.ci_cash || null, id: "ow:stash" }); }
+      for (const [lab, a] of OBJ_DO[O.k] || []) items.push({ label: lab, id: "ow:" + a });
+      if ((O.k === "dresser" || (O.k === "nightstand" && home)) && g.prisonMode && g.pescaped) items.push({ label: "CHANGE CLOTHES", id: "ow:closet" });   // layer 483
+      if (O.k === "bed" && home) items.push({ label: "SAVE THE GAME", sub: "your bed", id: "apt:save" });
+      return G.radialOpen({ kind: "object", title: OBJ_NM[O.k] || "IT", items }); };
+    function stashWheel() { const O = g.owNow; if (!O) return; const S = osGet(O), items = [];
+      if (S.cash) items.push({ label: "TAKE $" + S.cash.toLocaleString(), short: "$" + S.cash.toLocaleString(), id: "os:take:cash" });
+      S.items.forEach((it, n) => items.push({ label: "TAKE " + ((CONTRABAND[it] || {}).nm || it), icon: PD_ART["ci_" + it], id: "os:take:i" + n }));
+      S.wpn.forEach((w, n) => items.push({ label: "TAKE " + wpnNm(w), icon: wpnIco(w), id: "os:take:w" + n }));
+      if ((g.p.cash || 0) > 0) items.push({ label: "HIDE YOUR CASH", sub: "$" + (g.p.cash | 0).toLocaleString(), short: "HIDE $", id: "os:put:cash" });
+      (g.pinv || []).forEach((it, n) => items.push({ label: "HIDE " + ((CONTRABAND[it] || {}).nm || it), icon: PD_ART["ci_" + it], id: "os:put:i" + n }));
+      (g.rack || []).forEach((w, n) => items.push({ label: "HIDE " + wpnNm(w), icon: wpnIco(w), id: "os:put:w" + n }));
+      if (!items.length) items.push({ label: "NOTHING", sub: "empty, and nothing on you", id: "close" });
+      G.radialOpen({ kind: "stash", title: "STASH · " + (OBJ_NM[O.k] || ""), text: (S.cash || S.items.length || S.wpn.length) ? "Something's in here." : "Empty.", items }); }
+    function sleepWheel() { G.radialOpen({ kind: "sleep", title: "SLEEP UNTIL", items: SLEEP_TO.map(([k, lab]) => ({ label: lab, id: "sleep:" + k })) }); }
+    G.owPick = (id) => { const [, a, b] = id.split(":"), O = g.owNow; const later = (f) => setTimeout(f, 40);
+      if (a === "pstash") { later(() => { G.stashOpenFn && G.stashOpenFn(); }); return; }
+      if (a === "psleep" || a === "sleep") { later(sleepWheel); return; }
+      if (a === "stash") { later(stashWheel); return; }
+      if (a === "closet") { later(() => G.closetWheel()); return; }
+      const say = (t, nm) => { g.pickupFlash = { nm: "lift:" + t, t: 1.8 }; };
+      if (a === "wash") say("YOU WASH YOUR HANDS. TEN YEARS OF KESTREL, STILL THERE.");
+      if (a === "use") say("YOU USE IT. NOBODY WATCHING. THAT'S NEW.");
+      if (a === "shower") { g.p.stamina = g.p.maxStamina || g.p.stamina; g.clock = ((g.clock || 0) + 15) % 1440; say("A HOT SHOWER, AS LONG AS YOU WANT IT · STAMINA FULL"); }
+      if (a === "eat") { g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 20); say("COLD CHICKEN AND A SODA · +20 HEALTH"); }
+      if (a === "cook") { g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 35); g.clock = ((g.clock || 0) + 20) % 1440; say("EGGS, GRITS, HOT SAUCE · +35 HEALTH"); }
+      if (a === "tv") { g.clock = ((g.clock || 0) + 60) % 1440; say(cpick(["THE NEWS: A SHOOTING IN THE HOOD. NOBODY'S TALKING.", "THE NEWS: VANCE TOWER'S NEW FLOOR OPENS. JULIAN VANCE CUTS THE RIBBON.", "THE NEWS: KESTREL STATE RELEASES 40 MEN THIS MONTH."])); }
+      if (a === "sit") { g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 5); g.clock = ((g.clock || 0) + 10) % 1440; say("YOU SIT. THE QUIET IS LOUD."); } };
+    G.osPick = (id) => { const [, a, b] = id.split(":"), O = g.owNow; if (!O) return; const S = osGet(O);
+      if (a === "take") { if (b === "cash") { g.p.cash = (g.p.cash || 0) + S.cash; g.pickupFlash = { nm: "lift:+$" + S.cash.toLocaleString(), t: 1.6 }; S.cash = 0; }
+        else if (b[0] === "i") { const it = S.items.splice(+b.slice(1), 1)[0]; if (it) (g.pinv = g.pinv || []).push(it); }
+        else if (b[0] === "w") { const w = S.wpn.splice(+b.slice(1), 1)[0]; if (w) { g.rack = g.rack || []; if (!g.rack.includes(w)) g.rack.push(w); } } }
+      if (a === "put") { if (b === "cash") { S.cash += g.p.cash | 0; g.p.cash = 0; }
+        else if (b[0] === "i") { const it = (g.pinv || []).splice(+b.slice(1), 1)[0]; if (it) S.items.push(it); }
+        else if (b[0] === "w") { const w = (g.rack || []).splice(+b.slice(1), 1)[0]; if (w) { S.wpn.push(w); if (g.p.wpn === w) { g.p.wpn = null; g.p.holstered = true; } } } }
+      setTimeout(stashWheel, 40); };
+
+    /* THE PHONE IS A WHEEL (layer 481): a booth or the phone at home -- your contacts as faces round the ring, pick a face to
+       call. EARL (a ride, once he's given you the number), LEROY, PABLO (once he's in), and 911: POLICE, AMBULANCE, FIRE. */
+    G.phoneWheel = () => { const items = [];
+      if (g.earlNum) items.push({ label: "EARL", sub: "the cab · $12", icon: "assets/ui/ui_cab.png", id: "ph:earl" });
+      items.push({ label: "LEROY", sub: "his sister's", icon: "assets/crew/pt_crew_leroy_civ.png", id: "ph:leroy" });
+      if (g.pabloJoined) items.push({ label: "PABLO", sub: "your driver", icon: "assets/crew/pt_crew_viejo_civ.png", id: "ph:pablo" });
+      items.push({ label: "POLICE", sub: "911", icon: "assets/ui/ui_badge.png", id: "ph:police" }, { label: "AMBULANCE", sub: "911", id: "ph:ems" }, { label: "FIRE", sub: "911", id: "ph:fire" });
+      return G.radialOpen({ kind: "phone", title: g.inside && g.inside.aptTop ? "THE PHONE · 1A" : "THE PHONE BOOTH", text: g.phoneSaid || "Pick a face. Dial.", items }); };
+    G.phPick = (id) => { const [, a, n] = id.split(":"), say = (t) => { g.phoneSaid = t; setTimeout(G.phoneWheel, 40); };
+      if (a === "earl") { const D = (g.phoneDests = cabDests()); setTimeout(() => G.radialOpen({ kind: "phone", title: "EARL · WHERE TO?", text: "$12, twenty minutes.", items: D.map((d, k) => ({ label: d.nm, id: "phone:go:" + k })) }), 40); return; }
+      if (a === "leroy") return say("LEROY: “" + cpick(["You good? Eat something. Don't go near the Deuce.", "My sister says you never come by. Come by.", "Slow, Rey. Slow is how you stay out."]) + "”");
+      if (a === "pablo") return say("PABLO: “" + (g.story && g.story.id === "scrapyard" ? "I'm outside, mijo! Look out the window!" : "You need me, I'm there. Say the word.") + "”");
+      if (a === "police") return say((g.heat || 0) > 0 ? "“Raven Hook Police, what's your --” You hang up. Not with the heat you've got on you." : "“Raven Hook Police, what's your emergency?” You tell them a lie about a cat in a tree. They hang up.");
+      if (a === "ems") { if ((g.p.hp || 0) < (g.p.maxHp || 100) * 0.95) { if ((g.p.cash || 0) < 150) return say("“Raven Hook EMS.” They want $150 up front. You don't have it.");
+          g.p.cash -= 150; g.p.hp = g.p.maxHp || 100; g.clock = ((g.clock || 0) + 30) % 1440; return say("Twenty minutes later two medics patch you up on the kerb. $150. HEALTH FULL."); }
+        return say("“Raven Hook EMS, what's the emergency?” You don't have one. Yet."); }
+      if (a === "fire") return say("“Raven Hook Fire Department.” Nothing's burning. Not yet."); };
+
+    /* THE SCRAPYARD (Mission 4, layer 481 -- the opening; the gun store, the hook and the roof come next): a horn in the
+       morning -- Pablo at the kerb under Palm Court. Get in (E): you ride, he drives. “You're late, mijo” -- and he
+       gives you a watch (the DAVIES: the time on your HUD; take it off in POCKETS). Then the DRIVER tutorial: open DRIVER (LB
+       wheel / the DRIVER button), DRIVE TO… STAKEOUT · THE SCRAPYARD. Parked across from it, the guards count, Pablo
+       sees the roof. */
+    STORY.scrapyard = { nm: "THE SCRAPYARD", pay: 500 };
+    function scrapBegin() { g.clock = 7 * 60 + 52; g.nightTarget = 0; const b = g.aptHomeB, c = aptC();
+      if (b) { g.inside = b; g.floor = 0; g.mode = "foot"; const pl = fitArtFloor(b, 0, b.artFloors[0], b.artKeep); const [x, y] = artAt(pl, APTC.bed[0] + 0.02, APTC.bed[1] + 0.22); g.p.x = x; g.p.y = y; g.cam.x = x; g.cam.y = y; }
+      storyStart("scrapyard");
+      if (c) g.traffic.push({ x: (c.lx0 + c.lx1) / 2, y: c.ly1 + 100, ang: 0, spd: 0, cruise: 0, brake: 0, axis: "h", si: 0, dir: 1, k: 0, m: { k: "car_crew_viejo", len: 112, w: 50, lowrider: 1 },
+        dead: 0, parked: 1, named: 1, trFree: 1, pabloCar: 1, idn: { model: "LOWRIDER", colour: "", plate: "VIEJO", owner: "PABLO DIAZ" } });
+      g.driveTalk = { who: "OUTSIDE", text: "*HOOOONK* ... *HOOOOOONK* -- “MIJO! You coming or what?”", t: 7 };
+      g.jobBanner = "7:52 AM · A CAR HORN"; g.jobNote = "Pablo. Outside. Laying on the horn."; }
+    G.pabloCarFn = () => { const S = g.story; if (!S || (S.id !== "scrapyard" && S.id !== "friday") || S.step !== 0 || g.mode !== "foot" || g.inside) return false;
+      const n = g.traffic.findIndex((q) => q.pabloCar); if (n < 0) return false; const v = g.traffic[n]; if (Math.hypot(g.p.x - v.x, g.p.y - v.y) > 130) return false;
+      g.car.x = v.x; g.car.y = v.y; g.car.ang = v.ang; g.car.vx = 0; g.car.vy = 0; g.car.skin = v.m; g.car.idn = v.idn; g.car.fuel = 90; g.car.dmg = 0; g.car.crush = null; g.car.dents = [];
+      g.traffic.splice(n, 1); g.mode = "car";
+      g.pfol = [{ key: "c:viejo", name: "PABLO DIAZ", role: "driver", crew: "viejo", yt: "yt_crew_viejo", x: v.x, y: v.y, vx: 0, vy: 0, seat: "car" }];
+      S.step = 1; storyMark("IN PABLO'S CAR"); if (S.id === "scrapyard") G.pickOpen("pablowatch"); return true; };
+    function pabloWatchPanel() { return { title: "PABLO DIAZ · THE LOWRIDER", face: "assets/crew/pt_crew_viejo_civ.png",
+      text: "PABLO: “You're late, mijo. Ten years they told you when to wake up, when to eat, when to sleep -- and now nobody does, so you sleep till eight?”\n\nHe digs in the glove box and drops something in your lap.\n\n“Here. A man running a crew needs to know what time it is.”",
+      opts: [{ id: "story:watch", label: "“A DAVIES. ...THANKS, VIEJO.”" }] }; }
+    function scrapStakeout() { const H = hideoutB(); if (!H || !H.door) return null; const dp = doorPoint(H), o = [[0, -1], [1, 0], [0, 1], [-1, 0]][H.door.side] || [0, 1];
+      return { x: dp[0] + o[0] * 420 - o[1] * 120, y: dp[1] + o[1] * 420 + o[0] * 120 }; }
+    function scrapStep(dt) { const S = g.story;
+      if (S.step === 1) { if (g.auto && g.auto.label && /STAKEOUT/.test(g.auto.label)) { S.step = 2; storyMark("STAKEOUT · ON THE WAY"); } return; }
+      if (S.step === 2) { const T = scrapStakeout(), v = inVehicle() ? activeVeh() : null;
+        if (T && v && !g.auto && Math.hypot(v.x - T.x, v.y - T.y) < 260) { S.step = 3; S.t = 0; storyMark("THE STAKEOUT"); } return; }
+      if (S.step === 3) { S.t += dt; g.clock = ((g.clock || 0) + dt * 6) % 1440;           // the morning goes by while you watch
+        const L = [[0.5, "PABLO: “Front gate. Count 'em.”"], [5, "PABLO: “Six on the gate. Two on the yard. Shift change at six -- nobody looks up.”"],
+          [10, "PABLO: “See the roof? Fire escape on the back corner, then the roof door. Nobody's on the roof. Russians think nobody climbs.”"],
+          [15, "PABLO: “We need a hook and a line. And something between you and a bullet. I know a gun store with a back room.”"]];
+        for (const [t, line] of L) if (S.t >= t && (S.said || 0) < t + 0.01) { S.said = t + 0.01; g.driveTalk = { who: "THE STAKEOUT", text: line, t: 5 }; }
+        if (S.t > 20) { S.step = 4; storyMark("NEXT: RIGHT TO ARMS"); } return; }
+      scrapStep2(dt); }
+    function scrapObjective() { const S = g.story, nm = "THE SCRAPYARD";
+      if (S.step === 0) return { head: nm + " · THAT'S PABLO", sub: "Go out front of Palm Court. E at his car to get in." };
+      if (S.step === 1) return { head: nm + " · TELL HIM WHERE", sub: "Open DRIVER (LB wheel, or the DRIVER button) -> DRIVE TO… -> STAKEOUT · THE SCRAPYARD. He drives; you ride." };
+      if (S.step === 2) return { head: nm + " · THE STAKEOUT", sub: "Pablo's driving. Sit back." };
+      if (S.step === 3) return { head: nm + " · WATCH THE YARD", sub: "Parked across the street. Count the guards." };
+      if (S.step === 4) return { head: nm + " \u00b7 RIGHT TO ARMS", sub: "DRIVER -> DRIVE TO\u2026 -> RIGHT TO ARMS. Then go in and talk to the clerk (E)." };
+      if (S.step === 5) return { head: nm + " \u00b7 THE BACK ROOM", sub: "E at the clerk. Pay to see the back: the hook, a vest, something quiet." };
+      if (S.step === 6) return { head: nm + " \u00b7 TONIGHT", sub: "Back in the car. DRIVER -> DRIVE TO\u2026 -> THE SCRAPYARD \u00b7 THE BACK FENCE." };
+      if (S.step === 7) return { head: nm + " \u00b7 FOLLOW PABLO", sub: S.loud ? "THEY SAW YOU -- get to the marked wall!" : "Sneak (C). Stay out of their cones. When he stops, you stop. The wall is marked." };
+      if (S.step === 8) return { head: nm + " \u00b7 THE WALL", sub: "E at the wall: GRAPPLE to the roof." };
+      if (S.step === 9) return { head: nm + " \u00b7 THE OFFICE", sub: "Upstairs." };
+      if (S.step === 10) return { head: nm + " \u00b7 HOME", sub: "Pablo's driving you home. DRIVER -> DRIVE TO\u2026 -> HOME, or sit back." };
+      return { head: nm + " \u00b7 SLEEP", sub: "E at your bed. The scrapyard's yours." }; }
+
+    /* THE SCRAPYARD, THE REST (layer 482): RIGHT TO ARMS -- the clerk, PAY TO SEE THE BACK ($200): the GRAPPLING HOOK (you need
+       it), a KEVLAR VEST (+50 health while you wear it), a SUPPRESSED PISTOL (Pablo covers you if you're short). Back to the
+       yard at night: FOLLOW PABLO along the back fence, out of the guards' cones (sneak: C). Seen = THE LOUD ROUTE: they open
+       up and you run for the wall anyway. At the marked wall E = GRAPPLE (the hook: the roof). Through the roof door to the
+       office: TONY at the desk, KATYA BOZNOVA at the window -- Tony goes for the radio, Katya shoots him. She wants her
+       brothers out of her way: she's in, as your SPY, and the guards walk out with her. Pablo drives you home. Sleep. +$500. */
+    function yardBack() { const H = hideoutB(); if (!H || !H.door) return null; const s = H.door.side, o = [[0, -1], [1, 0], [0, 1], [-1, 0]][s] || [0, 1];
+      const cx = H.x + H.w / 2, cy = H.y + H.h / 2, far = [cx - o[0] * (H.w / 2 + 70), cy - o[1] * (H.h / 2 + 70)], side = [-o[1], o[0]];
+      const wall = [cx - o[0] * (H.w / 2 + 14) + side[0] * H.w * 0.3, cy - o[1] * (H.h / 2 + 14) + side[1] * H.h * 0.3];
+      const start = [far[0] + side[0] * (H.w * 0.5 + 300), far[1] + side[1] * (H.h * 0.5 + 300)];
+      return { H, wall, start, far, side, path: [start, [far[0] + side[0] * H.w * 0.55, far[1] + side[1] * H.h * 0.55], [wall[0] - o[0] * 50, wall[1] - o[1] * 50]] }; }
+    function scrapStep2(dt) { const S = g.story;
+      if (S.step === 4) { const gs = g.inside; if (gs && gs.name === "RIGHT TO ARMS") { S.step = 5; S.gsB = gs.key; storyMark("RIGHT TO ARMS"); } return; }
+      if (S.step === 6) { const Y = yardBack(), v = inVehicle() ? activeVeh() : null;
+        if (Y && v && !g.auto && Math.hypot(v.x - Y.start[0], v.y - Y.start[1]) < 320) { S.step = 7; g.clock = 23 * 60; g.nightTarget = 1; g.mode = "foot"; g.p.x = v.x + 40; g.p.y = v.y; g.p.sneak = 1;
+            S.pab = { x: v.x + 70, y: v.y, i: 0, wait: 0 }; S.guards = null; S.calm = 4; storyMark("11 PM · THE BACK FENCE"); g.driveTalk = { who: "PABLO", text: "“Stay low, stay behind me. When I stop, you stop.”", t: 6 }; } return; }
+      if (S.step === 7 || S.step === 8) { const Y = yardBack(); if (!Y) return;
+        if (S.calm > 0) S.calm -= dt;
+        if (!S.guards) { const H = Y.H, c = [H.x + H.w / 2, H.y + H.h / 2], R = Math.max(H.w, H.h) / 2 + 120;
+          S.guards = [0, 1, 2].map((k) => { const a0 = k * 2.1; return { nm: "BOZNOV GUARD", cx: c[0], cy: c[1], R: R + k * 30, t: a0, sp: 0.18 + k * 0.03, x: c[0], y: c[1], a: 0, fov: 0.7, range: 210, cd: 0 }; }); }
+        for (const w of S.guards) { w.t += w.sp * dt * (S.loud ? 0 : 1); const nx = w.cx + Math.cos(w.t) * w.R, ny = w.cy + Math.sin(w.t) * w.R;
+          if (!S.loud) { w.a = Math.atan2(ny - w.y, nx - w.x); w.x = nx; w.y = ny; }
+          else { w.a = Math.atan2(g.p.y - w.y, g.p.x - w.x); w.cd -= dt; if (w.cd <= 0 && Math.hypot(g.p.x - w.x, g.p.y - w.y) < 340) { w.cd = 0.9 + Math.random() * 0.5; fireBullet(w, w.a + (Math.random() - 0.5) * 0.25, 900, 2.5, 380, false, "rus"); } }
+          if (!S.loud && S.step === 7 && !(S.calm > 0) && coneSees(w, g.p.x, g.p.y, false)) { S.loud = 1; g.jobBanner = "THEY SAW YOU"; g.jobNote = "The loud way, then. Get to the wall -- Pablo's got your back."; g.driveTalk = { who: "PABLO", text: "“GO, MIJO! THE WALL!”", t: 4 }; } }
+        // Pablo walks the line; stops while a guard's cone is on his next leg
+        const P = S.pab; if (P && P.i < Y.path.length) { const [tx, ty] = Y.path[P.i], dx = tx - P.x, dy = ty - P.y, d = Math.hypot(dx, dy);
+          const hot = !S.loud && S.guards.some((w) => coneSees(w, P.x + dx / (d || 1) * 60, P.y + dy / (d || 1) * 60, false));
+          if (d < 8) P.i++; else if (!hot || S.loud) { const sp = Math.min(d, (S.loud ? 120 : 62) * dt); P.x += dx / d * sp; P.y += dy / d * sp; P.a = Math.atan2(dy, dx); } }
+        if (S.step === 7 && Math.hypot(g.p.x - Y.wall[0], g.p.y - Y.wall[1]) < 70) { S.step = 8; storyMark("THE WALL · E TO GRAPPLE"); }
+        if (S.hook > 0) { S.hook -= dt; if (S.hook <= 0) { const H = Y.H; S.step = 9; g.inside = H; g.floor = Math.max(0, (H.floors || 3) - 1); g.insideT = 1; g.pfolk = null; g.mode = "foot";
+            const pl = buildingPlans(H)[g.floor], r = pl && pl.rooms.slice().sort((a, q) => (q.x1 - q.x0) * (q.y1 - q.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))[0];
+            if (r) { g.p.x = (r.x0 + r.x1) / 2 - 80; g.p.y = (r.y0 + r.y1) / 2; g.cam.x = g.p.x; g.cam.y = g.p.y; S.office = { tx: g.p.x + 110, ty: g.p.y - 10, kx: g.p.x + 170, ky: g.p.y + 40 }; }
+            storyMark("THE ROOF DOOR · THE OFFICE"); setTimeout(() => G.pickOpen("katya1"), 900); } }
+        return; }
+      if (S.step === 10) { const c = aptC(), v = inVehicle() ? activeVeh() : null; if (c && v && !g.auto && Math.hypot(v.x - (c.lx0 + c.lx1) / 2, v.y - (c.ly1 + 100)) < 260) { S.step = 11; storyMark("HOME"); } return; } }
+    G.yardBackT = () => { const Y = yardBack(); return Y ? { wall: Y.wall, start: Y.start } : null; };   // test hook
+    G.grappleFn = () => { const S = g.story; if (!S || S.id !== "scrapyard" || S.step !== 8 || g.mode !== "foot" || S.hook > 0) return false;
+      const Y = yardBack(); if (!Y || Math.hypot(g.p.x - Y.wall[0], g.p.y - Y.wall[1]) > 80) return false;
+      if (!g.hookHave) { g.pickupFlash = { nm: "lift:YOU NEED THE HOOK -- RIGHT TO ARMS' BACK ROOM", t: 2 }; return true; }
+      S.hook = 1.6; g.pickupFlash = { nm: "lift:THE HOOK BITES · CLIMB", t: 1.6 }; return true; };
+    G.backroomFn = () => { const S = g.story; if (!S || S.id !== "scrapyard" || S.step !== 5 || !g.inside || g.inside.name !== "RIGHT TO ARMS" || g.mode !== "foot") return false;
+      const sh = g.shop, clerk = sh && sh.folk && sh.folk.find((f) => f.staff); if (clerk && Math.hypot(clerk.x - g.p.x, clerk.y - g.p.y) > 90) return false;
+      g.r2aSaid = null; G.pickOpen("r2a"); return true; };
+    function r2aPanel() { const S = g.story, back = S && S.back;
+      if (!back) return { title: "RIGHT TO ARMS · THE COUNTER", face: "assets/crew/pt_crew_viejo_civ.png", text: g.r2aSaid || "PABLO (low): “Tell him Pablo sent you. Pay to see the back -- the good stuff's not on the wall.”\n\nCLERK: “The back room's a two-hundred-dollar conversation.”",
+        opts: [{ id: "r2a:back", label: "PAY TO SEE THE BACK · $200" }, { id: "close", label: "NOT YET" }] };
+      const o = [];
+      if (!g.hookHave) o.push({ id: "r2a:hook", label: "GRAPPLING HOOK & LINE · $300" });
+      if (!g.vestHave) o.push({ id: "r2a:vest", label: "KEVLAR VEST · $400 (+50 HEALTH)" });
+      if (!g.silencerHave) o.push({ id: "r2a:gun", label: "SUPPRESSED .22 · $450" });
+      o.push({ id: "r2a:done", label: g.hookHave ? "THAT'S IT · BACK TO THE CAR" : "LEAVE" });
+      return { title: "RIGHT TO ARMS · THE BACK ROOM", face: null, text: g.r2aSaid || "A steel door, a bare bulb, a table. Nothing in here has a price tag or a serial number.", opts: o }; }
+    G.r2aPick = (a) => { const S = g.story; const pay = (n) => { if ((g.p.cash || 0) >= n) { g.p.cash -= n; return true; }
+        if (!S.pabloPaid) { S.pabloPaid = 1; g.r2aSaid = "PABLO: “I got this one, mijo. You owe me a car.”"; return true; } g.r2aSaid = "CLERK: “Cash. Not promises.”"; return false; };
+      if (a === "back") { if (pay(200)) { S.back = 1; g.r2aSaid = g.r2aSaid || "The clerk unlocks the steel door and doesn't look at you while he does it."; } }
+      if (a === "hook" && pay(300)) { g.hookHave = 1; g.r2aSaid = g.r2aSaid || "A folding hook, forty feet of line, gloves. “Don't tell me what it's for.”"; }
+      if (a === "vest" && pay(400)) { g.vestHave = 1; g.p.maxHp = (g.p.maxHp || 100) + 50; g.p.hp = (g.p.hp || 0) + 50; g.r2aSaid = g.r2aSaid || "It goes on under your jacket. Heavier than you'd think."; }
+      if (a === "gun" && pay(450)) { g.silencerHave = 1; g.rack = g.rack || []; if (!g.rack.includes("pistol_auto")) g.rack.push("pistol_auto"); g.r2aSaid = g.r2aSaid || "A .22 with a can on it. Quiet as a cough."; }
+      if (a === "done") { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); if (g.hookHave) { S.step = 6; storyMark("GEARED UP · BACK TO THE YARD, TONIGHT"); g.driveTalk = { who: "PABLO", text: "“Tonight. We wait for dark by the back fence.”", t: 5 }; } return "x"; } };
+    function katyaPanel(n) { if (n === 1) return { title: "THE OFFICE · THE SCRAPYARD", face: null,
+        text: "A man at the desk -- TONY, the Boznovs' man here -- and a woman at the window, watching the yard. KATYA BOZNOVA.\n\nTONY: “Who the hell are you? How'd you get--” He reaches for the radio.\n\nOne shot. Katya didn't even turn all the way round. Tony folds over the desk.",
+        opts: [{ id: "story:katya2", label: "“...WHAT WAS THAT?”" }] };
+      return { title: "KATYA BOZNOVA", face: "assets/crew/pt_bozni_katya.png",
+        text: "KATYA: “He was going to call my brothers. I wasn't.”\n\nPABLO (from the roof door): “This is the sister, mijo. She's got her own reasons.”\n\nKATYA: “Vlad built an empire and then sat down in it. Victor drinks it. Ten years we have not moved one block. You want them gone? I want them out of my way.”",
+        opts: [{ id: "story:katya3", label: "“THEN YOU WORK FOR ME.”" }] }; }
+    function drawScrap2() { const S = g.story; if (!S || S.id !== "scrapyard") return;
+      if (!g.inside && (S.step === 7 || S.step === 8)) { const Y = yardBack(); if (!Y) return;
+        const pulse = 0.5 + 0.5 * Math.sin((g.t || 0) * 4); ctx.strokeStyle = "rgba(232,196,106," + (0.4 + 0.5 * pulse) + ")"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(Y.wall[0], Y.wall[1], 26, 0, 6.3); ctx.stroke();
+        ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText(S.hook > 0 ? "CLIMBING..." : "THE WALL · E: GRAPPLE", Y.wall[0], Y.wall[1] - 32); ctx.textAlign = "start";
+        if (S.hook > 0) { ctx.strokeStyle = "#c9c2a8"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(g.p.x, g.p.y); ctx.lineTo(Y.wall[0] - (Y.wall[0] - Y.H.x - Y.H.w / 2) * 0.3, Y.wall[1] - (Y.wall[1] - Y.H.y - Y.H.h / 2) * 0.3); ctx.stroke(); }
+        if ((g.p.sneak || g.p.cover) && !S.loud) for (const w of S.guards || []) drawCone(w, coneSees(w, g.p.x, g.p.y, false));
+        (S.guards || []).forEach((w, gi) => { drawShadow(w.x, w.y + 2, 10, 4, 0.3); drawYouth({ x: w.x, y: w.y, vx: Math.cos(w.a) * 10, vy: Math.sin(w.a) * 10, anim: (g.t || 0) * 4, jit: 1, tall: 1.3, yt: BRATVA_YT[(gi + 2) % 6], bang: w.a }); });
+        const P = S.pab; if (P) { drawShadow(P.x, P.y + 2, 10, 4, 0.3); drawYouth({ x: P.x, y: P.y, vx: 0, vy: 0, anim: (g.t || 0) * 4, jit: 1, tall: 1.3, yt: "yt_crew_viejo", bang: P.a || 0 });
+          ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#7fd35a"; ctx.fillText("PABLO", P.x, P.y - 30); ctx.textAlign = "start"; } }
+      if (g.inside && S.office && S.step >= 9 && S.step <= 9) { const O = S.office;
+        drawYouth({ x: O.tx, y: O.ty, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt: "yt_hire_fixer_2", bang: Math.PI }); ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = S.tonyDown ? "#e05a5a" : "#e8c46a"; ctx.fillText(S.tonyDown ? "TONY · DOWN" : "TONY", O.tx, O.ty - 30);
+        drawYouth({ x: O.kx, y: O.ky, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.2, yt: "yt_bozni_katya", bang: Math.PI }); ctx.fillStyle = "#e05a5a"; ctx.fillText("KATYA BOZNOVA", O.kx, O.ky - 30); ctx.textAlign = "start"; } }
+
+    /* FRIDAY NIGHT (Mission 5, layer 484, Donny): Katya's tip -- Grigori's runner takes the week's cash from Raven Auto to the
+       Happy Hippy. Pablo picks you up; DRIVER -> RAVEN AUTO; the runner pulls out -- take the wheel (DRIVER -> I'LL DRIVE),
+       RAM HIM before he makes the Hippy, E at his car for the bag, lose them. Then the money buys a man: DET. ALONZO (vice --
+       for sale, the whole city knows it) in the alley behind the station: $5,000 and Leroy's parole goes through Monday.
+       Monday at the Kestrel gate: Leroy. Show him the scrapyard -- he'd rather stay there and build something than lie around
+       an apartment: he's in the crew, and he might know a way to get Ras out. “Come back tomorrow. Bring guns.” Home, sleep. */
+    STORY.friday = { nm: "FRIDAY NIGHT", pay: 1000 };
+    function fridayBegin() { scrapBegin(); g.story.id = "friday"; g.clock = 21 * 60 + 30; g.nightTarget = 1;
+      g.slam = { kind: "start", title: "FRIDAY NIGHT", sub: "", t: 0 };
+      g.driveTalk = { who: "KATYA (ON THE PHONE)", text: "“Friday. Grigori's runner takes the week from Raven Auto to the Hippy at ten. A brown Corvane, one man. Don't kill him -- I need him to blame.”", t: 9 };
+      g.jobBanner = "9:30 PM \u00b7 PALM COURT"; g.jobNote = "Katya called. Pablo's outside."; storyCheckpoint(); }
+    const FRI_D = () => { const S = g.story, out = []; if (!S || S.id !== "friday") return out;
+      if (S.step === 1) { const ra = namedB((b) => b.bozni === "auto"); if (ra) { const [x, y] = frontOf(ra); out.push({ label: "RAVEN AUTO · ACROSS THE STREET", x: x + 260, y: y + 160 }); } }
+      if (S.step === 5) { const A = friAlley(); if (A) out.push({ label: "THE ALLEY BEHIND THE STATION", x: A.x, y: A.y }); }
+      if (S.step === 6) { const B = PRISON_BOX; out.push({ label: "KESTREL STATE · THE GATE", x: (B.x0 + B.x1) / 2 - 170, y: B.y0 - 205 }); }
+      if (S.step === 7) { const H = hideoutB(); if (H) { const [x, y] = frontOf(H); out.push({ label: "THE SCRAPYARD", x, y }); } }
+      if (S.step === 8) { const c = aptC(); if (c) out.push({ label: "HOME · PALM COURT", x: (c.lx0 + c.lx1) / 2, y: c.ly1 + 100 }); }
+      return out; };
+    function friAlley() { const pb = precinctB(); if (!pb || !pb.door) return null; const o = [[0, -1], [1, 0], [0, 1], [-1, 0]][pb.door.side] || [0, 1];
+      return { x: pb.x + pb.w / 2 - o[0] * (pb.w / 2 + 120), y: pb.y + pb.h / 2 - o[1] * (pb.h / 2 + 120) }; }
+    function fridayStep(dt) { const S = g.story, v = inVehicle() ? activeVeh() : null;
+      if (S.step === 1) { const D = FRI_D()[0]; if (D && v && !g.auto && Math.hypot(v.x - D.x, v.y - D.y) < 300) { S.step = 2; storyMark("RAVEN AUTO · HERE HE COMES");
+          const ra = namedB((b) => b.bozni === "auto"), hip = namedB((b) => b.bozni === "laundry" || b.happyHippy); if (!ra || !hip) { S.step = 4; return; }
+          const [x0, y0] = frontOf(ra), [x1, y1] = frontOf(hip); S.cr = { pts: roadRoute(x0, y0, x1, y1).concat([[x1, y1]]), i: 0 };
+          g.traffic.push({ x: x0, y: y0, ang: 0, spd: 0, cruise: 0, brake: 0, axis: "h", si: 0, dir: 1, k: 0, m: { k: "pk_cresta", len: 104, w: 46 }, dead: 0, parked: 1, named: 1, trFree: 1, courier: 1,
+            idn: { model: "CORVANE CRESTA", colour: "BROWN", plate: "RA 1986", owner: "RAVEN AUTO" } });
+          g.driveTalk = { who: "PABLO", text: "“That's him. Brown Corvane. Take the wheel, mijo -- I'm too pretty to ram anybody.”", t: 6 }; } return; }
+      if (S.step === 2) { const c = g.traffic.find((q) => q.courier), R = S.cr; if (!c) { S.step = 3; return; }
+        const [tx, ty] = R.pts[Math.min(R.i, R.pts.length - 1)], dx = tx - c.x, dy = ty - c.y, d = Math.hypot(dx, dy);
+        if (d < 30) { R.i++; if (R.i >= R.pts.length) { storyFail("THE MONEY MADE IT TO THE HAPPY HIPPY."); return; } }
+        else { c.spd = 210; c.ang = Math.atan2(dy, dx); c.x += dx / d * c.spd * dt; c.y += dy / d * c.spd * dt; }
+        if (v && !g.auto && Math.hypot(v.x - c.x, v.y - c.y) < 110) { c.spd = 0; c.courier = 0; c.courierStopped = 1; S.step = 3; g.shake = 10; storyMark("RAMMED · TAKE THE BAG (E)"); }
+        return; }
+      if (S.step === 4) { const L = S.lose; if (v && L && Math.hypot(v.x - L[0], v.y - L[1]) > 1300) { S.step = 5; g.heat = 0; g.wantedT = 0; storyMark("CLEAN · NOW ALONZO");
+          g.driveTalk = { who: "PABLO", text: "“Six grand. Now we spend five of it on a cop. Alonzo. The alley behind the station.”", t: 7 }; } return; }
+      if (S.step === 5) { const A = friAlley(), p = v || g.p; if (A && Math.hypot(p.x - A.x, p.y - A.y) < 200 && !g.pickOpen) G.pickOpen("alonzo"); return; }
+      if (S.step === 6) { const D = FRI_D()[0]; if (D && v && Math.hypot(v.x - D.x, v.y - D.y) < 300) { S.step = 7; g.pfol.push({ key: "c:leroy", name: "LEROY BANKS", role: "crew", crew: "leroy", yt: "yt_crew_leroy", x: v.x, y: v.y, vx: 0, vy: 0, seat: "car" });
+          storyMark("LEROY'S OUT"); g.driveTalk = { who: "LEROY", text: "“Look at y'all. A watch, a lowrider. What'd I miss?” You tell him. All of it.", t: 8 }; } return; }
+      if (S.step === 7) { const D = FRI_D()[0]; if (D && v && Math.hypot(v.x - D.x, v.y - D.y) < 300 && !g.pickOpen) G.pickOpen("leroyyard"); return; }
+      if (S.step === 8) { const D = FRI_D()[0], p = v || g.p; if (D && Math.hypot(p.x - D.x, p.y - D.y) < 300) { S.step = 9; storyMark("HOME"); } return; } }
+    function drawFriday() { const S = g.story; if (!S || S.id !== "friday" || g.inside) return; const lab = (t, x, y, c) => { ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = c; ctx.fillText(t, x, y); ctx.textAlign = "start"; };
+      if (S.step === 5) { const A = friAlley(); if (A) { drawShadow(A.x, A.y + 2, 10, 4, 0.3); drawYouth({ x: A.x, y: A.y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.26, yt: "yt_alonzo", bang: Math.PI / 2 }); lab("DET. ALONZO", A.x, A.y - 30, "#9fc6ff"); } }
+      if (S.step === 6) { const B = PRISON_BOX, x = (B.x0 + B.x1) / 2, y = B.y0 - 150; drawShadow(x, y + 2, 10, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt: "yt_crew_leroy", bang: Math.PI / 2 }); lab("LEROY BANKS", x, y - 30, "#7fd35a"); }
+      if (S.step === 3) { const c = g.traffic.find((q) => q.courierStopped); if (c) lab("THE BAG \u00b7 E", c.x, c.y - 60, "#e8c46a"); } }
+    G.courierBagFn = () => { const S = g.story; if (!S || S.id !== "friday" || S.step !== 3 || g.mode !== "foot") return false; const c = g.traffic.find((q) => q.courierStopped);
+      if (!c || Math.hypot(g.p.x - c.x, g.p.y - c.y) > 90) return false; g.p.cash = (g.p.cash || 0) + 6000; c.courierStopped = 0; S.step = 4; S.lose = [c.x, c.y]; g.heat = Math.max(g.heat || 0, 2);
+      storyMark("+$6,000 · LOSE THEM"); g.driveTalk = { who: "THE RUNNER", text: "“You know whose money that is?” You do.", t: 5 }; return true; };
+    function fridayObjective() { const S = g.story, nm = "FRIDAY NIGHT";
+      return { head: nm + " · " + ["THAT'S PABLO", "RAVEN AUTO", "STOP THE RUNNER", "TAKE THE BAG", "LOSE THEM", "ALONZO", "MONDAY · KESTREL", "SHOW LEROY THE YARD", "HOME", "SLEEP"][S.step],
+        sub: ["Out front of Palm Court. E at his car.", "DRIVER -> DRIVE TO… -> RAVEN AUTO · ACROSS THE STREET.", "Take the wheel (DRIVER -> I'LL DRIVE) and RAM the brown Corvane before it reaches the Happy Hippy.",
+          "Get out, E at his car.", "Get clear -- 1,300 away from where you hit him.", "DRIVER -> THE ALLEY BEHIND THE STATION. Det. Alonzo's waiting.", "DRIVER -> KESTREL STATE · THE GATE.",
+          "DRIVER -> THE SCRAPYARD.", "DRIVER -> HOME · PALM COURT.", "E at your bed."][S.step] }; }
+    function fridayPanel(k) {
+      if (k === "alonzo") return { title: "DET. ALONZO · VICE / NARCOTICS", face: "assets/heroes/pt_alonzo.png",
+        text: "Leaning on a dumpster in a good coat, smoking somebody else's cigarettes.\n\nALONZO: “Leroy Banks. Parole board sits Monday. Files get lost, files get found. Five thousand and his comes up clean.”" + ((g.p.cash || 0) < 5000 ? "\n\nYou don't have five thousand." : ""),
+        opts: (g.p.cash || 0) >= 5000 ? [{ id: "story:alonzo", label: "PAY HIM · $5,000" }] : [{ id: "close", label: "COME BACK WITH IT" }] };
+      return { title: "LEROY BANKS · THE SCRAPYARD", face: "assets/crew/pt_crew_leroy_civ.png",
+        text: "Leroy walks the yard. The cars, the cranes, the garage. He doesn't say anything for a long time.\n\nLEROY: “Man, I'd rather be here building something than lying around an apartment. Somebody's gotta watch this place. I'll stay.”\n\n“And Rey -- I might know a way to get Ras out. Come back tomorrow. Bring guns.”",
+        opts: [{ id: "story:leroyin", label: "“IT'S YOURS, LEROY.”" }] }; }
+
+    /* ALL IN (Mission 6, layer 485, Donny): Katya's plan -- put on THE SUIT; at the Happy Hippy she fronts you $20,000. The
+       muscle in the laundromat lets you down to the basement; the man on the card-room door seats you at VICTOR'S TABLE (high
+       stakes: $500-$5,000). Beat him THREE times without going broke; Katya comes over from the bar and talks him into putting
+       his club on the table in front of his men. One hand. Win: the Happy Hippy is yours. Victor walks out. THE HOUSE: he tells
+       Vlad; Vlad is enraged and doesn't show it -- “I will be keeping my eye on him.” Back at the Hippy, just guests now; Pablo
+       runs it (his car parks there when he's not with you; Leroy's parks at the yard). The Hippy's laundry truck is yours (it
+       waits in the lot). High stakes any night after: the door man, $500 to sit. Lose the club hand or go broke: MISSION FAILED. */
+    STORY.allin = { nm: "ALL IN", pay: 0 };
+    const hippyB = () => namedB((b) => b.happyHippy);
+    function allinBegin() { aptStartHome(); storyStart("allin"); g.clock = 19 * 60; g.nightTarget = 1;
+      g.driveTalk = { who: "KATYA (ON THE PHONE)", text: "“Victor plays tonight, the back room at the Hippy. Put on a suit -- a real one. I'll bring twenty thousand. You beat him three times, I do the rest.”", t: 10 };
+      g.jobBanner = "7:00 PM · PALM COURT"; g.jobNote = "Katya called. Victor's game. Wear the suit."; }
+    function aptStartHome() { const b = g.aptHomeB || (aptC(), g.aptHomeB); if (!b) return; g.inside = b; g.floor = 0; g.mode = "foot"; const pl = fitArtFloor(b, 0, b.artFloors[0], b.artKeep);
+      const [x, y] = artAt(pl, APTC.bed[0] + 0.02, APTC.bed[1] + 0.22); g.p.x = x; g.p.y = y; g.cam.x = x; g.cam.y = y; }
+    const muscleAt = (b) => [b.x + b.w * 0.5 - 90, b.y + b.h - 70];
+    function allinStep(dt) { const S = g.story, H = hippyB(); if (!H) return;
+      if (S.step === 0) { if (g.pcivvies && g.pfit === "suit") { S.step = 1; storyMark("THE SUIT"); } return; }
+      if (S.step === 1) { const [fx, fy] = frontOf(H), p = inVehicle() ? activeVeh() : g.p; if ((Math.hypot(p.x - fx, p.y - fy) < 260 && !g.inside) || g.inside === H) { S.step = 2; g.p.cash = (g.p.cash || 0) + 20000; storyMark("+$20,000 FROM KATYA");
+          g.driveTalk = { who: "KATYA", text: "“Twenty. Lose it and you owe me twenty. Win it and you owe me nothing. I'll be at the bar -- don't look at me.”", t: 8 }; } return; }
+      if (S.step === 5 && S.t != null) { S.t -= dt; if (S.t <= 0) { S.t = null; G.pickOpen("allin_cut1"); } }
+      if (S.step === 6) { if (g.inside === H && g.floor === 0) { S.step = 7; storyMark("THE HAPPY HIPPY IS YOURS"); setTimeout(() => G.pickOpen("allin_pablo"), 600); } return; } }
+    G.muscleFn = () => { const S = g.story, H = hippyB(); if (!S || S.id !== "allin" || S.step !== 2 || !H || g.inside !== H || g.floor !== (H.entry || 0)) return false;
+      const [x, y] = muscleAt(H); if (Math.hypot(g.p.x - x, g.p.y - y) > 80) return false; G.pickOpen("allin_muscle"); return true; };
+    G.onPoker = (pv, dv, pay, t) => { const S = g.story; if (!S || S.id !== "allin" || !t.victor) return;
+      if (S.step === 3) { if (pv > dv) { S.wins = (S.wins || 0) + 1; t.msg += " · VICTOR DOWN " + S.wins + " OF 3"; }
+        if (S.wins >= 3) { setTimeout(() => { G.tableCloseFn(); g.hippyTable = null; S.step = 4; storyMark("THREE TIMES"); G.pickOpen("allin_bet"); }, 1600); return; }
+        if ((g.p.cash || 0) < (t.lo || 500)) setTimeout(() => { G.tableCloseFn(); storyFail("YOU'RE BROKE. Katya's twenty thousand is Victor's now."); }, 1400); return; }
+      if (S.step === 4 && S.final) { S.final = 0; setTimeout(() => { G.tableCloseFn(); g.hippyTable = null;
+          if (pv > dv) { S.step = 5; S.t = 1.2; g.hippyOwned = 1; const H = hippyB(); if (H) { H.bozni = null; H.mine = 1; } g.p.cash = Math.max(0, (g.p.cash || 0) - 20000); storyMark("THE CLUB IS YOURS"); }
+          else storyFail(pv === dv ? "A PUSH -- and Victor calls it his. The club stays his." : "VICTOR TAKES THE HAND. And the club stays his."); }, 1800); } };
+    function victorTable(final) { const H = hippyB(), pl = hippyPl(); if (!pl) return; const R = HIPPY_ROOMS[1], [sx, sy] = artAt(pl, R.seat[0], R.seat[1]);
+      g.hippyTable = { room: 1, b: g.inside }; g.p.x = sx; g.p.y = sy; g.cam.x = sx; g.cam.y = sy; g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+      openTable("poker", final ? "THE RED ROOM · THE CLUB ON THE LINE" : "THE RED ROOM · VICTOR'S TABLE"); const t = g.table; t.victor = 1; t.lo = final ? 5000 : 500; t.hi = final ? 5000 : 5000; t.step = 100; t.bet = final ? 5000 : 1000; }
+    function allinPanel(k) { const V = "assets/crew/pt_bozni_victor.png", K = "assets/crew/pt_bozni_katya.png", VL = "assets/crew/pt_bozni_vlad.png";
+      if (k === "allin_muscle") return { title: "THE HAPPY HIPPY · THE LAUNDROMAT", face: "assets/crew/pt_bratva_2.png", text: "A man the size of a dryer, folding nothing.\n\n“Suit like that, you're not here for the wash. Victor's game? Downstairs. Tell the door I said.”",
+        opts: [{ id: "story:allin_down", label: "“THANKS.”" }] };
+      if (k === "allin_door") return { title: "THE RED ROOM · THE DOOR", face: "assets/crew/pt_bratva_3.png", text: "“Victor's table. Thousand a hand, five thousand top. You good for it?” You show him Katya's money.",
+        opts: [{ id: "story:allin_sit", label: "SIT DOWN WITH VICTOR" }, { id: "close", label: "NOT YET" }] };
+      if (k === "allin_bet") return { title: "THE RED ROOM · KATYA", face: K,
+        text: "Victor's down three hands and his men are watching. Katya leaves the bar, leans on his chair.\n\nKATYA: “Brother. He's lucky, not good. Put up the club -- one hand. Or are you scared of a man in a borrowed suit?”\n\nVICTOR (red in the face, for the room): “THE CLUB. One hand. Five thousand to sit.”",
+        opts: [{ id: "story:allin_final", label: "ONE HAND · THE CLUB ON THE LINE" }] };
+      if (k === "allin_cut1") return { title: "THE BOZNOV HOUSE · LATER", face: V,
+        text: "VICTOR: “He cheated. He had to. Katya brought him -- no, she didn't, she -- he took the Hippy, Vlad. In front of the men.”",
+        opts: [{ id: "story:allin_cut2", label: "…" }] };
+      if (k === "allin_cut2") return { title: "THE BOZNOV HOUSE · VLAD", face: VL,
+        text: "Vlad sets his glass down very carefully. His hand is shaking and his voice is not.\n\nVLAD: “A man walks out of Kestrel with nothing. In a week he has Tony's yard, Grigori's money, and your club. That is not luck, brother.”\n\n“He is someone I will be keeping my eye on.”",
+        opts: [{ id: "story:allin_back", label: "BACK AT THE HAPPY HIPPY" }] };
+      if (k === "allin_pablo") return { title: "PABLO DIAZ · THE HAPPY HIPPY", face: "assets/crew/pt_crew_viejo_civ.png",
+        text: "Just guests now. Music, hookah smoke, the pool tables clicking.\n\nYou put Pablo in charge.\n\nPABLO: “Me? Running a club? Mijo... thank you. My car's out back when I'm not with you. And the laundry truck in the lot -- that's yours now.”",
+        opts: [{ id: "story:allin_done", label: "“IT'S YOURS TO RUN, VIEJO.”" }] };
+      return null; }
+    function allinObjective() { const S = g.story, nm = "ALL IN";
+      return { head: nm + " · " + ["THE SUIT", "THE HAPPY HIPPY", "THE LAUNDROMAT", "VICTOR'S TABLE", "THE CLUB", "…", "THE HAPPY HIPPY", "PABLO"][Math.min(7, S.step)],
+        sub: ["The closet in 1A (or any dresser): put on THE SUIT.", "Get to the Happy Hippy. Katya's waiting out front with the money.", "The muscle by the basement stairs (E). Then the door man downstairs.",
+          "Beat Victor three times (" + (S.wins || 0) + " of 3) without going broke. Get up from the table and talk to the door to sit back down.", "One hand. The club on the line.", "", "Back at the Happy Hippy. Downstairs.", "Talk to Pablo."][Math.min(7, S.step)] }; }
+    function drawAllin() { const S = g.story, H = hippyB(); if (!H) return; const lab = (t, x, y, c) => { ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = c; ctx.fillText(t, x, y); ctx.textAlign = "start"; };
+      if (S && S.id === "allin" && g.inside === H && g.floor === (H.entry || 0) && S.step <= 2) { const [x, y] = muscleAt(H); drawShadow(x, y + 2, 10, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.4, yt: "yt_bratva_2", bang: Math.PI / 2 }); lab("BOZNOV · E", x, y - 32, "#e05a5a"); }
+      if (S && S.id === "allin" && g.inside === H && g.floor === 0 && S.step >= 3 && S.step <= 4) { const pl = hippyPl(); if (pl) { const R = HIPPY_ROOMS[1], [x, y] = artAt(pl, R.table[0], R.table[1] + 0.09);
+          drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt: "yt_bozni_victor", bang: -Math.PI / 2 }); lab("VICTOR BOZNOV", x, y + 26, "#e05a5a");
+          const [kx, ky] = artAt(pl, 0.33, 0.33); drawYouth({ x: kx, y: ky, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.2, yt: "yt_bozni_katya", bang: -Math.PI / 2 }); lab("KATYA", kx, ky - 28, "#e05a5a"); } }
+      if (!g.inside && g.hippyOwned) stepHippyCars(); }
+    // owned: the laundry truck waits in the Hippy's lot, Pablo's car out back (when he's not with you), Leroy's at the yard
+    function stepHippyCars() { const H = hippyB(); if (!H) return; const [fx, fy] = frontOf(H), near = Math.hypot(g.p.x - fx, g.p.y - fy) < 1800;
+      const driving = (k) => inVehicle() && g.car && g.car.skin && g.car.skin.k === k;
+      if (near && !g.traffic.some((q) => q.hippyTruck) && !driving("vh_hippy_truck")) g.traffic.push({ x: fx + (Math.abs(fx - H.x - H.w / 2) > Math.abs(fy - H.y - H.h / 2) ? 0 : 200), y: fy + (Math.abs(fx - H.x - H.w / 2) > Math.abs(fy - H.y - H.h / 2) ? 200 : 0), ang: -Math.PI / 2, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0,
+        m: { k: "vh_hippy_truck", len: 160, w: 61 }, dead: 0, parked: 1, named: 1, hippyTruck: 1, mine: 1, idn: { model: "HAPPY HIPPIE LAUNDRY CO.", colour: "", plate: "PEACE", owner: "THE HAPPY HIPPY" } });
+      const withP = (g.pfol || []).some((f) => f.crew === "viejo");
+      if (near && !withP && !g.traffic.some((q) => q.pabloPark)) g.traffic.push({ x: fx - 110, y: fy + 40, ang: -Math.PI / 2, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0,
+        m: { k: "car_crew_viejo", len: 112, w: 50, lowrider: 1 }, dead: 0, parked: 1, named: 1, trFree: 1, pabloPark: 1, idn: { model: "LOWRIDER", colour: "", plate: "VIEJO", owner: "PABLO DIAZ" } });
+      const Y = hideoutB(); if (Y && g.leroyJoined && !g.traffic.some((q) => q.leroyPark) && Math.hypot(g.p.x - Y.x, g.p.y - Y.y) < 1800) { const [yx, yy] = frontOf(Y);
+        g.traffic.push({ x: yx + 120, y: yy, ang: -Math.PI / 2, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0, m: { k: "car_crew_leroy", len: 110, w: 50 }, dead: 0, parked: 1, named: 1, trFree: 1, leroyPark: 1,
+          idn: { model: "LEROY'S", colour: "", plate: "LEROY", owner: "LEROY BANKS" } }); } }
+
+    /* WASH DAY (Mission 7, layer 485): Leroy's plan at the yard -- Ras goes out in a laundry cart; you collect it in the Happy
+       Hippy's truck and the guards load it for you, as long as you STAY IN THE TRUCK (get out near the prison and they know
+       your face). First run home and change into WORK BLUES (the work jacket). Then: the truck, the Kestrel laundry dock, wait
+       while they load, drive to the yard, and Ras climbs out of the sheets. Home, sleep. */
+    STORY.washday = { nm: "WASH DAY", pay: 1500 };
+    const washDock = () => { const B = PRISON_BOX; return { x: (B.x0 + B.x1) / 2 + 300, y: B.y0 - 210 }; };
+    G.washDockT = () => washDock();   // test hook
+    G.partyT = () => { const pl = hippyPl(); return pl ? { bar: artAt(pl, PARTY_BAR[0], PARTY_BAR[1]), katya: artAt(pl, 0.405, 0.40), pablo: artAt(pl, 0.33, 0.52), on: partyOn() } : null; };
+    G.morningT = () => g.morning ? Math.round(g.morning.t) : null;
+    G.truckFn = () => { if (g.mode !== "foot" || g.inside) return false; const t = g.traffic.find((q) => q.hippyTruck); if (!t || Math.hypot(g.p.x - t.x, g.p.y - t.y) > 110) return false; return mountNearest(); };
+    function washBegin() { aptStartHome(); storyStart("washday"); g.clock = 8 * 60; g.nightTarget = 0; g.jobBanner = "8:00 AM · PALM COURT"; g.jobNote = "Leroy said come back. Go see him at the yard."; }
+    function washStep(dt) { const S = g.story, p = inVehicle() ? activeVeh() : g.p, Y = hideoutB(), H = hippyB();
+      if (S.step === 0) { if (Y) { const [x, y] = frontOf(Y); if (Math.hypot(p.x - x, p.y - y) < 260 && !g.pickOpen) G.pickOpen("wash_leroy"); } return; }
+      if (S.step === 1) { if (g.pcivvies && g.pfit === "work") { S.step = 2; storyMark("WORK BLUES"); g.driveTalk = { who: "LEROY", text: "“Pablo and me are at the truck. Hippy lot. Move.”", t: 5 }; } return; }
+      if (S.step === 2) { if (inVehicle() && g.car && g.car.skin && g.car.skin.k === "vh_hippy_truck") { washBoard(); S.step = 3; storyMark("THE TRUCK · PABLO AND LEROY");
+          g.driveTalk = { who: "PABLO", text: "“Three across the front, like a bench seat at church. Ras rides in the back with the sheets. You want me to drive, say so -- DRIVER.”", t: 7 }; } return; }
+      if (S.step === 3 || S.step === 4) { const D = washDock(), d = Math.hypot(p.x - D.x, p.y - D.y);
+        if (g.mode === "foot" && d < 700) { storyFail("YOU GOT OUT OF THE TRUCK. A guard looked at you twice -- and knew you."); return; }
+        if (S.step === 3 && !S.warned && inVehicle() && d < 700) { S.warned = 1;
+          g.driveTalk = g.auto && g.auto.whoKey === "c:viejo" ? { who: "PABLO", text: "“Relax. Ass to the dock. Nobody looks at the ass of a truck.”", t: 5 }
+            : { who: "PABLO", text: "“Ey -- BACK IT IN, ese. Tail to the dock. They load from the back and nobody sees your face. Nose in and some hack walks right up to your window.”", t: 8 }; }
+        if (S.step === 3 && inVehicle() && d < 120 && Math.hypot(p.vx || 0, p.vy || 0) < 40) { S.step = 4; S.load = 9; S.nose = truckBacked(activeVeh()) ? 0 : 1;
+          S.caught = S.nose && (g.noseRoll != null ? g.noseRoll : Math.random()) < 0.5 ? 1 : 0; storyMark("THE DOCK · STAY IN THE TRUCK");
+          g.driveTalk = S.nose ? { who: "A GUARD", text: "“Nose-first? Who taught you to drive?” Boots on the gravel, coming round to the cab window...", t: 5 } : { who: "A GUARD", text: "“Laundry. Two carts today.”", t: 5 }; }
+        if (S.step === 4) { if (d > 160) { S.load = 9; return; } S.load -= dt;
+          if (S.caught && S.load < 6) { storyFail("YOU PULLED IN NOSE-FIRST. The guard came round to hand you the sheet, looked up -- and knew your face. Back it in."); return; }
+          if (S.nose && !S.lucky && S.load < 6) { S.lucky = 1; g.driveTalk = { who: "A GUARD", text: "He slaps the sheet on the dash without looking up. “Back it in next time, genius.”", t: 4 }; }
+          if (S.load <= 0) { S.step = 5; storyMark("LOADED · TO THE HIPPY"); g.driveTalk = { who: "A GUARD", text: "“Go on. Bring 'em back folded.” A cart in the back bumps -- once.", t: 6 }; } } return; }
+      if (S.step === 5) { if (H) { const [x, y] = frontOf(H); if (Math.hypot(p.x - x, p.y - y) < 280 && !g.pickOpen) G.pickOpen("wash_ras"); } return; }
+      if (S.step === 6) { if (H && g.inside === H && g.floor === 0) { S.step = 7; g.pfol = []; storyMark("THE PARTY");
+          g.driveTalk = { who: "PABLO", text: "“There he is! First round's on the house -- it's our house now!”", t: 5 }; } return; } }
+    function washObjective() { const S = g.story, nm = "WASH DAY", ld = S.load != null ? " " + Math.max(0, Math.ceil(S.load)) + "s" : "";
+      const n = (g.booze && g.booze.n) || 0;
+      return { head: nm + " · " + ["LEROY", "WORK BLUES", "THE TRUCK", "KESTREL'S LAUNDRY DOCK", "LOADING" + ld, "THE HAPPY HIPPY", "DOWNSTAIRS", "THE PARTY", "THE MORNING AFTER"][S.step],
+        sub: ["Go see Leroy at the scrapyard.", "Run home: the closet -- put on THE WORK JACKET.", "The Happy Hippy's laundry truck, in the lot out front. Pablo and Leroy are waiting. Get in.",
+          "Drive to the marked dock outside the Kestrel gate and BACK IT IN (tail to the dock). Or give Pablo the wheel: DRIVER -> WHERE TO -> THE LAUNDRY DOCK. DON'T GET OUT.",
+          "Stay in the truck while they load.", "Back to the Happy Hippy lot. Ras is in the back.", "Everybody's downstairs. Go down to the club.",
+          "Drink with the crew -- the bar, Pablo's table, Katya at the end of the bar. (" + n + (n === 1 ? " drink" : " drinks") + ")", ""][S.step] }; }
+    function washPanel(k) { if (k === "wash_leroy") return { title: "LEROY BANKS · THE YARD", face: "assets/crew/pt_crew_leroy_civ.png",
+        text: "LEROY: “Ras works the laundry Tuesdays. He climbs in a cart under the sheets. The Hippy's got a laundry truck now, right? The guards LOAD it for you -- they don't look at a man in a truck. You stay behind that wheel and you're nobody.”\n\n“Get out, and some hack who walked you to chow for ten years looks at you twice. And BACK IT IN -- they come round the front of a truck that pulls in nose-first.”\n\n“Pablo and me ride with you. Three of us across the front, Ras in the back with the sheets. And you can't roll up in that suit. Run home. Work blues. We'll be at the truck.”",
+        opts: [{ id: "story:wash_go", label: "“WORK BLUES. GOT IT.”" }] };
+      return { title: "THE HAPPY HIPPY LOT · THE BACK OF THE TRUCK", face: "assets/crew/pt_crew_ras.png",
+        text: "Leroy rolls the door up and pulls the sheets back. Ras sits up in the cart like a man rising from the dead, picking lint out of his locks.\n\nRAS: “Lawd. Me never smell so much prison in me life. Wah gwaan, Rey!”\n\nPABLO: “Get him some clothes. Not the jumpsuit, man, I'm begging you.”\n\nLEROY: “Four of us. Now we're a crew.” He nods at the stairs. “Ras changes. Everybody else -- downstairs. We're celebrating.”",
+        opts: [{ id: "story:wash_ras", label: "“WELCOME HOME, RAS.”" }] }; }
+    function drawWash() { const S = g.story; if (!S || S.id !== "washday" || g.inside || S.step < 3 || S.step > 4) return; const D = washDock();
+      ctx.strokeStyle = "rgba(232,196,106,0.85)"; ctx.lineWidth = 3; ctx.setLineDash([10, 8]); ctx.strokeRect(D.x - 60, D.y - 100, 120, 200); ctx.setLineDash([]);
+      ctx.font = "700 9px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText(S.step === 4 ? "LOADING · STAY IN THE TRUCK" : "LAUNDRY DOCK", D.x, D.y - 108); ctx.textAlign = "start"; }
+    /* ---------- LAYER 487: WASH DAY, REDONE -- THE CREW RIDES, BACK IT IN, THE PARTY, THE MORNING AFTER ----------
+       Pablo and Leroy meet you at the truck and ride with you (three across the front; Ras and a fourth man fit in the
+       back). At the Kestrel dock the truck must be BACKED IN -- nose-first and a guard walks round to the cab window, and
+       half the time he knows your face. Pablo warns you on the way in if you're at the wheel; give HIM the wheel (DRIVER
+       -> WHERE TO -> THE LAUNDRY DOCK) and he backs it in himself. Then the Hippy, not the yard: Ras climbs out in the
+       lot, changes, and everybody goes downstairs. Pablo's got weed; the bar's open; Katya's at the bar. Drink enough and
+       you black out (BOOZE below) -- and wake up at Palm Court, in bed, not alone. */
+    const washCrewAt = () => { const t = g.traffic.find((q) => q.hippyTruck); return t ? [[t.x - 46, t.y + 70], [t.x + 46, t.y + 70]] : null; };
+    function washBoard() { g.pfol = [{ key: "c:viejo", name: "PABLO DIAZ", role: "driver", crew: "viejo", yt: "yt_crew_viejo", x: g.p.x, y: g.p.y, vx: 0, vy: 0, seat: "car", lag: 0, cd: 0 },
+      { key: "c:leroy", name: "LEROY BANKS", role: "shooter", crew: "leroy", yt: "yt_crew_leroy", x: g.p.x, y: g.p.y, vx: 0, vy: 0, seat: "car", lag: 0, cd: 0 }]; }
+    const truckBacked = (v) => v && Math.cos((v.ang || 0) + Math.PI / 2) > 0.5;          // nose north, tail to the dock
+    function washBackIn(v) { const D = washDock(); v.x = D.x; v.y = D.y + 20; v.ang = -Math.PI / 2; v.vx = 0; v.vy = 0; v.fwd = 0; g.p.x = v.x; g.p.y = v.y;
+      g.driveTalk = { who: "PABLO", text: "“Watch and learn.” He swings wide, cuts it hard and backs the truck to the dock like he's done it his whole life. “Tail to the door. They see sheets, not faces.”", t: 6 }; }
+    function drawWashCrew() { const S = g.story; if (!S || S.id !== "washday" || S.step !== 2 || g.inside || g.mode !== "foot") return; const P = washCrewAt(); if (!P) return;
+      [["yt_crew_viejo", "PABLO"], ["yt_crew_leroy", "LEROY"]].forEach(([yt, nm], n) => { const [x, y] = P[n]; drawShadow(x, y + 2, 10, 4, 0.3);
+        drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt, bang: -Math.PI / 2 }); ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#9fe0a0"; ctx.fillText(nm, x, y - 30); ctx.textAlign = "start"; }); }
+
+    /* ---------- BOOZE (layer 487) ----------
+       Every drink blurs the screen. The first lasts BOOZE.base seconds; each one after DOUBLES it (10, 20, 40, 80...),
+       and the blur gets heavier the more you've had. Sober up (the timer runs out) and the count starts over. Drink
+       BOOZE.out while it's still running and you BLACK OUT: the screen goes dark and you wake somewhere else, hours later.
+       Counts: bar drinks (BIZ_MENU), liquor-store bottles, a beer or a flask from your bag, prison hooch, the Hippy's bar.
+       Weed (PFX.weed) is its own effect and still works the same -- the two stack. */
+    const BOOZE = { base: 10, out: 6, blur: 0.55, maxBlur: 4.2 };
+    const BOOZE_RX = /BEER|WHISKEY|SHOT|FORTY|PINT|SIX-PACK|WINE|VODKA|RUM|GIN|SCOTCH|HOOCH|FLASK/i;
+    const boozeCount = (nm) => /SHOT AND A BEER|SIX-PACK/i.test(nm || "") ? 2 : 1;
+    function boozeDrink(n, nm) { if (g.bout) return; const B = (g.booze = g.booze || { n: 0, t: 0 });
+      for (let k = 0; k < (n || 1); k++) { B.n++; B.t = BOOZE.base * Math.pow(2, B.n - 1); }
+      if (B.n >= BOOZE.out) { blackout(); return; }
+      g.pickupFlash = { nm: "lift:" + (nm ? nm + " · " : "") + ["", "ONE", "TWO -- WARM", "THREE -- THE ROOM SWIMS", "FOUR -- EASY NOW", "FIVE -- ONE MORE AND YOU'RE GONE"][Math.min(5, B.n)], t: 2 }; }
+    G.boozeT = () => g.booze ? { n: g.booze.n, t: Math.round(g.booze.t) } : null;      // test hook
+    G.drinkT = (n) => boozeDrink(n || 1, "TEST");
+    function boozeCss() { const B = g.booze; if (!B || B.t <= 0) return ""; const f = B.t < 3 ? B.t / 3 : 1, px = Math.min(BOOZE.maxBlur, BOOZE.blur * B.n) * f;
+      return "blur(" + px.toFixed(2) + "px)" + (B.n >= 3 ? " saturate(" + (1 + 0.1 * B.n * f).toFixed(2) + ")" : ""); }
+    const boozeSway = () => { const B = g.booze; return B && B.n >= 3 && B.t > 2 ? Math.sin(g.t * 0.9) * (0.5 + 0.35 * B.n) : 0; };
+    function blackout() { g.booze = { n: BOOZE.out, t: 4 }; const S = g.story; g.bout = { t: 0, act: S && S.id === "washday" && S.step === 7 ? "party" : "street" };
+      g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); g.pickupFlash = { nm: "lift:...", t: 1.5 }; }
+    function stepBooze(dt) { const B = g.booze; if (B && !g.bout) { B.t -= dt; if (B.t <= 0) g.booze = null; }
+      const O = g.bout; if (!O) { g.blackA = g.blackA > 0 ? Math.max(0, g.blackA - dt / 1.5) : 0; return; }
+      O.t += dt; g.p.vx = 0; g.p.vy = 0;
+      if (O.t < 1.6) { g.blackA = O.t / 1.6; return; }
+      g.blackA = 1; if (O.t < 3.4 || O.woke) { if (O.woke && O.t > 4) g.bout = null; return; }
+      O.woke = 1; g.booze = null; g.pfx = null;
+      if (O.act === "party") { morningBegin(); return; }
+      wakeSomewhere(); }
+    function wakeSomewhere() { const hrs = 4 + ((Math.random() * 3) | 0), to = (g.clock || 0) + hrs * 60; if (to >= 1440) g.pday = (g.pday || 0) + 1; g.clock = to % 1440;
+      if (g.prisonMode && !g.pescaped) { g.jobBanner = "YOU BLACKED OUT"; g.jobNote = "You come to on the floor, " + hrs + " hours gone. Somebody took your shoes."; return; }
+      const B = phoneBooths().filter((q) => { const d = Math.hypot(q.x - g.p.x, q.y - g.p.y); return d > 600 && d < 3200; }), q = B.length ? cpick(B) : null;
+      if (q) { g.inside = null; g.floor = 0; g.mode = "foot"; g.shop = null; g.roof = null; g.p.x = q.x - 34; g.p.y = q.y + 30; g.cam.x = g.p.x; g.cam.y = g.p.y; g.insideT = 0; }
+      const lost = Math.round((g.p.cash || 0) * Math.random() * 0.25); g.p.cash = Math.max(0, (g.p.cash || 0) - lost);
+      g.jobBanner = "YOU BLACKED OUT"; g.jobNote = "You wake up on " + crossStreet(g.p.x, g.p.y) + ", " + hrs + " hours later. No idea how you got here." + (lost > 0 ? " $" + lost + " lighter." : ""); }
+
+    /* ---------- THE PARTY (Wash Day, step 7) ----------
+       The club under the Hippy (int_happy_hippy). Pablo, Leroy and Ras at the first hookah table, Katya on a stool at
+       the bar, a few regulars. E at the bar: a drink. E at Pablo: the joint. E at Katya, Leroy, Ras: talk. */
+    const PARTY = [{ k: "viejo", nm: "PABLO", yt: "yt_crew_viejo", at: [0.33, 0.52], ang: Math.PI / 2 }, { k: "leroy", nm: "LEROY", yt: "yt_crew_leroy", at: [0.44, 0.52], ang: Math.PI / 2 },
+      { k: "ras", nm: "RAS", yt: "yt_crew_ras", at: [0.37, 0.64], ang: -Math.PI / 2 }, { k: "katya", nm: "KATYA", yt: "yt_bozni_katya", at: [0.405, 0.40], ang: -Math.PI / 2 },
+      { k: "r1", yt: "yt_hire_fence_1", at: [0.56, 0.50], ang: Math.PI / 2 }, { k: "r2", yt: "yt_dn_3", at: [0.68, 0.50], ang: Math.PI / 2 }, { k: "r3", yt: "yt_hire_fixer_1", at: [0.32, 0.77], ang: 0 },
+      { k: "r4", yt: "yt_dn_5", at: [0.58, 0.77], ang: 0 }, { k: "r5", yt: "yt_hire_forger_3", at: [0.67, 0.78], ang: Math.PI }, { k: "r6", yt: "yt_hire_dealer_2", at: [0.285, 0.40], ang: -Math.PI / 2 }];
+    const PARTY_BAR = [0.35, 0.40];
+    const partyOn = () => { const S = g.story; return S && S.id === "washday" && S.step === 7 && !!hippyPl(); };
+    G.partyFn = () => { const pl = hippyPl(); if (!pl || g.mode !== "foot" || g.table || g.bout) return false; const on = partyOn();
+      if (!on && !g.hippyOwned) return false;
+      /* the room is small (the whole club is ~470 across), so the NEAREST thing you're stood by wins -- the bar included */
+      const [bx, by] = artAt(pl, PARTY_BAR[0], PARTY_BAR[1]); let best = "bar", bd = Math.hypot(g.p.x - bx, g.p.y - by);
+      if (on) for (const P of PARTY) { if (!P.nm) continue; const [x, y] = artAt(pl, P.at[0], P.at[1]), d = Math.hypot(g.p.x - x, g.p.y - y); if (d < bd) { bd = d; best = P.k; } }
+      if (bd > 46) return false;
+      G.pickOpen("party_" + best); return true; };
+    function partyPanel(k) { const S = g.story || {}, n = (g.booze && g.booze.n) || 0, P = S.party = S.party || {}, face = (c) => "assets/crew/" + c + ".png";
+      const drinks = " You've had " + n + (n === 1 ? " drink" : " drinks") + (n >= 4 ? ". The floor is moving." : n >= 2 ? ". Warm." : ".");
+      if (k === "party_bar") return { title: "THE HAPPY HIPPY · THE BAR", face: null, text: (partyOn() ? "The bartender slides a coaster over. “Pablo's tab. Pablo doesn't know that yet.”" : "Your bar. Your bottles. Nobody's counting but you.") + drinks,
+        opts: [{ id: "story:party_beer", label: "A BEER" }, { id: "story:party_shot", label: "A SHOT OF VODKA" }, { id: "story:party_whiskey", label: "WHISKEY, NEAT" }, { id: "close", label: "NOT NOW" }] };
+      if (k === "party_viejo") return { title: "PABLO DIAZ · THE GREEN TABLE", face: face("pt_crew_viejo_civ"),
+        text: P.weed ? "PABLO: “Easy, ese. That's Humboldt. It don't care how long you been inside.”" : "Pablo's rolling one the size of a cigar.\n\nPABLO: “Ten years I been saving this. Not THIS this -- the idea of it. Sit down, Rey. Hit this.”",
+        opts: [{ id: "story:party_weed", label: "HIT THE JOINT" }, { id: "close", label: "LATER" }] };
+      if (k === "party_leroy") return { title: "LEROY BANKS", face: face("pt_crew_leroy_civ"), text: "LEROY: “Look at us. Free men in a Russian's basement, drinking the Russian's liquor.” He clinks your glass. “Tomorrow we work. Tonight -- drink.”", opts: [{ id: "close", label: "“TO TOMORROW.”" }] };
+      if (k === "party_ras") return { title: "RAS CAMPBELL", face: face("pt_crew_ras"), text: "Ras is in a gold shirt that doesn't fit him and doesn't care.\n\nRAS: “Rey! Ten year a smell a prison an' now me smell like sweet herb an' freedom. Bless up, bredda. Bless up!”", opts: [{ id: "close", label: "“BLESS UP, RAS.”" }] };
+      if (k === "party_katya") return { title: "KATYA BOZNOVA · THE BAR", face: "assets/crew/pt_bozni_katya.png",
+        text: !P.katya ? "Katya's on a stool at the end of the bar, watching your crew like she's counting them.\n\nKATYA: “So this is the army that took my brother's club. A driver, a dealer, a man who smiles too much. And you.” She pushes a shot glass at you. “Drink with me, Rey. One.”"
+          : n >= 4 ? "KATYA: “You are terrible at this.” She's laughing. She doesn't laugh. “One more. Then you walk me to a cab, like a gentleman.”" : "KATYA: “Vladimir thinks you're a problem. Victor thinks you're a joke.” She pours. “I haven't decided. Drink.”",
+        opts: [{ id: "story:party_katya", label: "DRINK WITH HER" }, { id: "close", label: "“IN A MINUTE.”" }] };
+      return null; }
+    function partyPick(a) { const S = g.story, P = S ? (S.party = S.party || {}) : {}, close = () => { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); };
+      if (a === "party_beer") { close(); boozeDrink(1, "A BEER"); return; }
+      if (a === "party_shot") { close(); boozeDrink(1, "VODKA"); return; }
+      if (a === "party_whiskey") { close(); boozeDrink(1, "WHISKEY"); return; }
+      if (a === "party_katya") { close(); P.katya = (P.katya || 0) + 1; g.driveTalk = { who: "KATYA", text: cpick(["“Za zdorovye.”", "“To my brothers. May they choke.”", "“Again.”", "“You drink like a man who just got out of prison.”"]), t: 4 }; boozeDrink(1, "VODKA WITH KATYA"); return; }
+      if (a === "party_weed") { close(); P.weed = 1; g.pfx = { k: "weed", t: PFX.weed.t }; g.pickupFlash = { nm: "lift:" + PFX.weed.say, t: 2.2 }; return; } }
+    function drawParty() { const pl = hippyPl(); if (!pl) return; const on = partyOn(), S = g.story;
+      const lab = (t, x, y, c) => { ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = c; ctx.fillText(t, x, y); ctx.textAlign = "start"; };
+      if (on) for (const P of PARTY) { const [x, y] = artAt(pl, P.at[0], P.at[1]); const sway = Math.sin(g.t * 1.7 + x) * 0.25; drawShadow(x, y + 2, 10, 4, 0.3);
+        drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: P.k === "katya" || /^r[24]$/.test(P.k) ? 1.15 : 1.25, yt: P.yt, bang: P.ang + sway });
+        if (P.nm) lab(P.nm + " · E", x, y - 30, P.k === "katya" ? "#e05a5a" : "#9fe0a0"); }
+      if (on || g.hippyOwned) { const [bx, by] = artAt(pl, PARTY_BAR[0], PARTY_BAR[1]); lab("THE BAR · E", bx, by - 16, "#e8c46a"); }
+      if (on && S.party && S.party.weed) { ctx.fillStyle = "rgba(200,220,200,0.10)"; const [x, y] = artAt(pl, 0.38, 0.56); for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.arc(x + Math.sin(g.t * 0.6 + k) * 30, y - 20 - ((g.t * 12 + k * 15) % 60), 14 + k * 3, 0, 6.3); ctx.fill(); } } }
+
+    /* ---------- THE MORNING AFTER (Wash Day, step 8) ----------
+       Palm Court, 1A. Rey wakes in his bed and he isn't alone. Both of them are covered the way the Kestrel showers are
+       (drawShowerCensor's mosaic) -- Rey's darker. She sees where she is, runs for the bathroom, swears in Russian; the
+       mosaic comes off her (she's dressed) and she walks out: “This never happened.” MISSION COMPLETE. */
+    const MOS_REY = ["#2a1b11", "#3a2517", "#22160d"], MOS_KAT = ["#e0b490", "#d4a27e", "#ecc4a2"];
+    function morningPts() { const b = g.inside, pl = b && b.artFloors && fitArtFloor(b, 0, b.artFloors[0], b.artKeep); if (!pl || !pl.artR2) return null;
+      const O = APT_OBJ[b.artFloors[0]] || [], f = (k) => { const q = O.find((o) => o[0] === k); return q ? artAt(pl, q[1], q[2]) : null; };
+      const bed = artAt(pl, APTC.bed[0] + 0.001, APTC.bed[1] + 0.045), bath = f("tub") || f("toilet") || [bed[0] + 200, bed[1]];
+      const dp = doorPoint(b), cx = (pl.artR2.x0 + pl.artR2.x1) / 2, cy = (pl.artR2.y0 + pl.artR2.y1) / 2, L = Math.hypot(cx - dp[0], cy - dp[1]) || 1;
+      return { bed, bath, door: [dp[0] + (cx - dp[0]) / L * 40, dp[1] + (cy - dp[1]) / L * 40] }; }
+    function morningBegin() { const S = g.story; aptStartHome(); g.pday = (g.pday || 0) + 1; g.clock = 9 * 60 + 40; g.nightTarget = 0; g.pfol = []; g.table = null;
+      const M = morningPts(); if (M) { g.p.x = M.bed[0] - 6; g.p.y = M.bed[1]; g.cam.x = g.p.x; g.cam.y = g.p.y; }
+      g.morning = { t: 0 }; if (S && S.id === "washday") { S.step = 8; }
+      g.jobBanner = "PALM COURT · 9:40 AM"; g.jobNote = "Your head. Your bed. Somebody else's hair on the pillow."; }
+    function stepMorning(dt) { const M = g.morning; if (!M) return; M.t += dt; const P = morningPts();
+      if (P && M.t < 12.5) { g.p.x = P.bed[0] - 6; g.p.y = P.bed[1]; g.p.vx = 0; g.p.vy = 0; }
+      const again = M.after === "nest";
+      if (M.t > 3 && !M.s1) { M.s1 = 1; g.driveTalk = { who: "KATYA", text: again ? "“...No. No, no, no. AGAIN?”" : "“...Rey?” A long pause. “REY?!”", t: 3 }; }
+      if (M.t > 7.4 && !M.s2) { M.s2 = 1; g.driveTalk = { who: "KATYA", text: again ? "“BLYAT'!” (louder than last time)" : "“Blyat'!” (from the bathroom -- you don't need it translated)", t: 4 }; }
+      if (M.t > 12.6 && !M.s3) { M.s3 = 1; g.driveTalk = { who: "KATYA", text: again ? "Dressed in half the time. At the door she stops. “This ALSO never happened.” Slam." : "Dressed, hair up, heels in her hand. She doesn't look at you. “This never happened.” The door shuts.", t: 6 }; }
+      if (M.t > 17.5) { g.morning = null; const S = g.story; if (S && S.id === "washday" && S.step === 8) storyComplete();
+        else if (S && S.id === "nest" && S.step === 0) { S.step = 1; storyMark("THE YARD"); g.driveTalk = { who: "REY", text: "“...What the hell.” You find your shirt. Then your pants. Then your head. Leroy wants everybody at the yard.", t: 7 }; } } }
+    function drawMosaic(x, y, hw, hh, pal, seed) { const px = 4; ctx.save(); ctx.translate(x, y);
+      for (let yy = -hh; yy < hh; yy += px) for (let xx = -hw; xx < hw; xx += px) { ctx.fillStyle = pal[Math.abs(xx * 7 + yy * 13 + seed + Math.floor(g.t * 2)) % 3]; ctx.fillRect(xx, yy, px, px); }
+      ctx.restore(); }
+    function drawMorning() { const M = g.morning; if (!M || !g.inside) return; const P = morningPts(); if (!P) return; const t = M.t, [bx, by] = P.bed;
+      if (t < 12.5) drawMosaic(bx - 6, by, 6, 17, MOS_REY, 3);                                          // him, under the sheet (his mosaic lifts when hers does)
+      let kx, ky, show = 1, dressed = 0;
+      if (t < 5) { kx = bx + 6; ky = by; }
+      else if (t < 7) { const k = (t - 5) / 2; kx = bx + 6 + (P.bath[0] - bx - 6) * k; ky = by + (P.bath[1] - by) * k; }
+      else if (t < 11) { show = 0; }
+      else if (t < 16) { dressed = 1; const k = Math.min(1, (t - 11) / 4.5); kx = P.bath[0] + (P.door[0] - P.bath[0]) * k; ky = P.bath[1] + (P.door[1] - P.bath[1]) * k; }
+      else show = 0;
+      if (!show) return;
+      if (dressed) { drawShadow(kx, ky + 2, 10, 4, 0.3); drawYouth({ x: kx, y: ky, vx: (P.door[0] - P.bath[0]) * 0.1, vy: (P.door[1] - P.bath[1]) * 0.1, anim: t * 6, jit: 1, tall: 1.2, yt: "yt_bozni_katya" }); }
+      else drawMosaic(kx, ky, t < 5 ? 6 : 9, t < 5 ? 16 : 19, MOS_KAT, 9); }
+    /* ---------- LAYER 488: MISSION 8, THE MAP TABLE -- and MISSION 9, THE BANK JOB ----------
+       MISSION 8. Leroy calls the morning after: everybody at the yard. At the map table he walks you through it -- the
+       board (hire, your people, plan a job, send them or LEAD IT), respect and who'll work for you, the motor pool, the
+       armory, getting men out of Kestrel. In story mode you can't hire just anyone yet (HIRE_LOCK): for now only a
+       LOCKSMITH and a LOOKOUT will take your money -- Leroy fronts $1,200. Then you case FIRST MERCHANTS BANK with them:
+       Pablo drives, the lookout gets out across the street, you walk the floor (no gun) and note the tellers, the
+       manager, the guard and the vault, then take the locksmith round the back to look at the door. Back at the table,
+       PICK THE PLAN: the back door before they open (quiet), or the front at opening (loud). Home, sleep.
+       MISSION 9. The plan, for real. The lookout's been on the corner since six. Pablo, Leroy and the locksmith ride
+       with you; the locksmith opens the back (or you walk in the front); the stick-up and the vault are the bank system
+       from layer 496 (G.bankFn, stepBank, G.vaultFn); Pablo's at the kerb; get it home to the yard and split it. */
+    STORY.maptable = { nm: "THE MAP TABLE", pay: 1000 };
+    STORY.bankjob = { nm: "THE BANK JOB", pay: 5000 };
+    const theBank = () => namedB((b) => isBank(b) && /FIRST MERCHANTS/.test(b.name || "")) || namedB((b) => isBank(b));
+    const hiredMan = (role) => ((g.board2 && g.board2.men) || []).find((m) => m.role === role) || null;
+    const manYt = (m, role) => m ? "yt_hire_" + (m.art === "hacker" ? "hacker" : m.art || role) + "_" + (m.art === "hacker" ? 1 : m.v || 1) : "yt_hire_" + role + "_1";
+    const manFace = (m, role) => m ? "assets/hires/pt_hire_" + (m.art || role) + "_" + (m.v || 1) + ".png" : "assets/hires/pt_hire_" + role + "_1.png";
+    const manName = (m, role) => (m && m.name) || ("THE " + HIRES[role].nm);
+    function crewFol(list) { return list.map(([key, name, role, crew, yt]) => ({ key, name, role, crew: crew || null, yt, x: g.p.x, y: g.p.y, vx: 0, vy: 0, seat: "car", lag: 0, cd: 0 })); }
+    const LOOK_F = () => { const m = hiredMan("lookout"); return ["h:lookout", manName(m, "lookout").toUpperCase(), "lookout", null, manYt(m, "lookout")]; };
+    const LOCK_F = () => { const m = hiredMan("locksmith"); return ["h:locksmith", manName(m, "locksmith").toUpperCase(), "locksmith", null, manYt(m, "locksmith")]; };
+    const PABLO_F = ["c:viejo", "PABLO DIAZ", "driver", "viejo", "yt_crew_viejo"], LEROY_F = ["c:leroy", "LEROY BANKS", "shooter", "leroy", "yt_crew_leroy"];
+    /* WHO'LL WORK FOR YOU (story mode). Before the bank job only the trades in g.hireOK show up on the board. */
+    const hireLock = () => g.prisonMode && g.preleased && !g.hireFree ? (g.hireOK || []) : null;
+    function mtTable() { const H = hideoutB(); if (!H) return null; const pl = buildingPlans(H)[0]; const t = pl && (pl.props || []).find((o) => o.t === "bs_maptable"); return t ? { H, x: t.x + t.w / 2, y: t.y + t.h / 2, w: t.w, h: t.h } : null; }
+    G.hippyFrontT = () => { const H = hippyB(); return H ? frontOf(H) : null; };   // test hook
+    G.yardFrontT = () => { const H = hideoutB(); return H ? frontOf(H) : null; };   // test hook
+    G.mtTableT = () => { const T = mtTable(); return T ? [T.x, T.y] : null; };          // test hook
+    G.vaultT = () => { const B = g.inside, R = B && artRect(B), V = B && ART_VAULT[B.artInterior]; return R && V ? [R.x0 + V[0] * (R.x1 - R.x0), R.y0 + V[1] * (R.y1 - R.y0)] : null; };   // test hook
+    G.vaultDoorT = () => { const B = g.inside, R = B && artRect(B), L = B && ART_LOCK[B.artInterior]; return R && L ? [R.x0 + (L[0] + L[2]) / 2 * (R.x1 - R.x0), R.y0 + (L[3] + 0.03) * (R.y1 - R.y0)] : null; };   // test hook
+    G.bankT = () => { const b = theBank(); return b ? { name: b.name, front: frontOf(b), back: wallPt(b, backSide(b), 0.5, 46) } : null; };
+    function maptableBegin() { storyStart("maptable"); g.hireOK = []; g.jobBanner = "THE PHONE"; g.jobNote = "Leroy: everybody at the yard.";
+      g.driveTalk = { who: "LEROY (ON THE PHONE)", text: "“You alive? Good. Everybody at the yard. Bring your head if you can find it -- and don't ask me about Katya, I didn't see nothing.”", t: 8 }; }
+    function mtCarPos() { const H = g.story && g.story.id === "corner" ? hippyB() : hideoutB(); if (!H) return null; const [x, y] = frontOf(H); return [x - 140, y]; }
+    function mtCar() { if (g.traffic.some((q) => q.mtCar)) return; const P = mtCarPos(); if (!P) return;
+      g.traffic.push({ x: P[0], y: P[1], ang: -Math.PI / 2, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0, m: { k: "car_crew_viejo", len: 112, w: 50, lowrider: 1 }, dead: 0, parked: 1, named: 1, trFree: 1, mtCar: 1,
+        idn: { model: "LOWRIDER", colour: "", plate: "VIEJO", owner: "PABLO DIAZ" } }); }
+    G.mtCarFn = () => { const S = g.story; if (!S || g.mode !== "foot" || g.inside) return false; const ok = (S.id === "maptable" && S.step === 3) || (S.id === "bankjob" && S.step === 1) || (S.id === "corner" && S.step === 2); if (!ok) return false;
+      const n = g.traffic.findIndex((q) => q.mtCar); if (n < 0) return false; const v = g.traffic[n]; if (Math.hypot(g.p.x - v.x, g.p.y - v.y) > 130) return false;
+      g.car.x = v.x; g.car.y = v.y; g.car.ang = v.ang; g.car.vx = 0; g.car.vy = 0; g.car.skin = v.m; g.car.idn = v.idn; g.car.fuel = 90; g.car.dmg = 0; g.car.crush = null; g.car.dents = [];
+      g.traffic.splice(n, 1); g.mode = "car"; g.p.x = g.car.x; g.p.y = g.car.y;
+      g.pfol = crewFol(S.id === "maptable" ? [PABLO_F, LOOK_F(), LOCK_F()] : S.id === "corner" ? [PABLO_F, RAS_F, DREAD_F] : [PABLO_F, LEROY_F, LOCK_F()]);
+      for (const f of g.pfol) if (f.key === "h:dread") f.wpn = "smg_uzi";
+      S.step++; storyMark(S.id === "maptable" ? "TO FIRST MERCHANTS" : S.id === "corner" ? "TO THE GAS STATION" : "ROLLING");
+      g.driveTalk = { who: "PABLO", text: S.id === "maptable" ? "“Downtown. I'll drive -- DRIVER, WHERE TO. Or you drive and I'll complain.”" : S.id === "corner" ? "“The gas station? I know it. Their coffee's a crime too.”" : "“Nobody talks. Nobody smiles. Nobody waves at a cop.”", t: 6 }; return true; };
+    function maptableStep(dt) { const S = g.story, p = inVehicle() ? activeVeh() : g.p, B = theBank(); mtCar();
+      if (S.step === 0) { const H = hideoutB(); if (H && (g.inside === H || (!g.inside && Math.hypot(p.x - frontOf(H)[0], p.y - frontOf(H)[1]) < 200 && g.mode === "foot"))) { S.step = 1; storyMark("THE YARD");
+          g.driveTalk = { who: "LEROY", text: "“The table. In the shelter. Come here, I'll show you how this works.”", t: 5 }; } return; }
+      if (S.step === 2) { if (boardHave("locksmith") >= 1 && boardHave("lookout") >= 1) { S.step = 3; storyMark("HIRED");
+          g.driveTalk = { who: "LEROY", text: "“Good. Now go LOOK at it. Pablo's out front. Take them both.”", t: 6 }; } return; }
+      if (S.step === 4) { if (B && Math.hypot(p.x - frontOf(B)[0], p.y - frontOf(B)[1]) < 340) { S.step = 5; const [fx, fy] = frontOf(B), o = [[0, -1], [1, 0], [0, 1], [-1, 0]][B.door ? B.door.side : 2] || [0, 1];
+          S.look = [fx + o[0] * 150 + o[1] * 60, fy + o[1] * 150 + o[0] * 60]; g.pfol = (g.pfol || []).filter((f) => f.key !== "h:lookout"); S.notes = {}; storyMark("FIRST MERCHANTS · CASE IT");
+          g.driveTalk = { who: manName(hiredMan("lookout"), "lookout").split(" ")[0].toUpperCase(), text: "“I'll be across the street with a newspaper. Go in, look, don't touch. And keep that gun in your pants.”", t: 7 }; } return; }
+      if (S.step === 5) { if (g.inside !== B) return; if (g.p.wpn && !g.p.holstered) { storyFail("YOU PULLED A GUN IN A BANK. That's not casing it -- that's robbing it, with no plan."); return; }
+        const F = g.artFolk, R = B && artRect(B), V = ART_VAULT[B.artInterior]; if (!F || !R) return; S.notes = S.notes || {}; S.dwell = S.dwell || {};
+        const near = (x, y, r) => Math.hypot(g.p.x - x, g.p.y - y) < r, look = (k, hit) => { if (S.notes[k]) return; S.dwell[k] = hit ? (S.dwell[k] || 0) + dt : 0; if (S.dwell[k] > 1.4) { S.notes[k] = 1; g.pickupFlash = { nm: "lift:NOTED · " + k.toUpperCase(), t: 1.6 }; } };
+        look("tellers", F.list.some((w) => w.role === "TELLER" && near(w.x, w.y, 90)));
+        look("manager", F.list.some((w) => w.role === "MANAGER" && near(w.x, w.y, 90)));
+        look("guard", F.list.some((w) => w.role === "GUARD" && near(w.x, w.y, 90)));
+        const L = ART_LOCK[B.artInterior]; look("vault", (V && near(R.x0 + V[0] * (R.x1 - R.x0), R.y0 + V[1] * (R.y1 - R.y0), 150)) || (L && near(R.x0 + (L[0] + L[2]) / 2 * (R.x1 - R.x0), R.y0 + (L[3] + 0.03) * (R.y1 - R.y0), 110)));
+        if (["tellers", "manager", "guard", "vault"].every((k) => S.notes[k])) { S.step = 6; storyMark("THE FLOOR · NOW THE BACK");
+          g.driveTalk = { who: manName(hiredMan("locksmith"), "locksmith").split(" ")[0].toUpperCase(), text: "“Three tellers, a manager who walks everywhere fast, a guard who's sixty. Now show me the back door.”", t: 6 }; } return; }
+      if (S.step === 6) { if (g.inside || !B) return; const W = wallPt(B, backSide(B), 0.5, 46); S.back = S.back || 0; S.back = Math.hypot(g.p.x - W[0], g.p.y - W[1]) < 110 && g.mode === "foot" ? S.back + dt : 0;
+        if (S.back > 4) { S.step = 7; g.pfol = (g.pfol || []).concat(crewFol([LOOK_F()])); storyMark("THE BACK DOOR · HOME");
+          g.driveTalk = { who: manName(hiredMan("locksmith"), "locksmith").split(" ")[0].toUpperCase(), text: "“Two deadbolts and a drop bar. Alarm runs on its own line. Ninety seconds -- before they open, while the manager's inside alone.” The lookout's back with you. “Yard.”", t: 8 }; } return; }
+      if (S.step === 7) { const H = hideoutB(); if (H && (g.inside === H || (!g.inside && Math.hypot(p.x - frontOf(H)[0], p.y - frontOf(H)[1]) < 240))) { S.step = 8; storyMark("THE TABLE · THE PLAN");
+          g.driveTalk = { who: "LEROY", text: "“Well? Table. Tell me how we do it.”", t: 5 }; } return; } }
+    function maptableObjective() { const S = g.story, n = S.notes || {}, ck = (k) => (n[k] ? "✓ " : "· ") + k.toUpperCase();
+      return { head: "THE MAP TABLE · " + ["THE YARD", "THE MAP TABLE", "HIRE A LOCKSMITH AND A LOOKOUT", "PABLO'S CAR", "FIRST MERCHANTS BANK", "CASE THE FLOOR", "THE BACK DOOR", "BACK TO THE YARD", "PICK THE PLAN", "SLEEP"][S.step],
+        sub: ["Leroy wants everybody at the scrapyard.", "Inside the shelter -- E at the map table. Leroy will walk you through it.", "At the table: HIRE PEOPLE. Only a LOCKSMITH and a LOOKOUT will work for you yet. Leroy fronted $1,200.",
+          "Pablo's lowrider, out front of the yard. E to get in.", "Downtown, FIRST MERCHANTS BANK. Pablo can drive: DRIVER -> WHERE TO.",
+          "Walk in -- NO GUN. Stand near each and look: " + ["tellers", "manager", "guard", "vault"].map(ck).join("  "), "Out and round the BACK of the bank with the locksmith. Stand at the back door (marked).",
+          "Back to the scrapyard.", "E at the map table: pick the plan.", "Home. E at your bed."][S.step] }; }
+    function drawMaptable() { const S = g.story; if (!S) return; const lab = (t, x, y, c) => { ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = c; ctx.fillText(t, x, y); ctx.textAlign = "start"; };
+      const man = (x, y, yt, nm, c, ang) => { drawShadow(x, y + 2, 10, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt, bang: ang == null ? -Math.PI / 2 : ang }); if (nm) lab(nm, x, y - 30, c || "#9fe0a0"); };
+      const T = mtTable(), inYard = T && g.inside === T.H && g.floor === 0;
+      if (S.id === "maptable" && inYard && S.step >= 1 && S.step <= 2 || (S.id === "maptable" && inYard && S.step === 8) || (S.id === "bankjob" && inYard && S.step === 0)) {
+        man(T.x - T.w / 2 - 22, T.y, "yt_crew_leroy", "LEROY", null, 0); man(T.x + T.w / 2 + 22, T.y, "yt_crew_viejo", "PABLO", null, Math.PI); man(T.x, T.y + T.h / 2 + 24, "yt_crew_ras", "RAS", null, -Math.PI / 2);
+        lab("THE MAP TABLE · E", T.x, T.y - T.h / 2 - 8, "#e8c46a"); }
+      if (S.id === "maptable" && S.step >= 5 && S.step <= 6 && S.look && !g.inside) man(S.look[0], S.look[1], LOOK_F()[4], "LOOKOUT · WATCHING", "#9fc6ff", 0);
+      if (S.id === "bankjob" && S.step >= 1 && S.step <= 7 && S.look && !g.inside) man(S.look[0], S.look[1], LOOK_F()[4], "LOOKOUT", "#9fc6ff", 0);
+      const B = theBank(); if (!B || g.inside) return;
+      if ((S.id === "maptable" && S.step === 6) || (S.id === "bankjob" && S.step === 3 && g.bankPlan === "back")) { const W = wallPt(B, backSide(B), 0.5, 46);
+        ctx.strokeStyle = "rgba(232,196,106,0.85)"; ctx.lineWidth = 3; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.arc(W[0], W[1], 46, 0, 6.3); ctx.stroke(); ctx.setLineDash([]);
+        const k = S.id === "bankjob" ? Math.min(1, (S.back || 0) / 6) : Math.min(1, (S.back || 0) / 4); if (k > 0) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(W[0] - 30, W[1] - 62, 60, 7); ctx.fillStyle = "#e8c46a"; ctx.fillRect(W[0] - 30, W[1] - 62, 60 * k, 7); }
+        lab(S.id === "bankjob" ? "THE BACK DOOR · STAND HERE (THE LOCKSMITH WORKS IT)" : "THE BACK DOOR · STAND HERE", W[0], W[1] - 68, "#e8c46a"); }
+      if (S.id === "bankjob" && S.step === 7 && S.carAt) { const v = g.traffic.find((q) => q.bkCar); if (v) lab("PABLO · E: LOAD THE BAGS", v.x, v.y - 60, "#9fe0a0"); } }
+
+    /* the tutorial: five pages at the table, then the hire view */
+    const MT_PAGES = [
+      ["THE BOARD", "LEROY: “This table is the business. Everything we do starts with somebody standing right here. Four things on it: who works for us, what we've got going, who we're at war with, and who we can get out of Kestrel.”"],
+      ["HIRE PEOPLE", "LEROY: “HIRE PEOPLE -- who's around today, what they're good at, what they cost. But the street don't know your name yet. RESPECT is what it costs to get a man to say yes. Right now? A lookout and a locksmith will take our money. Nobody else. We fix that by doing jobs.”"],
+      ["PLAN A JOB", "LEROY: “PLAN A JOB -- every job needs certain people and time. You can SEND THEM and wait for the phone to ring, or LEAD IT: you, them and the cars, for real. YOUR PEOPLE is where you give a man orders -- what he does, his rank, his gear.”"],
+      ["THE YARD", "LEROY: “The rest of the place. The MOTOR POOL out back -- every car we steal parks in a stall and it's ours. THE ARMORY -- guns and vests for the crew. THE GANGS AND YOU -- who loves us, who wants us dead, what a truce costs. And GET A MAN OUT OF KESTREL -- a lawyer's slow, a breakout's loud. Both cost.”"],
+      ["THE JOB", "LEROY: “First Merchants Bank. Downtown. Pablo's cousin cleans it -- the manager comes in at seven-thirty alone, every day, like a clock. We're gonna need eyes on the street and somebody who can open a door that doesn't want to.” He drops an envelope on the map. “Twelve hundred. Hire them. Then go look at it.”"]];
+    function mtPanel(k) { const S = g.story || {};
+      if (/^mt_\d$/.test(k)) { const i = +k.slice(3), P = MT_PAGES[i];
+        return { title: "THE MAP TABLE · " + (i + 1) + "/" + MT_PAGES.length + " · " + P[0], face: "assets/crew/pt_crew_leroy_civ.png", text: P[1],
+          opts: i < MT_PAGES.length - 1 ? [{ id: "story:mt_" + (i + 1), label: "NEXT" }] : [{ id: "story:mt_hire", label: "“HIRE THEM.” (+$1,200)" }] }; }
+      if (k === "mt_plan") return { title: "THE MAP TABLE · FIRST MERCHANTS", face: "assets/crew/pt_crew_leroy_civ.png",
+        text: "Everybody round the map. The lookout draws the street, the locksmith draws the back door, you draw the floor -- tellers, the manager, a guard who's sixty, the vault behind the manager's office.\n\nLEROY: “So. Quiet or loud?”\n\nTHE BACK DOOR: before they open. The locksmith does the back in ninety seconds, the manager's alone, no customers, no drawers -- the vault only.\nTHE FRONT: at opening. Walk in with the customers, everybody down, drawers AND the vault. More money, more witnesses, more heat.",
+        opts: [{ id: "story:mt_back", label: "THE BACK DOOR · BEFORE THEY OPEN" }, { id: "story:mt_front", label: "THE FRONT · AT OPENING" }] };
+      if (k === "bk_go") return { title: "THE YARD · " + (g.bankPlan === "front" ? "THE FRONT AT OPENING" : "THE BACK DOOR BEFORE THEY OPEN"), face: "assets/crew/pt_crew_leroy_civ.png",
+        text: (g.bankPlan === "front" ? "LEROY: “Nine o'clock. They unlock the doors, we walk in behind the first old lady. Everybody down, drawers, then the manager takes us to the vault. Two minutes. Not three.”" : "LEROY: “Seven-thirty. The manager parks, goes in the back. The locksmith's on that door ninety seconds behind him. We walk him to the vault. Nobody else in the building.”") +
+          "\n\n“The lookout's been on that corner since six. Pablo stays with the car -- engine running. I'm with you. Gun out when we're in, not before.”" + (!g.p.wpn ? "\n\nHe presses a pistol into your hand. “You'll want this.”" : ""),
+        opts: [{ id: "story:bk_go", label: "“LET'S GO.”" }] };
+      if (k === "bk_talk") return bkTalkPanel();                                          // layer 490
+      if (k === "bk_split") { const T = S.take || 0; return { title: "THE HAPPY HIPPIE · THE TRUNK", face: "assets/crew/pt_crew_leroy_civ.png",
+        text: "The trunk pops. Four Happy Hippie duffels, fat as pillows. Ras whistles. Pablo kisses the steering wheel.\n\nLEROY: “$" + T.toLocaleString() + ". The locksmith gets his end, the lookout gets his. The rest goes to work -- every job from here on runs on this money.” He hands you a bag. “That was a job, Rey. That was a real one.”\n\nRAS: “Wi rich! Small rich. But rich!”",
+        opts: [{ id: "story:bk_done", label: "“NOW WE'RE A CREW.”" }] }; }
+      return null; }
+    function mtPick(a) { const S = g.story, close = () => { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); };
+      if (/^mt_\d$/.test(a)) { G.pickOpen(a); return; }
+      if (a === "mt_hire") { if (S && S.id === "maptable" && S.step === 1) { S.step = 2; g.p.cash = (g.p.cash || 0) + 1200; g.hireOK = ["locksmith", "lookout"]; g.board2 = g.board2 || { hires: {}, ops: [], corners: 0 }; g.board2.pool = null;
+          storyMark("+$1,200 · HIRE THEM"); } g.boardView = "hire"; g.boardSaid = "Leroy: “Locksmith. Lookout. Nobody else will take our money yet.”"; G.pickOpen("opsboard"); return; }
+      if (a === "mt_back" || a === "mt_front") { close(); g.bankPlan = a === "mt_back" ? "back" : "front"; if (S && S.id === "maptable" && S.step === 8) { S.step = 9; g.pfol = []; storyMark("THE PLAN: " + (g.bankPlan === "back" ? "THE BACK DOOR" : "THE FRONT"));
+          g.driveTalk = { who: "LEROY", text: "“" + (g.bankPlan === "back" ? "Quiet it is." : "Loud it is. God help us.") + " Tomorrow. Go home. Sleep. No vodka.”", t: 6 }; } return; }
+      if (a === "bk_go") { close(); if (S && S.id === "bankjob" && S.step === 0) { if (!g.p.wpn) { g.p.wpn = "pistol"; g.p.ammo = 12; (g.rack = g.rack || []).includes("pistol") || g.rack.push("pistol"); } g.p.holstered = true; S.step = 1; storyMark("GET IN"); } return; }
+      if (/^bk_say_/.test(a)) { bkSay(a.slice(7)); return; }                                   // the manager (layer 490)
+      if (a === "bk_done") { close(); if (S && S.id === "bankjob" && S.step === 9) { g.hireFree = 1; storyComplete(); } return; } }
+    /* MISSION 9 (layer 490, redone): THE BANK JOB.
+       Pull up -> Pablo hands out MASKS (black over every head: g.masks) -> in (the back door with the locksmith, or the
+       front) -> the crew TAKES THE ROOM (everyone hands up) -> you walk to the manager and TALK HIM INTO IT (bk_talk, a
+       little text game: read him -- family man, company man or coward -- and pick the line that works; two right before two
+       wrong). WIN: he walks to the vault and opens it. LOSE: his knee finds the silent alarm -- 3:00 till the cops, and the
+       locksmith drills the vault: 1:00 if he's good (4-5 stars), 1:50 if he's average (3), 3:04 if he's not (the cops beat
+       him). E at the vault: the bags -- the Happy Hippie duffels over your heads (g.bagsOn). Out to Pablo, E at the car:
+       LOAD THE BAGS. Lose any heat (DRIVER -> LOSE 'EM -- Pablo tells you), back to the Hippie, out, E at the trunk:
+       UNLOAD. $50,000. */
+    STORY.bankjob.pay = 50000;
+    const BK_CRACK = (stars) => stars >= 4 ? 60 : stars >= 3 ? 110 : 184;
+    function bankjobBegin() { aptStartHome(); storyStart("bankjob"); g.pfol = []; g.masks = 0; g.bagsOn = 0; const back = g.bankPlan !== "front"; g.clock = back ? 6 * 60 + 30 : 8 * 60 + 50; g.nightTarget = 0;
+      g.jobBanner = (back ? "6:30 AM" : "8:50 AM") + " · PALM COURT"; g.jobNote = "Today. The crew's at the yard."; }
+    const bkMgr = () => g.artFolk && g.artFolk.list.find((w) => w.role === "MANAGER");
+    function bkLockPt(B) { const R = artRect(B), L = ART_LOCK[B.artInterior]; return R && L ? [R.x0 + (L[0] + L[2]) / 2 * (R.x1 - R.x0), R.y0 + (L[3] + 0.03) * (R.y1 - R.y0)] : null; }
+    function bkOpenVault(B) { const pl = buildingPlans(B)[B.entry || 0]; if (!pl || pl.vaultOpen) return; pl.vaultOpen = 1; pl.props = pl.props.filter((p) => p.t !== "artlock"); g.pickupFlash = { nm: "lift:THE VAULT'S OPEN", t: 1.8 }; }
+    function bankjobStep(dt) { const S = g.story, p = inVehicle() ? activeVeh() : g.p, B = theBank(), H = hideoutB(), HP = hippyB(), back = g.bankPlan !== "front"; if (S.step <= 1) mtCar();
+      if (S.step === 0) { if (H && Math.hypot(p.x - frontOf(H)[0], p.y - frontOf(H)[1]) < 260 && !g.pickOpen) G.pickOpen("bk_go"); return; }
+      if (!S.look && B) { const [fx, fy] = frontOf(B), o = [[0, -1], [1, 0], [0, 1], [-1, 0]][B.door ? B.door.side : 2] || [0, 1]; S.look = [fx + o[0] * 150 + o[1] * 60, fy + o[1] * 150 + o[0] * 60]; }
+      if (S.step === 2) { if (!B) return; const T = back ? wallPt(B, backSide(B), 0.5, 46) : frontOf(B); if (Math.hypot(p.x - T[0], p.y - T[1]) < 360) { S.step = 3; g.masks = 1; storyMark("MASKS ON");
+          g.driveTalk = { who: "PABLO", text: "He reaches under the seat and tosses back four black ski masks. “Put 'em on. Nobody's face, nobody's name. I'm right here, engine running.”", t: 7 }; } return; }
+      if (S.step >= 3 && S.step <= 7 && g.mode === "foot" && !S.carAt && g.car && g.car.x > -50000) { S.carAt = 1;                                  // Pablo waits in the car
+        g.traffic.push({ x: g.car.x, y: g.car.y, ang: g.car.ang, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0, m: g.car.skin, dead: 0, parked: 1, named: 1, trFree: 1, bkCar: 1, idn: g.car.idn });
+        g.car.x = -90000; g.car.y = -90000; g.pfol = (g.pfol || []).filter((f) => f.key !== "c:viejo"); }
+      if (S.step === 3) { if (!B) return;
+        if (g.inside !== B) { if (back && !g.inside) { const W = wallPt(B, backSide(B), 0.5, 46); S.back = Math.hypot(g.p.x - W[0], g.p.y - W[1]) < 110 && g.mode === "foot" ? (S.back || 0) + dt : 0;
+            if (S.back > 6) { const f = B.entry || 0; g.inside = B; g.floor = f; g.insideT = 1; g.mode = "foot"; const R = artRect(B), V = ART_VAULT[B.artInterior] || [0.7, 0.2];
+              if (R) { g.p.x = R.x0 + (V[0] - 0.05) * (R.x1 - R.x0); g.p.y = R.y0 + (V[1] + 0.2) * (R.y1 - R.y0); g.cam.x = g.p.x; g.cam.y = g.p.y; } S.quiet = 1; S.inT = 0;
+              g.driveTalk = { who: "THE LOCKSMITH", text: "A click, a second click, the bar lifts. “Ninety-one seconds. I'm getting old.”", t: 5 }; } }
+          return; }
+        if (!g.artFolk || g.artFolk.b !== B) return; S.inT = (S.inT || 0) + dt; if (S.inT < 0.4) return;
+        if (S.quiet) g.artFolk.list = g.artFolk.list.filter((w) => w.role === "MANAGER" || w.role === "GUARD");
+        for (const w of g.artFolk.list) { w.held = 1; w.tx = w.x; w.ty = w.y; }
+        S.step = 4; S.talk = { type: cpick(["family", "company", "coward"]), r: 0, ok: 0, bad: 0, said: null }; storyMark("THE ROOM IS OURS · THE MANAGER");
+        g.driveTalk = { who: "LEROY", text: S.quiet ? "“Hands where I can see them, pops. Nice and slow.” The guard puts his coffee down and his hands up." : "“EVERYBODY DOWN! Hands on the floor! Nobody's a hero today!” The crew fans out -- tellers, customers, the guard: hands up.", t: 6 }; return; }
+      if (S.alarm != null && !S.cops && S.step >= 5 && S.step <= 8) { S.alarm -= dt; if (S.alarm <= 0) { S.cops = 1; g.heat = 3; g.wantedT = Math.max(g.wantedT || 0, 200); try { witnessed(g.p.x, g.p.y, 3, true); } catch (e) {}
+          g.driveTalk = { who: "THE LOOKOUT (RADIO)", text: "“Sirens! Three cars! Get OUT of there!”", t: 6 }; } }
+      if (S.step === 5) { const J = g.bankJob, pl = B && buildingPlans(B)[B.entry || 0];
+        if (S.crack != null && pl && !pl.vaultOpen && g.inside === B) { S.crackT = (S.crackT || 0) + dt; const f = (g.pfol || []).find((q) => q.key === "h:locksmith"), L = bkLockPt(B);
+          if (f && L) misTask(f, "hold", L[0], L[1] + 22, 0, null, B, B.entry || 0);
+          if (S.crackT >= S.crack) { bkOpenVault(B); if (f) f.task = null; g.driveTalk = { who: "THE LOCKSMITH", text: "“Got it! GO, go, go!”", t: 4 }; } }
+        if (pl && pl.vaultOpen) { S.step = 6; storyMark("THE VAULT · THE BAGS (E)"); } return; }
+      if (S.step === 8) {
+        const hot = (g.heat || 0) > 0 || (g.wantedT || 0) > 0;
+        if (hot && !S.loseTold) { S.loseTold = 1; g.driveTalk = { who: "PABLO", text: "“We got cops! Tell me LOSE 'EM -- DRIVER, LOSE 'EM -- and hang on. Or shoot out their tires and I'll make 'em eat curb. Don't lead them to the Hippie.”", t: 9 }; }
+        if (!hot && S.loseTold && !S.lostTold) { S.lostTold = 1; g.driveTalk = { who: "PABLO", text: "“...We're clean. Easy now. The Hippie.”", t: 5 }; }
+        if (HP && !hot && g.mode === "foot" && Math.hypot(g.p.x - frontOf(HP)[0], g.p.y - frontOf(HP)[1]) < 420) { S.step = 9; g.masks = 0; storyMark("THE HIPPIE · THE TRUNK"); } return; } }
+    G.bkTalkFn = () => { const S = g.story; if (!S || S.id !== "bankjob" || S.step !== 4 || g.mode !== "foot") return false; const m = bkMgr(); if (!m || Math.hypot(m.x - g.p.x, m.y - g.p.y) > 70) return false; G.pickOpen("bk_talk"); return true; };
+    const BK_TELL = { family: "There's a photo on his desk: two girls in Easter dresses. His eyes keep going to it.", company: "He's straightening his tie. “There are procedures. There's a time lock -- you don't understand how this works.”", coward: "He's shaking so hard his keys rattle. “D-don't, please, d-don't --”" };
+    const BK_OPTS = [["threat", "Put the gun to his head. “OPEN IT. NOW.”"], ["reason", "“It's insured, chief. Not your money. Nobody gets a medal from the FDIC.”"], ["calm", "“Look at me. You're going home to your girls tonight. Just open the door.”"]];
+    const BK_WORKS = { coward: "threat", company: "reason", family: "calm" };
+    function bkTalkPanel() { const S = g.story, T = S && S.talk; if (!T) return null;
+      const intro = T.r === 0 ? "You walk up to the manager. Behind you the room is on the floor.\n\n" + BK_TELL[T.type] : T.said;
+      return { title: "THE MANAGER · TALK HIM INTO IT · " + T.ok + " RIGHT · " + T.bad + " WRONG", face: "assets/bank/pt_bank_1.png",
+        text: intro + "\n\n(Two right and he opens the vault. Two wrong and he hits the alarm.)", opts: BK_OPTS.map(([k, l]) => ({ id: "story:bk_say_" + k, label: l })) }; }
+    function bkSay(k) { const S = g.story, T = S && S.talk; if (!T || S.step !== 4) return; const right = BK_WORKS[T.type] === k; T.r++;
+      if (right) T.ok++; else T.bad++;
+      const R = { family: ["He swallows and looks at the photo. “Okay. Okay. For them.”", "He looks at the photo, then at the gun. His hands don't stop."], company: ["“...It is insured.” Something leaves his shoulders. “Corporate won't even notice.”", "“That's not -- this is a FEDERAL --” His eyes slide to the desk."], coward: ["“OKAY! Okay! I'll do it, don't shoot!”", "He just stares. Frozen. Nothing you say is getting in."] }[T.type];
+      T.said = right ? R[0] : R[1];
+      if (T.ok >= 2) { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); bkWin(); return; }
+      if (T.bad >= 2) { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); bkLose(); return; }
+      G.pickOpen("bk_talk"); }
+    function bkWin() { const S = g.story, B = theBank(), m = bkMgr(), L = B && bkLockPt(B); if (!m || !L) return;
+      g.bankJob = { b: B, t: 0, till: 0, tillDone: 1, fear: 1, mgr: m, lockAt: L, unlock: 0, need: 4, coop: 1 }; m.held = 0; S.step = 5; storyMark("HE'S OPENING IT");
+      g.driveTalk = { who: "THE MANAGER", text: "“The vault. Yes. This way. Please don't hurt anybody.”", t: 5 }; }
+    function bkLose() { const S = g.story, B = theBank(), lm = hiredMan("locksmith"), st = lm && lm.st ? Math.round(fitStars(lm.st, "locksmith")) : 3;
+      S.step = 5; S.alarm = 180; S.crack = BK_CRACK(st); S.crackT = 0; S.lockStars = st; storyMark("SILENT ALARM · 3:00");
+      g.driveTalk = { who: "LEROY", text: "His knee jerks under the desk. “HE HIT THE ALARM! Three minutes, Rey!” The locksmith's already running for the vault door with his drill. “" + (st >= 4 ? "A minute. Cover me." : st >= 3 ? "Two minutes. Maybe less." : "...This is a big door. This is gonna take a while.") + "”", t: 8 }; }
+    // the vault: bags, not cash (Mission 9)
+    function bkBags() { const S = g.story; if (!S || S.id !== "bankjob" || S.step !== 6) return false; S.bags = 1; g.bagsOn = 1; S.take = STORY.bankjob.pay; S.step = 7; storyMark("THE BAGS · TO THE CAR");
+      if (!S.alarm) { g.heat = Math.max(g.heat || 0, S.quiet ? 0 : 1); }
+      g.driveTalk = { who: "LEROY", text: "Stacks into the duffels -- the Hippie's laundry bags, of all things. “That's it, that's enough, GO!”", t: 5 }; return true; }
+    G.bkCarFn = () => { const S = g.story; if (!S || S.id !== "bankjob" || S.step !== 7 || g.mode !== "foot" || g.inside) return false; const n = g.traffic.findIndex((q) => q.bkCar); if (n < 0) return false; const v = g.traffic[n];
+      if (Math.hypot(g.p.x - v.x, g.p.y - v.y) > 140) return false;
+      g.bagsOn = 0; S.loaded = 1; g.car.x = v.x; g.car.y = v.y; g.car.ang = v.ang; g.car.vx = 0; g.car.vy = 0; g.car.skin = v.m; g.car.idn = v.idn; g.traffic.splice(n, 1); g.mode = "car"; g.p.x = v.x; g.p.y = v.y; g.masks = 0;
+      g.pfol = crewFol([PABLO_F, LEROY_F, LOCK_F()]); S.step = 8; storyMark("BAGS IN THE TRUNK · THE HIPPIE"); g.pickupFlash = { nm: "lift:BAGS IN THE TRUNK", t: 1.8 }; return true; };
+    G.bkTrunkFn = () => { const S = g.story; if (!S || S.id !== "bankjob" || S.step !== 9 || g.mode !== "foot" || g.inside) return false; if (!g.car || Math.hypot(g.p.x - g.car.x, g.p.y - g.car.y) > 130) return false;
+      G.pickOpen("bk_split"); return true; };
+    function bankjobObjective() { const S = g.story, back = g.bankPlan !== "front", mm = (s) => Math.floor(Math.max(0, s) / 60) + ":" + String(Math.floor(Math.max(0, s) % 60)).padStart(2, "0");
+      const al = S.alarm != null ? (S.cops ? " · THE COPS ARE HERE" : " · COPS IN " + mm(S.alarm)) : "", cr = S.crack != null && S.step === 5 ? " · DRILL " + mm(S.crack - (S.crackT || 0)) : "";
+      return { head: "THE BANK JOB · " + ["THE YARD", "PABLO'S CAR", "FIRST MERCHANTS", back ? "THE BACK DOOR" : "THE FRONT DOOR", "THE MANAGER", "THE VAULT", "THE BAGS", "TO THE CAR", "THE HIPPIE", "THE TRUNK"][S.step] + al + cr,
+        sub: ["The crew's waiting at the scrapyard.", "Pablo's lowrider, out front of the yard. E.", back ? "Drive to the BACK of First Merchants." : "Drive to First Merchants. Park out front.",
+          back ? "Out of the car. Stand at the back door (marked) while the locksmith opens it." : "Walk in the front.",
+          "The crew has the room. Walk up to the MANAGER and E: talk him into opening the vault.",
+          S.crack != null ? "He hit the alarm. Hold the room while the locksmith drills the vault." : "He's walking to the vault. Stay with him.",
+          "E at the vault: grab the bags.", "Out to Pablo. E at the car: LOAD THE BAGS.", (g.heat || 0) > 0 || (g.wantedT || 0) > 0 ? "LOSE THE COPS (DRIVER -> LOSE 'EM, or shoot their tires), then the Happy Hippie." : "Back to the Happy Hippie. Get out by the car.",
+          "E at the car's trunk: UNLOAD."][S.step] }; }
+    /* ---------- LAYER 491: MISSION 10 (THE CORNER) and MISSION 11 (THE RAVEN'S NEST, the opening) ----------
+       MISSION 10. Ras teaches dealers. His friend DESMOND "DREAD" MORGAN comes recommended -- and with his own Uzi -- and he
+       works for free the first week because Ras vouches. Get strapped, take Pablo's car (Pablo, Ras and Dread ride), go to
+       the gas station nearest the Hippie: a Bratva dealer and his two men work the back of it. Put them down. Walk Dread to
+       the corner (behind the station): he takes it -- WEED for now (ROCK and POWDER are locked). Come back later and he has
+       a crew there. Back to the laundromat: Leroy says the Russians' prize is THE RAVEN'S NEST. MISSION COMPLETE.
+       MISSION 11 (opening). The next morning: Katya again, the same scene ("this ALSO never happened"). The yard: Leroy's
+       plan at the table -- a bomb maker under the Nest from the sewer, blow the floor, in through the hole, take down
+       Victor's men, force the office, make him sign the Nest over; Katya's one rule: Victor walks out alive. HIRE a BOMB
+       MAKER, TWO SHOOTERS and an ENFORCER (the lock opens for those). The rest of the job is still to build. */
+    STORY.corner = { nm: "THE CORNER", pay: 2500 };
+    STORY.nest = { nm: "THE RAVEN'S NEST", pay: 0 };
+    const RAS_F = ["c:ras", "RAS CAMPBELL", "dealer", "ras", "yt_crew_ras"], DREAD_F = ["h:dread", "DESMOND 'DREAD' MORGAN", "dealer", null, "yt_hire_dealer_2"];
+    const cornerGas = () => { const H = hippyB(); if (!H) return null; const [x, y] = frontOf(H); return gasNear({ x, y }); };
+    const cornerSpot = () => { const G2 = cornerGas(); return G2 ? [G2.x + 40, G2.y + 150] : null; };
+    function cornerBegin() { storyStart("corner"); g.pfol = []; g.jobBanner = "THE NEXT DAY"; g.jobNote = "Ras wants you at the Hippie.";
+      g.driveTalk = { who: "RAS (ON THE PHONE)", text: "“Rey! Come a di Hippie, mi have somebody fi yuh meet. Business, bredda. Real business.”", t: 7 }; }
+    function cornerStep(dt) { const S = g.story, p = inVehicle() ? activeVeh() : g.p, HP = hippyB(); mtCar();
+      if (S.step === 0) { if (HP && g.inside === HP && !g.pickOpen && !S.met) { S.met = 1; G.pickOpen("co_ras"); } return; }
+      if (S.step === 1) { if (g.p.wpn) { S.step = 2; storyMark("STRAPPED · PABLO'S CAR"); g.driveTalk = { who: "RAS", text: "“Good. Pablo's out front. Dread rides wid us.”", t: 5 }; } return; }
+      if (S.step === 3) { const G2 = cornerGas(); if (!G2) return; if (Math.hypot(p.x - G2.x, p.y - G2.y) < 420 && !S.crew) { const C = cornerSpot();
+          const cr = warCrew("rus", C[0], C[1], 3); cr.angryMe = 1e6; cr.storyCorner = 1; S.crew = 1; g.storyCrew = cr;
+          if (cr.members[0]) { cr.members[0].hxArt = "yt_hire_dealer_3"; cr.members[0].rankTag = "DEALER"; }
+          g.driveTalk = { who: "RAS", text: "“Dere him -- di Russian, back a di pumps, wid him two bwoy. Dem nah go leave nice.”", t: 6 }; }
+        const cr = g.storyCrew; if (S.crew && cr && (!g.crews.includes(cr) || cr.broke || cr.members.every((m) => (m.hp || 0) <= 0))) { S.step = 4; g.storyCrew = null; storyMark("THE CORNER IS OPEN");
+          g.driveTalk = { who: "DREAD", text: "“Respec'. Now walk me to mi corner, boss -- round di back.”", t: 5 }; } return; }
+      if (S.step === 4) { const C = cornerSpot(); if (!C || g.mode !== "foot") return; S.stand = Math.hypot(g.p.x - C[0], g.p.y - C[1]) < 90 ? (S.stand || 0) + dt : 0; if (S.stand > 1.5 && !g.pickOpen) G.pickOpen("co_dread"); return; }
+      if (S.step === 5) { if (HP && g.inside === HP && g.floor === (HP.entry || 0) && !g.pickOpen) G.pickOpen("co_leroy"); return; } }
+    function cornerObjective() { const S = g.story;
+      return { head: "THE CORNER · " + ["THE HIPPIE", "GET STRAPPED", "PABLO'S CAR", "THE GAS STATION", "DREAD'S CORNER", "THE LAUNDROMAT"][S.step],
+        sub: ["Ras is waiting inside the Happy Hippie.", "Get a gun in your hand -- the WEAPON wheel (Q), THE ARMORY at the map table, or RIGHT TO ARMS.", "Pablo's car, out front of the Hippie. E.",
+          S.crew ? "Put down the Russian dealer and his men behind the pumps." : "The gas station nearest the Hippie. A Bratva dealer works the back of it.",
+          "Walk Dread round the back of the station to his corner (marked).", "Back to the Hippie -- the laundromat. Leroy's there."][S.step] }; }
+    function coPanel(k) {
+      if (k === "co_ras") return { title: "RAS CAMPBELL · THE HAPPY HIPPIE", face: "assets/crew/pt_crew_ras.png",
+        text: "RAS: “Dealers, Rey. Dis how di money come every day, not just when we rob a bank. A dealer stand pon a corner, sell, kick up. YOUR PEOPLE at di table -- yuh give him a corner, him go stand pon it. Him product: herb now. Rock an' powder later, when we big enough.”\n\nA tall man in a green mesh shirt nods at you. An Uzi hangs under his jacket like it lives there.\n\nRAS: “Dis Desmond. Dread. Mi bredda from time. Him have him own piece, an' him work di first week free 'cause mi vouch. Di closest gas station? Russian sell dere. We fix dat.”",
+        opts: [{ id: "story:co_hire", label: "“WELCOME ABOARD, DREAD.” (HIRE HIM)" }] };
+      if (k === "co_dread") return { title: "DESMOND 'DREAD' MORGAN · THE CORNER", face: "assets/hires/pt_hire_dealer_2.png",
+        text: "DREAD: “Dis corner mine now -- yours. Mi a sell di herb. Come back tomorrow, mi have a likkle crew round di back an' di money a run.”\n\nWHAT HE SELLS: WEED. (ROCK and POWDER unlock later.)",
+        opts: [{ id: "story:co_weed", label: "“WEED. KEEP IT CLEAN.”" }, { id: "story:co_locked", label: "ROCK · LOCKED", dim: 1 }, { id: "story:co_locked", label: "POWDER · LOCKED", dim: 1 }] };
+      if (k === "co_leroy") return { title: "LEROY BANKS · THE LAUNDROMAT", face: "assets/crew/pt_crew_leroy_civ.png",
+        text: "Leroy's folding towels he didn't wash.\n\nLEROY: “A bank. A bar. A corner. The Boznovs are bleeding and they don't know where from yet.” He sets a towel down. “You want to hurt them? The Raven's Nest. Victor's club. The girls, the money, the card room -- that's their crown jewel. We take the Nest, the whole city hears it.”",
+        opts: [{ id: "story:co_done", label: "“THEN WE TAKE THE NEST.”" }] };
+      if (k === "ne_plan") return { title: "THE MAP TABLE · THE RAVEN'S NEST", face: "assets/crew/pt_crew_leroy_civ.png",
+        text: "LEROY: “The Nest sits on an old storm sewer. We put a BOMB MAKER down there with a charge right under Victor's dance floor. Boom -- everybody runs for the front, we come up through the hole.”\n\n“Then we take down his men, force our way into his office, and he SIGNS the Nest over to us.”\n\nRAS: “An' Katya?”\n\nLEROY: “Katya's got one rule. Victor walks out breathing. Her brother. Her call.”\n\n“We need a BOMB MAKER, TWO SHOOTERS and an ENFORCER. Go hire them.”",
+        opts: [{ id: "story:ne_hire", label: "“I'LL HIRE THEM.”" }] };
+      return null; }
+    function coPick(a) { const S = g.story, close = () => { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); };
+      if (a === "co_hire") { close(); const B = (g.board2 = g.board2 || { hires: {}, ops: [], corners: 0 }); B.hires.dealer = (B.hires.dealer || 0) + 1;
+        (B.men = B.men || []).push({ role: "dealer", art: "dealer", v: 2, name: "Desmond 'Dread' Morgan", st: genStats("dealer"), gear: ["smg_uzi"], rank: "soldier", dread: 1 });
+        g.hireOK = Array.from(new Set(["dealer"].concat(g.hireOK || []))); if (S && S.id === "corner" && S.step === 0) { S.step = 1; storyMark("DREAD'S IN"); if (g.p.wpn) { S.step = 2; } } return; }
+      if (a === "co_weed") { close(); if (S && S.id === "corner" && S.step === 4) { const C = cornerSpot(); g.dreadCorner = { x: C[0], y: C[1], at: nowMin(), drug: "weed" }; const B = g.board2; if (B) B.corners = (B.corners || 0) + 1;
+          try { rusTake({ x: C[0], y: C[1] }); } catch (e) {} g.pfol = (g.pfol || []).filter((f) => f.key !== "h:dread"); S.step = 5; storyMark("DREAD'S CORNER · THE LAUNDROMAT");
+          g.driveTalk = { who: "RAS", text: "“Look how him settle in. Back a di Hippie, Rey -- Leroy waan talk.”", t: 5 }; } return; }
+      if (a === "co_locked") { g.pickupFlash = { nm: "lift:NOT YET -- THAT'S AN UNLOCK", t: 1.6 }; return; }
+      if (a === "co_done") { close(); if (S && S.id === "corner" && S.step === 5) { g.pfol = []; storyComplete(); } return; }
+      if (a === "ne_hire") { if (S && S.id === "nest" && S.step === 2) { S.step = 3; g.hireOK = Array.from(new Set(["bomber", "shooter", "enforcer"].concat(g.hireOK || [])));
+          g.hireNeed = ["bomber", "shooter", "shooter", "enforcer"]; g.board2 = g.board2 || { hires: {}, ops: [], corners: 0 }; g.board2.pool = null; storyMark("HIRE THE CREW"); }
+        g.boardView = "hire"; g.boardSaid = "Leroy: “A bomb maker, two shooters, an enforcer.”"; G.pickOpen("opsboard"); return; } }
+    // Dread on his corner; after ten hours, his crew round the back
+    function drawDreadCorner() { const D = g.dreadCorner; if (!D || g.inside) return; const lab = (t, x, y, c) => { ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = c; ctx.fillText(t, x, y); ctx.textAlign = "start"; };
+      const men = [[0, 0, "yt_hire_dealer_2", "DREAD · WEED"]].concat(nowMin() - D.at > 600 ? [[-34, 18, "yt_hire_dealer_1", null], [30, 22, "yt_hire_lookout_2", null], [8, 44, "yt_hire_shooter_1", null]] : []);
+      for (const [ox, oy, yt, nm] of men) { const x = D.x + ox, y = D.y + oy; drawShadow(x, y + 2, 10, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt, bang: Math.PI / 2 + Math.sin(g.t * 0.5 + ox) * 0.4, wpn: nm ? "smg_uzi" : null }); if (nm) lab(nm, x, y - 30, "#e8c46a"); }
+      const S = g.story; if (S && S.id === "corner" && S.step === 4) { const C = cornerSpot(); if (C) { ctx.strokeStyle = "rgba(232,196,106,0.85)"; ctx.setLineDash([8, 6]); ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(C[0], C[1], 40, 0, 6.3); ctx.stroke(); ctx.setLineDash([]); } } }
+    function drawCornerMark() { const S = g.story; if (!S || S.id !== "corner" || S.step !== 4 || g.inside || g.dreadCorner) return; const C = cornerSpot(); if (!C) return;
+      ctx.strokeStyle = "rgba(232,196,106,0.85)"; ctx.setLineDash([8, 6]); ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(C[0], C[1], 40, 0, 6.3); ctx.stroke(); ctx.setLineDash([]);
+      ctx.font = "700 9px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText("DREAD'S CORNER · STAND HERE", C[0], C[1] - 48); ctx.textAlign = "start"; }
+    /* MISSION 11 */
+    function nestBegin() { storyStart("nest"); g.blackA = 1; morningBegin(); g.morning.after = "nest"; g.jobBanner = "PALM COURT · 9:40 AM"; g.jobNote = "...again?"; }
+    function nestStep(dt) { const S = g.story, p = inVehicle() ? activeVeh() : g.p, H = hideoutB();
+      if (S.step === 1) { if (H && (g.inside === H || (!g.inside && Math.hypot(p.x - frontOf(H)[0], p.y - frontOf(H)[1]) < 220))) { S.step = 2; storyMark("THE YARD · LEROY'S PLAN"); g.driveTalk = { who: "LEROY", text: "“Table. I got a plan for the Nest, and you're gonna hate the smell.”", t: 5 }; } return; }
+      if (S.step === 3) { const B = g.board2 || {}, h = B.hires || {}; if ((h.bomber || 0) >= 1 && (h.shooter || 0) >= 2 && (h.enforcer || 0) >= 1) { S.step = 4; g.hireNeed = null; storyMark("THE CREW IS SET");
+          g.driveTalk = { who: "LEROY", text: "“That's a crew. Now we wait for dark.”", t: 6 }; } return; } }
+    function nestObjective() { const S = g.story, h = (g.board2 && g.board2.hires) || {}, ck = (n, have, nm) => (have >= n ? "✓ " : "· ") + nm + " " + Math.min(have, n) + "/" + n;
+      return { head: "THE RAVEN'S NEST · " + ["THE MORNING AFTER", "THE YARD", "THE MAP TABLE", "HIRE THE CREW", "THE CREW IS SET"][S.step],
+        sub: ["", "Everybody's at the scrapyard.", "E at the map table: Leroy's plan.", "At the table, HIRE PEOPLE: " + [ck(1, h.bomber || 0, "BOMB MAKER"), ck(2, h.shooter || 0, "SHOOTERS"), ck(1, h.enforcer || 0, "ENFORCER")].join("  "),
+          "Everyone's hired. (The rest of the Nest job -- the sewer, the bomb, Victor's office -- is the next build.)"][S.step] }; }
+    /* every story target past the map table (drawTargetArrow + the minimap route, layer 489) */
+    function storyTarget2(S, h) { const B = theBank(), back = g.bankPlan !== "front";
+      if (S.id === "bankjob") { if (S.step === 0) return h.yard(); if (S.step === 1) return h.veh((q) => q.mtCar); if (S.step === 2 || S.step === 3) return g.inside ? null : back ? wallPt(B, backSide(B), 0.5, 46) : h.fr(B);
+        if (S.step === 7) return g.inside ? null : h.veh((q) => q.bkCar); if (S.step === 8) return h.hip(); if (S.step === 9) return g.inside ? null : [g.car.x, g.car.y]; return null; }
+      if (S.id === "corner") { if (S.step === 0) return h.hip(); if (S.step === 2) return h.veh((q) => q.mtCar); if (S.step === 3) { const G2 = cornerGas(); return G2 ? [G2.x, G2.y] : null; }
+        if (S.step === 4) return cornerSpot(); if (S.step === 5) return h.hip(); return null; }
+      if (S.id === "nest") return S.step >= 1 && S.step <= 3 ? h.yard() : null;
+      return null; }
+    /* ---------- LAYER 489: STORY HUD, THE STORY ARROW AND ROUTE, PABLO AT THE HIPPIE, THE BOZNOVS ON THEIR FEET ----------
+       storyOnly(): Rey's story (Kestrel mode, out of prison). The HUD shows the story and nothing else -- no scanner calls,
+       no street races, no RHPD line unless it's you they're after, no SAVED/LOST, no JUICE, no SKY.
+       storyTarget(): where the current story step wants you. The gold arrow points at it (drawTargetArrow) and the minimap
+       draws the road route there (drawStoryRoute), refreshed every second. */
+    const storyOnly = () => !!(g.prisonMode && g.pescaped && g.preleased);
+    G.storyOnlyT = () => storyOnly();
+    function storyTarget() { const S = g.story; if (!S || !storyOnly() || g.slam && g.slam.kind === "fail") return null;
+      const fr = (b) => b && b.door ? frontOf(b) : null, home = () => { const c = aptC(); return c ? [(c.lx0 + c.lx1) / 2, c.ly1 + 100] : null; };
+      const notIn = (b, p) => (b && g.inside === b) ? null : p, H = hideoutB(), HP = hippyB(), yard = () => notIn(H, fr(H)), hip = () => notIn(HP, fr(HP)), atHome = () => notIn(g.aptHomeB, home());
+      const veh = (f) => { const v = g.traffic.find(f); return v && g.mode === "foot" ? [v.x, v.y] : null; };
+      try {
+        switch (S.id) {
+          case "dayout": return S.step === 3 ? atHome() : null;
+          case "firstout": if (S.step === 0 && S.lot) return [S.lot.cx, S.lot.cy]; if (S.step === 2) { const C = (S.cases || []).find((c) => !c.done); return C ? [C.x, C.y] : null; }
+            if (S.step === 3 && S.house) return [S.house.x, S.house.y]; return S.step === 4 ? atHome() : null;
+          case "scrapyard": { if (S.step === 0) return veh((q) => q.pabloCar); if (S.step >= 1 && S.step <= 2) { const T = scrapStakeout(); return T ? [T.x, T.y] : null; }
+            if (S.step === 4) return notIn(namedB((b) => b.name === "RIGHT TO ARMS"), fr(namedB((b) => b.name === "RIGHT TO ARMS")));
+            if (S.step === 6) { const Y = yardBack(); return Y ? Y.start : null; } if (S.step === 7 || S.step === 8) { const Y = yardBack(); return Y ? Y.wall : null; } return S.step === 10 ? home() : null; }
+          case "friday": { const D = FRI_D()[0]; if (S.step === 0) return veh((q) => q.pabloCar); if ([1, 6, 7, 8].includes(S.step)) return D ? [D.x, D.y] : null;
+            if (S.step === 2 || S.step === 3) return veh((q) => q.courier || q.courierStopped) || (() => { const c = g.traffic.find((q) => q.courier || q.courierStopped); return c ? [c.x, c.y] : null; })();
+            if (S.step === 5) { const A = friAlley(); return A ? [A.x, A.y] : null; } return null; }
+          case "allin": return S.step === 0 ? atHome() : S.step <= 6 ? hip() : null;
+          case "washday": if (S.step === 0) return yard(); if (S.step === 1) return atHome(); if (S.step === 2) return veh((q) => q.hippyTruck);
+            if (S.step === 3 || S.step === 4) { const D = washDock(); return [D.x, D.y]; } return S.step <= 6 ? hip() : null;
+          case "maptable": { const B = theBank(); if (S.step <= 2 || S.step === 7 || S.step === 8) return yard(); if (S.step === 3) return veh((q) => q.mtCar);
+            if (S.step === 4 || S.step === 5) return notIn(B, fr(B)); if (S.step === 6) return B ? wallPt(B, backSide(B), 0.5, 46) : null; return S.step === 9 ? atHome() : null; }
+          default: return typeof storyTarget2 === "function" ? storyTarget2(S, { fr, home, notIn, yard, hip, atHome, veh }) : null; }
+      } catch (e) { return null; } }
+    G.storyTargetT = () => storyTarget();
+    function storyRoute() { const T = storyTarget(); if (!T || !Number.isFinite(T[0])) { g.sRoute = null; return null; }
+      const me = inVehicle() ? activeVeh() : g.p, R = g.sRoute;
+      if (!R || R.t < g.t - 1 || Math.hypot(R.tx - T[0], R.ty - T[1]) > 40) { let pts = null; try { pts = g.inside ? null : roadRoute(me.x, me.y, T[0], T[1]); } catch (e) { pts = null; }
+        g.sRoute = { t: g.t, tx: T[0], ty: T[1], pts: [[me.x, me.y]].concat(pts || []).concat([[T[0], T[1]]]) }; }
+      return g.sRoute; }
+    // on the minimap: the road there, gold, and a pulsing pip on the spot (an edge arrow when it's off the map)
+    function drawStoryRoute(toMap, ox, oy, S) { const R = storyRoute(); if (!R) return;
+      ctx.save(); ctx.beginPath(); ctx.rect(ox, oy, S, S); ctx.clip();
+      ctx.strokeStyle = "rgba(242,194,78,0.9)"; ctx.lineWidth = 2.2; ctx.lineJoin = "round"; ctx.beginPath();
+      R.pts.forEach((p, i) => { const [x, y] = toMap(p[0], p[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke();
+      const [tx, ty] = toMap(R.tx, R.ty); ctx.fillStyle = "#f2c24e"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(tx, ty, 4.2 + Math.sin(g.t * 5), 0, 6.3); ctx.fill(); ctx.stroke(); ctx.restore();
+      if (tx < ox || tx > ox + S || ty < oy || ty > oy + S) { const an = Math.atan2(ty - (oy + S / 2), tx - (ox + S / 2));
+        ctx.save(); ctx.translate(ox + S / 2 + Math.cos(an) * (S / 2 - 10), oy + S / 2 + Math.sin(an) * (S / 2 - 10)); ctx.rotate(an); ctx.fillStyle = "#f2c24e";
+        ctx.beginPath(); ctx.moveTo(9, 0); ctx.lineTo(-5, -6); ctx.lineTo(-5, 6); ctx.closePath(); ctx.fill(); ctx.restore(); } }
+
+    /* PABLO HANGS AT THE HIPPIE (the club, floor 0) when he isn't with you -- once he's set up there (g.pabloAt). E: talk,
+       or bring him along (he drives); "HANG HERE" puts him back. */
+    const PABLO_SPOT = [0.33, 0.52];
+    const pabloHere = () => { const S = g.story; return g.pabloAt === "hippy" && !(g.pfol || []).some((f) => f.crew === "viejo") && !(S && S.id === "washday" && S.step === 7) && !!hippyPl(); };
+    G.pabloHangFn = () => { if (!pabloHere() || g.mode !== "foot") return false; const [x, y] = artAt(hippyPl(), PABLO_SPOT[0], PABLO_SPOT[1]); if (Math.hypot(g.p.x - x, g.p.y - y) > 44) return false; G.pickOpen("pablo_hang"); return true; };
+    function pabloHangPanel() { return { title: "PABLO DIAZ · THE HAPPY HIPPIE", face: "assets/crew/pt_crew_viejo_civ.png",
+      text: "PABLO: “" + cpick(["Business is good. The jukebox is not. I'm working on it.", "You need a ride, you know where I am. Here. Always here now. I love it.", "Victor's people came by. Looked at the sign. Left. I waved.", "Ten years I dreamed of a bar. Now I got a bar. I need a bigger dream."]) + "”",
+      opts: [{ id: "story:ph_ride", label: "“RIDE WITH ME.” (HE DRIVES)" }, { id: "close", label: "“LATER, VIEJO.”" }] }; }
+    function drawPabloHang() { if (!pabloHere()) return; const [x, y] = artAt(hippyPl(), PABLO_SPOT[0], PABLO_SPOT[1]); drawShadow(x, y + 2, 10, 4, 0.3);
+      drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt: "yt_crew_viejo", bang: Math.PI / 2 + Math.sin(g.t * 0.7) * 0.3 });
+      ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#9fe0a0"; ctx.fillText("PABLO · E", x, y - 30); ctx.textAlign = "start"; }
+
+    /* THE BOZNOVS IN PERSON: the brothers at the war room table in the house, Victor and Katya at the Raven's Nest bar,
+       on their own top-down plates (Donny's busts, yt_bozni_*). */
+    function drawBozFolk() { const b = g.inside; if (!b || !g.gwar || !g.gwar.gangs || !g.gwar.gangs.rus) return; const pl = buildingPlans(b)[g.floor]; if (!pl || !pl.artR2) return;
+      const two = b.bozHouse && g.floor === 0 ? [["yt_bozni_vlad", "VLAD BOZNOV", 0.68], ["yt_bozni_grigori", "GRIGORI ORLOV", 0.74]] : b.bozni === "club" && g.floor === (b.entry || 0) && !g.nestTaken ? [["yt_bozni_victor", "VICTOR BOZNOV", 0.47], ["yt_bozni_katya", "KATYA BOZNOVA", 0.53]] : null;
+      if (!two) return; const fy = b.bozHouse ? 0.27 : 0.12;
+      for (const [yt, nm, fx] of two) { const [x, y] = artAt(pl, fx, fy + 0.04); drawShadow(x, y + 2, 10, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt, bang: Math.PI / 2 });
+        ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e05a5a"; ctx.fillText(nm, x, y - 32); ctx.textAlign = "start"; } }
+    /* NO CAR (layer 480): from Day Out until Mission 3 you own nothing with wheels -- the car, the bike and the sedan bodies
+       are put out of the world (kept in g.storyRides to give back later). */
+    function storyHideRides() { if (g.storyRides) return; g.storyRides = {};
+      for (const k of ["car", "moto", "civ"]) { const v = g[k]; if (!v) continue; g.storyRides[k] = { x: v.x, y: v.y, ang: v.ang }; v.x = -90000 - (k === "moto" ? 300 : k === "civ" ? 600 : 0); v.y = -90000; v.vx = 0; v.vy = 0; } }
+    function storyGiveRides() { const R = g.storyRides; if (!R) return; for (const k of ["moto", "civ"]) { const v = g[k], q = R[k]; if (v && q) { v.x = q.x; v.y = q.y; v.ang = q.ang; } } g.storyRides = null; }
+    // Earl's cab driving off: a named car moved by hand for a few seconds, then gone
+    function stepEarlCab(dt) { for (let n = g.traffic.length - 1; n >= 0; n--) { const v = g.traffic[n]; if (!v.earlCab) continue; v.goT -= dt; v.spd = Math.min(260, (v.spd || 0) + 120 * dt);
+        v.x += Math.cos(v.ang) * v.spd * dt; v.y += Math.sin(v.ang) * v.spd * dt; if (v.goT <= 0) g.traffic.splice(n, 1); } }
+
+    /* PHONES (layer 480, Donny's art): a booth on a corner of every other crossing (pr_phone_booth), and the phone at home
+       (fu_phone). E: CALL EARL'S CAB (once he's given you his number -- he drives you, $12 and twenty minutes, he never joins
+       the crew), CALL LEROY. */
+    function phoneBooths() { if (g.boothList) return g.boothList; const out = [];
+      for (let i = 2; i < CITY_N; i += 2) for (let j = 2; j < CITY_N; j += 2) { const c = getCell(i, j); if (!c) continue; const z = zoneOf(i, j) || "";
+        if (/water|kestrel|mountain|cemetery/.test(z)) continue; const x = SX(i) + halfW(i) + 46, y = SX(j) + halfW(j) + 46; if (inPrisonGrounds(x, y)) continue;
+        if ((c.blds || []).some((b) => x > b.x - 20 && x < b.x + b.w + 20 && y > b.y - 20 && y < b.y + b.h + 20)) continue; out.push({ x, y }); }
+      return (g.boothList = out); }
+    function drawBooths(view) { if (g.inside) return; const im = imgs.current.pr_phone_booth;
+      for (const B of phoneBooths()) { if (B.x < view.x0 - 40 || B.x > view.x1 + 40 || B.y < view.y0 - 40 || B.y > view.y1 + 40) continue;
+        drawShadow(B.x + 3, B.y + 16, 15, 5, 0.3);
+        if (im && im.width) ctx.drawImage(im, B.x - 15, B.y - 17, 30, 34); else { ctx.fillStyle = "#7a2230"; ctx.fillRect(B.x - 13, B.y - 15, 26, 30); }
+        if (Math.hypot(g.p.x - B.x, g.p.y - B.y) < 60 && g.mode === "foot") { ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText("PHONE · E", B.x, B.y - 22); ctx.textAlign = "start"; } } }
+    G.boothFn = () => { if (g.inside || g.mode !== "foot") return false; const B = phoneBooths().find((q) => Math.hypot(g.p.x - q.x, g.p.y - q.y) < 46); if (!B) return false;
+      g.phoneSaid = null; return G.phoneWheel(); };
+    function cabDests() { const out = [], add = (nm, p) => { if (p && Number.isFinite(p[0])) out.push({ nm, x: p[0], y: p[1] }); };
+      const c = aptC(); if (c) add("HOME · PALM COURT", [(c.lx0 + c.lx1) / 2, c.ly1 + 100]);
+      const rn = namedB((b) => b.mercBar); if (rn) add("THE RUSTY NAIL", frontOf(rn));
+      const gs = namedB((b) => b.name === "RIGHT TO ARMS"); if (gs) add("RIGHT TO ARMS", frontOf(gs));
+      if (g.repairB) add("STAN'S", frontOf(g.repairB));
+      for (const C of (g.story && g.story.cases) || []) if (C.done) add(C.place, [C.vx, C.vy]);
+      return out; }
+    function phonePanel() { const home = !!(g.inside && g.inside.aptTop);
+      if (g.phoneView === "cab") { const D = (g.phoneDests = cabDests());
+        return { title: "EARL'S CAB · $12, TWENTY MINUTES", face: null, text: "EARL: “Where to?”", opts: D.map((d, n) => ({ id: "phone:go:" + n, label: d.nm })).concat([{ id: "phone:back", label: "NEVER MIND" }]) }; }
+      const opts = []; if (g.earlNum) opts.push({ id: "phone:cab", label: "CALL EARL'S CAB" }); opts.push({ id: "phone:leroy", label: "CALL LEROY (HIS SISTER'S)" }, { id: "close", label: "HANG UP" });
+      return { title: home ? "THE PHONE · 1A" : "THE PHONE BOOTH", face: null, text: g.phoneSaid || (home ? "The beige phone. A dial tone like a promise." : "A quarter, a dial tone, a booth that smells like the last guy."), opts }; }
+    G.phonePick = (a, n) => {
+      if (a === "cab") { g.phoneView = "cab"; return; } if (a === "back") { g.phoneView = null; return; }
+      if (a === "leroy") { g.phoneSaid = "LEROY: “" + cpick(["You good? Eat something. Don't go near the Deuce.", "My sister says you never come by. Come by.", "Slow, Rey. Slow is how you stay out."]) + "”"; return; }
+      if (a === "go") { const d = (g.phoneDests || [])[+n]; if (!d) return; g.phoneView = null; if ((g.p.cash || 0) < 12) { g.phoneSaid = "EARL: “Twelve dollars, man. Call me when you got it.”"; g.phoneView = null; return; }
+        g.p.cash -= 12; g.clock = ((g.clock || 0) + 20) % 1440; g.inside = null; g.floor = 0; g.mode = "foot"; g.p.x = d.x; g.p.y = d.y; g.p.vx = 0; g.p.vy = 0; g.cam.x = d.x; g.cam.y = d.y;
+        g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); g.jobBanner = "EARL'S CAB"; g.jobNote = "Twenty minutes and twelve dollars later: " + d.nm + "."; return "gone"; } };
+
+    /* FIRST DAY OUT (Mission 3, layer 480): before dawn. STEAL A CAR off a car lot -- a night man walks the lot with a dog
+       (cones: the man sees ahead, the dog smells close, whichever way it faces); E at the car you want and hold still to
+       hot-wire it; then drive. Then CASE THE BOZNOVS: at each of their places one man is out front -- park or stand off
+       (not too close, his men notice) and hold still to fill the meter; his face goes in the book. VICTOR at the Raven's
+       Nest, GRIGORI at Raven Auto, YURI at the Happy Hippy, TONY at the scrapyard, then the house: VLAD and KATYA. Home:
+       Pablo's lowrider in the stalls, Pablo on your sofa. He's in -- your DRIVER (he heads home tonight). Sleep. +$300. */
+    STORY.firstout = { nm: "FIRST DAY OUT", pay: 300 };
+    function firstOutBegin() { storyHideRides(); g.clock = 4 * 60 + 30; g.nightTarget = 1;
+      const b = g.aptHomeB; if (b) { g.inside = b; g.floor = 0; g.mode = "foot"; const pl = fitArtFloor(b, 0, b.artFloors[0], b.artKeep); const [x, y] = artAt(pl, APTC.bed[0] + 0.02, APTC.bed[1] + 0.22); g.p.x = x; g.p.y = y; g.cam.x = x; g.cam.y = y; }
+      storyStart("firstout"); g.story.cases = null;
+      g.jobBanner = "4:30 AM · PALM COURT"; g.jobNote = "You can't sleep. Ten years of 7:00 counts. You need wheels -- and nobody's selling to you."; }
+    function firstOutLot() { const D = g.dealersB || dealers(); if (!D || !D.length) return null; const hb = g.aptHomeB || g.p;
+      const L = D.filter((d) => d.b && !d.b.bozni && d.cars.some((c) => !c.sold)).sort((a, c) => Math.hypot(a.b.x - hb.x, a.b.y - hb.y) - Math.hypot(c.b.x - hb.x, c.b.y - hb.y))[0]; if (!L) return null;
+      const [X0, Y0, X1, Y1] = L.lot, cars = L.cars.filter((c) => !c.sold), car = cars[(cars.length / 2) | 0];
+      const loop = [[X0 - 30, Y0 - 30], [X1 + 30, Y0 - 30], [X1 + 30, Y1 + 30], [X0 - 30, Y1 + 30]];
+      return { nm: L.nm, lot: L.lot, car, cx: (X0 + X1) / 2, cy: (Y0 + Y1) / 2, w: [
+        { nm: "THE NIGHT MAN", x: loop[0][0], y: loop[0][1], a: 0, fov: 0.75, range: 250, loop, li: 1, sp: 46, yt: "yt_pr_guard_3" },
+        { nm: "THE DOG", x: loop[2][0], y: loop[2][1], a: Math.PI, fov: 1.25, range: 120, smell: 85, loop, li: 3, sp: 58, dog: 1 }] }; }
+    function firstOutCases() { bozFronts(); const out = [], add = (k, who, place, b, ox, oy) => { if (!b) return; const [dx, dy] = frontOf(b); out.push({ k, who, place, x: dx + (ox || 0), y: dy + (oy || 0), vx: dx, vy: dy, m: 0, done: 0 }); };
+      const find = (f) => namedB(f);
+      add("nest", "VICTOR BOZNOV", "THE RAVEN'S NEST", find((b) => b.bozni === "club"), 40, 0);
+      add("auto", "GRIGORI 'MEDVED' ORLOV", "RAVEN AUTO", find((b) => b.bozni === "auto"), 40, 0);
+      add("hippy", "YURI SOKOLOV", "THE HAPPY HIPPY", find((b) => b.bozni === "laundry" || b.happyHippy), 40, 0);
+      add("yard", "TONY (ANTON VOLKOV)", "THE SCRAPYARD", hideoutB(), 40, 0);
+      return out; }
+    function firstOutStep(dt) { const S = g.story;
+      if (S.step === 0) { if (!S.lot) S.lot = firstOutLot(); const L = S.lot; if (!L) { S.step = 2; return; }
+        if (g.mode === "foot") for (const w of L.w) { const [tx, ty] = w.loop[w.li], dx = tx - w.x, dy = ty - w.y, d = Math.hypot(dx, dy);
+          if (d < 6) w.li = (w.li + 1) % 4; else { w.x += dx / d * w.sp * dt; w.y += dy / d * w.sp * dt; w.a = Math.atan2(dy, dx); }
+          if (Math.hypot(g.p.x - L.cx, g.p.y - L.cy) < 900 && (coneSees(w, g.p.x, g.p.y, false) || (w.smell && Math.hypot(g.p.x - w.x, g.p.y - w.y) < w.smell))) {
+            storyFail(w.dog ? "THE DOG GOT YOUR SCENT. The night man's on the phone." : "THE NIGHT MAN SAW YOU. Not this lot, not tonight."); return; } }
+        if (S.hot != null) { const c = L.car; if (Math.hypot(g.p.x - c.x, g.p.y - c.y) > 50 || g.mode !== "foot") { S.hot = null; g.pickupFlash = { nm: "lift:YOU LET GO OF THE WIRES", t: 1.2 }; }
+          else { S.hot -= dt; g.p.vx = 0; g.p.vy = 0; if (S.hot <= 0) { S.hot = null; c.sold = 1;
+            g.traffic.push({ x: c.x, y: c.y, ang: -Math.PI / 2, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0, m: { k: c.k, len: 104, w: 46 }, dead: 0, parked: 1, named: 1, mine: 1, storyCar: 1,
+              idn: { model: carNice(c.k).toUpperCase(), colour: "", plate: "LOT", owner: (L.nm || "THE LOT") + " (STOLEN)" } });
+            S.step = 1; storyMark("IT TURNS OVER · GET IN (E) AND GO"); } } }
+        return; }
+      if (S.step === 1) { const L = S.lot, v = inVehicle() ? activeVeh() : null; if (v && Math.hypot(v.x - L.cx, v.y - L.cy) > 900) { S.step = 2; S.cases = firstOutCases(); storyMark("CLEAN AWAY"); g.nightTarget = 0; } return; }
+      if (S.step === 2 || S.step === 3) { if (!S.cases) S.cases = firstOutCases();
+        if (S.step === 3 && !S.house) { const hb = bozHouseInit(); if (hb) { const dx = doorPoint(hb)[0]; S.house = { k: "house", who: "VLAD BOZNOV & KATYA BOZNOVA", place: "THE BOZNOV HOUSE", x: dx, y: hb.y + hb.h + 40, vx: dx, vy: hb.y + hb.h + 160, m: 0, done: 0, two: 1 }; } }
+        const list = S.step === 2 ? S.cases : [S.house].filter(Boolean), pv = inVehicle() ? activeVeh() : g.p, sp = Math.hypot(pv.vx || 0, pv.vy || 0);
+        for (const C of list) { if (C.done) continue; const d = Math.hypot(pv.x - C.x, pv.y - C.y);
+          if (d < 150) { if (C.m > 0) g.pickupFlash = { nm: "lift:TOO CLOSE -- HIS MEN ARE LOOKING AT YOU", t: 1.4 }; C.m = 0; continue; }
+          if (d < 520 && sp < 60) { C.m = Math.min(1, C.m + dt / 5); if (C.m >= 1) { C.done = 1; if (typeof bookNote === "function") bookNote("BOZNOV: " + C.who + " -- " + C.place + ".");
+              storyMark(C.who.split(" ")[0] + " · IN THE BOOK"); } } }
+        if (S.step === 2 && S.cases.every((c) => c.done)) { S.step = 3; storyMark("ALL FOUR · NOW THE HOUSE"); }
+        if (S.step === 3 && S.house && S.house.done) { S.step = 4; storyMark("THE BOOK'S FULL · GO HOME");
+          const c = aptC(); if (c && c.aptPark) g.traffic.push({ x: c.aptPark.x + 31 + 62 * 2, y: c.aptPark.y + 60, ang: -Math.PI / 2, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0,
+            m: { k: "car_crew_viejo", len: 112, w: 50, lowrider: 1 }, dead: 0, parked: 1, named: 1, trFree: 1, pabloCar: 1, idn: { model: "LOWRIDER", colour: "", plate: "VIEJO", owner: "PABLO DIAZ" } }); }
+        return; }
+      if (S.step === 4) { if (g.inside && g.inside === g.aptHomeB && g.floor === 0 && !g.pickOpen) G.pickOpen("pablo"); return; } }
+    function firstOutObjective() { const S = g.story, nm = "FIRST DAY OUT";
+      if (S.step === 0) return { head: nm + " · STEAL A CAR", sub: S.lot ? S.lot.nm + "'s lot, before dawn. A night man and a dog walk it -- sneak (C), E at the car, hold still to hot-wire it." + (S.hot != null ? " WIRES: " + Math.round((1 - S.hot / 3) * 100) + "%" : "") : "Find a car lot." };
+      if (S.step === 1) return { head: nm + " · GO", sub: "Get in (E) and get clear of the lot." };
+      if (S.step === 2 || S.step === 3) { const L = S.step === 2 ? S.cases || [] : [S.house].filter(Boolean), cur = L.filter((c) => !c.done).map((c) => c.place + (c.m > 0 ? " " + Math.round(c.m * 100) + "%" : ""));
+        return { head: nm + (S.step === 2 ? " · CASE THE BOZNOVS · " + L.filter((c) => c.done).length + " / 4" : " · THE HOUSE"), sub: (cur.join(" · ") || "") + " -- stop where you can see his face (not too close) and hold still." }; }
+      if (S.step === 4) return { head: nm + " · GO HOME", sub: "Somebody's car is in your stall." };
+      return { head: nm + " · SLEEP", sub: "E at your bed. Pablo's coming early." }; }
+    function drawFirstOut() { const S = g.story; if (!S || S.id !== "firstout") return;
+      if (!g.inside && S.step === 0 && S.lot) { const L = S.lot, c = L.car;
+        if (!c.sold) { const pulse = 0.5 + 0.5 * Math.sin((g.t || 0) * 4); ctx.strokeStyle = "rgba(232,196,106," + (0.35 + 0.5 * pulse) + ")"; ctx.lineWidth = 2; ctx.strokeRect(c.x - 28, c.y - 56, 56, 112);
+          ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText(S.hot != null ? "HOT-WIRING " + Math.round((1 - S.hot / 3) * 100) + "%" : "THIS ONE · E", c.x, c.y - 62); ctx.textAlign = "start"; }
+        if (g.p.sneak || g.p.cover) for (const w of L.w) { drawCone(w, coneSees(w, g.p.x, g.p.y, false)); if (w.smell) { ctx.strokeStyle = "rgba(255,214,90,0.35)"; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(w.x, w.y, w.smell, 0, 6.3); ctx.stroke(); ctx.setLineDash([]); } }
+        for (const w of L.w) { drawShadow(w.x, w.y + 2, w.dog ? 7 : 10, 4, 0.3);
+          if (w.dog) { ctx.save(); ctx.translate(w.x, w.y); ctx.rotate(w.a); ctx.fillStyle = "#3a2a1c"; ctx.fillRect(-11, -5, 22, 10); ctx.fillRect(9, -4, 8, 8); ctx.fillStyle = "#1c140e"; ctx.fillRect(15, -3, 4, 6); ctx.fillRect(-15, -1, 5, 2); ctx.restore(); }
+          else drawYouth({ x: w.x, y: w.y, vx: Math.cos(w.a) * 20, vy: Math.sin(w.a) * 20, anim: (g.t || 0) * 4, jit: 1, tall: 1.25, yt: w.yt, bang: w.a });
+          ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#9fc6ff"; ctx.fillText(w.nm, w.x, w.y - (w.dog ? 14 : 30)); ctx.textAlign = "start"; } }
+      if (!g.inside && (S.step === 2 || S.step === 3)) { const list = (S.step === 2 ? S.cases || [] : [S.house]).filter(Boolean);
+        for (const C of list) { const men = C.two ? [[-16, 0, 1], [16, 0, 2]] : [[0, 0, 3]];
+          for (const [ox, oy, v] of men) drawYouth({ x: C.x + ox, y: C.y + oy, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt: "yt_bratva_" + (v + 3), bang: Math.PI / 2 });
+          ctx.font = "700 9px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = C.done ? "#e05a5a" : "#e8c46a"; ctx.fillText(C.done ? C.who : "WHO RUNS IT? · " + C.place, C.x, C.y - 34);
+          if (!C.done && C.m > 0) { ctx.strokeStyle = "rgba(232,196,106,0.9)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(C.x, C.y, 26, -Math.PI / 2, -Math.PI / 2 + C.m * 6.283); ctx.stroke(); } ctx.textAlign = "start"; } }
+      if (g.inside && g.inside === g.aptHomeB && g.floor === 0 && S.step >= 4) { const pl = fitArtFloor(g.inside, 0, g.inside.artFloors[0], g.inside.artKeep); if (pl && pl.artR2) { const [x, y] = artAt(pl, 0.315, 0.86);
+        drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt: "yt_crew_viejo", bang: -Math.PI / 2 }); ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#7fd35a"; ctx.fillText("PABLO DIAZ", x, y - 30); ctx.textAlign = "start"; } } }
+    G.lotStealFn = () => { const S = g.story; if (!S || S.id !== "firstout" || !S.lot || g.mode !== "foot" || g.inside) return false; const c = S.lot.car;
+      if (S.step === 1) { const v = g.traffic.find((q) => q.storyCar); return !!(v && Math.hypot(g.p.x - v.x, g.p.y - v.y) < 120 && mountNearest()); }   // the lot's salesmen don't get a word in
+      if (S.step !== 0) return false;
+      if (c.sold || Math.hypot(g.p.x - c.x, g.p.y - c.y) > 50) return false; if (S.hot == null) { S.hot = 3; g.pickupFlash = { nm: "lift:UNDER THE DASH · HOLD STILL", t: 1.6 }; } return true; };
+    function pabloPanel() { return { title: "PABLO DIAZ · ON YOUR SOFA", face: "assets/crew/pt_crew_viejo_civ.png",
+      text: "PABLO: “Leroy's sister gave me a key. Relax.”\n\n“I know what you're doing, mijo. And I know who you're really doing it for. The Russians first, so you got something to stand on. Then the Deuce. I want in.”",
+      opts: [{ id: "story:pablo:in", label: "“YOU'RE IN.”" }, { id: "story:pablo:no", label: "“IT'S NOT YOUR FIGHT.”" }] }; }
+    // what each of them says on the last day: like ten years of friends
+    const HOMIE_LINES = {
+      leroy: { hi: "Look at you, standing there like a free man already. Ten years I been telling you to sleep with your back to the wall, and tomorrow you get a real bed -- my sister's man got you a flat. Palm Court, by the pool. Don't go soft on me.",
+               job: "Wolves been eyeing your seat on the tier all week. He's gonna try you today, last day, to say he did. Let him swing first. Put him DOWN, and LEAVE him down.",
+               after: "That's my man. Clean. The tower didn't even look up.", ok: "SAY LESS" },
+      ras:   { hi: "Wah gwaan, Rey! Last day, bredren. Ten years me look pon your face every morning. Tomorrow me haffi look pon Pablo. Lawd.",
+               job: "Shakedown at noon. Hold this fi me -- dem cyaan find what dem cyaan see. Inna your mattress. POCKETS, then E at your bunk.",
+               after: "Respect. You learn something in here after all.", ok: "I GOT YOU" },
+      viejo: { hi: "Mijo. Ten years and you never had a birthday in here that meant anything. Tomorrow is your birthday. The real one.",
+               job: "So you need a cake. The warden's got one in the mess hall kitchen for tonight. Go get it. The cook and the hack can't see you -- crouch (C), watch where they're looking, move when they turn.",
+               after: "Ha! Look at that. Tonight we eat like the warden.", ok: "SAY NO MORE" } };
+    function storyCrewPanel(C) { const S = g.story, k = C.id, L = HOMIE_LINES[k]; if (!S || S.id !== "lastday" || !L) return null;
+      const face = "assets/crew/" + C.face + ".png", title = C.name.toUpperCase() + " · LAST DAY IN";
+      if (S.step === 1) return { title, face, text: "“Go on back to the cell. We're right behind you.”", opts: [{ id: "close", label: "ON MY WAY" }] };
+      if (!S.talked[k]) return { title, face, text: "“" + L.hi + "”\n\n“" + L.job + "”", opts: [{ id: "story:talk:" + k, label: L.ok + " · " + SIDE[k] }] };
+      return { title, face, text: "“" + (S.side[k] ? L.after : L.job) + "”", opts: [{ id: "close", label: "LATER" }] }; }
+    function storyByePanel() { return { title: "LAST DAY IN · THE CAKE", face: "assets/crew/pt_crew_leroy.png",
+      text: "The four of you on two bunks, the warden's cake on a towel, plastic forks.\n\nLEROY: “Key's under the mat. Palm Court, Building A, 1A. Don't thank me. Just don't come back.”\nRAS: “Me pay a man fi tomorrow. You'll see. Walk good, Rey.”\nPABLO: “A few weeks, mijo. Don't start the war without me.”",
+      opts: [{ id: "story:bye", label: "“TEN YEARS. I'LL SEE YOU OUT THERE.”" }] }; }
+    function storyObjective() { const S = g.story; if (S && S.id === "dayout") return dayOutObjective(); if (S && S.id === "firstout") return firstOutObjective(); if (S && S.id === "scrapyard") return scrapObjective(); if (S && S.id === "friday") return fridayObjective(); if (S && S.id === "allin") return allinObjective(); if (S && S.id === "washday") return washObjective(); if (S && S.id === "maptable") return maptableObjective(); if (S && S.id === "bankjob") return bankjobObjective(); if (S && S.id === "corner") return cornerObjective(); if (S && S.id === "nest") return nestObjective(); if (!S || S.id !== "lastday") return null; const nm = "LAST DAY IN";
+      if (S.step === 0) { const ks = ["leroy", "ras", "viejo"], left = ks.filter((k) => !S.talked[k]);
+        if (left.length) return { head: nm + " · TALK TO YOUR PEOPLE", sub: ks.map((k) => (S.talked[k] ? "✓ " : "· ") + HOMIE[k]).join("   ") + " — E to talk. They're on your tier." };
+        const sub = [S.side.ras ? "✓ RAS: the shank's hidden" : "RAS: hide the shank in your mattress (POCKETS, E at your bunk)",
+          S.side.leroy ? "✓ LEROY: he's down" : S.foeKey ? "LEROY: put him DOWN" : "LEROY: wait on your tier -- somebody wants your seat",
+          S.side.viejo ? "✓ PABLO: the cake" : S.cake ? "PABLO: bring the cake back to your block" : "PABLO: the cake, mess hall kitchen -- unseen (C to sneak)"].join(" · ");
+        return { head: nm + " · " + ["ras", "leroy", "viejo"].filter((k) => S.side[k]).length + " / 3", sub }; }
+      if (S.step === 1) return { head: nm + " · GO BACK TO YOUR CELL", sub: "They're bringing the cake." };
+      return { head: nm + " · LIGHTS OUT", sub: "E at your bunk. Sleep." }; }
+    // the cake: the mess hall kitchen, a cook on the line and a hack at the kitchen door, both with eyes
+    function cakeSetup(b) { const S = g.story, pl = buildingPlans(b)[0]; if (!pl) return null;
+      const kr = pl.rooms.find((r) => r.k === "pkitchen"), ch = pl.rooms.find((r) => r.k === "pchow"); if (!kr || !ch) return null;
+      const ky = (kr.y0 + kr.y1) / 2, W = [
+        { nm: "THE COOK", x: kr.x0 + 60, y: ky, a: 0, fov: 0.85, range: 170, x0: kr.x0 + 50, x1: kr.x1 - 160, sp: 34, dir: 1, yt: (PR_PEOPLE.inmate || [])[6] || "yt_pr_inmate_1" },
+        { nm: "C.O. DUNN", x: (ch.x0 + ch.x1) / 2, y: ch.y0 + 70, a: -Math.PI / 2, base: -Math.PI / 2, sweep: 1.25, fov: 0.75, range: 230, yt: "yt_pr_guard_2" }];
+      S.watch = { b: b.key, list: W, cake: { x: kr.x1 - 46, y: kr.y0 + 26 } }; return S.watch; }
+    // can he see (x, y)? inside his cone, near enough, nothing solid between
+    function coneSees(w, x, y, inside) { const dx = x - w.x, dy = y - w.y, d = Math.hypot(dx, dy);
+      if (!(g.p.sneak || g.p.cover) && d < 70) return true;                         // walking up behind a man: he hears you
+      if (d > w.range) return false; let da = Math.atan2(dy, dx) - w.a; while (da > Math.PI) da -= 6.2832; while (da < -Math.PI) da += 6.2832;
+      if (Math.abs(da) > w.fov) return false;
+      if (g.p.cover && g.p.cover.kind === "full") return false;
+      if (inside) { const pl = buildingPlans(g.inside)[g.floor], walls = (pl && pl.walls) || [];
+        for (let s = 0.08; s < 0.95; s += 0.06) { const px = w.x + dx * s, py = w.y + dy * s;
+          if (walls.some((q) => px > q.x && px < q.x + q.w && py > q.y && py < q.y + q.h)) return false; } }
+      return true; }
+    function storyStep(dt) {
+      if (g.slam) { g.slam.t += dt; if (g.slam.kind !== "fail" && g.slam.t > (g.slam.kind === "start" ? 3 : 4.5)) g.slam = null;
+        else if (g.slam.kind === "fail") { g.p.vx = 0; g.p.vy = 0; if (g.pickOpen !== "storyfail") G.pickOpen("storyfail"); return; } }
+      stepEarlCab(dt);
+      if (g.storyNext && !g.slam) { g.storyNext.t -= dt; if (g.storyNext.t <= 0) { const nx = g.storyNext.id; g.storyNext = null; if (nx === "dayout") dayOutBegin(); if (nx === "firstout") firstOutBegin(); if (nx === "scrapyard") scrapBegin(); if (nx === "friday") fridayBegin(); if (nx === "allin") allinBegin(); if (nx === "washday") washBegin(); if (nx === "maptable") maptableBegin(); if (nx === "bankjob") bankjobBegin(); if (nx === "corner") cornerBegin(); if (nx === "nest") nestBegin(); } }
+      const S = g.story; if (!S) return;
+      if (S.grace > 0) { S.grace -= dt; return; }                                   // a breath after a retry
+      if (S.id === "dayout") { if (g.hole && !S.holeSeen) { S.holeSeen = 1; storyFail("They took you back to Kestrel. One day out."); return; } dayOutStep(dt); return; }
+      if (S.id === "scrapyard") { scrapStep(dt); return; }
+      if (S.id === "friday") { if (S.step === 0) return; fridayStep(dt); return; }
+      if (S.id === "allin") { allinStep(dt); return; }
+      if (S.id === "washday") { washStep(dt); return; }
+      if (S.id === "maptable") { maptableStep(dt); return; }                                   // layer 488
+      if (S.id === "bankjob") { bankjobStep(dt); return; }
+      if (S.id === "corner") { cornerStep(dt); return; }                                       // layer 491
+      if (S.id === "nest") { nestStep(dt); return; }
+      if (S.id === "firstout") { if (g.hole && !S.holeSeen) { S.holeSeen = 1; storyFail("They took you back to Kestrel. Two days out."); return; } firstOutStep(dt); return; }
+      if (S.id !== "lastday" || !g.prisonMode) return;
+      if (g.pescaped) { g.story = null; storyCk = null; return; }                      // escaped instead: that's another story
+      if (g.hole && !S.holeSeen) { S.holeSeen = 1; storyFail(/infirmary/.test(g.hole.why || "") ? "You went down. They carried you to the infirmary." : "The guards took you to the SHU. Not today, Rey."); return; }
+      if (!g.hole) S.holeSeen = 0;
+      if (S.step === 0) {
+        // RAS: the shank in a stash, not on you
+        if (S.talked.ras && !S.side.ras && (g.pinv || []).indexOf("shank") < 0 && shankCount() > (S.shankBase || 0)) { S.side.ras = 1; storyMark("RAS · THE SHANK'S HIDDEN"); }
+        // LEROY: a con on your tier comes for your seat; put him down
+        if (S.talked.leroy && !S.side.leroy && g.inside && g.pcell && g.inside === g.pcell.b && g.floor === 0) {
+          const F = prisonFolk() || []; let foe = S.foeKey ? F.find((q) => folkKey(q) === S.foeKey) : null;
+          if (!foe && !S.foeKey) { foe = F.filter((q) => q.convict && !q.crew && !q.guard && !q.store && !q.down && !q.shot && !q.bodyguard && !q.queen && Math.hypot(q.x - g.p.x, q.y - g.p.y) < 420)
+              .sort((a, c) => Math.hypot(a.x - g.p.x, a.y - g.p.y) - Math.hypot(c.x - g.p.x, c.y - g.p.y))[0];
+            if (foe) { S.foeKey = folkKey(foe); foe.angry = 1; foe.storyFoe = 1; g.pickupFlash = { nm: "lift:" + (foe.name ? foe.name.toUpperCase() : "A WOLVES CON") + " WANTS YOUR SEAT · F TO STRIKE", t: 2.6 }; } }
+          if (foe) { foe.storyFoe = 1; if (!foe.down) foe.angry = 1; if (foe.down) { S.side.leroy = 1; storyMark("LEROY · HE'S DOWN"); } } }
+        // PABLO: the cake
+        if (S.talked.viejo && !S.side.viejo) {
+          const b = g.inside;
+          if (b && b.kind === "prisoncafe" && g.floor === 0 && !S.cake) { const Wt = S.watch && S.watch.b === b.key ? S.watch : cakeSetup(b);
+            if (Wt) { if (!S.cakeCk) { S.cakeCk = 1; storyMark("PABLO · THE MESS HALL"); }
+              for (const w of Wt.list) { if (w.x0 != null) { w.x += w.dir * w.sp * dt; if (w.x > w.x1) { w.x = w.x1; w.dir = -1; } if (w.x < w.x0) { w.x = w.x0; w.dir = 1; } w.a = w.dir > 0 ? 0 : Math.PI; }
+                else w.a = w.base + Math.sin((g.t || 0) * 0.55) * w.sweep;
+                if (coneSees(w, g.p.x, g.p.y, true)) { storyFail(w.nm + " SAW YOU. Pablo's going to be disappointed."); return; } }
+              if (Math.hypot(g.p.x - Wt.cake.x, g.p.y - Wt.cake.y) < 44) { S.cake = 1; storyMark("PABLO · YOU'VE GOT THE CAKE"); } } }
+          if (S.cake && g.pcell && g.inside === g.pcell.b) { S.side.viejo = 1; storyMark("PABLO · THE CAKE'S HOME"); } }
+        if (S.side.ras && S.side.leroy && S.side.viejo) { S.step = 1; storyMark("ALL THREE DONE"); }
+      } else if (S.step === 1) { if (typeof myCellHere === "function" && myCellHere() && !g.pickOpen) G.pickOpen("storybye"); } }
+    // the watchers (the cake's cook and hack), the cake, and their cones -- the cones only while you're sneaking or in cover
+    function drawStory() { const S = g.story; if (!S || !g.inside) return;
+      const Wt = S.watch; if (Wt && g.inside.key === Wt.b && g.floor === 0 && !S.side.viejo) {
+        if (!S.cake) { const c = Wt.cake; ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(c.x - 15, c.y - 9, 34, 22); ctx.fillStyle = "#f4ecdc"; ctx.fillRect(c.x - 17, c.y - 12, 34, 22);
+          ctx.fillStyle = "#e58bb0"; ctx.fillRect(c.x - 17, c.y - 12, 34, 5); ctx.fillStyle = "#c0392b"; for (let q = 0; q < 4; q++) ctx.fillRect(c.x - 12 + q * 8, c.y - 4, 3, 3);
+          ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd36a"; ctx.fillText("THE CAKE", c.x, c.y - 18); ctx.textAlign = "start"; }
+        if (g.p.sneak || g.p.cover) for (const w of Wt.list) drawCone(w, coneSees(w, g.p.x, g.p.y, true));
+        for (const w of Wt.list) { drawShadow(w.x, w.y + 2, 10, 4, 0.3); drawYouth({ x: w.x, y: w.y, vx: Math.cos(w.a) * 5, vy: Math.sin(w.a) * 5, anim: (g.t || 0) * 4, jit: 1, tall: 1.25, yt: w.yt, bang: w.a });
+          ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#9fc6ff"; ctx.fillText(w.nm, w.x, w.y - 30); ctx.textAlign = "start"; } }
+      if (S.cake && !S.side.viejo) { ctx.fillStyle = "#f4ecdc"; ctx.fillRect(g.p.x + 8, g.p.y - 14, 16, 10); ctx.fillStyle = "#e58bb0"; ctx.fillRect(g.p.x + 8, g.p.y - 14, 16, 3); } }
+    // the guarded places' guards, while you're sneaking or in cover: where each one is looking
+    function drawSiteCones() { if (!(g.p.sneak || g.p.cover) || g.mode !== "foot") return; let n = 0;
+      for (const S of guardSites()) { if (S.alert) continue; const F = S.fight || SITE_FIGHT;
+        for (const q of siteBodies(S)) { if (!(q.hp > 0) || !Number.isFinite(q.lookA) || !siteSees(S, q) || Math.hypot(q.x - g.p.x, q.y - g.p.y) > 700) continue;
+          const w = { x: q.x, y: q.y, a: q.lookA, fov: 0.8, range: (q.indoor ? F.spotIn : F.spot) * 0.85 }; drawCone(w, coneSees(w, g.p.x, g.p.y, q.indoor)); if (++n > 24) return; } } }
+    // a vision cone: a soft wedge, red where it has you
+    function drawCone(w, hot) { ctx.save(); const gr = ctx.createRadialGradient(w.x, w.y, 6, w.x, w.y, w.range);
+      gr.addColorStop(0, hot ? "rgba(235,60,50,0.42)" : "rgba(255,214,90,0.34)"); gr.addColorStop(1, hot ? "rgba(235,60,50,0.04)" : "rgba(255,214,90,0.03)");
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.arc(w.x, w.y, w.range, w.a - w.fov, w.a + w.fov); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = hot ? "rgba(235,60,50,0.6)" : "rgba(255,214,90,0.45)"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore(); }
+    G.storyT = () => g.story ? { id: g.story.id, step: g.story.step, talked: g.story.talked, side: g.story.side, cake: !!g.story.cake, foe: g.story.foeKey || null, watch: g.story.watch ? g.story.watch.list.map((w) => [w.nm, w.x | 0, w.y | 0, +w.a.toFixed(2)]).concat([["cake", g.story.watch.cake.x | 0, g.story.watch.cake.y | 0]]) : null, ck: !!storyCk, slam: g.slam ? g.slam.kind : null } : { done: g.storyDone || null, slam: g.slam ? g.slam.kind : null };   // test hook
+    G.storyStartT = (id) => { if (id === "allin") { aptC(); allinBegin(); return true; } if (id === "maptable") { aptC(); aptStartHome(); maptableBegin(); return true; } if (id === "bankjob") { aptC(); bankjobBegin(); return true; } if (id === "corner") { aptC(); cornerBegin(); return true; } if (id === "nest") { aptC(); nestBegin(); return true; } if (id === "washday") { aptC(); washBegin(); return true; } if (id === "friday") { aptC(); fridayBegin(); return true; } if (id === "scrapyard") { aptC(); scrapBegin(); return true; } if (id === "dayout") { dayOutBegin(); return true; } if (id === "firstout") { aptC(); firstOutBegin(); return true; } storyStart(id || "lastday"); return true; };
+    G.storyFoeT = (down) => { const S = g.story; if (!S || !S.foeKey) return null; const q = (prisonFolk() || []).find((o) => folkKey(o) === S.foeKey); if (q && down) q.down = 1; return q ? [q.name || "?", q.x | 0, q.y | 0, !!q.angry, !!q.down] : null; };
     /* ---------- LAYER 451: SLEEP, MAIL, WORK LOOPS, NIGHT, SHOWERS ----------
        YOUR BUNK: the hiding-place panel of the bed in YOUR cell also offers SLEEP -- until dawn
        (6:30), noon, or dusk (6 PM). The clock jumps; the counts pass with you in your cell.
@@ -35631,6 +37127,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return false;
     };
     function bunkPanel() {
+      if (g.story && g.story.id === "lastday" && g.story.step === 2) return { title: "YOUR BUNK \u00b7 THE LAST NIGHT", face: null, text: "Ten years on this mattress. One more night.",
+        opts: [{ id: "sleep:dawn", label: "SLEEP" }] };
       return { title: "YOUR BUNK \u00b7 " + clockText(g.clock || 0), face: null, text: "Thin mattress, thinner blanket. Time goes faster asleep.",
         opts: SLEEP_TO.map(([k, lab]) => ({ id: "sleep:" + k, label: "SLEEP UNTIL " + lab }))
           .concat([{ id: "bunkstash", label: "THE MATTRESS (YOUR HIDE)" }, { id: "close", label: "NOT NOW" }]) };
@@ -35644,6 +37142,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.plastClock = g.clock; g.pfolk = null; g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
       g.p.hp = g.p.maxHp || g.p.hp; g.p.stamina = g.p.maxStamina || g.p.stamina;
       g.jobBanner = "YOU SLEPT"; g.jobNote = "Woke at " + clockText(g.clock) + ". Rested.";
+      if (g.story && g.story.id === "lastday" && g.story.step === 2) storyComplete();          // lights out on the last day (layer 478)
+      if (g.story && g.story.id === "dayout" && g.story.step === 5) storyComplete();           // the first night home (layer 479)
+      if (g.story && g.story.id === "firstout" && g.story.step === 5) storyComplete();         // Pablo's in (layer 480)
+      if (g.story && g.story.id === "scrapyard" && g.story.step === 11) storyComplete();       // the yard's yours (layer 482)
+      if (g.story && g.story.id === "friday" && g.story.step === 9) storyComplete();           // Leroy's out (layer 484)
+      // Wash Day ends in the morning-after scene now, not at the bed (layer 487)
+      if (g.story && g.story.id === "maptable" && g.story.step === 9) storyComplete();        // the plan's made (layer 488)
     };
     /* WORK LOOPS: a man on a work floor (laundry, kitchen/mess at work time, library, infirmary)
        goes from station to station -- the washers, the serving line, the shelves -- a few seconds at
@@ -37202,6 +38707,90 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (!under) { ctx.fillStyle = "rgba(10,10,14,0.85)"; ctx.fillRect(b.x + b.w / 2 - 90, b.y + b.h + 6, 180, 16); ctx.fillStyle = "#9fd0ff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
           ctx.fillText("STAN'S \u00b7 DRIVE IN \u00b7 E", b.x + b.w / 2, b.y + b.h + 18); ctx.textAlign = "start"; } } }
     G.stanT = () => { const c = stanC(); return c ? { cell: [Math.floor(c.lx0 / PITCH), Math.floor(c.ly0 / PITCH)], blds: c.blds.map((b) => [b.name, b.x | 0, b.y | 0, b.w | 0, b.h | 0, !!b.driveIn]) } : null; };   // test hook
+
+    /* PALM COURT (layer 477, Donny): YOUR PLACE -- the apartment Leroy set up. Three buildings, none touching: BUILDING A
+       across the top, B and C standing down from each end of it, the yard between them -- a concrete walk, the POOL in
+       the middle (water you can see the bottom through), the round planter with its tree below it. Each building is two
+       floors, two flats a floor, the hall up the middle (painted floors int_apt_long_* / int_apt_side_*, built from his
+       furniture, bathroom and carpet sheets). Yours is A, ground floor, the left flat: 1A. The nearest plain block to the
+       den. Rebuilt from the cell if a load hands back a fresh one (c.apt). */
+    const APTC = { topH: 250, sideW: 250, sideH: 560, gap: 50, m: 36, bed: [0.0859, 0.152] };
+    function aptCell() { const ci = DEN_CELL.i, cj = DEN_CELL.j; let best = null, bd = 1e12;
+      const FL = ["capPlate", "landmark", "hideout", "dealer", "school", "homeOf", "stuHome", "pd", "mercBar", "inPrison", "uterm", "rowhouse", "bozni", "bozHouse", "stanOffice", "driveIn"];
+      for (let i = ci - 3; i <= ci + 3; i++) for (let j = cj - 3; j <= cj + 3; j++) { if (i < 0 || j < 0 || i >= CITY_N || j >= CITY_N) continue; const c = getCell(i, j); if (!c) continue;
+        if (c.apt) return c;
+        if (c.stan || (i === DEN_CELL.i && j === DEN_CELL.j) || (i === WOLVES_CELL.i && j === WOLVES_CELL.j) || (i === CLUB_CELL.i && j === CLUB_CELL.j) || (i === CORVO_CELL.i && j === CORVO_CELL.j)) continue;
+        const z = zoneOf(i, j); if (/park|projects|terminal|cemetery|skate|mountain|water|kestrel/.test(z || "")) continue;
+        if (isGasCell(i, j) || isShopCell(i, j) || isFireCell(i, j) || isBankCell(i, j) || isTradeCell(i, j) || isPawnCell(i, j) || isJewelCell(i, j) || isFoodCell(i, j)) continue;
+        if (MARKS.some((m) => m.i === i && m.j === j)) continue;
+        if ((c.blds || []).some((b) => FL.some((f) => b[f]) || b.kind === "garage" || b.kind === "warehouse")) continue;
+        if (c.lx1 - c.lx0 < 1040 || c.ly1 - c.ly0 < 980) continue;
+        const d = Math.abs(i - ci) + Math.abs(j - cj); if (d < bd) { bd = d; best = c; } }
+      return best; }
+    function aptLot() { const c = aptCell(); if (!c) return null;
+      if (!c.apt || !(c.blds || []).some((b) => b.aptTop)) {
+        const i = Math.floor(c.lx0 / PITCH), j = Math.floor(c.ly0 / PITCH), rnd = mulberry((i * 1031 + j * 197) >>> 0), key = 890000 + i * 100 + j;
+        const L = c.lx0 + APTC.m, R = c.lx1 - APTC.m, T = c.ly0 + APTC.m, W = R - L, sy = T + APTC.topH + APTC.gap, sh = Math.min(APTC.sideH, c.ly1 - APTC.m - 150 - sy);
+        const top = mkB(L, T, W, APTC.topH, 2, "apt", rnd, key), lb = mkB(L, sy, APTC.sideW, sh, 2, "apt", rnd, key + 1), rb = mkB(R - APTC.sideW, sy, APTC.sideW, sh, 2, "apt", rnd, key + 2);
+        top.door = { side: 2, pos: 0.5 }; lb.door = { side: 1, pos: 0.5 }; rb.door = { side: 3, pos: 0.5 };
+        const set = (b, nm, art) => Object.assign(b, { name: nm, aptArt: art, artFace: 1, roofKey: "rf_apartment", capPlate: "rf_apartment", _plate: undefined, entry: 0, tone: 0.4, plans: null, retail: false, biz: null,
+          artFloors: { 0: "int_apt_" + art + "_f0", 1: "int_apt_" + art + "_f1" } });
+        set(top, "PALM COURT · BUILDING A", "long"); top.aptTop = 1; set(lb, "PALM COURT · BUILDING B", "side"); set(rb, "PALM COURT · BUILDING C", "side");
+        const cx = (L + R) / 2, pw = 150, ph = Math.min(318, sh - 220), tr = 62;
+        c.aptPool = { x: cx - pw / 2, y: sy + 40, w: pw, h: ph };
+        c.aptTree = { x: cx, y: Math.min(sy + sh - tr - 10, sy + 40 + ph + 34 + tr), r: tr };
+        c.aptPark = { x: L + APTC.sideW + 30, y: sy + sh + 40, w: W - 2 * APTC.sideW - 60, h: c.ly1 - APTC.m - (sy + sh + 40) };
+        top.fences = [{ ...c.aptPool }, { x: cx - tr * 0.82, y: c.aptTree.y - tr * 0.82, w: tr * 1.64, h: tr * 1.64 }];
+        c.blds = [top, lb, rb]; c.type = 4; c.lawn = false; c.det = []; c.apt = 1; c.courts = null; c.alley = [];
+      }
+      g.aptIJ = [Math.floor(c.lx0 / PITCH), Math.floor(c.ly0 / PITCH)]; g.aptHomeB = c.blds.find((b) => b.aptTop); return c; }
+    function aptC() { const ij = g.aptIJ; if (!ij) return aptLot(); const c = getCell(ij[0], ij[1]);
+      if (!c || !c.apt || !(c.blds || []).some((b) => b.aptTop) || g.aptHomeB !== c.blds.find((b) => b.aptTop)) return aptLot(); return c; }
+    // the yard: concrete, the walks from each door to the pool deck, the pool and its water, the planter, the residents' stalls
+    function drawAptLot(view) { if (g.inside) return; const c = aptC(); if (!c || !c.aptPool) return;
+      if (c.lx1 < view.x0 - 100 || c.lx0 > view.x1 + 100 || c.ly1 < view.y0 - 100 || c.ly0 > view.y1 + 100) return;
+      const con = imgs.current.tx_concrete, conP = con && con.width ? ctx.createPattern(con, "repeat") : null;
+      if (conP) { ctx.save(); ctx.beginPath(); ctx.rect(c.lx0, c.ly0, c.lx1 - c.lx0, c.ly1 - c.ly0); ctx.clip(); ctx.scale(0.5, 0.5); ctx.fillStyle = conP; ctx.fillRect(c.lx0 * 2, c.ly0 * 2, (c.lx1 - c.lx0) * 2, (c.ly1 - c.ly0) * 2); ctx.restore(); }
+      else { ctx.fillStyle = "#77746c"; ctx.fillRect(c.lx0, c.ly0, c.lx1 - c.lx0, c.ly1 - c.ly0); }
+      const P = c.aptPool, T = c.aptTree, cx = P.x + P.w / 2;
+      ctx.fillStyle = "rgba(225,220,205,0.30)";                                                        // the walks and the pool deck, a lighter slab
+      for (const b of c.blds || []) { const d = doorPoint(b); if (b.door.side === 2) ctx.fillRect(d[0] - 40, d[1], 80, P.y - 30 - d[1]);
+        else if (b.door.side === 1) ctx.fillRect(d[0], d[1] - 40, P.x - 30 - d[0], 80); else ctx.fillRect(P.x + P.w + 30, d[1] - 40, d[0] - (P.x + P.w + 30), 80); }
+      ctx.fillRect(P.x - 30, P.y - 30, P.w + 60, P.h + 60); ctx.fillRect(cx - 40, P.y + P.h + 30, 80, (c.aptPark ? c.aptPark.y : T.y + T.r) - (P.y + P.h + 30));
+      ctx.strokeStyle = "rgba(60,56,50,0.35)"; ctx.lineWidth = 2; ctx.strokeRect(P.x - 30, P.y - 30, P.w + 60, P.h + 60);
+      const pool = imgs.current.ap_pool; if (pool && pool.width) ctx.drawImage(pool, P.x, P.y, P.w, P.h); else { ctx.fillStyle = "#8fa3a8"; ctx.fillRect(P.x, P.y, P.w, P.h); }
+      const wat = imgs.current.tx_pool_water, ix = P.w * 0.07, iy = P.h * 0.035;                       // the water: see-through, it moves a little
+      ctx.save(); ctx.beginPath(); ctx.rect(P.x + ix, P.y + iy, P.w - 2 * ix, P.h - 2 * iy); ctx.clip(); ctx.globalAlpha = 0.55;
+      if (wat && wat.width) { const wp = ctx.createPattern(wat, "repeat"), sh = ((g.t || 0) * 6) % 400; ctx.translate(sh, sh * 0.4); ctx.fillStyle = wp; ctx.fillRect(P.x - 420, P.y - 420, P.w + 840, P.h + 840); }
+      else { ctx.fillStyle = "#2f6fd0"; ctx.fillRect(P.x, P.y, P.w, P.h); }
+      ctx.restore(); ctx.save(); ctx.globalAlpha = 0.18 + 0.06 * Math.sin((g.t || 0) * 1.7); ctx.fillStyle = "#cfe8ff";
+      for (let k = 0; k < 5; k++) ctx.fillRect(P.x + ix + 8 + ((k * 37 + (g.t || 0) * 9) % (P.w - 2 * ix - 30)), P.y + iy + 20 + k * (P.h / 5.5), 18, 2); ctx.restore();
+      const tree = imgs.current.ap_tree_big, D = T.r * 2.3; if (tree && tree.width) ctx.drawImage(tree, T.x - D * 0.48, T.y - D * 0.48, D, D * tree.height / tree.width);
+      else { ctx.fillStyle = "#8a4a32"; ctx.beginPath(); ctx.arc(T.x, T.y, T.r, 0, 6.3); ctx.fill(); ctx.fillStyle = "#2f6a2c"; ctx.beginPath(); ctx.arc(T.x, T.y, T.r * 0.7, 0, 6.3); ctx.fill(); }
+      const K = c.aptPark; if (K && K.h > 60) { ctx.fillStyle = "rgba(235,232,215,0.7)"; const n = Math.floor(K.w / 62); for (let q = 0; q <= n; q++) ctx.fillRect(K.x + q * 62, K.y + 10, 3, Math.min(110, K.h - 16)); }
+      const H = g.aptHomeB; if (H) { ctx.fillStyle = "rgba(10,10,14,0.8)"; ctx.fillRect(H.x + H.w / 2 - 70, H.y + H.h + 8, 140, 15); ctx.fillStyle = "#e8c46a"; ctx.font = "bold 9px monospace"; ctx.textAlign = "center";
+        ctx.fillText("PALM COURT · HOME 1A", H.x + H.w / 2, H.y + H.h + 19); ctx.textAlign = "start"; } }
+    // inside: the flat numbers on the hall doors, YOUR door marked
+    function drawAptDoors() { const b = g.inside; if (!b || !b.aptArt || !b.artFloors) return; const pl = fitArtFloor(b, g.floor, b.artFloors[g.floor], b.artKeep); if (!pl || !pl.artR2) return;
+      const hw = b.aptArt === "long" ? 0.048 : 0.0857, base = b.aptTop ? "A" : b === (aptC() || {}).blds?.[1] ? "B" : "C";
+      for (const [n, fx] of [[1, 0.5 - hw - 0.012], [2, 0.5 + hw + 0.012]]) { const [x, y] = artAt(pl, fx, 0.80), mine = b.aptTop && g.floor === 0 && n === 1;
+        ctx.fillStyle = mine ? "rgba(232,196,106,0.95)" : "rgba(220,215,200,0.85)"; ctx.font = "bold 9px monospace"; ctx.textAlign = "center";
+        ctx.fillText((g.floor * 2 + n) + base + (mine ? " · YOU" : ""), x, y - 22); ctx.textAlign = "start"; } }
+    // E at your own bed: sleep, save
+    G.aptBedFn = () => { const b = g.inside; if (!b || !b.aptTop || g.floor !== 0 || g.mode !== "foot" || !b.artFloors) return false;
+      const pl = fitArtFloor(b, 0, b.artFloors[0], b.artKeep); if (!pl || !pl.artR2) return false; const [x, y] = artAt(pl, APTC.bed[0], APTC.bed[1]);
+      if (Math.hypot(g.p.x - x, g.p.y - y) > 64) return false; g.aptSaid = null; G.pickOpen("aptbed"); return true; };
+    function aptBedPanel() { return { title: "YOUR PLACE · PALM COURT 1A · " + clockText(g.clock || 0), face: null,
+      text: g.aptSaid || "Your bed. Your lock on the door. Nobody in this building knows what you did, or what you're going to do.",
+      opts: SLEEP_TO.map(([k, lab]) => ({ id: "sleep:" + k, label: "SLEEP UNTIL " + lab })).concat([{ id: "apt:save", label: "SAVE THE GAME" }, { id: "close", label: "NOT NOW" }]) }; }
+    G.aptT = () => { const c = aptC(); return c ? { cell: g.aptIJ, blds: c.blds.map((b) => [b.name, b.x | 0, b.y | 0, b.w | 0, b.h | 0, b.door.side]), pool: c.aptPool, tree: c.aptTree } : null; };   // test hook
+    G.aptHomeT = () => { const c = aptC(), b = g.aptHomeB; if (!b) return null; g.inside = b; g.floor = 0; g.mode = "foot"; g.insideT = 1; const pl = fitArtFloor(b, 0, b.artFloors[0], b.artKeep);
+      const [x, y] = artAt(pl, APTC.bed[0], APTC.bed[1] + 0.2); g.p.x = x; g.p.y = y; g.cam.x = x; g.cam.y = y; return [b.name, x | 0, y | 0, !!c]; };   // test hook
+    // a fresh game starts at home: you in 1A, the car in the residents' stalls (the bike and the sedan stay at the den)
+    function aptStart() { const c = aptC(), b = g.aptHomeB; if (!c || !b) return false; g.inside = b; g.floor = 0; g.mode = "foot";
+      const pl = fitArtFloor(b, 0, b.artFloors[0], b.artKeep); const [x, y] = artAt(pl, APTC.bed[0] + 0.02, APTC.bed[1] + 0.22); g.p.x = x; g.p.y = y; g.cam.x = x; g.cam.y = y;
+      const K = c.aptPark; if (K && g.car) { g.car.x = K.x + 31; g.car.y = K.y + 60; g.car.ang = -Math.PI / 2; g.car.vx = 0; g.car.vy = 0; g.car.spd = 0; }
+      g.jobBanner = "PALM COURT · 1A"; g.jobNote = "Home. Leroy found you the place. Your car's in the stalls out back of the pool."; return true; }
     // a car lot beside a building (layer 476: pulled out of dealers() so Raven Auto can use it too)
         function dealerLotOf(b, c) {
           let bestR = null, bestA = 0;
@@ -38973,6 +40562,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (v.dead && !v.crewCar && !v.rogueRide && !v.detCar) { v.deadT = (v.deadT || 0) + dt; if (v.deadT > 50 && away > 1400) { g.traffic.splice(n, 1); continue; } }
         // an abandoned car is scenery now -- it holds position until it despawns
         if (v.dead) { v.spd = 0; v.brake = 1; continue; }
+        if (v.driveBy) continue;               // a drive-by drives itself (updateDriveBys) -- layer 477, the Stan's crash
         if (v.fleeing > 0) v.fleeing -= dt;
         const [tx, ty] = tgtPoint(v);
         const dx = tx - v.x, dy = ty - v.y;
@@ -39002,7 +40592,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const fx = Math.cos(v.ang), fy = Math.sin(v.ang);
 
         // red light
-        let target = v.cruise;
+        let target = Number.isFinite(v.cruise) ? v.cruise : (v.cruise = 150);   // a gang's car put back on the road has no cruise of its own (layer 477)
         /* THE JUNCTION. Where the next crossing is on this car's axis, and whether it may go.
            Without this they drove through every intersection at once and piled into each other. */
         if (!v.rb && !v.fleeing && !v.bus) {
@@ -39162,6 +40752,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
 
     function resolveTrafficOverlap() {
+      /* THE STAN'S CRASH (layer 477): one parked car with a NaN position (NaN || 1e-3 is 1e-3, so the distance test passed)
+         pushed NaN into every car it was compared with -- yours included, and the screen went black. Bad ones are left out,
+         and put back on the road where they were last good, or taken away. */
+      for (let q = g.traffic.length - 1; q >= 0; q--) { const v = g.traffic[q]; if (Number.isFinite(v.x) && Number.isFinite(v.y)) { v._okx = v.x; v._oky = v.y; continue; }
+        if (!g.nanCarSeen) { g.nanCarSeen = 1; g.nanCarWhat = JSON.stringify({ k: v.m && v.m.k, parked: v.parked, named: v.named, owner: v.owner, gas: v.gas, dealer: v.dealer, stan: v.stan, keys: Object.keys(v).join(",") }).slice(0, 400); }
+        if (Number.isFinite(v._okx) && Number.isFinite(v._oky)) { v.x = v._okx; v.y = v._oky; v.vx = 0; v.vy = 0; v.spd = 0; if (!Number.isFinite(v.ang)) v.ang = 0; } else g.traffic.splice(q, 1); }
       /* POLICE CARS AND YOURS GO IN TOO. g.traffic is civilian traffic only, so a cruiser parked
          across a junction was scenery -- you drove through a roadblock because the roadblock was
          never in the list that stops two cars occupying the same ground.
@@ -40184,7 +41780,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       // PRISON MODE: you are the man on the intake page
       /* #0001's own plates: the jumpsuit inside, the leather jacket once he has changed (g.pcivvies).
          The old intake plate is the fallback while the new files are not up. */
-      const pkey = [g.pcivvies ? "yt_player_civ" : "yt_player_in", "yt_pr_player"].find((k) => imgs.current[k] && imgs.current[k].width);
+      const pkey = [g.pcivvies && g.pfit && REY_FITS[g.pfit] ? REY_FITS[g.pfit].k : null, g.pcivvies ? "yt_player_civ" : "yt_player_in", "yt_pr_player"].find((k) => k && imgs.current[k] && imgs.current[k].width);   // Rey's outfits (layer 483)
       const skey = g.studentMode ? (g.stu && g.stu.school === "aldric" ? "yt_stu_player_sa" : "yt_stu_player_ch") : null;
       if (g.studentMode && g.pRiding) return;                // inside the bus: not drawn
       const conv = g.studentMode && imgs.current[skey] && imgs.current[skey].width ? imgs.current[skey] : g.prisonMode && pkey ? imgs.current[pkey] : null;
@@ -40195,7 +41791,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       if (conv && conv.width) {
         drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
-        drawYouth({ x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1, tall: 1.0, yt: g.studentMode ? skey : pkey, bang: g.p.face != null ? g.p.face : g.board.ang, faceLock: heroLockAng(),
+        drawYouth({ hero: 1, x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1, tall: 1.0, yt: g.studentMode ? skey : pkey, bang: g.p.face != null ? g.p.face : g.board.ang, faceLock: heroLockAng(),
                     swing: Math.max(g.p.atk || 0, g.p.punT || 0), swingDur: (g.p.punT || 0) > 0 ? (g.p.punDur || 0.18) : 0.26,
                     move: (g.p.punT || 0) > 0 ? (g.p.punMove || "jab") : "swing" });
         return;
@@ -41908,6 +43504,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           pip(R.x, R.y, 4.4 + 0.9 * Math.sin(g.t * 3), "#6cf06c", "#ffffff");
         }
       }
+      drawStoryRoute(toMap, ox, oy, S);                                       // the road to the story objective (layer 489)
       // the car, then the player on top
       if (!inVehicle()) pip(g.car.x, g.car.y, 3.2, "#7fd0ff", "rgba(255,255,255,0.85)");
       if (g.sit && g.sit.at) { pip(g.sit.at.x, g.sit.at.y, 4.5, "#ff5a4a", "#ffffff");                 // the sit-down (layer 519)
@@ -42302,7 +43899,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (!g.studentMode) { const before = g.clock == null ? CLOCK.start : g.clock;     // student mode keeps its own (slow) school clock
           g.clock = (before + dt * CLOCK.rate) % 1440;
           if (g.clock < before) { g.day = (g.day || 0) + 1; kestrelReleases(); } }
-        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepHot(); stepGunRat(); rusClaim(); crewEngage(dt); stepLoyalty(dt); stepSit(dt); stepSetWar(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepBaseFolk(dt); stepFolkWalk(dt); stepPrisonMail(); stepOps(); stepMission(dt); stepMerc(); stepCornerWar(dt); stepCasing(dt); stepBall(dt);
+        stepPatDown(dt); stepHole(dt); stepKestrelLot(); stepKestrelBus(); stepLaundry(dt); stepPrisonJob(); stepCellDoors(dt); stepPrisonFx(dt); stepDebt(); stepFollowers(dt); stepHot(); stepGunRat(); rusClaim(); crewEngage(dt); stepLoyalty(dt); stepSit(dt); stepSetWar(dt); stepShuBlock(); stepShuDay(dt); stepHideout(); stepBaseFolk(dt); stepFolkWalk(dt); stepPrisonMail(); storyStep(dt); stepOps(); stepMission(dt); stepMerc(); stepCornerWar(dt); stepCasing(dt); stepBall(dt);
         // anybody who has wandered onto the prison grounds from the street is walked back off
         if ((g.pedCullT = (g.pedCullT || 0) - dt) <= 0) { g.pedCullT = 2; g.peds = g.peds.filter((q) => !inPrisonGrounds(q.x, q.y)); }
         if (g.prisonStart) startPrisonMode();
@@ -42469,6 +44066,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           g.civ.x = bx + 150; g.civ.y = by; g.civ.ang = -Math.PI / 2;
           g.cam.x = g.p.x; g.cam.y = g.p.y;
         }
+        if (g.freshHome) { g.freshHome = 0; try { aptStart(); } catch (e) { g.hudErrStack = String(e && e.stack); } }   // layer 477
       }
       g.night = lerp(g.night, g.nightTarget, clamp(dt * 1.6, 0, 1));
       /* Was 26, which left a heavy hit wobbling for four or five seconds. A crash is an
@@ -42534,7 +44132,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return;
       }
       drawGround(view);
-      if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawDealers(view); drawStanLot(view); bozHouseInit(); drawBozHouse(view); stepRhu(); drawRhu(view); drawWoods(view); drawDirtJumps(view); drawTrackRiders(view); drawAirport(view); drawStudentWorld(view); }
+      if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawDealers(view); drawStanLot(view); drawAptLot(view); bozHouseInit(); drawBozHouse(view); stepRhu(); drawRhu(view); drawWoods(view); drawDirtJumps(view); drawTrackRiders(view); drawAirport(view); drawStudentWorld(view); }
       if (!g.inside) drawMarkGround(view);
       if (!g.inside) drawCasings(view);
       if (!g.inside) { drawLake(view); drawRiver(view); }   // over the ground, under everything that floats on it
@@ -42706,14 +44304,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (kind === 2) {
           /* IN COVER (layer 490): he crouches -- the whole hero drawn 82% size about his feet and a shade darker,
              so tucked in reads at a glance without a crouch sprite. */
-          if (g.p.cover && g.mode === "foot") { ctx.save(); ctx.translate(g.p.x, g.p.y + 6); ctx.scale(0.82, 0.82); ctx.translate(-g.p.x, -g.p.y - 6);
+          if ((g.p.cover || g.p.sneak) && g.mode === "foot") { ctx.save(); ctx.translate(g.p.x, g.p.y + 6); ctx.scale(0.82, 0.82); ctx.translate(-g.p.x, -g.p.y - 6);
             ctx.filter = "brightness(0.78)"; drawHero(); ctx.restore(); }
           else drawHero();
         }
         else if (kind === 9) p.__draw();
       }
       if (g.inside && g.insideT > 0.5) { drawHoopsOver(); drawBizExtras(); }
-      drawCover(); drawBombed(view); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
+      drawStory(); drawFirstOut(); drawScrap2(); drawFriday(); drawAllin(); drawWash(); drawWashCrew(); drawParty(); drawMorning(); drawMaptable(); drawPabloHang(); drawBozFolk(); drawDreadCorner(); drawCornerMark(); drawSiteCones(); drawCover(); drawBombed(view); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
       if (!g.inside) {
         // Roofs belong ABOVE the sorted building list, not before it -- drawn early, every
         // building painted straight over the roof and the man standing on it.
@@ -42723,7 +44321,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           const [hox, hoy] = roofOffset(g.roof);
           ctx.save(); ctx.translate(hox, hoy); drawHero(); ctx.restore();
         }
-        drawShopRoofs(view); drawDriveInRoofs(view);
+        drawShopRoofs(view); drawDriveInRoofs(view); drawBooths(view);
         drawSlicks();
         drawPrisonOver(view);
         drawRockets();
@@ -43173,7 +44771,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             zone: zoneOf(clamp(Math.floor(e.x / PITCH), 0, N - 1), clamp(Math.floor(e.y / PITCH), 0, N - 1)),
             bus: g.busInfo && g.busInfo.t > 0 ? g.busInfo.pax : null,
             route: g.busInfo ? g.busInfo.route : 0,
-            cops: g.police ? 1 : g.copTimer > 0 ? 2 : 0,
+            cops: g.prisonMode && g.pescaped && g.preleased && !((g.heat || 0) > 0 || (g.wantedT || 0) > 0) ? 0 : g.police ? 1 : g.copTimer > 0 ? 2 : 0,
+            storyOnly: !!(g.prisonMode && g.pescaped && g.preleased),
             suspicion: Math.round(g.suspicion), detOnScene: !!(g.detectives && g.detectives.arrived),
             detNamed: !!(g.detectives && g.detectives.named),
             heat: g.crews.some((c) => c.state === "hostile") ? 2 : g.crews.some((c) => c.state === "watch") ? 1 : 0,
@@ -43194,6 +44793,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             roarCd: g.roarCd || 0,
             locked: lockAlive(g.lockOn),
             obj: g.prisonMode ? prisonObjective() : jobObjective(),
+            slam: g.slam ? { kind: g.slam.kind, title: g.slam.title, sub: g.slam.sub, pay: g.slam.pay || 0 } : null,
+            blackA: g.blackA > 0.01 ? Math.round(g.blackA * 100) / 100 : 0,
+            watch: g.watchOn ? (() => { const c = Math.floor(g.clock || 0), h = Math.floor(c / 60) % 24, m = c % 60; return ((h + 11) % 12 + 1) + ":" + String(m).padStart(2, "0") + (h < 12 ? "a" : "p"); })() : null,
             crime: g.crime ? { place: g.crime.place, result: g.crime.result,
               code: g.crime.code, label: g.crime.label,
               cond: g.crime.type && g.crime.type.bleed ? Math.max(0, Math.round(g.crime.cond)) : null,
@@ -45622,8 +47224,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         for (const q of bodies) if (q.hp0 && q.hp < q.hp0 - 0.01) { S.alert = true; break; }
         /* A detective walking into a boss's base is not a reason to shoot a cop. In DETECTIVE
            MODE a leadership site only goes hot when somebody is hurt -- you can walk in and talk. */
-        if (!S.alert && !(S.ld && g.detMode)) for (const q of vis)
-          if (Math.hypot(q.x - px, q.y - py) < (q.indoor ? F.spotIn : F.spot)) { S.alert = true; break; }
+        /* VISION CONES (layer 478): standing up, a guard near enough sees you whichever way he faces (as before). Sneaking
+           or in cover, he has to be LOOKING: inside his cone (he looks round slowly), and full cover hides you outright. */
+        const sly = g.p.sneak || g.p.cover;
+        if (!S.alert && !(S.ld && g.detMode)) for (const q of vis) { if (!Number.isFinite(q.lookA0)) q.lookA0 = Math.random() * 6.2832;
+          q.lookA = q.lookA0 + Math.sin((g.t || 0) * 0.35 + q.lookA0 * 3) * 1.1;
+          const R0 = q.indoor ? F.spotIn : F.spot, d0 = Math.hypot(q.x - px, q.y - py);
+          if (!sly ? d0 < R0 : coneSees({ x: q.x, y: q.y, a: q.lookA, fov: 0.8, range: R0 * 0.85 }, px, py, q.indoor)) { S.alert = true; break; } }
         if (S.alert) S.calmT = 0;
       }
       if (!S.alert) return;
@@ -46855,6 +48462,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function drawSky() {
       if (g.sky == null || !Number.isFinite(g.cam.x)) return;
+      if (g.prisonMode && g.pescaped && g.preleased) return;                 // not the Lion's city in Rey's story (layer 489)
       const x = g.cam.x - 180, y = g.cam.y - 152, w = 150;
       const pushing = (g.skyPush || 0) > 0;
       ctx.save();
@@ -49263,7 +50871,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             fontSize: 9, letterSpacing: "0.18em", color: C.gold, background: "rgba(10,11,14,0.7)", border: "1px solid rgba(217,164,65,0.35)" }}>
           {hud.objMin ? "\u25b8 SHOW OBJECTIVES" : "\u25be HIDE"}
         </div>
-        {hud.juice != null && !hud.objMin && (
+        {hud.juice != null && !hud.objMin && !hud.storyOnly && (
           <div style={{ marginTop: 6, fontSize: 10, letterSpacing: "0.18em", color: "#d9a441" }}>JUICE {hud.juice}</div>
         )}
         <div style={{ marginTop: 10, fontSize: 12, background: "rgba(10,11,14,0.7)", border: "1px solid rgba(217,164,65,0.3)", padding: "6px 9px",
@@ -49393,25 +51001,33 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             </div>
           )}
         </div>
-        <div style={{ marginTop: 8, width: 148, height: 5, background: "rgba(255,255,255,0.12)" }}>
-          <div style={{ width: `${hud.hp ?? 100}%`, height: "100%",
+        {/* HEALTH and STAMINA written inside the bars (layer 481) */}
+        <div style={{ marginTop: 8, width: 148, height: 12, background: "rgba(255,255,255,0.12)", position: "relative" }}>
+          <div style={{ width: `${Math.min(100, hud.hp ?? 100)}%`, height: "100%",
             background: (hud.hp ?? 100) > 35 ? "#d9a441" : "#c8452f", transition: "width .2s" }} />
+          <div style={{ position: "absolute", left: 5, top: 0, lineHeight: "12px", fontSize: 8, fontWeight: 700, letterSpacing: "0.22em", color: "#15120c", textShadow: "0 0 2px rgba(255,240,200,0.5)" }}>HEALTH</div>
         </div>
-        <div style={{ marginTop: 3, width: 148, height: 4, background: "rgba(255,255,255,0.1)" }}>
+        <div style={{ marginTop: 3, width: 148, height: 11, background: "rgba(255,255,255,0.1)", position: "relative" }}>
           <div style={{ width: `${((hud.stamina ?? 100) / (hud.maxStamina ?? 100)) * 100}%`, height: "100%",
             background: "#5f9ed6", transition: "width .15s" }} />
+          <div style={{ position: "absolute", left: 5, top: 0, lineHeight: "11px", fontSize: 8, fontWeight: 700, letterSpacing: "0.22em", color: "#0c1520", textShadow: "0 0 2px rgba(220,240,255,0.5)" }}>STAMINA</div>
         </div>
+        {/* THE DAVIES WATCH (layer 481): Pablo's gift in Mission 4 -- the time on its face; take it off in POCKETS */}
+        {hud.watch && (
+          <div style={{ position: "relative", width: 132, height: 132 * 307 / 330, marginTop: 6, pointerEvents: "none" }}>
+            <img src="assets/ui/ui_watch_davies.png" alt="" style={{ width: "100%", height: "100%", imageRendering: "pixelated", display: "block" }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            <div style={{ position: "absolute", left: "44.5%", top: "56.2%", transform: "translate(-50%,-50%) rotate(20deg)", fontFamily: "ui-monospace,Menlo,monospace", fontWeight: 900,
+              fontSize: 17, letterSpacing: "0.04em", color: "#0e130f", whiteSpace: "nowrap" }}>{hud.watch}</div>
+          </div>
+        )}
         {(hud.mode !== "foot") && (
           <>
-            <div style={{ marginTop: 3, width: 148, height: 4, background: "rgba(255,255,255,0.1)" }}>
-              <div style={{ width: `${((hud.fuel ?? 100) / (hud.maxFuel ?? 100)) * 100}%`, height: "100%",
-                background: (hud.fuel ?? 100) > 20 ? "#8fae5a" : "#c8452f", transition: "width .2s" }} />
-            </div>
-            <div style={{ fontSize: 8, opacity: 0.6, marginTop: 2, letterSpacing: "0.12em" }}>
-              FUEL {Math.round(hud.fuel ?? 100)}%
-              {hud.nearPump && !hud.refueling && hud.fuel < hud.maxFuel && "  ·  PULL UP TO REFUEL"}
-              {hud.refueling && "  ·  FUELING..."}
-            </div>
+            {/* the fuel number is the gauge now, lower left (layer 477b); only the pump notes stay here */}
+            {((hud.nearPump && !hud.refueling && hud.fuel < hud.maxFuel) || hud.refueling) && (
+              <div style={{ fontSize: 8, opacity: 0.6, marginTop: 2, letterSpacing: "0.12em" }}>
+                {hud.refueling ? "FUELING..." : "PULL UP TO REFUEL"}
+              </div>
+            )}
             {hud.dmg > 4 && (
               <div style={{ fontSize: 8, marginTop: 2, letterSpacing: "0.12em",
                 color: hud.dmg > 70 ? "#c8452f" : hud.dmg > 35 ? "#d9a441" : "rgba(232,217,181,0.6)" }}>
@@ -49424,7 +51040,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         <div style={{ fontSize: 9, opacity: 0.6, marginTop: 3, letterSpacing: "0.1em" }}>
           ${Math.floor(hud.cash ?? 0).toLocaleString()}{hud.skill > 0 ? ` · STUDY ${hud.skill}` : ""}
         </div>
-        {hud.show && hud.show.stats && (
+        {hud.show && hud.show.stats && !hud.storyOnly && (
           <div style={{ fontSize: 9, opacity: 0.55, marginTop: 3, letterSpacing: "0.14em" }}>
             SAVED {hud.saved ?? 0} · LOST {hud.lost ?? 0}
           </div>
@@ -49439,7 +51055,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             {hud.cops === 1 ? "RHPD ON SCENE" : "RHPD RESPONDING"}
           </div>
         )}
-        {hud.detOnScene && (
+        {hud.detOnScene && !hud.storyOnly && (
           <div style={{ marginTop: 4, fontSize: 9, letterSpacing: "0.16em", color: hud.detNamed ? "#e0a860" : "#d0c090" }}>
             {hud.detNamed ? "MARCUS IS HERE" : "DETECTIVES ON SCENE"}
           </div>
@@ -49486,7 +51102,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                 + " / " + Math.max(1, (hud.floors ?? 1) - (hud.entry ?? 0))}
             {G.current && G.current.inside && G.current.inside.pwing ? " \u00b7 " + G.current.inside.pwing + " BLOCK" : ""}
             {hud.planKind ? " \u00b7 " + hud.planKind.toUpperCase() : ""}
-            {hud.fkind ? ` · ${{ club: "CLUB FLOOR", terminal: "CONCOURSE", house_g1: "HOUSE", house_g2: "HOUSE", house_u: "UPSTAIRS", tower_flats: "FLATS", dining: "HOUSE", store: "STORE", lobby: "LOBBY", apartments: "APARTMENTS", offices: "OFFICES", reception: "RECEPTION", gymfloor: "GYM", nightclub: "CLUB FLOOR", basement: "BASEMENT · BEDROOMS" }[hud.fkind] || ""}` : ""}
+            {hud.fkind ? ` · ${{ aptart: "FLATS", club: "CLUB FLOOR", terminal: "CONCOURSE", house_g1: "HOUSE", house_g2: "HOUSE", house_u: "UPSTAIRS", tower_flats: "FLATS", dining: "HOUSE", store: "STORE", lobby: "LOBBY", apartments: "APARTMENTS", offices: "OFFICES", reception: "RECEPTION", gymfloor: "GYM", nightclub: "CLUB FLOOR", basement: "BASEMENT · BEDROOMS" }[hud.fkind] || ""}` : ""}
           </div>
         )}
         {hud.nearCar && (
@@ -49561,6 +51177,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               if (how !== "exact") {           // an exact save already has you where you were
                 gg.nightTarget = 0;
                 gg.bootDen = true;             // drop back into the den properly
+                if (!how) gg.freshHome = 1;    // a brand new game wakes up at home, Palm Court 1A (layer 477)
               }
               setHud((h) => ({ ...h, title: false }));
             }}
@@ -49616,7 +51233,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             <div onClick={() => {
                 const gg = G.current;
                 if (G.wipeFn) G.wipeFn();
-                gg.title = false; gg.nightTarget = 0; gg.bootDen = true;
+                gg.title = false; gg.nightTarget = 0; gg.bootDen = true; gg.freshHome = 1;
                 setHud((h) => ({ ...h, title: false, hasSave: false }));
               }}
               style={{ marginTop: 12, fontSize: 9, letterSpacing: "0.20em",
@@ -49632,6 +51249,35 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         </div>
       )}
 
+      {/* THE SLAMS (layer 478): a mission's name as it starts, MISSION COMPLETE with the pay, MISSION FAILED (its panel has the retry) */}
+      {hud.blackA > 0 && <div style={{ position: "absolute", inset: 0, background: "#000", opacity: hud.blackA, pointerEvents: "none", zIndex: 39 }} />}
+      {hud.slam && (
+        <div key={hud.slam.kind + hud.slam.title + hud.slam.sub} style={{ position: "absolute", left: 0, right: 0, top: "26%", textAlign: "center", pointerEvents: "none", zIndex: 40, fontFamily: mono }}>
+          <style>{`@keyframes rhSlam { 0% { transform: scale(2.6); opacity: 0; } 55% { transform: scale(0.94); opacity: 1; } 75% { transform: scale(1.03); } 100% { transform: scale(1); opacity: 1; } }
+            @keyframes rhSlamSub { 0%, 40% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: none; } }`}</style>
+          <div style={{ display: "inline-block", animation: "rhSlam .55s cubic-bezier(.2,.9,.3,1.2) both", fontSize: hud.slam.kind === "start" ? 46 : 60, fontWeight: 900, letterSpacing: "0.10em",
+            color: hud.slam.kind === "fail" ? "#e8302a" : hud.slam.kind === "done" ? "#f2c45a" : "#e8d9b5", textShadow: "0 4px 0 rgba(0,0,0,0.85), 0 0 30px rgba(0,0,0,0.9)",
+            background: "linear-gradient(90deg, transparent, rgba(8,8,10,0.78) 15%, rgba(8,8,10,0.78) 85%, transparent)", padding: "10px 90px" }}>
+            {hud.slam.title}
+          </div>
+          {hud.slam.sub && <div style={{ marginTop: 10, fontSize: 13, letterSpacing: "0.3em", color: "#e8d9b5", textShadow: "0 2px 0 #000", animation: "rhSlamSub .9s ease both" }}>{hud.slam.sub}</div>}
+          {hud.slam.kind === "done" && hud.slam.pay > 0 && <div style={{ marginTop: 8, fontSize: 30, fontWeight: 900, color: "#7fd35a", textShadow: "0 3px 0 #000", animation: "rhSlamSub 1.2s ease both" }}>+${hud.slam.pay.toLocaleString()}</div>}
+        </div>
+      )}
+      {/* THE FUEL GAUGE (layer 478, Donny's art): lower left, see-through, a red needle E to F -- only in a vehicle, the one you're in */}
+      {hud.mode && hud.mode !== "foot" && !hud.title && (() => {
+        const f = Math.max(0, Math.min(1, (hud.fuel ?? 100) / (hud.maxFuel || 100))), a = (-148 + f * 116) * Math.PI / 180, W = 132, H = W * 221 / 333;
+        const cx = W * 0.5, cy = H * 0.758, L = W * 0.40, low = f < 0.15;
+        return (
+          <div style={{ position: "absolute", left: 14, bottom: 176, width: W, height: H, opacity: 0.78, pointerEvents: "none", zIndex: 6 }}>
+            <img src="assets/ui/ui_fuel_gauge.png" alt="" style={{ width: W, height: H, imageRendering: "pixelated", display: "block" }}
+              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0 }}>
+              <line x1={cx} y1={cy} x2={cx + Math.cos(a) * L} y2={cy + Math.sin(a) * L} stroke="#e8302a" strokeWidth="3" strokeLinecap="square" />
+              <circle cx={cx} cy={cy} r="4" fill="#e8302a" />
+            </svg>
+            {low && <div style={{ position: "absolute", left: 0, right: 0, top: H + 2, textAlign: "center", fontSize: 8, letterSpacing: "0.2em", color: "#e8302a", fontFamily: "monospace" }}>LOW FUEL</div>}
+          </div>); })()}
       {hud.sink > 4 && (
         <div style={{ position: "absolute", top: "38%", left: 0, right: 0, textAlign: "center",
           fontFamily: mono, zIndex: 30, pointerEvents: "none" }}>
@@ -51256,7 +52902,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             {G.current && G.current.mis && btn("ORDERS", "your people", () => G.pickOpen && G.pickOpen("misorders"), null, false)}
             {G.current && G.current.mode === "car" && G.carCrewN && G.carCrewN() > 0 && btn("DRIVER", G.current.auto && G.current.auto.who ? G.current.auto.who.toLowerCase() + " driving" : "orders",
               () => { G.driverOpen && G.driverOpen(); }, null, !!(G.current.auto && G.current.auto.who))}
-            {G.current && G.coverOK && G.coverOK() && btn("COVER", G.current.p.cover ? "get up" : "get down", () => G.coverFn && G.coverFn(), null, !!G.current.p.cover)}
+            {G.current && G.coverOK && G.coverOK() && btn(G.current.p.sneak ? "SNEAK" : "COVER", G.current.p.cover || G.current.p.sneak ? "get up" : "get down / sneak", () => G.coverFn && G.coverFn(), null, !!G.current.p.cover)}
             {G.current && G.bankOK && G.bankOK() && btn("ROB BANK", "everybody down", () => G.bankFn && G.bankFn(), null, false)}
             {G.current && G.stickOK && G.stickOK() && btn("STICK UP", "the register", () => G.stickFn && G.stickFn(), null, false)}
             {G.current && G.current.detMode && G.current.mode !== "foot" && btn("PLATES", "run a car", () => { G.current.plateSaid = null; G.pickOpen && G.pickOpen("plates"); }, null, false)}
