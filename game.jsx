@@ -3708,7 +3708,15 @@ const BRATVA_YT = [1, 2, 3, 4, 5, 6].map((i) => "yt_bratva_" + i);
    their profile pictures (pt_bozni_*). A bust has no arms, so drawYouth draws a pair in the jacket's colour (YT_ARMS). */
 for (const k of ["vlad", "victor", "grigori", "katya"]) PD_ART["yt_bozni_" + k] = "assets/crew/bust_bozni_" + k + ".png";
 const YT_ARMS = { yt_bozni_vlad: ["#3d4149", "#c9967a"], yt_bozni_victor: ["#4a6f9c", "#b88262"], yt_bozni_grigori: ["#1d1e22", "#c4927a"], yt_bozni_katya: ["#18181c", "#efc7aa"] };
-PD_ART.it_hippie_bag = "assets/items/it_hippie_bag.png";      // the Happy Hippie duffel: the money bags (layer 489)
+PD_ART.it_hippie_bag = "assets/items/it_hippie_bag.png";
+/* layer 497: Dread, Tony, Harlan, Nicky, Yuri, the 1969 cast, Mission 11 props, 1969 cars, construction props, the verdict folder */
+for (const k of ["dread", "tony", "harlan", "nicky", "yuri", "rey69", "rochelle69", "damian69", "julian69", "tiny69", "cop69_a", "cop69_b"]) PD_ART["yt_" + k] = "assets/crew/yt_" + k + ".png";
+for (const k of ["it_ledger", "pr_office_safe", "pr_office_safe_open", "it_gascan", "it_gascan_b", "it_pinkslip"]) PD_ART[k] = "assets/items/" + k + ".png";
+for (const k of ["veh_69_sedan", "veh_69_coupe", "veh_69_wagon", "veh_69_pickup", "veh_cruiser69"]) PD_ART[k] = "assets/cars/" + k + ".png";
+for (const k of ["pr_sawhorse", "pr_chainlink", "pr_worklamp", "pr_dirtpile"]) PD_ART[k] = "assets/city/" + k + ".png";
+for (const k of ["ui_folder", "ui_stamp_guilty", "ui_stamp_notguilty"]) PD_ART[k] = "assets/ui/" + k + ".png";
+PD_ART.rf_rochelle69 = "assets/roofs/rf_rochelle69.png";
+for (const k of ["eddie", "jose", "mimi"]) PD_ART["yt_" + k] = "assets/crew/yt_" + k + ".png";   // Eddie (the cab), Jose (Pablo's nephew), Mimi (Pablo's sister) -- layer 493      // the Happy Hippie duffel: the money bags (layer 489)
 // card_rus: the Bratva's card, Donny's art (layer 492) -- registered with the other cards
 for (const k of BRATVA_YT) PD_ART[k] = "assets/crew/" + k + ".png";
 for (const c of CREW) for (const k of ["yt_crew_" + c.id, "yt_crew_" + c.id + "_in", c.face, c.faceCiv]) PD_ART[k] = "assets/crew/" + k + ".png";
@@ -10581,13 +10589,17 @@ const PLAYER_TOUGH = { lion: 0.24, crew: 0.2, street: 0.38, rig: 0.3 };
 // art the code is ready for but that hasn't been made yet -- it falls back quietly instead of counting as missing
 const OPTIONAL_ART = new Set(["ui_cuffs", "pr_roof_donblock", "plate_emblem"]);   // the manor roof came in with layer 477
 /* LAYER 476 ART (art_476.zip): the Boznov fronts' roofs, the painted interiors, the brothers' faces, the utility crew. */
-for (const k of ["rf_raven_auto", "rf_ravens_nest", "rf_rusty_nail", "rf_happy_hippy", "rf_bozni_manor", "pl_pole_top"]) PD_ART[k] = "assets/city/" + k + ".png";
+for (const k of ["rf_raven_auto", "rf_ravens_nest", "rf_rusty_nail", "rf_happy_hippy", "rf_bozni_manor", "pl_pole_top", "pl_pole_arms", "pl_pole_shaft"]) PD_ART[k] = "assets/city/" + k + ".png";
 for (const k of ["int_strip_club", "int_raven_auto", "int_bozni_f0", "int_bozni_f1", "int_bar_long"]) PD_ART[k] = "assets/interiors/" + k + ".png";
 for (const k of ["yt_rhu_worker"]) PD_ART[k] = "assets/crew/" + k + ".png";
 PD_ART.vh_rhu_truck = "assets/vehicles/vh_rhu_truck.png"; PD_ART.tx_ot_cobble = "assets/tex/tx_ot_cobble.png";
 /* LAYER 477 ART (art_477.zip): the manor roof, Palm Court (the roof, the pool, the planters, the four painted floors -- built from
    Donny's furniture, bathroom and carpet sheets, which ship as assets/home2/), RIGHT TO ARMS (roof + floor), the Happy Hippy's club. */
 /* REY'S OUTFITS (layer 483, Donny's art, skin taken a shade darker): changed at the closet in 1A or any dresser -- a wheel. */
+let FLASH_GRAIN = null;                                            // Mission 0's film grain (layer 497)
+function flashGrain() { if (FLASH_GRAIN != null) return FLASH_GRAIN; try { const c = document.createElement("canvas"); c.width = c.height = 160; const x = c.getContext("2d"), d = x.createImageData(160, 160);
+    for (let i = 0; i < d.data.length; i += 4) { const v = (Math.random() * 255) | 0; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = Math.random() < 0.45 ? 34 : 0; }
+    x.putImageData(d, 0, 0); FLASH_GRAIN = c.toDataURL(); } catch (e) { FLASH_GRAIN = ""; } return FLASH_GRAIN; }
 const REY_FITS = { street: { nm: "STREET CLOTHES", k: "yt_player_civ" }, track: { nm: "THE TRACKSUIT", k: "yt_rey_track" }, suit: { nm: "THE SUIT", k: "yt_rey_suit" },
   work: { nm: "THE WORK JACKET", k: "yt_rey_work" }, workvest: { nm: "THE WORK VEST", k: "yt_rey_workvest" }, leather: { nm: "THE LEATHER VEST", k: "yt_rey_leather" } };
 for (const k of ["track", "suit", "work", "workvest", "leather"]) PD_ART["yt_rey_" + k] = "assets/prison/yt_rey_" + k + ".png";
@@ -10649,7 +10661,10 @@ function LoadingScreen({ mono }) {
     const iv = setInterval(() => { setT((Date.now() - t0) / 1000); const W = window.__ironlion || {};
       setProg({ total: W.loadTotal || 0, left: W.loadLeft || 0 }); }, 100);
     return () => clearInterval(iv); }, []);
-  const SLOT = 2.4, n = Math.floor(t / SLOT) % LOAD_CAST.length, f = (t % SLOT) / SLOT, P = LOAD_CAST[n];
+  /* layer 495: the load was over before the fourth (THE KID) ever came up. Each launch now starts on the next one round
+     (remembered in ironlion.loadLead; the very first launch starts on THE KID), and the screen holds for two of them. */
+  const [n0] = React.useState(() => { let k = 3; try { const v = window.localStorage.getItem("ironlion.loadLead"); k = v == null ? 3 : (+v + 1) % LOAD_CAST.length; window.localStorage.setItem("ironlion.loadLead", String(k)); } catch (e) {} return k; });
+  const SLOT = 2.2, n = (n0 + Math.floor(t / SLOT)) % LOAD_CAST.length, f = (t % SLOT) / SLOT, P = LOAD_CAST[n];
   const done = prog.total ? (prog.total - prog.left) : 0, pct = prog.total ? Math.min(1, done / prog.total) : Math.min(0.9, t / 6);
   const fade = f < 0.15 ? f / 0.15 : f > 0.85 ? (1 - f) / 0.15 : 1;
   const src = (p) => (bad[p.who] || 0) < p.art.length ? p.art[bad[p.who] || 0] : null;
@@ -10711,7 +10726,7 @@ export default function IronLionLayer004() {
   const [ready, setReady] = useState(false);
   // the loading screen stays up at least one full beat, so a fast load doesn't just flash it (layer 514)
   const [loadMin, setLoadMin] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setLoadMin(true), 2600); return () => clearTimeout(t); }, []);
+  useEffect(() => { const t = setTimeout(() => setLoadMin(true), 4300); return () => clearTimeout(t); }, []);   // two leads' worth (layer 495)
   const zoomRef = useRef(1);
     /* ---------- procedural sound engine (Web Audio, no external files) ---------- */
     const audio = useRef(null);
@@ -12285,7 +12300,10 @@ export default function IronLionLayer004() {
   function doAction() {
     const g = G.current;
     if (g.pintro) { G.introSkip && G.introSkip(); return; }             // E skips the bus
+    if (G.setupEFn && G.setupEFn()) return;                               // Mission 0: the gun, the bunk (layer 497)
     if (G.truckFn && G.truckFn()) return;                                 // the Happy Hippy's laundry truck, before its door (layer 485)
+    if (G.eddieFn && G.eddieFn()) return;                                 // Eddie at his cab (layer 493)
+    if (G.joseFn && G.joseFn()) return;                                   // Jose at his hatchback
     /* STAIRS FIRST (layer 514). Standing ON a stair, E is the stairs -- before anyone you could talk to, a car in the
        garage bay, a table, a locker. It used to be asked last, so a man or a parked car near the stairwell won. */
     if (g.mode === "foot" && g.inside && G.stairFn) {
@@ -16760,7 +16778,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind && kind.startsWith("party_")) return partyPanel(kind);                  // layer 487
       if (kind && (kind.startsWith("mt_") || kind.startsWith("bk_"))) return mtPanel(kind);   // layer 488
       if (kind === "pablo_hang") return pabloHangPanel();                              // layer 489
+      if (kind === "do_eddie") return eddiePanel();                                      // layer 493
+      if (kind === "fo_jose") return josePanel();
       if (kind && (kind.startsWith("co_") || kind.startsWith("ne_"))) return coPanel(kind);   // layer 491
+      if (kind && kind.startsWith("su_")) return suPanel(kind);                              // layer 497
       if (kind === "katya2") return katyaPanel(2);
       if (kind === "phone") return phonePanel();
       if (kind === "aptbed") return aptBedPanel();
@@ -18294,89 +18315,46 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (r < 0.16) return "transformer";
       return r < 0.58 ? "single" : "double";
     }
+    /* THE TELEPHONE POLES (layer 494, Donny's top-down pole): a grid along every city street -- avenues AND cross
+       streets -- on the kerb, never in the road, never under or on the freeway (FWY_V / FWY_H legs and anywhere on the
+       deck span), every POLE_STEP. The crossarms are drawn across the line of the wires (as real ones are): on an avenue
+       the art as drawn, on a cross street the crossarm piece turned 90 degrees over the shaft (the shaft keeps its lean,
+       so every pole reads lit from the same side). Six wires, one per insulator, pole to pole down the street. */
+    const POLE2 = { W: 88, ins: [-377, -275, -170, 163, 270, 375].map((v) => v / 867), armY: [82 / 532, 207 / 532], cap: 435 / 867, armsH: 276 / 532, shaftX: [370 / 867, 496 / 867], shaftY: [262 / 532, 1] };
+    const poleOK = (x, y) => !onDeckSpan(x, y) && x > WORLD_MIN + 200 && y > WORLD_MIN + 200;
     function poleList(view) {
-      const out = [];
-      const i0 = clamp(Math.floor(view.x0 / PITCH), 0, N), i1 = clamp(Math.ceil(view.x1 / PITCH), 0, N);
-      const j0 = clamp(Math.floor(view.y0 / POLE_STEP), 0, N * 2), j1 = clamp(Math.ceil(view.y1 / POLE_STEP), 0, N * 2);
-      // nudge a candidate y off of any cross-street's width so poles never land in an intersection,
-      // while keeping the same count/spacing so the wire chain between them stays unbroken
-      const clear = (y) => {
-        const jNear = clamp(Math.round(y / PITCH), 0, N);
-        const half = halfW(jNear) + 14, cy = SX(jNear);
-        if (Math.abs(y - cy) >= half) return y;
-        return y < cy ? cy - half : cy + half;
-      };
-      for (let i = i0; i <= i1; i++) {
-        // avenues get poles too now -- real cities run lines along main streets,
-        // and excluding them made most of the visible map look like it had no utilities at all
-        const x = SX(i) + halfW(i) - 9;
-        for (let s = j0; s <= j1; s++) {
-          const y = clear(s * POLE_STEP);
-          const jb = clamp(Math.floor(y / PITCH), 0, N - 1);
-          if (vCut(i, jb)) continue;
-          const type = poleTypeFor(i, s);
-          out.push({ x, y, type, next: { x, y: clear((s + 1) * POLE_STEP) } });
-        }
-      }
+      const out = [], pad = POLE_STEP;
+      const clearOf = (v, k) => { const kn = clamp(Math.round(v / PITCH), 0, N), half = halfW(kn) + 40, c = SX(kn); if (Math.abs(v - c) >= half) return v; return v < c ? c - half : c + half; };
+      const i0 = clamp(Math.floor((view.x0 - pad) / PITCH), 1, N - 1), i1 = clamp(Math.ceil((view.x1 + pad) / PITCH), 1, N - 1);
+      const j0 = clamp(Math.floor((view.y0 - pad) / PITCH), 1, N - 1), j1 = clamp(Math.ceil((view.y1 + pad) / PITCH), 1, N - 1);
+      const s0y = Math.floor((view.y0 - pad) / POLE_STEP), s1y = Math.ceil((view.y1 + pad) / POLE_STEP), s0x = Math.floor((view.x0 - pad) / POLE_STEP), s1x = Math.ceil((view.x1 + pad) / POLE_STEP);
+      for (let i = i0; i <= i1; i++) { if (isFwyV(i)) continue; const x = SX(i) + halfW(i) + 22; let prev = null;            // avenues: poles down the east kerb
+        for (let s = s0y; s <= s1y; s++) { const y = s * POLE_STEP + POLE_STEP / 2, jb = clamp(Math.floor(y / PITCH), 0, N - 1);
+          if (vCut(i, jb) || !poleOK(x, y)) { prev = null; continue; } const p = { x, y, rot: 0 }; if (prev) prev.next = p; out.push(p); prev = p; } }
+      for (let j = j0; j <= j1; j++) { if (isFwyH(j)) continue; const y = SX(j) + halfW(j) + 22; let prev = null;            // cross streets: down the south kerb
+        for (let s = s0x; s <= s1x; s++) { const x = s * POLE_STEP + POLE_STEP / 2, ib = clamp(Math.floor(x / PITCH), 0, N - 1);
+          if (hCut(ib, j) || !poleOK(x, y)) { prev = null; continue; } const p = { x, y, rot: 1 }; if (prev) prev.next = p; out.push(p); prev = p; } }
       return out;
     }
-    function armY(p) { return p.y - (POLE_ART[p.type] || POLE_ART.single).h * (POLE_ART[p.type] || POLE_ART.single).armY; }
-
-    function wireCurve(p, off, sagY) {
-      const y0 = armY(p), y1 = armY(p.next);
-      const bow = off > 0 ? off + 6 : off - 6;
-      return {
-        x0: p.x + off, y0,
-        cx: (p.x + p.next.x) / 2 + bow, cy: (y0 + y1) / 2 + sagY,
-        x1: p.next.x + off, y1,
-      };
-    }
-    function drawWireShadows(view) {
-      if (g.night > 0.6) return;
-      const poles = poleList(view);
-      ctx.strokeStyle = `rgba(0,0,0,${0.16 * (1 - g.night)})`;
-      ctx.lineWidth = 2;
-      for (const p of poles) {
-        for (const off of [-13, 13]) {
-          const w = wireCurve(p, off, 22);
-          ctx.beginPath();
-          ctx.moveTo(w.x0 + 18, w.y0 + 30);
-          ctx.quadraticCurveTo(w.cx + 18, w.cy + 30, w.x1 + 18, w.y1 + 30);
-          ctx.stroke();
-        }
-      }
-    }
+    // where the k-th insulator on a pole is (arm a: 0 top, 1 bottom), in the world
+    function poleIns(p, k, a) { const W = POLE2.W, H = W * 532 / 867, top = p.y - H * (1 - 138 / 532), cx = p.x;
+      const off = (POLE2.ins[k] + 0.5 - POLE2.cap) * W, ay = (POLE2.armY[a] - 138 / 532) * H;
+      return p.rot ? [cx - ay, top + off] : [cx + off, top + ay]; }
+    function drawWireShadows(view) { }
     function drawPolesAndWires(view) {
-      const poles = poleList(view);
-      // wires first, poles on top
-      ctx.strokeStyle = "rgba(10,11,14,0.92)";
-      ctx.lineWidth = 1.6;
-      for (const p of poles) {
-        for (const off of [-13, 13]) {
-          const w = wireCurve(p, off, 10);
-          ctx.beginPath();
-          ctx.moveTo(w.x0, w.y0);
-          ctx.quadraticCurveTo(w.cx, w.cy, w.x1, w.y1);
-          ctx.stroke();
-        }
-      }
-      for (const p of poles) {
-        const art = POLE_ART[p.type] || POLE_ART.single;
-        const im = imgs.current["pl_" + art.key];
-        if (im && im.width) {
-          const h = art.h, w = h * (im.width / im.height);
-          ctx.fillStyle = "rgba(0,0,0,0.38)";
-          ctx.beginPath(); ctx.ellipse(p.x + 3, p.y + 4, w * 0.28, w * 0.16, 0, 0, 6.3); ctx.fill();
-          ctx.drawImage(im, p.x - w / 2, p.y - h, w, h);
-        } else {
-          ctx.fillStyle = "rgba(0,0,0,0.4)";
-          ctx.beginPath(); ctx.ellipse(p.x + 7, p.y + 5, 12, 7, 0, 0, 6.3); ctx.fill();
-          ctx.fillStyle = "rgba(58,44,32,0.95)";
-          ctx.fillRect(p.x - 17, p.y - 3.5, 34, 7);
-          ctx.fillStyle = "rgba(74,58,42,0.98)";
-          ctx.beginPath(); ctx.arc(p.x, p.y, 7.5, 0, 6.3); ctx.fill();
-        }
-      }
+      const poles = poleList(view), arms = imgs.current.pl_pole_arms, shaft = imgs.current.pl_pole_shaft, W = POLE2.W, H = W * 532 / 867;
+      // wires first (pole to pole, one per insulator), poles on top
+      ctx.strokeStyle = "rgba(14,14,16,0.85)"; ctx.lineWidth = 1.4;
+      for (const p of poles) { if (!p.next) continue; for (let k = 0; k < 6; k++) { const A = poleIns(p, k, 1), B = poleIns(p.next, k, 1), mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2;
+          ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.quadraticCurveTo(mx + (p.rot ? 0 : 7), my + (p.rot ? 7 : 0), B[0], B[1]); ctx.stroke(); } }
+      for (const p of poles) { const top = p.y - H * (1 - 138 / 532);
+        ctx.fillStyle = "rgba(0,0,0,0.32)"; ctx.beginPath(); ctx.ellipse(p.x + 4, p.y + 2, 10, 5, 0, 0, 6.3); ctx.fill();
+        if (shaft && shaft.width) { const sw = W * (POLE2.shaftX[1] - POLE2.shaftX[0]), sh = H * (1 - POLE2.shaftY[0]); ctx.drawImage(shaft, p.x - W * (POLE2.cap - POLE2.shaftX[0]), p.y - sh, sw, sh); }
+        else { ctx.fillStyle = "#6a4a2c"; ctx.fillRect(p.x - 5, p.y - H * 0.5, 10, H * 0.5); }
+        const aw = W, ah = H * POLE2.armsH;
+        ctx.save(); ctx.translate(p.x, top); if (p.rot) ctx.rotate(Math.PI / 2);
+        if (arms && arms.width) ctx.drawImage(arms, -W * POLE2.cap, -ah / 2, aw, ah); else { ctx.fillStyle = "#5a3e26"; ctx.fillRect(-W / 2, -6, W, 12); }
+        ctx.restore(); }
     }
 
     function drawLampPosts(view) {
@@ -20126,11 +20104,18 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
        Written to localStorage. This ships as a real page on its own domain, so that is
        available; it would not be inside a sandboxed preview. */
-    const SAVE_KEY = "ironlion.save.v2";
+    /* SAVE SLOTS (layer 494): three. Slot 1 is the old single save (same key), 2 and 3 are new. The slot you're on is
+       remembered (ironlion.slot); autosave, SAVE NOW and the bed all write to it; CONTINUE loads it. The title shows all
+       three (what mode, which story mission, cash, when) -- pick one, then CONTINUE (or BEGIN on an empty one). */
+    const SAVE_SLOTS = 3;
+    const slotKey = (n) => n > 1 ? "ironlion.save.v2.s" + n : "ironlion.save.v2";
+    const curSlot = () => { if (g.saveSlot) return g.saveSlot; let n = 1; try { n = +window.localStorage.getItem("ironlion.slot") || 1; } catch (e) {} return (g.saveSlot = clamp(n, 1, SAVE_SLOTS)); };
+    const SAVE_KEY_OF = () => slotKey(curSlot());
     function collectSave() {
       const p = g.p;
       return {
         v: 2, t: Date.now(),
+        slotTag: g.prisonMode ? (g.story && typeof STORY !== "undefined" && STORY[g.story.id] ? "REY · " + STORY[g.story.id].nm : g.preleased ? "REY · OUT" : "REY · KESTREL") : g.detMode ? "DETECTIVE" : g.studentMode ? "STUDENT" : "THE LION",
         cash: p.cash, hp: p.hp, wpn: p.wpn, ammo: p.ammo, rack: (g.rack || []).slice(),
         outfits: (g.outfits || []).slice(), plain: !!g.plain,
         x: p.x, y: p.y,
@@ -20261,6 +20246,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       try {
         let snap = null; try { snap = JSON.stringify(collectSnap()); } catch (e) { snap = null; console.warn("exact save failed", e); }
         const lite = JSON.stringify(collectSave());
+        const SAVE_KEY = SAVE_KEY_OF();
         window.localStorage.setItem(SAVE_KEY, snap || lite);
         try { window.localStorage.setItem(SAVE_KEY + ":lite", lite); } catch (e) {}   // the numbers alone, for a mode start
         g.savedAt = g.t;
@@ -20269,7 +20255,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function loadSave(lite) {
       try {
-        const raw = (lite && window.localStorage.getItem(SAVE_KEY + ":lite")) || window.localStorage.getItem(SAVE_KEY);
+        const SAVE_KEY = SAVE_KEY_OF(), raw = (lite && window.localStorage.getItem(SAVE_KEY + ":lite")) || window.localStorage.getItem(SAVE_KEY);
         return raw ? JSON.parse(raw) : null;
       } catch (e) { return null; }
     }
@@ -20334,7 +20320,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return true;
     }
     function clearSave() {
-      try { window.localStorage.removeItem(SAVE_KEY); window.localStorage.removeItem(SAVE_KEY + ":lite"); return true; } catch (e) { return false; }
+      try { const SAVE_KEY = SAVE_KEY_OF(); window.localStorage.removeItem(SAVE_KEY); window.localStorage.removeItem(SAVE_KEY + ":lite"); return true; } catch (e) { return false; }
     }
 
     /* Five street crimes broken up with the victim still standing. Flashpoint saves count
@@ -31347,7 +31333,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
              by the hour like everybody else, and they are on his side. */
           if (g.prisonMode && g.pcell && g.pcell.b === b && g.floor === 0 && cellNo < g.pcell.no && cellNo >= g.pcell.no - CREW.length) {
             const C = CREW[g.pcell.no - 1 - cellNo];
-            if (ph !== "cells" && khash(C.id + ph) >= inCell) continue;
+            const LD = g.story && g.story.id === "lastday" ? g.story : null;
+            if (LD && LD.step >= 1) continue;                                               // they're in YOUR cell, with the cake (layer 493)
+            if (ph !== "cells" && khash(C.id + ph) >= inCell && !LD) continue;               // the last day they stay on the tier, so you can find them
             add(r, "yt_crew_" + C.id + "_in", { convict: 1, crew: C.id, friend: 1, name: C.name, castFace: C.face, tall: C.tall, threat: 2,
               cast: { sex: "m", tone: C.id === "viejo" ? "mid" : "deep" },
               inmate: { no: C.no, block: b.pwing, cell: cellNo, charge: C.charge || "ARMED ROBBERY", sentence: "12 YEARS", release: "1998", gang: "WITH YOU", threat: 2 } });
@@ -31466,7 +31454,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.jobBanner = "KESTREL STATE \u00b7 " + wb.name; g.jobNote = "7:00 count. Nobody knows who you are. Yet.";
       g.pdrain = 0;
       prisonIntroStart(wb, pt, cells.length);              // the bus in, then the cell
-      if (!g.storyDone || !g.storyDone.lastday) { prisonIntroEnd(); storyStart("lastday"); g.jobBanner = "KESTREL STATE \u00b7 YOUR LAST DAY"; g.jobNote = "7:00 count. Ten years. Tomorrow you're out."; }   // layer 478: Last Day In
+      if ((!g.storyDone || !g.storyDone.lastday) && g.setupIntake) { g.setupIntake = 0; return; }        // Mission 0's walk in: let it play (layer 497)
+      if ((!g.storyDone || (!g.storyDone.lastday && !g.storyDone.setup)) && !g.story) { prisonIntroEnd(); setupBegin(); return; }   // Mission 0: THE SETUP first
+      if (!g.storyDone || !g.storyDone.lastday) { prisonIntroEnd(); storyStart("lastday"); g.jobBanner = "KESTREL STATE \u00b7 YOUR LAST DAY"; g.jobNote = "7:00 count. Seventeen years. Tomorrow you're out."; }   // layer 478: Last Day In
     }
 
     /* ---------- HOMES ---------- */
@@ -32025,7 +32015,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function stepPrisonFx(dt) {
       const cv = canvasRef.current;
       if (g.pfx) { g.pfx.t -= dt; if (g.pfx.t <= 0) g.pfx = null; }
-      stepBooze(dt); stepMorning(dt);                                                    // layer 487
+      stepBooze(dt); stepMorning(dt); stepEscort(dt);                                    // layers 487, 493
       const fx = g.pfx && PFX[g.pfx.k];
       let css = fx ? fx.css : "";
       if (fx && fx.sway) css += " "; // the sway is done with a transform below
@@ -32614,6 +32604,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const lh = 17 * sc, hgt = 26 * sc + lines.length * lh, y = Math.min(ctx.canvas.height * 0.66, ctx.canvas.height - hgt - 90 * sc);
       if (!D.ext && lines.length > 1) { D.ext = 1; D.t += 1.5 * (lines.length - 1); }
       ctx.globalAlpha = Math.min(1, D.t); ctx.fillStyle = "rgba(8,10,12,0.8)"; ctx.fillRect(x, y, w, hgt);
+      const fim = talkFace(D.who), fs = fim ? Math.max(hgt, 64 * sc) : 0;                  // whoever's talking, his face (layer 493)
+      if (fim) { ctx.fillStyle = "rgba(8,10,12,0.8)"; ctx.fillRect(x - fs - 6 * sc, y + hgt - fs, fs, fs); ctx.drawImage(fim, x - fs - 6 * sc + 3, y + hgt - fs + 3, fs - 6, fs - 6); }
       ctx.fillStyle = D.who === "RAMOS" ? "#8fb8ff" : "#e8c46a"; ctx.font = "700 " + (10 * sc) + "px monospace"; ctx.fillText(D.who, x + 12 * sc, y + 15 * sc);
       ctx.fillStyle = "#ece4cf"; ctx.font = (13 * sc) + "px system-ui, sans-serif";
       lines.forEach((ln, k) => ctx.fillText(ln, x + 12 * sc, y + 33 * sc + k * lh));
@@ -33067,7 +33059,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const I = g.pintro; if (!I) return;
       if ((I.st === "out") !== !g.inside) return;
       for (const o of I.fish) { drawShadow(o.x, o.y + 2, 9, 4, 0.3); drawYouth({ ...o, jit: 1, tall: 1.25 }); }
-      drawShadow(I.co.x, I.co.y + 2, 10, 4, 0.34); drawYouth({ ...I.co, jit: 1, tall: 1.3, yt: "yt_pr_guard_1" });
+      drawShadow(I.co.x, I.co.y + 2, 10, 4, 0.34); drawYouth({ ...I.co, jit: 1, tall: 1.3, yt: imgs.current.yt_harlan && imgs.current.yt_harlan.width ? "yt_harlan" : "yt_pr_guard_1" });   // Harlan's own art (layer 497)
       ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#7ab8ff"; ctx.fillText("C.O. HARLAN", I.co.x, I.co.y - 32); ctx.textAlign = "start";
     }
     G.introSkip = () => prisonIntroEnd();
@@ -33802,6 +33794,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const EL = L * 0.36, EW = ei.height * (EL / ei.width);
       ctx.save(); ctx.translate(0, -L * 0.30); ctx.rotate(Math.PI / 2);          // art is nose-up, the blower's belt end points at the nose
       ctx.drawImage(ei, -EL / 2, -EW / 2, EL, EW); ctx.restore(); }
+    /* THE WING ON THE CAR (layer 494). The wing art is drawn from behind (blade on top, the stands hanging down); on a
+       nose-up car that means turned round so the stands reach FORWARD onto the trunk and the blade sits across the very
+       back, as wide as the car. A lip spoiler (no stands) sits flat on the trunk lid. */
+    function drawCarWing(c, L, w) { const m = modsOf(c), q = m && partOf("wing", m.wing); if (!q) return; const im = imgs.current["pa_" + q.img]; if (!im || !im.width) return;
+      const lip = q.k.startsWith("wg_1"), W = w * (lip ? 0.82 : 0.96), H = W * im.height / im.width;
+      ctx.save(); ctx.translate(0, L * (lip ? 0.40 : 0.44)); ctx.rotate(Math.PI); ctx.drawImage(im, -W / 2, -H * (lip ? 0.5 : 0.25), W, H); ctx.restore(); }
     function gasBrand(c) { return ((Math.floor(c.lx0 / PITCH) + Math.floor(c.ly0 / PITCH)) & 1) ? "km" : "tt"; }   // Kum n Pay or Tasty's, by cell
     function gasCanopyArt(c, r) { const km = gasBrand(c) === "km", im = imgs.current[km ? "km_canopy" : "tt_canopy"]; if (!im || !im.width) return false;
       if (km) ctx.drawImage(im, 0, im.height * 0.27, im.width, im.height * 0.46, r.x, r.y, r.w, r.h); else ctx.drawImage(im, r.x, r.y, r.w, r.h); return true; }
@@ -35790,7 +35788,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        snapshot the exact save uses -- kept in storyCk, outside g, so a checkpoint never holds the one before it). MISSION
        COMPLETE slams in with the pay and the money goes on you; MISSION FAILED (you went down, you were seen, the guards
        took you) slams in with a panel: RETRY FROM CHECKPOINT (applySnap puts everything back) or QUIT MISSION.
-       LAST DAY IN (Prison Mode): Rey's last full day. Talk to Leroy, Ras and Pablo -- ten years of friends -- and each has
+       LAST DAY IN (Prison Mode): Rey's last full day. Talk to Leroy, Ras and Pablo -- seventeen years of friends -- and each has
        a side job that teaches one thing: RAS the stash (POCKETS, your mattress), LEROY the fight (put a man down), PABLO
        the cake (sneak into the mess hall kitchen, unseen: vision cones). Then the cake and the goodbyes in your cell, then
        lights out. +$250. */
@@ -35800,7 +35798,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const HOMIE = { leroy: "LEROY", ras: "RAS", viejo: "PABLO" };
     function storyCheckpoint() { try { storyCk = JSON.stringify(collectSnap()); } catch (e) { storyCk = null; } }
     function storyStart(id) { g.story = { id, step: 0, talked: {}, side: {}, t: 0 }; g.slam = null; storyCheckpoint();
-      g.slam = { kind: "start", title: STORY[id].nm, sub: id === "lastday" ? "KESTREL STATE · 1986 · TEN YEARS IN" : "", t: 0 }; }
+      g.slam = { kind: "start", title: STORY[id].nm, sub: id === "lastday" ? "KESTREL STATE · 1986 · SEVENTEEN YEARS IN" : "", t: 0 }; }
     function storyMark(msg) { storyCheckpoint(); g.pickupFlash = { nm: "lift:" + msg + " · CHECKPOINT", t: 2 }; }
     function storyComplete() { const S = g.story; if (!S) return; const M = STORY[S.id];
       g.p.cash = (g.p.cash || 0) + M.pay; g.story = null; storyCk = null; (g.storyDone = g.storyDone || {})[S.id] = 1;
@@ -35836,6 +35834,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (/^party_/.test(a)) { partyPick(a); return; }
         if (/^(mt|bk)_/.test(a)) { mtPick(a); return; }                                    // layer 488
         if (/^(co|ne)_/.test(a)) { coPick(a); return; }                                      // layer 491
+        if (/^su_/.test(a)) { suPick(a); return; }                                             // layer 497
+        if (a === "do_met") { close(); if (S && S.id === "dayout") { S.met = 1; g.driveTalk = { who: "EDDIE", text: "He slides in behind the wheel and leans over the seat. “Door's open, man. Get in.”", t: 5 }; } return; }   // layer 493
+        if (a === "fo_go") { close(); if (S && S.id === "firstout") joseRide(S); return; }
         if (a === "ph_ride") { close(); g.pfol = (g.pfol || []).filter((f) => f.crew !== "viejo").concat([{ key: "c:viejo", name: "PABLO DIAZ", role: "driver", crew: "viejo", yt: "yt_crew_viejo", x: g.p.x, y: g.p.y, vx: 0, vy: 0, seat: "car", lag: 0, cd: 0, hang: 1 }]);
           g.driveTalk = { who: "PABLO", text: "“Vámonos. I drive, you shoot, nobody touches the radio.”", t: 4 }; return; } }                                // layer 487
       if (a === "alonzo") { const S = g.story; if (S && S.id === "friday" && S.step === 5 && (g.p.cash || 0) >= 5000) { g.p.cash -= 5000; S.step = 6; g.pday = (g.pday || 0) + 2; g.clock = 9 * 60; g.nightTarget = 0;
@@ -35849,12 +35850,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           g.driveTalk = { who: "KATYA", text: "\u201cThe guards go with me. The yard is yours by morning. My brothers will hear it was Tony's mistake.\u201d", t: 7 }; }
         g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return; }
       if (a === "watch") { g.watchHave = 1; g.watchOn = 1; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); g.pickupFlash = { nm: "lift:THE DAVIES WATCH \u00b7 ON YOUR WRIST (POCKETS TO TAKE IT OFF)", t: 3 }; return; }
-      if (a.startsWith("pablo:")) { const S = g.story; if (a === "pablo:no") { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); g.jobBanner = "PABLO"; g.jobNote = "\u201cTen years at your table says it is.\u201d"; }
+      if (a.startsWith("pablo:")) { const S = g.story; if (a === "pablo:no") { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); g.jobBanner = "PABLO"; g.jobNote = "\u201cSeventeen years at your table says it is.\u201d"; }
         if (S && S.id === "firstout" && S.step === 4) { S.step = 5; g.pabloJoined = 1; g.crewJoin = { ...(g.crewJoin || {}), viejo: "driver" };
           for (let n = g.traffic.length - 1; n >= 0; n--) if (g.traffic[n].pabloCar) g.traffic.splice(n, 1);
           storyMark("PABLO'S IN \u00b7 YOUR DRIVER"); g.jobNote = "PABLO: \u201cGet some sleep. I'll come by early.\u201d"; }
         g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return; }
-      if (a === "bye") { const S = g.story; if (S && S.step === 1) { S.step = 2; storyMark("GOODBYES SAID"); } g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return; }
+      if (a === "bye") { const S = g.story; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); if (S && S.step === 1) { S.step = 2; storyMark("THE LAST NIGHT"); escortBegin(); } return; }
       if (a.startsWith("talk:")) { const k = a.slice(5), S = g.story; if (!S) return;
         if (!S.talked[k]) { S.talked[k] = 1;
           if (k === "ras") { (g.pinv = g.pinv || []).push("shank"); S.shankBase = shankCount(); g.pickupFlash = { nm: "lift:RAS SLIPS YOU A SHANK · POCKETS (I / D-PAD DOWN) · HIDE IT AT YOUR BUNK", t: 3 }; }
@@ -35865,16 +35866,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const shankCount = () => Object.values(g.stash || {}).reduce((n, a) => n + (a || []).filter((x) => x === "shank").length, 0);
 
     /* DAY OUT (layer 479, Donny's script): 5 AM, they wake him with a flashlight and walk him out -- no goodbyes. Street
-       clothes, the gate, a cab Ras paid twenty packs for. The cab (EARL) drives a tour: a gas station, the Rusty Nail,
+       clothes, the gate, a cab Ras paid twenty packs for. The cab (EDDIE) drives a tour: a gas station, the Rusty Nail,
        RIGHT TO ARMS, Stan's -- each stop he holds, says what the place does, and it goes in the book -- and drops him at Palm
        Court. Find Building A, 1A (Leroy's key under the mat). In the flat: THE CLOSET, THE PHONE, THE MAIL. Then sleep. +$100.
        Out is legal: street clothes, `g.preleased`, no warrant (the convict-clothes check needs the jumpsuit). */
     STORY.dayout = { nm: "DAY OUT", pay: 100 };
-    const EARL = { gas: "Gas station. Pull up to a pump, E, pay inside. Snack counter too -- and whoever owns the block sells out the back.",
+    const EDDIE = { gas: "Gas station. Pull up to a pump, E, pay inside. Snack counter too -- and whoever owns the block sells out the back.",
       bar: "The Rusty Nail. A bar for people who need work done. Silas runs it. You'll be back here.",
-      gun: "RIGHT TO ARMS. Gun shop. Clean record buys over the counter. Ten years in -- you ain't got a clean record.",
+      gun: "RIGHT TO ARMS. Gun shop. Clean record buys over the counter. Seventeen years in -- you ain't got a clean record.",
       stan: "Stan's. Drive in, he fixes it. Parts, plates, more go -- but Stan don't upgrade for strangers.",
-      home: "This is you. Palm Court. Your boy Ras paid me to the door. Here -- my number. You need a ride, call Earl from any phone. I drive. I don't do nothing else." };
+      home: "This is you. Palm Court. Your boy Ras paid me to the door. Here -- my number. You need a ride, call Eddie from any phone. I drive. I don't do nothing else." };
     const APT_SPOTS = { closet: [0.014, 0.30, "THE CLOSET"], phone: [0.36, 0.86, "THE PHONE"], mail: [0.462, 0.43, "THE MAIL"] };
     function dayOutBegin() { const B = PRISON_BOX, gx = (B.x0 + B.x1) / 2;
       g.clock = 5 * 60; g.pcivvies = 1; g.pescaped = 1; g.preleased = 1; g.crewOut = 0; g.pfol = []; g.hole = null; g.palarm = 0; g.phunts = null; g.pfolk = null;
@@ -35884,7 +35885,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.car.x = gx - 170; g.car.y = B.y0 - 205; g.car.ang = 0; g.car.vx = 0; g.car.vy = 0; g.car.skin = { k: "taxi", len: 106, w: 51.3 }; g.car.fuel = 100; g.car.dmg = 0;
       storyStart("dayout"); g.story.carWas = was; g.story.did = {};
       g.driveTalk = { who: "C.O. HARLAN", text: "Your buddy Ras set you up. Cost him twenty packs to get that cab out here. Don't waste it.", t: 8 };
-      g.jobBanner = "5:00 AM · KESTREL STATE"; g.jobNote = "Flashlight in your face. No goodbyes. Street clothes from 1976."; }
+      g.jobBanner = "5:00 AM · KESTREL STATE"; g.jobNote = "Flashlight in your face. No goodbyes. Street clothes from 1969."; }
     const frontOf = (b) => { const dp = doorPoint(b), o = [[0, -1], [1, 0], [0, 1], [-1, 0]][b.door ? b.door.side : 2] || [0, 1]; return [dp[0] + o[0] * 130, dp[1] + o[1] * 130]; };
     function namedB(test) { let best = null, bd = 1e12; const hb = g.aptHomeB, hx = hb ? hb.x : g.p.x, hy = hb ? hb.y : g.p.y;
       for (let i = 0; i < CITY_N; i++) for (let j = 0; j < CITY_N; j++) { const c = getCell(i, j); for (const b of (c && c.blds) || []) if (b.door && test(b)) { const d = Math.hypot(b.x - hx, b.y - hy); if (d < bd) { bd = d; best = b; } } }
@@ -35899,29 +35900,31 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const c = aptC(); if (c) ord.push({ k: "home", x: (c.lx0 + c.lx1) / 2, y: c.ly1 + 100, nm: "PALM COURT" });
       return ord; }
     function cabLeg(S) { const st = S.stops[S.si], v = g.car; if (!st) return;
-      g.auto = { pts: roadRoute(v.x, v.y, st.x, st.y).concat([[st.x, st.y]]), i: 0, sk: "fast", spd: CCAR.fast, who: "EARL", whoKey: "cab", mode: "to", label: st.nm, cab: 1 }; g.canAimDriving = true; S.leg = 1; }
+      g.auto = { pts: streetRoute(v, st.x, st.y), i: 0, sk: "fast", spd: CCAR.fast, who: "EDDIE", whoKey: "cab", mode: "to", label: st.nm, cab: 1 }; g.canAimDriving = true; S.leg = 1; }
     function dayOutStep(dt) { const S = g.story;
       if (S.step === 0) { if (g.mode === "car" && inVehicle()) { S.step = 1; S.stops = cabStops(); S.si = 0; storyMark("IN THE CAB"); cabLeg(S);
-          g.driveTalk = { who: "EARL · THE CAB", text: "Ten years? Man, the whole city changed. Sit back. I'll show you around on the way.", t: 6 }; } return; }
+          g.driveTalk = { who: "EDDIE · THE CAB", text: "Seventeen years? Man, the whole city changed. Sit back. I'll show you around on the way.", t: 6 }; } return; }   // (Eddie met you at the cab first: G.eddieFn)
       if (S.step === 1) {
-        if (g.mode !== "car") { g.auto = null; S.leg = 0; return; }                                   // got out: he waits
+        if (g.mode !== "car") { g.auto = null; S.leg = 0; return; }
+        if (g.auto && !g.driveTalk && !g.camPan) { S.jokeT = (S.jokeT == null ? 4 : S.jokeT) - dt; if (S.jokeT <= 0) { S.jokeT = 9 + Math.random() * 5; g.driveTalk = { who: "EDDIE", text: eddieJoke(), t: 6 }; } }                                   // got out: he waits
         if (S.wait > 0) { S.wait -= dt; if (S.wait <= 0) { S.si++; if (S.si >= S.stops.length) { S.step = 2; storyMark("PALM COURT"); } else cabLeg(S); } return; }
         if (!g.auto) { if (!S.leg) { cabLeg(S); return; } const st = S.stops[S.si]; S.leg = 0;
-          g.driveTalk = { who: "EARL · " + st.nm, text: EARL[st.k] || "", t: 7 }; S.wait = st.k === "home" ? 0.5 : 7;
-          if (st.k !== "home" && typeof bookNote === "function") bookNote(st.nm + ": " + (EARL[st.k] || "")); }
+          g.driveTalk = { who: "EDDIE · " + st.nm, text: EDDIE[st.k] || "", t: 7 }; S.wait = st.k === "home" ? 0.5 : 7;
+          if (st.k !== "home") camPanTo(st.x, st.y, 6);                                       // he points; the camera goes and looks (layer 493)
+          if (st.k !== "home" && typeof bookNote === "function") bookNote(st.nm + ": " + (EDDIE[st.k] || "")); }
         return; }
       if (S.step === 2) { if (g.mode === "foot") { const W = S.carWas;
-          // Earl's cab pulls off (a car of its own now -- yours is nowhere: you don't have one)
+          // Eddie's cab pulls off (a car of its own now -- yours is nowhere: you don't have one)
           g.traffic.push({ x: g.car.x, y: g.car.y, ang: g.car.ang, spd: 0, cruise: 0, brake: 0, axis: "h", si: 0, dir: 1, k: 0, m: { k: "taxi", len: 106, w: 51.3 }, dead: 0, parked: 1, named: 1, earlCab: 1, trFree: 1, goT: 9,
-            idn: { model: "HOLLOWAY CHECKER", colour: "YELLOW", plate: "CAB 1186", owner: "EARL (RAVEN HOOK CAB)" } });
+            idn: { model: "HOLLOWAY CHECKER", colour: "YELLOW", plate: "CAB 1186", owner: "EDDIE (RAVEN HOOK CAB)" } });
           if (W) { g.car.skin = W.skin; S.carWas = null; } g.car.x = -90000; g.car.y = -90000; g.car.vx = 0; g.car.vy = 0;
-          g.earlNum = 1; if (typeof bookNote === "function") bookNote("EARL'S CAB: call from any phone -- a booth on the corner, or yours at home. He drives; he doesn't do jobs.");
+          g.earlNum = 1; if (typeof bookNote === "function") bookNote("EDDIE'S CAB: call from any phone -- a booth on the corner, or yours at home. He drives; he doesn't do jobs.");
           S.step = 3; storyMark("OUT OF THE CAB"); } return; }
       if (S.step === 3) { if (g.inside && g.inside === g.aptHomeB) { S.step = 4; storyMark("BUILDING A"); } return; }
       if (S.step === 4) { if (S.did.closet && S.did.phone && S.did.mail) { S.step = 5; storyMark("HOME"); } return; } }
     function dayOutObjective() { const S = g.story, nm = "DAY OUT";
       if (S.step === 0) return { head: nm + " · GET IN THE CAB", sub: "It's at the kerb outside the gate. E to get in. Ras paid for it." };
-      if (S.step === 1) { const st = S.stops && S.stops[S.si]; return { head: nm + " · THE RIDE", sub: g.mode !== "car" ? "Get back in the cab (E)." : "Earl's driving" + (st ? " -- next: " + st.nm : "") + ". Sit back." }; }
+      if (S.step === 1) { const st = S.stops && S.stops[S.si]; return { head: nm + " · THE RIDE", sub: g.mode !== "car" ? "Get back in the cab (E)." : "Eddie's driving" + (st ? " -- next: " + st.nm : "") + ". Sit back." }; }
       if (S.step === 2) return { head: nm + " · GET OUT", sub: "E to get out of the cab." };
       if (S.step === 3) return { head: nm + " · FIND YOUR APARTMENT", sub: "Palm Court, BUILDING A, flat 1A. The key's under the mat." };
       if (S.step === 4) return { head: nm + " · YOUR PLACE", sub: ["closet", "phone", "mail"].map((k) => (S.did[k] ? "✓ " : "· ") + APT_SPOTS[k][2]).join("   ") + " — E at each." };
@@ -35945,7 +35948,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       items: Object.keys(REY_FITS).map((k) => ({ label: REY_FITS[k].nm, short: REY_FITS[k].nm.replace("THE ", ""), icon: PD_ART[REY_FITS[k].k] || "assets/prison/yt_player_civ.png", sub: (g.pfit || "street") === k ? "wearing it" : "put it on", id: "fit:" + k })) });
     function aptSpotPanel(k) { const S = g.story && g.story.id === "dayout" ? g.story : null; if (S && S.step === 4 && !S.did[k]) { S.did[k] = 1; storyCheckpoint(); }
       if (k === "closet") return { title: "THE CLOSET · 1A", face: null, text: g.aptSaid || "Leroy left two shirts, a jacket and a pair of shoes that almost fit, beside what you walked out in. The closet is where you change. More to hang in it once you've got money.",
-        opts: [{ id: "aptx:wear:76", label: "THE CLOTHES YOU WALKED OUT IN (1976)" }, { id: "aptx:wear:leroy", label: "WHAT LEROY LEFT YOU" }, { id: "close", label: "SHUT IT" }] };
+        opts: [{ id: "aptx:wear:76", label: "THE CLOTHES YOU WALKED OUT IN (1969)" }, { id: "aptx:wear:leroy", label: "WHAT LEROY LEFT YOU" }, { id: "close", label: "SHUT IT" }] };
       if (k === "phone") { if (g.aptSaid) return { title: "THE PHONE \u00b7 1A", face: "assets/crew/pt_crew_leroy_civ.png", text: g.aptSaid, opts: [{ id: "close", label: "HANG UP" }] };
         if (S && S.step === 4) return { title: "THE PHONE \u00b7 1A", face: "assets/crew/pt_crew_leroy_civ.png", text: "One number in the book, in Leroy's writing.",
           opts: [{ id: "aptx:call:leroy", label: "CALL LEROY'S SISTER'S PLACE" }, { id: "close", label: "HANG UP" }] };
@@ -35954,7 +35957,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         g.mailSaid = null; return mailPanel(); }
       return null; }
     G.aptPick = (id) => { const [, a, b] = id.split(":");
-      if (a === "wear") { g.pfit = b; g.aptSaid = b === "76" ? "Wide collar, ten years out of style. It's yours." : "Leroy's shirt. A little big. Smells like his sister's house."; }
+      if (a === "wear") { g.pfit = b; g.aptSaid = b === "76" ? "Wide collar, seventeen years out of style. It's yours." : "Leroy's shirt. A little big. Smells like his sister's house."; }
       if (a === "call") g.aptSaid = "LEROY (from his sister's): “You made it! Key under the mat, like I said? Good. Rest, man. Tomorrow you look around. And Rey -- don't go near the Deuce. Not yet.”"; };
 
     const APT_OBJ = {"int_apt_long_f0":[["bed",0.0859,0.152],["nightstand",0.1159,0.08],["bed",0.2486,0.144],["nightstand",0.2706,0.08],["tub",0.3444,0.152],["toilet",0.3967,0.088],["sink",0.434,0.088],["fridge",0.018,0.92],["stove",0.017,0.54],["ksink",0.016,0.652],["sofa",0.3164,0.92],["tv",0.3164,0.532],["bed",0.9141,0.152],["nightstand",0.8841,0.08],["bed",0.7514,0.144],["nightstand",0.7294,0.08],["tub",0.6556,0.152],["toilet",0.6033,0.088],["sink",0.566,0.088],["fridge",0.982,0.92],["stove",0.983,0.54],["ksink",0.984,0.652],["sofa",0.6836,0.92],["tv",0.6836,0.532]],"int_apt_long_f1":[["bed",0.0859,0.152],["nightstand",0.1159,0.08],["bed",0.2486,0.144],["nightstand",0.2706,0.08],["tub",0.3444,0.152],["toilet",0.3967,0.088],["sink",0.434,0.088],["fridge",0.018,0.92],["stove",0.017,0.54],["ksink",0.016,0.652],["sofa",0.3164,0.92],["tv",0.3164,0.532],["bed",0.9141,0.152],["nightstand",0.8841,0.08],["bed",0.7514,0.144],["nightstand",0.7294,0.08],["tub",0.6556,0.152],["toilet",0.6033,0.088],["sink",0.566,0.088],["fridge",0.982,0.92],["stove",0.983,0.54],["ksink",0.984,0.652],["sofa",0.6836,0.92],["tv",0.6836,0.532]],"int_apt_side_f0":[["bed",0.1201,0.152],["nightstand",0.1737,0.08],["tub",0.2742,0.152],["toilet",0.3416,0.088],["sink",0.3821,0.088],["fridge",0.0321,0.92],["stove",0.0304,0.54],["ksink",0.0286,0.652],["sofa",0.3024,0.92],["tv",0.3024,0.532],["bed",0.8799,0.152],["nightstand",0.8263,0.08],["tub",0.7258,0.152],["toilet",0.6584,0.088],["sink",0.6179,0.088],["fridge",0.9679,0.92],["stove",0.9696,0.54],["ksink",0.9714,0.652],["sofa",0.6976,0.92],["tv",0.6976,0.532]],"int_apt_side_f1":[["bed",0.1201,0.152],["nightstand",0.1737,0.08],["tub",0.2742,0.152],["toilet",0.3416,0.088],["sink",0.3821,0.088],["fridge",0.0321,0.92],["stove",0.0304,0.54],["ksink",0.0286,0.652],["sofa",0.3024,0.92],["tv",0.3024,0.532],["bed",0.8799,0.152],["nightstand",0.8263,0.08],["tub",0.7258,0.152],["toilet",0.6584,0.088],["sink",0.6179,0.088],["fridge",0.9679,0.92],["stove",0.9696,0.54],["ksink",0.9714,0.652],["sofa",0.6976,0.92],["tv",0.6976,0.532]]};
@@ -36012,7 +36015,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (a === "stash") { later(stashWheel); return; }
       if (a === "closet") { later(() => G.closetWheel()); return; }
       const say = (t, nm) => { g.pickupFlash = { nm: "lift:" + t, t: 1.8 }; };
-      if (a === "wash") say("YOU WASH YOUR HANDS. TEN YEARS OF KESTREL, STILL THERE.");
+      if (a === "wash") say("YOU WASH YOUR HANDS. SEVENTEEN YEARS OF KESTREL, STILL THERE.");
       if (a === "use") say("YOU USE IT. NOBODY WATCHING. THAT'S NEW.");
       if (a === "shower") { g.p.stamina = g.p.maxStamina || g.p.stamina; g.clock = ((g.clock || 0) + 15) % 1440; say("A HOT SHOWER, AS LONG AS YOU WANT IT · STAMINA FULL"); }
       if (a === "eat") { g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 20); say("COLD CHICKEN AND A SODA · +20 HEALTH"); }
@@ -36029,15 +36032,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       setTimeout(stashWheel, 40); };
 
     /* THE PHONE IS A WHEEL (layer 481): a booth or the phone at home -- your contacts as faces round the ring, pick a face to
-       call. EARL (a ride, once he's given you the number), LEROY, PABLO (once he's in), and 911: POLICE, AMBULANCE, FIRE. */
+       call. EDDIE (a ride, once he's given you the number), LEROY, PABLO (once he's in), and 911: POLICE, AMBULANCE, FIRE. */
     G.phoneWheel = () => { const items = [];
-      if (g.earlNum) items.push({ label: "EARL", sub: "the cab · $12", icon: "assets/ui/ui_cab.png", id: "ph:earl" });
+      if (g.earlNum) items.push({ label: "EDDIE", sub: "the cab · $12", icon: "assets/ui/ui_cab.png", id: "ph:earl" });
       items.push({ label: "LEROY", sub: "his sister's", icon: "assets/crew/pt_crew_leroy_civ.png", id: "ph:leroy" });
       if (g.pabloJoined) items.push({ label: "PABLO", sub: "your driver", icon: "assets/crew/pt_crew_viejo_civ.png", id: "ph:pablo" });
       items.push({ label: "POLICE", sub: "911", icon: "assets/ui/ui_badge.png", id: "ph:police" }, { label: "AMBULANCE", sub: "911", id: "ph:ems" }, { label: "FIRE", sub: "911", id: "ph:fire" });
       return G.radialOpen({ kind: "phone", title: g.inside && g.inside.aptTop ? "THE PHONE · 1A" : "THE PHONE BOOTH", text: g.phoneSaid || "Pick a face. Dial.", items }); };
     G.phPick = (id) => { const [, a, n] = id.split(":"), say = (t) => { g.phoneSaid = t; setTimeout(G.phoneWheel, 40); };
-      if (a === "earl") { const D = (g.phoneDests = cabDests()); setTimeout(() => G.radialOpen({ kind: "phone", title: "EARL · WHERE TO?", text: "$12, twenty minutes.", items: D.map((d, k) => ({ label: d.nm, id: "phone:go:" + k })) }), 40); return; }
+      if (a === "earl") { const D = (g.phoneDests = cabDests()); setTimeout(() => G.radialOpen({ kind: "phone", title: "EDDIE · WHERE TO?", text: "$12, twenty minutes.", items: D.map((d, k) => ({ label: d.nm, id: "phone:go:" + k })) }), 40); return; }
       if (a === "leroy") return say("LEROY: “" + cpick(["You good? Eat something. Don't go near the Deuce.", "My sister says you never come by. Come by.", "Slow, Rey. Slow is how you stay out."]) + "”");
       if (a === "pablo") return say("PABLO: “" + (g.story && g.story.id === "scrapyard" ? "I'm outside, mijo! Look out the window!" : "You need me, I'm there. Say the word.") + "”");
       if (a === "police") return say((g.heat || 0) > 0 ? "“Raven Hook Police, what's your --” You hang up. Not with the heat you've got on you." : "“Raven Hook Police, what's your emergency?” You tell them a lie about a cat in a tree. They hang up.");
@@ -36066,7 +36069,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.pfol = [{ key: "c:viejo", name: "PABLO DIAZ", role: "driver", crew: "viejo", yt: "yt_crew_viejo", x: v.x, y: v.y, vx: 0, vy: 0, seat: "car" }];
       S.step = 1; storyMark("IN PABLO'S CAR"); if (S.id === "scrapyard") G.pickOpen("pablowatch"); return true; };
     function pabloWatchPanel() { return { title: "PABLO DIAZ · THE LOWRIDER", face: "assets/crew/pt_crew_viejo_civ.png",
-      text: "PABLO: “You're late, mijo. Ten years they told you when to wake up, when to eat, when to sleep -- and now nobody does, so you sleep till eight?”\n\nHe digs in the glove box and drops something in your lap.\n\n“Here. A man running a crew needs to know what time it is.”",
+      text: "PABLO: “You're late, mijo. Seventeen years they told you when to wake up, when to eat, when to sleep -- and now nobody does, so you sleep till eight?”\n\nHe digs in the glove box and drops something in your lap.\n\n“Here. A man running a crew needs to know what time it is.”",
       opts: [{ id: "story:watch", label: "“A DAVIES. ...THANKS, VIEJO.”" }] }; }
     function scrapStakeout() { const H = hideoutB(); if (!H || !H.door) return null; const dp = doorPoint(H), o = [[0, -1], [1, 0], [0, 1], [-1, 0]][H.door.side] || [0, 1];
       return { x: dp[0] + o[0] * 420 - o[1] * 120, y: dp[1] + o[1] * 420 + o[0] * 120 }; }
@@ -36155,10 +36158,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (a === "gun" && pay(450)) { g.silencerHave = 1; g.rack = g.rack || []; if (!g.rack.includes("pistol_auto")) g.rack.push("pistol_auto"); g.r2aSaid = g.r2aSaid || "A .22 with a can on it. Quiet as a cough."; }
       if (a === "done") { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); if (g.hookHave) { S.step = 6; storyMark("GEARED UP · BACK TO THE YARD, TONIGHT"); g.driveTalk = { who: "PABLO", text: "“Tonight. We wait for dark by the back fence.”", t: 5 }; } return "x"; } };
     function katyaPanel(n) { if (n === 1) return { title: "THE OFFICE · THE SCRAPYARD", face: null,
-        text: "A man at the desk -- TONY, the Boznovs' man here -- and a woman at the window, watching the yard. KATYA BOZNOVA.\n\nTONY: “Who the hell are you? How'd you get--” He reaches for the radio.\n\nOne shot. Katya didn't even turn all the way round. Tony folds over the desk.",
+        text: "A man at the desk -- TONY, the Boznovs' man here -- and a woman at the window, watching the yard. KATYA BOZNOVA.\n\nTONY: “Who the hell are you? How'd you get--” He reaches for the radio.\n\nOne shot. Katya didn't even turn all the way round. The radio comes apart in Tony's hand, and Tony sits down very, very slowly.",
         opts: [{ id: "story:katya2", label: "“...WHAT WAS THAT?”" }] };
       return { title: "KATYA BOZNOVA", face: "assets/crew/pt_bozni_katya.png",
-        text: "KATYA: “He was going to call my brothers. I wasn't.”\n\nPABLO (from the roof door): “This is the sister, mijo. She's got her own reasons.”\n\nKATYA: “Vlad built an empire and then sat down in it. Victor drinks it. Ten years we have not moved one block. You want them gone? I want them out of my way.”",
+        text: "KATYA: \u201cHe was going to call my brothers. I wasn't.\u201d Then, to Tony: \u201cSit. You work for him now.\u201d\n\nPABLO (from the roof door): “This is the sister, mijo. She's got her own reasons.”\n\nKATYA: “Vlad built an empire and then sat down in it. Victor drinks it. Ten years we have not moved one block. You want them gone? I want them out of my way.”",
         opts: [{ id: "story:katya3", label: "“THEN YOU WORK FOR ME.”" }] }; }
     function drawScrap2() { const S = g.story; if (!S || S.id !== "scrapyard") return;
       if (!g.inside && (S.step === 7 || S.step === 8)) { const Y = yardBack(); if (!Y) return;
@@ -36170,7 +36173,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const P = S.pab; if (P) { drawShadow(P.x, P.y + 2, 10, 4, 0.3); drawYouth({ x: P.x, y: P.y, vx: 0, vy: 0, anim: (g.t || 0) * 4, jit: 1, tall: 1.3, yt: "yt_crew_viejo", bang: P.a || 0 });
           ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#7fd35a"; ctx.fillText("PABLO", P.x, P.y - 30); ctx.textAlign = "start"; } }
       if (g.inside && S.office && S.step >= 9 && S.step <= 9) { const O = S.office;
-        drawYouth({ x: O.tx, y: O.ty, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt: "yt_hire_fixer_2", bang: Math.PI }); ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = S.tonyDown ? "#e05a5a" : "#e8c46a"; ctx.fillText(S.tonyDown ? "TONY · DOWN" : "TONY", O.tx, O.ty - 30);
+        drawYouth({ x: O.tx, y: O.ty, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt: "yt_tony", bang: Math.PI }); ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = S.tonyDown ? "#e05a5a" : "#e8c46a"; ctx.fillText(S.tonyDown ? "TONY · HANDS UP" : "TONY", O.tx, O.ty - 30);
         drawYouth({ x: O.kx, y: O.ky, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.2, yt: "yt_bozni_katya", bang: Math.PI }); ctx.fillStyle = "#e05a5a"; ctx.fillText("KATYA BOZNOVA", O.kx, O.ky - 30); ctx.textAlign = "start"; } }
 
     /* FRIDAY NIGHT (Mission 5, layer 484, Donny): Katya's tip -- Grigori's runner takes the week's cash from Raven Auto to the
@@ -36345,7 +36348,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           "Stay in the truck while they load.", "Back to the Happy Hippy lot. Ras is in the back.", "Everybody's downstairs. Go down to the club.",
           "Drink with the crew -- the bar, Pablo's table, Katya at the end of the bar. (" + n + (n === 1 ? " drink" : " drinks") + ")", ""][S.step] }; }
     function washPanel(k) { if (k === "wash_leroy") return { title: "LEROY BANKS · THE YARD", face: "assets/crew/pt_crew_leroy_civ.png",
-        text: "LEROY: “Ras works the laundry Tuesdays. He climbs in a cart under the sheets. The Hippy's got a laundry truck now, right? The guards LOAD it for you -- they don't look at a man in a truck. You stay behind that wheel and you're nobody.”\n\n“Get out, and some hack who walked you to chow for ten years looks at you twice. And BACK IT IN -- they come round the front of a truck that pulls in nose-first.”\n\n“Pablo and me ride with you. Three of us across the front, Ras in the back with the sheets. And you can't roll up in that suit. Run home. Work blues. We'll be at the truck.”",
+        text: "LEROY: “Ras works the laundry Tuesdays. He climbs in a cart under the sheets. The Hippy's got a laundry truck now, right? The guards LOAD it for you -- they don't look at a man in a truck. You stay behind that wheel and you're nobody.”\n\n“Get out, and some hack who walked you to chow for seventeen years looks at you twice. And BACK IT IN -- they come round the front of a truck that pulls in nose-first.”\n\n“Pablo and me ride with you. Three of us across the front, Ras in the back with the sheets. And you can't roll up in that suit. Run home. Work blues. We'll be at the truck.”",
         opts: [{ id: "story:wash_go", label: "“WORK BLUES. GOT IT.”" }] };
       return { title: "THE HAPPY HIPPY LOT · THE BACK OF THE TRUCK", face: "assets/crew/pt_crew_ras.png",
         text: "Leroy rolls the door up and pulls the sheets back. Ras sits up in the cart like a man rising from the dead, picking lint out of his locks.\n\nRAS: “Lawd. Me never smell so much prison in me life. Wah gwaan, Rey!”\n\nPABLO: “Get him some clothes. Not the jumpsuit, man, I'm begging you.”\n\nLEROY: “Four of us. Now we're a crew.” He nods at the stairs. “Ras changes. Everybody else -- downstairs. We're celebrating.”",
@@ -36426,7 +36429,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (k === "party_bar") return { title: "THE HAPPY HIPPY · THE BAR", face: null, text: (partyOn() ? "The bartender slides a coaster over. “Pablo's tab. Pablo doesn't know that yet.”" : "Your bar. Your bottles. Nobody's counting but you.") + drinks,
         opts: [{ id: "story:party_beer", label: "A BEER" }, { id: "story:party_shot", label: "A SHOT OF VODKA" }, { id: "story:party_whiskey", label: "WHISKEY, NEAT" }, { id: "close", label: "NOT NOW" }] };
       if (k === "party_viejo") return { title: "PABLO DIAZ · THE GREEN TABLE", face: face("pt_crew_viejo_civ"),
-        text: P.weed ? "PABLO: “Easy, ese. That's Humboldt. It don't care how long you been inside.”" : "Pablo's rolling one the size of a cigar.\n\nPABLO: “Ten years I been saving this. Not THIS this -- the idea of it. Sit down, Rey. Hit this.”",
+        text: P.weed ? "PABLO: “Easy, ese. That's Humboldt. It don't care how long you been inside.”" : "Pablo's rolling one the size of a cigar.\n\nPABLO: “Seventeen years I been saving this. Not THIS this -- the idea of it. Sit down, Rey. Hit this.”",
         opts: [{ id: "story:party_weed", label: "HIT THE JOINT" }, { id: "close", label: "LATER" }] };
       if (k === "party_leroy") return { title: "LEROY BANKS", face: face("pt_crew_leroy_civ"), text: "LEROY: “Look at us. Free men in a Russian's basement, drinking the Russian's liquor.” He clinks your glass. “Tomorrow we work. Tonight -- drink.”", opts: [{ id: "close", label: "“TO TOMORROW.”" }] };
       if (k === "party_ras") return { title: "RAS CAMPBELL", face: face("pt_crew_ras"), text: "Ras is in a gold shirt that doesn't fit him and doesn't care.\n\nRAS: “Rey! Ten year a smell a prison an' now me smell like sweet herb an' freedom. Bless up, bredda. Bless up!”", opts: [{ id: "close", label: "“BLESS UP, RAS.”" }] };
@@ -36593,7 +36596,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         opts: [{ id: "story:bk_go", label: "“LET'S GO.”" }] };
       if (k === "bk_talk") return bkTalkPanel();                                          // layer 490
       if (k === "bk_split") { const T = S.take || 0; return { title: "THE HAPPY HIPPIE · THE TRUNK", face: "assets/crew/pt_crew_leroy_civ.png",
-        text: "The trunk pops. Four Happy Hippie duffels, fat as pillows. Ras whistles. Pablo kisses the steering wheel.\n\nLEROY: “$" + T.toLocaleString() + ". The locksmith gets his end, the lookout gets his. The rest goes to work -- every job from here on runs on this money.” He hands you a bag. “That was a job, Rey. That was a real one.”\n\nRAS: “Wi rich! Small rich. But rich!”",
+        text: "The trunk pops. Four Happy Hippie duffels, fat as pillows. Ras whistles. Pablo kisses the steering wheel.\n\nLEROY: “$" + T.toLocaleString() + ".” He pulls one bag aside. “Ten of this is Alonzo's. He owes us a raid on the Nest, and he's gonna earn it. The locksmith gets his end, the lookout gets his. The rest goes to work -- every job from here on runs on this money.” He hands you the rest. “Forty. That was a job, Rey. That was a real one.”\n\nRAS: “Wi rich! Small rich. But rich!”",
         opts: [{ id: "story:bk_done", label: "“NOW WE'RE A CREW.”" }] }; }
       return null; }
     function mtPick(a) { const S = g.story, close = () => { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); };
@@ -36614,7 +36617,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        him). E at the vault: the bags -- the Happy Hippie duffels over your heads (g.bagsOn). Out to Pablo, E at the car:
        LOAD THE BAGS. Lose any heat (DRIVER -> LOSE 'EM -- Pablo tells you), back to the Hippie, out, E at the trunk:
        UNLOAD. $50,000. */
-    STORY.bankjob.pay = 50000;
+    STORY.bankjob.pay = 40000;            // the take is $50,000; Leroy holds $10,000 back for Alonzo's raid on the Nest (Donny, layer 496)
     const BK_CRACK = (stars) => stars >= 4 ? 60 : stars >= 3 ? 110 : 184;
     function bankjobBegin() { aptStartHome(); storyStart("bankjob"); g.pfol = []; g.masks = 0; g.bagsOn = 0; const back = g.bankPlan !== "front"; g.clock = back ? 6 * 60 + 30 : 8 * 60 + 50; g.nightTarget = 0;
       g.jobBanner = (back ? "6:30 AM" : "8:50 AM") + " · PALM COURT"; g.jobNote = "Today. The crew's at the yard."; }
@@ -36674,7 +36677,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       S.step = 5; S.alarm = 180; S.crack = BK_CRACK(st); S.crackT = 0; S.lockStars = st; storyMark("SILENT ALARM · 3:00");
       g.driveTalk = { who: "LEROY", text: "His knee jerks under the desk. “HE HIT THE ALARM! Three minutes, Rey!” The locksmith's already running for the vault door with his drill. “" + (st >= 4 ? "A minute. Cover me." : st >= 3 ? "Two minutes. Maybe less." : "...This is a big door. This is gonna take a while.") + "”", t: 8 }; }
     // the vault: bags, not cash (Mission 9)
-    function bkBags() { const S = g.story; if (!S || S.id !== "bankjob" || S.step !== 6) return false; S.bags = 1; g.bagsOn = 1; S.take = STORY.bankjob.pay; S.step = 7; storyMark("THE BAGS · TO THE CAR");
+    function bkBags() { const S = g.story; if (!S || S.id !== "bankjob" || S.step !== 6) return false; S.bags = 1; g.bagsOn = 1; S.take = 50000; S.step = 7; storyMark("THE BAGS · TO THE CAR");
       if (!S.alarm) { g.heat = Math.max(g.heat || 0, S.quiet ? 0 : 1); }
       g.driveTalk = { who: "LEROY", text: "Stacks into the duffels -- the Hippie's laundry bags, of all things. “That's it, that's enough, GO!”", t: 5 }; return true; }
     G.bkCarFn = () => { const S = g.story; if (!S || S.id !== "bankjob" || S.step !== 7 || g.mode !== "foot" || g.inside) return false; const n = g.traffic.findIndex((q) => q.bkCar); if (n < 0) return false; const v = g.traffic[n];
@@ -36704,7 +36707,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        MAKER, TWO SHOOTERS and an ENFORCER (the lock opens for those). The rest of the job is still to build. */
     STORY.corner = { nm: "THE CORNER", pay: 2500 };
     STORY.nest = { nm: "THE RAVEN'S NEST", pay: 0 };
-    const RAS_F = ["c:ras", "RAS CAMPBELL", "dealer", "ras", "yt_crew_ras"], DREAD_F = ["h:dread", "DESMOND 'DREAD' MORGAN", "dealer", null, "yt_hire_dealer_2"];
+    const RAS_F = ["c:ras", "RAS CAMPBELL", "dealer", "ras", "yt_crew_ras"], DREAD_F = ["h:dread", "DESMOND 'DREAD' MORGAN", "dealer", null, "yt_dread"];
     const cornerGas = () => { const H = hippyB(); if (!H) return null; const [x, y] = frontOf(H); return gasNear({ x, y }); };
     const cornerSpot = () => { const G2 = cornerGas(); return G2 ? [G2.x + 40, G2.y + 150] : null; };
     function cornerBegin() { storyStart("corner"); g.pfol = []; g.jobBanner = "THE NEXT DAY"; g.jobNote = "Ras wants you at the Hippie.";
@@ -36727,9 +36730,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           "Walk Dread round the back of the station to his corner (marked).", "Back to the Hippie -- the laundromat. Leroy's there."][S.step] }; }
     function coPanel(k) {
       if (k === "co_ras") return { title: "RAS CAMPBELL · THE HAPPY HIPPIE", face: "assets/crew/pt_crew_ras.png",
-        text: "RAS: “Dealers, Rey. Dis how di money come every day, not just when we rob a bank. A dealer stand pon a corner, sell, kick up. YOUR PEOPLE at di table -- yuh give him a corner, him go stand pon it. Him product: herb now. Rock an' powder later, when we big enough.”\n\nA tall man in a green mesh shirt nods at you. An Uzi hangs under his jacket like it lives there.\n\nRAS: “Dis Desmond. Dread. Mi bredda from time. Him have him own piece, an' him work di first week free 'cause mi vouch. Di closest gas station? Russian sell dere. We fix dat.”",
+        text: "RAS: “Dealers, Rey. Dis how di money come every day, not just when we rob a bank. A dealer stand pon a corner, sell, kick up. YOUR PEOPLE at di table -- yuh give him a corner, him go stand pon it. Him product: herb now. Rock an' powder later, when we big enough.”\n\nA tall man in a red, gold and green tam and an open patterned shirt nods at you, a gold tooth in his grin. An Uzi hangs under his jacket like it lives there.\n\nRAS: “Dis Desmond. Dread. Mi bredda from time. Him have him own piece, an' him work di first week free 'cause mi vouch. Di closest gas station? Russian sell dere. We fix dat.”",
         opts: [{ id: "story:co_hire", label: "“WELCOME ABOARD, DREAD.” (HIRE HIM)" }] };
-      if (k === "co_dread") return { title: "DESMOND 'DREAD' MORGAN · THE CORNER", face: "assets/hires/pt_hire_dealer_2.png",
+      if (k === "co_dread") return { title: "DESMOND 'DREAD' MORGAN · THE CORNER", face: "assets/crew/pt_dread.png",
         text: "DREAD: “Dis corner mine now -- yours. Mi a sell di herb. Come back tomorrow, mi have a likkle crew round di back an' di money a run.”\n\nWHAT HE SELLS: WEED. (ROCK and POWDER unlock later.)",
         opts: [{ id: "story:co_weed", label: "“WEED. KEEP IT CLEAN.”" }, { id: "story:co_locked", label: "ROCK · LOCKED", dim: 1 }, { id: "story:co_locked", label: "POWDER · LOCKED", dim: 1 }] };
       if (k === "co_leroy") return { title: "LEROY BANKS · THE LAUNDROMAT", face: "assets/crew/pt_crew_leroy_civ.png",
@@ -36753,7 +36756,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         g.boardView = "hire"; g.boardSaid = "Leroy: “A bomb maker, two shooters, an enforcer.”"; G.pickOpen("opsboard"); return; } }
     // Dread on his corner; after ten hours, his crew round the back
     function drawDreadCorner() { const D = g.dreadCorner; if (!D || g.inside) return; const lab = (t, x, y, c) => { ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = c; ctx.fillText(t, x, y); ctx.textAlign = "start"; };
-      const men = [[0, 0, "yt_hire_dealer_2", "DREAD · WEED"]].concat(nowMin() - D.at > 600 ? [[-34, 18, "yt_hire_dealer_1", null], [30, 22, "yt_hire_lookout_2", null], [8, 44, "yt_hire_shooter_1", null]] : []);
+      const men = [[0, 0, "yt_dread", "DREAD · WEED"]].concat(nowMin() - D.at > 600 ? [[-34, 18, "yt_hire_dealer_1", null], [30, 22, "yt_hire_lookout_2", null], [8, 44, "yt_hire_shooter_1", null]] : []);
       for (const [ox, oy, yt, nm] of men) { const x = D.x + ox, y = D.y + oy; drawShadow(x, y + 2, 10, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt, bang: Math.PI / 2 + Math.sin(g.t * 0.5 + ox) * 0.4, wpn: nm ? "smg_uzi" : null }); if (nm) lab(nm, x, y - 30, "#e8c46a"); }
       const S = g.story; if (S && S.id === "corner" && S.step === 4) { const C = cornerSpot(); if (C) { ctx.strokeStyle = "rgba(232,196,106,0.85)"; ctx.setLineDash([8, 6]); ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(C[0], C[1], 40, 0, 6.3); ctx.stroke(); ctx.setLineDash([]); } } }
     function drawCornerMark() { const S = g.story; if (!S || S.id !== "corner" || S.step !== 4 || g.inside || g.dreadCorner) return; const C = cornerSpot(); if (!C) return;
@@ -36776,7 +36779,328 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (S.id === "corner") { if (S.step === 0) return h.hip(); if (S.step === 2) return h.veh((q) => q.mtCar); if (S.step === 3) { const G2 = cornerGas(); return G2 ? [G2.x, G2.y] : null; }
         if (S.step === 4) return cornerSpot(); if (S.step === 5) return h.hip(); return null; }
       if (S.id === "nest") return S.step >= 1 && S.step <= 3 ? h.yard() : null;
+      if (S.id === "setup") return setupTarget();                                                // layer 497
       return null; }
+    /* ---------- LAYER 493: LAST DAY IN, EDDIE'S CAB, JOSE'S RECON ----------
+       LAST DAY IN: your three stay in the housing unit all day (their cells beside yours) so you can find them; every side
+       job you finish SLAMS (SIDE JOB COMPLETE); then the cake in your cell with all three of them, and in the morning two
+       C.O.s walk you out of the block and across the yard to the gate (g.escort) -- DAY OUT starts there.
+       DAY OUT: EDDIE (Donny's art, the mustache) stands by his cab, introduces himself, gets in and waits for you. He keeps
+       to the streets (streetStop: every stop is a kerb on a real road), pulls up, and while he explains, the camera pans to
+       the place and back (g.camPan, six seconds). His face is on every line he says (TALK_FACE).
+       FIRST DAY OUT: JOSE (Pablo's nephew, Donny's art) is outside Palm Court with his hatchback -- his uncle sent him. He
+       drives you to the lot and tells you the plan; you steal one; stop at his corner and he runs over and gets in; then
+       he drives YOUR car from Boznov place to Boznov place, says what each one is for, the camera pans to it, and it goes
+       in the book. Home: Pablo's on the sofa. */
+    // a kerb on the road nearest (x, y), on the side the place is
+    function streetStop(x, y) { const i = clamp(Math.round(x / PITCH), 0, N), j = clamp(Math.round(y / PITCH), 0, N), dx = x - SX(i), dy = y - SX(j);
+      if (Math.abs(dx) < Math.abs(dy)) return [SX(i) + Math.sign(dx || 1) * halfW(i) * 0.55, y]; return [x, SX(j) + Math.sign(dy || 1) * halfW(j) * 0.55]; }
+    const streetRoute = (v, x, y) => { const [sx, sy] = streetStop(x, y); return roadRoute(v.x, v.y, sx, sy).concat([[sx, sy]]); };
+    function camPanTo(x, y, dur) { g.camPan = { x, y, t: 0, dur: dur || 6 }; }
+    function camPanOff(e) { const P = g.camPan; if (!P) return null; P.t += g.dt || 0.016; if (P.t >= P.dur) { g.camPan = null; return null; }
+      const k = P.t < 1.5 ? P.t / 1.5 : P.t > P.dur - 1.5 ? Math.max(0, (P.dur - P.t) / 1.5) : 1, s = k * k * (3 - 2 * k); return [e.x + (P.x - e.x) * s, e.y + (P.y - e.y) * s]; }
+    // the faces on the talk box
+    const TALK_FACE = { EDDIE: "assets/crew/pt_eddie.png", JOSE: "assets/crew/pt_jose.png", MIMI: "assets/crew/pt_mimi.png", PABLO: "assets/crew/pt_crew_viejo_civ.png", LEROY: "assets/crew/pt_crew_leroy_civ.png",
+      RAS: "assets/crew/pt_crew_ras.png", KATYA: "assets/crew/pt_bozni_katya.png", VICTOR: "assets/crew/pt_bozni_victor.png", DREAD: "assets/crew/pt_dread.png",
+      REY: "assets/crew/pt_rey.png", "C.O. HARLAN": "assets/crew/pt_harlan.png", TONY: "assets/crew/pt_tony.png", NICKY: "assets/crew/pt_nicky.png", ALONZO: "assets/heroes/pt_alonzo.png",
+      VLAD: "assets/crew/pt_bozni_vlad.png", GRIGORI: "assets/crew/pt_bozni_grigori.png", DAMIAN: "assets/deuce/dc_damian.png", JULIAN: "assets/deuce/dc_julian.png",
+      ROCHELLE: "assets/crew/pt_rochelle69.png", TINY: "assets/crew/pt_tiny69.png", RHPD: "assets/crew/pt_cop69_b.png", YURI: "assets/crew/pt_yuri.png" };   // layer 497
+    const faceCache = {};
+    function talkFace(who) { const k = Object.keys(TALK_FACE).find((n) => String(who || "").startsWith(n)); if (!k) return null; const src = g.flash1976 && k === "REY" ? "assets/crew/pt_rey69.png" : TALK_FACE[k]; let im = faceCache[src];
+      if (!im) { im = faceCache[src] = new Image(); im.src = src; } return im.complete && im.naturalWidth ? im : null; }
+
+    /* LAST DAY IN */
+    function sideDone(k) { const S = g.story; storyCheckpoint(); g.slam = { kind: "side", title: "SIDE JOB COMPLETE", sub: HOMIE[k] + " · " + SIDE[k] + " · " + ["ras", "leroy", "viejo"].filter((q) => S.side[q]).length + " / 3", t: 0 }; G.sfx && G.sfx("door", 0.6); }
+    const cellSpots = () => { const P = g.pcell; if (!P) return null; const cx = (P.x0 + P.x1) / 2, cy = (P.y0 + P.y1) / 2, w = P.x1 - P.x0, h = P.y1 - P.y0;
+      return { cake: [cx, cy], men: [[cx - w * 0.28, cy - h * 0.18, "yt_crew_leroy_in", "LEROY"], [cx + w * 0.28, cy - h * 0.18, "yt_crew_ras_in", "RAS"], [cx, cy + h * 0.30, "yt_crew_viejo_in", "PABLO"]] }; };
+    PD_ART.pr_cake = "assets/prison/pr_cake.png";                     // the warden's cake, top down (Donny's prompt, layer 493)
+    function drawCake(x, y, s) { const im = imgs.current.pr_cake; if (im && im.width) { const w = 48 * (s || 1), h = w * im.height / im.width; ctx.drawImage(im, x - w / 2, y - h / 2, w, h); return; }
+      ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(x - 15, y - 9, 34, 22); ctx.fillStyle = "#f4ecdc"; ctx.fillRect(x - 17, y - 12, 34, 22);
+      ctx.fillStyle = "#e58bb0"; ctx.fillRect(x - 17, y - 12, 34, 5); ctx.fillStyle = "#c0392b"; for (let q = 0; q < 4; q++) ctx.fillRect(x - 12 + q * 8, y - 4, 3, 3); }
+    function drawCellParty() { const S = g.story; if (!S || S.id !== "lastday" || S.step < 1 || !g.pcell || g.inside !== g.pcell.b || g.floor !== 0) return; const C = cellSpots(); if (!C) return;
+      if (S.step <= 2) { ctx.fillStyle = "#6b5a44"; ctx.fillRect(C.cake[0] - 22, C.cake[1] - 14, 44, 28); drawCake(C.cake[0], C.cake[1], 0.9); }
+      for (const [x, y, yt, nm] of C.men) { drawShadow(x, y + 2, 9, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.2, yt, bang: Math.atan2(C.cake[1] - y, C.cake[0] - x) + Math.sin(g.t * 1.3 + x) * 0.15 });
+        ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#9fe0a0"; ctx.fillText(nm, x, y - 28); ctx.textAlign = "start"; }
+      const E = g.escort; if (E && E.phase === 0) for (const gd of E.guards) { drawShadow(gd[0], gd[1] + 2, 10, 4, 0.3); drawYouth({ x: gd[0], y: gd[1], vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt: "yt_pr_guard_2", bang: -Math.PI / 2 }); } }
+    /* the walk out: inside the block to its door (phase 1), then across the yard to the gate (phase 2), two C.O.s at your shoulders */
+    function escortBegin() { const P = g.pcell, b = P && P.b; if (!b) return; const B = PRISON_BOX, gx = (B.x0 + B.x1) / 2, dp = doorPoint(b), cx = (P.x0 + P.x1) / 2, cy = (P.y0 + P.y1) / 2;
+      g.clock = 5 * 60; g.nightTarget = 0; g.blackA = 1; g.p.x = cx; g.p.y = cy + 10;
+      g.escort = { phase: 0, t: 0, guards: [[cx - 26, P.y1 + 20], [cx + 26, P.y1 + 20]], a: [cx, cy + 10], door: [dp[0], dp[1]], gate: [gx, B.y0 + 70], b };
+      g.driveTalk = { who: "C.O. HARLAN", text: "Flashlight in your face. “Rey. Up. It's five a.m. and you're somebody else's problem now.” Leroy, Ras and Pablo are still in your cell, half asleep on the floor. “Walk good, bredda.” “Don't come back.” “See you outside, mijo.”", t: 9 }; }
+    function stepEscort(dt) { const E = g.escort; if (!E) return; E.t += dt; g.p.vx = 0; g.p.vy = 0; g.pickOpen = null;
+      const lerpP = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k], put = (p, dir) => { g.p.x = p[0]; g.p.y = p[1]; g.board.ang = dir; const px = -Math.sin(dir) * 26, py = Math.cos(dir) * 26; E.guards = [[p[0] + px - Math.cos(dir) * 10, p[1] + py - Math.sin(dir) * 10], [p[0] - px - Math.cos(dir) * 10, p[1] - py - Math.sin(dir) * 10]]; };
+      if (E.phase === 0) { if (E.t > 4) { E.phase = 1; E.t = 0; } return; }
+      if (E.phase === 1) { const k = Math.min(1, E.t / 4); put(lerpP(E.a, E.door, k), Math.atan2(E.door[1] - E.a[1], E.door[0] - E.a[0])); g.p.anim = (g.p.anim || 0) + dt * 6;
+        if (k >= 1) { E.phase = 2; E.t = 0; g.inside = null; g.floor = 0; g.insideT = 0; g.pfolk = null; } return; }
+      if (E.phase === 2) { const k = Math.min(1, E.t / 7); put(lerpP(E.door, E.gate, k), Math.atan2(E.gate[1] - E.door[1], E.gate[0] - E.door[0])); g.p.anim = (g.p.anim || 0) + dt * 6;
+        if (E.t > 2 && !E.said) { E.said = 1; g.driveTalk = { who: "C.O. HARLAN", text: "“Seventeen years and you never once tried the fence. Don't make me wrong about you.”", t: 5 }; }
+        if (k >= 1) { g.escort = null; const S = g.story; if (S && S.id === "lastday") storyComplete(); } } }
+    function drawEscort() { const E = g.escort; if (!E || E.phase === 0) return; for (const gd of E.guards) { drawShadow(gd[0], gd[1] + 2, 10, 4, 0.3);
+        drawYouth({ x: gd[0], y: gd[1], vx: Math.cos(g.board.ang) * 30, vy: Math.sin(g.board.ang) * 30, anim: (g.t || 0) * 6, jit: 1, tall: 1.3, yt: "yt_pr_guard_2", bang: g.board.ang }); } }
+
+    /* DAY OUT: EDDIE */
+    function drawEddie() { const S = g.story; if (!S || S.id !== "dayout" || S.step !== 0 || S.met || g.inside || g.mode !== "foot") return; const x = g.car.x + 10, y = g.car.y + 52;
+      drawShadow(x, y + 2, 10, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt: "yt_eddie", bang: Math.atan2(g.p.y - y, g.p.x - x) });
+      ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd36a"; ctx.fillText("EDDIE · THE CAB · E", x, y - 30); ctx.textAlign = "start"; }
+    G.eddieFn = () => { const S = g.story; if (!S || S.id !== "dayout" || S.step !== 0 || S.met || g.mode !== "foot" || g.inside) return false;
+      if (Math.hypot(g.p.x - g.car.x, g.p.y - g.car.y) > 160) return false; G.pickOpen("do_eddie"); return true; };
+    /* EDDIE'S MATERIAL (layer 494): between stops, and when you call him, a one-liner. Bad, on purpose. 1986. */
+    const EDDIE_JOKES = ["You know what the difference is between this cab and a prison bus? The bus had better conversation. Kidding. I'm great company.", "My wife says I talk too much. I said, “Honey, that's not talking, that's customer service.”", "Seventeen years? Gas was thirty-five cents a gallon when you went in. Now it's ninety. I cried at the pump. Real tears.", "I got a joke about the parking meters downtown, but you gotta pay a quarter to hear it.", "Why'd the cabbie quit the ballet? Every time he did a turn, he signaled first.", "Raven Hook has two seasons: winter, and road work.", "They put in a new traffic light on Vescari. Took the city eight months. Took me eight seconds to run it.", "My mother-in-law calls me Speedy. Not 'cause I drive fast -- 'cause I leave fast.", "You see that pothole? I named him Gerald. Gerald's been there since '79. Gerald is a fixture of the community.", "I asked my doctor how to live to be a hundred. He said, “Stop driving a cab in this city.” So I'm gonna live to fifty-four.", "Hey, you know they got phones in cars now? In cars! What's next, a TV in your wristwatch? Get outta here.", "My kid wants a computer. I said, “For what? To compute what?” He said, “Things.” Things! I got a calculator, it computes things.", "What do you call a cab driver with no fares? A guy with a really nice car. That's me on Tuesdays.", "I tried jogging once. Everybody's jogging now. I got halfway round the block and hailed myself.", "Big hair, man. Everybody's got the big hair now. My sister's hair blocked a whole drive-in movie last summer.", "The mayor says crime is down. Down where? Down the street? 'Cause I just saw it go down the street.", "Lady last week asks me, “Do you know the fastest way to the airport?” I said, “Yeah, but that'll cost extra.”", "Why don't cabbies ever get lost? We do. We just call it the scenic route and charge you for it.", "I used to be a mime. Couldn't talk about it.", "My radio only gets two stations: the ball game, and a guy who yells about the ball game.", "You hungry? There's a hot dog cart on Ninth that's never once been inspected. Best dog in the city. Don't ask what's in it. Nobody knows.", "I put a sign in the back: NO SMOKING. Guy lights up, says he can't read. I said, “Then how'd you know this was a cab?”", "Disco's dead, they tell me. Nobody told my cousin. He's still out there. Every Friday. In the white suit.", "My bowling team's called the Gutter Kings. We're very honest people.", "You know what they call a guy who drives a cab for twenty years? Eddie. They call him Eddie.", "I got a parking ticket parked outside the police station. Inside the police station, they gave me another one for complaining.", "My uncle says the secret to a long marriage is a short memory. He's been married four times, so I don't know.", "Everybody's got a video tape machine now. I got one. Nobody can make the clock stop blinking. It's been 12:00 in my house since Christmas.", "If you see a guy on a skateboard holding onto my bumper, don't worry. That's not my problem. That's his problem.", "I'd tell you a joke about the Kestrel State food, but you already heard it. You ate it for seventeen years."];
+    const eddieJoke = () => { g.eddieJ = ((g.eddieJ == null ? Math.floor(Math.random() * EDDIE_JOKES.length) : g.eddieJ) + 1) % EDDIE_JOKES.length; return "\u201c" + EDDIE_JOKES[g.eddieJ].replace(/^\u201c|\u201d$/g, "") + "\u201d"; };
+    function eddiePanel() { return { title: "EDDIE · RAVEN HOOK CAB #402", face: "assets/crew/pt_eddie.png",
+      text: "A man in a white tee and a denim jacket pushes off the fender, all mustache and teeth.\n\nEDDIE: “You're Rey? Eddie. Eddie Morales. Your friend Ras paid me twenty packs of cigarettes to sit outside a prison at five in the morning, which is a first for me.” He opens the back door. “Get in. I'll show you the city on the way -- it changed.”",
+      opts: [{ id: "story:do_met", label: "“LET'S GO, EDDIE.”" }] }; }
+
+    /* FIRST DAY OUT: JOSE */
+    const JOSE_LINES = { nest: "The Raven's Nest. Victor Boznov's club -- girls on the stage, a card room in the back, and every Russian in the city drinks there. The money comes in cash and leaves clean.",
+      auto: "Raven Auto. Grigori Orlov runs it -- the bear. Cars come in hot and leave with new numbers. Half the chop in the city goes through that lot.",
+      hippy: "The Happy Hippy. Laundromat upstairs, a club downstairs. Yuri Sokolov's. They wash a lot more than sheets in there.",
+      yard: "The scrapyard. Tony -- Anton Volkov -- watches it for the Russians. Crushers, a crane, a hundred places to lose things. Or people.",
+      house: "And that's the house. Vlad Boznov and the sister, Katya. Nobody goes through that gate who wasn't asked. Okay. That's the book. Let's get you home." };
+    function joseHome() { const c = aptC(); return c ? [(c.lx0 + c.lx1) / 2, c.ly1 + 100] : null; }
+    function josePrep(S) { if (S.jose) return; const H = joseHome(); if (!H) return; const [sx, sy] = streetStop(H[0] + 80, H[1] + 40);
+      S.jose = { x: sx + 60, y: sy - 46 }; g.traffic.push({ x: sx, y: sy, ang: 0, spd: 0, cruise: 0, brake: 0, axis: "h", si: 0, dir: 1, k: 0, m: { k: "comp_hatch", len: 88, w: 49 }, dead: 0, parked: 1, named: 1, trFree: 1, joseCar: 1,
+        idn: { model: "VANTRY SPRITE", colour: "", plate: "JOSE 4", owner: "JOSE DIAZ" } }); }
+    G.joseFn = () => { const S = g.story; if (!S || S.id !== "firstout" || g.mode !== "foot" || g.inside) return false;
+      if (S.pre === 0 && S.jose && Math.hypot(g.p.x - S.jose.x, g.p.y - S.jose.y) < 120) { G.pickOpen("fo_jose"); return true; } return false; };
+    function josePanel() { return { title: "JOSE DIAZ · OUTSIDE PALM COURT", face: "assets/crew/pt_jose.png",
+      text: "A kid in a white tee is leaning on a little blue hatchback, grinning like he's been waiting all his life.\n\nJOSE: “Rey? I'm Jose -- Pablo's nephew. His sister Mimi's my mom. Tío called from inside, said you need wheels and you can't buy any.” He jingles his keys. “So we're gonna get you some. Get in, I'll explain on the way.”",
+      opts: [{ id: "story:fo_go", label: "“DRIVE, JOSE.”" }] }; }
+    function joseRide(S) { const n = g.traffic.findIndex((q) => q.joseCar); if (n < 0) return; const v = g.traffic[n]; g.traffic.splice(n, 1);
+      g.car.x = v.x; g.car.y = v.y; g.car.ang = v.ang; g.car.vx = 0; g.car.vy = 0; g.car.skin = v.m; g.car.idn = v.idn; g.car.fuel = 70; g.car.dmg = 0; g.car.crush = null; g.car.dents = []; g.mode = "car"; g.p.x = v.x; g.p.y = v.y;
+      if (!S.lot) S.lot = firstOutLot(); const L = S.lot, H = joseHome() || [g.p.x, g.p.y]; if (!L) return;
+      const dx = H[0] - L.cx, dy = H[1] - L.cy, d = Math.hypot(dx, dy) || 1; S.drop = streetStop(L.cx + dx / d * 480, L.cy + dy / d * 480);
+      const i = clamp(Math.round(S.drop[0] / PITCH), 0, N), j = clamp(Math.round(S.drop[1] / PITCH), 0, N); S.jc = [SX(i) + halfW(i) + 26, SX(j) + halfW(j) + 26];
+      g.auto = { pts: roadRoute(g.car.x, g.car.y, S.drop[0], S.drop[1]).concat([S.drop]), i: 0, sk: "normal", spd: CCAR.spd, who: "JOSE", whoKey: "jose", mode: "to", label: "THE LOT", cab: 1 }; g.canAimDriving = true;
+      S.pre = 1; S.lines = 0; S.lineT = 1; storyMark("JOSE'S DRIVING"); }
+    const JOSE_RIDE = ["“So. " + "Tío says the Russians run everything from here to the river now -- a club, a car lot, a laundromat, the scrapyard. You want to hit them, you gotta know them first.”",
+      "“First you need a car nobody can trace to you. There's a lot up here -- a night man walks it with a dog. Stay out of the light, crouch, get under a dash and hold still.”",
+      "“When you got it, drive to the corner by the lot and STOP. I'll be standing there. I jump in and I drive -- I know every one of their places. You just look.”"];
+    function joseStep(S, dt) { if (S.pre === 0) { josePrep(S); return true; }
+      if (S.pre === 1) { if (g.mode === "car" && g.auto) { S.lineT -= dt; if (S.lineT <= 0 && S.lines < JOSE_RIDE.length) { g.driveTalk = { who: "JOSE", text: JOSE_RIDE[S.lines++], t: 8 }; S.lineT = 9; } return true; }
+        if (g.mode === "car" && !g.auto) { if (!S.droppedTalk) { S.droppedTalk = 1; g.driveTalk = { who: "JOSE", text: "“That's the lot, round the corner. Go. I'll be at the corner when you come out -- stop and I jump in.” (E to get out)", t: 8 }; } return true; }
+        if (g.mode === "foot") { g.traffic.push({ x: g.car.x, y: g.car.y, ang: g.car.ang, spd: 0, cruise: 0, brake: 0, axis: "h", si: 0, dir: 1, k: 0, m: g.car.skin, dead: 0, parked: 1, named: 1, trFree: 1, joseCar: 1, idn: g.car.idn });
+          g.car.x = -90000; g.car.y = -90000; S.pre = 2; storyMark("THE LOT · STEAL ONE"); g.nightTarget = 1; } return true; }
+      return false; }
+    function joseRecon(S) { const list = (S.cases || []).concat(S.house ? [S.house] : []), C = list.find((c) => !c.done); if (!C) return null; return C; }
+    function joseLeg(S) { const C = joseRecon(S); if (!C || !g.car) return; g.auto = { pts: streetRoute(g.car, C.vx, C.vy), i: 0, sk: "normal", spd: CCAR.spd, who: "JOSE", whoKey: "h:jose", mode: "to", label: C.place, cab: 1 }; g.canAimDriving = true; S.leg = C.k; }
+    function drawJose() { const S = g.story; if (!S || S.id !== "firstout" || g.inside) return; let x = null, y = null, mv = 0;
+      if (S.pre === 0 && S.jose) { x = S.jose.x; y = S.jose.y; }
+      else if (S.pre === 2 && S.step <= 1 && S.jc && !S.joseIn) { x = S.jc[0]; y = S.jc[1];
+        if (S.run != null && g.car) { const k = Math.min(1, S.run / 1.4); x = S.jc[0] + (g.car.x - S.jc[0]) * k; y = S.jc[1] + (g.car.y - S.jc[1]) * k; mv = 1; } }
+      if (x == null) return; drawShadow(x, y + 2, 10, 4, 0.3); drawYouth({ x, y, vx: mv ? 40 : 0, vy: 0, anim: (g.t || 0) * 8, jit: 1, tall: 1.25, yt: "yt_jose", bang: mv ? Math.atan2(g.car.y - y, g.car.x - x) : Math.atan2(g.p.y - y, g.p.x - x) });
+      ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#9fe0a0"; ctx.fillText(S.pre === 0 ? "JOSE · E" : "JOSE · STOP HERE", x, y - 30); ctx.textAlign = "start";
+      if (S.pre === 2 && S.step === 1 && S.jc) { ctx.strokeStyle = "rgba(232,196,106,0.8)"; ctx.setLineDash([8, 6]); ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(S.jc[0] - 30, S.jc[1] - 30, 70, 0, 6.3); ctx.stroke(); ctx.setLineDash([]); } }
+    /* ---------- LAYER 497: MISSION 0 -- THE SETUP (the flashback, 1969) ----------
+       A new Rey game opens in 1969, not in Kestrel: sepia, grain, and only FOUR BLOCKS of the city (g.flash1976 is the
+       look; S.box the open ground -- past its edge the city is "under construction": dark, sawhorses, chain-link, and
+       you can't leave it). Everybody is 1969: young Rey (yt_rey69), Rochelle, Tiny, the cops; the cars on the road wear
+       1969 bodies while it lasts (v.m69 keeps the real one).
+       0 ROCHELLE'S: an Old Town house with a driveway and a garage (rf_rochelle69 over the roof). Rey wakes up; a short
+         talk -- she almost tells him she's pregnant (panel su_morning, SKIP THE FLASHBACK is there too). A horn.
+       1 out to Tiny's car. 2 Tiny drives (g.auto) to the warehouse, the job on the way. 3 he drops you and goes.
+       4 inside: the body and the revolver, E: PICK IT UP. 5 sirens, 1969 cruisers, a cop after you -- RUN (it always
+       ends with a knee in your back). 6 black. 7 the courtroom: an answer, THE VERDICT FOLDER (photo, the charges typed
+       one by one, GUILTY stamped -- g.verdict, built for every trial), the sentence: twenty-five years.
+       8 the bus: black, the engine, the window. 9 C.O. Harlan walks you in. 10 your cell: E: LIE DOWN.
+       11 SEVENTEEN YEARS LATER -- LAST DAY IN. */
+    STORY.setup = { nm: "THE SETUP", pay: 0 };
+    const ERA69 = ["veh_69_sedan", "veh_69_coupe", "veh_69_wagon", "veh_69_pickup"];
+    const SU_SAY = { truth: "“I didn't kill nobody. He was on the floor when I walked in. I picked the gun up to see whose it was.”\n\nThe prosecutor: “And whose was it?” You don't know. The jury doesn't care.",
+      quiet: "You say nothing. Your lawyer says less. The prosecutor holds up a revolver in a plastic bag with your prints all over it, and it does the talking.",
+      damian: "“Damian Vance sent me there.” A murmur goes round the room. In the gallery, Damian Vance sits with his hands folded in his lap. He smiles. Nobody in the room believes you, and he knows it." };
+    let suHouseB = null, suWareB = null;
+    function suHouse() { const S = g.story; if (suHouseB && S && S.houseKey === suHouseB.key) return suHouseB;
+      if (S && S.houseKey) { const b = namedB((q) => q.key === S.houseKey); if (b) return (suHouseB = b); }
+      let best = null, bs = 0; const Z = OLDTOWN.cells;
+      for (let i = Z.i0; i <= Z.i1 + 1; i++) for (let j = Z.j0; j <= Z.j1 + 1; j++) { const c = getCell(i, j); for (const b of (c && c.blds) || []) {
+        if (b.kind !== "house" || !b.door || b.inPrison || b.landmark || b.hideout || b.stuHome || b.pd) continue; const s = b.w * b.h; if (s > bs) { bs = s; best = b; } } }
+      if (!best) best = namedB((b) => b.kind === "house" && !b.landmark && !b.hideout && !b.stuHome);
+      if (best && S) S.houseKey = best.key; return (suHouseB = best); }
+    function suWare() { const S = g.story; if (suWareB && S && S.wareKey === suWareB.key) return suWareB;
+      if (S && S.wareKey) { const b = namedB((q) => q.key === S.wareKey); if (b) return (suWareB = b); }
+      const H = suHouse(); if (!H) return null; let best = null, bd = 1e12;
+      const ci = clamp(Math.floor(H.x / PITCH), 0, N - 1), cj = clamp(Math.floor(H.y / PITCH), 0, N - 1);
+      for (let i = Math.max(0, ci - 7); i <= Math.min(N - 1, ci + 7); i++) for (let j = Math.max(0, cj - 7); j <= Math.min(N - 1, cj + 7); j++) { const c = getCell(i, j);
+        for (const b of (c && c.blds) || []) { const kp = { warehouse: 0, garage: 1000, store: 2000, office: 2500 }[b.kind]; if (kp == null || !b.door || b.landmark || b.hideout || b.inPrison || b.pd) continue;
+          const d = Math.hypot(b.x - H.x, b.y - H.y); if (d < PITCH * 1.4 || d > PITCH * 3.6) continue; const sc = d + kp + (b.name ? 6000 : 0); if (sc < bd) { bd = sc; best = b; } } }
+      if (!best) best = namedB((b) => (b.kind === "warehouse" || b.kind === "garage") && !b.landmark && !b.hideout);
+      if (best && S) S.wareKey = best.key; return (suWareB = best); }
+    function suBox() { const S = g.story; if (S.box) return S.box; const H = suHouse(), W = suWare(); if (!H || !W) return null; const m = PITCH * 0.6;
+      return (S.box = { x0: Math.min(H.x, W.x) - m, y0: Math.min(H.y, W.y) - m, x1: Math.max(H.x + H.w, W.x + W.w) + m, y1: Math.max(H.y + H.h, W.y + W.h) + m }); }
+    function suEra(on) { for (const v of g.traffic || []) { if (on) { if (!v.m69 && v.m && !v.suCop && !v.parked && (v.m.len || 0) < 150) { v.m69 = v.m; v.m = { ...v.m, k: ERA69[(Math.abs(Math.round(v.x * 7 + v.y * 3)) >> 4) % 4], len: 112, w: 54 }; } }
+        else if (v.m69) { v.m = v.m69; v.m69 = null; } } }
+    function setupBegin() {
+      const H = suHouse(); if (!H || !suWare()) return;
+      g.pescaped = 1; g.preleased = 1; g.pcivvies = 1; g.pfit = "street"; g.flash1976 = 1; g.crewOut = 0; g.pfol = []; g.hole = null; g.palarm = 0; g.phunts = null; g.pfolk = null; g.heat = 0; g.wantedT = 0;
+      g.clock = 7 * 60 + 40; g.nightTarget = 0;
+      const was = { x: g.car.x, y: g.car.y, ang: g.car.ang, skin: g.car.skin ? { ...g.car.skin } : null };
+      storyHideRides();
+      storyStart("setup"); g.slam.sub = "RAVEN HOOK · 1969"; const S = g.story; S.carWas = was; S.houseKey = H.key; S.wareKey = suWare().key; suBox();
+      const f = H.floors > 1 ? 1 : 0, pl = buildingPlans(H)[f], r = pl && pl.rooms.slice().sort((a, q) => (q.x1 - q.x0) * (q.y1 - q.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))[0];
+      const pt = r ? (freeIndoor(H, pl, (r.x0 + r.x1) / 2 - 20, (r.y0 + r.y1) / 2, r) || [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2]) : doorPoint(H);
+      const rp = r ? (freeIndoor(H, pl, (r.x0 + r.x1) / 2 + 40, (r.y0 + r.y1) / 2 - 10, r) || [pt[0] + 40, pt[1]]) : [pt[0] + 40, pt[1]];
+      S.rFloor = f; S.rx = rp[0]; S.ry = rp[1];
+      g.inside = H; g.floor = f; g.insideT = 1; g.mode = "foot"; g.p.x = pt[0]; g.p.y = pt[1]; g.p.vx = 0; g.p.vy = 0; g.cam.x = pt[0]; g.cam.y = pt[1];
+      const [fx, fy] = frontOf(H), [kx, ky] = streetStop(fx, fy);
+      g.car.x = kx; g.car.y = ky; g.car.ang = Math.abs(kx - fx) > Math.abs(ky - fy) ? 0 : Math.PI / 2; g.car.vx = 0; g.car.vy = 0; g.car.skin = { k: "veh_69_sedan", len: 112, w: 54 }; g.car.fuel = 100; g.car.dmg = 0;
+      g.jobBanner = "RAVEN HOOK · 1969"; g.jobNote = "Rochelle's. Old Town. The morning it all went wrong."; }
+    function setupIntake() { const S = g.story; suEra(false);
+      g.setupSiren = null; g.auto = null; g.mode = "foot"; g.inside = null; g.pescaped = 0; g.preleased = 0; g.pcivvies = 0;
+      if (S && S.carWas) { const w = S.carWas; g.car.x = w.x; g.car.y = w.y; g.car.ang = w.ang || 0; if (w.skin) g.car.skin = w.skin; g.car.vx = g.car.vy = 0; }
+      for (const v of (S && S.cruisers) || []) { const n = g.traffic.indexOf(v); if (n >= 0) g.traffic.splice(n, 1); }
+      g.setupIntake = 1; startPrisonMode(); if (S) { S.step = 9; S.t = 0; } g.clock = 6 * 60; }
+    function lastdayBegin() { const P = g.pcell; g.flash1976 = 0; g.verdict = null;
+      if (P) { const pt = [(P.x0 + P.x1) / 2, P.top ? P.y1 - 24 : P.y0 + 24]; g.inside = P.b; g.floor = 0; g.insideT = 1; g.mode = "foot"; g.p.x = pt[0]; g.p.y = pt[1]; g.p.vx = g.p.vy = 0; g.cam.x = pt[0]; g.cam.y = pt[1]; }
+      g.clock = CLOCK.start; g.pfolk = null; storyStart("lastday"); g.jobBanner = "KESTREL STATE · YOUR LAST DAY"; g.jobNote = "7:00 count. Seventeen years. Tomorrow you're out."; }
+    G.setupTT = () => { const b = suWare(); return b ? frontOf(b) : null; };   // test hooks
+    G.setupEnterT = () => { const b = suWare(); if (!b) return null; g.inside = b; g.floor = b.entry || 0; g.insideT = 1; g.mode = "foot"; const d = introInsidePt(b); g.p.x = d[0]; g.p.y = d[1]; return b.name; };
+    G.setupInfoT = () => { const S = g.story, H = suHouse(), W = suWare(); return S && { house: H && [H.name, H.kind, H.x | 0, H.y | 0, H.floors], ware: W && [W.name, W.kind, W.x | 0, W.y | 0], box: S.box && [S.box.x0 | 0, S.box.y0 | 0, S.box.x1 | 0, S.box.y1 | 0] }; };
+    G.kindsNearT = () => { const H = suHouse(), out = {}; for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); for (const b of (c && c.blds) || []) { const d = Math.hypot(b.x - H.x, b.y - H.y); if (d > PITCH * 4 || !b.door) continue; const k = b.kind + (b.name ? "*" : "") + (b.landmark ? "L" : ""); out[k] = (out[k] || 0) + 1; } } return out; };
+    G.setupSkipT = () => { const S = g.story; if (S && S.id === "setup") { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); setupIntake(); prisonIntroEnd(); g.driveTalk = null; S.step = 11; S.t = 1.6; } };
+    function suPanel(k) { const S = g.story || {};
+      if (k === "su_morning") return { title: "ROCHELLE'S · OLD TOWN · 1969", face: "assets/crew/pt_rochelle69.png",
+        text: "Morning through the blinds. Rochelle's already awake, sitting on the edge of the bed with her back to you.\n\nROCHELLE: “Rey... can I tell you something?”\n\nShe turns round. Whatever it is, it's big.",
+        opts: [{ id: "story:su_tell", label: "“TELL ME.”" }, { id: "story:su_skip", label: "SKIP THE FLASHBACK (TO KESTREL, 1986)" }] };
+      if (k === "su_morning2") return { title: "ROCHELLE", face: "assets/crew/pt_rochelle69.png",
+        text: "ROCHELLE: “I'm...”\n\nA car horn outside. Twice. Then a voice from the street: “REY! Damian says NOW, not later!”\n\nShe looks at the window, and back at you, and whatever it was goes back behind her eyes.\n\nROCHELLE: “It'll keep. Go on. Come back tonight and I'll tell you.”",
+        opts: [{ id: "story:su_go", label: "“TONIGHT. I PROMISE.”" }] };
+      if (k === "su_court") return { title: "THE PEOPLE v. REY · COURTROOM 4", face: "assets/crew/pt_rey69.png",
+        text: "Three days of it. The revolver in a bag. Your prints. A dead man's family in the second row. The judge looks down at you over his glasses.\n\nJUDGE: “The defendant may address the court.”",
+        opts: [{ id: "story:su_say_truth", label: "TELL THE TRUTH" }, { id: "story:su_say_quiet", label: "SAY NOTHING" }, { id: "story:su_say_damian", label: "NAME DAMIAN" }] };
+      if (k === "su_said") return { title: "THE PEOPLE v. REY", face: "assets/crew/pt_rey69.png", text: (SU_SAY[S.said] || "") + "\n\nThe jury is out forty minutes.", opts: [{ id: "story:su_folder", label: "..." }] };
+      if (k === "su_sentence") return { title: "THE SENTENCE", face: "assets/crew/pt_rey69.png",
+        text: "JUDGE: “Twenty-five years. With good behaviour, you'll walk out of Kestrel a man still young enough to regret this.”\n\nIn the back row Rochelle is crying, one hand on her stomach. Julian has his hand on her shoulder. Damian has already left.",
+        opts: [{ id: "story:su_bus", label: "..." }] };
+      return null; }
+    function suPick(a) { const S = g.story, close = () => { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); };
+      if (!S || S.id !== "setup") { close(); return; }
+      if (a === "su_skip") { G.setupSkipT(); return; }
+      if (a === "su_tell") { G.pickOpen("su_morning2"); return; }
+      if (a === "su_go") { close(); if (S.step === 0) { S.step = 1; storyMark("TINY'S CAR"); g.driveTalk = { who: "TINY", text: "From the street, leaning on the horn: “REY! I ain't getting any younger out here!”", t: 6 }; } return; }
+      if (/^su_say_/.test(a)) { S.courtSeen = 1; S.said = a.slice(7); G.pickOpen("su_said"); return; }
+      if (a === "su_folder") { close(); G.verdictShow({ face: "assets/crew/pt_rey69.png", name: "REY", caseNo: "CASE 69-0412", charges: ["MURDER IN THE FIRST DEGREE", "POSSESSION OF AN UNLICENSED FIREARM", "FLIGHT FROM AN OFFICER"], guilty: true,
+          done: () => G.pickOpen("su_sentence") }); return; }
+      if (a === "su_bus") { close(); if (S.step === 7) { S.step = 8; S.t = 0; g.driveTalk = null; } return; } }
+    /* THE VERDICT FOLDER (layer 497) -- any trial can call it: a manila folder slides up, the photo clipped to it, the
+       charges type out one by one, then GUILTY or NOT GUILTY slams down. E or a click skips to the stamp, then closes it. */
+    const vfCache = {};
+    function vfImg(src) { if (!src) return null; let im = vfCache[src]; if (!im) { im = vfCache[src] = new Image(); im.src = src; } return im.complete && im.naturalWidth ? im : null; }
+    G.verdictShow = (o) => { g.verdict = { ...o, t: 0 }; };
+    function verdictTimes(V) { const typed = V.charges.reduce((n, c) => n + c.length, 0); const tType = 0.7 + V.charges.length * 0.5 + typed * 0.035; return { tType, tStamp: tType + 0.6, tEnd: tType + 3.2 }; }
+    G.verdictKeyFn = () => { const V = g.verdict; if (!V) return false; const T = verdictTimes(V); if (V.t < T.tStamp) V.t = T.tStamp; else V.t = T.tEnd; return true; };
+    function stepVerdict(dt) { const V = g.verdict; if (!V) return; V.t += dt; const T = verdictTimes(V);
+      if (V.t >= T.tStamp && !V.slam) { V.slam = 1; G.sfx && G.sfx("door", 1); }
+      if (V.t >= T.tEnd) { g.verdict = null; if (V.done) V.done(); } }
+    function drawVerdict() { const V = g.verdict; if (!V) return; const T = verdictTimes(V), im = imgs.current.ui_folder;
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); const W = ctx.canvas.width, Hh = ctx.canvas.height;
+      ctx.fillStyle = "rgba(0,0,0," + Math.min(0.6, V.t) + ")"; ctx.fillRect(0, 0, W, Hh);
+      const fw = Math.min(W * 0.9, Hh * 1.6, 1100), fh = fw * 489 / 928, slide = Math.min(1, V.t / 0.45), x = (W - fw) / 2, y = (Hh - fh) / 2 + (1 - slide * slide * (3 - 2 * slide)) * Hh * 0.7;
+      if (im && im.width) ctx.drawImage(im, x, y, fw, fh); else { ctx.fillStyle = "#d9b77a"; ctx.fillRect(x, y, fw, fh); }
+      const P = (fx, fy) => [x + fw * fx, y + fh * fy];
+      const face = vfImg(V.face); if (face) { const [px, py] = P(0.10, 0.11), pw = fw * 0.31, ph = fh * 0.60, s = Math.max(pw / face.width, ph / face.height);
+        ctx.save(); ctx.beginPath(); ctx.rect(px, py, pw, ph); ctx.clip(); ctx.filter = "grayscale(0.6) contrast(1.1)"; ctx.drawImage(face, px + (pw - face.width * s) / 2, py, face.width * s, face.height * s); ctx.restore(); }
+      const fs = Math.max(11, fw * 0.022); ctx.fillStyle = "#2a2118"; ctx.font = "700 " + fs + "px ui-monospace, monospace";
+      { const [nx, ny] = P(0.10, 0.80); ctx.fillText(V.name || "", nx, ny); ctx.font = (fs * 0.8) + "px ui-monospace, monospace"; ctx.fillText(V.caseNo || "", nx, ny + fs * 1.3); }
+      let tt = V.t - 0.7, ln = 0; ctx.font = (fs * 0.7) + "px ui-monospace, monospace";
+      { const [hx, hy] = P(0.56, 0.155); ctx.fillText("THE PEOPLE v. " + (V.name || ""), hx, hy); }
+      for (const c of V.charges) { if (tt <= 0) break; const n = Math.min(c.length, Math.floor(tt / 0.035)); const [cx, cy] = P(0.56, 0.155 + 0.062 * (ln + 2));
+        ctx.fillText((ln + 1) + ". " + c.slice(0, n), cx, cy); tt -= c.length * 0.035 + 0.5; ln++; }
+      if (V.t >= T.tStamp) { const st = imgs.current[V.guilty ? "ui_stamp_guilty" : "ui_stamp_notguilty"], k = Math.min(1, (V.t - T.tStamp) / 0.16), sc = 2.4 - 1.4 * k, [sx, sy] = P(0.74, 0.62), sw = fw * 0.34 * sc;
+        ctx.globalAlpha = Math.min(1, k * 1.5); ctx.translate(sx, sy); ctx.rotate(-0.1);
+        if (st && st.width) ctx.drawImage(st, -sw / 2, -sw * st.height / st.width / 2, sw, sw * st.height / st.width);
+        else { ctx.strokeStyle = V.guilty ? "#c0392b" : "#3b8f8a"; ctx.lineWidth = 4; ctx.strokeRect(-sw / 2, -sw * 0.2, sw, sw * 0.4); ctx.fillStyle = ctx.strokeStyle; ctx.font = "800 " + (sw * 0.16) + "px system-ui"; ctx.textAlign = "center"; ctx.fillText(V.guilty ? "GUILTY" : "NOT GUILTY", 0, sw * 0.06); } }
+      ctx.restore(); }
+    G.setupEFn = () => { if (G.verdictKeyFn()) return true; const S = g.story; if (!S || S.id !== "setup" || g.mode !== "foot") return false;
+      if (S.step === 4 && S.scene && g.inside && g.inside.key === S.wareKey && Math.hypot(g.p.x - S.scene.gx, g.p.y - S.scene.gy) < 70) { suGrab(); return true; }
+      const P = g.pcell; if (S.step === 10 && P && g.inside === P.b && g.p.x > P.x0 - 20 && g.p.x < P.x1 + 20 && g.p.y > P.y0 - 20 && g.p.y < P.y1 + 20) { S.step = 11; S.t = 0; g.driveTalk = null; return true; }
+      return false; };
+    function suScene(b) { const S = g.story; if (S.scene) return S.scene; const pl = buildingPlans(b)[b.entry || 0]; if (!pl) return null;
+      const dp = doorPoint(b), r = pl.rooms.slice().sort((a, q) => Math.hypot((q.x0 + q.x1) / 2 - dp[0], (q.y0 + q.y1) / 2 - dp[1]) - Math.hypot((a.x0 + a.x1) / 2 - dp[0], (a.y0 + a.y1) / 2 - dp[1]))[0];
+      const pt = freeIndoor(b, pl, (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, r) || [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2];
+      return (S.scene = { bx: pt[0], by: pt[1], gx: pt[0] + 26, gy: pt[1] + 18 }); }
+    function suGrab() { const S = g.story, b = suWare(); S.step = 5; S.t = 0; S.gun = 1; storyMark("RUN");
+      const [fx, fy] = frontOf(b), o = [[0, -1], [1, 0], [0, 1], [-1, 0]][b.door ? b.door.side : 2] || [0, 1];
+      S.cruisers = [[fx - o[1] * 70 + o[0] * 40, fy - o[0] * 70 + o[1] * 40], [fx + o[1] * 80 + o[0] * 60, fy + o[0] * 80 + o[1] * 60]].map(([x, y], k) => {
+        const v = { x, y, ang: Math.atan2(o[1], o[0]) + (k ? 0.5 : -0.4), spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0, m: { k: imgs.current.veh_cruiser69 && imgs.current.veh_cruiser69.width ? "veh_cruiser69" : "pd_cruiser", len: 120, w: 46 }, dead: 1, parked: 1, named: 1, suCop: 1 };
+        g.traffic.push(v); return v; });
+      g.setupSiren = [fx, fy]; G.sfx && G.sfx("door", 0.9);
+      g.driveTalk = { who: "RHPD", text: "Sirens. Red light through the dirty windows. A bullhorn: “RAVEN HOOK POLICE! DROP THE WEAPON AND COME OUT!”", t: 6 }; }
+    function suCaught() { const S = g.story; S.step = 6; S.t = 0; S.cop = null; g.p.vx = g.p.vy = 0;
+      g.driveTalk = { who: "RHPD", text: "A knee in your back, your face in the gravel. “Anonymous caller said we'd find you holding it. Anonymous caller was right.”", t: 7 }; }
+    function suClamp() { const S = g.story, B = S.box; if (!B || g.inside) return; const p = inVehicle() ? activeVeh() : g.p; if (!p) return;
+      if (p.x < B.x0) { p.x = B.x0; if (p.vx < 0) p.vx = 0; } if (p.x > B.x1) { p.x = B.x1; if (p.vx > 0) p.vx = 0; }
+      if (p.y < B.y0) { p.y = B.y0; if (p.vy < 0) p.vy = 0; } if (p.y > B.y1) { p.y = B.y1; if (p.vy > 0) p.vy = 0; } }
+    function setupStep(dt) { const S = g.story; S.t = (S.t || 0) + dt; stepVerdict(dt);
+      if (S.step <= 6) { suEra(true); suClamp(); }
+      if (S.step === 0) { if (!g.slam && !S.roomSeen && S.t > 1) { S.roomSeen = 1; G.pickOpen("su_morning"); } return; }
+      if (S.step === 1) { if (g.mode === "car") { const W = suWare(), [wx, wy] = frontOf(W); S.step = 2; S.t = 0; storyMark("THE DROP");
+          g.auto = { pts: streetRoute(g.car, wx, wy), i: 0, sk: "normal", spd: CCAR.spd, who: "TINY", whoKey: "tiny69", mode: "to", label: "THE DROP", cab: 1 }; g.canAimDriving = false;
+          g.driveTalk = { who: "TINY", text: "“Damian says the bag's in a shut-up place a couple blocks over. Office in the back, under the sink. They open the door for you, not for me. Never for me.”", t: 8 }; } return; }
+      if (S.step === 2) { const W = suWare(), [wx, wy] = frontOf(W);
+        if (S.t > 9 && !S.said2) { S.said2 = 1; g.driveTalk = { who: "TINY", text: "“Half this street's gonna be a freeway by next year. Damian says buy the corners now, sell 'em to the city later. Damian says a lot of things.”", t: 7 }; }
+        if (!g.auto || Math.hypot(g.car.x - wx, g.car.y - wy) < 320 || S.t > 45) { g.auto = null; g.car.vx = g.car.vy = 0; g.mode = "foot"; g.p.x = g.car.x + 30; g.p.y = g.car.y + 30; g.p.vx = g.p.vy = 0;
+          S.away = { x: g.car.x, y: g.car.y, ang: g.car.ang, t: 0 }; const H = suHouse(), [hx, hy] = streetStop(...frontOf(H)); g.car.x = hx; g.car.y = hy;
+          S.step = 3; storyMark("THE DROP"); g.driveTalk = { who: "TINY", text: "“Twenty minutes. Don't touch nothing you don't have to.” He pulls away before you've shut the door.", t: 6 }; } return; }
+      if (S.step === 3) { if (S.away) S.away.t += dt; const b = suWare(); if (b && g.inside === b) { S.step = 4; suScene(b); g.driveTalk = { who: "REY", text: "No office. No sink. A man on the concrete floor, not moving, and a revolver beside him. You pick it up to see whose it is.", t: 7 }; } return; }
+      if (S.step === 5) { const b = suWare(); if (!g.inside) S.outT = (S.outT || 0) + dt;
+        if (!S.cop && !g.inside && b && S.outT > 1.2) { const [fx, fy] = frontOf(b); S.cop = { x: fx, y: fy + 20, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt: "yt_cop69_a" }; S.runT = 0; }
+        if (S.cop) { const c = S.cop, dx = g.p.x - c.x, dy = g.p.y - c.y, d = Math.hypot(dx, dy) || 1; S.runT += dt;
+          const ps = Math.hypot(g.p.vx || 0, g.p.vy || 0), sp = S.runT < 9 ? Math.max(95, ps * 0.85) : Math.max(260, ps * 1.35);
+          c.vx = dx / d * sp; c.vy = dy / d * sp; c.x += c.vx * dt; c.y += c.vy * dt; c.anim += dt * 8;
+          if (d < 30 || S.runT > 18) suCaught(); }
+        return; }
+      if (S.step === 6) { g.p.vx = g.p.vy = 0; g.blackA = Math.min(1, S.t / 1.2);
+        if (S.t > 4.5) { const C = courtB(); g.setupSiren = null; suEra(false); for (const v of S.cruisers || []) { const n = g.traffic.indexOf(v); if (n >= 0) g.traffic.splice(n, 1); }
+          if (!C) { S.step = 8; S.t = 0; return; } const Sp = courtSpots(C), at = Sp.def || Sp.witness || frontOf(C);
+          g.inside = C; g.floor = C.entry || 0; g.insideT = 1; g.mode = "foot"; g.p.x = at[0]; g.p.y = at[1]; g.p.vx = g.p.vy = 0; g.cam.x = at[0]; g.cam.y = at[1];
+          g.clock = 10 * 60; S.step = 7; S.t = 0; g.driveTalk = null; storyMark("THE PEOPLE v. REY"); } return; }
+      if (S.step === 7) { g.blackA = Math.max(0, 1 - S.t / 1.2); if (S.t > 2.2 && !S.courtSeen) { S.courtSeen = 1; G.pickOpen("su_court"); } return; }
+      if (S.step === 8) { g.blackA = Math.min(1, S.t / 0.8);
+        if (S.t > 1 && !S.busSaid) { S.busSaid = 1; g.driveTalk = { who: "REY", text: "The Kestrel State bus, at dawn. Chains on your ankles. Through the wire on the window, a city you won't see again for seventeen years.", t: 7 }; }
+        if (S.t > 7.5) setupIntake(); return; }
+      if (S.step === 9) { g.blackA = Math.max(0, 1 - S.t / 1.2); if (!g.pintro && S.t > 1) { S.step = 10; S.t = 0; storyMark("CELL " + ((g.pcell && g.pcell.blk) || "") + "-" + ((g.pcell && g.pcell.no) || ""));
+          g.driveTalk = { who: "LEROY", text: "From the next cell over, not looking up from his book: “First night's the longest. Every one after is just a night.”", t: 9 }; } return; }
+      if (S.step === 11) { g.blackA = Math.min(1, S.t / 1.6);
+        if (S.t > 2.4 && !S.done) { S.done = 1; (g.storyDone = g.storyDone || {}).setup = 1; g.story = null; storyCk = null; g.flash1976 = 0;
+          g.slam = { kind: "start", title: "SEVENTEEN YEARS LATER", sub: "KESTREL STATE · 1986", t: 0 }; g.storyNext = { id: "lastday", t: 0.1 }; } return; } }
+    function setupObjective() { const S = g.story;
+      return { head: "THE SETUP · 1969 · " + ["ROCHELLE'S", "TINY'S CAR", "THE DRIVE", "THE DROP", "THE BODY", "RUN", "", "THE COURTROOM", "THE BUS", "KESTREL STATE", "YOUR CELL", ""][S.step],
+        sub: ["Rochelle wants to tell you something.", "Downstairs and out. Tiny's at the kerb (E to get in).", "Tiny's driving.", "Go inside.", "E: PICK IT UP.",
+          "Run. Out the door, anywhere.", "", "Answer the judge.", "", "Follow the C.O. (E skips).", "Lights out. E: LIE DOWN.", ""][S.step] || "" }; }
+    function setupTarget() { const S = g.story; if (S.step === 1) return g.mode === "foot" && g.inside !== suHouse() ? [g.car.x, g.car.y] : null;
+      if (S.step === 3) { const b = suWare(); return b && g.inside !== b ? frontOf(b) : null; }
+      if (S.step === 4 && S.scene) return [S.scene.gx, S.scene.gy]; return null; }
+    const suLab = (t, x, y, c) => { ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = c; ctx.fillText(t, x, y); ctx.textAlign = "start"; };
+    function drawSetup() { const S = g.story; if (!S || S.id !== "setup") return;
+      const H = suHouse(), b = S.wareKey ? suWare() : null;
+      if (H && g.inside === H && g.floor === S.rFloor && S.step <= 1 && S.rx != null) { drawShadow(S.rx, S.ry + 2, 9, 4, 0.3); drawYouth({ x: S.rx, y: S.ry, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.15, yt: "yt_rochelle69", bang: Math.PI }); suLab("ROCHELLE", S.rx, S.ry - 30, "#e8c46a"); }
+      if (S.scene && b && g.inside === b && g.floor === (b.entry || 0)) { const Q = S.scene;
+        ctx.fillStyle = "rgba(90,8,8,0.85)"; ctx.beginPath(); ctx.ellipse(Q.bx + 4, Q.by + 6, 30, 16, 0.3, 0, 6.3); ctx.fill();
+        ctx.save(); ctx.filter = "brightness(0.6) saturate(0.5)"; drawYouth({ x: Q.bx, y: Q.by, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.2, yt: "yt_hire_fence_1", bang: 0.4 }); ctx.restore();
+        if (!S.gun) { const im = imgs.current.wp_revolver_long; if (im && im.width) { ctx.save(); ctx.translate(Q.gx, Q.gy); ctx.rotate(0.6); ctx.drawImage(im, -14, -7, 28, 14); ctx.restore(); }
+          else { ctx.fillStyle = "#333"; ctx.fillRect(Q.gx - 10, Q.gy - 3, 20, 6); } if (S.step === 4 && Math.hypot(g.p.x - Q.gx, g.p.y - Q.gy) < 70) suLab("E: PICK IT UP", Q.gx, Q.gy - 16, "#e8c46a"); } }
+      if (S.step === 5) { for (const v of S.cruisers || []) { const on = Math.sin((g.t || 0) * 12) > 0; ctx.fillStyle = on ? "rgba(255,40,40,0.4)" : "rgba(255,120,60,0.15)"; ctx.beginPath(); ctx.arc(v.x, v.y, 40, 0, 6.3); ctx.fill(); }
+        if (S.cop && !g.inside) { drawShadow(S.cop.x, S.cop.y + 2, 9, 4, 0.3); if (!drawYouth(S.cop)) { try { drawCop({ ...S.cop, state: "run", rank: DUTY_PATROL, cop: 1 }); } catch (e) {} } suLab("RHPD", S.cop.x, S.cop.y - 28, "#8fb8ff"); } }
+      if (S.step === 7 && g.inside === courtB()) { const Sp = courtSpots(g.inside), gal = Sp.gallery || [];
+        const put = (xy, dx, yt, nm) => { if (!xy) return; const x = xy[0] + dx, y = xy[1] + 6; drawShadow(x, y + 2, 9, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.2, yt, bang: -Math.PI / 2 }); suLab(nm, x, y - 28, "#e8c46a"); };
+        put(gal[0], 34, "yt_damian69", "DAMIAN VANCE"); const back = gal[gal.length - 1]; put(back, -40, "yt_julian69", "JULIAN"); put(back, 22, "yt_rochelle69", "ROCHELLE"); }
+      if (S.step === 10 && g.pcell && g.inside === g.pcell.b && g.floor === 0) suLab("E: LIE DOWN", g.p.x, g.p.y - 34, "#e8c46a"); }
+    // over the roofs: Rochelle's roof and driveway, Tiny pulling away, and the city past the four blocks under construction
+    function drawSetupTop(view) { const S = g.story; if (!S || S.id !== "setup" || g.inside || S.step > 6) return; const H = suHouse(), B = S.box;
+      if (H) { const rf = imgs.current.rf_rochelle69, side = H.door ? H.door.side : 2, rot = (side - 2) * Math.PI / 2, sw = side % 2 ? H.h : H.w, sh = side % 2 ? H.w : H.h;
+        ctx.save(); ctx.translate(H.x + H.w / 2, H.y + H.h / 2); ctx.rotate(rot);
+        ctx.fillStyle = "#8f8a80"; ctx.fillRect(sw * 0.18, sh / 2 - 4, sw * 0.3, 132); ctx.fillStyle = "rgba(0,0,0,0.12)"; ctx.fillRect(sw * 0.18, sh / 2 - 4, 3, 132);
+        if (rf && rf.width) ctx.drawImage(rf, -sw / 2, -sh / 2, sw, sh); ctx.restore(); }
+      if (S.away && S.away.t < 4) { const A = S.away, im = imgs.current.veh_69_sedan, d = A.t * A.t * 60; ctx.save(); ctx.translate(A.x + Math.cos(A.ang - Math.PI / 2) * d, A.y + Math.sin(A.ang - Math.PI / 2) * d); ctx.rotate(A.ang); if (im && im.width) ctx.drawImage(im, -27, -56, 54, 112); ctx.restore(); }
+      if (!B) return; const big = 60000;
+      ctx.fillStyle = "rgba(14,11,8,0.94)"; ctx.fillRect(B.x0 - big, B.y0 - big, big * 2 + (B.x1 - B.x0), big); ctx.fillRect(B.x0 - big, B.y1, big * 2 + (B.x1 - B.x0), big); ctx.fillRect(B.x0 - big, B.y0, big, B.y1 - B.y0); ctx.fillRect(B.x1, B.y0, big, B.y1 - B.y0);
+      const P = (k, x, y, w, a) => { const im = imgs.current[k]; if (!im || !im.width || x < view.x0 - 300 || x > view.x1 + 300 || y < view.y0 - 300 || y > view.y1 + 300) return; const h = w * im.height / im.width; ctx.save(); ctx.translate(x, y); ctx.rotate(a || 0); ctx.drawImage(im, -w / 2, -h / 2, w, h); ctx.restore(); };
+      for (let s = B.x0; s <= B.x1; s += 120) { P("pr_chainlink", s, B.y0 - 10, 124); P("pr_chainlink", s, B.y1 + 10, 124); }
+      for (let s = B.y0; s <= B.y1; s += 120) { P("pr_chainlink", B.x0 - 10, s, 124, Math.PI / 2); P("pr_chainlink", B.x1 + 10, s, 124, Math.PI / 2); }
+      for (let i = 0; i <= N; i++) { const x = SX(i); if (x > B.x0 && x < B.x1) { P("pr_sawhorse", x, B.y0 + 14, 92); P("pr_sawhorse", x, B.y1 - 14, 92); P("pr_worklamp", x + 70, B.y0 + 40, 44); } }
+      for (let j = 0; j <= N; j++) { const y = SX(j); if (y > B.y0 && y < B.y1) { P("pr_sawhorse", B.x0 + 14, y, 92, Math.PI / 2); P("pr_sawhorse", B.x1 - 14, y, 92, Math.PI / 2); P("pr_dirtpile", B.x1 - 60, y + 80, 90); } } }
+
     /* ---------- LAYER 489: STORY HUD, THE STORY ARROW AND ROUTE, PABLO AT THE HIPPIE, THE BOZNOVS ON THEIR FEET ----------
        storyOnly(): Rey's story (Kestrel mode, out of prison). The HUD shows the story and nothing else -- no scanner calls,
        no street races, no RHPD line unless it's you they're after, no SAVED/LOST, no JUICE, no SKY.
@@ -36791,7 +37115,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       try {
         switch (S.id) {
           case "dayout": return S.step === 3 ? atHome() : null;
-          case "firstout": if (S.step === 0 && S.lot) return [S.lot.cx, S.lot.cy]; if (S.step === 2) { const C = (S.cases || []).find((c) => !c.done); return C ? [C.x, C.y] : null; }
+          case "firstout": if (S.pre === 0 && S.jose) return [S.jose.x, S.jose.y]; if (S.pre === 1) return null; if (S.step === 1 && S.jc) return S.jc; if (S.joseIn && S.step < 4) return null;
+            if (S.step === 0 && S.lot) return [S.lot.cx, S.lot.cy]; if (S.step === 2) { const C = (S.cases || []).find((c) => !c.done); return C ? [C.x, C.y] : null; }
             if (S.step === 3 && S.house) return [S.house.x, S.house.y]; return S.step === 4 ? atHome() : null;
           case "scrapyard": { if (S.step === 0) return veh((q) => q.pabloCar); if (S.step >= 1 && S.step <= 2) { const T = scrapStakeout(); return T ? [T.x, T.y] : null; }
             if (S.step === 4) return notIn(namedB((b) => b.name === "RIGHT TO ARMS"), fr(namedB((b) => b.name === "RIGHT TO ARMS")));
@@ -36807,6 +37132,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           default: return typeof storyTarget2 === "function" ? storyTarget2(S, { fr, home, notIn, yard, hip, atHome, veh }) : null; }
       } catch (e) { return null; } }
     G.storyTargetT = () => storyTarget();
+    G.escortT = () => g.escort ? [g.escort.phase, Math.round(g.escort.t)] : null;   // test hooks (layer 493)
+    G.joseT = () => { const S = g.story; return S && S.id === "firstout" ? { pre: S.pre, jose: S.jose, drop: S.drop, jc: S.jc, step: S.step, leg: S.leg, wait: S.wait, auto: !!g.auto } : null; };
     function storyRoute() { const T = storyTarget(); if (!T || !Number.isFinite(T[0])) { g.sRoute = null; return null; }
       const me = inVehicle() ? activeVeh() : g.p, R = g.sRoute;
       if (!R || R.t < g.t - 1 || Math.hypot(R.tx - T[0], R.ty - T[1]) > 40) { let pts = null; try { pts = g.inside ? null : roadRoute(me.x, me.y, T[0], T[1]); } catch (e) { pts = null; }
@@ -36846,12 +37173,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function storyHideRides() { if (g.storyRides) return; g.storyRides = {};
       for (const k of ["car", "moto", "civ"]) { const v = g[k]; if (!v) continue; g.storyRides[k] = { x: v.x, y: v.y, ang: v.ang }; v.x = -90000 - (k === "moto" ? 300 : k === "civ" ? 600 : 0); v.y = -90000; v.vx = 0; v.vy = 0; } }
     function storyGiveRides() { const R = g.storyRides; if (!R) return; for (const k of ["moto", "civ"]) { const v = g[k], q = R[k]; if (v && q) { v.x = q.x; v.y = q.y; v.ang = q.ang; } } g.storyRides = null; }
-    // Earl's cab driving off: a named car moved by hand for a few seconds, then gone
+    // Eddie's cab driving off: a named car moved by hand for a few seconds, then gone
     function stepEarlCab(dt) { for (let n = g.traffic.length - 1; n >= 0; n--) { const v = g.traffic[n]; if (!v.earlCab) continue; v.goT -= dt; v.spd = Math.min(260, (v.spd || 0) + 120 * dt);
         v.x += Math.cos(v.ang) * v.spd * dt; v.y += Math.sin(v.ang) * v.spd * dt; if (v.goT <= 0) g.traffic.splice(n, 1); } }
 
     /* PHONES (layer 480, Donny's art): a booth on a corner of every other crossing (pr_phone_booth), and the phone at home
-       (fu_phone). E: CALL EARL'S CAB (once he's given you his number -- he drives you, $12 and twenty minutes, he never joins
+       (fu_phone). E: CALL EDDIE'S CAB (once he's given you his number -- he drives you, $12 and twenty minutes, he never joins
        the crew), CALL LEROY. */
     function phoneBooths() { if (g.boothList) return g.boothList; const out = [];
       for (let i = 2; i < CITY_N; i += 2) for (let j = 2; j < CITY_N; j += 2) { const c = getCell(i, j); if (!c) continue; const z = zoneOf(i, j) || "";
@@ -36874,15 +37201,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return out; }
     function phonePanel() { const home = !!(g.inside && g.inside.aptTop);
       if (g.phoneView === "cab") { const D = (g.phoneDests = cabDests());
-        return { title: "EARL'S CAB · $12, TWENTY MINUTES", face: null, text: "EARL: “Where to?”", opts: D.map((d, n) => ({ id: "phone:go:" + n, label: d.nm })).concat([{ id: "phone:back", label: "NEVER MIND" }]) }; }
-      const opts = []; if (g.earlNum) opts.push({ id: "phone:cab", label: "CALL EARL'S CAB" }); opts.push({ id: "phone:leroy", label: "CALL LEROY (HIS SISTER'S)" }, { id: "close", label: "HANG UP" });
+        return { title: "EDDIE'S CAB · $12, TWENTY MINUTES", face: null, text: "EDDIE: “Where to?”", opts: D.map((d, n) => ({ id: "phone:go:" + n, label: d.nm })).concat([{ id: "phone:back", label: "NEVER MIND" }]) }; }
+      const opts = []; if (g.earlNum) opts.push({ id: "phone:cab", label: "CALL EDDIE'S CAB" }); opts.push({ id: "phone:leroy", label: "CALL LEROY (HIS SISTER'S)" }, { id: "close", label: "HANG UP" });
       return { title: home ? "THE PHONE · 1A" : "THE PHONE BOOTH", face: null, text: g.phoneSaid || (home ? "The beige phone. A dial tone like a promise." : "A quarter, a dial tone, a booth that smells like the last guy."), opts }; }
     G.phonePick = (a, n) => {
       if (a === "cab") { g.phoneView = "cab"; return; } if (a === "back") { g.phoneView = null; return; }
       if (a === "leroy") { g.phoneSaid = "LEROY: “" + cpick(["You good? Eat something. Don't go near the Deuce.", "My sister says you never come by. Come by.", "Slow, Rey. Slow is how you stay out."]) + "”"; return; }
-      if (a === "go") { const d = (g.phoneDests || [])[+n]; if (!d) return; g.phoneView = null; if ((g.p.cash || 0) < 12) { g.phoneSaid = "EARL: “Twelve dollars, man. Call me when you got it.”"; g.phoneView = null; return; }
+      if (a === "go") { const d = (g.phoneDests || [])[+n]; if (!d) return; g.phoneView = null; if ((g.p.cash || 0) < 12) { g.phoneSaid = "EDDIE: “Twelve dollars, man. Call me when you got it.”"; g.phoneView = null; return; }
         g.p.cash -= 12; g.clock = ((g.clock || 0) + 20) % 1440; g.inside = null; g.floor = 0; g.mode = "foot"; g.p.x = d.x; g.p.y = d.y; g.p.vx = 0; g.p.vy = 0; g.cam.x = d.x; g.cam.y = d.y;
-        g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); g.jobBanner = "EARL'S CAB"; g.jobNote = "Twenty minutes and twelve dollars later: " + d.nm + "."; return "gone"; } };
+        g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); g.jobBanner = "EDDIE'S CAB"; g.jobNote = "Twenty minutes and twelve dollars later: " + d.nm + "."; g.driveTalk = { who: "EDDIE", text: eddieJoke() + " ...Here we are. " + d.nm + ".", t: 7 }; return "gone"; } };
 
     /* FIRST DAY OUT (Mission 3, layer 480): before dawn. STEAL A CAR off a car lot -- a night man walks the lot with a dog
        (cones: the man sees ahead, the dog smells close, whichever way it faces); E at the car you want and hold still to
@@ -36893,8 +37220,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     STORY.firstout = { nm: "FIRST DAY OUT", pay: 300 };
     function firstOutBegin() { storyHideRides(); g.clock = 4 * 60 + 30; g.nightTarget = 1;
       const b = g.aptHomeB; if (b) { g.inside = b; g.floor = 0; g.mode = "foot"; const pl = fitArtFloor(b, 0, b.artFloors[0], b.artKeep); const [x, y] = artAt(pl, APTC.bed[0] + 0.02, APTC.bed[1] + 0.22); g.p.x = x; g.p.y = y; g.cam.x = x; g.cam.y = y; }
-      storyStart("firstout"); g.story.cases = null;
-      g.jobBanner = "4:30 AM · PALM COURT"; g.jobNote = "You can't sleep. Ten years of 7:00 counts. You need wheels -- and nobody's selling to you."; }
+      storyStart("firstout"); g.story.cases = null; g.story.pre = 0;
+      g.jobBanner = "4:30 AM · PALM COURT"; g.jobNote = "You can't sleep. And somebody's honking outside."; }
     function firstOutLot() { const D = g.dealersB || dealers(); if (!D || !D.length) return null; const hb = g.aptHomeB || g.p;
       const L = D.filter((d) => d.b && !d.b.bozni && d.cars.some((c) => !c.sold)).sort((a, c) => Math.hypot(a.b.x - hb.x, a.b.y - hb.y) - Math.hypot(c.b.x - hb.x, c.b.y - hb.y))[0]; if (!L) return null;
       const [X0, Y0, X1, Y1] = L.lot, cars = L.cars.filter((c) => !c.sold), car = cars[(cars.length / 2) | 0];
@@ -36910,6 +37237,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       add("yard", "TONY (ANTON VOLKOV)", "THE SCRAPYARD", hideoutB(), 40, 0);
       return out; }
     function firstOutStep(dt) { const S = g.story;
+      if (S.pre != null && S.pre < 2 && joseStep(S, dt)) return;                         // Jose first (layer 493)
       if (S.step === 0) { if (!S.lot) S.lot = firstOutLot(); const L = S.lot; if (!L) { S.step = 2; return; }
         if (g.mode === "foot") for (const w of L.w) { const [tx, ty] = w.loop[w.li], dx = tx - w.x, dy = ty - w.y, d = Math.hypot(dx, dy);
           if (d < 6) w.li = (w.li + 1) % 4; else { w.x += dx / d * w.sp * dt; w.y += dy / d * w.sp * dt; w.a = Math.atan2(dy, dx); }
@@ -36921,21 +37249,41 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               idn: { model: carNice(c.k).toUpperCase(), colour: "", plate: "LOT", owner: (L.nm || "THE LOT") + " (STOLEN)" } });
             S.step = 1; storyMark("IT TURNS OVER · GET IN (E) AND GO"); } } }
         return; }
-      if (S.step === 1) { const L = S.lot, v = inVehicle() ? activeVeh() : null; if (v && Math.hypot(v.x - L.cx, v.y - L.cy) > 900) { S.step = 2; S.cases = firstOutCases(); storyMark("CLEAN AWAY"); g.nightTarget = 0; } return; }
+      if (S.step === 1) { const L = S.lot, v = inVehicle() ? activeVeh() : null;
+        if (S.jc) { if (S.run != null) { S.run += dt; if (S.run >= 1.4) { S.run = null; S.joseIn = 1; S.step = 2; S.cases = firstOutCases(); g.nightTarget = 0;
+              for (let n = g.traffic.length - 1; n >= 0; n--) if (g.traffic[n].joseCar) g.traffic.splice(n, 1);
+              g.pfol = [{ key: "h:jose", name: "JOSE DIAZ", role: "driver", yt: "yt_jose", x: g.p.x, y: g.p.y, vx: 0, vy: 0, seat: "car", lag: 0, cd: 0 }];
+              storyMark("JOSE'S DRIVING · THE RECON"); g.driveTalk = { who: "JOSE", text: "He piles in the passenger side and slaps the dash. “Nice! Okay, slide over -- I'm driving. You look.”", t: 6 }; joseLeg(S); } return; }
+          if (v && Math.hypot(v.x - S.jc[0], v.y - S.jc[1]) < 190 && Math.hypot(v.vx || 0, v.vy || 0) < 50) { S.run = 0; v.vx = 0; v.vy = 0; } return; }
+        if (v && Math.hypot(v.x - L.cx, v.y - L.cy) > 900) { S.step = 2; S.cases = firstOutCases(); storyMark("CLEAN AWAY"); g.nightTarget = 0; } return; }
       if (S.step === 2 || S.step === 3) { if (!S.cases) S.cases = firstOutCases();
         if (S.step === 3 && !S.house) { const hb = bozHouseInit(); if (hb) { const dx = doorPoint(hb)[0]; S.house = { k: "house", who: "VLAD BOZNOV & KATYA BOZNOVA", place: "THE BOZNOV HOUSE", x: dx, y: hb.y + hb.h + 40, vx: dx, vy: hb.y + hb.h + 160, m: 0, done: 0, two: 1 }; } }
         const list = S.step === 2 ? S.cases : [S.house].filter(Boolean), pv = inVehicle() ? activeVeh() : g.p, sp = Math.hypot(pv.vx || 0, pv.vy || 0);
-        for (const C of list) { if (C.done) continue; const d = Math.hypot(pv.x - C.x, pv.y - C.y);
+        if (S.joseIn && g.mode === "car") {                                                // Jose drives the recon (layer 493)
+          if (S.wait > 0) { S.wait -= dt; if (S.wait <= 0) { S.leg = null; if (joseRecon(S) && !(S.step === 2 && S.cases.every((c) => c.done))) joseLeg(S); } }
+          else if (!g.auto && S.leg) { const C = list.find((c) => c.k === S.leg && !c.done);
+            if (C && Math.hypot(pv.x - C.vx, pv.y - C.vy) < 420) { C.done = 1; C.m = 1; if (typeof bookNote === "function") bookNote("BOZNOV: " + C.who + " -- " + C.place + ". " + (JOSE_LINES[C.k] || ""));
+              g.driveTalk = { who: "JOSE · " + C.place, text: JOSE_LINES[C.k] || "", t: 7 }; camPanTo(C.x, C.y, 6); S.wait = 7; storyMark(C.who.split(" ")[0] + " · IN THE BOOK"); }
+            else joseLeg(S); }
+          else if (!g.auto && !S.leg && !(S.wait > 0)) joseLeg(S); }
+        for (const C of S.joseIn ? [] : list) { if (C.done) continue; const d = Math.hypot(pv.x - C.x, pv.y - C.y);
           if (d < 150) { if (C.m > 0) g.pickupFlash = { nm: "lift:TOO CLOSE -- HIS MEN ARE LOOKING AT YOU", t: 1.4 }; C.m = 0; continue; }
           if (d < 520 && sp < 60) { C.m = Math.min(1, C.m + dt / 5); if (C.m >= 1) { C.done = 1; if (typeof bookNote === "function") bookNote("BOZNOV: " + C.who + " -- " + C.place + ".");
               storyMark(C.who.split(" ")[0] + " · IN THE BOOK"); } } }
         if (S.step === 2 && S.cases.every((c) => c.done)) { S.step = 3; storyMark("ALL FOUR · NOW THE HOUSE"); }
-        if (S.step === 3 && S.house && S.house.done) { S.step = 4; storyMark("THE BOOK'S FULL · GO HOME");
+        if (S.step === 3 && S.house && S.house.done && !(S.wait > 0)) { S.step = 4; storyMark("THE BOOK'S FULL · GO HOME");
+          if (S.joseIn && g.car) { const H = joseHome(); if (H) { g.auto = { pts: streetRoute(g.car, H[0], H[1]), i: 0, sk: "normal", spd: CCAR.spd, who: "JOSE", whoKey: "h:jose", mode: "to", label: "PALM COURT", cab: 1 }; S.homeLeg = 1; } }
           const c = aptC(); if (c && c.aptPark) g.traffic.push({ x: c.aptPark.x + 31 + 62 * 2, y: c.aptPark.y + 60, ang: -Math.PI / 2, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0,
             m: { k: "car_crew_viejo", len: 112, w: 50, lowrider: 1 }, dead: 0, parked: 1, named: 1, trFree: 1, pabloCar: 1, idn: { model: "LOWRIDER", colour: "", plate: "VIEJO", owner: "PABLO DIAZ" } }); }
         return; }
-      if (S.step === 4) { if (g.inside && g.inside === g.aptHomeB && g.floor === 0 && !g.pickOpen) G.pickOpen("pablo"); return; } }
+      if (S.step === 4) { if (S.homeLeg === 1 && !g.auto && g.mode === "car") { S.homeLeg = 2; g.pfol = [];
+          g.driveTalk = { who: "JOSE", text: "“That's the car's home now -- your stall. Tío's upstairs, he let himself in. I'll walk back for mine.” He tosses you the keys and jogs off.", t: 7 }; }
+        if (g.inside && g.inside === g.aptHomeB && g.floor === 0 && !g.pickOpen) G.pickOpen("pablo"); return; } }
     function firstOutObjective() { const S = g.story, nm = "FIRST DAY OUT";
+      if (S.pre === 0) return { head: nm + " · OUTSIDE", sub: "Somebody's honking in front of Palm Court. Go out and see." };
+      if (S.pre === 1) return { head: nm + " · JOSE'S DRIVING", sub: g.mode === "car" && !g.auto ? "This is the lot. E to get out." : "Pablo's nephew. Listen." };
+      if (S.step === 1 && S.jc) return { head: nm + " · PICK UP JOSE", sub: S.run != null ? "Here he comes." : "Drive to the corner where Jose's standing (marked) and STOP." };
+      if ((S.step === 2 || S.step === 3) && S.joseIn) return { head: nm + " · THE RECON", sub: "Jose's driving. He'll stop at every Boznov place -- just look. " + (S.cases || []).filter((c) => c.done).length + " / 4" + (S.step === 3 ? " · THE HOUSE" : "") };
       if (S.step === 0) return { head: nm + " · STEAL A CAR", sub: S.lot ? S.lot.nm + "'s lot, before dawn. A night man and a dog walk it -- sneak (C), E at the car, hold still to hot-wire it." + (S.hot != null ? " WIRES: " + Math.round((1 - S.hot / 3) * 100) + "%" : "") : "Find a car lot." };
       if (S.step === 1) return { head: nm + " · GO", sub: "Get in (E) and get clear of the lot." };
       if (S.step === 2 || S.step === 3) { const L = S.step === 2 ? S.cases || [] : [S.house].filter(Boolean), cur = L.filter((c) => !c.done).map((c) => c.place + (c.m > 0 ? " " + Math.round(c.m * 100) + "%" : ""));
@@ -36953,7 +37301,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#9fc6ff"; ctx.fillText(w.nm, w.x, w.y - (w.dog ? 14 : 30)); ctx.textAlign = "start"; } }
       if (!g.inside && (S.step === 2 || S.step === 3)) { const list = (S.step === 2 ? S.cases || [] : [S.house]).filter(Boolean);
         for (const C of list) { const men = C.two ? [[-16, 0, 1], [16, 0, 2]] : [[0, 0, 3]];
-          for (const [ox, oy, v] of men) drawYouth({ x: C.x + ox, y: C.y + oy, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt: "yt_bratva_" + (v + 3), bang: Math.PI / 2 });
+          const who = { nest: ["yt_bozni_victor"], auto: ["yt_bozni_grigori"], hippy: ["yt_bratva_4"], yard: ["yt_hire_fixer_2"], house: ["yt_bozni_vlad", "yt_bozni_katya"] }[C.k] || [];   // their own faces (layer 493)
+          for (const [ox, oy, v] of men) drawYouth({ x: C.x + ox, y: C.y + oy, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt: who[v - 1] || who[0] || "yt_bratva_" + (v + 3), bang: Math.PI / 2 });
           ctx.font = "700 9px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = C.done ? "#e05a5a" : "#e8c46a"; ctx.fillText(C.done ? C.who : "WHO RUNS IT? · " + C.place, C.x, C.y - 34);
           if (!C.done && C.m > 0) { ctx.strokeStyle = "rgba(232,196,106,0.9)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(C.x, C.y, 26, -Math.PI / 2, -Math.PI / 2 + C.m * 6.283); ctx.stroke(); } ctx.textAlign = "start"; } }
       if (g.inside && g.inside === g.aptHomeB && g.floor === 0 && S.step >= 4) { const pl = fitArtFloor(g.inside, 0, g.inside.artFloors[0], g.inside.artKeep); if (pl && pl.artR2) { const [x, y] = artAt(pl, 0.315, 0.86);
@@ -36965,15 +37314,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function pabloPanel() { return { title: "PABLO DIAZ · ON YOUR SOFA", face: "assets/crew/pt_crew_viejo_civ.png",
       text: "PABLO: “Leroy's sister gave me a key. Relax.”\n\n“I know what you're doing, mijo. And I know who you're really doing it for. The Russians first, so you got something to stand on. Then the Deuce. I want in.”",
       opts: [{ id: "story:pablo:in", label: "“YOU'RE IN.”" }, { id: "story:pablo:no", label: "“IT'S NOT YOUR FIGHT.”" }] }; }
-    // what each of them says on the last day: like ten years of friends
+    // what each of them says on the last day: like seventeen years of friends
     const HOMIE_LINES = {
-      leroy: { hi: "Look at you, standing there like a free man already. Ten years I been telling you to sleep with your back to the wall, and tomorrow you get a real bed -- my sister's man got you a flat. Palm Court, by the pool. Don't go soft on me.",
+      leroy: { hi: "Look at you, standing there like a free man already. Seventeen years I been telling you to sleep with your back to the wall, and tomorrow you get a real bed -- my sister's man got you a flat. Palm Court, by the pool. Don't go soft on me.",
                job: "Wolves been eyeing your seat on the tier all week. He's gonna try you today, last day, to say he did. Let him swing first. Put him DOWN, and LEAVE him down.",
                after: "That's my man. Clean. The tower didn't even look up.", ok: "SAY LESS" },
-      ras:   { hi: "Wah gwaan, Rey! Last day, bredren. Ten years me look pon your face every morning. Tomorrow me haffi look pon Pablo. Lawd.",
+      ras:   { hi: "Wah gwaan, Rey! Last day, bredren. Seventeen years me look pon your face every morning. Tomorrow me haffi look pon Pablo. Lawd.",
                job: "Shakedown at noon. Hold this fi me -- dem cyaan find what dem cyaan see. Inna your mattress. POCKETS, then E at your bunk.",
                after: "Respect. You learn something in here after all.", ok: "I GOT YOU" },
-      viejo: { hi: "Mijo. Ten years and you never had a birthday in here that meant anything. Tomorrow is your birthday. The real one.",
+      viejo: { hi: "Mijo. Seventeen years and you never had a birthday in here that meant anything. Tomorrow is your birthday. The real one.",
                job: "So you need a cake. The warden's got one in the mess hall kitchen for tonight. Go get it. The cook and the hack can't see you -- crouch (C), watch where they're looking, move when they turn.",
                after: "Ha! Look at that. Tonight we eat like the warden.", ok: "SAY NO MORE" } };
     function storyCrewPanel(C) { const S = g.story, k = C.id, L = HOMIE_LINES[k]; if (!S || S.id !== "lastday" || !L) return null;
@@ -36983,16 +37332,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return { title, face, text: "“" + (S.side[k] ? L.after : L.job) + "”", opts: [{ id: "close", label: "LATER" }] }; }
     function storyByePanel() { return { title: "LAST DAY IN · THE CAKE", face: "assets/crew/pt_crew_leroy.png",
       text: "The four of you on two bunks, the warden's cake on a towel, plastic forks.\n\nLEROY: “Key's under the mat. Palm Court, Building A, 1A. Don't thank me. Just don't come back.”\nRAS: “Me pay a man fi tomorrow. You'll see. Walk good, Rey.”\nPABLO: “A few weeks, mijo. Don't start the war without me.”",
-      opts: [{ id: "story:bye", label: "“TEN YEARS. I'LL SEE YOU OUT THERE.”" }] }; }
-    function storyObjective() { const S = g.story; if (S && S.id === "dayout") return dayOutObjective(); if (S && S.id === "firstout") return firstOutObjective(); if (S && S.id === "scrapyard") return scrapObjective(); if (S && S.id === "friday") return fridayObjective(); if (S && S.id === "allin") return allinObjective(); if (S && S.id === "washday") return washObjective(); if (S && S.id === "maptable") return maptableObjective(); if (S && S.id === "bankjob") return bankjobObjective(); if (S && S.id === "corner") return cornerObjective(); if (S && S.id === "nest") return nestObjective(); if (!S || S.id !== "lastday") return null; const nm = "LAST DAY IN";
+      opts: [{ id: "story:bye", label: "“SEVENTEEN YEARS. I'LL SEE YOU OUT THERE.”" }] }; }
+    function storyObjective() { const S = g.story; if (S && S.id === "setup") return setupObjective(); if (S && S.id === "dayout") return dayOutObjective(); if (S && S.id === "firstout") return firstOutObjective(); if (S && S.id === "scrapyard") return scrapObjective(); if (S && S.id === "friday") return fridayObjective(); if (S && S.id === "allin") return allinObjective(); if (S && S.id === "washday") return washObjective(); if (S && S.id === "maptable") return maptableObjective(); if (S && S.id === "bankjob") return bankjobObjective(); if (S && S.id === "corner") return cornerObjective(); if (S && S.id === "nest") return nestObjective(); if (!S || S.id !== "lastday") return null; const nm = "LAST DAY IN";
       if (S.step === 0) { const ks = ["leroy", "ras", "viejo"], left = ks.filter((k) => !S.talked[k]);
         if (left.length) return { head: nm + " · TALK TO YOUR PEOPLE", sub: ks.map((k) => (S.talked[k] ? "✓ " : "· ") + HOMIE[k]).join("   ") + " — E to talk. They're on your tier." };
         const sub = [S.side.ras ? "✓ RAS: the shank's hidden" : "RAS: hide the shank in your mattress (POCKETS, E at your bunk)",
           S.side.leroy ? "✓ LEROY: he's down" : S.foeKey ? "LEROY: put him DOWN" : "LEROY: wait on your tier -- somebody wants your seat",
           S.side.viejo ? "✓ PABLO: the cake" : S.cake ? "PABLO: bring the cake back to your block" : "PABLO: the cake, mess hall kitchen -- unseen (C to sneak)"].join(" · ");
         return { head: nm + " · " + ["ras", "leroy", "viejo"].filter((k) => S.side[k]).length + " / 3", sub }; }
-      if (S.step === 1) return { head: nm + " · GO BACK TO YOUR CELL", sub: "They're bringing the cake." };
-      return { head: nm + " · LIGHTS OUT", sub: "E at your bunk. Sleep." }; }
+      if (S.step === 1) return { head: nm + " · GO BACK TO YOUR CELL", sub: "All three are in your cell with the cake." };
+      return { head: nm + " · THE WALK OUT", sub: "Two C.O.s, the yard, the gate. Seventeen years." }; }
     // the cake: the mess hall kitchen, a cook on the line and a hack at the kitchen door, both with eyes
     function cakeSetup(b) { const S = g.story, pl = buildingPlans(b)[0]; if (!pl) return null;
       const kr = pl.rooms.find((r) => r.k === "pkitchen"), ch = pl.rooms.find((r) => r.k === "pchow"); if (!kr || !ch) return null;
@@ -37011,12 +37360,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (walls.some((q) => px > q.x && px < q.x + q.w && py > q.y && py < q.y + q.h)) return false; } }
       return true; }
     function storyStep(dt) {
-      if (g.slam) { g.slam.t += dt; if (g.slam.kind !== "fail" && g.slam.t > (g.slam.kind === "start" ? 3 : 4.5)) g.slam = null;
+      if (g.slam) { g.slam.t += dt; if (g.slam.kind !== "fail" && g.slam.t > (g.slam.kind === "start" || g.slam.kind === "side" ? 3 : 4.5)) g.slam = null;
         else if (g.slam.kind === "fail") { g.p.vx = 0; g.p.vy = 0; if (g.pickOpen !== "storyfail") G.pickOpen("storyfail"); return; } }
       stepEarlCab(dt);
-      if (g.storyNext && !g.slam) { g.storyNext.t -= dt; if (g.storyNext.t <= 0) { const nx = g.storyNext.id; g.storyNext = null; if (nx === "dayout") dayOutBegin(); if (nx === "firstout") firstOutBegin(); if (nx === "scrapyard") scrapBegin(); if (nx === "friday") fridayBegin(); if (nx === "allin") allinBegin(); if (nx === "washday") washBegin(); if (nx === "maptable") maptableBegin(); if (nx === "bankjob") bankjobBegin(); if (nx === "corner") cornerBegin(); if (nx === "nest") nestBegin(); } }
+      if (g.storyNext && !g.slam) { g.storyNext.t -= dt; if (g.storyNext.t <= 0) { const nx = g.storyNext.id; g.storyNext = null; if (nx === "dayout") dayOutBegin(); if (nx === "firstout") firstOutBegin(); if (nx === "scrapyard") scrapBegin(); if (nx === "friday") fridayBegin(); if (nx === "allin") allinBegin(); if (nx === "washday") washBegin(); if (nx === "maptable") maptableBegin(); if (nx === "bankjob") bankjobBegin(); if (nx === "corner") cornerBegin(); if (nx === "nest") nestBegin(); if (nx === "lastday") lastdayBegin(); } }
       const S = g.story; if (!S) return;
       if (S.grace > 0) { S.grace -= dt; return; }                                   // a breath after a retry
+      if (S.id === "setup") { setupStep(dt); return; }                                         // Mission 0 (layer 497)
       if (S.id === "dayout") { if (g.hole && !S.holeSeen) { S.holeSeen = 1; storyFail("They took you back to Kestrel. One day out."); return; } dayOutStep(dt); return; }
       if (S.id === "scrapyard") { scrapStep(dt); return; }
       if (S.id === "friday") { if (S.step === 0) return; fridayStep(dt); return; }
@@ -37033,14 +37383,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!g.hole) S.holeSeen = 0;
       if (S.step === 0) {
         // RAS: the shank in a stash, not on you
-        if (S.talked.ras && !S.side.ras && (g.pinv || []).indexOf("shank") < 0 && shankCount() > (S.shankBase || 0)) { S.side.ras = 1; storyMark("RAS · THE SHANK'S HIDDEN"); }
+        if (S.talked.ras && !S.side.ras && (g.pinv || []).indexOf("shank") < 0 && shankCount() > (S.shankBase || 0)) { S.side.ras = 1; sideDone("ras"); }
         // LEROY: a con on your tier comes for your seat; put him down
         if (S.talked.leroy && !S.side.leroy && g.inside && g.pcell && g.inside === g.pcell.b && g.floor === 0) {
           const F = prisonFolk() || []; let foe = S.foeKey ? F.find((q) => folkKey(q) === S.foeKey) : null;
           if (!foe && !S.foeKey) { foe = F.filter((q) => q.convict && !q.crew && !q.guard && !q.store && !q.down && !q.shot && !q.bodyguard && !q.queen && Math.hypot(q.x - g.p.x, q.y - g.p.y) < 420)
               .sort((a, c) => Math.hypot(a.x - g.p.x, a.y - g.p.y) - Math.hypot(c.x - g.p.x, c.y - g.p.y))[0];
             if (foe) { S.foeKey = folkKey(foe); foe.angry = 1; foe.storyFoe = 1; g.pickupFlash = { nm: "lift:" + (foe.name ? foe.name.toUpperCase() : "A WOLVES CON") + " WANTS YOUR SEAT · F TO STRIKE", t: 2.6 }; } }
-          if (foe) { foe.storyFoe = 1; if (!foe.down) foe.angry = 1; if (foe.down) { S.side.leroy = 1; storyMark("LEROY · HE'S DOWN"); } } }
+          if (foe) { foe.storyFoe = 1; if (!foe.down) foe.angry = 1; if (foe.down) { S.side.leroy = 1; sideDone("leroy"); } } }
         // PABLO: the cake
         if (S.talked.viejo && !S.side.viejo) {
           const b = g.inside;
@@ -37050,14 +37400,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                 else w.a = w.base + Math.sin((g.t || 0) * 0.55) * w.sweep;
                 if (coneSees(w, g.p.x, g.p.y, true)) { storyFail(w.nm + " SAW YOU. Pablo's going to be disappointed."); return; } }
               if (Math.hypot(g.p.x - Wt.cake.x, g.p.y - Wt.cake.y) < 44) { S.cake = 1; storyMark("PABLO · YOU'VE GOT THE CAKE"); } } }
-          if (S.cake && g.pcell && g.inside === g.pcell.b) { S.side.viejo = 1; storyMark("PABLO · THE CAKE'S HOME"); } }
-        if (S.side.ras && S.side.leroy && S.side.viejo) { S.step = 1; storyMark("ALL THREE DONE"); }
+          if (S.cake && g.pcell && g.inside === g.pcell.b) { S.side.viejo = 1; sideDone("viejo"); } }
+        if (S.side.ras && S.side.leroy && S.side.viejo && !g.slam) { S.step = 1; g.pfolk = null; storyMark("ALL THREE DONE · THE CAKE"); }
       } else if (S.step === 1) { if (typeof myCellHere === "function" && myCellHere() && !g.pickOpen) G.pickOpen("storybye"); } }
     // the watchers (the cake's cook and hack), the cake, and their cones -- the cones only while you're sneaking or in cover
     function drawStory() { const S = g.story; if (!S || !g.inside) return;
       const Wt = S.watch; if (Wt && g.inside.key === Wt.b && g.floor === 0 && !S.side.viejo) {
-        if (!S.cake) { const c = Wt.cake; ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(c.x - 15, c.y - 9, 34, 22); ctx.fillStyle = "#f4ecdc"; ctx.fillRect(c.x - 17, c.y - 12, 34, 22);
-          ctx.fillStyle = "#e58bb0"; ctx.fillRect(c.x - 17, c.y - 12, 34, 5); ctx.fillStyle = "#c0392b"; for (let q = 0; q < 4; q++) ctx.fillRect(c.x - 12 + q * 8, c.y - 4, 3, 3);
+        if (!S.cake) { const c = Wt.cake; drawCake(c.x, c.y, 0.85);
           ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd36a"; ctx.fillText("THE CAKE", c.x, c.y - 18); ctx.textAlign = "start"; }
         if (g.p.sneak || g.p.cover) for (const w of Wt.list) drawCone(w, coneSees(w, g.p.x, g.p.y, true));
         for (const w of Wt.list) { drawShadow(w.x, w.y + 2, 10, 4, 0.3); drawYouth({ x: w.x, y: w.y, vx: Math.cos(w.a) * 5, vy: Math.sin(w.a) * 5, anim: (g.t || 0) * 4, jit: 1, tall: 1.25, yt: w.yt, bang: w.a });
@@ -37127,7 +37476,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return false;
     };
     function bunkPanel() {
-      if (g.story && g.story.id === "lastday" && g.story.step === 2) return { title: "YOUR BUNK \u00b7 THE LAST NIGHT", face: null, text: "Ten years on this mattress. One more night.",
+      if (g.story && g.story.id === "lastday" && g.story.step === 2) return { title: "YOUR BUNK \u00b7 THE LAST NIGHT", face: null, text: "Seventeen years on this mattress. One more night.",
         opts: [{ id: "sleep:dawn", label: "SLEEP" }] };
       return { title: "YOUR BUNK \u00b7 " + clockText(g.clock || 0), face: null, text: "Thin mattress, thinner blanket. Time goes faster asleep.",
         opts: SLEEP_TO.map(([k, lab]) => ({ id: "sleep:" + k, label: "SLEEP UNTIL " + lab }))
@@ -37876,7 +38225,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const to = w === "home" ? stuSchoolB() : studentHome(), d = doorPoint(to);
       g.p.x = d[0] + 30; g.p.y = d[1] + 40; g.cam.x = g.p.x; g.cam.y = g.p.y;
       g.clock = w === "home" ? 470 : Math.max(g.clock, 900) + 15; g.sfolk = null;
-      g.jobBanner = "THE BUS"; g.jobNote = w === "home" ? "Twenty minutes of somebody's Walkman too loud. You're at school." : "Home.";
+      g.jobBanner = "THE BUS"; g.jobNote = w === "home" ? "Twenty minutes of somebody's headphones too loud. You're at school." : "Home.";
       return true;
     };
     function drawStudentWorld(view) {
@@ -41780,7 +42129,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       // PRISON MODE: you are the man on the intake page
       /* #0001's own plates: the jumpsuit inside, the leather jacket once he has changed (g.pcivvies).
          The old intake plate is the fallback while the new files are not up. */
-      const pkey = [g.pcivvies && g.pfit && REY_FITS[g.pfit] ? REY_FITS[g.pfit].k : null, g.pcivvies ? "yt_player_civ" : "yt_player_in", "yt_pr_player"].find((k) => k && imgs.current[k] && imgs.current[k].width);   // Rey's outfits (layer 483)
+      const pkey = [g.flash1976 ? "yt_rey69" : null, g.pcivvies && g.pfit && REY_FITS[g.pfit] ? REY_FITS[g.pfit].k : null, g.pcivvies ? "yt_player_civ" : "yt_player_in", "yt_pr_player"].find((k) => k && imgs.current[k] && imgs.current[k].width);   // Rey's outfits (layer 483)
       const skey = g.studentMode ? (g.stu && g.stu.school === "aldric" ? "yt_stu_player_sa" : "yt_stu_player_ch") : null;
       if (g.studentMode && g.pRiding) return;                // inside the bus: not drawn
       const conv = g.studentMode && imgs.current[skey] && imgs.current[skey].width ? imgs.current[skey] : g.prisonMode && pkey ? imgs.current[pkey] : null;
@@ -43102,6 +43451,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (c.lightHex) drawUnderglow(c.lightHex, w, L);
       drawBody(im, w, L, c);
       drawHoodBlower(c, L);
+      drawCarWing(c, L, w);                                                                  // the shop's wing, on the trunk (layer 494)
       drawCarWeapons(c, L, w);
       ctx.restore();
       drawDamageFx(c, L);
@@ -43569,8 +43919,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       updateEngineSpeed(playerSpeed, inVehicle(), !!g.paused);
 
       const P = g.police;
-      const sirenOn = !!(P && !P.arrived);
-      const sirenDist = P ? Math.hypot(P.car.x - g.cam.x, P.car.y - g.cam.y) : 9999;
+      const SS = g.setupSiren, sirenOn = !!(P && !P.arrived) || !!SS;                          // + Mission 0's cruisers (layer 497)
+      const sirenDist = P && !P.arrived ? Math.hypot(P.car.x - g.cam.x, P.car.y - g.cam.y) : SS ? Math.hypot(SS[0] - g.cam.x, SS[1] - g.cam.y) : P ? Math.hypot(P.car.x - g.cam.x, P.car.y - g.cam.y) : 9999;
       updateSiren(v.siren, dt, sirenDist, sirenOn);
 
       let nearestKing = 9999;
@@ -44091,8 +44441,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.fly && Number.isFinite(g.fly.x)) {
         g.cam.x = g.fly.x; g.cam.y = g.fly.y; g.shake = 0;
       } else if (!g.title) {
-      const tx = e.x + clamp(evx * 0.35, -180, 180);
-      const ty = e.y + clamp(evy * 0.35, -180, 180);
+      const pan = camPanOff(e);                                                          // the camera looks at the place he's talking about (layer 493)
+      const tx = pan ? pan[0] : e.x + clamp(evx * 0.35, -180, 180);
+      const ty = pan ? pan[1] : e.y + clamp(evy * 0.35, -180, 180);
       g.cam.x = lerp(g.cam.x, tx, clamp(dt * 4.2, 0, 1));
       g.cam.y = lerp(g.cam.y, ty, clamp(dt * 4.2, 0, 1));
       const sp = Math.hypot(evx, evy);
@@ -44311,7 +44662,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (kind === 9) p.__draw();
       }
       if (g.inside && g.insideT > 0.5) { drawHoopsOver(); drawBizExtras(); }
-      drawStory(); drawFirstOut(); drawScrap2(); drawFriday(); drawAllin(); drawWash(); drawWashCrew(); drawParty(); drawMorning(); drawMaptable(); drawPabloHang(); drawBozFolk(); drawDreadCorner(); drawCornerMark(); drawSiteCones(); drawCover(); drawBombed(view); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
+      drawStory(); drawSetup(); drawFirstOut(); drawScrap2(); drawFriday(); drawAllin(); drawWash(); drawWashCrew(); drawParty(); drawMorning(); drawMaptable(); drawPabloHang(); drawBozFolk(); drawDreadCorner(); drawCornerMark(); drawCellParty(); drawEscort(); drawEddie(); drawJose(); drawSiteCones(); drawCover(); drawBombed(view); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
       if (!g.inside) {
         // Roofs belong ABOVE the sorted building list, not before it -- drawn early, every
         // building painted straight over the roof and the man standing on it.
@@ -44401,7 +44752,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       drawWeaponIcons();
       drawPlateShow();
       drawStreetPop();
+      drawSetupTop(view);                                                       // Mission 0's four blocks (layer 497)
       drawDriveTalk();
+      drawVerdict();                                                            // the verdict folder (layer 497)
       drawStudentClock();
       drawCase(view);
       drawStadium();
@@ -44795,6 +45148,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             obj: g.prisonMode ? prisonObjective() : jobObjective(),
             slam: g.slam ? { kind: g.slam.kind, title: g.slam.title, sub: g.slam.sub, pay: g.slam.pay || 0 } : null,
             blackA: g.blackA > 0.01 ? Math.round(g.blackA * 100) / 100 : 0,
+            flash76: !!g.flash1976, t76: g.flash1976 ? (Math.random() * 160) | 0 : 0,
             watch: g.watchOn ? (() => { const c = Math.floor(g.clock || 0), h = Math.floor(c / 60) % 24, m = c % 60; return ((h + 11) % 12 + 1) + ":" + String(m).padStart(2, "0") + (h < 12 ? "a" : "p"); })() : null,
             crime: g.crime ? { place: g.crime.place, result: g.crime.result,
               code: g.crime.code, label: g.crime.label,
@@ -44872,6 +45226,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.saveFn = () => { const ok = saveGame();
       G.current.pickupFlash = { nm: ok ? "saved" : "save_failed", t: 1.8 }; };
     G.hasSaveFn = () => !!loadSave();
+    G.slotsFn = () => { const out = []; for (let n = 1; n <= SAVE_SLOTS; n++) { let o = null; try { const raw = window.localStorage.getItem(slotKey(n) + ":lite") || window.localStorage.getItem(slotKey(n)); o = raw ? JSON.parse(raw) : null; } catch (e) { o = null; }
+        out.push({ n, on: n === curSlot(), empty: !o, tag: o ? o.slotTag || (o.v === SNAP_V ? "SAVED GAME" : "THE LION") : "EMPTY", cash: o ? Math.round(o.cash || (o.p && o.p.cash) || 0) : 0, t: o && o.t ? new Date(o.t).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "" }); }
+      return out; };
+    G.slotPick = (n) => { g.saveSlot = clamp(n, 1, SAVE_SLOTS); try { window.localStorage.setItem("ironlion.slot", String(g.saveSlot)); } catch (e) {} setHud((h) => ({ ...h, slot: g.saveSlot, hasSave: !!loadSave() })); };
+    G.saveToFn = (n) => { G.slotPick(n); const ok = saveGame(); G.current.pickupFlash = { nm: ok ? "lift:SAVED TO SLOT " + n : "save_failed", t: 1.8 }; setHud((h) => ({ ...h, slot: n, slotsAt: Date.now() })); };
     /* G.loadFn() puts back the exact moment; G.loadFn("lite") only the Lion's numbers (a mode start from the title
        begins its own scene and carries the cash and progress in). */
     G.loadFn = (lite) => {
@@ -51185,8 +51544,19 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               background: "rgba(10,11,14,0.72)", color: "#e8d9b5", fontSize: 12,
               letterSpacing: "0.28em", cursor: "pointer", userSelect: "none",
               boxShadow: "0 0 22px rgba(217,164,65,0.18)" }}>
-            {hud.hasSave ? "CONTINUE" : "BEGIN"}
+            {hud.hasSave ? "CONTINUE · SLOT " + (G.slotsFn ? G.slotsFn().find((q) => q.on).n : 1) : "BEGIN · SLOT " + (G.slotsFn ? G.slotsFn().find((q) => q.on).n : 1)}
           </div>
+          {G.slotsFn && (
+            <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap", justifyContent: "center", maxWidth: "92vw" }}>
+              {G.slotsFn().map((q) => (
+                <div key={q.n} data-pickopt="1" onClick={() => G.slotPick(q.n)}
+                  style={{ padding: "7px 12px", minWidth: 150, border: "1px solid " + (q.on ? C.gold : "rgba(232,217,181,0.25)"), background: q.on ? "rgba(217,164,65,0.14)" : "rgba(10,11,14,0.6)",
+                    color: q.on ? "#f2dc9a" : "rgba(232,217,181,0.7)", fontSize: 9, letterSpacing: "0.14em", cursor: "pointer", userSelect: "none", textAlign: "left", lineHeight: 1.5 }}>
+                  <div style={{ fontWeight: 700 }}>SLOT {q.n}{q.on ? " \u00b7 SELECTED" : ""}</div>
+                  <div>{q.empty ? "EMPTY" : q.tag}</div>
+                  {!q.empty && <div style={{ opacity: 0.7 }}>${q.cash.toLocaleString()}{" \u00b7 "}{q.t}</div>}
+                </div>))}
+            </div>)}
           {/* DETECTIVE MODE: straight into the task force room in plain clothes, Malcolm with a
               case already in his hand. Picks up a save if there is one, like BEGIN does. */}
           <div
@@ -51250,13 +51620,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       )}
 
       {/* THE SLAMS (layer 478): a mission's name as it starts, MISSION COMPLETE with the pay, MISSION FAILED (its panel has the retry) */}
+      {hud.flash76 && <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 38, backdropFilter: "sepia(0.8) saturate(0.75) contrast(1.06) brightness(1.04)", WebkitBackdropFilter: "sepia(0.8) saturate(0.75) contrast(1.06) brightness(1.04)",
+        backgroundImage: "url(" + flashGrain() + ")", backgroundPosition: hud.t76 + "px " + ((hud.t76 * 7) % 160) + "px", boxShadow: "inset 0 0 180px rgba(40,22,4,0.7)" }} />}
       {hud.blackA > 0 && <div style={{ position: "absolute", inset: 0, background: "#000", opacity: hud.blackA, pointerEvents: "none", zIndex: 39 }} />}
       {hud.slam && (
         <div key={hud.slam.kind + hud.slam.title + hud.slam.sub} style={{ position: "absolute", left: 0, right: 0, top: "26%", textAlign: "center", pointerEvents: "none", zIndex: 40, fontFamily: mono }}>
           <style>{`@keyframes rhSlam { 0% { transform: scale(2.6); opacity: 0; } 55% { transform: scale(0.94); opacity: 1; } 75% { transform: scale(1.03); } 100% { transform: scale(1); opacity: 1; } }
             @keyframes rhSlamSub { 0%, 40% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: none; } }`}</style>
-          <div style={{ display: "inline-block", animation: "rhSlam .55s cubic-bezier(.2,.9,.3,1.2) both", fontSize: hud.slam.kind === "start" ? 46 : 60, fontWeight: 900, letterSpacing: "0.10em",
-            color: hud.slam.kind === "fail" ? "#e8302a" : hud.slam.kind === "done" ? "#f2c45a" : "#e8d9b5", textShadow: "0 4px 0 rgba(0,0,0,0.85), 0 0 30px rgba(0,0,0,0.9)",
+          <div style={{ display: "inline-block", animation: "rhSlam .55s cubic-bezier(.2,.9,.3,1.2) both", fontSize: hud.slam.kind === "start" ? 46 : hud.slam.kind === "side" ? 40 : 60, fontWeight: 900, letterSpacing: "0.10em",
+            color: hud.slam.kind === "fail" ? "#e8302a" : hud.slam.kind === "done" ? "#f2c45a" : hud.slam.kind === "side" ? "#7fd35a" : "#e8d9b5", textShadow: "0 4px 0 rgba(0,0,0,0.85), 0 0 30px rgba(0,0,0,0.9)",
             background: "linear-gradient(90deg, transparent, rgba(8,8,10,0.78) 15%, rgba(8,8,10,0.78) 85%, transparent)", padding: "10px 90px" }}>
             {hud.slam.title}
           </div>
@@ -52539,7 +52911,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start",
             maxWidth: "34vw", maxHeight: "94vh", overflowY: "auto" }}>
           <div style={{ fontSize: 11, letterSpacing: "0.24em", color: C.gold }}>
-            RAVEN HOOK · 1986
+            {hud.flash76 ? "RAVEN HOOK \u00b7 1976" : "RAVEN HOOK \u00b7 1986"}
           </div>
           {/* Call a job from the map instead of waiting out the cooldown. It closes the map on
               its way, because the point of the button is to go now. */}
@@ -52681,8 +53053,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               style={{ padding: "8px 14px", border: `1px solid ${C.gold}`, cursor: "pointer",
                 background: "rgba(217,164,65,0.10)", color: C.gold, fontSize: 10,
                 letterSpacing: "0.18em" }}>
-              SAVE NOW
+              SAVE NOW{G.slotsFn ? " \u00b7 SLOT " + G.slotsFn().find((q) => q.on).n : ""}
             </div>
+            {[1, 2, 3].map((n) => (
+              <div key={"sv" + n} onClick={(e) => { e.stopPropagation(); G.saveToFn && G.saveToFn(n); }}
+                style={{ padding: "8px 12px", border: "1px solid rgba(217,164,65,0.45)", cursor: "pointer", background: "rgba(217,164,65,0.06)", color: C.gold, fontSize: 10, letterSpacing: "0.16em" }}>
+                SAVE TO {n}
+              </div>))}
             <div onClick={(e) => { e.stopPropagation(); G.wipeFn && G.wipeFn(); }}
               style={{ padding: "8px 14px", border: "1px solid rgba(235,70,56,0.55)",
                 cursor: "pointer", background: "rgba(40,12,12,0.6)", color: "#ef8a80",
