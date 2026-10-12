@@ -3709,6 +3709,10 @@ const BRATVA_YT = [1, 2, 3, 4, 5, 6].map((i) => "yt_bratva_" + i);
 for (const k of ["vlad", "victor", "grigori", "katya"]) PD_ART["yt_bozni_" + k] = "assets/crew/bust_bozni_" + k + ".png";
 const YT_ARMS = { yt_bozni_vlad: ["#3d4149", "#c9967a"], yt_bozni_victor: ["#4a6f9c", "#b88262"], yt_bozni_grigori: ["#1d1e22", "#c4927a"], yt_bozni_katya: ["#18181c", "#efc7aa"] };
 PD_ART.it_hippie_bag = "assets/items/it_hippie_bag.png";
+// layer 499: the Boznov backyard, the ivory deck, Damian's newspaper
+for (const k of ["yd_grill_red", "yd_grill_black", "yd_lounger_a", "yd_lounger_b", "yd_sidetable_a", "yd_sidetable_b", "yd_table_round", "yd_pool", "yd_umbrella", "yd_boombox", "yd_charcoal", "yd_cooler", "yd_flipflop_a", "yd_beachball", "yd_tongs", "yd_bbq_table"]) PD_ART[k] = "assets/yard/" + k + ".png";
+PD_ART.tx_ivory_deck = "assets/tex/tx_ivory_deck.png";
+PD_ART.ui_newspaper = "assets/ui/ui_newspaper.png";
 /* layer 497: Dread, Tony, Harlan, Nicky, Yuri, the 1969 cast, Mission 11 props, 1969 cars, construction props, the verdict folder */
 for (const k of ["dread", "tony", "harlan", "nicky", "yuri", "rey69", "rochelle69", "damian69", "julian69", "tiny69", "cop69_a", "cop69_b"]) PD_ART["yt_" + k] = "assets/crew/yt_" + k + ".png";
 for (const k of ["it_ledger", "pr_office_safe", "pr_office_safe_open", "it_gascan", "it_gascan_b", "it_pinkslip"]) PD_ART[k] = "assets/items/" + k + ".png";
@@ -12301,6 +12305,11 @@ export default function IronLionLayer004() {
     const g = G.current;
     if (g.pintro) { G.introSkip && G.introSkip(); return; }             // E skips the bus
     if (G.setupEFn && G.setupEFn()) return;                               // Mission 0: the gun, the bunk (layer 497)
+    if (G.storyEFn && G.storyEFn()) return;                               // Missions 11-16 (layer 498)
+    if (G.yardDoorFn && G.yardDoorFn()) return;                           // the Boznov back door (layer 499)
+    if (G.raShopFn && G.raShopFn()) return;                               // Raven Auto's parts counter (layer 499)
+    if (G.empFn && G.empFn()) return;                                     // the business screen
+    if (G.mimiFn && G.mimiFn()) return;                                   // Mimi's table
     if (G.truckFn && G.truckFn()) return;                                 // the Happy Hippy's laundry truck, before its door (layer 485)
     if (G.eddieFn && G.eddieFn()) return;                                 // Eddie at his cab (layer 493)
     if (G.joseFn && G.joseFn()) return;                                   // Jose at his hatchback
@@ -16782,6 +16791,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "fo_jose") return josePanel();
       if (kind && (kind.startsWith("co_") || kind.startsWith("ne_"))) return coPanel(kind);   // layer 491
       if (kind && kind.startsWith("su_")) return suPanel(kind);                              // layer 497
+      if (kind && kind.startsWith("sp_") && SP[kind]) return SP[kind]();                     // layer 498
+      if (kind && kind.startsWith("emp:")) return empPanel(kind.slice(4));
       if (kind === "katya2") return katyaPanel(2);
       if (kind === "phone") return phonePanel();
       if (kind === "aptbed") return aptBedPanel();
@@ -16974,6 +16985,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("arm:")) { G.armoryPick(id); G.pickOpen("armory"); return; }
       else if (id.startsWith("wsel:")) { G.wheelWeapon(id.slice(5)); return; }
       else if (id.startsWith("bm:")) { G.baseManPick(id); G.pickOpen("baseman"); return; }
+      else if (id.startsWith("emp:")) { G.empPick(id); return; }                                   // the business screen (layer 498)
       else if (id.startsWith("biz:")) { G.bizPick(id); G.pickOpen("bizshop"); return; }
       else if (id.startsWith("mp:take:")) { G.motorPick(id); return; }
       else if (id === "art:more") { const w = g.artTalk; if (w) g.artSaid = cpick(ART_LINES[w.role] || ["..."]); G.pickOpen("artstaff"); return; }
@@ -33757,8 +33769,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function garagePanel(kind) {
       if (kind === "cars") return { title: "WHICH CAR?", text: "\u201cWhich one you want me under the hood of?\u201d", opts: motorPool().slots.map((c, n) => c ? { id: "gp:car:" + n, label: stallName(n) + " \u00b7 " + c.nm } : null).filter(Boolean).concat([{ id: "close", label: "LATER" }]) };
       const s = gpSlot(), P = PARTS[kind]; if (!s || !P) return null; const m = s.mods || {}, have = kind === "nitro" ? (m.nitro && m.nitro.t) : m[kind];
-      const opts = kind === "weapons" ? gpWpnOpts(m) : P.list.map((q) => ({ id: "gp:buy:" + kind + ":" + q.k, card: PD_ART["pa_" + q.img], contain: true, dim: String(have) === q.k,
-        label: (String(have) === q.k ? "\u2713 " : "") + q.nm + " \u00b7 $" + q.price.toLocaleString() + (q.note ? " \u00b7 " + q.note : "") }));
+      const opts = kind === "weapons" ? gpWpnOpts(m) : P.list.map((q) => { const lk = partLocked(kind, q) && String(have) !== q.k; return { id: "gp:buy:" + kind + ":" + q.k, card: PD_ART["pa_" + q.img], contain: true, dim: String(have) === q.k || lk,
+        label: lk ? "\ud83d\udd12 " + q.nm + " \u00b7 " + lockNote(kind, q) : (String(have) === q.k ? "\u2713 " : "") + q.nm + " \u00b7 $" + Math.round(q.price * shopOff()).toLocaleString() + (q.note ? " \u00b7 " + q.note : "") }; });
       if (kind === "nitro" && m.nitro) opts.unshift({ id: "gp:buy:nitro:refill", label: "REFILL THE " + m.nitro.t.toUpperCase() + " TANK \u00b7 $" + (m.nitro.t === "nos" ? 700 : 400) + " A SHOT (" + m.nitro.n + "/3)" });
       opts.push({ id: "gp:back", label: "BACK TO THE WHEEL" }, { id: "close", label: "DONE" });
       return { title: P.nm + " \u00b7 " + (s.nm || "YOUR CAR") + " \u00b7 $" + (g.p.cash || 0).toLocaleString(), text: g.gpSaid || ("\u201c" + P.sub + ".\u201d  Pick one and it's on the car by morning."), opts }; }
@@ -33774,14 +33786,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (a === "buy") { const s = gpSlot(); if (!s) return; const m = (s.mods = s.mods || {});
         if (x === "nitro" && y === "refill") { const nx = m.nitro, c1 = nx && nx.t === "nos" ? 700 : 400; if (!nx || nx.n >= 3) { g.gpSaid = "\u201cShe's full.\u201d"; }
           else if ((g.p.cash || 0) < c1) g.gpSaid = "\u201cCash first, boss.\u201d"; else { g.p.cash -= c1; nx.n++; g.gpSaid = "\u201cTopped her off. " + nx.n + " shots.\u201d"; } G.pickOpen("gp:nitro"); return; }
+        if (x !== "nitro" || y !== "refill") { const q0 = partOf(x, y); if (q0 && partLocked(x, q0) && (x === "weapons" || (x === "nitro" ? (m.nitro && m.nitro.t) : m[x]) !== y)) { g.gpSaid = "\u201cCan't get that here. " + lockNote(x, q0).toLowerCase() + ".\u201d"; G.pickOpen("gp:" + x); return; } }   // layer 499
         if (x === "weapons") { const q = partOf("weapons", y); if (!q) return; const w = (m.wpn = m.wpn || {}), owned = w[y] != null, cost = owned ? Math.round(q.price * 0.3) : q.price;
           if (owned && w[y] >= q.ammo) g.gpSaid = "\u201cShe's full.\u201d"; else if ((g.p.cash || 0) < cost) g.gpSaid = "\u201c$" + cost.toLocaleString() + ". You got $" + (g.p.cash || 0).toLocaleString() + ".\u201d";
           else { g.p.cash -= cost; w[y] = q.ammo; g.gpSaid = "\u201c" + (owned ? "Reloaded" : "Bolted on") + ": " + q.nm.toLowerCase() + ".\u201d"; g.pickupFlash = { nm: "lift:" + q.nm, t: 1.4 }; }
           G.pickOpen("gp:weapons"); return; }
         const q = partOf(x, y); if (!q) return;
         if ((x === "nitro" ? (m.nitro && m.nitro.t) : m[x]) === y) { g.gpSaid = "\u201cIt's already on there.\u201d"; }
-        else if ((g.p.cash || 0) < q.price) g.gpSaid = "\u201cThat's $" + q.price.toLocaleString() + ". You got $" + (g.p.cash || 0).toLocaleString() + ".\u201d";
-        else { g.p.cash -= q.price; if (x === "nitro") m.nitro = { t: y, n: 3 }; else m[x] = y;
+        else if ((g.p.cash || 0) < Math.round(q.price * shopOff())) g.gpSaid = "\u201cThat's $" + Math.round(q.price * shopOff()).toLocaleString() + ". You got $" + (g.p.cash || 0).toLocaleString() + ".\u201d";
+        else { g.p.cash -= Math.round(q.price * shopOff()); if (x === "nitro") m.nitro = { t: y, n: 3 }; else m[x] = y;
           g.gpSaid = "\u201c" + q.nm.toLowerCase() + ". Nice. Take her round the block.\u201d"; g.pickupFlash = { nm: "lift:" + q.nm, t: 1.4 }; if (g.car && (s === g.car || g.car.pool === s)) partsApply(g.car, s); }
         G.pickOpen("gp:" + x); return; } }
     /* layer 469: lights under and in front of the car, the blower on the hood, the new station art */
@@ -34124,7 +34137,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       grigori: { nm: "GRIGORI 'MEDVED' ORLOV", face: "assets/crew/pt_bozni_grigori.png", lines: ["Hands where I see them.", "The brothers are busy. I am not."] },
       katya: { nm: "KATYA", face: "assets/crew/pt_bozni_katya.png", lines: ["Victor's in the back. You can wait, or you can drink.", "Nobody leaves the Nest owing. Remember that."] } };
     function bozWho() { const b = g.inside; if (!b) return null; if (b.bozHouse && g.floor === 0) return "vlad"; if (b.bozni === "club") return Math.random() < 0.5 ? "victor" : "katya"; return null; }
-    G.bozFn = () => { const b = g.inside; if (!b || g.mode !== "foot" || !g.gwar || !g.gwar.gangs.rus) return false; const pl = buildingPlans(b)[g.floor]; if (!pl || !pl.artR2) return false;
+    G.bozFn = () => { if (g.story && g.story.id === "nest" && g.story.step >= 6 && g.story.step <= 9) return false; const b = g.inside; if (!b || g.mode !== "foot" || !g.gwar || !g.gwar.gangs.rus) return false; const pl = buildingPlans(b)[g.floor]; if (!pl || !pl.artR2) return false;
       const spot = b.bozHouse ? artAt(pl, 0.70, 0.27) : b.bozni === "club" ? artAt(pl, 0.50, 0.12) : null; if (!spot || Math.hypot(g.p.x - spot[0], g.p.y - spot[1]) > 120) return false;
       g.bozK = bozWho() || "grigori"; g.bozSaid = null; G.pickOpen("boznov"); return true; };
     function bozPanel() { const K = BOZ[g.bozK] || BOZ.vlad, st = standOf("rus");
@@ -34178,13 +34191,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.hippyT = () => { const b = g.inside; return b && b.happyHippy ? { floor: g.floor, art: b.artFloors, table: !!g.table, seat: g.hippyTable ? g.hippyTable.room : null, p: [g.p.x | 0, g.p.y | 0] } : null; };   // test hook
     // the house in Old Town: a wall round it with the gate on the street side (fences collide), drawn with the ground
     function drawBozHouse(view) { if (g.inside) return; const b = g.bozHouseB; if (!b || !b.fences) return; if (b.x > view.x1 + 300 || b.x + b.w < view.x0 - 300 || b.y > view.y1 + 300 || b.y + b.h < view.y0 - 300) return;
-      for (const f of b.fences) { ctx.fillStyle = "#3d3a36"; ctx.fillRect(f.x, f.y, f.w, f.h); ctx.fillStyle = "rgba(255,255,255,0.10)"; ctx.fillRect(f.x, f.y, f.w, 3); } }
+      for (const f of b.fences) { if (f.nodraw) continue; ctx.fillStyle = "#3d3a36"; ctx.fillRect(f.x, f.y, f.w, f.h); ctx.fillStyle = "rgba(255,255,255,0.10)"; ctx.fillRect(f.x, f.y, f.w, 3); } }
     function bozHouseInit() { if (g.bozHouseB !== undefined) return g.bozHouseB; let hb = null;
       for (let i = 0; i <= 5 && !hb; i++) for (let j = 0; j <= 2 && !hb; j++) { const c = getCell(i, j); if (!c) continue; hb = (c.blds || []).find((b) => b.bozHouse) || null; }
       if (hb && !hb.fences) { const m = 70, t = 18, gate = 120, dx = doorPoint(hb)[0];
         hb.fences = [{ x: hb.x - m, y: hb.y - m, w: hb.w + 2 * m, h: t }, { x: hb.x - m, y: hb.y - m, w: t, h: hb.h + 2 * m }, { x: hb.x + hb.w + m - t, y: hb.y - m, w: t, h: hb.h + 2 * m },
           { x: hb.x - m, y: hb.y + hb.h + m - t, w: dx - gate / 2 - (hb.x - m), h: t }, { x: dx + gate / 2, y: hb.y + hb.h + m - t, w: hb.x + hb.w + m - dx - gate / 2, h: t }];
-        hb.artFloors = { 0: "int_bozni_f0", 1: "int_bozni_f1" }; }
+        hb.artFloors = { 0: "int_bozni_f0", 1: "int_bozni_f1" }; hb.fences = yardFences(hb) || hb.fences; for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const c2 = getCell(Math.floor(hb.x / PITCH) + di, Math.floor(hb.y / PITCH) + dj); if (c2) c2.alley = null; } }      // the backyard (layer 499)
       return (g.bozHouseB = hb); }
     /* RAVEN HOOK UTILITIES (layer 476): a utility truck parked at the kerb with a man in a hard hat at the pole, at four
        corners of the city. Parked traffic (it blocks, it can be taken); the worker stands by it and says what's what. */
@@ -35812,7 +35825,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (S.id === "washday") g.storyNext = { id: "maptable", t: 5 };                         // layer 488
       if (S.id === "maptable") g.storyNext = { id: "bankjob", t: 2 };
       if (S.id === "bankjob") { g.storyNext = { id: "corner", t: 5 }; g.masks = 0; g.bagsOn = 0; }                       // layer 491
-      if (S.id === "corner") g.storyNext = { id: "nest", t: 3 }; }                       // the next morning: DAY OUT (layer 479)
+      if (S.id === "corner") g.storyNext = { id: "nest", t: 3 };
+      if (NEXT98[S.id]) g.storyNext = { id: NEXT98[S.id], t: 4 }; }                         // layer 498                       // the next morning: DAY OUT (layer 479)
     function storyFail(why) { if (!g.story || (g.slam && g.slam.kind === "fail")) return;
       g.slam = { kind: "fail", title: "MISSION FAILED", sub: why, t: 0 }; g.p.vx = 0; g.p.vy = 0; G.pickOpen("storyfail"); }
     function storyFailPanel() { return { title: "MISSION FAILED · " + ((g.story && STORY[g.story.id].nm) || ""), face: null, text: (g.slam && g.slam.sub) || "",
@@ -35835,6 +35849,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (/^(mt|bk)_/.test(a)) { mtPick(a); return; }                                    // layer 488
         if (/^(co|ne)_/.test(a)) { coPick(a); return; }                                      // layer 491
         if (/^su_/.test(a)) { suPick(a); return; }                                             // layer 497
+        if (/^sp_/.test(a)) { const f = SPA[a]; if (f) f(); else spClose(); return; }           // layer 498
         if (a === "do_met") { close(); if (S && S.id === "dayout") { S.met = 1; g.driveTalk = { who: "EDDIE", text: "He slides in behind the wheel and leans over the seat. “Door's open, man. Get in.”", t: 5 }; } return; }   // layer 493
         if (a === "fo_go") { close(); if (S && S.id === "firstout") joseRide(S); return; }
         if (a === "ph_ride") { close(); g.pfol = (g.pfol || []).filter((f) => f.crew !== "viejo").concat([{ key: "c:viejo", name: "PABLO DIAZ", role: "driver", crew: "viejo", yt: "yt_crew_viejo", x: g.p.x, y: g.p.y, vx: 0, vy: 0, seat: "car", lag: 0, cd: 0, hang: 1 }]);
@@ -36739,7 +36754,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         text: "Leroy's folding towels he didn't wash.\n\nLEROY: “A bank. A bar. A corner. The Boznovs are bleeding and they don't know where from yet.” He sets a towel down. “You want to hurt them? The Raven's Nest. Victor's club. The girls, the money, the card room -- that's their crown jewel. We take the Nest, the whole city hears it.”",
         opts: [{ id: "story:co_done", label: "“THEN WE TAKE THE NEST.”" }] };
       if (k === "ne_plan") return { title: "THE MAP TABLE · THE RAVEN'S NEST", face: "assets/crew/pt_crew_leroy_civ.png",
-        text: "LEROY: “The Nest sits on an old storm sewer. We put a BOMB MAKER down there with a charge right under Victor's dance floor. Boom -- everybody runs for the front, we come up through the hole.”\n\n“Then we take down his men, force our way into his office, and he SIGNS the Nest over to us.”\n\nRAS: “An' Katya?”\n\nLEROY: “Katya's got one rule. Victor walks out breathing. Her brother. Her call.”\n\n“We need a BOMB MAKER, TWO SHOOTERS and an ENFORCER. Go hire them.”",
+        text: "LEROY: \u201cNo bombs. We make him HAND it over. Katya says Victor keeps a ledger in the safe in his office: every payoff, every cop, every name. A man will sign anything to keep that away from the feds.\u201d\n\n\u201cAlonzo's already paid. He runs a vice raid on the Nest, Friday night -- everybody out the front. We go in the back with a LOCKSMITH and a SAFECRACKER, take the book, and Victor comes to US.\u201d\n\nRAS: “An' Katya?”\n\nLEROY: “Katya's got one rule. Victor walks out breathing. Her brother. Her call.”\n\n\u201cWe need a SAFECRACKER. And TWO SHOOTERS and an ENFORCER -- the Nest needs men on its doors the day it's ours.\u201d",
         opts: [{ id: "story:ne_hire", label: "“I'LL HIRE THEM.”" }] };
       return null; }
     function coPick(a) { const S = g.story, close = () => { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); };
@@ -36751,9 +36766,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           g.driveTalk = { who: "RAS", text: "“Look how him settle in. Back a di Hippie, Rey -- Leroy waan talk.”", t: 5 }; } return; }
       if (a === "co_locked") { g.pickupFlash = { nm: "lift:NOT YET -- THAT'S AN UNLOCK", t: 1.6 }; return; }
       if (a === "co_done") { close(); if (S && S.id === "corner" && S.step === 5) { g.pfol = []; storyComplete(); } return; }
-      if (a === "ne_hire") { if (S && S.id === "nest" && S.step === 2) { S.step = 3; g.hireOK = Array.from(new Set(["bomber", "shooter", "enforcer"].concat(g.hireOK || [])));
-          g.hireNeed = ["bomber", "shooter", "shooter", "enforcer"]; g.board2 = g.board2 || { hires: {}, ops: [], corners: 0 }; g.board2.pool = null; storyMark("HIRE THE CREW"); }
-        g.boardView = "hire"; g.boardSaid = "Leroy: “A bomb maker, two shooters, an enforcer.”"; G.pickOpen("opsboard"); return; } }
+      if (a === "ne_hire") { if (S && S.id === "nest" && S.step === 2) { S.step = 3; g.hireOK = Array.from(new Set(["safecracker", "shooter", "enforcer"].concat(g.hireOK || [])));
+          g.hireNeed = ["safecracker", "shooter", "shooter", "enforcer"]; g.board2 = g.board2 || { hires: {}, ops: [], corners: 0 }; g.board2.pool = null; storyMark("HIRE THE CREW"); }
+        g.boardView = "hire"; g.boardSaid = "Leroy: \u201cA safecracker, two shooters, an enforcer.\u201d"; G.pickOpen("opsboard"); return; } }
     // Dread on his corner; after ten hours, his crew round the back
     function drawDreadCorner() { const D = g.dreadCorner; if (!D || g.inside) return; const lab = (t, x, y, c) => { ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = c; ctx.fillText(t, x, y); ctx.textAlign = "start"; };
       const men = [[0, 0, "yt_dread", "DREAD · WEED"]].concat(nowMin() - D.at > 600 ? [[-34, 18, "yt_hire_dealer_1", null], [30, 22, "yt_hire_lookout_2", null], [8, 44, "yt_hire_shooter_1", null]] : []);
@@ -36778,7 +36793,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (S.step === 7) return g.inside ? null : h.veh((q) => q.bkCar); if (S.step === 8) return h.hip(); if (S.step === 9) return g.inside ? null : [g.car.x, g.car.y]; return null; }
       if (S.id === "corner") { if (S.step === 0) return h.hip(); if (S.step === 2) return h.veh((q) => q.mtCar); if (S.step === 3) { const G2 = cornerGas(); return G2 ? [G2.x, G2.y] : null; }
         if (S.step === 4) return cornerSpot(); if (S.step === 5) return h.hip(); return null; }
-      if (S.id === "nest") return S.step >= 1 && S.step <= 3 ? h.yard() : null;
+      if (S.id === "nest") return nest2Target(h);
+      if (TGT98[S.id]) return TGT98[S.id](h);
       if (S.id === "setup") return setupTarget();                                                // layer 497
       return null; }
     /* ---------- LAYER 493: LAST DAY IN, EDDIE'S CAB, JOSE'S RECON ----------
@@ -37101,6 +37117,671 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (let i = 0; i <= N; i++) { const x = SX(i); if (x > B.x0 && x < B.x1) { P("pr_sawhorse", x, B.y0 + 14, 92); P("pr_sawhorse", x, B.y1 - 14, 92); P("pr_worklamp", x + 70, B.y0 + 40, 44); } }
       for (let j = 0; j <= N; j++) { const y = SX(j); if (y > B.y0 && y < B.y1) { P("pr_sawhorse", B.x0 + 14, y, 92, Math.PI / 2); P("pr_sawhorse", B.x1 - 14, y, 92, Math.PI / 2); P("pr_dirtpile", B.x1 - 60, y + 80, 90); } } }
 
+    /* ---------- LAYER 498: THE END OF CHAPTER ONE -- MISSIONS 11-16, THE BUSINESSES, THE SLEEP CARD ----------
+       SLEEP CARD: every sleep fades to black, holds, shows the day and the time, and fades back (G.sleepFade(apply, card)).
+       THE BUSINESSES (g.biz): every business Rey owns has a BOSS and GUARD posts -- level 1-4, two more posts a level
+       (2/4/6/8), x1 / x1.6 / x2.4 / x3.5 of its base take an hour. No boss: half, and it can't level. Guards stand at
+       their posts in the world. E at the door inside (or on the corner) opens it (panel emp:<k>).
+       MIMI: from Mission 11 she lives upstairs at Palm Court (2B, floor 1 of Building A). E at her table: a free meal
+       (full health). DINNER (dinnerScene): the crew round her table at the end of Missions 12, 15 and 16.
+       Missions 11-16 follow (see each block). Panels are sp_<name> (SP), their buttons story:sp_<x> (SPA). */
+    const WEEK = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
+    G.sleepFade = (apply, card) => { g.sleepFx = { t: 0, apply, card: card || null, done: 0 }; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); };
+    function stepSleepFx(dt) { const F = g.sleepFx; if (!F) return; F.t += Math.min(dt, 0.1);
+      if (F.t < 1) { g.blackA = Math.max(g.blackA || 0, F.t); return; }
+      g.blackA = 1;
+      if (!F.done) { F.done = 1; g.nightLock = 0; try { F.apply && F.apply(); } catch (e) { g.hudErrStack = String(e && e.stack); } g.blackA = 1; F.text = F.card || (WEEK[(g.pday || 0) % 7] + " · " + clockText(g.clock || 0)); }
+      if (F.t > 4.4) { g.blackA = Math.max(0, 1 - (F.t - 4.4) / 1.2); if (F.t > 5.6) { g.sleepFx = null; g.blackA = 0; } } }
+    const sleepCardA = () => { const F = g.sleepFx; if (!F || !F.text) return 0; return F.t < 1.6 ? 0 : F.t < 2.1 ? (F.t - 1.6) / 0.5 : F.t < 3.9 ? 1 : F.t < 4.4 ? (4.4 - F.t) / 0.5 : 0; };
+    // the story's own panels and buttons
+    const SP = {}, SPA = {};
+    const spClose = () => { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); };
+    const SID = (id, n) => { const S = g.story; return !!(S && S.id === id && (n == null || S.step === n)); };
+    const near = (p, r) => { if (!p) return false; const q = inVehicle() ? activeVeh() : g.p; return Math.hypot(q.x - p[0], q.y - p[1]) < (r || 120); };
+    const nestB = () => namedB((b) => b.bozni === "club"), autoB = () => namedB((b) => b.bozni === "auto"), manorB = () => namedB((b) => b.bozHouse);
+    const say = (who, text, t) => { g.driveTalk = { who, text, t: t || 6 }; };
+    const nextDay = (h, m) => { g.pday = (g.pday || 0) + 1; g.clock = h * 60 + (m || 0); g.pfolk = null; };
+    const atTime = (h, m) => { if ((g.clock || 0) > h * 60 + (m || 0)) g.pday = (g.pday || 0) + 1; g.clock = h * 60 + (m || 0); };
+    const putIn = (b, f, fx, fy) => { if (!b) return; g.inside = b; g.floor = f || 0; g.insideT = 1; g.mode = "foot"; const pl = b.artFloors && b.artFloors[f || 0] ? fitArtFloor(b, f || 0, b.artFloors[f || 0], b.artKeep) : buildingPlans(b)[f || 0];
+      const pt = pl && pl.artR2 && fx != null ? artAt(pl, fx, fy) : introInsidePt(b); g.p.x = pt[0]; g.p.y = pt[1]; g.p.vx = g.p.vy = 0; g.cam.x = pt[0]; g.cam.y = pt[1]; };
+    const putOut = (pt) => { g.inside = null; g.floor = 0; g.mode = "foot"; g.p.x = pt[0]; g.p.y = pt[1]; g.p.vx = g.p.vy = 0; g.cam.x = pt[0]; g.cam.y = pt[1]; };
+    const artPt = (b, f, fx, fy) => { const pl = b && b.artFloors && b.artFloors[f || 0] ? fitArtFloor(b, f || 0, b.artFloors[f || 0], b.artKeep) : null; return pl && pl.artR2 ? artAt(pl, fx, fy) : null; };
+    const lab8 = (t, x, y, c) => { ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = c || "#e8c46a"; ctx.fillText(t, x, y); ctx.textAlign = "start"; };
+    const ring = (p, r, txt) => { if (!p) return; ctx.strokeStyle = "rgba(232,196,106,0.85)"; ctx.setLineDash([8, 6]); ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p[0], p[1], r || 40, 0, 6.3); ctx.stroke(); ctx.setLineDash([]); if (txt) { ctx.font = "700 9px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText(txt, p[0], p[1] - (r || 40) - 8); ctx.textAlign = "start"; } };
+    const person = (x, y, yt, nm, bang, col, tall) => { drawShadow(x, y + 2, 9, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: tall || 1.2, yt, bang: bang == null ? Math.PI / 2 : bang }); if (nm) lab8(nm, x, y - 30, col); };
+    const flashCruisers = (L) => { for (const v of L || []) { const on = Math.sin((g.t || 0) * 12 + v.x) > 0; ctx.fillStyle = on ? "rgba(255,40,40,0.35)" : "rgba(60,90,255,0.35)"; ctx.beginPath(); ctx.arc(v.x, v.y, 44, 0, 6.3); ctx.fill(); } };
+    const parkCar = (x, y, ang, k, extra) => { const v = { x, y, ang: ang || 0, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0, m: { k: k || "pd_cruiser", len: 118, w: 53.5 }, dead: 1, parked: 1, named: 1, ...(extra || {}) }; g.traffic.push(v); return v; };
+    const dropCars = (L) => { for (const v of L || []) { const n = g.traffic.indexOf(v); if (n >= 0) g.traffic.splice(n, 1); } };
+    const hostile = (gang, x, y, n, b, f) => { const cr = warCrew(gang, x, y, n); cr.angryMe = 1e6; cr.state = "hostile"; if (b) { cr.indoor = b; cr.indoorFloor = f || 0; } return cr; };
+    const crewDead = (cr) => !cr || !g.crews.includes(cr) || cr.broke || cr.members.every((m) => (m.hp || 0) <= 0);
+    const crewF = (role) => { const m = hiredMan(role); return ["h:" + role, manName(m, role).toUpperCase(), role, null, manYt(m, role)]; };
+    const hireCount = (role) => ((g.board2 && g.board2.hires) || {})[role] || 0;
+    const needHires = (L) => { g.hireOK = Array.from(new Set(L.concat(g.hireOK || []))); g.hireNeed = L.slice(); g.board2 = g.board2 || { hires: {}, ops: [], corners: 0 }; g.board2.pool = null; };
+    const hiresMet = (need) => { const c = {}; for (const r of need) c[r] = (c[r] || 0) + 1; return Object.keys(c).every((r) => hireCount(r) >= c[r]); };
+    const hireCk = (need) => { const c = {}; for (const r of need) c[r] = (c[r] || 0) + 1; return Object.keys(c).map((r) => (hireCount(r) >= c[r] ? "✓ " : "· ") + HIRES[r].nm + " " + Math.min(hireCount(r), c[r]) + "/" + c[r]).join("  "); };
+    const yardFront = () => { const H = hideoutB(); return H ? frontOf(H) : null; };
+    const inYard = () => { const H = hideoutB(); return !!(H && (g.inside === H || (!g.inside && near(frontOf(H), 260)))); };
+    const atTable = () => { const H = hideoutB(); return !!(H && g.inside === H); };
+
+    /* ---------- THE BUSINESSES ---------- */
+    const EMP = { hippie: { nm: "THE HAPPY HIPPIE", base: 300 }, corner: { nm: "DREAD'S CORNER", base: 150 }, nest: { nm: "THE RAVEN'S NEST", base: 600 }, auto: { nm: "RAVEN AUTO", base: 500 } };
+    const EMP_MULT = [1, 1.6, 2.4, 3.5], EMP_COST = [5000, 12000, 25000], EMP_WAGE = 100;
+    const EMP_POSTS = ["FRONT DOOR", "BACK DOOR", "THE FLOOR", "FRONT LEFT", "FRONT RIGHT", "THE LOT", "LEFT SIDE", "RIGHT SIDE"];
+    function empB(k) { return k === "hippie" ? hippyB() : k === "nest" ? nestB() : k === "auto" ? autoB() : null; }
+    function empInit() { const E = (g.biz = g.biz || {}), D = g.storyDone || {};
+      if (D.allin && !E.hippie) E.hippie = { lvl: 0, boss: "c:viejo", guards: [], cash: 0, at: nowMin() };
+      if (g.dreadCorner && !E.corner) E.corner = { lvl: 0, boss: "dread", guards: [], cash: 0, at: nowMin() };
+      return E; }
+    function empPeople() { const out = [{ key: "c:ras", nm: "RAS" }, { key: "c:viejo", nm: "PABLO" }, { key: "c:leroy", nm: "LEROY" }];
+      if (g.dreadCorner) out.push({ key: "dread", nm: "DREAD" }); if (g.joseIn || g.mimiHome) out.push({ key: "jose", nm: "JOSE" }); return out; }
+    const empBossNm = (key) => { const p = empPeople().find((q) => q.key === key); return p ? p.nm : "NOBODY"; };
+    function empMen() { return ((g.board2 && g.board2.men) || []).filter((m) => /shooter|enforcer|dealer|lookout/.test(m.role) && !m.dread); }
+    function empTaken() { const s = new Set(); for (const k in g.biz || {}) for (const q of g.biz[k].guards) s.add(q.n); return s; }
+    function empPostPt(k, post) { if (k === "corner") { const C = cornerSpot(); if (!C) return null; const n = EMP_POSTS.indexOf(post); return [C[0] + Math.cos(n * 0.8) * 60, C[1] + Math.sin(n * 0.8) * 50]; }
+      const b = empB(k); if (!b) return null; const side = b.door ? b.door.side : 2, back = (side + 2) % 4;
+      if (post === "FRONT DOOR") return wallPt(b, side, 0.5, 30); if (post === "BACK DOOR") return wallPt(b, back, 0.5, 30);
+      if (post === "FRONT LEFT") return wallPt(b, side, 0.15, 40); if (post === "FRONT RIGHT") return wallPt(b, side, 0.85, 40); if (post === "THE LOT") return wallPt(b, side, 0.5, 150);
+      if (post === "LEFT SIDE") return wallPt(b, (side + 1) % 4, 0.5, 30); if (post === "RIGHT SIDE") return wallPt(b, (side + 3) % 4, 0.5, 30);
+      if (post === "THE FLOOR") { const f = b.entry || 0; return artPt(b, f, 0.5, 0.62) || introInsidePt(b); } return null; }
+    function empTick() { const E = g.biz; if (!E) return; const now = nowMin();
+      for (const k in E) { const B = E[k]; const hrs = (now - (B.at || now)) / 60; if (hrs <= 0) { B.at = now; continue; }
+        B.cash += hrs * EMP[k].base * EMP_MULT[B.lvl] * (B.boss ? 1 : 0.5) * (g.topCrew && g.topCrew.money ? 1.1 : 1) - hrs / 24 * B.guards.length * (g.topCrew && g.topCrew.muscle ? 75 : EMP_WAGE); B.at = now; } }
+    function empPanel(k) { const E = empInit(), B = E[k]; empTick(); if (!B) return { title: "", text: "", opts: [{ id: "close", label: "CLOSE" }] };
+      const slots = 2 * (B.lvl + 1), take = Math.round(EMP[k].base * EMP_MULT[B.lvl] * (B.boss ? 1 : 0.5)), free = empMen().filter((m) => !empTaken().has(m.name));
+      const lines = ["BOSS: " + empBossNm(B.boss) + (B.boss ? "" : " (it runs at half)"), "LEVEL " + (B.lvl + 1) + " of 4 · about $" + take.toLocaleString() + " an hour · guards cost $" + EMP_WAGE + " a day each",
+        "GUARDS " + B.guards.length + " / " + slots + ":" + (B.guards.length ? "" : " nobody"), ...B.guards.map((q) => "  " + q.post + " — " + q.n.toUpperCase()), "", "WAITING TO COLLECT: $" + Math.max(0, Math.round(B.cash)).toLocaleString()];
+      const opts = [{ id: "emp:" + k + ":boss", label: "BOSS: " + empBossNm(B.boss) + " (CHANGE)" }];
+      if (B.guards.length < slots && free.length) opts.push({ id: "emp:" + k + ":add", label: "POST " + free[0].name.toUpperCase() + " AT " + EMP_POSTS.find((p) => !B.guards.some((q) => q.post === p)) });
+      if (B.guards.length) opts.push({ id: "emp:" + k + ":move", label: "MOVE " + B.guards[B.guards.length - 1].n.toUpperCase() + " TO THE NEXT POST" }, { id: "emp:" + k + ":off", label: "TAKE " + B.guards[B.guards.length - 1].n.toUpperCase() + " OFF" });
+      if (B.lvl < 3) opts.push({ id: "emp:" + k + ":lvl", label: B.boss ? "LEVEL UP · $" + EMP_COST[B.lvl].toLocaleString() : "LEVEL UP (NEEDS A BOSS)", dim: !B.boss });
+      if (B.cash >= 1) opts.push({ id: "emp:" + k + ":cash", label: "COLLECT $" + Math.round(B.cash).toLocaleString() });
+      opts.push({ id: "emp:close", label: "CLOSE" });
+      return { title: EMP[k].nm + " · LEVEL " + (B.lvl + 1) + " · " + B.guards.length + "/" + slots + " GUARDS", face: null, text: (g.empSaid ? g.empSaid + "\n\n" : "") + lines.join("\n"), opts }; }
+    G.empPick = (id) => { const [, k, a] = id.split(":"); g.empSaid = null; if (k === "close") { spClose(); return; } const E = empInit(), B = E[k]; if (!B) { spClose(); return; }
+      empTick(); const slots = 2 * (B.lvl + 1);
+      if (a === "boss") { const P = empPeople(), i = P.findIndex((q) => q.key === B.boss); B.boss = P[(i + 1) % P.length].key; g.empSaid = empBossNm(B.boss) + " runs it now."; }
+      if (a === "add" && B.guards.length < slots) { const m = empMen().find((q) => !empTaken().has(q.name)); const post = EMP_POSTS.find((p) => !B.guards.some((q) => q.post === p)); if (m && post) { B.guards.push({ n: m.name, post, role: m.role, yt: manYt(m, m.role) }); g.empSaid = m.name + " takes " + post + "."; } }
+      if (a === "move" && B.guards.length) { const q = B.guards[B.guards.length - 1], used = new Set(B.guards.map((z) => z.post)); let i = EMP_POSTS.indexOf(q.post);
+        for (let n = 0; n < 8; n++) { i = (i + 1) % Math.min(8, slots + 4); if (!used.has(EMP_POSTS[i])) { q.post = EMP_POSTS[i]; break; } } g.empSaid = q.n + " moves to " + q.post + "."; }
+      if (a === "off" && B.guards.length) { const q = B.guards.pop(); g.empSaid = q.n + " is off the door."; }
+      if (a === "lvl" && B.lvl < 3) { if (!B.boss) g.empSaid = "Nobody to run it. Put a boss in first."; else if ((g.p.cash || 0) < EMP_COST[B.lvl]) g.empSaid = "You need $" + EMP_COST[B.lvl].toLocaleString() + ".";
+        else { g.p.cash -= EMP_COST[B.lvl]; B.lvl++; g.empSaid = "LEVEL " + (B.lvl + 1) + ". Two more posts open, and the take goes up."; G.sfx && G.sfx("door", 0.6); } }
+      if (a === "cash" && B.cash >= 1) { const n = Math.round(B.cash); g.p.cash = (g.p.cash || 0) + n; B.cash = 0; g.empSaid = "+$" + n.toLocaleString() + "."; }
+      G.pickOpen("emp:" + k); };
+    G.empFn = () => { if (g.mode !== "foot" || !g.biz) return false; empInit();
+      for (const k in g.biz) { if (k === "corner") { const C = cornerSpot(); if (!g.inside && C && near(C, 70)) { G.pickOpen("emp:corner"); return true; } continue; }
+        const b = empB(k); if (b && g.inside === b && g.floor === (b.entry || 0) && near(introInsidePt(b), 110)) { G.pickOpen("emp:" + k); return true; } } return false; };
+    function drawEmp() { const E = g.biz; if (!E) return;
+      for (const k in E) { const b = empB(k); for (const q of E[k].guards) { const inPost = q.post === "THE FLOOR"; if (k !== "corner" && (inPost ? g.inside !== b || g.floor !== (b.entry || 0) : g.inside)) continue; if (k === "corner" && g.inside) continue;
+          const p = empPostPt(k, q.post); if (!p) continue; person(p[0], p[1], q.yt || "yt_hire_shooter_1", q.n.split(" ")[0].toUpperCase() + " · " + q.post, Math.PI / 2, "#9fe0a0", 1.2); }
+        if (k !== "corner" && b && g.inside === b && g.floor === (b.entry || 0)) { const d = introInsidePt(b); if (near(d, 110)) lab8("E: THE BUSINESS", d[0], d[1] - 24); } } }
+
+    /* ---------- MIMI'S (2B upstairs at Palm Court) and DINNER ---------- */
+    const MIMI_SPOT = [0.86, 0.72];
+    const mimiPt = () => { const b = g.aptHomeB || (aptC(), g.aptHomeB); return b ? artPt(b, 1, MIMI_SPOT[0], MIMI_SPOT[1]) : null; };
+    G.mimiFn = () => { if (!g.mimiHome || g.mode !== "foot") return false; const b = g.aptHomeB; if (!b || g.inside !== b || g.floor !== 1) return false; const p = mimiPt(); if (!p || !near(p, 90)) return false;
+      g.p.hp = g.p.maxHp || g.p.hp; g.p.stamina = g.p.maxStamina || g.p.stamina; say("MIMI", cpick(["“Sit. Eat. You look like Kestrel still.”", "“Arroz con pollo. Don't tell Pablo there's more.”", "“You eat first, then you go do whatever it is you do. I don't ask.”"]), 5);
+      g.pickupFlash = { nm: "lift:MIMI FEEDS YOU · FULL HEALTH", t: 2 }; return true; };
+    function dinnerScene(lines, after, guests) { G.sleepFade(() => { const b = g.aptHomeB || (aptC(), g.aptHomeB); if (b) { putIn(b, 1, MIMI_SPOT[0] - 0.05, MIMI_SPOT[1]); } g.clock = 20 * 60; g.pfol = []; g.camPan = null;
+        g.dinner = { lines, i: 0, t: 0, after, guests: guests || ["MIMI", "PABLO", "LEROY", "RAS", "JOSE"] }; }, "PALM COURT · MIMI'S · 8:00 PM"); }
+    function stepDinner(dt) { const D = g.dinner; if (!D || g.sleepFx) return; D.t += dt;
+      if (D.t > 0.6 + D.i * 5.5 && D.i < D.lines.length) { const [who, text] = D.lines[D.i]; say(who, text, 5.2); D.i++; }
+      if (D.i >= D.lines.length && D.t > 0.6 + D.i * 5.5) { const f = D.after; g.dinner = null; if (f) f(); } }
+    const DIN_YT = { MIMI: "yt_mimi", PABLO: "yt_crew_viejo", LEROY: "yt_crew_leroy", RAS: "yt_crew_ras", JOSE: "yt_jose", KATYA: "yt_bozni_katya", DREAD: "yt_dread" };
+    function drawMimi() { const b = g.aptHomeB; if (!b || g.inside !== b || g.floor !== 1 || !(g.mimiHome || g.dinner)) return; const p = mimiPt(); if (!p) return;
+      const tb = imgs.current.fu_table_hi; if (tb && tb.width) ctx.drawImage(tb, p[0] - 40, p[1] - 28, 80, 56); else { ctx.fillStyle = "#6b4a2c"; ctx.fillRect(p[0] - 40, p[1] - 26, 80, 52); }
+      const G2 = g.dinner ? g.dinner.guests : ["MIMI"]; G2.forEach((nm, i) => { const a = (i / Math.max(1, G2.length)) * 6.283 - 1.2, x = p[0] + Math.cos(a) * 62, y = p[1] + Math.sin(a) * 46; person(x, y, DIN_YT[nm] || "yt_hire_fence_1", nm, Math.atan2(p[1] - y, p[0] - x), nm === "MIMI" ? "#f2b07a" : "#9fe0a0", 1.15); });
+      if (!g.dinner && near(p, 90)) lab8("E: EAT (MIMI'S TABLE)", p[0], p[1] - 46); }
+
+    const STEP98 = {}, OBJ98 = {}, TGT98 = {}, DRAW98 = [], E98 = {}, BEGIN98 = {}, NEXT98 = { nest: "blowback", blowback: "pinkslips", pinkslips: "ravenauto", ravenauto: "leak", leak: "mansion" };
+    G.storyEFn = () => { const S = g.story; if (!S || g.sleepFx || g.dinner) return false; if (S.id === "nest") return nestE(); const f = E98[S.id]; return f ? f() : false; };
+
+    /* ---------- MISSION 11: THE NEST (rebuilt) ----------
+       0 the morning after (Katya, again) 1 the yard 2 Leroy's plan at the table 3 hire a SAFECRACKER, two SHOOTERS and an
+       ENFORCER 4 Leroy's lesson on cops and heat 5 call Alonzo from a booth 6 Friday 11 PM: the raid out front, the crew
+       at the back door 7 inside, past Victor's two men (cones; E from behind puts one down; seen = fail) 8 the office
+       safe (the safecracker, 12 s) 9 out the back to Pablo's car 10 the next day: Victor at the Hippie 11 the Nest is
+       yours: the business screen -- Ras the boss, two guards 12 Leroy gives Mimi and Jose 2B upstairs. */
+    STORY.nest.pay = 8000;
+    const NEST_NEED = ["safecracker", "shooter", "shooter", "enforcer"];
+    const nestBack = () => { const B = nestB(); return B ? wallPt(B, backSide(B), 0.5, 46) : null; };
+    const NEST_SAFE = [0.64, 0.16], NEST_IN = [0.33, 0.2];
+    function storyCarAt(x, y, ang, k, nm) { for (let n = g.traffic.length - 1; n >= 0; n--) if (g.traffic[n].storyCar) g.traffic.splice(n, 1);
+      g.traffic.push({ x, y, ang: ang || 0, spd: 0, cruise: 0, brake: 0, axis: "v", si: 0, dir: 1, k: 0, m: { k: k || "car_crew_viejo", len: 112, w: 50, lowrider: 1 }, dead: 0, parked: 1, named: 1, trFree: 1, storyCar: 1, idn: nm && nm !== "PABLO DIAZ" ? { model: "SEDAN", colour: "NAVY", plate: "KST 4410", owner: nm } : { model: "LOWRIDER", colour: "", plate: "VIEJO", owner: "PABLO DIAZ" } }); }
+    function keepStoryCar() { const S = g.story; if (S && S.carAt && !g.traffic.some((q) => q.storyCar)) storyCarAt(...S.carAt); }
+    function takeStoryCar() { const n = g.traffic.findIndex((q) => q.storyCar); if (n < 0) return false; const v = g.traffic[n]; if (!near([v.x, v.y], 175) || g.mode !== "foot" || g.inside) return false; if (g.story) g.story.carAt = null;
+      g.car.x = v.x; g.car.y = v.y; g.car.ang = v.ang; g.car.vx = 0; g.car.vy = 0; g.car.skin = v.m; g.car.idn = v.idn; g.car.fuel = 90; g.car.dmg = 0; g.car.crush = null; g.car.dents = [];
+      g.traffic.splice(n, 1); g.mode = "car"; g.p.x = g.car.x; g.p.y = g.car.y; return true; }
+    SP.sp_cops = () => ({ title: "LEROY · HOW THE COPS WORK", face: "assets/crew/pt_crew_leroy_civ.png",
+      text: "LEROY: “Before we touch the Nest -- cops. Sit.”\n\n“Every STAR up there is heat. ONE star, a cruiser comes looking. TWO, they shoot back. THREE, they block the roads.”\n\n“To lose them: break the line of sight -- round a corner, into an alley -- and get OUT of the search circle on the map. Stay out of it and the stars run down.”\n\n“A cop on the payroll, like Alonzo, keeps a raid off a business. What he can't do is pull you out of a chase. Nobody can.”",
+      opts: [{ id: "story:sp_cops_ok", label: "“SO WE CALL ALONZO.”" }] });
+    SPA.sp_cops_ok = () => { spClose(); if (SID("nest", 4)) { g.story.step = 5; storyMark("CALL ALONZO"); say("LEROY", "“The ten grand's already in his pocket. Any booth. Tell him Friday.”", 6); } };
+    SP.sp_alonzo = () => ({ title: "THE PAYPHONE · DET. ALONZO", face: "assets/heroes/pt_alonzo.png",
+      text: "ALONZO: “Yeah.”\n\nYou: “Friday.”\n\nALONZO: “Vice raid on the Nest, eleven o'clock. Lights, sirens, everybody out the front with their hands up. I give you fifteen minutes at the back. After that it's a real raid and you're in it.”",
+      opts: [{ id: "story:sp_raid", label: "“FIFTEEN MINUTES.” (FRIDAY, 11 PM)" }] });
+    SPA.sp_raid = () => { spClose(); if (!SID("nest", 5)) return; G.sleepFade(() => { const S = g.story, B = nestB(); if (!B) return;
+        g.pday = (g.pday || 0) + ((4 - ((g.pday || 0) % 7) + 7) % 7 || 7); g.clock = 23 * 60; g.nightTarget = 1; g.pfolk = null;
+        const bk = nestBack(), o = [[0, -1], [1, 0], [0, 1], [-1, 0]][backSide(B)]; putOut([bk[0] + o[0] * 120, bk[1] + o[1] * 120]);
+        S.carAt = [bk[0] + o[0] * 260, bk[1] + o[1] * 260, Math.atan2(o[1], o[0]) + Math.PI / 2]; storyCarAt(...S.carAt);
+        const [fx, fy] = frontOf(B); S.raid = [parkCar(fx - 70, fy, 0.3), parkCar(fx + 80, fy + 20, -0.4)]; g.setupSiren = [fx, fy];
+        g.pfol = crewFol([crewF("safecracker"), LOCK_F()]); S.step = 6; S.t = 0; storyMark("THE BACK DOOR");
+        say("LEROY (RADIO)", "“Alonzo's out front with the circus. You got fifteen minutes. Back door.”", 7); }, "FRIDAY · 11:00 PM · THE RAVEN'S NEST"); };
+    SP.sp_victor = () => ({ title: "THE HAPPY HIPPIE · VICTOR BOZNOV", face: "assets/crew/pt_bozni_victor.png",
+      text: "Victor comes in alone, which tells you how scared he is. He sits without being asked.\n\nVICTOR: “You have something of mine.”\n\nYou put the ledger on the table between you. Every payoff, every cop, every name, in his handwriting.\n\nVICTOR: “The feds would give their mothers for that book.”\n\nYou: “Then give me the Nest, and they never see it.”\n\nA long time. Then he takes out his pen.",
+      opts: [{ id: "story:sp_sign", label: "SLIDE HIM THE DEED" }] });
+    SPA.sp_sign = () => { spClose(); if (!SID("nest", 10)) return; const S = g.story; empInit(); g.biz.nest = { lvl: 0, boss: null, guards: [], cash: 0, at: nowMin() }; g.nestOurs = 1;
+      S.step = 11; storyMark("THE NEST IS YOURS"); g.empSaid = "LEROY: “A place with nobody on the door is a place somebody else owns. Make Ras the boss. Put two of the new boys on the doors.”"; G.pickOpen("emp:nest");
+      say("VICTOR", "“This is not over.” He leaves the pen.", 5); };
+    SP.sp_mimi = () => ({ title: "LEROY · PALM COURT", face: "assets/crew/pt_crew_leroy_civ.png",
+      text: "LEROY: “One more thing. Pablo's sister. Mimi. Her and Jose been sleeping in a room behind a bodega since the Russians burned her building. I took 2B upstairs from you at Palm Court. They move in tonight.”\n\nPABLO: “She's gonna feed you, mijo. You can't stop her. Nobody can stop her.”\n\n(MIMI'S: upstairs at Palm Court. E at her table for a free meal.)",
+      opts: [{ id: "story:sp_mimi_ok", label: "“GOOD. FAMILY'S CLOSE.”" }] });
+    SPA.sp_mimi_ok = () => { spClose(); if (!SID("nest", 12)) return; g.mimiHome = 1; g.pfol = []; storyComplete(); };
+    function nestWatch(S) { if (S.watch) return S.watch; const B = nestB(); const P = (fx, fy) => artPt(B, 0, fx, fy);
+      const a = P(0.50, 0.17), b2 = P(0.60, 0.31); return (S.watch = [{ nm: "VICTOR'S MAN", x: a[0], y: a[1], base: 0, a: 0, sweep: 0.55, range: 230, fov: 0.6, yt: BRATVA_YT[0] }, { nm: "VICTOR'S MAN", x: b2[0], y: b2[1], base: Math.PI / 2, a: Math.PI / 2, sweep: 0.7, range: 220, fov: 0.55, yt: BRATVA_YT[2] }]); }
+    function nest2Step(dt) { const S = g.story; S.t = (S.t || 0) + dt; const B = nestB(); keepStoryCar();
+      if (S.step === 1) { if (inYard()) { S.step = 2; storyMark("THE YARD · LEROY'S PLAN"); say("LEROY", "“Table. I got a plan for the Nest, and nobody blows anything up.”", 5); } return; }
+      if (S.step === 3) { if (hiresMet(NEST_NEED)) { S.step = 4; g.hireNeed = null; storyMark("THE CREW IS SET"); S.copT = 0; } return; }
+      if (S.step === 4) { S.copT += dt; if (S.copT > 1.5 && !g.pickOpen && !S.copSeen) { S.copSeen = 1; G.pickOpen("sp_cops"); } return; }
+      if (S.step === 6) { if (B && g.inside === B) { S.step = 7; storyMark("INSIDE THE NEST"); nestWatch(S); say("LOCKSMITH", "“Two of Victor's boys stayed back. Crouch (C). Go round them, or take one from behind (E).”", 7); } return; }
+      if (S.step === 7) { if (!B || g.inside !== B) return; for (const w of nestWatch(S)) { if (w.down) continue; w.a = w.base + Math.sin((g.t || 0) * 0.6 + w.x) * w.sweep;
+          if (coneSees(w, g.p.x, g.p.y, true)) { storyFail("Victor's man saw you and ran for the office. The ledger's gone out the window."); return; } }
+        const sp = artPt(B, 0, NEST_SAFE[0], NEST_SAFE[1] + 0.07); if (sp && near(sp, 80)) { S.step = 8; S.crack = 0; storyMark("THE SAFE"); say("SAFECRACKER", "“Stand there and look big. Twelve seconds.”", 5); } return; }
+      if (S.step === 8) { const sp = artPt(B, 0, NEST_SAFE[0], NEST_SAFE[1] + 0.07); if (sp && near(sp, 110)) S.crack += dt; if (S.crack >= 12) { S.step = 9; g.ledger = 1; g.p.cash = (g.p.cash || 0) + 6000; storyMark("THE LEDGER");
+          g.pickupFlash = { nm: "lift:VICTOR'S LEDGER + $6,000 · OUT THE BACK", t: 3 }; say("SAFECRACKER", "“Every cop in this city is in that book. Don't lose it.”", 5); } return; }
+      if (S.step === 9) { if (g.mode === "car" && !g.inside) { G.sleepFade(() => { const HP = hippyB(); dropCars(S.raid); S.raid = null; g.setupSiren = null; g.pfol = []; nextDay(12, 0); if (HP) putIn(HP, 0, 0.5, 0.72); S.step = 10; S.t = 0; storyMark("THE NEXT DAY"); }, "THE NEXT DAY · 12:00 PM · THE HAPPY HIPPIE"); } return; }
+      if (S.step === 10) { if (!g.sleepFx && S.t > 1.5 && !S.vic && !g.pickOpen) { S.vic = 1; G.pickOpen("sp_victor"); } return; }
+      if (S.step === 11) { const N = g.biz && g.biz.nest; if (N && N.boss === "c:ras" && N.guards.length >= 2 && !g.pickOpen) { S.step = 12; G.pickOpen("sp_mimi"); } return; } }
+    function nest2Objective() { const S = g.story, N = g.biz && g.biz.nest;
+      return { head: "THE RAVEN'S NEST · " + ["THE MORNING AFTER", "THE YARD", "THE MAP TABLE", "HIRE THE CREW", "COPS", "CALL ALONZO", "THE BACK DOOR", "INSIDE", "THE SAFE", "OUT THE BACK", "VICTOR", "THE NEST IS YOURS", "MIMI"][S.step],
+        sub: ["", "Everybody's at the scrapyard.", "E at the map table: Leroy's plan.", "At the table, HIRE PEOPLE: " + hireCk(NEST_NEED), "Leroy's talking.", "Any phone booth (E). Call Alonzo.",
+          "The back door of the Nest (E). The locksmith opens it.", "Crouch (C). Get past Victor's two men to the office -- or E from behind to put one down.", "Stand by the safe while the safecracker works: " + Math.min(12, Math.floor(S.crack || 0)) + " / 12",
+          "Out the back. Pablo's car is down the alley (E).", "Victor's here.", "THE BUSINESS: make RAS the boss " + (N && N.boss === "c:ras" ? "✓" : "·") + "  post two guards " + ((N && N.guards.length) || 0) + "/2  (E at the Nest's door inside reopens it)", ""][S.step] || "" }; }
+    function nest2Target(h) { const S = g.story, B = nestB();
+      if (S.step <= 3 && S.step >= 1) return h.yard(); if (S.step === 6) return g.inside ? null : nestBack(); if (S.step === 7 || S.step === 8) return g.inside === B ? artPt(B, 0, NEST_SAFE[0], NEST_SAFE[1] + 0.07) : nestBack();
+      if (S.step === 9) { if (g.inside) return null; const v = g.traffic.find((q) => q.storyCar); return v ? [v.x, v.y] : null; } if (S.step === 11) return g.inside === B ? null : (B ? frontOf(B) : null); return null; }
+    function drawNest2() { const S = g.story; if (!S || S.id !== "nest") return; const B = nestB();
+      if (S.step >= 6 && S.step <= 9 && !g.inside) { flashCruisers(S.raid); if (S.step === 6) { const p = nestBack(); ring(p, 34, "BACK DOOR · E"); } }
+      if (B && g.inside === B && S.step >= 7 && S.step <= 9) { for (const w of S.watch || []) { if (!w.down) drawCone(w, false); person(w.x, w.y, w.yt, w.down ? "OUT COLD" : w.nm, w.down ? 0 : w.a, w.down ? "#888" : "#e05a5a"); if (!w.down && S.step === 7 && near([w.x, w.y], 55)) lab8("E: TAKE HIM DOWN", w.x, w.y - 42); }
+        const sp = artPt(B, 0, NEST_SAFE[0], NEST_SAFE[1]); if (sp) { const im = imgs.current[S.step >= 9 ? "pr_office_safe_open" : "pr_office_safe"]; if (im && im.width) ctx.drawImage(im, sp[0] - 22, sp[1] - 18, im.width * 44 / im.height * (S.step >= 9 ? 0.75 : 1) * 0.6, 36); else { ctx.fillStyle = "#222"; ctx.fillRect(sp[0] - 18, sp[1] - 16, 36, 32); } }
+        if (S.step === 8) { const sp2 = artPt(B, 0, NEST_SAFE[0], NEST_SAFE[1] + 0.07); ring(sp2, 30, "SAFECRACKER · " + Math.min(12, Math.floor(S.crack || 0)) + " / 12"); } }
+      if (S.step === 10) { const HP = hippyB(); if (HP && g.inside === HP && g.floor === 0) { const p = artPt(HP, 0, 0.5, 0.5); if (p) person(p[0], p[1], "yt_bozni_victor", "VICTOR BOZNOV", Math.PI / 2, "#e05a5a"); } } }
+    function nestE() { const S = g.story;
+      if (S.step === 5 && !g.inside && g.mode === "foot" && phoneBooths().some((q) => near([q.x, q.y], 46))) { G.pickOpen("sp_alonzo"); return true; }
+      if (S.step === 6 && !g.inside && g.mode === "foot" && near(nestBack(), 70)) { const B = nestB(); putIn(B, 0, NEST_IN[0], NEST_IN[1]); g.pfol.forEach((f) => { f.x = g.p.x - 20; f.y = g.p.y + 10; }); say("LOCKSMITH", "“Six seconds. Told you.”", 3); return true; }
+      if (S.step === 7) { const w = (S.watch || []).find((q) => !q.down && near([q.x, q.y], 55)); if (w) { w.down = 1; G.sfx && G.sfx("door", 0.5); g.pickupFlash = { nm: "lift:LIGHTS OUT", t: 1.2 }; return true; } }
+      if (S.step === 9 && takeStoryCar()) { say("PABLO", "“Got it? Then we were never here.”", 4); return true; }
+      return false; }
+
+    G.boothsT = () => phoneBooths().slice(0, 3).map((q) => [q.x | 0, q.y | 0]);   // test hooks
+    G.nestPtsT = () => { const S = g.story, B = nestB(); return { back: nestBack(), safe: B ? artPt(B, 0, NEST_SAFE[0], NEST_SAFE[1] + 0.07) : null, watch: S && S.watch ? S.watch.map((w) => [w.x | 0, w.y | 0, +w.a.toFixed(2), !!w.down]) : null }; };
+
+    /* ---------- MISSION 12: BLOWBACK ----------
+       0 afternoon: looking for Rochelle, Rey parks across from Central High -- a boy who looks like him walks out with
+       Rochelle's mother (camera holds, no objective) 1 Dread on the phone: the corner's hit 2 the gas station: Grigori's
+       crew, put them down 3 the radio: the Hippie -- get there 4 DEFEND THE HIPPIE: three waves; men carrying gas cans
+       (it_gascan) go for the door -- each one that gets there is a third of the FIRE meter; full = it burns (fail).
+       Pablo, Leroy and Ras fight beside you; whoever's posted at the Hippie (THE BUSINESS) stands his post.
+       5 Grigori pulls out, Mimi drives over with coffee 6 dinner at Mimi's. */
+    STORY.blowback = { nm: "BLOWBACK", pay: 3000 };
+    const BB_WAVES = [3, 4, 5];
+    const hipDoor = () => { const HP = hippyB(); return HP ? wallPt(HP, HP.door ? HP.door.side : 2, 0.5, 20) : null; };
+    BEGIN98.blowback = () => { storyStart("blowback"); const S = g.story; S.step = 0; S.t = 0; G.sleepFade(() => { const sb = schools()[0]; atTime(15, 10); g.nightTarget = 0;
+        if (sb) { const [fx, fy] = frontOf(sb), [kx, ky] = streetStop(fx, fy); g.inside = null; g.floor = 0; g.mode = "car"; g.car.x = kx; g.car.y = ky + 140; g.car.vx = g.car.vy = 0; g.p.x = g.car.x; g.p.y = g.car.y; S.school = [fx, fy]; S.kids = 0; } }, "THE NEXT AFTERNOON · 3:10 PM"); };
+    STEP98.blowback = (dt) => { const S = g.story; if (g.sleepFx) return; S.t = (S.t || 0) + dt; const HP = hippyB();
+      if (S.step === 0) { if (!S.said0) { S.said0 = 1; say("REY", "Rochelle's mother still lives off Central, if she lives anywhere. Rochelle will have been by. You park across from the high school and wait.", 8); if (S.school) camPanTo(S.school[0], S.school[1], 12); }
+        S.kids += dt; if (S.kids > 6 && !S.said1) { S.said1 = 1; say("REY", "The bell. Kids everywhere. And one boy, walking out with Rochelle's mother, who looks exactly like you did at seventeen.", 8); }
+        if (S.kids > 14) { S.step = 1; S.t = 0; g.camPan = null; storyMark("THE PHONE"); say("DREAD (CAR PHONE)", "“Rey! Dem hit di corner! Two a mi bwoy dem down. Russians, plenty a dem, still deh yah!”", 7); } return; }
+      if (S.step === 1) { if (S.t > 2) { S.step = 2; storyMark("THE GAS STATION"); } return; }
+      if (S.step === 2) { const C = cornerSpot(); if (!C) return; if (!S.crew && near(C, 520)) { S.crew = hostile("rus", C[0], C[1], 4); say("DREAD", "“Behind di pumps! Watch di big one!”", 5); }
+        if (S.crew && crewDead(S.crew)) { S.crew = null; S.step = 3; storyMark("THE HIPPIE"); say("RADIO", "“...reports of a fire at a laundromat on the east side...” -- It isn't burning yet. Two cars of Bratva with gas cans are pulling into the Hippie's lot.", 8); } return; }
+      if (S.step === 3) { if (HP && !g.inside && near(frontOf(HP), 420)) { S.step = 4; S.wave = 0; S.fire = 0; S.gap = 1.5; storyMark("DEFEND THE HIPPIE");
+          g.pfol = crewFol([PABLO_F, LEROY_F, RAS_F]); for (const f of g.pfol) { f.wpn = f.key === "c:leroy" ? "pistol" : "smg_uzi"; f.x = g.p.x + 30; f.y = g.p.y; }
+          say("LEROY", "“The ones with the cans! Drop the cans first or we're all out of a laundromat!”", 6); } return; }
+      if (S.step === 4) { const D = hipDoor(); if (!D) return;
+        if (!S.crew) { S.gap -= dt; if (S.gap <= 0) { if (S.wave >= BB_WAVES.length) { S.step = 5; S.t = 0; storyMark("THEY'RE RUNNING"); say("RAS", "“Dem gone! Look at dem run, bredda!”", 5); return; }
+            const HB = HP, side = HB.door ? HB.door.side : 2, o = [[0, -1], [1, 0], [0, 1], [-1, 0]][side], sx = D[0] + o[0] * 620 + (S.wave % 2 ? 260 : -260) * (o[1] ? 1 : 0), sy = D[1] + o[1] * 620 + (S.wave % 2 ? 260 : -260) * (o[0] ? 1 : 0);
+            S.crew = hostile("rus", sx, sy, BB_WAVES[S.wave]); S.crew.members.slice(0, S.wave + 1).forEach((m) => { m.gas = 1; m.wpn = null; }); S.wave++; say("PABLO", "“Wave " + S.wave + "! Cans in front!”", 3); } return; }
+        for (const m of S.crew.members) { if (!m.gas || (m.hp || 0) <= 0) continue; const dx = D[0] - m.x, dy = D[1] - m.y, d = Math.hypot(dx, dy) || 1; m.x += dx / d * 70 * dt; m.y += dy / d * 70 * dt; m.vx = dx / d * 70; m.vy = dy / d * 70;
+          if (d < 46) { m.gas = 0; m.hp = 0; S.fire += 34; G.sfx && G.sfx("door", 0.8); say("LEROY", S.fire >= 100 ? "“It's going up!”" : "“One got to the door! Fire's started -- stop the next one!”", 4); } }
+        if (S.fire >= 100) { storyFail("The Happy Hippie burned to the ground."); return; }
+        if (crewDead(S.crew)) { S.crew = null; S.gap = 3; } return; }
+      if (S.step === 5) { if (S.t > 4 && !g.pickOpen && !S.cof) { S.cof = 1; G.pickOpen("sp_coffee"); } return; } };
+    SP.sp_coffee = () => ({ title: "THE HIPPIE LOT · MIMI", face: "assets/crew/pt_mimi.png",
+      text: "A station wagon pulls into the lot and Mimi gets out with a tray of coffee in paper cups, like it's a bake sale and not a lot full of brass.\n\nMIMI: “Pablo. PABLO. Look at you. Fifty-two years old and you're shooting at people in a parking lot.”\n\nPABLO: “They started it.”\n\nMIMI: “Everybody be at my table at eight. All of you. That's not a question.”",
+      opts: [{ id: "story:sp_coffee_ok", label: "“EIGHT O'CLOCK.”" }] });
+    SPA.sp_coffee_ok = () => { spClose(); if (!SID("blowback", 5)) return; g.story.step = 6; g.pfol = [];
+      dinnerScene([["MIMI", "“Sit. All of you. Pablo, wash your hands -- I saw where they been.”"], ["RAS", "“Mi neva taste rice an' beans like dis in seventeen years, Miss Mimi.”"], ["LEROY", "“They came at us twice in one day. They're scared.”"], ["LEROY", "“Scared people make mistakes.”"], ["MIMI", "“No business at my table. Eat.”"]], () => { if (SID("blowback")) storyComplete(); }); };
+    OBJ98.blowback = () => { const S = g.story; return { head: "BLOWBACK · " + ["CENTRAL HIGH", "THE PHONE", "THE GAS STATION", "THE HIPPIE", "DEFEND THE HIPPIE", "MIMI", "DINNER"][S.step],
+      sub: ["", "", "Dread's corner, behind the gas station. Put Grigori's men down.", "Get to the Happy Hippie.", "WAVE " + (S.wave || 0) + " / 3 · FIRE " + Math.min(100, S.fire || 0) + "% · Drop the men carrying gas cans before they reach the door.", "", "Mimi's table."][S.step] || "" }; };
+    TGT98.blowback = (h) => { const S = g.story; if (S.step === 2) return cornerSpot(); if (S.step === 3) return h.hip(); return null; };
+    DRAW98.push(() => { const S = g.story; if (!S || S.id !== "blowback" || g.inside) return;
+      if (S.step === 0 && S.school && S.kids > 5) { const k = Math.min(1, (S.kids - 5) / 8), x = S.school[0] - 60 + k * 120, y = S.school[1] + k * 60;
+        person(x, y, imgs.current.yt_stu_player_ch && imgs.current.yt_stu_player_ch.width ? "yt_stu_player_ch" : "yt_stu_ch_1", null, Math.PI / 2); person(x + 30, y - 6, "yt_stu_mom", null, Math.PI / 2); }
+      if (S.step === 4) { const D = hipDoor(); if (D) { ring(D, 30, "THE DOOR · FIRE " + Math.min(100, S.fire || 0) + "%"); if ((S.fire || 0) > 0) { ctx.fillStyle = "rgba(255,120,30," + (0.25 + 0.15 * Math.sin((g.t || 0) * 9)) + ")"; ctx.beginPath(); ctx.arc(D[0], D[1], 30 + S.fire * 0.6, 0, 6.3); ctx.fill(); } }
+        const gc = imgs.current.it_gascan; if (S.crew) for (const m of S.crew.members) if (m.gas && (m.hp || 0) > 0) { if (gc && gc.width) ctx.drawImage(gc, m.x + 8, m.y - 6, 16, 16); else { ctx.fillStyle = "#c0392b"; ctx.fillRect(m.x + 8, m.y - 6, 10, 12); } lab8("GAS", m.x, m.y - 30, "#ff7a3a"); } } });
+
+    /* ---------- MISSION 13: PINK SLIPS ----------
+       0 Jose: Nicky Orlov races pink slips Saturdays, and his key ring has the Raven Auto gate key 1 hire a DRIVER at the
+       table (the driver's lesson: the CAR command) 2 Stan's: the mechanic's parts lesson; the engine, the wing and a
+       nitro kit go on your car (modsOf) 3 practice: one lap of three checkpoints round Stan's 4 Saturday night: the race
+       -- three checkpoints and the line; Nicky runs the same route (S.nk) -- beat him to the line. Lose: Pablo buys your
+       car back ($2,000) and you run it again. Win: Nicky's car in the motor pool and the gate key (g.raGateKey). */
+    STORY.pinkslips = { nm: "PINK SLIPS", pay: 0 };
+    const setMods = (c, o) => { const m = c.pool ? (c.pool.mods = c.pool.mods || {}) : (c.mods = c.mods || {}); Object.assign(m, o); };
+    function psLoop(S, race) { const R = g.repairB || hippyB(); if (!R) return []; const ci = clamp(Math.round((R.x + R.w / 2) / PITCH), 1, N - 3), cj = clamp(Math.round((R.y + R.h / 2) / PITCH), 1, N - 3);
+      const P = (i, j) => [SX(i), SX(j)]; return race ? [P(ci, cj), P(ci + 2, cj), P(ci + 2, cj + 2), P(ci, cj + 2)] : [P(ci, cj), P(ci + 1, cj), P(ci + 1, cj + 1), P(ci, cj + 1), P(ci, cj)]; }
+    function psRoute(cps) { let R = [cps[0]]; for (let k = 1; k < cps.length; k++) { try { R = R.concat(roadRoute(cps[k - 1][0], cps[k - 1][1], cps[k][0], cps[k][1]) || []); } catch (e) {} R.push(cps[k]); }
+      let L = 0; for (let k = 1; k < R.length; k++) L += Math.hypot(R[k][0] - R[k - 1][0], R[k][1] - R[k - 1][1]); return { R, L }; }
+    BEGIN98.pinkslips = () => { storyStart("pinkslips"); const S = g.story; S.step = 0; S.d0 = hireCount("driver"); G.sleepFade(() => { nextDay(10, 0); aptStartHome(); }, WEEK[((g.pday || 0) + 1) % 7] + " · 10:00 AM"); };
+    SP.sp_jose = () => ({ title: "PALM COURT · JOSE", face: "assets/crew/pt_jose.png",
+      text: "Jose's at your door with a plate of his mother's leftovers and a look like he's been holding something in all night.\n\nJOSE: “Raven Auto's best driver. Nicky Orlov. Every Saturday he runs pink slips out on the industrial strip -- winner keeps the loser's car, keys and all.”\n\n“And Nicky's got the Raven Auto gate key on his ring. Grigori trusts him with the lot.”\n\nJOSE: “You can't out-drive a guy who drives for a living, Rey. Not yet.”",
+      opts: [{ id: "story:sp_jose_ok", label: "“THEN I'LL GET SOMEBODY WHO CAN TEACH ME.”" }] });
+    SPA.sp_jose_ok = () => { spClose(); if (SID("pinkslips", 0)) { g.story.step = 1; needHires(["driver"]); g.hireNeed = null; storyMark("HIRE A DRIVER"); say("LEROY (PHONE)", "“A driver. At the table. Hire one -- a real one, not Pablo, Pablo's an artist.”", 6); } };
+    SP.sp_parts = () => ({ title: "STAN'S \u00b7 THE PARTS", face: null,
+      text: "The mechanic wipes his hands and walks round your car like it owes him money.\n\n\u201cENGINE: top speed and pull. BRAKES: how late you can leave it. PLATING: armour -- heavier, slower. LIGHTS: for show. NITROUS: a few seconds where the world slows and you don't. And a WING: grip in the turns -- the faster you go, the more it holds you down.\u201d\n\n\u201cI only stock the street stuff. The turbos, the race wings, the real nitrous -- you want those, you need a shop of your own, and a good one.\u201d\n\nTHE DRIVER: \u201cBuy something. Anything that makes it faster. A V8 and a wing, if the money's there.\u201d\n\n(Each part shows its price. Locked parts open up as you level up a car shop of your own.)",
+      opts: [{ id: "story:sp_parts_buy", label: "SHOW ME THE PARTS" }] });
+    SPA.sp_parts_buy = () => { spClose(); if (!SID("pinkslips", 2)) return; if (g.mode !== "car") { g.pickupFlash = { nm: "lift:DRIVE YOUR CAR IN TO STAN'S", t: 2 }; g.story.ps = 0; return; }
+      const S = g.story; S.mods0 = JSON.stringify(modsOf(g.car) || {}); S.shop = 1; g.gpSlot = "car"; g.gpSaid = null; setTimeout(garageWheel, 30); };
+    SP.sp_race_won = () => ({ title: "THE INDUSTRIAL STRIP · YOU WIN", face: "assets/crew/pt_nicky.png",
+      text: "Nicky's out of his car before it stops rolling, red in the face. Pablo holds the slips up so the crowd can see.\n\nNICKY: “Take it. Take the car.”\n\nYou hold out your hand. “The keys. All of them.”\n\nHe looks at the ring a long time. The Raven Auto gate key is on it. He drops it in your palm.\n\nJOSE (later, turning the ring over): “That's the gate.”",
+      opts: [{ id: "story:sp_race_done", label: "“TELL GRIGORI I SAID THANKS.”" }] });
+    SPA.sp_race_done = () => { spClose(); if (!SID("pinkslips", 5)) return; g.raGateKey = 1; try { motorAdd0("pk_911_grey", "NICKY'S CAR"); } catch (e) {} dropCars(g.story.cops); storyComplete(); };
+    SP.sp_race_lost = () => ({ title: "THE INDUSTRIAL STRIP · NICKY WINS", face: "assets/crew/pt_nicky.png",
+      text: "Nicky's leaning on his car at the line, eating a candy bar, when you get there.\n\nNICKY: “Nice car. Mine now.”\n\nPablo peels two thousand off a roll and buys it back on the spot.\n\nPABLO: “Again, mijo. Same time next week. And brake BEFORE the corner.”",
+      opts: [{ id: "story:sp_race_again", label: "RUN IT AGAIN · $2,000" }] });
+    SPA.sp_race_again = () => { spClose(); if (!SID("pinkslips", 5)) return; g.p.cash = Math.max(0, (g.p.cash || 0) - 2000); psRaceStart(); };
+    function psRaceStart() { const S = g.story; G.sleepFade(() => { const cps = psLoop(S, true), mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; S.cps = cps.length === 4 ? [mid(cps[1], cps[2]), mid(cps[2], cps[3]), cps[3]] : cps.slice(1); S.cp = 0; const [sx, sy] = cps[0]; g.pday = (g.pday || 0) + ((5 - ((g.pday || 0) % 7) + 7) % 7 || 7); g.clock = 22 * 60 + 30; g.nightTarget = 1;
+        g.inside = null; g.floor = 0; g.mode = "car"; g.car.x = sx - 40; g.car.y = sy; g.car.vx = g.car.vy = 0; g.car.ang = Math.atan2(cps[1][1] - sy, cps[1][0] - sx) + Math.PI / 2; g.p.x = g.car.x; g.p.y = g.car.y;
+        S.nk = { ...psRoute(cps), d: 0, sp: 0 }; S.nk.sp = S.nk.L / 62; S.cuts = psCuts(cps); S.cones = psCones(S); S.oc = 0; S.count = 3.5; S.step = 5; S.res = null; dropCars(S.cops); const c2 = cps[2]; S.cops = [parkCar(c2[0] + 90, c2[1] + 70, 0.5)];
+        storyMark("THE RACE"); say("PABLO", "“Nicky's on your left. Two marks, then the line. On green.”", 4); if (S.cuts && S.cuts.length) setTimeout(() => { if (SID("pinkslips", 5)) say("THE DRIVER", "“See the yellow arrows? Cut-throughs, behind the lots. Nicky won't take 'em -- his car sits too low. You will.”", 6); }, 4200); }, "SATURDAY · 10:30 PM · THE INDUSTRIAL STRIP"); }
+    STEP98.pinkslips = (dt) => { const S = g.story; if (g.sleepFx) return; S.t = (S.t || 0) + dt;
+      if (S.step === 0) { if (S.t > 1 && !S.jose && !g.pickOpen) { S.jose = 1; G.pickOpen("sp_jose"); } return; }
+      if (S.step === 1) { if (hireCount("driver") > (S.d0 || 0)) { S.step = 2; storyMark("STAN'S"); say("THE DRIVER", "“The CAR command's on your action wheel -- I can drive you, lose a tail, circle the block. But you're racing, so you drive. Take me to Stan's.”", 8); } return; }
+      if (S.step === 2) { if (!S.sug) { S.sug = 1; say("THE DRIVER", "\u201cYour car's slow, boss. Before Saturday -- Stan's. Put something under the hood so you're not racing a Mercedes in a mailbox.\u201d", 7); }
+        if (S.shop && !g.pickOpen && JSON.stringify(modsOf(g.car) || {}) !== S.mods0) { S.step = 3; S.cps = psLoop(S, false); S.cp = 1; storyMark("PRACTICE LAP"); say("THE DRIVER", "\u201cFeel that? Now one lap with me riding along. Hit the marks. Brake BEFORE the corner, not in it.\u201d", 6); return; }
+        if (g.repairB && near(frontOf(g.repairB), 260) && !g.pickOpen && !S.ps) { S.ps = 1; G.pickOpen("sp_parts"); } if (!near(frontOf(g.repairB || { x: 0, y: 0, w: 0, h: 0 }), 400)) S.ps = 0; return; }
+      if (S.step === 3) { const c = S.cps[S.cp]; if (c && g.mode === "car" && near(c, 170)) { S.cp++; G.sfx && G.sfx("door", 0.4); if (S.cp >= S.cps.length) { S.step = 4; storyMark("SATURDAY"); say("THE DRIVER", "“You'll do. Saturday.”", 4); S.t = 0; } } return; }
+      if (S.step === 4) { if (S.t > 3 && !S.started) { S.started = 1; psRaceStart(); } return; }
+      if (S.step === 5) { if (S.res) return; if (S.count > 0) { S.count -= dt; if (S.count > 0.2) { g.car.vx *= 0.5; g.car.vy *= 0.5; } return; }
+        S.nk.d += S.nk.sp * dt; const c = S.cps[S.cp];
+        const oc = offCourse(S); S.oc = oc > 270 ? (S.oc || 0) + dt : 0; if (S.oc > 2.5) { const back = S.cp > 0 ? S.cps[S.cp - 1] : S.nk.R[0]; g.car.x = back[0]; g.car.y = back[1]; g.car.vx = g.car.vy = 0; S.oc = 0; g.pickupFlash = { nm: "lift:OFF THE COURSE \u00b7 BACK TO THE LAST MARK", t: 2 }; }
+        if (c && g.mode === "car" && near(c, 190)) { S.cp++; G.sfx && G.sfx("door", 0.4); if (S.cp === 2) say("PABLO", "“Cop on the corner! Don't stop, don't look!”", 3); }
+        if (S.cp >= S.cps.length) { S.res = "won"; G.pickOpen("sp_race_won"); return; }
+        if (S.nk.d >= S.nk.L) { S.res = "lost"; G.pickOpen("sp_race_lost"); return; } } };
+    OBJ98.pinkslips = () => { const S = g.story; const ahead = S.nk ? Math.round(S.nk.d / S.nk.L * 100) : 0;
+      return { head: "PINK SLIPS · " + ["JOSE", "HIRE A DRIVER", "STAN'S", "PRACTICE LAP", "SATURDAY", "THE RACE"][S.step],
+        sub: ["", "E at the map table: HIRE PEOPLE -- a DRIVER.", (S.shop ? "Buy at least one part, then close the wheel." : "Drive your car to Stan's."), "Drive through the marks: " + Math.min(S.cp || 0, (S.cps || []).length) + " / " + (S.cps || []).length, "",
+          S.count > 0 ? "GET READY · " + Math.ceil(S.count) : "MARK " + Math.min((S.cp || 0) + 1, (S.cps || []).length) + " / " + (S.cps || []).length + " (the last one is the line) · NICKY " + ahead + "% · N: NITRO"][S.step] || "" }; };
+    TGT98.pinkslips = (h) => { const S = g.story; if (S.step === 1) return h.yard(); if (S.step === 2) return g.repairB ? frontOf(g.repairB) : null; if ((S.step === 3 || S.step === 5) && S.cps) return S.cps[S.cp] || null; return null; };
+    E98.pinkslips = () => { const S = g.story; if (S.step === 1 && atTable()) { g.boardView = "hire"; g.boardSaid = "Leroy: “A driver. Somebody who's done it for money.”"; G.pickOpen("opsboard"); return true; } return false; };
+    DRAW98.push(() => { const S = g.story; if (!S || S.id !== "pinkslips" || g.inside) return;
+      if ((S.step === 3 || S.step === 5) && S.cps) S.cps.forEach((c, k) => { if (k < S.cp) return; ring(c, k === S.cp ? 60 : 40, k === S.cps.length - 1 && S.step === 5 ? "THE LINE" : "MARK " + (k + 1)); });
+      if (S.step === 5) { for (const c of S.cones || []) if (Math.abs(c[0] - g.cam.x) < 1400 && Math.abs(c[1] - g.cam.y) < 1000) drawCone2(c[0], c[1]); drawCuts(S); if ((S.oc || 0) > 0.3) lab8("OFF THE COURSE", g.car.x, g.car.y - 70, "#ff7a3a");
+        flashCruisers(S.cops); if (S.nk) { const R = S.nk.R; let d = S.nk.d, x = R[0][0], y = R[0][1], a = 0; for (let k = 1; k < R.length; k++) { const s = Math.hypot(R[k][0] - R[k - 1][0], R[k][1] - R[k - 1][1]); if (d <= s) { const f = s ? d / s : 0; x = R[k - 1][0] + (R[k][0] - R[k - 1][0]) * f; y = R[k - 1][1] + (R[k][1] - R[k - 1][1]) * f; a = Math.atan2(R[k][1] - R[k - 1][1], R[k][0] - R[k - 1][0]); break; } d -= s; x = R[k][0]; y = R[k][1]; }
+          const im = imgs.current.pk_911_grey; ctx.save(); ctx.translate(x, y); ctx.rotate(a + Math.PI / 2); if (im && im.width) ctx.drawImage(im, -26, -54, 52, 108); else { ctx.fillStyle = "#aaa"; ctx.fillRect(-24, -50, 48, 100); } ctx.restore(); lab8("NICKY", x, y - 60, "#ff7a3a"); }
+        if (S.count > 0) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.font = "800 64px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText(S.count > 0.5 ? String(Math.ceil(S.count - 0.5)) : "GO", ctx.canvas.width / 2, ctx.canvas.height * 0.4); ctx.restore(); } } });
+
+    /* ---------- MISSION 14: RAVEN AUTO ----------
+       0 the table: Jose knows which cars are clean -- hire a CAR THIEF and a FENCE 1 (hiring) 2 1 AM, Raven Auto with
+       Nicky's gate key: five marked cars, the night man walking the front (a cone; seen = the alarm, Grigori's men come)
+       -- E at a car and stay by it 3 s: hot-wired; the crew drives the first four out 3 the fifth is yours, and Grigori
+       turns up: get it to the yard 4 the yard gate: Grigori boxed in, Rey lets him walk 5 the fence takes two (plates
+       swapped), three go in the motor pool. */
+    STORY.ravenauto = { nm: "RAVEN AUTO", pay: 8000 };
+    const RA_CARS = ["pk_911_silver", "pk_sedan_navy", "pk_coupe_white", "buy_coupe", "pk_hatch_red"];
+    BEGIN98.ravenauto = () => { storyStart("ravenauto"); const S = g.story; S.step = 0; S.t = 0; G.sleepFade(() => { nextDay(11, 0); const H = hideoutB(); if (H) putIn(H, 0); }, WEEK[((g.pday || 0) + 1) % 7] + " · 11:00 AM · THE YARD"); };
+    SP.sp_ra_plan = () => ({ title: "THE MAP TABLE · RAVEN AUTO", face: "assets/crew/pt_jose.png",
+      text: "JOSE: “Five cars on that lot Grigori hasn't flipped yet. Clean. The good ones -- I wrote the plates down.”\n\nLEROY: “We take all five in one night. He answered the Hippie with gasoline. We answer with his whole lot.”\n\n“A CAR THIEF to start them quiet. A FENCE for the two that are too hot to keep -- new plates, sold by morning.”",
+      opts: [{ id: "story:sp_ra_hire", label: "“HIRE THEM.”" }] });
+    SPA.sp_ra_hire = () => { if (!SID("ravenauto", 0)) { spClose(); return; } const S = g.story; S.step = 1; S.need = { thief: hireCount("thief") + 1, fence: hireCount("fence") + 1 }; needHires(["thief", "fence"]); storyMark("HIRE A THIEF AND A FENCE"); g.boardView = "hire"; G.pickOpen("opsboard"); };
+    function raLot(S) { if (S.lot) return S.lot; const A = autoB(); if (!A) return null; const side = A.door ? A.door.side : 2, [cx, cy] = wallPt(A, side, 0.5, 200), ax = side % 2 ? 0 : 1, ay = side % 2 ? 1 : 0; const L = [-2, -1, 0, 1, 2].map((n, k) => ({ x: cx + ax * n * 125, y: cy + ay * n * 125, a: side % 2 ? Math.PI / 2 : 0, k: RA_CARS[k], done: 0 }));
+      const [ga, gb] = wallPt(A, side, 0.5, 340); return (S.lot = { cars: L, gate: [ga, gb], side, cx, cy, ax, ay, o: [[0, -1], [1, 0], [0, 1], [-1, 0]][side] }); }
+    STEP98.ravenauto = (dt) => { const S = g.story; if (g.sleepFx) return; S.t = (S.t || 0) + dt;
+      if (S.step === 0) { if (S.t > 1 && !S.pl && !g.pickOpen) { S.pl = 1; G.pickOpen("sp_ra_plan"); } return; }
+      if (S.step === 1) { if (S.need && hireCount("thief") >= S.need.thief && hireCount("fence") >= S.need.fence && !g.pickOpen) { S.step = 2; G.sleepFade(() => { atTime(1, 0); g.nightTarget = 1; const L = raLot(S); if (!L) return;
+            putOut([L.gate[0], L.gate[1] + (L.side === 2 ? 160 : L.side === 0 ? -160 : 0)]); S.w = { nm: "NIGHT MAN", x: L.cars[0].x, y: L.cars[0].y - 60, a: 0, base: 0, range: 210, fov: 0.55, dir: 1 };
+            g.pfol = crewFol([crewF("thief"), ["h:jose", "JOSE", "driver", null, "yt_jose"]]); storyMark("RAVEN AUTO · 1 AM"); say("JOSE", "“Gate key works. Five cars with my chalk on the tyres. Watch the night man.”", 6); }, "1:00 AM · RAVEN AUTO"); } return; }
+      if (S.step === 2 || S.step === 3) { const L = raLot(S); if (!L) return; const W = S.w, A = L.cars[0], B = L.cars[4];
+        if (W && !S.alarm) { W.u = (W.u == null ? -2.5 : W.u) + W.dir * 0.45 * dt; if (W.u > 2.5) W.dir = -1; if (W.u < -2.5) W.dir = 1; W.x = L.cx + L.ax * W.u * 125 + L.o[0] * 95; W.y = L.cy + L.ay * W.u * 125 + L.o[1] * 95; W.a = Math.atan2(L.ay * W.dir, L.ax * W.dir);
+          if (g.mode === "foot" && coneSees(W, g.p.x, g.p.y, false)) { S.alarm = 1; S.crew = hostile("rus", W.x, W.y, 3); say("JOSE", "“He saw you! Alarm's going -- Grigori's people are coming. Move!”", 5); } }
+        if (S.step === 2) { const c = L.cars.find((q) => !q.done && near([q.x, q.y], 95)); if (c && g.mode === "foot" && S.hwOn === c) { S.hw = (S.hw || 0) + dt; if (S.hw >= 3) { c.done = 1; S.hw = 0; S.hwOn = null; const n = L.cars.filter((q) => q.done).length;
+              if (n < 5) { say(["JOSE", "THE THIEF", "PABLO", "JOSE"][n - 1] || "JOSE", n + " of 5 -- “Got it. Taking it out.”", 3); G.sfx && G.sfx("door", 0.4); }
+              else { g.car.x = c.x; g.car.y = c.y; g.car.ang = 0; g.car.vx = g.car.vy = 0; g.car.skin = { k: c.k, len: 106, w: 50 }; g.car.idn = { model: "RAVEN AUTO STOCK", colour: "", plate: "RA LOT 5", owner: "GRIGORI ORLOV" }; g.car.pool = null; g.mode = "car"; g.p.x = c.x; g.p.y = c.y;
+                S.step = 3; storyMark("THE LAST ONE"); g.pfol = []; const gx = L.gate[0], gy = L.gate[1]; S.grig = [parkCar(gx + 240, gy + 60, 0.4, "mob_sedan"), parkCar(gx - 260, gy + 40, -0.3, "mob_suv")]; S.crew = hostile("rus", gx + 120, gy + 120, 4);
+                say("JOSE", "“Grigori! He knew! Drive, Rey -- the yard! GO!”", 5); } } } else if (!c) { S.hw = 0; S.hwOn = null; } }
+        if (S.step === 3 && inYard() && g.mode === "car" && !g.pickOpen) { S.step = 4; dropCars(S.grig); G.pickOpen("sp_grigori"); } return; } };
+    E98.ravenauto = () => { const S = g.story; if (S.step === 1 && atTable()) { g.boardView = "hire"; G.pickOpen("opsboard"); return true; }
+      if (S.step === 2 && g.mode === "foot") { const L = raLot(S), c = L && L.cars.find((q) => !q.done && near([q.x, q.y], 95)); if (c) { S.hwOn = c; S.hw = 0; say("THE THIEF", "“Three seconds. Stand there.”", 2); return true; } } return false; };
+    SP.sp_grigori = () => ({ title: "THE YARD GATE · GRIGORI", face: "assets/crew/pt_bozni_grigori.png",
+      text: "Grigori's car comes through the gate behind you, and Leroy's men roll the crusher's loader across the road behind HIM. Boxed in.\n\nGrigori gets out slowly. His men look at him. He looks at you.\n\nYou: “Walk home, Medved. All of you. Leave the cars.”\n\nHe walks. In front of his men, in his good shoes, he walks.",
+      opts: [{ id: "story:sp_grigori_ok", label: "WATCH HIM GO" }] });
+    SPA.sp_grigori_ok = () => { spClose(); if (SID("ravenauto", 4)) { g.story.step = 5; G.pickOpen("sp_fence"); } };
+    SP.sp_fence = () => ({ title: "THE YARD · THE FENCE", face: null,
+      text: "Five cars in the yard. Your fence walks the row with a clipboard.\n\n“These two are hot as stoves -- Grigori's had them in the paper. New plates tonight, sold by morning. Eight grand for the pair.”\n\n“The other three you keep. Nobody's looking for them.”\n\n(PLATES: a hot car with new plates is a clean car. THE FENCE turns what you can't keep into cash.)",
+      opts: [{ id: "story:sp_fence_ok", label: "“DO IT.”" }] });
+    SPA.sp_fence_ok = () => { spClose(); if (!SID("ravenauto", 5)) return; for (const k of RA_CARS.slice(0, 3)) { try { motorAdd0(k, "RAVEN AUTO · " + k.replace(/^(pk|buy)_/, "").replace(/_/g, " ").toUpperCase()); } catch (e) {} } g.raEmpty = 1; empInit(); g.biz.auto = g.biz.auto || { lvl: 0, boss: "jose", guards: [], cash: 0, at: nowMin() };
+      g.pickupFlash = { nm: "lift:RAVEN AUTO IS YOURS \u00b7 YOUR CAR SHOP NOW (DRIVE UP: E)", t: 3.5 }; storyComplete(); };
+    OBJ98.ravenauto = () => { const S = g.story, L = S.lot, n = L ? L.cars.filter((q) => q.done).length : 0;
+      return { head: "RAVEN AUTO · " + ["THE TABLE", "HIRE", "THE LOT", "THE LAST CAR", "GRIGORI", "THE FENCE"][S.step],
+        sub: ["", "At the table: " + (S.need ? ["thief", "fence"].map((r) => (hireCount(r) >= S.need[r] ? "✓ " : "· ") + HIRES[r].nm).join("  ") : ""), "Hot-wire the marked cars: E at one and stay by it. " + n + " / 5" + (S.alarm ? " · ALARM" : " · stay out of the night man's light"), "Get the last car to the yard.", "", ""][S.step] || "" }; };
+    TGT98.ravenauto = (h) => { const S = g.story; if (S.step <= 1) return h.yard(); if (S.step === 2) { const L = raLot(S), c = L && L.cars.find((q) => !q.done); return c ? [c.x, c.y] : null; } if (S.step === 3) return h.yard(); return null; };
+    DRAW98.push(() => { const S = g.story; if (!S || S.id !== "ravenauto" || g.inside || !S.lot) return; if (S.step === 2) { for (const c of S.lot.cars) { if (c.done) continue; const im = imgs.current[c.k]; ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.a || 0); if (im && im.width) ctx.drawImage(im, -25, -52, 50, 104); else { ctx.fillStyle = "#777"; ctx.fillRect(-22, -48, 44, 96); } ctx.restore();
+          ring([c.x, c.y], 58, S.hwOn === c ? "HOT-WIRING " + Math.min(3, S.hw || 0).toFixed(1) : "E · CHALK ON THE TYRE"); }
+        if (S.w && !S.alarm) { drawCone(S.w, false); person(S.w.x, S.w.y, "yt_pr_guard_2", "NIGHT MAN", S.w.a, "#e05a5a"); } } });
+
+    /* ---------- MISSION 15: THE LEAK ----------
+       0 the Nest after hours: Katya -- "It's Tony." 1 the table: plant a fake job 2 the crane cab: watch Tony make a call
+       3 tail his car (stay within range, out of his mirrors: too far = lost, too close too long = made) 4 under the
+       freeway with Grigori: take the photo (E) 5 the yard: Tony, the crusher, his car -- he lives and works for Rey now
+       6 Katya: "When Vlad is gone, I run what's left." 7 dinner at Mimi's. */
+    STORY.leak = { nm: "THE LEAK", pay: 2000 };
+    const leakCrane = () => { const H = hideoutB(); return H ? wallPt(H, ((H.door ? H.door.side : 2) + 1) % 4, 0.5, 130) : null; };
+    const leakTony = () => { const H = hideoutB(); return H ? wallPt(H, H.door ? H.door.side : 2, 0.18, 70) : null; };
+    BEGIN98.leak = () => { storyStart("leak"); const S = g.story; S.step = 0; S.t = 0; G.sleepFade(() => { nextDay(23, 30); g.nightTarget = 1; const B = nestB(); if (B) putIn(B, 0, 0.5, 0.75); }, WEEK[((g.pday || 0) + 1) % 7] + " · 11:30 PM · THE NEST, AFTER HOURS"); };
+    SP.sp_katya_leak = () => ({ title: "THE RAVEN'S NEST · AFTER HOURS", face: "assets/crew/pt_bozni_katya.png",
+      text: "Katya's in the corner booth with the chairs up on the tables around her.\n\nKATYA: “Grigori was waiting at Raven Auto before your car was out of the gate. Somebody told him.”\n\n“It's Tony. He's been Vlad's eyes in your yard since the day you took it. You let him keep his job. He kept his other one too.”",
+      opts: [{ id: "story:sp_katya_leak_ok", label: "“THEN WE GIVE HIM SOMETHING TO SAY.”" }] });
+    SPA.sp_katya_leak_ok = () => { spClose(); if (SID("leak", 0)) { g.story.step = 1; storyMark("THE MAP TABLE"); say("REY", "A job that doesn't exist, where Tony can see it.", 5); } };
+    SP.sp_fakejob = () => ({ title: "THE MAP TABLE · A JOB THAT ISN'T", face: "assets/crew/pt_crew_leroy_civ.png",
+      text: "Leroy pins a card on the board, loud enough for the office: “Thursday. The docks. A whole container of Japanese TVs. Nobody guarding it.”\n\nThrough the office glass, Tony stops writing.\n\nLEROY (quietly): “Get up in the crane cab. You'll see the whole yard. Watch the phone.”",
+      opts: [{ id: "story:sp_fakejob_ok", label: "UP TO THE CRANE" }] });
+    SPA.sp_fakejob_ok = () => { spClose(); if (SID("leak", 1)) { g.story.step = 2; storyMark("THE CRANE"); } };
+    function leakMeet(S) { if (S.meet) return S.meet; const H = hideoutB(); if (!H) return null; const ci = clamp(Math.round((H.x + H.w / 2) / PITCH) + 3, 1, N - 2), cj = clamp(Math.round((H.y + H.h / 2) / PITCH) + 2, 1, N - 2);
+      return (S.meet = [SX(ci) + 90, SX(cj) + 90]); }
+    STEP98.leak = (dt) => { const S = g.story; if (g.sleepFx) return; S.t = (S.t || 0) + dt;
+      if (S.step === 0) { if (S.t > 1.5 && !S.k && !g.pickOpen) { S.k = 1; G.pickOpen("sp_katya_leak"); } return; }
+      if (S.step === 2 && S.watching) { S.wt = (S.wt || 0) + dt; if (S.wt > 2 && !S.call) { S.call = 1; say("TONY (ON THE YARD PHONE)", "“...Thursday. The docks. Da. A container... No, he doesn't know. Da. I'll come now.”", 7); }
+        if (S.wt > 9) { S.step = 3; S.watching = 0; const H = hideoutB(), [fx, fy] = frontOf(H), M = leakMeet(S); let R = []; try { R = roadRoute(fx, fy, M[0], M[1]) || []; } catch (e) {} R = [[fx, fy]].concat(R).concat([M]); let L = 0; for (let k = 1; k < R.length; k++) L += Math.hypot(R[k][0] - R[k - 1][0], R[k][1] - R[k - 1][1]);
+          S.tony = { R, L, d: 0, wait: 4 }; S.close = 0; S.carAt = [fx + 140, fy + 60, 0]; storyCarAt(fx + 140, fy + 60, 0, "pk_sedan_navy", "REY"); g.camPan = null; storyMark("TAIL HIM");
+          say("LEROY (RADIO)", "“He's in his car. Take the navy sedan by the gate. Stay back -- he checks his mirrors.”", 6); } return; }
+      if (S.step === 3) { keepStoryCar(); const T = S.tony; if (g.mode !== "car") return; if (T.wait > 0) { T.wait -= dt; return; } T.d = Math.min(T.L, T.d + 300 * dt); const p = tonyAt(T), q = activeVeh(), d = Math.hypot(q.x - p[0], q.y - p[1]);
+        if (d > 1300) { storyFail("You lost him."); return; } S.close = d < 170 ? S.close + dt : Math.max(0, S.close - dt); if (S.close > 2.5) { storyFail("Tony saw you in his mirror. He drove home and never made the meet."); return; }
+        if (T.d >= T.L) { S.step = 4; storyMark("THE MEET"); say("REY", "Under the freeway. Tony gets out. So does Grigori. Get close enough for a picture.", 6); } return; } };
+    function tonyAt(T) { let d = T.d; const R = T.R; for (let k = 1; k < R.length; k++) { const s = Math.hypot(R[k][0] - R[k - 1][0], R[k][1] - R[k - 1][1]); if (d <= s) { const f = s ? d / s : 0; return [R[k - 1][0] + (R[k][0] - R[k - 1][0]) * f, R[k - 1][1] + (R[k][1] - R[k - 1][1]) * f, Math.atan2(R[k][1] - R[k - 1][1], R[k][0] - R[k - 1][0])]; } d -= s; } const e = R[R.length - 1]; return [e[0], e[1], 0]; }
+    E98.leak = () => { const S = g.story;
+      if (S.step === 1 && atTable()) { G.pickOpen("sp_fakejob"); return true; }
+      if (S.step === 3 && takeStoryCar()) { say("REY", "Navy sedan. Lights off till he's round the corner.", 4); return true; }
+      if (S.step === 2 && g.mode === "foot" && !S.watching && near(leakCrane(), 90)) { S.watching = 1; S.wt = 0; const t = leakTony(); if (t) camPanTo(t[0], t[1], 10); say("REY", "Up in the crane cab. The whole yard under you. The phone on the office wall.", 4); return true; }
+      if (S.step === 4 && S.meet && near(S.meet, 460)) { S.step = 5; S.flash = 0.6; G.sfx && G.sfx("door", 0.6); g.pickupFlash = { nm: "lift:CLICK · TONY AND GRIGORI, TOGETHER", t: 2.5 }; storyMark("THE YARD"); say("REY", "Click. Now the yard. Tony's going to be home before you.", 5); return true; }
+      return false; };
+    SP.sp_crusher = () => ({ title: "THE YARD · THE CRUSHER", face: "assets/crew/pt_tony.png",
+      text: "Tony's car is on the crusher's bed when he walks in. Tony's in a chair in front of it. Leroy's hand is on his shoulder, not hard.\n\nYou put the photo on his knee. Him and Grigori, under the freeway.\n\nThe crusher comes down. Tony watches his car fold up like a letter.\n\nYou: “You keep working for Vlad. And you bring everything he says to me. Every word.”\n\nTONY: “...Da. Every word.”",
+      opts: [{ id: "story:sp_crusher_ok", label: "“GO HOME, TONY.”" }] });
+    SPA.sp_crusher_ok = () => { spClose(); if (SID("leak", 5)) { g.tonyTurned = 1; g.story.step = 6; G.pickOpen("sp_pact"); } };
+    SP.sp_pact = () => ({ title: "KATYA", face: "assets/crew/pt_bozni_katya.png",
+      text: "Katya watched the whole thing from the office stairs.\n\nKATYA: “Vlad is the family. Victor is a child. When Vlad is gone, I run what's left -- and you and I never fight. Never.”\n\nShe holds out her hand.",
+      opts: [{ id: "story:sp_pact_ok", label: "SHAKE IT" }] });
+    SPA.sp_pact_ok = () => { spClose(); if (!SID("leak", 6)) return; g.katyaPact = 1; g.story.step = 7;
+      dinnerScene([["MIMI", "“The Russian girl eats too. Sit, sit.”"], ["KATYA", "“Thank you. ...This is very good.”"], ["PABLO", "“Nobody's mentioning Tony?”"], ["LEROY", "“Nobody's mentioning Tony.”"]], () => { if (SID("leak")) storyComplete(); }, ["MIMI", "PABLO", "LEROY", "RAS", "JOSE", "KATYA"]); };
+    STEP98.leak2 = null;
+    const leakStep0 = STEP98.leak; STEP98.leak = (dt) => { leakStep0(dt); const S = g.story; if (S && S.id === "leak" && S.step === 5 && inYard() && !g.pickOpen && !S.cr) { S.cr = 1; G.pickOpen("sp_crusher"); } };
+    OBJ98.leak = () => { const S = g.story; return { head: "THE LEAK · " + ["KATYA", "THE MAP TABLE", "THE CRANE", "TAIL TONY", "THE MEET", "THE YARD", "KATYA", "DINNER"][S.step],
+      sub: ["", "The yard's map table (E).", "The crane in the yard (E).", S.tony && S.tony.wait > 0 ? "Get in the navy sedan by the gate." : "Stay with him -- not too close (" + (S.close > 0.2 ? "HE'S LOOKING" : "fine") + "), not too far.", "Get within sight of the two of them and take the photo (E).", "Back to the yard.", "", ""][S.step] || "" }; };
+    TGT98.leak = (h) => { const S = g.story; if (S.step === 1) return h.yard(); if (S.step === 2) return leakCrane(); if (S.step === 3 && S.tony) { if (g.mode !== "car") { const v = g.traffic.find((q) => q.storyCar); return v ? [v.x, v.y] : null; } return tonyAt(S.tony); } if (S.step === 4) return S.meet; if (S.step === 5) return h.yard(); return null; };
+    DRAW98.push(() => { const S = g.story; if (!S || S.id !== "leak") return; const B = nestB();
+      if (S.step === 0 && B && g.inside === B) { const p = artPt(B, 0, 0.15, 0.45); if (p) person(p[0], p[1], "yt_bozni_katya", "KATYA", 0, "#e8c46a"); }
+      if (g.inside) return;
+      if (S.step === 2) { const c = leakCrane(), t = leakTony(); const im = imgs.current.sy_crane; if (c) { if (im && im.width) ctx.drawImage(im, c[0] - 40, c[1] - 60, 80, 120); ring(c, 34, "THE CRANE · E"); } if (t) person(t[0], t[1], "yt_tony", "TONY", Math.PI / 2, "#e05a5a"); }
+      if (S.step === 3 && S.tony) { const [x, y, a] = tonyAt(S.tony), im = imgs.current.pk_hatch_red; ctx.save(); ctx.translate(x, y); ctx.rotate(a + Math.PI / 2); if (im && im.width) ctx.drawImage(im, -24, -50, 48, 100); else { ctx.fillStyle = "#b33"; ctx.fillRect(-22, -46, 44, 92); } ctx.restore(); lab8("TONY", x, y - 58, "#e05a5a"); }
+      if (S.step === 4 && S.meet) { person(S.meet[0], S.meet[1], "yt_tony", "TONY", 0, "#e05a5a"); person(S.meet[0] + 40, S.meet[1], "yt_bozni_grigori", "GRIGORI", Math.PI, "#e05a5a"); ring(S.meet, 460 * 0.2, "E: THE PHOTO (FROM CLOSE ENOUGH)"); }
+      if (S.flash > 0) { S.flash -= 0.03; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = "rgba(255,255,255," + Math.max(0, S.flash) + ")"; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore(); } });
+
+    /* ---------- MISSION 16: THE MANSION ----------
+       0 Leroy's plan: hire a BOMB MAKER, two more SHOOTERS and another ENFORCER 1 (hiring) 2 1 AM, the storm drain two
+       blocks from the house: down the ladder (E) 3 under the garden wall: the charge (6 s), the wall comes down 4 the
+       garden: Vlad's men 5 the ground floor: Grigori's last stand 6 upstairs 7 the study: Katya opens the door; Vlad is
+       hers -- then Tony: CALL ALONZO or PUT HIM ON A BUS 8 dinner at Mimi's 9 the Deuce: Damian reads the paper. */
+    STORY.mansion = { nm: "THE MANSION", pay: 25000 };
+    BEGIN98.mansion = () => { storyStart("mansion"); const S = g.story; S.step = 0; S.t = 0; G.sleepFade(() => { nextDay(10, 0); const H = hideoutB(); if (H) putIn(H, 0); }, WEEK[((g.pday || 0) + 1) % 7] + " · 10:00 AM · THE YARD"); };
+    const mDrain = () => { const M = manorB(); if (!M) return null; const b = backSide(M), lim = CITY_N * PITCH;
+      for (const s of [b, (b + 1) % 4, (b + 3) % 4, (b + 2) % 4]) { const [x, y] = wallPt(M, s, 0.5, 700); if (x > 500 && y > 500 && x < lim - 500 && y < lim - 500) return [x, y]; } return frontOf(M); };
+    const mWall = () => { const M = manorB(); if (!M) return null; const Y = yardOf(M); return Y ? [M.x + M.w / 2, Y.top + 9] : wallPt(M, backSide(M), 0.5, 70); };   // the yard wall (layer 499)
+    SP.sp_m_plan = () => ({ title: "THE MAP TABLE · THE BOZNOV HOUSE", face: "assets/crew/pt_crew_leroy_civ.png",
+      text: "LEROY: “Tony says Vlad changes the guard at one. Three men on the garden, four in the house, Grigori upstairs with him.”\n\n“There's a storm drain two blocks over that runs right under the garden wall. A BOMB MAKER puts a charge on it from underneath. The wall comes down, we come up through the hole.”\n\n“We need the bomb maker, TWO more SHOOTERS and another ENFORCER. This is the war, Rey. This is the one.”\n\nKATYA: “Vlad is mine. That is my one rule.”",
+      opts: [{ id: "story:sp_m_hire", label: "“HIRE THEM.”" }] });
+    SPA.sp_m_hire = () => { if (!SID("mansion", 0)) { spClose(); return; } const S = g.story; S.step = 1; S.need = { bomber: hireCount("bomber") + 1, shooter: hireCount("shooter") + 2, enforcer: hireCount("enforcer") + 1 }; needHires(["bomber", "shooter", "shooter", "enforcer"]); storyMark("HIRE THE CREW"); g.boardView = "hire"; G.pickOpen("opsboard"); };
+    const mNeedMet = (S) => S.need && Object.keys(S.need).every((r) => hireCount(r) >= S.need[r]);
+    STEP98.mansion = (dt) => { const S = g.story; if (g.sleepFx || g.dinner) return; S.t = (S.t || 0) + dt; const M = manorB(); if (S.step >= 8) { endStep(S, dt); return; }
+      if (S.step === 0) { if (S.t > 1 && !S.pl && !g.pickOpen) { S.pl = 1; G.pickOpen("sp_m_plan"); } return; }
+      if (S.step === 1) { if (mNeedMet(S) && !g.pickOpen) { S.step = 2; g.hireNeed = null; G.sleepFade(() => { atTime(1, 0); g.nightTarget = 1; const d = mDrain(); if (d) putOut([d[0], d[1] + 60]);
+            g.pfol = crewFol([crewF("bomber"), LEROY_F, crewF("enforcer"), crewF("shooter")]); for (const f of g.pfol) f.wpn = f.key === "h:bomber" ? "pistol" : "smg_uzi";
+            storyMark("THE STORM DRAIN"); say("LEROY", "“Down the ladder. Everybody stays close. Nobody talks till the wall's down.”", 6); }, "1:00 AM · OLD TOWN"); } return; }
+      if (S.step === 3) { S.fuse = (S.fuse || 6) - dt; if (S.fuse <= 0) { S.step = 4; S.boom = 1; G.sfx && G.sfx("door", 1); const w = mWall(); yardBreach(w); try { if (typeof boomAt === "function") boomAt(w[0], w[1]); } catch (e) {}
+          const s = backSide(M), [gx, gy] = wallPt(M, s, 0.5, 20); S.crew = hostile("rus", gx, gy, 4); storyMark("THE GARDEN"); say("LEROY", "“GO! GO!”", 3); } return; }
+      if (S.step === 4) { if (crewDead(S.crew)) { S.crew = null; S.step = 5; storyMark("THE HOUSE"); say("LEROY", "“The garden's ours. In through the back -- Grigori's on the ground floor.”", 5); } return; }
+      if (S.step === 5) { if (M && g.inside === M && g.floor === 0) { if (!S.crew && !S.f0) { S.f0 = 1; const p = artPt(M, 0, 0.5, 0.4) || introInsidePt(M); S.crew = hostile("rus", p[0], p[1], 4, M, 0); if (S.crew.members[0]) { S.crew.members[0].hxArt = "yt_bozni_grigori"; S.crew.members[0].rankTag = "GRIGORI"; S.crew.members[0].hp = (S.crew.members[0].hp || 100) * 2; } say("GRIGORI", "“You let me walk once. You will not get the chance again.”", 5); }
+          if (S.f0 && crewDead(S.crew)) { S.crew = null; S.step = 6; storyMark("UPSTAIRS"); say("LEROY", "“Grigori's down. Stairs. Vlad's in the study.”", 5); } } return; }
+      if (S.step === 6) { if (M && g.inside === M && g.floor === 1) { if (!S.f1) { S.f1 = 1; const p = artPt(M, 1, 0.5, 0.5) || introInsidePt(M); S.crew = hostile("rus", p[0], p[1], 3, M, 1); }
+          if (S.f1 && crewDead(S.crew)) { S.crew = null; S.step = 7; S.t = 0; storyMark("THE STUDY"); } } return; }
+      if (S.step === 7) { if (S.t > 1 && !S.vl && !g.pickOpen) { S.vl = 1; G.pickOpen("sp_vlad"); } return; } };
+    E98.mansion = () => { const S = g.story; if (S.step >= 8) return endE(S);
+      if (S.step === 1 && atTable()) { g.boardView = "hire"; G.pickOpen("opsboard"); return true; }
+      if (S.step === 2 && g.mode === "foot" && !g.inside && near(mDrain(), 90)) { G.sleepFade(() => { const w = mWall(); if (w) { const M = manorB(), o = [[0, -1], [1, 0], [0, 1], [-1, 0]][backSide(M)]; putOut([w[0] + o[0] * 80, w[1] + o[1] * 80]); } g.pfol.forEach((f) => { f.x = g.p.x + 20; f.y = g.p.y + 20; });
+          g.story.step = 3; g.story.fuse = 6; storyMark("THE CHARGE"); say("THE BOMB MAKER", "“Charge is on. Six seconds. Back up and cover your ears.”", 5); }, "UNDER OLD TOWN · THE STORM DRAIN"); return true; }
+      return false; };
+    SP.sp_vlad = () => ({ title: "THE BOZNOV HOUSE · THE STUDY", face: "assets/crew/pt_bozni_vlad.png",
+      text: "The study door opens from the inside. Katya. She steps aside to let you in, then walks in behind you.\n\nVlad is behind his desk with both hands flat on it. He looks at you, and then at his sister, and then he understands.\n\nVLAD: “Katya.”\n\nKATYA: “Go, Rey. This is family.”\n\nYou close the door behind you. You don't hear anything for a long time. Then one shot.",
+      opts: [{ id: "story:sp_vlad_ok", label: "WAIT FOR HER" }] });
+    SPA.sp_vlad_ok = () => { spClose(); if (SID("mansion", 7)) G.pickOpen("sp_tony"); };
+    SP.sp_tony = () => ({ title: "THE BOZNOV HOUSE · TONY", face: "assets/crew/pt_crew_leroy_civ.png",
+      text: "The house is quiet. Katya keeps it -- it's hers now -- but its doors are open to you whenever you want them.\n\nLeroy at the window: “Somebody's going to hear about this.”\n\nThen, quieter: “Tony. He sold out Vlad for you. He'll sell you for the next man. He can't stay.”",
+      opts: [{ id: "story:sp_tony_alonzo", label: "CALL ALONZO (TONY'S IN THE LEDGER)" }, { id: "story:sp_tony_bus", label: "PUT HIM ON A BUS (EDDIE, A TICKET, $500)" }] });
+    SPA.sp_tony_alonzo = () => { spClose(); if (!SID("mansion", 7)) return; g.tonyFate = "kestrel"; mEnd("Alonzo picks Tony up at the yard in the morning, with Victor's ledger open on the seat beside him. Ten years in Kestrel."); };
+    SPA.sp_tony_bus = () => { spClose(); if (!SID("mansion", 7)) return; g.tonyFate = "bus"; g.p.cash = Math.max(0, (g.p.cash || 0) - 500); mEnd("Eddie drives Tony to the depot with a one-way ticket and five hundred dollars. EDDIE: “Where's he going?” LEROY: “Away.”"); };
+    // mEnd, sp_deuce and the end of Chapter One are layer 499 (b499end)
+    OBJ98.mansion = () => { const S = g.story;
+      return { head: "THE MANSION · " + ["THE PLAN", "HIRE", "THE STORM DRAIN", "THE CHARGE", "THE GARDEN", "THE GROUND FLOOR", "UPSTAIRS", "THE STUDY", "KATYA", "THE BACKYARD", "THE TOAST", "FIREWORKS", "THE NEXT MORNING"][S.step],
+        sub: ["", "At the table: " + (S.need ? Object.keys(S.need).map((r) => (hireCount(r) >= S.need[r] ? "✓ " : "· ") + HIRES[r].nm).join("  ") : ""), "The storm drain two blocks from the house (E): down the ladder.", "BOOM IN " + Math.max(0, Math.ceil(S.fuse || 0)) + " -- get back from the wall.",
+          "Clear Vlad's men from the garden.", "Into the house. Grigori's on the ground floor.", "Up the stairs (E on the stairs).", "", "", "Walk round the yard and talk to everybody (E): " + (S.talked ? Object.keys(S.talked).length : 0) + " / 7", "The grill (E): make your toast.", "", ""][S.step] || "" }; };
+    TGT98.mansion = (h) => { const S = g.story, M = manorB(); if (S.step === 1) return h.yard(); if (S.step === 2) return mDrain(); if (S.step === 5 && M && g.inside !== M) return frontOf(M); if (S.step === 10) { const Y = yardOf(g.bozHouseB || M); return Y ? yardAt(Y, 0.13, 0.08) : null; } return null; };
+    DRAW98.push(() => { const S = g.story; if (!S || S.id !== "mansion" || g.inside) return; if (S.step >= 8) { drawEnd(S); return; }
+      if (S.step === 2) { const d = mDrain(); if (d) { const im = imgs.current.sv_manhole; if (im && im.width) ctx.drawImage(im, d[0] - 22, d[1] - 22, 44, 44); ring(d, 40, "STORM DRAIN · E"); } }
+      if (S.step === 3) { const w = mWall(); if (w) ring(w, 30 + Math.sin((g.t || 0) * 10) * 6, "CHARGE · " + Math.max(0, Math.ceil(S.fuse || 0))); }
+      if (S.boom && S.boom > 0) { const w = mWall(); S.boom -= 0.02; if (w) { ctx.fillStyle = "rgba(255,200,120," + Math.max(0, S.boom) + ")"; ctx.beginPath(); ctx.arc(w[0], w[1], 160 * (1.4 - S.boom), 0, 6.3); ctx.fill(); } } });
+
+    G.manorT = () => manorB();   // test hook
+
+    /* ---------- LAYER 499: SUNSET AND SUNRISE, SHOP TIERS, THE RACE COURSE, THE BOZNOV BACKYARD, THE END OF CHAPTER ONE ----------
+       DAY AND NIGHT run off the clock now (dayNight): 5:40 the sky warms orange, 6-7 it lightens, day at 7; 6:40 PM orange,
+       7-8 it darkens, night at 8. N still flips it by hand (g.nightLock) until you next sleep.
+       SHOP TIERS: in Rey's story every part has a tier (PART_TIER); Stan's sells tier 1; RAVEN AUTO, once it's yours, sells
+       up to its level + 1 (level 4 = everything, 15% off). Drive up to Raven Auto's front (E) for the parts wheel.
+       THE BACKYARD: behind the Boznov house (the war room's top-right door, E): the wall moved out to make a yard -- grass, an
+       ivory deck, a see-through pool, the grill table, loungers, an umbrella table, a boombox. */
+    function dayNight(c) { c = ((c % 1440) + 1440) % 1440;
+      if (c < 340) return { n: 1, o: 0 }; if (c < 360) return { n: 1, o: (c - 340) / 20 }; if (c < 420) return { n: 1 - (c - 360) / 60, o: 1 - (c - 360) / 60 };
+      if (c < 1120) return { n: 0, o: 0 }; if (c < 1140) return { n: 0, o: (c - 1120) / 20 }; if (c < 1200) return { n: (c - 1140) / 60, o: 1 - (c - 1140) / 60 }; return { n: 1, o: 0 }; }
+    /* Anything that sets g.nightTarget by hand -- the N key, a mission -- holds it there (g.nightLock) until the clock
+       catches up with it or you sleep. */
+    function stepDayNight() { if (g.title || g.clock == null) { g.duskO = 0; return; } const D = dayNight(g.clock);
+      if (g.dnLast != null && Math.abs(g.nightTarget - g.dnLast) > 0.001 && Math.abs(g.nightTarget - D.n) > 0.01) g.nightLock = 1;
+      if (g.nightLock && Math.abs(D.n - g.nightTarget) < 0.01) g.nightLock = 0;
+      if (!g.nightLock) g.nightTarget = D.n; g.dnLast = g.nightTarget; g.duskO = g.nightLock ? 0 : g.inside ? D.o * 0.4 : D.o; }
+    G.dayNightT = (c) => dayNight(c);   // test hook
+    // shop tiers
+    function PART_TIER(cat, q) { const k = String(q.k);
+      if (cat === "engine") return /^f_/.test(k) ? 1 : /^s_(orange|red)/.test(k) ? 2 : /^t_(sr20|v8)/.test(k) ? 3 : 4;
+      if (cat === "brakes" || cat === "plating") return +k || 1; if (cat === "wing") { const r = +(k.split("_")[1] || 1); return r <= 2 ? 1 : r === 3 ? 2 : 3; }
+      if (cat === "nitro") return k === "nos" ? 2 : 1; if (cat === "tires") return 2; if (cat === "weapons") return /oil|cal|smoke/.test(k) ? 2 : k === "missile" ? 4 : 3; return 1; }
+    function shopTier() { if (!g.prisonMode) return 9; const A = g.biz && g.biz.auto; return A ? A.lvl + 2 : 1; }
+    const partLocked = (cat, q) => PART_TIER(cat, q) > shopTier();
+    const lockNote = (cat, q) => { const t = PART_TIER(cat, q); return t === 2 && !(g.biz && g.biz.auto) ? "NEEDS YOUR OWN SHOP (RAVEN AUTO)" : "NEEDS RAVEN AUTO LEVEL " + (t - 1); };
+    const shopOff = () => (g.prisonMode && g.biz && g.biz.auto && g.biz.auto.lvl >= 3 ? 0.85 : 1);
+    G.raShopFn = () => { if (!g.prisonMode || !g.biz || !g.biz.auto || g.mode !== "car" || g.inside) return false; const A = autoB(); if (!A || !near(frontOf(A), 240)) return false; g.gpSlot = "car"; g.gpSaid = null; garageWheel(); return true; };
+    // the race course: cones down both sides; off the course too long and you're put back at the last mark
+    function psCones(S) { const R = S.nk && S.nk.R; if (!R) return []; const out = [], verts = R;
+      for (let k = 1; k < R.length; k++) { const [x0, y0] = R[k - 1], [x1, y1] = R[k], L = Math.hypot(x1 - x0, y1 - y0); if (L < 1) continue; const ux = (x1 - x0) / L, uy = (y1 - y0) / L;
+        for (let d = 0; d < L; d += 150) { const x = x0 + ux * d, y = y0 + uy * d; if (verts.some((v) => Math.hypot(v[0] - x, v[1] - y) < 230)) continue; out.push([x - uy * 150, y + ux * 150], [x + uy * 150, y - ux * 150]); } }
+      return out.filter((c) => !(S.cuts || []).some((q) => segD(c[0], c[1], q.A, q.B) < 120 || Math.hypot(c[0] - q.A[0], c[1] - q.A[1]) < 260 || Math.hypot(c[0] - q.B[0], c[1] - q.B[1]) < 260)); }
+    const segD = (px, py, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1, t = clamp(((px - a[0]) * dx + (py - a[1]) * dy) / L2, 0, 1); return Math.hypot(px - (a[0] + dx * t), py - (a[1] + dy * t)); };
+    function offCourse(S) { const R = S.nk && S.nk.R, p = activeVeh(); if (!R || !p) return 0; let best = 1e9;
+      for (let k = 1; k < R.length; k++) best = Math.min(best, segD(p.x, p.y, R[k - 1], R[k]));
+      for (const c of S.cuts || []) best = Math.min(best, segD(p.x, p.y, c.A, c.B)); return best; }
+    /* THE SHORTCUTS: at the two corners of the course (the marks sit mid-side, so cutting a corner skips nothing) look for a
+       straight run across the lot inside the corner that misses every building, wall and fence -- the alley behind the
+       lots. Nicky stays on the road. Arrows mark the way in. */
+    function cutClear(A, B) { const m = 46, rects = [], i0 = Math.floor(Math.min(A[0], B[0]) / PITCH) - 1, i1 = Math.floor(Math.max(A[0], B[0]) / PITCH) + 1, j0 = Math.floor(Math.min(A[1], B[1]) / PITCH) - 1, j1 = Math.floor(Math.max(A[1], B[1]) / PITCH) + 1;
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { if (i < 0 || j < 0 || i >= N || j >= N) continue; const c = getCell(i, j); if (!c) continue;
+        for (const b of c.blds || []) { if (b.driveIn) { try { for (const w of driveWalls(b)) rects.push(w); } catch (e) { rects.push(b); } } else rects.push(b); if (b.fences) for (const f of b.fences) rects.push(f); } }
+      const L = Math.hypot(B[0] - A[0], B[1] - A[1]), n = Math.ceil(L / 16);
+      for (let k = 0; k <= n; k++) { const x = A[0] + (B[0] - A[0]) * k / n, y = A[1] + (B[1] - A[1]) * k / n; if (rects.some((r) => x > r.x - m && x < r.x + r.w + m && y > r.y - m && y < r.y + r.h + m)) return false; } return true; }
+    function psCuts(cps) { if (!cps || cps.length !== 4) return []; const out = [], D = [1150, 950, 750, 600, 450];
+      for (const k of [1, 2]) { const V = cps[k], P = cps[k - 1], Q = cps[k + 1], li = Math.hypot(V[0] - P[0], V[1] - P[1]) || 1, lo = Math.hypot(Q[0] - V[0], Q[1] - V[1]) || 1, ui = [(V[0] - P[0]) / li, (V[1] - P[1]) / li], uo = [(Q[0] - V[0]) / lo, (Q[1] - V[1]) / lo];
+        let best = null; for (const a of D) for (const b of D) { const A = [V[0] - ui[0] * a, V[1] - ui[1] * a], B = [V[0] + uo[0] * b, V[1] + uo[1] * b]; if (!cutClear(A, B)) continue; const save = a + b - Math.hypot(B[0] - A[0], B[1] - A[1]); if (!best || save > best.save) best = { A, B, save }; }
+        if (best && best.save > 200) out.push(best); }
+      return out; }
+    function drawCuts(S) { for (const c of S.cuts || []) { const [ax, ay] = c.A, [bx, by] = c.B, L = Math.hypot(bx - ax, by - ay), an = Math.atan2(by - ay, bx - ax); if (Math.min(Math.abs(ax - g.cam.x), Math.abs(bx - g.cam.x)) > 1600) continue;
+        ctx.save(); ctx.strokeStyle = "rgba(255,214,60,0.28)"; ctx.lineWidth = 70; ctx.setLineDash([26, 22]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+        const ph = ((g.t || 0) * 120) % 120; for (let d = ph; d < L; d += 120) { const x = ax + Math.cos(an) * d, y = ay + Math.sin(an) * d; ctx.save(); ctx.translate(x, y); ctx.rotate(an); ctx.fillStyle = "#ffd23c"; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-8, -12); ctx.lineTo(-2, 0); ctx.lineTo(-8, 12); ctx.closePath(); ctx.fill(); ctx.restore(); }
+        lab8("SHORTCUT", ax, ay - 44, "#ffd23c"); } }
+    function drawCone2(x, y) { ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(x - 7, y - 5, 16, 14); ctx.fillStyle = "#e8641e"; ctx.fillRect(x - 8, y - 8, 16, 16); ctx.fillStyle = "#ff8a3a"; ctx.beginPath(); ctx.arc(x, y, 6, 0, 6.3); ctx.fill();
+      ctx.strokeStyle = "#f5f1e6"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 6.3); ctx.stroke(); }
+
+    /* ---------- THE BOZNOV BACKYARD ---------- */
+    // the yard art (yd_*, tx_ivory_deck) is registered at the top level
+    function yardOf(M) { if (!M) return null; if (M.yard) return M.yard; const back = backSide(M); if (back !== 0) return null;
+      const j = clamp(Math.floor(M.y / PITCH), 0, N - 1), top = Math.max(SX(j) + halfW(j) + 30, M.y - 470), x0 = M.x - 230, x1 = M.x + M.w + 230;
+      const deck = { x: M.x - 120, y: top + 50, w: M.w + 240, h: M.y - 10 - (top + 50) }, pw = Math.min(330, deck.w * 0.42), ph = Math.min(170, deck.h * 0.5);
+      const pool = { x: M.x + M.w / 2 - pw / 2, y: deck.y + deck.h / 2 - ph / 2 - 10, w: pw, h: ph };
+      return (M.yard = { x0, x1, top, deck, pool }); }
+    function yardBackDoor(M) { const pin = artPt(M, 0, 0.935, 0.07); if (!pin) return null; const fx = clamp((pin[0] - M.x) / M.w, 0.05, 0.95); return { pin, pout: [M.x + M.w * fx, M.y - 46] }; }
+    // the wall goes round the yard now, and the pool is solid (layer 499)
+    function yardFences(hb) { const Y = yardOf(hb); if (!Y) return null; const m = 70, t = 18, gate = 120, dx = doorPoint(hb)[0], bot = hb.y + hb.h + m;
+      return [{ x: Y.x0, y: Y.top, w: Y.x1 - Y.x0, h: t }, { x: Y.x0, y: Y.top, w: t, h: bot - Y.top }, { x: Y.x1 - t, y: Y.top, w: t, h: bot - Y.top },
+        { x: Y.x0, y: bot - t, w: dx - gate / 2 - Y.x0, h: t }, { x: dx + gate / 2, y: bot - t, w: Y.x1 - dx - gate / 2, h: t }, { ...Y.pool, nodraw: 1 }]; }
+    // the charge in Mission 16 blows a hole in the yard wall (put back when the night's over)
+    function yardBreach(w) { const hb = g.bozHouseB; if (!hb || !hb.fences || !w) return; const gap = 170, out = [];
+      for (const f of hb.fences) { if (!f.nodraw && f.w > f.h && w[0] > f.x - 4 && w[0] < f.x + f.w + 4 && w[1] > f.y - 30 && w[1] < f.y + f.h + 30) { const l = { ...f, w: w[0] - gap / 2 - f.x }, r = { ...f, x: w[0] + gap / 2, w: f.x + f.w - w[0] - gap / 2 }; if (l.w > 4) out.push(l); if (r.w > 4) out.push(r); } else out.push(f); }
+      hb.fences = out; hb.breach = 1; }
+    const YARD_PROPS = [["yd_bbq_table", 0.04, 0.12, 70], ["yd_grill_black", 0.13, 0.08, 46], ["yd_tongs", 0.19, 0.1, 12], ["yd_charcoal", 0.03, 0.62, 22], ["yd_cooler", 0.12, 0.66, 28],
+      ["yd_lounger_a", 0.27, 0.62, 30], ["yd_sidetable_a", 0.31, 0.7, 22], ["yd_lounger_a", 0.35, 0.62, 30], ["yd_lounger_b", 0.65, 0.62, 30], ["yd_sidetable_b", 0.69, 0.7, 22], ["yd_lounger_b", 0.73, 0.62, 30],
+      ["yd_table_round", 0.86, 0.18, 80], ["yd_umbrella", 0.86, 0.12, 90], ["yd_boombox", 0.94, 0.66, 30], ["yd_beachball", 0.6, 0.28, 18], ["yd_flipflop_a", 0.4, 0.3, 10]];
+    function inBozYard(x, y) { const M = g.bozHouseB, Y = M && yardOf(M); return !!Y && x > Y.x0 - 40 && x < Y.x1 + 40 && y > Y.top - 40 && y < M.y + M.h + 110; }   // no alley trash in the yard
+    const yardAt = (Y, fx, fy) => [Y.deck.x + Y.deck.w * fx, Y.deck.y + Y.deck.h * fy];
+    function drawYard(view) { if (g.inside) return; const M = g.bozHouseB; const Y = M && yardOf(M); if (!Y) return; if (Y.x1 < view.x0 - 200 || Y.x0 > view.x1 + 200 || M.y < view.y0 - 300 || Y.top > view.y1 + 200) return;
+      ctx.save(); ctx.fillStyle = PAT.grass || "#4f7a3e"; ctx.fillRect(Y.x0, Y.top, Y.x1 - Y.x0, M.y - Y.top); ctx.restore();
+      const iv = imgs.current.tx_ivory_deck, D = Y.deck; ctx.save(); ctx.beginPath(); ctx.rect(D.x, D.y, D.w, D.h); ctx.clip(); if (iv && iv.width) { ctx.fillStyle = ctx.createPattern(iv, "repeat"); ctx.translate(D.x, D.y); ctx.scale(0.5, 0.5); ctx.fillRect(0, 0, D.w * 2, D.h * 2); } else { ctx.fillStyle = "#e9dfc6"; ctx.fillRect(D.x, D.y, D.w, D.h); } ctx.restore();
+      ctx.strokeStyle = "rgba(90,70,40,0.4)"; ctx.lineWidth = 2; ctx.strokeRect(D.x, D.y, D.w, D.h);
+      const P = Y.pool, pim = imgs.current.yd_pool; if (pim && pim.width) ctx.drawImage(pim, P.x, P.y, P.w, P.h); else { ctx.fillStyle = "#e8e0cc"; ctx.fillRect(P.x, P.y, P.w, P.h); }
+      const wat = imgs.current.tx_pool_water, ix = P.w * 0.05, iy = P.h * 0.08; ctx.save(); ctx.beginPath(); ctx.rect(P.x + ix, P.y + iy, P.w - 2 * ix, P.h - 2 * iy); ctx.clip(); ctx.globalAlpha = 0.55;
+      if (wat && wat.width) { const wp = ctx.createPattern(wat, "repeat"), sh = ((g.t || 0) * 6) % 400; ctx.translate(sh, sh * 0.4); ctx.fillStyle = wp; ctx.fillRect(P.x - 420, P.y - 420, P.w + 840, P.h + 840); } else { ctx.fillStyle = "#2f6fd0"; ctx.fillRect(P.x, P.y, P.w, P.h); }
+      ctx.restore(); ctx.save(); ctx.globalAlpha = 0.18 + 0.06 * Math.sin((g.t || 0) * 1.7); ctx.fillStyle = "#cfe8ff"; for (let k = 0; k < 5; k++) ctx.fillRect(P.x + ix + 8 + ((k * 37 + (g.t || 0) * 9) % Math.max(10, P.w - 2 * ix - 30)), P.y + iy + 14 + k * (P.h / 6), 16, 2); ctx.restore();
+      for (const [k, fx, fy, w] of YARD_PROPS) { const im = imgs.current[k]; if (!im || !im.width) continue; const [x, y] = yardAt(Y, fx, fy), h = w * im.height / im.width; ctx.drawImage(im, x - w / 2, y - h / 2, w, h); }
+      const BD = yardBackDoor(M); if (BD && near(BD.pout, 70) && g.mode === "foot") lab8("E: INTO THE HOUSE", BD.pout[0], BD.pout[1] - 20); }
+    G.yardDoorFn = () => { if (g.mode !== "foot") return false; const M = g.bozHouseB; if (!M) return false; const BD = yardBackDoor(M); if (!BD) return false;
+      if (g.inside === M && g.floor === 0 && near(BD.pin, 70)) { putOut(BD.pout); return true; } if (!g.inside && near(BD.pout, 60)) { putIn(M, 0, 0.935, 0.12); return true; } return false; };
+    function drawYardDoorIn() { const M = g.bozHouseB; if (!M || g.inside !== M || g.floor !== 0) return; const BD = yardBackDoor(M); if (BD && near(BD.pin, 80)) lab8("E: THE BACKYARD", BD.pin[0], BD.pin[1] + 26); }
+
+    /* THE END OF CHAPTER ONE (layer 499): 8 Katya on the house (it's hers, always open to you) -- "what's next?" -- "we get the
+       crew together" 9 the BBQ out back at 8 PM: walk round and talk to everybody 10 E at the grill: the toast, Katya asks
+       what we're called (ten names), Leroy: allies, the Kings; Pablo: "Here's to the ___" 11 fireworks 12 Damian's paper
+       (g.paper: ui_newspaper if it's there, drawn if not) then the Deuce panel -- MISSION COMPLETE -- and Chapter Two
+       (STORY.kings1) opens on CHAPTER ONE COMPLETE, the morning in Katya's bed, CHAPTER TWO, MISSION 1. */
+    const GANG_NAMES = ["THE BLACK LIONS", "THE FALL GUYS", "THE SEVENTEEN", "THE KESTREL CREW", "THE YARD", "THE PALM COURT", "THE IRON HOOK", "THE NIGHT SHIFT", "THE LAST CALL", "THE RAVEN'S END"];
+    const BBQ = [["LEROY", "yt_crew_leroy", 0.22, 0.30, ["“Seventeen years I watched you count days. Look at this. Look at all of it.”", "“Don't get comfortable. Comfortable is how the Boznovs went.”"]],
+      ["RAS", "yt_crew_ras", 0.47, 0.22, ["“Rey! Mi tell yuh. Mi TELL yuh, from di laundry cart!”", "“Dis pool. Dis is a Russian pool, an' now a Jamaican sit inna it.”"]],
+      ["PABLO", "yt_crew_viejo", 0.13, 0.32, ["“Medium rare, mijo. I don't make 'em any other way. Don't ask.”", "“My sister's watching me cook. She thinks I'll burn it. I will not burn it.”"]],
+      ["MIMI", "yt_mimi", 0.08, 0.42, ["“A pool! Jose, don't you dare. JOSE.”", "“You eat a plate before you make speeches. Everybody eats first.”"]],
+      ["JOSE", "yt_jose", 0.58, 0.28, ["“Rey -- the cars, the race, all of it. I want in. For real, not just driving.”", "“My mom says I can't. I'm asking you, not my mom.”"]],
+      ["DREAD", "yt_dread", 0.78, 0.32, ["“Boss. Di corner a run sweet. Mi bwoy dem a ask when we get di next one.”", "“A good night dis. Mi waan remember it.”"]],
+      ["KATYA", "yt_bozni_katya", 0.86, 0.28, ["“My father built this house. He would hate this party. I like it very much.”", "“Talk to everyone. Then make your toast. They need to hear you say it.”"]]];
+    function mEnd(line) { const S = g.story, hb = g.bozHouseB; if (hb && hb.breach) { hb.fences = yardFences(hb) || hb.fences; hb.breach = 0; } S.step = 8; S.t = 0; g.pfol = []; g.manorOurs = 1; g.katyaHouse = 1; g.gangHeat = 0; g.gangLost = 0; g.gangFrom = null; say("LEROY", line, 8); }
+    SP.sp_kat_house = () => ({ title: "THE BOZNOV HOUSE · KATYA", face: "assets/crew/pt_bozni_katya.png",
+      text: "Katya comes down the stairs with her brother's blood on her sleeve, and sits on the arm of the couch like it's any morning.\n\nKATYA: “This is my house now. It is also yours. The war room works like your table at the yard. There are beds upstairs, a safe in the study, a back door to the garden. You never knock.”\n\n“What's left of my family's people answer to me now. And I answer to nobody -- except, maybe, to you.”",
+      opts: [{ id: "story:sp_kat_next", label: "“SO WHAT'S NEXT?”" }] });
+    SPA.sp_kat_next = () => { spClose(); if (!SID("mansion", 8)) return; G.pickOpen("sp_kat_next2"); };
+    SP.sp_kat_next2 = () => ({ title: "KATYA", face: "assets/crew/pt_bozni_katya.png", text: "KATYA: “Next? Next we get the crew together. All of them. Tonight, out back. Bring the cook.”", opts: [{ id: "story:sp_bbq", label: "“OUT BACK. TONIGHT.”" }] });
+    SPA.sp_bbq = () => { spClose(); if (!SID("mansion", 8)) return; G.sleepFade(() => { const S = g.story, M = g.bozHouseB || manorB(), Y = yardOf(M); g.clock = 20 * 60; if (Y) putOut(yardAt(Y, 0.3, 0.9)); S.step = 9; S.t = 0; S.talked = {}; g.pfol = []; storyMark("THE BACKYARD"); }, "THE BOZNOV HOUSE · THE BACKYARD · 8:00 PM"); };
+    function bbqPts() { const M = g.bozHouseB || manorB(), Y = yardOf(M); return Y ? BBQ.map(([nm, yt, fx, fy, lines]) => ({ nm, yt, lines, p: yardAt(Y, fx, fy) })) : []; }
+    SP.sp_toast = () => ({ title: "THE BACKYARD · THE TOAST", face: "assets/crew/pt_rey.png",
+      text: "You tap a bottle with a fork. It takes a while, but they go quiet.\n\nREY: “Seventeen years ago a man put a gun in my hand and a lie in a courtroom. I came out with nothing. No name. No money. No friends but the ones in this yard.”\n\n“Look at us now.”\n\nKATYA: “And what do we call ourselves, Rey? The papers will want a name. Give them one.”",
+      opts: GANG_NAMES.map((nm, i) => ({ id: "story:sp_name_" + i, label: nm })) });
+    for (let i = 0; i < GANG_NAMES.length; i++) SPA["sp_name_" + i] = () => { if (!SID("mansion", 10)) { spClose(); return; } g.gangName = GANG_NAMES[i]; G.pickOpen("sp_allies"); };
+    SP.sp_allies = () => ({ title: "THE BACKYARD · " + (g.gangName || ""), face: "assets/crew/pt_crew_leroy_civ.png",
+      text: "LEROY: “" + (g.gangName || "").replace(/^THE /, "The ").toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) + ". I like it.” He sets his drink down. “Well. It's time we started finding allies. Nobody takes the Deuce alone. The Kings -- Andre Cole runs the hood like he still lives on the block. He's not picking sides. Yet.”\n\nREY: “I'll see what I can do.”\n\nPABLO (glass up): “Then here's to the " + ((g.gangName || "").replace(/^THE /, "")) + "!”",
+      opts: [{ id: "story:sp_cheers", label: "“TO THE " + ((g.gangName || "").replace(/^THE /, "")) + "!”" }] });
+    SPA.sp_cheers = () => { spClose(); if (!SID("mansion", 10)) return; const S = g.story; S.step = 11; S.t = 0; S.fw = []; say("EVERYBODY", "“TO THE " + (g.gangName || "").replace(/^THE /, "") + "!”", 4); };
+    SP.sp_deuce = () => ({ title: "VANCE TOWER · THE NEXT MORNING", face: "assets/deuce/dc_damian.png",
+      text: "The top floor of Vance Tower. Damian Vance has the paper open over his eggs.\n\nBOZNOV BROTHER FOUND DEAD IN OLD TOWN HOME. FAMILY FEUD, POLICE SAY.\n\nUnder the fold, a smaller story about a laundromat, a strip club and a car lot changing hands, and a crew the street is calling " + (g.gangName || "something new") + ". A name he hasn't read in seventeen years.\n\nDamian stops smiling.\n\nJULIAN (from the doorway): “Something wrong?”\n\nDAMIAN: “No. Nothing.” He folds the paper. “Call Tiny.”",
+      opts: [{ id: "story:sp_deuce_ok", label: "..." }] });
+    SPA.sp_deuce_ok = () => { spClose(); if (!SID("mansion", 12)) return; g.chapterOne = 1; storyComplete(); g.storyNext = { id: "kings1", t: 0.3 }; };
+    function endStep(S, dt) {
+      if (S.step === 8) { if (S.t > 2.5 && !S.kh && !g.pickOpen) { S.kh = 1; G.pickOpen("sp_kat_house"); } return true; }
+      if (S.step === 9) { const L = bbqPts(); if (L.length && L.every((q) => S.talked[q.nm])) { S.step = 10; say("KATYA", "“Everybody's got a drink. Go on -- the grill. Make your toast.”", 6); } return true; }
+      if (S.step === 11) { if (Math.random() < dt * 2.6) S.fw.push({ x: 0.12 + Math.random() * 0.76, y: 0.1 + Math.random() * 0.35, t: 0, r: 0.7 + Math.random() * 0.6, c: ["255,210,90", "255,90,122", "106,208,255", "156,255,106", "255,255,255"][(Math.random() * 5) | 0] });
+        for (const f of S.fw) f.t += dt; S.fw = S.fw.filter((f) => f.t < 1.6);
+        if (S.t > 7 && !S.paperGo) { S.paperGo = 1; G.sleepFade(() => { S.step = 12; S.fw = []; nextDay(8, 0); g.paper = { t: 0 }; }, "THE NEXT MORNING"); } return true; }
+      if (S.step === 12) { if (g.paper) { g.paper.t += dt; if (g.paper.t > 6.5) { g.paper = null; G.pickOpen("sp_deuce"); } } return true; }
+      return false; }
+    function endE(S) { if (S.step === 9) { const q = bbqPts().find((o) => near(o.p, 70)); if (q) { const n = (S.talked[q.nm] || 0); say(q.nm, q.lines[n % q.lines.length], 6); S.talked[q.nm] = n + 1; return true; } }
+      if (S.step === 10) { const M = g.bozHouseB, Y = yardOf(M); if (Y && near(yardAt(Y, 0.13, 0.08), 90)) { G.pickOpen("sp_toast"); return true; } } return false; }
+    function drawEnd(S) { const M = g.bozHouseB, Y = yardOf(M); if (!Y || g.inside) return;
+      if (S.step >= 9 && S.step <= 11) { for (const q of bbqPts()) { person(q.p[0], q.p[1], q.yt, q.nm + (S.talked && S.talked[q.nm] ? "" : " · E"), Math.atan2(g.p.y - q.p[1], g.p.x - q.p[0]), S.talked && S.talked[q.nm] ? "#9fe0a0" : "#e8c46a", 1.15); }
+        const smoke = yardAt(Y, 0.13, 0.08); ctx.fillStyle = "rgba(200,200,200,0.18)"; for (let k = 0; k < 4; k++) { const tt = ((g.t || 0) * 0.6 + k * 0.25) % 1; ctx.beginPath(); ctx.arc(smoke[0] + Math.sin(tt * 6 + k) * 6, smoke[1] - 10 - tt * 60, 6 + tt * 12, 0, 6.3); ctx.fill(); }
+        if (S.step === 10) ring(smoke, 40, "THE GRILL · E: MAKE A TOAST"); }
+    }
+    // the fireworks, in screen space over the night (layer 499)
+    function drawFireworks() { const S = g.story; if (!S || S.id !== "mansion" || S.step !== 11 || !S.fw || g.inside) return; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); const W = ctx.canvas.width, H = ctx.canvas.height, U = Math.min(W, H);
+      ctx.globalCompositeOperation = "lighter"; let flash = 0;
+      for (const f of S.fw) { const x = f.x * W, y = f.y * H, a = Math.max(0, 1 - f.t / 1.6), r = U * 0.16 * f.r * Math.min(1, f.t / 0.55) ** 0.5; if (f.t < 0.15) flash += 0.08;
+        for (let k = 0; k < 28; k++) { const an = k / 28 * 6.283 + f.r, px = x + Math.cos(an) * r, py = y + Math.sin(an) * r + f.t * f.t * U * 0.05;
+          ctx.strokeStyle = "rgba(" + f.c + "," + (a * 0.5).toFixed(3) + ")"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + Math.cos(an) * r * 0.6, y + Math.sin(an) * r * 0.6 + f.t * f.t * U * 0.03); ctx.lineTo(px, py); ctx.stroke();
+          ctx.fillStyle = "rgba(" + f.c + "," + a.toFixed(3) + ")"; ctx.beginPath(); ctx.arc(px, py, 3.2, 0, 6.3); ctx.fill(); } }
+      if (flash) { ctx.fillStyle = "rgba(255,240,220," + Math.min(0.12, flash).toFixed(3) + ")"; ctx.fillRect(0, 0, W, H); } ctx.restore(); }
+    // the newspaper, full screen
+    function drawPaper() { const P = g.paper; if (!P) return; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); const W = ctx.canvas.width, H = ctx.canvas.height, k = Math.min(1, P.t / 0.6);
+      ctx.fillStyle = "rgba(0,0,0," + 0.75 * k + ")"; ctx.fillRect(0, 0, W, H); const pw = Math.min(W * 0.62, H * 0.95 * 0.72), ph = pw / 0.72, x = (W - pw) / 2, y = (H - ph) / 2 + (1 - k) * 60;
+      ctx.translate(x + pw / 2, y + ph / 2); ctx.rotate(-0.03 * k); ctx.translate(-pw / 2, -ph / 2); const im = imgs.current.ui_newspaper;
+      if (im && im.width) ctx.drawImage(im, 0, 0, pw, ph);
+      else { ctx.fillStyle = "#e9e2cf"; ctx.fillRect(0, 0, pw, ph); ctx.fillStyle = "#1c1a16"; ctx.textAlign = "center"; ctx.font = "900 " + (pw * 0.06) + "px Georgia, serif"; ctx.fillText("THE RAVEN HOOK CHRONICLE", pw / 2, ph * 0.08);
+        ctx.fillRect(pw * 0.05, ph * 0.1, pw * 0.9, 2); ctx.font = (pw * 0.025) + "px Georgia, serif"; ctx.fillText("VOL. CXII · 1986 · TWENTY-FIVE CENTS", pw / 2, ph * 0.125);
+        ctx.font = "900 " + (pw * 0.07) + "px Georgia, serif"; ctx.fillText("BOZNOV BROTHER FOUND", pw / 2, ph * 0.22); ctx.fillText("DEAD IN OLD TOWN HOME", pw / 2, ph * 0.3);
+        ctx.font = "italic " + (pw * 0.035) + "px Georgia, serif"; ctx.fillText("“Family feud,” police say -- no arrests", pw / 2, ph * 0.36);
+        ctx.fillStyle = "#8a8578"; ctx.fillRect(pw * 0.06, ph * 0.4, pw * 0.42, ph * 0.3); ctx.fillStyle = "#1c1a16"; ctx.textAlign = "left"; ctx.font = (pw * 0.022) + "px Georgia, serif";
+        ["Police were called to the Old Town", "residence of Vladimir Boznov in the", "early hours of Saturday after reports", "of an explosion and gunfire...", "", "BUSINESSES CHANGE HANDS ON EAST SIDE", "A laundromat, a nightclub and a car lot", "have new owners, and the street has a", "name for them: " + (g.gangName || "")].forEach((l, n) => ctx.fillText(l, pw * 0.52, ph * 0.43 + n * ph * 0.032)); }
+      ctx.restore(); }
+
+    /* ---------- CHAPTER TWO, MISSION 1: A SEAT AT THE TABLE ----------
+       0 CHAPTER ONE COMPLETE 1 the next morning, Katya's bed (the blur): "Sooo... this is turning into a thing." She dresses and
+       goes down 2 CHAPTER TWO 3 MISSION 1 -- get dressed, breakfast out back 4 the crew at the round table: Leroy on TOP CREW
+       (RIGHT HAND, THE MONEY, THE MUSCLE, THE WHEELS -- g.topCrew; the money is +10% on every business, the muscle pays
+       guards $75 a day) 5 find someone who can call a sit-down with the Kings (the rest is the next build). */
+    STORY.kings1 = { nm: "A SEAT AT THE TABLE", pay: 0 };
+    const TOP = [["right", "RIGHT HAND", "speaks for you when you're not there"], ["money", "THE MONEY", "+10% from every business"], ["muscle", "THE MUSCLE", "guards cost $75 a day, not $100"], ["wheels", "THE WHEELS", "runs the cars and the drivers"]];
+    const TOP_WHO = [["c:leroy", "LEROY"], ["c:ras", "RAS"], ["c:viejo", "PABLO"], ["katya", "KATYA"], ["dread", "DREAD"]];
+    BEGIN98.kings1 = () => { storyStart("kings1"); const S = g.story; S.step = 0; S.t = 0; g.slam = { kind: "done", title: "CHAPTER ONE COMPLETE", sub: "THE FALL GUY · " + (g.gangName || ""), pay: 0, t: 0 }; g.mimiOut = 0; };
+    const bedPt = () => { const M = g.bozHouseB || manorB(); return M ? artPt(M, 1, 0.245, 0.33) : null; };
+    STEP98.kings1 = (dt) => { const S = g.story; if (g.sleepFx) return; S.t = (S.t || 0) + dt; const M = g.bozHouseB || manorB();
+      if (S.step === 0) { if (S.t > 4.6 && !S.go) { S.go = 1; G.sleepFade(() => { nextDay(9, 10); const b = bedPt(); if (M && b) { putIn(M, 1, 0.235, 0.33); } g.booze = { n: 2, t: 9 }; S.step = 1; S.t = 0; S.kx = null; }, "THE NEXT MORNING · THE BOZNOV HOUSE"); } return; }
+      if (S.step === 1) { const b = bedPt(); if (b) { g.p.x = b[0] - 8; g.p.y = b[1]; g.p.vx = g.p.vy = 0; }
+        if (S.t > 1.5 && !S.l1) { S.l1 = 1; say("KATYA", "She props herself up on one elbow, sheet to her chin, and looks at you for a long time. “Sooo... this is turning into a thing.”", 7); }
+        if (S.t > 8 && !S.up) { S.up = 1; say("KATYA", "She gets up, finds her dress on the floor, and goes downstairs without another word. You hear her laughing at something on the stairs.", 6); }
+        if (S.up) { const dst = artPt(M, 1, 0.5, 0.36); if (!S.kx && b) S.kx = [b[0] + 16, b[1]]; if (dst && S.kx) { const dx = dst[0] - S.kx[0], dy = dst[1] - S.kx[1], d = Math.hypot(dx, dy); if (d > 4) { S.kx[0] += dx / d * 70 * dt; S.kx[1] += dy / d * 70 * dt; } } }
+        if (S.t > 14) { S.step = 2; S.t = 0; g.slam = { kind: "start", title: "CHAPTER TWO", sub: "THE KINGS", t: 0 }; } return; }
+      if (S.step === 2) { if (!g.slam && S.t > 3.2) { S.step = 3; S.t = 0; g.slam = { kind: "start", title: "MISSION 1", sub: STORY.kings1.nm, t: 0 }; g.pickupFlash = { nm: "lift:YOU GET DRESSED", t: 2 }; storyMark("BREAKFAST OUT BACK"); } return; }
+      if (S.step === 3) { const Y = yardOf(M); if (Y && !g.inside && near(yardAt(Y, 0.86, 0.3), 260)) { S.step = 4; S.t = 0; say("LEROY", "“Morning, sleeping beauty. Sit. Eat. Then we talk about how a crew like this gets run.”", 6); } return; }
+      if (S.step === 4) return; };
+    SP.sp_top1 = () => ({ title: "BREAKFAST · LEROY ON THE TOP CREW", face: "assets/crew/pt_crew_leroy_civ.png",
+      text: "Eggs, coffee, Pablo's leftover steak. Leroy waits until you've eaten.\n\nLEROY: “You got businesses, you got men on doors, you got a name now. You can't hold all of it in one head. Every boss has a TOP CREW -- the few people he trusts to carry a piece of it.”\n\n“RIGHT HAND: speaks for you when you're not there. THE MONEY: watches every business, squeezes a little more out of each one. THE MUSCLE: runs the men on the doors, gets them cheaper. THE WHEELS: the cars and the drivers.”\n\n“Pick who carries what. You can change it later. Pick right and it pays; pick wrong and you'll know.”",
+      opts: [{ id: "story:sp_top_go", label: "“LET'S PICK.”" }] });
+    SPA.sp_top_go = () => { g.topCrew = g.topCrew || { right: "c:leroy", money: "katya", muscle: "c:ras", wheels: "c:viejo" }; G.pickOpen("sp_top2"); };
+    SP.sp_top2 = () => { const T = g.topCrew || {}, nm = (k) => (TOP_WHO.find((q) => q[0] === k) || [0, "NOBODY"])[1];
+      return { title: "YOUR TOP CREW", face: null, text: TOP.map(([k, lab, what]) => lab + ": " + nm(T[k]) + "  — " + what).join("\n") + "\n\n(Tap a seat to change who's in it. Nobody sits in two seats.)",
+        opts: TOP.map(([k, lab]) => ({ id: "story:sp_top_" + k, label: lab + ": " + nm(T[k]) })).concat([{ id: "story:sp_top_done", label: "“THAT'S MY TOP CREW.”" }]) }; };
+    for (const [k] of TOP) SPA["sp_top_" + k] = () => { const T = (g.topCrew = g.topCrew || {}), used = new Set(Object.keys(T).filter((q) => q !== k).map((q) => T[q])); let i = TOP_WHO.findIndex((q) => q[0] === T[k]);
+      for (let n = 0; n < TOP_WHO.length; n++) { i = (i + 1) % TOP_WHO.length; if (!used.has(TOP_WHO[i][0])) { T[k] = TOP_WHO[i][0]; break; } } G.pickOpen("sp_top2"); };
+    SPA.sp_top_done = () => { spClose(); if (!SID("kings1", 4)) return; g.story.step = 5; storyMark("A SIT-DOWN WITH THE KINGS");
+      say("LEROY", "“Good. Now -- the Kings. Andre Cole won't take a meeting from a man he's never heard of. We need somebody who can CALL a sit-down. Dread's corner sits on the Kings' line. Start there.”", 9); };
+    E98.kings1 = () => { const S = g.story, M = g.bozHouseB, Y = yardOf(M); if (S.step === 4 && Y && near(yardAt(Y, 0.86, 0.3), 120)) { G.pickOpen("sp_top1"); return true; } return false; };
+    OBJ98.kings1 = () => { const S = g.story; return { head: "A SEAT AT THE TABLE · " + ["", "", "", "BREAKFAST", "THE TOP CREW", "A SIT-DOWN"][S.step], sub: ["", "", "", "Out the back door (the war room, top right) -- breakfast in the backyard.", "Leroy's at the round table (E).", "Find somebody who can call a sit-down with Andre Cole. Dread's corner is a start. (The rest of this mission is the next build.)"][S.step] || "" }; };
+    TGT98.kings1 = (h) => { const S = g.story, M = g.bozHouseB, Y = yardOf(M); if (S.step === 3) { if (g.inside === M && g.floor === 0) { const BD = yardBackDoor(M); return BD ? BD.pin : null; } return Y ? yardAt(Y, 0.86, 0.3) : null; } if (S.step === 5) return cornerSpot(); return null; };
+    DRAW98.push(() => { const S = g.story; if (!S || S.id !== "kings1") return; const M = g.bozHouseB;
+      if (S.step === 1 && M && g.inside === M && g.floor === 1) { const b = bedPt(); if (b) { if (!S.up) person(b[0] + 16, b[1], "yt_bozni_katya", null, Math.PI / 2, null, 1.1); else if (S.kx) person(S.kx[0], S.kx[1], "yt_bozni_katya", "KATYA", 0, "#e8c46a", 1.15);
+          ctx.fillStyle = "rgba(122,20,26,0.96)"; ctx.fillRect(b[0] - 26, b[1] + 6, S.up ? 30 : 56, 38); ctx.fillStyle = "rgba(220,180,90,0.8)"; ctx.fillRect(b[0] - 26, b[1] + 6, S.up ? 30 : 56, 3); } }
+      if (S.step >= 4 && !g.inside) { const Y = yardOf(M); if (Y) { const crew = [["LEROY", "yt_crew_leroy", 0.83, 0.26], ["RAS", "yt_crew_ras", 0.9, 0.25], ["PABLO", "yt_crew_viejo", 0.82, 0.12], ["KATYA", "yt_bozni_katya", 0.9, 0.11], ["DREAD", "yt_dread", 0.95, 0.18]];
+          for (const [nm, yt, fx, fy] of crew) { const p = yardAt(Y, fx, fy); person(p[0], p[1], yt, nm + (nm === "LEROY" && S.step === 4 ? " · E" : ""), Math.atan2(yardAt(Y, 0.86, 0.18)[1] - p[1], yardAt(Y, 0.86, 0.18)[0] - p[0]), "#e8c46a", 1.1); } } } });
+    G.yardT = () => { const M = g.bozHouseB || manorB(), Y = yardOf(M), BD = M && yardBackDoor(M); return { Y: Y && { x0: Y.x0 | 0, x1: Y.x1 | 0, top: Y.top | 0, deck: Y.deck, pool: Y.pool }, door: BD, grill: Y && yardAt(Y, 0.13, 0.08), table: Y && yardAt(Y, 0.86, 0.3), guests: bbqPts().map((q) => [q.nm, q.p[0] | 0, q.p[1] | 0]) }; };   // test hook
+
     /* ---------- LAYER 489: STORY HUD, THE STORY ARROW AND ROUTE, PABLO AT THE HIPPIE, THE BOZNOVS ON THEIR FEET ----------
        storyOnly(): Rey's story (Kestrel mode, out of prison). The HUD shows the story and nothing else -- no scanner calls,
        no street races, no RHPD line unless it's you they're after, no SAVED/LOST, no JUICE, no SKY.
@@ -37333,7 +38014,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function storyByePanel() { return { title: "LAST DAY IN · THE CAKE", face: "assets/crew/pt_crew_leroy.png",
       text: "The four of you on two bunks, the warden's cake on a towel, plastic forks.\n\nLEROY: “Key's under the mat. Palm Court, Building A, 1A. Don't thank me. Just don't come back.”\nRAS: “Me pay a man fi tomorrow. You'll see. Walk good, Rey.”\nPABLO: “A few weeks, mijo. Don't start the war without me.”",
       opts: [{ id: "story:bye", label: "“SEVENTEEN YEARS. I'LL SEE YOU OUT THERE.”" }] }; }
-    function storyObjective() { const S = g.story; if (S && S.id === "setup") return setupObjective(); if (S && S.id === "dayout") return dayOutObjective(); if (S && S.id === "firstout") return firstOutObjective(); if (S && S.id === "scrapyard") return scrapObjective(); if (S && S.id === "friday") return fridayObjective(); if (S && S.id === "allin") return allinObjective(); if (S && S.id === "washday") return washObjective(); if (S && S.id === "maptable") return maptableObjective(); if (S && S.id === "bankjob") return bankjobObjective(); if (S && S.id === "corner") return cornerObjective(); if (S && S.id === "nest") return nestObjective(); if (!S || S.id !== "lastday") return null; const nm = "LAST DAY IN";
+    function storyObjective() { const S = g.story; if (S && S.id === "setup") return setupObjective(); if (S && S.id === "dayout") return dayOutObjective(); if (S && S.id === "firstout") return firstOutObjective(); if (S && S.id === "scrapyard") return scrapObjective(); if (S && S.id === "friday") return fridayObjective(); if (S && S.id === "allin") return allinObjective(); if (S && S.id === "washday") return washObjective(); if (S && S.id === "maptable") return maptableObjective(); if (S && S.id === "bankjob") return bankjobObjective(); if (S && S.id === "corner") return cornerObjective(); if (S && S.id === "nest") return nest2Objective(); if (S && OBJ98[S.id]) return OBJ98[S.id](); if (!S || S.id !== "lastday") return null; const nm = "LAST DAY IN";
       if (S.step === 0) { const ks = ["leroy", "ras", "viejo"], left = ks.filter((k) => !S.talked[k]);
         if (left.length) return { head: nm + " · TALK TO YOUR PEOPLE", sub: ks.map((k) => (S.talked[k] ? "✓ " : "· ") + HOMIE[k]).join("   ") + " — E to talk. They're on your tier." };
         const sub = [S.side.ras ? "✓ RAS: the shank's hidden" : "RAS: hide the shank in your mattress (POCKETS, E at your bunk)",
@@ -37360,10 +38041,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (walls.some((q) => px > q.x && px < q.x + q.w && py > q.y && py < q.y + q.h)) return false; } }
       return true; }
     function storyStep(dt) {
+      stepSleepFx(dt); stepDinner(dt); if (((g.t || 0) * 2 | 0) !== g.empTk) { g.empTk = (g.t || 0) * 2 | 0; empTick(); }      // layer 498
       if (g.slam) { g.slam.t += dt; if (g.slam.kind !== "fail" && g.slam.t > (g.slam.kind === "start" || g.slam.kind === "side" ? 3 : 4.5)) g.slam = null;
         else if (g.slam.kind === "fail") { g.p.vx = 0; g.p.vy = 0; if (g.pickOpen !== "storyfail") G.pickOpen("storyfail"); return; } }
       stepEarlCab(dt);
-      if (g.storyNext && !g.slam) { g.storyNext.t -= dt; if (g.storyNext.t <= 0) { const nx = g.storyNext.id; g.storyNext = null; if (nx === "dayout") dayOutBegin(); if (nx === "firstout") firstOutBegin(); if (nx === "scrapyard") scrapBegin(); if (nx === "friday") fridayBegin(); if (nx === "allin") allinBegin(); if (nx === "washday") washBegin(); if (nx === "maptable") maptableBegin(); if (nx === "bankjob") bankjobBegin(); if (nx === "corner") cornerBegin(); if (nx === "nest") nestBegin(); if (nx === "lastday") lastdayBegin(); } }
+      if (g.storyNext && !g.slam) { g.storyNext.t -= dt; if (g.storyNext.t <= 0) { const nx = g.storyNext.id; g.storyNext = null; if (nx === "dayout") dayOutBegin(); if (nx === "firstout") firstOutBegin(); if (nx === "scrapyard") scrapBegin(); if (nx === "friday") fridayBegin(); if (nx === "allin") allinBegin(); if (nx === "washday") washBegin(); if (nx === "maptable") maptableBegin(); if (nx === "bankjob") bankjobBegin(); if (nx === "corner") cornerBegin(); if (nx === "nest") nestBegin(); if (nx === "lastday") lastdayBegin(); if (BEGIN98[nx]) BEGIN98[nx](); } }
       const S = g.story; if (!S) return;
       if (S.grace > 0) { S.grace -= dt; return; }                                   // a breath after a retry
       if (S.id === "setup") { setupStep(dt); return; }                                         // Mission 0 (layer 497)
@@ -37375,7 +38057,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (S.id === "maptable") { maptableStep(dt); return; }                                   // layer 488
       if (S.id === "bankjob") { bankjobStep(dt); return; }
       if (S.id === "corner") { cornerStep(dt); return; }                                       // layer 491
-      if (S.id === "nest") { nestStep(dt); return; }
+      if (S.id === "nest") { nest2Step(dt); return; }                                     // rebuilt (layer 498)
+      if (STEP98[S.id]) { STEP98[S.id](dt); return; }
       if (S.id === "firstout") { if (g.hole && !S.holeSeen) { S.holeSeen = 1; storyFail("They took you back to Kestrel. Two days out."); return; } firstOutStep(dt); return; }
       if (S.id !== "lastday" || !g.prisonMode) return;
       if (g.pescaped) { g.story = null; storyCk = null; return; }                      // escaped instead: that's another story
@@ -37423,7 +38106,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.arc(w.x, w.y, w.range, w.a - w.fov, w.a + w.fov); ctx.closePath(); ctx.fill();
       ctx.strokeStyle = hot ? "rgba(235,60,50,0.6)" : "rgba(255,214,90,0.45)"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore(); }
     G.storyT = () => g.story ? { id: g.story.id, step: g.story.step, talked: g.story.talked, side: g.story.side, cake: !!g.story.cake, foe: g.story.foeKey || null, watch: g.story.watch ? g.story.watch.list.map((w) => [w.nm, w.x | 0, w.y | 0, +w.a.toFixed(2)]).concat([["cake", g.story.watch.cake.x | 0, g.story.watch.cake.y | 0]]) : null, ck: !!storyCk, slam: g.slam ? g.slam.kind : null } : { done: g.storyDone || null, slam: g.slam ? g.slam.kind : null };   // test hook
-    G.storyStartT = (id) => { if (id === "allin") { aptC(); allinBegin(); return true; } if (id === "maptable") { aptC(); aptStartHome(); maptableBegin(); return true; } if (id === "bankjob") { aptC(); bankjobBegin(); return true; } if (id === "corner") { aptC(); cornerBegin(); return true; } if (id === "nest") { aptC(); nestBegin(); return true; } if (id === "washday") { aptC(); washBegin(); return true; } if (id === "friday") { aptC(); fridayBegin(); return true; } if (id === "scrapyard") { aptC(); scrapBegin(); return true; } if (id === "dayout") { dayOutBegin(); return true; } if (id === "firstout") { aptC(); firstOutBegin(); return true; } storyStart(id || "lastday"); return true; };
+    G.storyStartT = (id) => { if (BEGIN98[id]) { aptC(); BEGIN98[id](); return true; } if (id === "allin") { aptC(); allinBegin(); return true; } if (id === "maptable") { aptC(); aptStartHome(); maptableBegin(); return true; } if (id === "bankjob") { aptC(); bankjobBegin(); return true; } if (id === "corner") { aptC(); cornerBegin(); return true; } if (id === "nest") { aptC(); nestBegin(); return true; } if (id === "washday") { aptC(); washBegin(); return true; } if (id === "friday") { aptC(); fridayBegin(); return true; } if (id === "scrapyard") { aptC(); scrapBegin(); return true; } if (id === "dayout") { dayOutBegin(); return true; } if (id === "firstout") { aptC(); firstOutBegin(); return true; } storyStart(id || "lastday"); return true; };
     G.storyFoeT = (down) => { const S = g.story; if (!S || !S.foeKey) return null; const q = (prisonFolk() || []).find((o) => folkKey(o) === S.foeKey); if (q && down) q.down = 1; return q ? [q.name || "?", q.x | 0, q.y | 0, !!q.angry, !!q.down] : null; };
     /* ---------- LAYER 451: SLEEP, MAIL, WORK LOOPS, NIGHT, SHOWERS ----------
        YOUR BUNK: the hiding-place panel of the bed in YOUR cell also offers SLEEP -- until dawn
@@ -37484,6 +38167,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     G.mailPick = (n) => { const m = (g.pmail || [])[+n]; if (!m) return; m.read = 1; g.mailSaid = "FROM " + m.from + ": \u201c" + m.text + "\u201d"; };
     G.sleepPick = (k) => {
+      if (!g.sleepFx) { G.sleepFade(() => G.sleepPick(k)); return; }                  // fade, the day and time, fade back (layer 498)
       const T = SLEEP_TO.find((q) => q[0] === k); if (!T) return;
       const c = g.clock || 0; let to = T[2];
       if (to <= c) { to += 1440; }
@@ -37591,7 +38275,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!ALLEY_ZONES.test(z) || c.lx0 == null || c.stan || isGasCell(i, j) || isShopCell(i, j)) return (c.alley = []);      // no trash on Stan's, a station or Joe's (layer 475)
       let h = (i * 73856093) ^ (j * 19349663); const rnd = () => ((h = Math.imul(h ^ (h >>> 13), 1274126177)) >>> 0) / 4294967296;
       const out = [], blds = c.blds || [];
-      const free = (x, y, r) => x > c.lx0 + r && x < c.lx1 - r && y > c.ly0 + r && y < c.ly1 - r && !blds.some((b) => x > b.x - r && x < b.x + b.w + r && y > b.y - r && y < b.y + b.h + r);
+      const free = (x, y, r) => !inBozYard(x, y) && x > c.lx0 + r && x < c.lx1 - r && y > c.ly0 + r && y < c.ly1 - r && !blds.some((b) => x > b.x - r && x < b.x + b.w + r && y > b.y - r && y < b.y + b.h + r);
       const n = 2 + (rnd() < 0.4 ? 1 : 0);
       for (let k = 0, tries = 0; k < n && tries < 40; tries++) {
         const x = c.lx0 + rnd() * (c.lx1 - c.lx0), y = c.ly0 + rnd() * (c.ly1 - c.ly0);
@@ -38162,6 +38846,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (a === "k") { kidAct(n); return; }
       if (a === "t") { const T = g.stuTest; if (!T) return; if (+n === T.qs[T.i][2]) T.right++; T.i++;
         if (T.i >= 3) { if (T.noBooks) { (g.stu.ready = g.stu.ready || {})[T.subj] = Math.max(0, (g.stu.ready[T.subj] || 0) - 60); } gradeTest(T.subj, T.right); g.stuTest = null; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); } return; }
+      if (a === "sleep" && !g.sleepFx) { G.sleepFade(() => G.stuPick("stu:sleep")); return; }   // layer 498
       if (a === "sleep") { const c = g.clock || 0; if (c > STU.wake) { U.day++; } g.clock = STU.wake; U.curfewHit = 0; g.sfolk = null;
         const H = studentHome(); if (H) { g.inside = H; g.floor = 1; g.insideT = 1; }
         const pt = stuBedPt(); if (pt) { g.p.x = pt[0]; g.p.y = pt[1]; g.cam.x = pt[0]; g.cam.y = pt[1]; }
@@ -44418,6 +45103,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }
         if (g.freshHome) { g.freshHome = 0; try { aptStart(); } catch (e) { g.hudErrStack = String(e && e.stack); } }   // layer 477
       }
+      stepDayNight();                                                           // sunrise, sunset (layer 499)
       g.night = lerp(g.night, g.nightTarget, clamp(dt * 1.6, 0, 1));
       /* Was 26, which left a heavy hit wobbling for four or five seconds. A crash is an
          impact, not weather -- 64 puts even the worst of them under a second and a half. */
@@ -44483,7 +45169,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return;
       }
       drawGround(view);
-      if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawDealers(view); drawStanLot(view); drawAptLot(view); bozHouseInit(); drawBozHouse(view); stepRhu(); drawRhu(view); drawWoods(view); drawDirtJumps(view); drawTrackRiders(view); drawAirport(view); drawStudentWorld(view); }
+      if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawDealers(view); drawStanLot(view); drawAptLot(view); bozHouseInit(); drawYard(view); drawBozHouse(view); stepRhu(); drawRhu(view); drawWoods(view); drawDirtJumps(view); drawTrackRiders(view); drawAirport(view); drawStudentWorld(view); }
       if (!g.inside) drawMarkGround(view);
       if (!g.inside) drawCasings(view);
       if (!g.inside) { drawLake(view); drawRiver(view); }   // over the ground, under everything that floats on it
@@ -44662,7 +45348,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (kind === 9) p.__draw();
       }
       if (g.inside && g.insideT > 0.5) { drawHoopsOver(); drawBizExtras(); }
-      drawStory(); drawSetup(); drawFirstOut(); drawScrap2(); drawFriday(); drawAllin(); drawWash(); drawWashCrew(); drawParty(); drawMorning(); drawMaptable(); drawPabloHang(); drawBozFolk(); drawDreadCorner(); drawCornerMark(); drawCellParty(); drawEscort(); drawEddie(); drawJose(); drawSiteCones(); drawCover(); drawBombed(view); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
+      drawStory(); drawSetup(); drawEmp(); drawMimi(); drawNest2(); DRAW98.forEach((f) => f()); drawYardDoorIn(); drawFirstOut(); drawScrap2(); drawFriday(); drawAllin(); drawWash(); drawWashCrew(); drawParty(); drawMorning(); drawMaptable(); drawPabloHang(); drawBozFolk(); drawDreadCorner(); drawCornerMark(); drawCellParty(); drawEscort(); drawEddie(); drawJose(); drawSiteCones(); drawCover(); drawBombed(view); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
       if (!g.inside) {
         // Roofs belong ABOVE the sorted building list, not before it -- drawn early, every
         // building painted straight over the roof and the man standing on it.
@@ -44813,6 +45499,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       ctx.restore();
 
+      // the orange hour, dawn and dusk (layer 499)
+      if ((g.duskO || 0) > 0.01) { ctx.save(); ctx.globalCompositeOperation = "multiply"; ctx.fillStyle = `rgba(255,176,112,${(0.42 * g.duskO).toFixed(3)})`; ctx.fillRect(0, 0, W, H);
+        ctx.globalCompositeOperation = "screen"; ctx.fillStyle = `rgba(255,120,30,${(0.16 * g.duskO).toFixed(3)})`; ctx.fillRect(0, 0, W, H); ctx.restore(); }
       // night wash + lights
       if (g.night > 0.02) {
         ctx.fillStyle = `rgba(6,8,20,${0.62 * g.night})`;
@@ -44847,7 +45536,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }
       }
 
-      drawMinimap();
+      drawMinimap(); drawFireworks(); drawPaper();                            // layer 499: over the night and the map
       // the card and the book are held up in front of everything, including the map
       drawIdCard();
       if (g.inside && g.inside.inPrison || (g.p.x > PRISON_BOX.x0 && g.p.x < PRISON_BOX.x1 && g.p.y > PRISON_BOX.y0 && g.p.y < PRISON_BOX.y1)) {
@@ -45148,6 +45837,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             obj: g.prisonMode ? prisonObjective() : jobObjective(),
             slam: g.slam ? { kind: g.slam.kind, title: g.slam.title, sub: g.slam.sub, pay: g.slam.pay || 0 } : null,
             blackA: g.blackA > 0.01 ? Math.round(g.blackA * 100) / 100 : 0,
+            sleepCard: g.sleepFx && g.sleepFx.text ? { text: g.sleepFx.text, a: Math.round(sleepCardA() * 100) / 100 } : null,
             flash76: !!g.flash1976, t76: g.flash1976 ? (Math.random() * 160) | 0 : 0,
             watch: g.watchOn ? (() => { const c = Math.floor(g.clock || 0), h = Math.floor(c / 60) % 24, m = c % 60; return ((h + 11) % 12 + 1) + ":" + String(m).padStart(2, "0") + (h < 12 ? "a" : "p"); })() : null,
             crime: g.crime ? { place: g.crime.place, result: g.crime.result,
@@ -51623,6 +52313,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       {hud.flash76 && <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 38, backdropFilter: "sepia(0.8) saturate(0.75) contrast(1.06) brightness(1.04)", WebkitBackdropFilter: "sepia(0.8) saturate(0.75) contrast(1.06) brightness(1.04)",
         backgroundImage: "url(" + flashGrain() + ")", backgroundPosition: hud.t76 + "px " + ((hud.t76 * 7) % 160) + "px", boxShadow: "inset 0 0 180px rgba(40,22,4,0.7)" }} />}
       {hud.blackA > 0 && <div style={{ position: "absolute", inset: 0, background: "#000", opacity: hud.blackA, pointerEvents: "none", zIndex: 39 }} />}
+      {hud.sleepCard && hud.sleepCard.a > 0 && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 40, opacity: hud.sleepCard.a,
+        color: "#e8d9b5", fontFamily: "ui-monospace, monospace", fontSize: 26, letterSpacing: "0.28em", textAlign: "center", padding: "0 24px" }}>{hud.sleepCard.text}</div>}
       {hud.slam && (
         <div key={hud.slam.kind + hud.slam.title + hud.slam.sub} style={{ position: "absolute", left: 0, right: 0, top: "26%", textAlign: "center", pointerEvents: "none", zIndex: 40, fontFamily: mono }}>
           <style>{`@keyframes rhSlam { 0% { transform: scale(2.6); opacity: 0; } 55% { transform: scale(0.94); opacity: 1; } 75% { transform: scale(1.03); } 100% { transform: scale(1); opacity: 1; } }
