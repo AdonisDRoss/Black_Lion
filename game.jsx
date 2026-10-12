@@ -3713,6 +3713,7 @@ PD_ART.it_hippie_bag = "assets/items/it_hippie_bag.png";
 for (const k of ["yd_grill_red", "yd_grill_black", "yd_lounger_a", "yd_lounger_b", "yd_sidetable_a", "yd_sidetable_b", "yd_table_round", "yd_pool", "yd_umbrella", "yd_boombox", "yd_charcoal", "yd_cooler", "yd_flipflop_a", "yd_beachball", "yd_tongs", "yd_bbq_table"]) PD_ART[k] = "assets/yard/" + k + ".png";
 PD_ART.tx_ivory_deck = "assets/tex/tx_ivory_deck.png";
 PD_ART.ui_newspaper = "assets/ui/ui_newspaper.png";
+PD_ART.pr_cone = "assets/props/pr_cone.png";        // the race cones (layer 500)
 /* layer 497: Dread, Tony, Harlan, Nicky, Yuri, the 1969 cast, Mission 11 props, 1969 cars, construction props, the verdict folder */
 for (const k of ["dread", "tony", "harlan", "nicky", "yuri", "rey69", "rochelle69", "damian69", "julian69", "tiny69", "cop69_a", "cop69_b"]) PD_ART["yt_" + k] = "assets/crew/yt_" + k + ".png";
 for (const k of ["it_ledger", "pr_office_safe", "pr_office_safe_open", "it_gascan", "it_gascan_b", "it_pinkslip"]) PD_ART[k] = "assets/items/" + k + ".png";
@@ -37634,7 +37635,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.save(); ctx.strokeStyle = "rgba(255,214,60,0.28)"; ctx.lineWidth = 70; ctx.setLineDash([26, 22]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
         const ph = ((g.t || 0) * 120) % 120; for (let d = ph; d < L; d += 120) { const x = ax + Math.cos(an) * d, y = ay + Math.sin(an) * d; ctx.save(); ctx.translate(x, y); ctx.rotate(an); ctx.fillStyle = "#ffd23c"; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-8, -12); ctx.lineTo(-2, 0); ctx.lineTo(-8, 12); ctx.closePath(); ctx.fill(); ctx.restore(); }
         lab8("SHORTCUT", ax, ay - 44, "#ffd23c"); } }
-    function drawCone2(x, y) { ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(x - 7, y - 5, 16, 14); ctx.fillStyle = "#e8641e"; ctx.fillRect(x - 8, y - 8, 16, 16); ctx.fillStyle = "#ff8a3a"; ctx.beginPath(); ctx.arc(x, y, 6, 0, 6.3); ctx.fill();
+    function drawCone2(x, y) { const ci = imgs.current.pr_cone; if (ci && ci.width) { ctx.fillStyle = "rgba(0,0,0,0.28)"; ctx.fillRect(x - 9, y - 6, 22, 20); ctx.drawImage(ci, x - 13, y - 13, 26, 26); return; } ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(x - 7, y - 5, 16, 14); ctx.fillStyle = "#e8641e"; ctx.fillRect(x - 8, y - 8, 16, 16); ctx.fillStyle = "#ff8a3a"; ctx.beginPath(); ctx.arc(x, y, 6, 0, 6.3); ctx.fill();
       ctx.strokeStyle = "#f5f1e6"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 6.3); ctx.stroke(); }
 
     /* ---------- THE BOZNOV BACKYARD ---------- */
@@ -37656,7 +37657,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const YARD_PROPS = [["yd_bbq_table", 0.04, 0.12, 70], ["yd_grill_black", 0.13, 0.08, 46], ["yd_tongs", 0.19, 0.1, 12], ["yd_charcoal", 0.03, 0.62, 22], ["yd_cooler", 0.12, 0.66, 28],
       ["yd_lounger_a", 0.27, 0.62, 30], ["yd_sidetable_a", 0.31, 0.7, 22], ["yd_lounger_a", 0.35, 0.62, 30], ["yd_lounger_b", 0.65, 0.62, 30], ["yd_sidetable_b", 0.69, 0.7, 22], ["yd_lounger_b", 0.73, 0.62, 30],
       ["yd_table_round", 0.86, 0.18, 80], ["yd_umbrella", 0.86, 0.12, 90], ["yd_boombox", 0.94, 0.66, 30], ["yd_beachball", 0.6, 0.28, 18], ["yd_flipflop_a", 0.4, 0.3, 10]];
-    function inBozYard(x, y) { const M = g.bozHouseB, Y = M && yardOf(M); return !!Y && x > Y.x0 - 40 && x < Y.x1 + 40 && y > Y.top - 40 && y < M.y + M.h + 110; }   // no alley trash in the yard
+    function inBozYard(x, y) { const M = g.bozHouseB, Y = M && yardOf(M); return (!!Y && x > Y.x0 - 40 && x < Y.x1 + 40 && y > Y.top - 40 && y < M.y + M.h + 110) || inBozHill(x, y); }   // no alley trash in the yard
     const yardAt = (Y, fx, fy) => [Y.deck.x + Y.deck.w * fx, Y.deck.y + Y.deck.h * fy];
     function drawYard(view) { if (g.inside) return; const M = g.bozHouseB; const Y = M && yardOf(M); if (!Y) return; if (Y.x1 < view.x0 - 200 || Y.x0 > view.x1 + 200 || M.y < view.y0 - 300 || Y.top > view.y1 + 200) return;
       ctx.save(); ctx.fillStyle = PAT.grass || "#4f7a3e"; ctx.fillRect(Y.x0, Y.top, Y.x1 - Y.x0, M.y - Y.top); ctx.restore();
@@ -37672,11 +37673,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.inside === M && g.floor === 0 && near(BD.pin, 70)) { putOut(BD.pout); return true; } if (!g.inside && near(BD.pout, 60)) { putIn(M, 0, 0.935, 0.12); return true; } return false; };
     function drawYardDoorIn() { const M = g.bozHouseB; if (!M || g.inside !== M || g.floor !== 0) return; const BD = yardBackDoor(M); if (BD && near(BD.pin, 80)) lab8("E: THE BACKYARD", BD.pin[0], BD.pin[1] + 26); }
 
+    G.cellT = (i, j) => getCell(i, j);   // test hook (layer 500)
     /* THE END OF CHAPTER ONE (layer 499): 8 Katya on the house (it's hers, always open to you) -- "what's next?" -- "we get the
        crew together" 9 the BBQ out back at 8 PM: walk round and talk to everybody 10 E at the grill: the toast, Katya asks
-       what we're called (ten names), Leroy: allies, the Kings; Pablo: "Here's to the ___" 11 fireworks 12 Damian's paper
-       (g.paper: ui_newspaper if it's there, drawn if not) then the Deuce panel -- MISSION COMPLETE -- and Chapter Two
-       (STORY.kings1) opens on CHAPTER ONE COMPLETE, the morning in Katya's bed, CHAPTER TWO, MISSION 1. */
+       what we're called (ten names), Leroy: allies, the Kings; Pablo: "Here's to the ___" 11 fireworks -- MISSION
+       COMPLETE -- and Chapter Two (STORY.kings1) opens on CHAPTER ONE COMPLETE, the morning in Katya's bed, Damian's paper
+       spinning in (g.paper, layer 500) and the Deuce panel, CHAPTER TWO, MISSION 1. */
     const GANG_NAMES = ["THE BLACK LIONS", "THE FALL GUYS", "THE SEVENTEEN", "THE KESTREL CREW", "THE YARD", "THE PALM COURT", "THE IRON HOOK", "THE NIGHT SHIFT", "THE LAST CALL", "THE RAVEN'S END"];
     const BBQ = [["LEROY", "yt_crew_leroy", 0.22, 0.30, ["“Seventeen years I watched you count days. Look at this. Look at all of it.”", "“Don't get comfortable. Comfortable is how the Boznovs went.”"]],
       ["RAS", "yt_crew_ras", 0.47, 0.22, ["“Rey! Mi tell yuh. Mi TELL yuh, from di laundry cart!”", "“Dis pool. Dis is a Russian pool, an' now a Jamaican sit inna it.”"]],
@@ -37701,17 +37703,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       text: "LEROY: “" + (g.gangName || "").replace(/^THE /, "The ").toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) + ". I like it.” He sets his drink down. “Well. It's time we started finding allies. Nobody takes the Deuce alone. The Kings -- Andre Cole runs the hood like he still lives on the block. He's not picking sides. Yet.”\n\nREY: “I'll see what I can do.”\n\nPABLO (glass up): “Then here's to the " + ((g.gangName || "").replace(/^THE /, "")) + "!”",
       opts: [{ id: "story:sp_cheers", label: "“TO THE " + ((g.gangName || "").replace(/^THE /, "")) + "!”" }] });
     SPA.sp_cheers = () => { spClose(); if (!SID("mansion", 10)) return; const S = g.story; S.step = 11; S.t = 0; S.fw = []; say("EVERYBODY", "“TO THE " + (g.gangName || "").replace(/^THE /, "") + "!”", 4); };
-    SP.sp_deuce = () => ({ title: "VANCE TOWER · THE NEXT MORNING", face: "assets/deuce/dc_damian.png",
+    SP.sp_deuce = () => ({ title: "VANCE TOWER · THE SAME MORNING", face: "assets/deuce/dc_damian.png",
       text: "The top floor of Vance Tower. Damian Vance has the paper open over his eggs.\n\nBOZNOV BROTHER FOUND DEAD IN OLD TOWN HOME. FAMILY FEUD, POLICE SAY.\n\nUnder the fold, a smaller story about a laundromat, a strip club and a car lot changing hands, and a crew the street is calling " + (g.gangName || "something new") + ". A name he hasn't read in seventeen years.\n\nDamian stops smiling.\n\nJULIAN (from the doorway): “Something wrong?”\n\nDAMIAN: “No. Nothing.” He folds the paper. “Call Tiny.”",
-      opts: [{ id: "story:sp_deuce_ok", label: "..." }] });
-    SPA.sp_deuce_ok = () => { spClose(); if (!SID("mansion", 12)) return; g.chapterOne = 1; storyComplete(); g.storyNext = { id: "kings1", t: 0.3 }; };
+      opts: [{ id: "story:sp_deuce_ok", label: "CHAPTER TWO" }] });
+    SPA.sp_deuce_ok = () => { spClose(); if (!SID("kings1", 1)) return; const S = g.story; S.step = 2; S.t = 0; g.paper = null; g.slam = { kind: "start", title: "CHAPTER TWO", sub: "THE KINGS", t: 0 }; };
     function endStep(S, dt) {
       if (S.step === 8) { if (S.t > 2.5 && !S.kh && !g.pickOpen) { S.kh = 1; G.pickOpen("sp_kat_house"); } return true; }
       if (S.step === 9) { const L = bbqPts(); if (L.length && L.every((q) => S.talked[q.nm])) { S.step = 10; say("KATYA", "“Everybody's got a drink. Go on -- the grill. Make your toast.”", 6); } return true; }
       if (S.step === 11) { if (Math.random() < dt * 2.6) S.fw.push({ x: 0.12 + Math.random() * 0.76, y: 0.1 + Math.random() * 0.35, t: 0, r: 0.7 + Math.random() * 0.6, c: ["255,210,90", "255,90,122", "106,208,255", "156,255,106", "255,255,255"][(Math.random() * 5) | 0] });
         for (const f of S.fw) f.t += dt; S.fw = S.fw.filter((f) => f.t < 1.6);
-        if (S.t > 7 && !S.paperGo) { S.paperGo = 1; G.sleepFade(() => { S.step = 12; S.fw = []; nextDay(8, 0); g.paper = { t: 0 }; }, "THE NEXT MORNING"); } return true; }
-      if (S.step === 12) { if (g.paper) { g.paper.t += dt; if (g.paper.t > 6.5) { g.paper = null; G.pickOpen("sp_deuce"); } } return true; }
+        if (S.t > 8 && !S.endGo) { S.endGo = 1; S.fw = []; g.chapterOne = 1; storyComplete(); g.storyNext = { id: "kings1", t: 0.3 }; } return true; }
       return false; }
     function endE(S) { if (S.step === 9) { const q = bbqPts().find((o) => near(o.p, 70)); if (q) { const n = (S.talked[q.nm] || 0); say(q.nm, q.lines[n % q.lines.length], 6); S.talked[q.nm] = n + 1; return true; } }
       if (S.step === 10) { const M = g.bozHouseB, Y = yardOf(M); if (Y && near(yardAt(Y, 0.13, 0.08), 90)) { G.pickOpen("sp_toast"); return true; } } return false; }
@@ -37729,9 +37730,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           ctx.fillStyle = "rgba(" + f.c + "," + a.toFixed(3) + ")"; ctx.beginPath(); ctx.arc(px, py, 3.2, 0, 6.3); ctx.fill(); } }
       if (flash) { ctx.fillStyle = "rgba(255,240,220," + Math.min(0.12, flash).toFixed(3) + ")"; ctx.fillRect(0, 0, W, H); } ctx.restore(); }
     // the newspaper, full screen
-    function drawPaper() { const P = g.paper; if (!P) return; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); const W = ctx.canvas.width, H = ctx.canvas.height, k = Math.min(1, P.t / 0.6);
-      ctx.fillStyle = "rgba(0,0,0," + 0.75 * k + ")"; ctx.fillRect(0, 0, W, H); const pw = Math.min(W * 0.62, H * 0.95 * 0.72), ph = pw / 0.72, x = (W - pw) / 2, y = (H - ph) / 2 + (1 - k) * 60;
-      ctx.translate(x + pw / 2, y + ph / 2); ctx.rotate(-0.03 * k); ctx.translate(-pw / 2, -ph / 2); const im = imgs.current.ui_newspaper;
+    /* the paper spins in like an old movie: tiny and turning, faster than the eye, then it slams flat (layer 500) */
+    function drawPaper() { const P = g.paper, cv = ctx.canvas, zz = P ? "45" : ""; if (cv.style.zIndex !== zz) { cv.style.position = P ? "relative" : ""; cv.style.zIndex = zz; }   // over the HUD while it is up
+      if (!P) return; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); const W = ctx.canvas.width, H = ctx.canvas.height, k = Math.min(1, P.t / 0.4), out = P.out ? Math.min(1, P.out / 0.5) : 0;
+      const e = Math.min(1, P.t / 1.4), ease = 1 - Math.pow(1 - e, 3), sc = (0.04 + 0.96 * ease) * (1 + 0.04 * Math.max(0, Math.sin(Math.min(1, (P.t - 1.4) / 0.25) * Math.PI))) * (1 - out * 0.15), rot = (1 - ease) * Math.PI * 6 - 0.03;
+      ctx.fillStyle = "rgba(0,0,0," + (0.8 * k * (1 - out)) + ")"; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1 - out;
+      const im = imgs.current.ui_newspaper, ar = im && im.width ? im.width / im.height : 0.72, pw = Math.min(W * 0.62, H * 0.92 * ar), ph = pw / ar;
+      ctx.translate(W / 2, H / 2); ctx.rotate(rot); ctx.scale(sc, sc); ctx.translate(-pw / 2, -ph / 2);
+      ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.fillRect(10, 14, pw, ph);
       if (im && im.width) ctx.drawImage(im, 0, 0, pw, ph);
       else { ctx.fillStyle = "#e9e2cf"; ctx.fillRect(0, 0, pw, ph); ctx.fillStyle = "#1c1a16"; ctx.textAlign = "center"; ctx.font = "900 " + (pw * 0.06) + "px Georgia, serif"; ctx.fillText("THE RAVEN HOOK CHRONICLE", pw / 2, ph * 0.08);
         ctx.fillRect(pw * 0.05, ph * 0.1, pw * 0.9, 2); ctx.font = (pw * 0.025) + "px Georgia, serif"; ctx.fillText("VOL. CXII · 1986 · TWENTY-FIVE CENTS", pw / 2, ph * 0.125);
@@ -37757,7 +37763,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (S.t > 1.5 && !S.l1) { S.l1 = 1; say("KATYA", "She props herself up on one elbow, sheet to her chin, and looks at you for a long time. “Sooo... this is turning into a thing.”", 7); }
         if (S.t > 8 && !S.up) { S.up = 1; say("KATYA", "She gets up, finds her dress on the floor, and goes downstairs without another word. You hear her laughing at something on the stairs.", 6); }
         if (S.up) { const dst = artPt(M, 1, 0.5, 0.36); if (!S.kx && b) S.kx = [b[0] + 16, b[1]]; if (dst && S.kx) { const dx = dst[0] - S.kx[0], dy = dst[1] - S.kx[1], d = Math.hypot(dx, dy); if (d > 4) { S.kx[0] += dx / d * 70 * dt; S.kx[1] += dy / d * 70 * dt; } } }
-        if (S.t > 14) { S.step = 2; S.t = 0; g.slam = { kind: "start", title: "CHAPTER TWO", sub: "THE KINGS", t: 0 }; } return; }
+        if (S.t > 14 && !S.pp) { S.pp = 1; g.booze = null; g.driveTalk = null; g.paper = { t: 0 }; G.sfx && G.sfx("door", 0.5); }       // the paper spins in, then Damian reads it (layer 500)
+        if (S.pp && g.paper) { g.paper.t += dt; if (g.paper.t > 7 && !S.dp) { S.dp = 1; g.paper.out = 0.01; } if (g.paper.out) { g.paper.out += dt; if (g.paper.out > 0.5) { g.paper = null; G.pickOpen("sp_deuce"); } } }
+        return; }
       if (S.step === 2) { if (!g.slam && S.t > 3.2) { S.step = 3; S.t = 0; g.slam = { kind: "start", title: "MISSION 1", sub: STORY.kings1.nm, t: 0 }; g.pickupFlash = { nm: "lift:YOU GET DRESSED", t: 2 }; storyMark("BREAKFAST OUT BACK"); } return; }
       if (S.step === 3) { const Y = yardOf(M); if (Y && !g.inside && near(yardAt(Y, 0.86, 0.3), 260)) { S.step = 4; S.t = 0; say("LEROY", "“Morning, sleeping beauty. Sit. Eat. Then we talk about how a crew like this gets run.”", 6); } return; }
       if (S.step === 4) return; };
@@ -37782,6 +37790,72 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           for (const [nm, yt, fx, fy] of crew) { const p = yardAt(Y, fx, fy); person(p[0], p[1], yt, nm + (nm === "LEROY" && S.step === 4 ? " · E" : ""), Math.atan2(yardAt(Y, 0.86, 0.18)[1] - p[1], yardAt(Y, 0.86, 0.18)[0] - p[0]), "#e8c46a", 1.1); } } } });
     G.yardT = () => { const M = g.bozHouseB || manorB(), Y = yardOf(M), BD = M && yardBackDoor(M); return { Y: Y && { x0: Y.x0 | 0, x1: Y.x1 | 0, top: Y.top | 0, deck: Y.deck, pool: Y.pool }, door: BD, grill: Y && yardAt(Y, 0.13, 0.08), table: Y && yardAt(Y, 0.86, 0.3), guests: bbqPts().map((q) => [q.nm, q.p[0] | 0, q.p[1] | 0]) }; };   // test hook
 
+    /* ---------- LAYER 500: THE HILL ----------
+       The Boznov house sits up on the heights like a place in the Hollywood Hills. The front of its lot, from the garden
+       wall down to the street, is a hillside now: two terraces held up by stone retaining walls (each with its drop
+       shadow, which is the height cue in a game with no z axis), a switchback drive from the gate down to the street,
+       dry brush on the slopes, cypress along the edges, palms at the kerb. Inside the wall: lawns either side of the house
+       and a paved motor court in front. At night the drive lamps, the palm uplights and the pool glow (drawHillLights,
+       in the night-lights pass). All of it is ground art -- nothing new collides. */
+    function hillOf(M) { if (!M) return null; if (M.hill !== undefined) return M.hill; const Y = yardOf(M), c = getCell(Math.floor((M.x + M.w / 2) / PITCH), Math.floor((M.y + M.h / 2) / PITCH));
+      if (!Y || !c || c.ly1 == null) return (M.hill = null);
+      const cj = Math.floor((M.y + M.h / 2) / PITCH), top = M.y + M.h + 70, bot = FWY_H.includes(cj + 1) ? Math.min(c.ly1, SX(cj + 1) - FWY_HW - 14) : c.ly1;   // not under the North Spur's deck
+      const x0 = c.lx0, x1 = c.lx1, H = bot - top; if (H < 160) return (M.hill = null);
+      const gx = doorPoint(M)[0], L = x0 + 140, R = x1 - 150;
+      const drive = H <= 300 ? [[gx, top - 30], [gx, top + H * 0.16], [gx - 120, top + H * 0.3], [L + 40, top + H * 0.34], [L, top + H * 0.5], [L + 60, top + H * 0.64], [R - 60, top + H * 0.7], [R, top + H * 0.82], [R, bot + 120]] : [[gx, top - 30], [gx, top + H * 0.12], [gx - 90, top + H * 0.2], [L + 60, top + H * 0.24], [L, top + H * 0.36], [L + 70, top + H * 0.5], [R - 90, top + H * 0.58], [R, top + H * 0.7], [R - 20, top + H * 0.86], [R - 20, bot + 90]];
+      const walls = H > 300 ? [top + H * 0.36, top + H * 0.72] : [top + H * 0.5];
+      let h = 99173; const rnd = () => ((h = Math.imul(h ^ (h >>> 13), 1274126177) + 7) >>> 0) / 4294967296;
+      const near = (x, y, d) => { for (let k = 1; k < drive.length; k++) if (segD(x, y, drive[k - 1], drive[k]) < d) return true; return false; };
+      const brush = []; for (let n = 0, tries = 0; n < 46 && tries < 400; tries++) { const x = x0 + 30 + rnd() * (x1 - x0 - 60), y = top + 24 + rnd() * (H - 60); if (near(x, y, 78) || walls.some((w) => Math.abs(y - w) < 26)) continue; n++; brush.push([x, y, 10 + rnd() * 14, (rnd() * 3) | 0]); }
+      const cyp = []; for (let y = top + 40; y < bot - 40; y += 64) { cyp.push([x0 + 26, y]); cyp.push([x1 - 26, y]); }
+      cyp.push([gx - 100, top + 26], [gx + 100, top + 26]);
+      const palms = []; for (let x = x0 + 70; x < x1 - 40; x += 160) if (!near(x, bot - 26, 70)) palms.push([x, bot - 26]);
+      return (M.hill = { x0, x1, top, bot, H, drive, walls, brush, cyp: cyp.filter((p) => !near(p[0], p[1], 60)), palms }); }
+    function strokePath(P) { ctx.beginPath(); ctx.moveTo(P[0][0], P[0][1]); for (let k = 1; k < P.length - 1; k++) { const mx = (P[k][0] + P[k + 1][0]) / 2, my = (P[k][1] + P[k + 1][1]) / 2; ctx.quadraticCurveTo(P[k][0], P[k][1], mx, my); } const e = P[P.length - 1]; ctx.lineTo(e[0], e[1]); ctx.stroke(); }
+    function drawHill(view) { if (g.inside) return; const M = g.bozHouseB, K = hillOf(M), Y = M && yardOf(M); if (!K) return; if (K.x1 < view.x0 - 200 || K.x0 > view.x1 + 200 || Y.top > view.y1 + 200 || K.bot < view.y0 - 200) return;
+      ctx.save();
+      // inside the wall: lawns either side of the house, a motor court in front
+      ctx.fillStyle = PAT.grass || "#4f7a3e"; ctx.fillRect(Y.x0, M.y, M.x - Y.x0, K.top - M.y); ctx.fillRect(M.x + M.w, M.y, Y.x1 - M.x - M.w, K.top - M.y);
+      ctx.fillStyle = "#b9ab8e"; ctx.fillRect(M.x - 70, M.y + M.h - 6, M.w + 140, K.top - (M.y + M.h) - 12); ctx.strokeStyle = "rgba(90,74,50,0.22)"; ctx.lineWidth = 1;
+      for (let x = M.x - 70; x < M.x + M.w + 70; x += 22) { ctx.beginPath(); ctx.moveTo(x, M.y + M.h - 6); ctx.lineTo(x, K.top - 18); ctx.stroke(); }
+      for (let y = M.y + M.h + 8; y < K.top - 18; y += 14) { ctx.beginPath(); ctx.moveTo(M.x - 70, y); ctx.lineTo(M.x + M.w + 70, y); ctx.stroke(); }
+      // the slope: grass, each terrace lit at the top and in shade at the foot
+      ctx.fillStyle = PAT.grass || "#4f7a3e"; ctx.fillRect(K.x0, K.top - 12, K.x1 - K.x0, K.bot - K.top + 12);
+      const bands = [K.top - 12, ...K.walls, K.bot];
+      for (let b = 0; b < bands.length - 1; b++) { const ya = bands[b], yb = bands[b + 1], gr = ctx.createLinearGradient(0, ya, 0, yb);
+        gr.addColorStop(0, "rgba(255,236,190,0.13)"); gr.addColorStop(0.55, "rgba(120,110,60,0.06)"); gr.addColorStop(1, "rgba(24,30,12,0.30)"); ctx.fillStyle = gr; ctx.fillRect(K.x0, ya, K.x1 - K.x0, yb - ya);
+        ctx.strokeStyle = "rgba(40,50,20,0.10)"; ctx.lineWidth = 2; for (let q = 1; q < 3; q++) { const y = ya + (yb - ya) * q / 3; ctx.beginPath(); ctx.moveTo(K.x0, y); for (let x = K.x0; x <= K.x1; x += 60) ctx.lineTo(x, y + Math.sin(x * 0.011 + b * 2 + q) * 6); ctx.stroke(); } }
+      // the compound's front wall stands on the crest: its drop
+      let gr = ctx.createLinearGradient(0, K.top, 0, K.top + 34); gr.addColorStop(0, "rgba(0,0,0,0.42)"); gr.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = gr; ctx.fillRect(Y.x0, K.top, Y.x1 - Y.x0, 34);
+      // the dry brush
+      const BC = [["#6f7a3c", "#8d9a52"], ["#7d7444", "#a29a62"], ["#55683a", "#728a4c"]];
+      for (const [x, y, r, c] of K.brush) { ctx.fillStyle = "rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.ellipse(x + 5, y + 6, r * 1.1, r * 0.7, 0, 0, 6.3); ctx.fill();
+        for (let n = 0; n < 4; n++) { const a = n * 1.7 + x, ox = Math.cos(a) * r * 0.5, oy = Math.sin(a) * r * 0.4; ctx.fillStyle = BC[c][0]; ctx.beginPath(); ctx.arc(x + ox, y + oy, r * 0.62, 0, 6.3); ctx.fill(); }
+        ctx.fillStyle = BC[c][1]; ctx.beginPath(); ctx.arc(x - r * 0.25, y - r * 0.25, r * 0.38, 0, 6.3); ctx.fill(); }
+      // the retaining walls
+      for (const w of K.walls) { gr = ctx.createLinearGradient(0, w + 14, 0, w + 46); gr.addColorStop(0, "rgba(0,0,0,0.45)"); gr.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = gr; ctx.fillRect(K.x0, w + 14, K.x1 - K.x0, 32);
+        ctx.fillStyle = "#8f8473"; ctx.fillRect(K.x0, w, K.x1 - K.x0, 14); ctx.fillStyle = "#b3a790"; ctx.fillRect(K.x0, w, K.x1 - K.x0, 3); ctx.fillStyle = "rgba(50,40,30,0.45)";
+        for (let x = K.x0, r = 0; x < K.x1; x += 26, r++) { ctx.fillRect(x + (r % 2 ? 13 : 0), w + 3, 2, 5); ctx.fillRect(x + (r % 2 ? 0 : 13), w + 8, 2, 6); } ctx.fillRect(K.x0, w + 8, K.x1 - K.x0, 1); }
+      // the drive: a kerb, the pavers, a centre seam
+      ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.28)"; ctx.lineWidth = 104; ctx.save(); ctx.translate(4, 6); strokePath(K.drive); ctx.restore();
+      ctx.strokeStyle = "#7c7466"; ctx.lineWidth = 100; strokePath(K.drive); ctx.strokeStyle = "#c2b59a"; ctx.lineWidth = 86; strokePath(K.drive);
+      ctx.strokeStyle = "rgba(110,94,66,0.35)"; ctx.lineWidth = 2; ctx.setLineDash([16, 12]); strokePath(K.drive); ctx.setLineDash([]);
+      // cypress and palms: a long shadow is the height
+      for (const [x, y] of K.cyp) { ctx.fillStyle = "rgba(0,0,0,0.30)"; ctx.beginPath(); ctx.ellipse(x + 20, y + 14, 26, 9, 0.5, 0, 6.3); ctx.fill();
+        ctx.fillStyle = "#24391f"; ctx.beginPath(); ctx.arc(x, y, 13, 0, 6.3); ctx.fill(); ctx.fillStyle = "#38552c"; ctx.beginPath(); ctx.arc(x - 3, y - 3, 9, 0, 6.3); ctx.fill(); ctx.fillStyle = "#4f7240"; ctx.beginPath(); ctx.arc(x - 5, y - 5, 4, 0, 6.3); ctx.fill(); }
+      for (const [x, y] of K.palms) { ctx.strokeStyle = "rgba(0,0,0,0.28)"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 46, y + 30); ctx.stroke();
+        ctx.fillStyle = "rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.arc(x + 48, y + 31, 20, 0, 6.3); ctx.fill();
+        for (let n = 0; n < 8; n++) { const a = n / 8 * 6.283 + 0.3, ex = x + Math.cos(a) * 30, ey = y + Math.sin(a) * 30, mx = x + Math.cos(a + 0.25) * 18, my = y + Math.sin(a + 0.25) * 18;
+          ctx.strokeStyle = "#3f6a2c"; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(mx, my, ex, ey); ctx.stroke(); ctx.strokeStyle = "#7aa84e"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(mx, my, ex, ey); ctx.stroke(); }
+        ctx.fillStyle = "#6b5232"; ctx.beginPath(); ctx.arc(x, y, 5, 0, 6.3); ctx.fill(); }
+      ctx.restore(); }
+    // at night: lamps down the drive, the palms lit from below, the pool glowing (drawn in the night-lights pass, "lighter")
+    function drawHillLights(view) { if (g.inside) return; const M = g.bozHouseB, K = hillOf(M), Y = M && yardOf(M); if (!K || K.x1 < view.x0 - 200 || K.x0 > view.x1 + 200 || Y.top > view.y1 + 200 || K.bot < view.y0 - 200) return; const n = g.night || 0;
+      const glow = (x, y, r, rgb, a) => { const gr = ctx.createRadialGradient(x, y, 1, x, y, r); gr.addColorStop(0, "rgba(" + rgb + "," + (a * n).toFixed(3) + ")"); gr.addColorStop(1, "rgba(" + rgb + ",0)"); ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2); };
+      const D = K.drive; for (let k = 1; k < D.length - 1; k++) { glow(D[k][0] + 54, D[k][1], 44, "255,196,120", 0.26); ctx.fillStyle = "rgba(255,226,170," + (0.8 * n).toFixed(2) + ")"; ctx.fillRect(D[k][0] + 52, D[k][1] - 2, 4, 4); }
+      for (const [x, y] of K.palms) glow(x, y, 48, "255,186,110", 0.3);
+      const P = Y.pool; glow(P.x + P.w / 2, P.y + P.h / 2, Math.max(P.w, P.h) * 0.75, "90,190,255", 0.42); }
+    function inBozHill(x, y) { const K = hillOf(g.bozHouseB); return !!K && x > K.x0 - 30 && x < K.x1 + 30 && y > K.top - 60 && y < K.bot + 40; }
     /* ---------- LAYER 489: STORY HUD, THE STORY ARROW AND ROUTE, PABLO AT THE HIPPIE, THE BOZNOVS ON THEIR FEET ----------
        storyOnly(): Rey's story (Kestrel mode, out of prison). The HUD shows the story and nothing else -- no scanner calls,
        no street races, no RHPD line unless it's you they're after, no SAVED/LOST, no JUICE, no SKY.
@@ -44326,6 +44400,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const n = g.night;
       if (n < 0.02) return;
       ctx.globalCompositeOperation = "lighter";
+      drawHillLights(view);                                                     // the Boznov hill at night (layer 500)
       const { x0, y0, x1, y1 } = view;
       const i0 = clamp(Math.floor(x0 / PITCH), 0, N), i1 = clamp(Math.ceil(x1 / PITCH), 0, N);
       const j0 = clamp(Math.floor(y0 / PITCH), 0, N), j1 = clamp(Math.ceil(y1 / PITCH), 0, N);
@@ -45169,7 +45244,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return;
       }
       drawGround(view);
-      if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawDealers(view); drawStanLot(view); drawAptLot(view); bozHouseInit(); drawYard(view); drawBozHouse(view); stepRhu(); drawRhu(view); drawWoods(view); drawDirtJumps(view); drawTrackRiders(view); drawAirport(view); drawStudentWorld(view); }
+      if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawDealers(view); drawStanLot(view); drawAptLot(view); bozHouseInit(); drawYard(view); drawHill(view); drawBozHouse(view); stepRhu(); drawRhu(view); drawWoods(view); drawDirtJumps(view); drawTrackRiders(view); drawAirport(view); drawStudentWorld(view); }
       if (!g.inside) drawMarkGround(view);
       if (!g.inside) drawCasings(view);
       if (!g.inside) { drawLake(view); drawRiver(view); }   // over the ground, under everything that floats on it
