@@ -3714,6 +3714,10 @@ for (const k of ["yd_grill_red", "yd_grill_black", "yd_lounger_a", "yd_lounger_b
 PD_ART.tx_ivory_deck = "assets/tex/tx_ivory_deck.png";
 PD_ART.ui_newspaper = "assets/ui/ui_newspaper.png";
 PD_ART.pr_cone = "assets/props/pr_cone.png";        // the race cones (layer 500)
+// layer 501: Donny's second yard sheet (kept for later; the lion medallion is the mansion court's centre) and the paper trophy
+for (const k of ["yd_lion_patio", "yd_chair_blue_a", "yd_chair_blue_b", "yd_glass_table", "yd_grill_kettle", "yd_spatula", "yd_tongs2", "yd_sausages", "yd_cooler_blue", "yd_drink", "yd_towel",
+  "yd_charcoal_bag", "yd_chair_green_a", "yd_chair_green_b", "yd_table_green", "yd_beachball2", "yd_pool_shell", "yd_pool_ladder", "yd_pool_light"]) PD_ART[k] = "assets/yard/" + k + ".png";
+PD_ART.it_paper_trophy = "assets/items/it_paper_trophy.png"; PD_ART.sy_crush_pit = "assets/scrap/sy_crush_pit.png"; PD_ART.sy_crush_block = "assets/scrap/sy_crush_block.png"; PD_ART.tx_rust_plate = "assets/tex/tx_rust_plate.png"; PD_ART.dt_drummond = "assets/crew/dt_drummond.png"; PD_ART.pr_cone_side = "assets/props/pr_cone_side.png"; PD_ART.tx_ivory_tile = "assets/tex/tx_ivory_tile.png";
 /* layer 497: Dread, Tony, Harlan, Nicky, Yuri, the 1969 cast, Mission 11 props, 1969 cars, construction props, the verdict folder */
 for (const k of ["dread", "tony", "harlan", "nicky", "yuri", "rey69", "rochelle69", "damian69", "julian69", "tiny69", "cop69_a", "cop69_b"]) PD_ART["yt_" + k] = "assets/crew/yt_" + k + ".png";
 for (const k of ["it_ledger", "pr_office_safe", "pr_office_safe_open", "it_gascan", "it_gascan_b", "it_pinkslip"]) PD_ART[k] = "assets/items/" + k + ".png";
@@ -11174,6 +11178,7 @@ export default function IronLionLayer004() {
   const [padOn, setPadOn] = useState(false);          // a controller is being used: the touch buttons and stick get out of the way (layer 508)     // the pad's ACTION WHEEL (layer 507) -- its own state: the HUD tick replaces hud wholesale
   const [hud, setHud] = useState({ mode: "foot", mph: 0, place: "", night: false });
   const [mapOpen, setMapOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false), [statsI, setStatsI] = useState(0), [statsV, setStatsV] = useState(0);     // REY & THE CREW (layer 503)
   const [mapErr, setMapErr] = useState(null);
   const [cutErr, setCutErr] = useState(null);
   const mentorWaitRef = useRef(false);
@@ -12062,12 +12067,16 @@ export default function IronLionLayer004() {
       try { document.documentElement.style.cursor = on ? "none" : ""; document.body.style.userSelect = on ? "none" : ""; document.body.style.webkitUserSelect = on ? "none" : "";
         document.body.style.pointerEvents = on ? "none" : ""; } catch (e) {}
       try { if ("gamepadInputEmulation" in navigator) navigator.gamepadInputEmulation = on ? "gamepad" : "mouse"; } catch (e) {}
-      try { if (on) { const cv = document.querySelector("canvas"); if (cv && cv.requestPointerLock) { const r = cv.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } }
+      try { if (on) { const cv = document.querySelector("canvas"); if (cv && cv.requestPointerLock) { G.lockReq = 1; const r = cv.requestPointerLock(); if (r && r.catch) r.catch(() => { G.lockReq = 0; }); } }
         else if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock(); } catch (e) {}
       try { if (window.getSelection) window.getSelection().removeAllRanges(); } catch (e) {}
       const gg = G.current; if (gg) gg.pickupFlash = { nm: "lift:" + (on ? "CURSOR LOCKED \u00b7 R3 TO FREE IT" : "CURSOR FREE \u00b7 R3 TO LOCK IT"), t: 2 };
     };
-    G.cursorLockToggle = () => setCursorLock(!curLock);
+    G.cursorLockSet = setCursorLock;
+    G.cursorLockToggle = () => { if (curLock) { setCursorLock(false); try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (e) {} return; }
+      G.lockAsk = 1; setHud((h) => ({ ...h, lockAsk: Date.now() })); setTimeout(() => { if (G.lockAsk) { G.lockAsk = 0; setHud((h) => ({ ...h, lockAsk: null })); } }, 7000); };
+    document.addEventListener("pointerlockchange", () => { if (curLock && !document.pointerLockElement && !G.lockReq) setCursorLock(false); G.lockReq = 0; });
+    window.addEventListener("beforeunload", (e) => { const gg = G.current; if (!gg || gg.title) return; try { G.saveFn && G.saveFn(); } catch (err) {} e.preventDefault(); e.returnValue = ""; return ""; });
     const touchBack = (e) => {
       if (curLock) { if (e.pointerType === "touch" || e.pointerType === "pen") setCursorLock(false); else { e.preventDefault(); e.stopPropagation(); return; } }   // the arrow's stray click: swallowed
       if (G.padOnNow && (e.pointerType === "touch" || e.pointerType === "mouse" || e.pointerType === "pen")) { G.padOnNow = 0; setPadOn(false); } };
@@ -12111,7 +12120,8 @@ export default function IronLionLayer004() {
       const pads = navigator.getGamepads ? navigator.getGamepads() : []; const gp = pads && [...pads].find((q) => q && q.connected); if (!gp) return;
       const g = G.current, car = g && g.mode !== "foot";
       const B = (i) => !!(gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > 0.35));
-      const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, dz = 0.18, ry = gp.axes[3] || 0;
+      const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, dz = 0.18, ry = gp.axes[3] || 0, rx506 = gp.axes[2] || 0;
+      if (Math.abs(rx506) > 0.7 && Math.abs(rx506) > Math.abs(ry)) { if (!G.rxLatch && !menuOpts().length && G.switchTargetFn) { G.rxLatch = 1; G.switchTargetFn(rx506 > 0 ? 1 : -1); } } else if (Math.abs(rx506) < 0.35) G.rxLatch = 0;   // SWITCH target (layer 506b)
       const moving = Math.hypot(ax, ay) > dz;
       if (!G.padOnNow && (moving || gp.buttons.some((q) => q && (q.pressed || q.value > 0.35)))) { G.padOnNow = 1; setPadOn(true); }
       if (moving) { input.current.x = ax; input.current.y = ay; input.current.pad = 1; } else if (input.current.pad) { input.current.x = 0; input.current.y = 0; input.current.pad = 0; sprint = 0; }
@@ -12149,7 +12159,24 @@ export default function IronLionLayer004() {
       }
       sel = 0;
       const K = input.current.keys, press = (i) => B(i) && !was[i];
-      if (g && g.mapOpen) { if (press(9) || press(1)) setMapOpen(false); if (press(0)) { setMapOpen(false); setTimeout(() => G.hubOpen && G.hubOpen(), 60); } for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i); return; }
+      if (G.lockAsk) { if (press(1) || press(11)) { G.lockAsk = 0; setHud((h) => ({ ...h, lockAsk: null })); } for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i); return; }   // waiting for the console's A-click (layer 505)
+      if (g && !g.mapOpen) { g.mapSel = -1; if (G.statsOpenNow) G.statsToggle(false); }
+      if (g && g.mapOpen && G.statsOpenNow) {                                    // the stats screen: B/Y back, left/right who, up/down + A spend (layer 503)
+        if (press(1) || press(3)) G.statsToggle(false);
+        else { if (press(14)) G.statsCycle(-1); if (press(15)) G.statsCycle(1);
+          const so = [...document.querySelectorAll("[data-statopt]")];
+          if (so.length && (press(12) || press(13))) { g.statSel = g.statSel == null || g.statSel < 0 ? 0 : (g.statSel + (press(13) ? 1 : -1) + so.length) % so.length; so.forEach((el, i) => { el.style.outline = i === g.statSel ? "2px solid #f2c45a" : ""; }); }
+          if (press(0) && g.statSel != null && g.statSel >= 0 && so[g.statSel]) so[g.statSel].click(); }
+        for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i); return; }
+      if (g && g.mapOpen && press(3)) { G.statsToggle(true); for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i); return; }
+      if (g && g.mapOpen) { if (press(9) || press(1)) setMapOpen(false);
+        /* layer 501: A used to be FAST TRAVEL wherever you were on the map, so SAVE asked where to travel. The d-pad
+           now walks the buttons (lit gold) and A presses the lit one; nothing lit, A does nothing. */
+        const opts = [...document.querySelectorAll("[data-mapopt]")];
+        if (opts.length && (press(12) || press(13))) { g.mapSel = g.mapSel == null || g.mapSel < 0 ? 0 : (g.mapSel + (press(13) ? 1 : -1) + opts.length) % opts.length;
+          opts.forEach((el, i) => { el.style.outline = i === g.mapSel ? "2px solid #f2c45a" : ""; el.style.outlineOffset = "2px"; }); if (opts[g.mapSel].scrollIntoView) opts[g.mapSel].scrollIntoView({ block: "nearest" }); }
+        if (press(0) && g.mapSel != null && g.mapSel >= 0 && opts[g.mapSel]) opts[g.mapSel].click();
+        for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i); return; }
       if (press(0)) doAction();
       if (press(1)) { if (!closeSomething() && G.strikeFn) G.strikeFn(); }
       const rel = (i) => !B(i) && was[i];                       // only touch a key on a press or a release, so the keyboard still works
@@ -12192,6 +12219,8 @@ export default function IronLionLayer004() {
       if (k === "t" && G.current.studentMode && G.pickOpen) G.pickOpen("stuskip");   // fast forward (student mode)
       if (k === "c" && G.coverFn) G.coverFn();                                         // cover (layer 490)
       if (k === "q" && G.weaponWheel) G.weaponWheel();                                 // the weapon wheel (layer 520)
+      if (k === "r" && G.switchTargetFn) G.switchTargetFn(1);                          // SWITCH target: next (layer 506b)
+      if (k === "[" && G.switchTargetFn) G.switchTargetFn(-1);                         // SWITCH target: previous
       if (k === "i" && G.pocketsWheel && G.current && G.current.prisonMode) G.pocketsWheel();
       if (k === "n") G.current.nightTarget = G.current.nightTarget > 0.5 ? 0 : 1;
       if (k === "h" && G.hydroFn) G.hydroFn();          // hydraulics, in a lowrider
@@ -12241,6 +12270,7 @@ export default function IronLionLayer004() {
       if (d < bd) { bd = d; best = v; }
     }
     if (!best) return false;
+    if (G.stealGate && G.stealGate(best)) return true;     // locked (lockpicks), or they fight back (layer 505)
     /* A BIKE IS NOT A CAR. Everything in g.traffic used to retarget the car body, so getting on
        Luna made her a CAR wearing a motorcycle sprite: drawn at car scale, which is why she
        "grew", and with no rider, because a car does not draw one. Anything the motorcycle name
@@ -12308,6 +12338,12 @@ export default function IronLionLayer004() {
     if (G.setupEFn && G.setupEFn()) return;                               // Mission 0: the gun, the bunk (layer 497)
     if (G.storyEFn && G.storyEFn()) return;                               // Missions 11-16 (layer 498)
     if (G.yardDoorFn && G.yardDoorFn()) return;                           // the Boznov back door (layer 499)
+    if (G.trophyFn && G.trophyFn()) return;                               // the paper on the scrapyard wall (layer 501)
+    if (G.ledgerFn && G.ledgerFn()) return;                               // the ledger (layer 507)
+    if (G.caseFn && G.caseFn()) return;                                   // a job off the case (layer 509)
+    if (G.crushFn && G.crushFn()) return;                                 // the crusher's switch (layer 502)
+    if (G.carryFn && G.carryFn()) return;                                 // the trunk, the fuel can at the driver's door (layer 504)
+    if (G.canBuyFn && G.canBuyFn()) return;                               // a fuel can at the pump (layer 504)
     if (G.raShopFn && G.raShopFn()) return;                               // Raven Auto's parts counter (layer 499)
     if (G.empFn && G.empFn()) return;                                     // the business screen
     if (G.mimiFn && G.mimiFn()) return;                                   // Mimi's table
@@ -13094,7 +13130,7 @@ export default function IronLionLayer004() {
       /* 214 sprinting is a jog next to traffic. Sho at 1.62 tops about 347, which is a slow
          car -- he can run a block down with one and that is the point of him. */
       const kSlow = g.who === "kenny" ? 0.78 : 1;
-      const spd = (running ? 214 : 116) * lionBoost() * swimMul * shoSpeed() * kSlow * (g.p.sneak ? 0.55 : 1);
+      const spd = (running ? 214 : 116) * lionBoost() * swimMul * shoSpeed() * kSlow * (g.p.sneak ? 0.55 : 1) * (g.p.heavy || 1);   // over the weight limit: slow (layer 504)
       /* Sho's legs are his whole kit. He runs at car speed and barely tires -- that is the
          reason to take him rather than the man with the gadgets or the man with the gun. */
       if (running) g.p.stamina = Math.max(0, g.p.stamina - dt * (g.who === "sho" ? 1.6 : 5.5));
@@ -13251,6 +13287,7 @@ export default function IronLionLayer004() {
             a: c.ang, life: 1,
           });
         }
+        if (Math.random() < 0.35) (g.puffs506 = g.puffs506 || []).push({ x: c.x - fx * 34, y: c.y - fy * 34, t: 0 });   // tire smoke (layer 508)
       }
 
       /* With Ramos at the wheel the car is on a road route, and a stopped car or a lamp post
@@ -16447,8 +16484,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         for (const o of g.traffic.concat(policeCars().filter(Boolean))) { if (!o || o === v || !Number.isFinite(o.x)) continue;
           const rx = o.x - v.x, ry = o.y - v.y, ah = rx * hx + ry * hy; if (ah <= 0 || ah > 190) continue;
           if (Math.abs(-rx * hy + ry * hx) > 40) continue; if (ah < near) near = ah; }
-        A.brk = near < 190 && !A.lose && !A.escape; if (A.brk) sp = Math.min(sp, Math.max(0, (near - 75) * 2.2)); }
-      v.x += dx / d * sp * dt; v.y += dy / d * sp * dt;
+        const fast508 = A.lose || A.escape || A.sk === "fast" || (A.spd || 0) >= 280, hx5 = dx / d, hy5 = dy / d;
+        if (fast508 && !A.ovGo && near < 200 && d > 360 && clearAhead508(v, hx5, hy5, 520, 110, null)) { A.ovGo = 1; A.ovT = 0; }
+        if (A.ovGo) { A.ovT += dt; if (d < 220 || A.ovT > 4 || (near > 320 && A.ovT > 1.2) || !clearAhead508(v, hx5, hy5, 220, 110, null)) A.ovGo = 0; }
+        A.ov = clamp((A.ov || 0) + clamp((A.ovGo ? 1 : 0) - (A.ov || 0), -dt * 1.8, dt * 1.8), 0, 1);
+        A.brk = near < 190 && !A.lose && !A.escape && !(A.ov > 0.3); if (A.brk) sp = Math.min(sp, Math.max(0, (near - 75) * 2.2)); }
+      let mx5 = dx, my5 = dy; if (A.ov > 0.01) { mx5 = dx + (dy / d) * A.ov * 110; my5 = dy - (dx / d) * A.ov * 110; } const md5 = Math.hypot(mx5, my5) || 1;   // the other lane (layer 508)
+      v.x += mx5 / md5 * sp * dt; v.y += my5 / md5 * sp * dt;
       /* She moves it; the car's own physics must not move it a second time on the same speed,
          or she drives at double. Its velocity is left at rest and the speedometer is fed
          separately. */
@@ -16460,9 +16502,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (gain < 40 && d > 60) { A.stuckN = (A.stuckN || 0) + 1; const hop = A.brk && A.stuckN < 3 ? 0 : Math.min(110, d - 20); v.x += dx / d * hop; v.y += dy / d * hop;
             if (A.stuckN >= 3) { A.stuckN = 0; A.chkD = undefined; if (A.i < A.pts.length - 1) A.i++; else if (!ccarLegEnd(A, v)) { g.auto = null; return; } } }
           else A.stuckN = 0; } }
-      const want = Math.atan2(dy, dx);
+      const want = Math.atan2(my5, mx5);
       let da = want - v.ang; while (da > Math.PI) da -= 6.283; while (da < -Math.PI) da += 6.283;
-      v.ang += da * Math.min(1, dt * 6);
+      v.ang += da * Math.min(1, dt * 6); tireFx508(v, da * Math.min(1, dt * 6) / Math.max(dt, 1e-3), sp);
       if (g.mode === "car" || g.mode === "civ") { g.p.x = v.x; g.p.y = v.y; }
     }
     /* THE TRUNK of his own car. */
@@ -18443,7 +18485,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const h = w * (im.height / im.width); ctx.drawImage(im, x - w / 2, y - h / 2, w, h); };
       for (const [tx, ty] of [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1], [b.x0, b.y0 + H2 / 2], [b.x1, b.y0 + H2 / 2]])
         prop("pr_roof_tower", tx, ty, 110);
-      prop("pr_roof_gate", b.x0 + W2 * 0.5, b.y0 + 30, 330);
+      { const im = imgs.current.pr_roof_gate; if (im && im.width) { const w = 330, h = w * (im.height / im.width), cut = Math.round(im.height * 0.41);
+          ctx.drawImage(im, 0, 0, im.width, cut, b.x0 + W2 * 0.5 - w / 2, b.y0 + 30 - h / 2, w, h * cut / im.height); } }   // only the roof over the people (layer 509b)
     }
     function drawPrison() {
       /* THE GROUND UNDER THE CAMPUS. The buildings are real now (landmarks with their roofs on),
@@ -18520,6 +18563,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       fenceRun(yx, yy + yh, yx + yw, yy + yh); fenceRun(yx, yy, yx, yy + yh); fenceRun(yx + yw, yy, yx + yw, yy + yh);
       // towers on the corners and the middle of the long walls; the gate over the gap
       // (the towers and the gate are drawn OVER the people now -- drawPrisonOver, layer 514 -- you walk under the gate)
+      prop("pr_roof_gate", b.x0 + W2 * 0.5, b.y0 + 30, 330);       // layer 509b: the road and the booths on the ground; the roof alone goes over you
       // floodlight masts
       for (let q = 0.2; q < 1; q += 0.3) { prop("yd_flood", b.x0 + 60, b.y0 + H2 * q, 50); prop("yd_flood", b.x1 - 60, b.y0 + H2 * q, 50); }
       // searchlights sweeping after dark
@@ -20120,7 +20164,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     /* SAVE SLOTS (layer 494): three. Slot 1 is the old single save (same key), 2 and 3 are new. The slot you're on is
        remembered (ironlion.slot); autosave, SAVE NOW and the bed all write to it; CONTINUE loads it. The title shows all
        three (what mode, which story mission, cash, when) -- pick one, then CONTINUE (or BEGIN on an empty one). */
-    const SAVE_SLOTS = 3;
+    const SAVE_SLOTS = 4;                                                  // four (layer 501)
     const slotKey = (n) => n > 1 ? "ironlion.save.v2.s" + n : "ironlion.save.v2";
     const curSlot = () => { if (g.saveSlot) return g.saveSlot; let n = 1; try { n = +window.localStorage.getItem("ironlion.slot") || 1; } catch (e) {} return (g.saveSlot = clamp(n, 1, SAVE_SLOTS)); };
     const SAVE_KEY_OF = () => slotKey(curSlot());
@@ -26959,11 +27003,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         // round and round the course
         if (!R.cps.length) continue;
         const c = R.cps[rv.at % R.cps.length];
-        const a = Math.atan2(c.y - rv.y, c.x - rv.x);
+        const a = Math.atan2(c.y - rv.y, c.x - rv.x) + dodge508(rv, Math.atan2(c.y - rv.y, c.x - rv.x));   // layer 508
         let da = a - rv.ang;
         while (da > Math.PI) da -= Math.PI * 2;
         while (da < -Math.PI) da += Math.PI * 2;
-        rv.ang += clamp(da, -2.3 * dt, 2.3 * dt);
+        rv.ang += clamp(da, -2.3 * dt, 2.3 * dt); tireFx508(rv, clamp(da, -2.3 * dt, 2.3 * dt) / Math.max(dt, 1e-3), rv.spd || 0);
         rv.spd = Math.min(rv.top, rv.spd + 200 * dt);
         rv.x += Math.cos(rv.ang) * rv.spd * dt; rv.y += Math.sin(rv.ang) * rv.spd * dt;
         if (Math.hypot(rv.x - c.x, rv.y - c.y) < 210) rv.at++;
@@ -28742,20 +28786,23 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const dx = tgt.x - v.x, dy = tgt.y - v.y, d = Math.hypot(dx, dy) || 1;
         if (d > 2200) continue;
         v.chasing = 1;
-        const want = Math.atan2(dy, dx);
+        let want = Math.atan2(dy, dx); want += dodge508(v, want);                        // round a car in front (layer 508)
         let da = want - v.ang;
         while (da > Math.PI) da -= Math.PI * 2;
         while (da < -Math.PI) da += Math.PI * 2;
-        v.ang += clamp(da, -2.6 * dt, 2.6 * dt);
+        v.ang += clamp(da, -2.6 * dt, 2.6 * dt); tireFx508(v, clamp(da, -2.6 * dt, 2.6 * dt) / Math.max(dt, 1e-3), v.spd || 0);
         v.turn = 0;
         v.spd = Math.min(pursuitSpeed(), (v.spd || 0) + 260 * dt);
         // close enough to put a wing in
-        if (d < 70 && inVehicle()) {
+        /* layer 506: ONE shove and a dent, then the car drops back for a few seconds. It used to push and crush you
+           every frame it touched you, which pinned you to it and killed the chase. */
+        if (v.ramCd > 0) { v.ramCd -= dt; v.spd = Math.min(v.spd, pursuitSpeed() * 0.55); }
+        else if (d < 74 && inVehicle()) {
           const veh = activeVeh();
-          veh.vx = (veh.vx || 0) + (dx / d) * 120;
-          veh.vy = (veh.vy || 0) + (dy / d) * 120;
-          applyDamage(veh, 240, v.x, v.y, 108, 52);
-          g.shake = Math.max(g.shake, 8);
+          veh.vx = (veh.vx || 0) + (dx / d) * 170;
+          veh.vy = (veh.vy || 0) + (dy / d) * 170;
+          applyDamage(veh, 150, v.x, v.y, 108, 52);
+          g.shake = Math.max(g.shake, 9); v.ramCd = 2.6; v.spd *= 0.4; G.sfx && G.sfx("door", 0.7);
         }
       }
       /* Roadblocks. Placed AHEAD of where you are going, not where you are -- a block behind
@@ -30990,7 +31037,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        of his till, so a pawn shop you've just robbed can't buy. */
     const GUN_VAL = (k) => /rifle|ar15|ak|m16/.test(k) ? 180 : /shotgun|pump|sawn/.test(k) ? 120 : /smg|uzi|mac|tommy/.test(k) ? 200 : /pistol|beretta|colt|revolver|snub|glock/.test(k) ? 70
       : /grenade|molotov/.test(k) ? 25 : /sword|katana|machete/.test(k) ? 40 : 20;
-    function sellList() { const L = [];
+    function sellList() { const L507 = sellList507(); if (L507) return L507; const L = [];          // gun store / jeweller / drug cashier (layer 507)
       (g.p.bag || []).forEach((it, n) => L.push({ id: "biz:sell:bag:" + n, nm: it.nm, val: Math.max(1, Math.round(it.val / 2)) }));
       (g.rack || []).forEach((k) => { if (k !== g.p.wpn) L.push({ id: "biz:sell:gun:" + k, nm: (WPN[k] && WPN[k].nm) || k.replace(/_/g, " ").toUpperCase(), val: GUN_VAL(k) }); });
       if ((g.pinv || []).length) L.push({ id: "biz:sell:pockets:0", nm: "WHAT'S IN YOUR POCKETS (" + g.pinv.length + ")", val: g.pinv.length * 15 });
@@ -31002,6 +31049,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           text: g.bizSaid || (L.length ? "\u201cLet's see what you got.\u201d He has $" + Math.round(e.till).toLocaleString() + " in the till." : "\u201cYou got nothing I want.\u201d"),
           opts: L.map((q) => ({ id: q.id, label: q.nm.toUpperCase() + " \u00b7 $" + q.val, icon: ITEM_ICON[q.nm] ? "assets/items/it_" + ITEM_ICON[q.nm] + ".png" : null })).concat([{ id: "biz:back:0", label: "BACK" }, { id: "close", label: "THAT'S ALL" }]) }; }
       const opts = (M || []).map((it, n) => it[2] === "gun" ? gunOpt(it, n) : ({ id: "biz:buy:" + n, label: it[0] + (it[1] ? " \u00b7 $" + it[1] : ""), icon: ITEM_ICON[it[0]] ? "assets/items/it_" + ITEM_ICON[it[0]] + ".png" : null })).filter(Boolean);
+      if (isDrugCashier(b) && Object.values(g.p.drugs || {}).some((n) => n > 0)) opts.unshift({ id: "biz:drugs:0", label: "\u201cYOU HOLDING?\u201d \u00b7 SELL HIM WHAT YOU'RE CARRYING" });   // layer 507
       if (b.biz === "guns") g.bizSaid = g.bizSaid || gunGreeting();
       opts.push({ id: "close", label: "THAT'S ALL" });
       return { title: (b.name || "THE STORE") + " \u00b7 THE COUNTER", face: null,
@@ -31009,14 +31057,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     G.bizPick = (id) => {
       const S = g.shop; if (!S) return;
+      if (id.startsWith("biz:drugs")) { g.bizView = "sell"; g.bizSaid = null; return; }                    // layer 507
       if (id.startsWith("biz:back")) { g.bizView = null; g.bizSaid = null; return; }
       if (id.startsWith("biz:sell:")) { const q = sellList().find((x) => x.id === id), e2 = econOf(S.b); if (!q) return;
         if (e2.till < q.val) { g.bizSaid = "\u201cI ain't got that kind of cash on hand.\u201d"; return; }
         const [, , kind, arg] = id.split(":");
-        if (kind === "bag") g.p.bag.splice(+arg, 1); else if (kind === "gun") g.rack = g.rack.filter((k) => k !== arg); else g.pinv = [];
+        if (kind === "bag") g.p.bag.splice(+arg, 1); else if (kind === "gun") g.rack = g.rack.filter((k) => k !== arg); else if (kind === "drug") { g.p.drugs[arg] = 0; } else g.pinv = [];
         e2.till -= q.val; g.p.cash = (g.p.cash || 0) + q.val; g.bizSaid = "He turns it over, nods, counts out $" + q.val + ". You have $" + g.p.cash.toLocaleString() + "."; return; } const b = S.b, M = BIZ_MENU[b.biz] || [], it = M[+id.split(":")[2]]; if (!it) return; const e = econOf(b);
       if (it[2] === "sell") { g.bizView = "sell"; g.bizSaid = null; return; }
       if (it[2] === "gun" || it[2] === "ammo") { buyGun(it, e); return; }                                   // layer 521
+      if (!it[2] && it[1] > 0 && carryKg() + itemKg({ nm: it[0] }) > carryMax()) { g.bizSaid = "You can't carry any more -- " + carryKg() + " of " + carryMax() + " kg. Put something in the trunk."; return; }   // layer 504
       if ((g.p.cash || 0) < it[1]) { g.bizSaid = "\u201cThat's $" + it[1] + ". You're short.\u201d"; return; }
       g.p.cash -= it[1]; e.till += it[1];
       if (it[2] === "drink" && BOOZE_RX.test(it[0])) boozeDrink(boozeCount(it[0]), it[0]);              // layer 487
@@ -32023,7 +32073,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       opts.push({ id: "close", label: "DONE" });
       const carry = Object.keys(n).map((k) => CONTRABAND[k].nm.toLowerCase() + (n[k] > 1 ? " x" + n[k] : "")).join(", ");
       return { title: "POCKETS \u00b7 HIDE SKILL " + (g.pskill || 0) + "/" + STASH.skillMax, face: null,
-        text: g.pocketSaid || (carry ? "On you: " + carry + "." : "Nothing on you but " + (g.pcigs || 0) + " packs."), opts };
+        text: g.pocketSaid || ((carry ? "On you: " + carry + "." : "Nothing on you but " + (g.pcigs || 0) + " packs.") + (carriedList().length ? "\nCarrying: " + carriedList().map((q) => q.nm.toLowerCase() + " (" + q.kg + " kg)").join(", ") + "." : "")
+          + "\nWEIGHT " + carryKg() + " / " + carryMax() + " KG" + (g.p.heavy < 1 ? " -- TOO HEAVY, YOU'RE SLOW" : "")), opts };
     }
     function stepPrisonFx(dt) {
       const cv = canvasRef.current;
@@ -35817,6 +35868,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function storyComplete() { const S = g.story; if (!S) return; const M = STORY[S.id];
       g.p.cash = (g.p.cash || 0) + M.pay; g.story = null; storyCk = null; (g.storyDone = g.storyDone || {})[S.id] = 1;
       g.slam = { kind: "done", title: "MISSION COMPLETE", sub: M.nm, pay: M.pay, t: 0 }; G.sfx && G.sfx("door", 0.8);
+      if (M.pay > 0) g.payDrain = { pay: M.pay, left: M.pay, t: 0, k: Date.now() }; lvWin(M.pay);                     // layer 503
       if (S.id === "lastday") g.storyNext = { id: "dayout", t: 1.5 };
       if (S.id === "dayout") g.storyNext = { id: "firstout", t: 1.5 };
       if (S.id === "firstout") g.storyNext = { id: "scrapyard", t: 1.5 };
@@ -37166,7 +37218,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
     /* ---------- THE BUSINESSES ---------- */
     const EMP = { hippie: { nm: "THE HAPPY HIPPIE", base: 300 }, corner: { nm: "DREAD'S CORNER", base: 150 }, nest: { nm: "THE RAVEN'S NEST", base: 600 }, auto: { nm: "RAVEN AUTO", base: 500 } };
-    const EMP_MULT = [1, 1.6, 2.4, 3.5], EMP_COST = [5000, 12000, 25000], EMP_WAGE = 100;
+    const EMP_MULT = [1, 1.6, 2.4, 3.5], EMP_COST = [8000, 20000, 45000], EMP_WAGE = 100;
     const EMP_POSTS = ["FRONT DOOR", "BACK DOOR", "THE FLOOR", "FRONT LEFT", "FRONT RIGHT", "THE LOT", "LEFT SIDE", "RIGHT SIDE"];
     function empB(k) { return k === "hippie" ? hippyB() : k === "nest" ? nestB() : k === "auto" ? autoB() : null; }
     function empInit() { const E = (g.biz = g.biz || {}), D = g.storyDone || {};
@@ -37196,10 +37248,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (B.guards.length) opts.push({ id: "emp:" + k + ":move", label: "MOVE " + B.guards[B.guards.length - 1].n.toUpperCase() + " TO THE NEXT POST" }, { id: "emp:" + k + ":off", label: "TAKE " + B.guards[B.guards.length - 1].n.toUpperCase() + " OFF" });
       if (B.lvl < 3) opts.push({ id: "emp:" + k + ":lvl", label: B.boss ? "LEVEL UP · $" + EMP_COST[B.lvl].toLocaleString() : "LEVEL UP (NEEDS A BOSS)", dim: !B.boss });
       if (B.cash >= 1) opts.push({ id: "emp:" + k + ":cash", label: "COLLECT $" + Math.round(B.cash).toLocaleString() });
+      opts.push({ id: "emp:" + k + ":shop", label: "THE COUNTER \u00b7 WHAT IT SELLS" });               // layer 507
       opts.push({ id: "emp:close", label: "CLOSE" });
       return { title: EMP[k].nm + " · LEVEL " + (B.lvl + 1) + " · " + B.guards.length + "/" + slots + " GUARDS", face: null, text: (g.empSaid ? g.empSaid + "\n\n" : "") + lines.join("\n"), opts }; }
     G.empPick = (id) => { const [, k, a] = id.split(":"); g.empSaid = null; if (k === "close") { spClose(); return; } const E = empInit(), B = E[k]; if (!B) { spClose(); return; }
       empTick(); const slots = 2 * (B.lvl + 1);
+      if (a === "shop") { g.bsSaid = null; G.pickOpen("sp_bshop_" + k); return; } if (a === "open" || a === "back") { G.pickOpen("emp:" + k); return; }   // layer 507
       if (a === "boss") { const P = empPeople(), i = P.findIndex((q) => q.key === B.boss); B.boss = P[(i + 1) % P.length].key; g.empSaid = empBossNm(B.boss) + " runs it now."; }
       if (a === "add" && B.guards.length < slots) { const m = empMen().find((q) => !empTaken().has(q.name)); const post = EMP_POSTS.find((p) => !B.guards.some((q) => q.post === p)); if (m && post) { B.guards.push({ n: m.name, post, role: m.role, yt: manYt(m, m.role) }); g.empSaid = m.name + " takes " + post + "."; } }
       if (a === "move" && B.guards.length) { const q = B.guards[B.guards.length - 1], used = new Set(B.guards.map((z) => z.post)); let i = EMP_POSTS.indexOf(q.post);
@@ -37657,7 +37711,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const YARD_PROPS = [["yd_bbq_table", 0.04, 0.12, 70], ["yd_grill_black", 0.13, 0.08, 46], ["yd_tongs", 0.19, 0.1, 12], ["yd_charcoal", 0.03, 0.62, 22], ["yd_cooler", 0.12, 0.66, 28],
       ["yd_lounger_a", 0.27, 0.62, 30], ["yd_sidetable_a", 0.31, 0.7, 22], ["yd_lounger_a", 0.35, 0.62, 30], ["yd_lounger_b", 0.65, 0.62, 30], ["yd_sidetable_b", 0.69, 0.7, 22], ["yd_lounger_b", 0.73, 0.62, 30],
       ["yd_table_round", 0.86, 0.18, 80], ["yd_umbrella", 0.86, 0.12, 90], ["yd_boombox", 0.94, 0.66, 30], ["yd_beachball", 0.6, 0.28, 18], ["yd_flipflop_a", 0.4, 0.3, 10]];
-    function inBozYard(x, y) { const M = g.bozHouseB, Y = M && yardOf(M); return (!!Y && x > Y.x0 - 40 && x < Y.x1 + 40 && y > Y.top - 40 && y < M.y + M.h + 110) || inBozHill(x, y); }   // no alley trash in the yard
+    function inBozYard(x, y) { const M = g.bozHouseB, Y = M && yardOf(M); return (!!Y && x > Y.x0 - 40 && x < Y.x1 + 40 && y > Y.top - 40 && y < M.y + M.h + 110) || inBozHill(x, y) || inCrushPit(x, y); }   // no alley trash in the yard
     const yardAt = (Y, fx, fy) => [Y.deck.x + Y.deck.w * fx, Y.deck.y + Y.deck.h * fy];
     function drawYard(view) { if (g.inside) return; const M = g.bozHouseB; const Y = M && yardOf(M); if (!Y) return; if (Y.x1 < view.x0 - 200 || Y.x0 > view.x1 + 200 || M.y < view.y0 - 300 || Y.top > view.y1 + 200) return;
       ctx.save(); ctx.fillStyle = PAT.grass || "#4f7a3e"; ctx.fillRect(Y.x0, Y.top, Y.x1 - Y.x0, M.y - Y.top); ctx.restore();
@@ -37791,55 +37845,60 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.yardT = () => { const M = g.bozHouseB || manorB(), Y = yardOf(M), BD = M && yardBackDoor(M); return { Y: Y && { x0: Y.x0 | 0, x1: Y.x1 | 0, top: Y.top | 0, deck: Y.deck, pool: Y.pool }, door: BD, grill: Y && yardAt(Y, 0.13, 0.08), table: Y && yardAt(Y, 0.86, 0.3), guests: bbqPts().map((q) => [q.nm, q.p[0] | 0, q.p[1] | 0]) }; };   // test hook
 
     /* ---------- LAYER 500: THE HILL ----------
-       The Boznov house sits up on the heights like a place in the Hollywood Hills. The front of its lot, from the garden
+       (layer 501: the drive is a parking court -- see hillOf.) The Boznov house sits up on the heights like a place in the Hollywood Hills. The front of its lot, from the garden
        wall down to the street, is a hillside now: two terraces held up by stone retaining walls (each with its drop
        shadow, which is the height cue in a game with no z axis), a switchback drive from the gate down to the street,
        dry brush on the slopes, cypress along the edges, palms at the kerb. Inside the wall: lawns either side of the house
        and a paved motor court in front. At night the drive lamps, the palm uplights and the pool glow (drawHillLights,
        in the night-lights pass). All of it is ground art -- nothing new collides. */
+    /* layer 501 (Donny): the switchback is gone -- the drive is a PARKING COURT now, big enough for the whole crew's cars,
+       with a walk from it up through the gate to the front door. The banks either side stay hillside: brush, cypress, palms.
+       In the middle of the stall row, where the walk meets the court, Donny's lion medallion (yd_lion_patio). */
     function hillOf(M) { if (!M) return null; if (M.hill !== undefined) return M.hill; const Y = yardOf(M), c = getCell(Math.floor((M.x + M.w / 2) / PITCH), Math.floor((M.y + M.h / 2) / PITCH));
       if (!Y || !c || c.ly1 == null) return (M.hill = null);
       const cj = Math.floor((M.y + M.h / 2) / PITCH), top = M.y + M.h + 70, bot = FWY_H.includes(cj + 1) ? Math.min(c.ly1, SX(cj + 1) - FWY_HW - 14) : c.ly1;   // not under the North Spur's deck
       const x0 = c.lx0, x1 = c.lx1, H = bot - top; if (H < 160) return (M.hill = null);
-      const gx = doorPoint(M)[0], L = x0 + 140, R = x1 - 150;
-      const drive = H <= 300 ? [[gx, top - 30], [gx, top + H * 0.16], [gx - 120, top + H * 0.3], [L + 40, top + H * 0.34], [L, top + H * 0.5], [L + 60, top + H * 0.64], [R - 60, top + H * 0.7], [R, top + H * 0.82], [R, bot + 120]] : [[gx, top - 30], [gx, top + H * 0.12], [gx - 90, top + H * 0.2], [L + 60, top + H * 0.24], [L, top + H * 0.36], [L + 70, top + H * 0.5], [R - 90, top + H * 0.58], [R, top + H * 0.7], [R - 20, top + H * 0.86], [R - 20, bot + 90]];
-      const walls = H > 300 ? [top + H * 0.36, top + H * 0.72] : [top + H * 0.5];
+      const gx = doorPoint(M)[0], bank = 104, cx0 = x0 + bank, cx1 = x1 - bank, cy0 = top + 18, sd = Math.min(132, H * 0.58), sw = 74, plazaR = Math.min(70, sd * 0.55);
+      const stalls = []; for (let x = gx - plazaR - 12 - sw / 2; x - sw / 2 > cx0; x -= sw) stalls.push([x, cy0 + sd / 2]); for (let x = gx + plazaR + 12 + sw / 2; x + sw / 2 < cx1; x += sw) stalls.push([x, cy0 + sd / 2]);
+      stalls.sort((a, b) => Math.abs(a[0] - gx) - Math.abs(b[0] - gx));
+      const court = { x: cx0, y: cy0, w: cx1 - cx0, h: bot - cy0 }, plaza = [gx, cy0 + sd / 2, plazaR];
       let h = 99173; const rnd = () => ((h = Math.imul(h ^ (h >>> 13), 1274126177) + 7) >>> 0) / 4294967296;
-      const near = (x, y, d) => { for (let k = 1; k < drive.length; k++) if (segD(x, y, drive[k - 1], drive[k]) < d) return true; return false; };
-      const brush = []; for (let n = 0, tries = 0; n < 46 && tries < 400; tries++) { const x = x0 + 30 + rnd() * (x1 - x0 - 60), y = top + 24 + rnd() * (H - 60); if (near(x, y, 78) || walls.some((w) => Math.abs(y - w) < 26)) continue; n++; brush.push([x, y, 10 + rnd() * 14, (rnd() * 3) | 0]); }
-      const cyp = []; for (let y = top + 40; y < bot - 40; y += 64) { cyp.push([x0 + 26, y]); cyp.push([x1 - 26, y]); }
-      cyp.push([gx - 100, top + 26], [gx + 100, top + 26]);
-      const palms = []; for (let x = x0 + 70; x < x1 - 40; x += 160) if (!near(x, bot - 26, 70)) palms.push([x, bot - 26]);
-      return (M.hill = { x0, x1, top, bot, H, drive, walls, brush, cyp: cyp.filter((p) => !near(p[0], p[1], 60)), palms }); }
-    function strokePath(P) { ctx.beginPath(); ctx.moveTo(P[0][0], P[0][1]); for (let k = 1; k < P.length - 1; k++) { const mx = (P[k][0] + P[k + 1][0]) / 2, my = (P[k][1] + P[k + 1][1]) / 2; ctx.quadraticCurveTo(P[k][0], P[k][1], mx, my); } const e = P[P.length - 1]; ctx.lineTo(e[0], e[1]); ctx.stroke(); }
+      const brush = []; for (let n = 0, tries = 0; n < 26 && tries < 300; tries++) { const left = rnd() < 0.5, x = left ? x0 + 14 + rnd() * (bank - 28) : x1 - 14 - rnd() * (bank - 28), y = top + 20 + rnd() * (H - 30); n++; brush.push([x, y, 9 + rnd() * 12, (rnd() * 3) | 0]); }
+      const cyp = []; for (let y = top + 34; y < bot - 20; y += 58) { cyp.push([x0 + 30, y]); cyp.push([x1 - 30, y]); }
+      cyp.push([gx - 96, top + 2], [gx + 96, top + 2]);
+      const palms = [[x0 + 70, bot - 30], [x1 - 70, bot - 30], [cx0 + 6, cy0 + 4], [cx1 - 6, cy0 + 4]];
+      return (M.hill = { x0, x1, top, bot, H, court, plaza, stalls, sd, sw, gx, brush, cyp, palms }); }
     function drawHill(view) { if (g.inside) return; const M = g.bozHouseB, K = hillOf(M), Y = M && yardOf(M); if (!K) return; if (K.x1 < view.x0 - 200 || K.x0 > view.x1 + 200 || Y.top > view.y1 + 200 || K.bot < view.y0 - 200) return;
-      ctx.save();
-      // inside the wall: lawns either side of the house, a motor court in front
+      ctx.save(); const C = K.court, [px, py, pr] = K.plaza;
+      // inside the wall: lawns either side of the house, a paved court in front, the walk to the door
       ctx.fillStyle = PAT.grass || "#4f7a3e"; ctx.fillRect(Y.x0, M.y, M.x - Y.x0, K.top - M.y); ctx.fillRect(M.x + M.w, M.y, Y.x1 - M.x - M.w, K.top - M.y);
       ctx.fillStyle = "#b9ab8e"; ctx.fillRect(M.x - 70, M.y + M.h - 6, M.w + 140, K.top - (M.y + M.h) - 12); ctx.strokeStyle = "rgba(90,74,50,0.22)"; ctx.lineWidth = 1;
       for (let x = M.x - 70; x < M.x + M.w + 70; x += 22) { ctx.beginPath(); ctx.moveTo(x, M.y + M.h - 6); ctx.lineTo(x, K.top - 18); ctx.stroke(); }
       for (let y = M.y + M.h + 8; y < K.top - 18; y += 14) { ctx.beginPath(); ctx.moveTo(M.x - 70, y); ctx.lineTo(M.x + M.w + 70, y); ctx.stroke(); }
-      // the slope: grass, each terrace lit at the top and in shade at the foot
+      // the banks: grass, lit at the top and in shade at the foot, contour lines
       ctx.fillStyle = PAT.grass || "#4f7a3e"; ctx.fillRect(K.x0, K.top - 12, K.x1 - K.x0, K.bot - K.top + 12);
-      const bands = [K.top - 12, ...K.walls, K.bot];
-      for (let b = 0; b < bands.length - 1; b++) { const ya = bands[b], yb = bands[b + 1], gr = ctx.createLinearGradient(0, ya, 0, yb);
-        gr.addColorStop(0, "rgba(255,236,190,0.13)"); gr.addColorStop(0.55, "rgba(120,110,60,0.06)"); gr.addColorStop(1, "rgba(24,30,12,0.30)"); ctx.fillStyle = gr; ctx.fillRect(K.x0, ya, K.x1 - K.x0, yb - ya);
-        ctx.strokeStyle = "rgba(40,50,20,0.10)"; ctx.lineWidth = 2; for (let q = 1; q < 3; q++) { const y = ya + (yb - ya) * q / 3; ctx.beginPath(); ctx.moveTo(K.x0, y); for (let x = K.x0; x <= K.x1; x += 60) ctx.lineTo(x, y + Math.sin(x * 0.011 + b * 2 + q) * 6); ctx.stroke(); } }
-      // the compound's front wall stands on the crest: its drop
-      let gr = ctx.createLinearGradient(0, K.top, 0, K.top + 34); gr.addColorStop(0, "rgba(0,0,0,0.42)"); gr.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = gr; ctx.fillRect(Y.x0, K.top, Y.x1 - Y.x0, 34);
-      // the dry brush
+      let gr = ctx.createLinearGradient(0, K.top, 0, K.bot); gr.addColorStop(0, "rgba(255,236,190,0.13)"); gr.addColorStop(1, "rgba(24,30,12,0.32)"); ctx.fillStyle = gr; ctx.fillRect(K.x0, K.top - 12, K.x1 - K.x0, K.bot - K.top + 12);
+      ctx.strokeStyle = "rgba(40,50,20,0.12)"; ctx.lineWidth = 2; for (const [a, b] of [[K.x0, C.x], [C.x + C.w, K.x1]]) for (let q = 1; q < 5; q++) { const y = K.top + K.H * q / 5; ctx.beginPath(); ctx.moveTo(a, y); for (let x = a; x <= b; x += 20) ctx.lineTo(x, y + Math.sin(x * 0.04 + q) * 5); ctx.stroke(); }
+      // the court: asphalt, a kerb, the stall lines and wheel stops, the way down to the street
+      ctx.fillStyle = "#4a4a4e"; ctx.fillRect(C.x, C.y, C.w, C.h + 40); ctx.fillStyle = "rgba(255,255,255,0.035)"; for (let k = 0; k < 90; k++) { const x = C.x + ((k * 137) % C.w), y = C.y + ((k * 61) % (C.h + 30)); ctx.fillRect(x, y, 3, 2); }
+      ctx.strokeStyle = "#9b927f"; ctx.lineWidth = 6; ctx.strokeRect(C.x + 3, C.y + 3, C.w - 6, C.h + 60);
+      ctx.strokeStyle = "rgba(236,232,214,0.85)"; ctx.lineWidth = 3; const sy0 = C.y + 6, sy1 = C.y + K.sd;
+      const xs = new Set(); for (const [x] of K.stalls) { xs.add(Math.round(x - K.sw / 2)); xs.add(Math.round(x + K.sw / 2)); }
+      for (const x of xs) { ctx.beginPath(); ctx.moveTo(x, sy0); ctx.lineTo(x, sy1); ctx.stroke(); }
+      ctx.fillStyle = "#b8ad96"; for (const [x] of K.stalls) ctx.fillRect(x - 18, sy0 + 10, 36, 6);
+      ctx.fillStyle = "rgba(236,232,214,0.7)"; for (let x = C.x + 30; x < C.x + C.w - 30; x += 48) if (Math.abs(x - px) > 50) ctx.fillRect(x, sy1 + (C.h - K.sd) / 2, 24, 3);
+      // the crest: the compound wall stands up on it -- its drop shadow on the court
+      gr = ctx.createLinearGradient(0, K.top, 0, K.top + 30); gr.addColorStop(0, "rgba(0,0,0,0.42)"); gr.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = gr; ctx.fillRect(Y.x0, K.top, Y.x1 - Y.x0, 30);
+      // the walk: pavers from the gate down to the medallion, then a crossing over the aisle to the street
+      ctx.fillStyle = "#cfc3a8"; ctx.fillRect(px - 32, K.top - 34, 64, py - (K.top - 34)); ctx.strokeStyle = "rgba(110,94,66,0.35)"; ctx.lineWidth = 1;
+      for (let y = K.top - 34; y < py; y += 16) { ctx.beginPath(); ctx.moveTo(px - 32, y); ctx.lineTo(px + 32, y); ctx.stroke(); }
+      ctx.fillStyle = "rgba(240,236,220,0.8)"; for (let y = py + pr + 6; y < C.y + C.h + 30; y += 18) ctx.fillRect(px - 30, y, 60, 9);
+      const lion = imgs.current.yd_lion_patio; if (lion && lion.width) ctx.drawImage(lion, px - pr, py - pr, pr * 2, pr * 2 * lion.height / lion.width); else { ctx.fillStyle = "#e6dfcd"; ctx.beginPath(); ctx.arc(px, py, pr, 0, 6.3); ctx.fill(); }
+      // the brush on the banks
       const BC = [["#6f7a3c", "#8d9a52"], ["#7d7444", "#a29a62"], ["#55683a", "#728a4c"]];
       for (const [x, y, r, c] of K.brush) { ctx.fillStyle = "rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.ellipse(x + 5, y + 6, r * 1.1, r * 0.7, 0, 0, 6.3); ctx.fill();
         for (let n = 0; n < 4; n++) { const a = n * 1.7 + x, ox = Math.cos(a) * r * 0.5, oy = Math.sin(a) * r * 0.4; ctx.fillStyle = BC[c][0]; ctx.beginPath(); ctx.arc(x + ox, y + oy, r * 0.62, 0, 6.3); ctx.fill(); }
         ctx.fillStyle = BC[c][1]; ctx.beginPath(); ctx.arc(x - r * 0.25, y - r * 0.25, r * 0.38, 0, 6.3); ctx.fill(); }
-      // the retaining walls
-      for (const w of K.walls) { gr = ctx.createLinearGradient(0, w + 14, 0, w + 46); gr.addColorStop(0, "rgba(0,0,0,0.45)"); gr.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = gr; ctx.fillRect(K.x0, w + 14, K.x1 - K.x0, 32);
-        ctx.fillStyle = "#8f8473"; ctx.fillRect(K.x0, w, K.x1 - K.x0, 14); ctx.fillStyle = "#b3a790"; ctx.fillRect(K.x0, w, K.x1 - K.x0, 3); ctx.fillStyle = "rgba(50,40,30,0.45)";
-        for (let x = K.x0, r = 0; x < K.x1; x += 26, r++) { ctx.fillRect(x + (r % 2 ? 13 : 0), w + 3, 2, 5); ctx.fillRect(x + (r % 2 ? 0 : 13), w + 8, 2, 6); } ctx.fillRect(K.x0, w + 8, K.x1 - K.x0, 1); }
-      // the drive: a kerb, the pavers, a centre seam
-      ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.28)"; ctx.lineWidth = 104; ctx.save(); ctx.translate(4, 6); strokePath(K.drive); ctx.restore();
-      ctx.strokeStyle = "#7c7466"; ctx.lineWidth = 100; strokePath(K.drive); ctx.strokeStyle = "#c2b59a"; ctx.lineWidth = 86; strokePath(K.drive);
-      ctx.strokeStyle = "rgba(110,94,66,0.35)"; ctx.lineWidth = 2; ctx.setLineDash([16, 12]); strokePath(K.drive); ctx.setLineDash([]);
       // cypress and palms: a long shadow is the height
       for (const [x, y] of K.cyp) { ctx.fillStyle = "rgba(0,0,0,0.30)"; ctx.beginPath(); ctx.ellipse(x + 20, y + 14, 26, 9, 0.5, 0, 6.3); ctx.fill();
         ctx.fillStyle = "#24391f"; ctx.beginPath(); ctx.arc(x, y, 13, 0, 6.3); ctx.fill(); ctx.fillStyle = "#38552c"; ctx.beginPath(); ctx.arc(x - 3, y - 3, 9, 0, 6.3); ctx.fill(); ctx.fillStyle = "#4f7240"; ctx.beginPath(); ctx.arc(x - 5, y - 5, 4, 0, 6.3); ctx.fill(); }
@@ -37849,13 +37908,460 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           ctx.strokeStyle = "#3f6a2c"; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(mx, my, ex, ey); ctx.stroke(); ctx.strokeStyle = "#7aa84e"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(mx, my, ex, ey); ctx.stroke(); }
         ctx.fillStyle = "#6b5232"; ctx.beginPath(); ctx.arc(x, y, 5, 0, 6.3); ctx.fill(); }
       ctx.restore(); }
-    // at night: lamps down the drive, the palms lit from below, the pool glowing (drawn in the night-lights pass, "lighter")
+    // at night: lamps along the court, the palms lit from below, the pool glowing (drawn in the night-lights pass, "lighter")
     function drawHillLights(view) { if (g.inside) return; const M = g.bozHouseB, K = hillOf(M), Y = M && yardOf(M); if (!K || K.x1 < view.x0 - 200 || K.x0 > view.x1 + 200 || Y.top > view.y1 + 200 || K.bot < view.y0 - 200) return; const n = g.night || 0;
       const glow = (x, y, r, rgb, a) => { const gr = ctx.createRadialGradient(x, y, 1, x, y, r); gr.addColorStop(0, "rgba(" + rgb + "," + (a * n).toFixed(3) + ")"); gr.addColorStop(1, "rgba(" + rgb + ",0)"); ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2); };
-      const D = K.drive; for (let k = 1; k < D.length - 1; k++) { glow(D[k][0] + 54, D[k][1], 44, "255,196,120", 0.26); ctx.fillStyle = "rgba(255,226,170," + (0.8 * n).toFixed(2) + ")"; ctx.fillRect(D[k][0] + 52, D[k][1] - 2, 4, 4); }
+      const C = K.court; for (const x of [C.x + 20, K.gx - 40, K.gx + 40, C.x + C.w - 20]) { glow(x, C.y + K.sd + 10, 90, "255,206,140", 0.22); ctx.fillStyle = "rgba(255,226,170," + (0.8 * n).toFixed(2) + ")"; ctx.fillRect(x - 2, C.y + K.sd + 8, 4, 4); }
       for (const [x, y] of K.palms) glow(x, y, 48, "255,186,110", 0.3);
       const P = Y.pool; glow(P.x + P.w / 2, P.y + P.h / 2, Math.max(P.w, P.h) * 0.75, "90,190,255", 0.42); }
-    function inBozHill(x, y) { const K = hillOf(g.bozHouseB); return !!K && x > K.x0 - 30 && x < K.x1 + 30 && y > K.top - 60 && y < K.bot + 40; }
+    /* the crew's cars, parked in the stalls whenever the crew meets at the house: the BBQ, breakfast */
+    const HILL_CARS = ["pk_sedan_navy", "pk_coupe_white", "pk_911_silver", "pk_wagon_green", "pk_hatch_red", "pk_sedan_red2", "pk_cresta", "pk_sedan_lblue"];
+    function stepHillCars() { const S = g.story, K = hillOf(g.bozHouseB), want = !!K && !!S && ((S.id === "mansion" && S.step >= 8 && S.step <= 11) || (S.id === "kings1" && S.step >= 3 && S.step <= 5));
+      if (want && !g.hillCars) { g.hillCars = K.stalls.slice(0, Math.min(K.stalls.length, 7)).map(([x, y], n) => parkCar(x, y + 4, -Math.PI / 2, HILL_CARS[n % HILL_CARS.length], { idn: { model: "CREW CAR", colour: "", plate: "THE CREW", owner: "THE CREW" } })); }
+      if (want && g.hillCars && g.hillCars.some((v) => g.traffic.indexOf(v) < 0)) { dropCars(g.hillCars); g.hillCars = null; }      // culled: parked again next frame
+      if (!want && g.hillCars) { dropCars(g.hillCars); g.hillCars = null; } }
+    G.hillT = () => { const K = hillOf(g.bozHouseB); return K && { court: K.court, plaza: K.plaza, stalls: K.stalls.length, cars: (g.hillCars || []).length }; };   // test hook
+    function inBozHill(x, y) { const K = hillOf(g.bozHouseB); return !!K && x > K.x0 - 30 && x < K.x1 + 30 && y > K.top - 60 && y < K.bot + 170; }
+    /* ---------- LAYER 501: THE PAPER, KEPT ----------
+       After Chapter One the Chronicle's front page sits on a little table in the scrapyard shelter, beside the map
+       table: a trophy. E there and it spins up full screen again (any E, or 6 seconds, puts it down). */
+    G.hideoutPropsT = () => { const H = hideoutB(); const pl = H && buildingPlans(H)[0]; return pl ? (pl.props || []).map((o) => [o.t, Math.round(o.x), Math.round(o.y), Math.round(o.w), Math.round(o.h)]) : null; };   // test hook
+    function trophyAt() { if (!g.chapterOne) return null; const T = mtTable(); if (!T || g.inside !== T.H || (g.floor || 0) !== 0) return null; return [T.x + 118, T.y + 8]; }
+    function drawTrophy() { const P = trophyAt(); if (!P) return; const [x, y] = P;
+      ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(x - 24, y - 14, 54, 40); ctx.fillStyle = "#5a3d24"; ctx.fillRect(x - 27, y - 19, 54, 38); ctx.fillStyle = "#71502f"; ctx.fillRect(x - 27, y - 19, 54, 4);
+      const im = imgs.current.it_paper_trophy; ctx.save(); ctx.translate(x, y); ctx.rotate(-0.16);
+      if (im && im.width) { const w = 30, h = w * im.height / im.width; ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(-w / 2 + 2, -h / 2 + 3, w, h); ctx.drawImage(im, -w / 2, -h / 2, w, h); }
+      else { ctx.fillStyle = "#e9e2cf"; ctx.fillRect(-14, -18, 28, 36); ctx.fillStyle = "#222"; ctx.fillRect(-11, -14, 22, 4); ctx.fillRect(-11, -7, 22, 3); }
+      ctx.restore(); if (near(P, 60) && !g.paper) lab8("E: THE PAPER", x, y - 30); }
+    G.trophyFn = () => { if (g.paper && g.paper.read) { g.paper.out = g.paper.out || 0.01; return true; } const P = trophyAt(); if (!P || g.mode !== "foot" || !near(P, 60) || g.paper) return false; g.paper = { t: 0, read: 1 }; G.sfx && G.sfx("door", 0.4); return true; };
+    function stepTrophy(dt) { const P = g.paper; if (!P || !P.read) return; P.t += dt; if (P.t > 6 && !P.out) P.out = 0.01; if (P.out) { P.out += dt; if (P.out > 0.5) g.paper = null; } }
+    G.trophyT = () => trophyAt();   // test hook
+    /* ---------- LAYER 502: THE CAR CRUSHER, THE BUILDING PLATE ----------
+       THE CRUSHER (Donny's pit, sy_crush_pit): behind the scrapyard building (layer 503 moved it from the front); the old crusher sprite
+       and the crane are out of the front (the crane moved round the side, by the spot Mission 15 uses). A grey steel door covers the pit with a
+       yellow box painted on it. Park on the box, get out, walk to the switch box (E): the door slides open, the car drops,
+       two rams come in from the sides and press it into a block (sy_crush_block, painted the car's own colour so the
+       metal still reads). Walk away -- once the yard's off your screen the block's sold: a quarter of what the car was worth.
+       THE BUILDING PLATE: walk into any building and its name and address slide across the screen and fade (hud.bplate). */
+    // layer 503 (Donny): at the BACK of the yard, behind the building, not by the front door
+    function crushPit() { const H = hideoutB(); if (!H || !H.door) return null; if (H.pit503) return H.pit503; const back = (H.door.side + 2) % 4, w = 210, h = Math.round(210 * 244 / 454);
+      const [cx, cy] = wallPt(H, back, 0.5, 75);
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const c2 = getCell(Math.floor(cx / PITCH) + di, Math.floor(cy / PITCH) + dj); if (c2) c2.alley = null; }   // no trash in the pit
+      return (H.pit503 = { x: cx - w / 2, y: cy - h / 2, w, h, cx, cy, ix: cx - w * 0.37, iy: cy - h * 0.31, iw: w * 0.74, ih: h * 0.62, sw: [cx - w / 2 - 44, cy + 6] }); }
+    // the yard: the old crusher sprite and the crane out of the way of the door (once)
+    function yardFix502() { const P = g.hideProps, H = hideoutB(); if (!P || !H || g.yard502) return; g.yard502 = 1;
+      for (let k = P.length - 1; k >= 0; k--) if (P[k].t === "sy_crusher" || P[k].t === "sy_crane") P.splice(k, 1);
+      const sd = H.door ? H.door.side : 2, c = wallPt(H, (sd + 1) % 4, 0.5, 78); P.push({ t: "sy_crane", x: c[0] - 70, y: c[1] - 40, w: 140, h: 104 });
+      const wb = P.find((q) => q.t === "sy_wreck_b"); if (wb && Math.abs(wb.x + wb.w / 2 - c[0]) < 160 && Math.abs(wb.y + wb.h / 2 - c[1]) < 140) { const dp = doorPoint(H); wb.x = dp[0] + 110; wb.y = sd === 0 ? H.y - 120 : wb.y; } }
+    const carOnSpot = () => { const R = crushPit(), c = g.car; if (!R || !c || c.flying || c.sunk) return false; return c.x > R.ix - 14 && c.x < R.ix + R.iw + 14 && c.y > R.iy - 14 && c.y < R.iy + R.ih + 14 && Math.hypot(c.vx || 0, c.vy || 0) < 30; };
+    const COL_CACHE = {};
+    function carColour(k) { if (COL_CACHE[k]) return COL_CACHE[k]; const im = imgs.current[k]; if (!im || !im.width) return "#8a8f96";
+      try { const cv = document.createElement("canvas"); cv.width = cv.height = 32; const x = cv.getContext("2d"); x.drawImage(im, 0, 0, 32, 32); const d = x.getImageData(0, 0, 32, 32).data; let r = 0, gg = 0, b = 0, n = 0;
+        for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < 200) continue; const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]); if (mx < 40 || mn > 225) continue; const wgt = 1 + (mx - mn) / 40; r += d[i] * wgt; gg += d[i + 1] * wgt; b += d[i + 2] * wgt; n += wgt; }
+        return (COL_CACHE[k] = n ? "rgb(" + (r / n | 0) + "," + (gg / n | 0) + "," + (b / n | 0) + ")" : "#8a8f96"); } catch (e) { return "#8a8f96"; } }
+    const BLOCK_CACHE = {};
+    function tintBlock(col) { if (BLOCK_CACHE[col]) return BLOCK_CACHE[col]; const im = imgs.current.sy_crush_block; if (!im || !im.width) return null;
+      const cv = document.createElement("canvas"); cv.width = im.width; cv.height = im.height; const x = cv.getContext("2d"); x.drawImage(im, 0, 0);
+      x.globalCompositeOperation = "color"; x.fillStyle = col; x.fillRect(0, 0, cv.width, cv.height); x.globalCompositeOperation = "destination-in"; x.drawImage(im, 0, 0); return (BLOCK_CACHE[col] = cv); }
+    function carWorth(c) { const k = (c.skin && c.skin.k) || (c.m && c.m.k) || "car"; let v = 0; try { v = CAR_PRICE(k) || 0; } catch (e) { v = 0; } return v > 0 ? v : 6000; }
+    SP.sp_crush = () => { const c = g.car, v = carWorth(c); return { title: "THE SCRAPYARD · THE CRUSHER", face: null,
+      text: "The switch box hums. The car's sitting on the yellow box." + (c.pool ? "\n\nIt's one of yours -- it comes out of the motor pool for good." : "") + "\n\nThe block sells for a quarter of what the car's worth: about $" + Math.round(v / 4).toLocaleString() + ".",
+      opts: [{ id: "story:sp_crush_go", label: "FLIP THE SWITCH" }, { id: "close", label: "LEAVE IT" }] }; };
+    SPA.sp_crush_go = () => { spClose(); if (g.crush || !carOnSpot() || g.mode !== "foot") return; const c = g.car, R = crushPit(), k = (c.skin && c.skin.k) || "car";
+      g.crush = { t: 0, k, L: (c.skin && c.skin.len) || 108, ang: c.ang, x: c.x, y: c.y, val: carWorth(c), col: carColour(k), sold: 0 };
+      try { if (c.pool) { const P = motorPool(), n = P.slots.indexOf(c.pool); if (n >= 0) P.slots[n] = null; c.pool = null; } } catch (e) {}
+      c.x = -90000; c.y = -90000; c.vx = c.vy = 0; G.sfx && G.sfx("door", 0.9); };
+    G.crushFn = () => { const R = crushPit(); if (!R || g.inside || g.mode !== "foot" || !near(R.sw, 56)) return false;
+      if (g.crush) { g.pickupFlash = { nm: "lift:IT'S RUNNING", t: 1.2 }; return true; }
+      if (!carOnSpot()) { g.pickupFlash = { nm: "lift:PARK A CAR ON THE YELLOW BOX FIRST", t: 1.8 }; return true; }
+      G.pickOpen("sp_crush"); return true; };
+    function stepCrush(dt) { yardFix502(); const C = g.crush; if (!C) return; C.t += dt;
+      if (C.t > 1.9 && C.t < 3.6) g.shake = Math.max(g.shake || 0, 3); if (C.t > 1.9 && !C.s1) { C.s1 = 1; G.sfx && G.sfx("door", 1); } if (C.t > 3.5 && !C.s2) { C.s2 = 1; G.sfx && G.sfx("door", 0.7); }
+      const R = crushPit(); if (C.t > 4.8 && R && !C.sold && Math.hypot(g.p.x - R.cx, g.p.y - R.cy) > 1100) { C.sold = 1; const pay = Math.round(C.val / 4); g.p.cash = (g.p.cash || 0) + pay; g.pickupFlash = { nm: "lift:THE BLOCK SOLD · +$" + pay.toLocaleString(), t: 2.4 }; g.crush = null; } }
+    function drawCrush(view) { if (g.inside) return; const R = crushPit(); if (!R || R.x > view.x1 + 100 || R.x + R.w < view.x0 - 100 || R.y > view.y1 + 100 || R.y + R.h < view.y0 - 100) return; const C = g.crush, t = C ? C.t : 0;
+      const pit = imgs.current.sy_crush_pit; ctx.save(); ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(R.x + 6, R.y + 8, R.w, R.h);
+      if (pit && pit.width) ctx.drawImage(pit, R.x, R.y, R.w, R.h); else { ctx.fillStyle = "#5d5f62"; ctx.fillRect(R.x, R.y, R.w, R.h); ctx.fillStyle = "#3a3b3d"; ctx.fillRect(R.ix, R.iy, R.iw, R.ih); }
+      const open = !C ? 0 : t < 1.2 ? t / 1.2 : t < 5.2 || !C.sold ? 1 : 1;
+      // the car, dropped in, then pressed
+      if (C && t >= 1.2) { const im = imgs.current[C.k] || imgs.current.car, drop = Math.min(1, (t - 1.2) / 0.7), sq = t < 1.9 ? 0 : Math.min(1, (t - 1.9) / 1.6);
+        if (t < 3.6 && im && im.width) { const L = C.L * (1 - 0.14 * drop), w = im.width * (L / im.height); ctx.save(); ctx.beginPath(); ctx.rect(R.ix, R.iy, R.iw, R.ih); ctx.clip(); ctx.translate(R.cx, R.cy); ctx.rotate(C.ang + Math.PI / 2);
+          const ax = Math.abs(Math.cos(C.ang)) > 0.7; ctx.scale(ax ? 1 : 1 - 0.7 * sq, ax ? 1 - 0.7 * sq : 1); ctx.drawImage(im, -w / 2, -L / 2, w, L); ctx.fillStyle = "rgba(0,0,0," + (0.25 * drop + 0.25 * sq) + ")"; ctx.fillRect(-w / 2, -L / 2, w, L); ctx.restore(); }
+        if (t >= 3.6) { const B = tintBlock(C.col), s = 46; if (B) ctx.drawImage(B, R.cx - s / 2, R.cy - s / 2, s, s); else { ctx.fillStyle = C.col; ctx.fillRect(R.cx - s / 2, R.cy - s / 2, s, s); } } }
+      else if (C && t < 1.2) { const im = imgs.current[C.k] || imgs.current.car; if (im && im.width) { const L = C.L, w = im.width * (L / im.height); ctx.save(); ctx.translate(R.cx, R.cy); ctx.rotate(C.ang + Math.PI / 2); ctx.drawImage(im, -w / 2, -L / 2, w, L); ctx.restore(); } }
+      // the rams, in from both sides
+      if (C && t >= 1.9) { const k = t < 3.6 ? Math.min(1, (t - 1.9) / 1.6) : Math.max(0, 1 - (t - 3.6) / 1.0), reach = (R.iw / 2 - 26) * k;
+        for (const sgn of [-1, 1]) { const x = sgn < 0 ? R.ix : R.ix + R.iw - reach; rustFill(x, R.iy, reach, R.ih, sgn < 0 ? x + reach : x, "#6c7076"); ctx.fillStyle = "#7d7268"; ctx.fillRect(sgn < 0 ? x + reach - 6 : x, R.iy, 6, R.ih); ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(sgn < 0 ? x + reach - 7 : x + 6, R.iy, 1, R.ih);
+          ctx.fillStyle = "rgba(0,0,0,0.22)"; for (let y = R.iy + 10; y < R.iy + R.ih; y += 18) ctx.fillRect(x, y, reach, 2); } }
+      // the door: two grey leaves that slide apart, the yellow box painted across them
+      if (open < 1) { const half = R.iw / 2, slide = half * open; ctx.save(); ctx.beginPath(); ctx.rect(R.ix, R.iy, R.iw, R.ih); ctx.clip();
+        for (const sgn of [-1, 1]) { const x0 = sgn < 0 ? R.ix - slide : R.cx + slide; rustFill(x0, R.iy, half, R.ih, x0, "#83878c"); ctx.strokeStyle = "rgba(20,16,12,0.55)"; ctx.lineWidth = 2; ctx.strokeRect(x0 + 1, R.iy + 1, half - 2, R.ih - 2);
+          ctx.fillStyle = "rgba(200,190,170,0.55)"; for (const [bx, by] of [[5, 5], [half - 7, 5], [5, R.ih - 7], [half - 7, R.ih - 7]]) ctx.fillRect(x0 + bx, R.iy + by, 2, 2);
+          ctx.fillStyle = "#3e3530"; ctx.fillRect(sgn < 0 ? x0 + half - 3 : x0, R.iy, 3, R.ih); }
+        if (open === 0) { ctx.strokeStyle = "#f2c83a"; ctx.lineWidth = 4; ctx.setLineDash([14, 8]); ctx.strokeRect(R.ix + 8, R.iy + 7, R.iw - 16, R.ih - 14); ctx.setLineDash([]); }
+        ctx.restore(); }
+      // the switch box
+      const [sx, sy] = R.sw; ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(sx - 9, sy - 11, 22, 28); ctx.fillStyle = "#3d4a3a"; ctx.fillRect(sx - 11, sy - 14, 22, 28); ctx.fillStyle = "#f2c83a"; ctx.fillRect(sx - 11, sy - 14, 22, 4);
+      ctx.fillStyle = C ? "#e8302a" : "#6fd08c"; ctx.beginPath(); ctx.arc(sx, sy - 2, 3, 0, 6.3); ctx.fill(); ctx.strokeStyle = "#cfd3d8"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(sx, sy + 6); ctx.lineTo(sx + (C ? 7 : -7), sy + 13); ctx.stroke();
+      ctx.restore();
+      if (g.mode === "foot" && near(R.sw, 70)) lab8(g.crush ? "THE CRUSHER'S RUNNING" : carOnSpot() ? "E: THE SWITCH" : "THE CRUSHER · PARK ON THE YELLOW BOX", sx, sy - 26);
+      else if (!C && g.mode === "car" && near([R.cx, R.cy], 260)) lab8("THE CRUSHER · PARK ON THE YELLOW BOX", R.cx, R.y - 14); }
+    // Donny's rust plate (tx_rust_plate) on the pit doors and the rams; it rides with the steel, so it slides when they do (layer 504)
+    let RUST_PAT = null;
+    function rustFill(x, y, w, h, ox, fall) { if (w <= 0) return; const im = imgs.current.tx_rust_plate; if (im && im.width && !RUST_PAT) RUST_PAT = ctx.createPattern(im, "repeat");
+      if (!RUST_PAT) { ctx.fillStyle = fall; ctx.fillRect(x, y, w, h); return; } const sc = 0.32; ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.translate(ox, y); ctx.scale(sc, sc); ctx.fillStyle = RUST_PAT;
+      ctx.fillRect((x - ox) / sc - 2, -2, w / sc + 4, h / sc + 4); ctx.restore(); }
+    G.crushT = () => ({ pit: crushPit(), on: carOnSpot(), crush: g.crush && { t: +g.crush.t.toFixed(2), val: g.crush.val, col: g.crush.col } });   // test hook
+    // the building plate: name and address slide across when you walk into a building
+    function stepBplate(dt) { const b = g.inside || null; if (b !== g.bpLast && !g.sleepFx && !g.paper && !g.dinner) { g.bpLast = b; const S = g.story;
+        if (b && !g.title && !(S && S.id === "kings1" && S.step <= 2) && !(S && S.id === "setup")) { const nm = (b.name || placeName(b) || (PLACE_NOUN[b.kind] || b.kind || "building")).toString().toUpperCase(), ad = addressOf(b);
+          g.bplate = { nm, addr: ad ? ad.toUpperCase() : "", k: (g.bplateK = (g.bplateK || 0) + 1), t: 3.8 }; } }
+      if (g.bplate) { g.bplate.t -= dt; if (g.bplate.t <= 0) g.bplate = null; } }
+    function inCrushPit(x, y) { const R = g.hideout && g.hideout.pit503; return !!R && x > R.x - 90 && x < R.x + R.w + 90 && y > R.y - 70 && y < R.y + R.h + 70; }
+    /* ---------- LAYER 503: MONEY AND JUICE, THE TAKE DRAINS IN, LEVELS AND STATS ----------
+       MONEY (bold, top right under the map) and JUICE (Rey's street respect, g.rep; Malcolm's juice in detective mode).
+       MISSION COMPLETE: the pay is held back (g.payDrain) and counts down into the money while dollar signs fly up to
+       it. LEVELS (g.lv): Rey and every crew member who's joined has a level, XP and stats. XP comes from wins (missions
+       for now). A level gives points (Rey 2, crew 1) to spend on the stats screen: the map (Start) -> REY & THE CREW. */
+    const LV_STATS = { rey: [["aim", "AIM", "steadier hands -- called shots and hits land more (layer 507 reads it)"], ["drive", "DRIVING", "grip and nerve behind the wheel"],
+        ["tough", "TOUGHNESS", "+1 max health a point"], ["stam", "STAMINA", "+10 max stamina a point"], ["stealth", "STEALTH", "harder to see, quieter on a lock"], ["charm", "CHARISMA", "better prices, cheaper hires, easier talk"]],
+      crew: [["aim", "AIM", "what they hit when it goes loud"], ["drive", "DRIVING", "getaways and tails"], ["tough", "TOUGHNESS", "how much they take"], ["smarts", "SMARTS", "running a business, reading a room"]] };
+    const LV_WHO = [["rey", "REY", "THE FALL GUY", "assets/crew/pt_rey.png", () => true], ["leroy", "LEROY", "THE OLD HAND", "assets/crew/pt_crew_leroy_civ.png", () => g.leroyJoined || (g.storyDone || {}).firstout],
+      ["pablo", "PABLO", "THE COOK", "assets/crew/pt_crew_viejo_civ.png", () => (g.storyDone || {}).dayout], ["ras", "RAS", "THE MUSCLE", "assets/crew/pt_crew_ras.png", () => g.rasJoined || (g.storyDone || {}).washday],
+      ["dread", "DREAD", "THE CORNER", "assets/crew/pt_dread.png", () => (g.storyDone || {}).corner], ["katya", "KATYA", "THE BOZNOV", "assets/crew/pt_bozni_katya.png", () => (g.storyDone || {}).nest],
+      ["jose", "JOSE", "THE KID DRIVER", "assets/crew/pt_jose.png", () => (g.storyDone || {}).pinkslips]];
+    const lvNeed = (lv) => 250 * lv;
+    function lvOf(id) { const L = (g.lv = g.lv || {}); if (!L[id]) { const rey = id === "rey"; const st = {}; for (const [k] of LV_STATS[rey ? "rey" : "crew"]) st[k] = rey ? (k === "stealth" || k === "charm" ? 1 : 2) : 2;
+        if (id === "ras") st.tough = 4; if (id === "leroy") st.smarts = 4; if (id === "jose") st.drive = 4; if (id === "katya") st.aim = 4; if (id === "dread") st.smarts = 3;
+        L[id] = { lv: 1, xp: 0, pts: 0, st }; } return L[id]; }
+    function lvGive(id, xp) { const P = lvOf(id); P.xp += Math.round(xp); let up = 0; while (P.xp >= lvNeed(P.lv)) { P.xp -= lvNeed(P.lv); P.lv++; P.pts += id === "rey" ? 2 : 1; up++; } return up; }
+    function lvWin(pay) { const xp = 150 + (pay || 0) / 20, up = lvGive("rey", xp); for (const W of LV_WHO) if (W[0] !== "rey" && W[4]()) lvGive(W[0], xp / 2);
+      if (up) setTimeout(() => { g.pickupFlash = { nm: "lift:LEVEL UP · REY IS LEVEL " + lvOf("rey").lv + " · START: REY & THE CREW", t: 3 }; }, 2600); }
+    G.lvList = () => LV_WHO.filter((W) => W[4]()).map(([id, nm, role, face]) => { const P = lvOf(id); return { id, nm, role, face, lv: P.lv, xp: P.xp, need: lvNeed(P.lv), pts: P.pts,
+      stats: LV_STATS[id === "rey" ? "rey" : "crew"].map(([k, lab, what]) => [k, lab, P.st[k], what]) }; });
+    G.lvSpend = (id, k) => { const P = lvOf(id); if (P.pts <= 0 || (P.st[k] || 0) >= 10) return false; P.pts--; P.st[k] = (P.st[k] || 0) + 1;
+      if (id === "rey" && k === "tough") { g.p.maxHp = (g.p.maxHp || 10) + 1; g.p.hp = Math.min(g.p.maxHp, (g.p.hp || g.p.maxHp) + 1); }
+      if (id === "rey" && k === "stam") { g.p.maxStamina = (g.p.maxStamina || 100) + 10; }
+      G.sfx && G.sfx("door", 0.3); return true; };
+    G.lvGiveT = (id, xp) => lvGive(id, xp);   // test hook
+    // the take, counted into the money
+    function stepPayDrain(dt) { const D = g.payDrain; if (!D) return; D.t += dt; if (D.t < 1.1) return; D.left -= Math.max(D.pay / 2.6, 40) * dt; if (D.left <= 0) g.payDrain = null; }
+    const moneyShown = () => Math.round((g.p.cash || 0) - (g.payDrain ? Math.max(0, g.payDrain.left) : 0));
+    G.storyCompleteT = () => storyComplete();   // test hook (layer 503)
+    /* ---------- LAYER 504: THE FUEL CAN, THE TRUNK, WEIGHT ----------
+       WEIGHT: everything Rey carries weighs something (itemKg) -- guns by type, the things he buys by name, a full FUEL
+       CAN 9 kg, prison pockets 0.2 each. He carries 20 kg + 2 a TOUGHNESS point; over that he walks slow (g.p.heavy)
+       and the counter won't sell him more. FUEL CAN ($40 at any pump on foot, or the corner store): E at the driver's
+       door pours it in -- 70% of a tank. THE TRUNK: E at the back of your car: put things in, take them out; the car has
+       its own limit (sports 40 kg, sedans 80, wagons and vans 150). A motor-pool car's trunk stays with the car. */
+    const CAN = { price: 40, frac: 0.7, pour: 2.4, kg: 9 };
+    function itemKg(it) { if (!it) return 0; if (it.t === "gun") { const k = it.k || ""; return /uzi|smg|mac|tommy/.test(k) ? 3 : /shotgun/.test(k) ? 4 : /rifle|ar15|ak|m16/.test(k) ? 4.5 : /grenade|molotov/.test(k) ? 0.5 : /knife|knuck|bat|machete|sword/.test(k) ? 1 : 1.2; }
+      const n = (it.nm || "").toUpperCase(); return n === "FUEL CAN" ? CAN.kg : /RADIO/.test(n) ? 2 : /WATCH|CHAIN|LOTTO|TICKET|PICK/.test(n) ? 0.2 : /CIGARETTE|SUN-TIMES|PAPER/.test(n) ? 0.2 : /KNUCKLES/.test(n) ? 0.5 : /TV|STEREO/.test(n) ? 12 : 1; }
+    function carriedList() { const L = []; (g.p.bag || []).forEach((it, n) => L.push({ t: "bag", n, nm: it.nm, val: it.val, kg: itemKg(it) }));
+      (g.rack || []).forEach((k) => { if (k !== g.p.wpn) L.push({ t: "gun", k, nm: (WPN[k] && WPN[k].nm) || k.replace(/_/g, " ").toUpperCase(), kg: itemKg({ t: "gun", k }) }); }); return L; }
+    function carryKg() { let kg = 0; for (const q of carriedList()) kg += q.kg; if (g.p.wpn) kg += itemKg({ t: "gun", k: g.p.wpn }); kg += (g.pinv || []).length * 0.2; return Math.round(kg * 10) / 10; }
+    const carryMax = () => 20 + 2 * (((g.lv || {}).rey || { st: {} }).st.tough || 2);
+    const hasCan = () => (g.p.bag || []).findIndex((it) => it.nm === "FUEL CAN");
+    function trunkMax(c) { const k = (c && c.skin && c.skin.k) || ""; return /van|wagon|truck|pickup|hearse|limo/.test(k) ? 150 : /911|coupe|turbo|fastback|delorean|vette|sport|racer/.test(k) ? 40 : 80; }
+    function trunkOf(c) { if (!c) return null; if (c.pool) return (c.pool.trunk = c.pool.trunk || []); const key = (c.idn && c.idn.plate) || (c.skin && c.skin.k) || "car";
+      if (!c.tk || c.tk.key !== key) c.tk = { key, items: [] }; return c.tk.items; }
+    const trunkKg = (c) => Math.round((trunkOf(c) || []).reduce((s, it) => s + itemKg(it), 0) * 10) / 10;
+    // where the trunk and the driver's door are: the car points along ang (the sprite is drawn nose-up and turned ang + 90)
+    function carPts(c) { const L = (c.skin && c.skin.len) || 108, W = (c.skin && c.skin.w) || 50, fx = Math.cos(c.ang), fy = Math.sin(c.ang), lx = fy, ly = -fx;
+      return { back: [c.x - fx * (L / 2 + 16), c.y - fy * (L / 2 + 16)], door: [c.x + lx * (W / 2 + 16) + fx * 6, c.y + ly * (W / 2 + 16) + fy * 6] }; }
+    const carHere = () => { const c = g.car; return c && g.mode === "foot" && !g.inside && c.x > -50000 && !c.flying && !c.sunk ? c : null; };
+    G.carryFn = () => { const c = carHere(); if (!c || g.pour) return false; const P = carPts(c);
+      if (near(P.door, 42) && hasCan() >= 0) { if ((c.fuel || 0) >= (c.maxFuel || 100) - 1) { g.pickupFlash = { nm: "lift:THE TANK'S FULL", t: 1.4 }; return true; } g.pour = { t: 0 }; G.sfx && G.sfx("door", 0.3); return true; }
+      if (near(P.back, 46)) { g.tkSaid = null; G.pickOpen("sp_trunk"); return true; } return false; };
+    G.canBuyFn = () => { if (g.mode !== "foot" || g.inside) return false; let at = null; try { for (const gc of GAS_CELLS) { const c = getCell(gc.i, gc.j); for (const [px, py] of gasSpots(c)) if (Math.hypot(g.p.x - px, g.p.y - py) < 70) at = [px, py]; } } catch (e) { return false; } if (!at) return false;
+      if ((g.p.cash || 0) < CAN.price) { g.pickupFlash = { nm: "lift:A FUEL CAN IS $" + CAN.price, t: 1.6 }; return true; }
+      if (carryKg() + CAN.kg > carryMax()) { g.pickupFlash = { nm: "lift:TOO HEAVY · YOU'RE CARRYING " + carryKg() + " OF " + carryMax() + " KG", t: 2 }; return true; }
+      g.p.cash -= CAN.price; (g.p.bag = g.p.bag || []).push({ nm: "FUEL CAN", val: CAN.price }); g.pickupFlash = { nm: "lift:FUEL CAN · -$" + CAN.price + " · E AT YOUR DRIVER'S DOOR TO POUR", t: 2.4 }; return true; };
+    function stepCarry(dt) { const kg = carryKg(), mx = carryMax(); g.p.heavy = kg > mx ? 0.62 : 1;
+      const P = g.pour; if (P) { const c = carHere(); if (!c || !near(carPts(c).door, 70)) { g.pour = null; return; } P.t += dt;
+        if (P.t >= CAN.pour) { g.pour = null; const i = hasCan(); if (i >= 0) g.p.bag.splice(i, 1); const mf = c.maxFuel || 100; c.fuel = Math.min(mf, (c.fuel || 0) + mf * CAN.frac); g.pickupFlash = { nm: "lift:TANK " + Math.round(c.fuel / mf * 100) + "% · THE EMPTY CAN GOES IN THE GUTTER", t: 2 }; } } }
+    function drawCarry() { const c = carHere(); if (!c) return; const P = carPts(c);
+      if (g.pour) { const [x, y] = P.door; ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(x - 30, y - 30, 60, 7); ctx.fillStyle = "#e8302a"; ctx.fillRect(x - 30, y - 30, 60 * Math.min(1, g.pour.t / CAN.pour), 7); lab8("POURING", x, y - 36); return; }
+      if (near(P.door, 60) && hasCan() >= 0) lab8("E: POUR THE FUEL CAN", P.door[0], P.door[1] - 22);
+      else if (near(P.back, 64)) lab8("E: THE TRUNK · " + trunkKg(c) + "/" + trunkMax(c) + " KG", P.back[0], P.back[1] - 22);
+      if (!g.inside && g.mode === "foot") { try { for (const gc of GAS_CELLS) { const cc = getCell(gc.i, gc.j); for (const [px, py] of gasSpots(cc)) if (Math.hypot(g.p.x - px, g.p.y - py) < 70) { lab8("E: BUY A FUEL CAN · $" + CAN.price, px, py - 30); return; } } } catch (e) {} } }
+    SP.sp_trunk = () => { const c = carHere(); if (!c) return { title: "THE TRUNK", text: "No car here.", opts: [{ id: "close", label: "OK" }] }; const T = trunkOf(c), opts = [];
+      T.forEach((it, i) => { SPA["sp_tko_" + i] = () => { const T2 = trunkOf(carHere()); const q = T2 && T2[i]; if (!q) return; if (carryKg() + itemKg(q) > carryMax()) { g.tkSaid = "Too heavy -- you're carrying " + carryKg() + " of " + carryMax() + " kg."; G.pickOpen("sp_trunk"); return; }
+          T2.splice(i, 1); if (q.t === "gun") { (g.rack = g.rack || []); if (g.rack.indexOf(q.k) < 0) g.rack.push(q.k); } else (g.p.bag = g.p.bag || []).push({ nm: q.nm, val: q.val }); g.tkSaid = "You take out the " + q.nm.toLowerCase() + "."; G.pickOpen("sp_trunk"); };
+        opts.push({ id: "story:sp_tko_" + i, label: "TAKE OUT · " + it.nm + " · " + itemKg(it) + " KG" }); });
+      carriedList().forEach((q, i) => { SPA["sp_tki_" + i] = () => { const c2 = carHere(); if (!c2) return; const L = carriedList(), r = L[i]; if (!r) return; if (trunkKg(c2) + r.kg > trunkMax(c2)) { g.tkSaid = "The trunk's full -- " + trunkKg(c2) + " of " + trunkMax(c2) + " kg."; G.pickOpen("sp_trunk"); return; }
+          if (r.t === "gun") { g.rack = g.rack.filter((k) => k !== r.k); trunkOf(c2).push({ t: "gun", k: r.k, nm: r.nm }); } else { const it = g.p.bag.splice(r.n, 1)[0]; trunkOf(c2).push({ t: "bag", nm: it.nm, val: it.val }); }
+          g.tkSaid = "The " + r.nm.toLowerCase() + " goes in the trunk."; G.pickOpen("sp_trunk"); };
+        opts.push({ id: "story:sp_tki_" + i, label: "PUT IN · " + q.nm + " · " + q.kg + " KG" }); });
+      opts.push({ id: "close", label: "SHUT THE TRUNK" });
+      return { title: "THE TRUNK · " + trunkKg(c) + " / " + trunkMax(c) + " KG", face: null,
+        text: (g.tkSaid ? g.tkSaid + "\n\n" : "") + (T.length ? "In the trunk: " + T.map((q) => q.nm.toLowerCase()).join(", ") + "." : "The trunk's empty.") + "\nYou're carrying " + carryKg() + " of " + carryMax() + " kg." + (g.p.heavy < 1 ? " Too much -- you're slow." : ""), opts }; };
+    G.carryT = () => ({ kg: carryKg(), max: carryMax(), heavy: g.p.heavy, can: hasCan(), trunk: carHere() ? { kg: trunkKg(g.car), max: trunkMax(g.car), n: trunkOf(g.car).length, pts: carPts(g.car) } : null, fuel: g.car && g.car.fuel });   // test hook
+    G.pumpT = () => { for (const gc of GAS_CELLS) { const c = getCell(gc.i, gc.j); const s = gasSpots(c); if (s && s.length) return s[0]; } return null; };   // test hook
+    BIZ_MENU.corner.push(["FUEL CAN", 40]); BIZ_MENU.bodega.push(["FUEL CAN", 40]);      // the corner store sells the can too (layer 504)
+    /* ---------- LAYER 505: LOCKPICKS, BREAKING INTO PARKED CARS, CARJACKING ----------
+       Rey's story only (prisonMode). A PARKED car off the street is LOCKED: E with LOCKPICKS on you starts the break-in
+       (stay by it; ~3 s, less with STEALTH), then it's open -- E again to get in. One time in five the alarm goes. No picks:
+       "it's locked". LOCKPICKS: $15 at a pawn shop (5 uses); Leroy hands Rey a set at the start of Mission 14.
+       A car with somebody IN it is a carjacking: up to four people inside (v.occ). They get out scared, angry, or running;
+       fighting back is rare and likelier the more of them there are (5 / 15 / 30 / 50%) -- then they pile out swinging and
+       the car's left open. Cars that belong to the story, the crew or you are never locked. */
+    const PICK = { need: 3.0, uses: 5, alarm: 0.2 };
+    const pickSet = () => (g.p.bag || []).find((it) => it.nm === "LOCKPICKS");
+    function occOf(v) { if (v.occ) return v.occ; const r = Math.random(); return (v.occ = r < 0.6 ? 1 : r < 0.85 ? 2 : r < 0.95 ? 3 : 4); }
+    const JACK_LINES = { scared: ["Take it! Take it!", "Don't shoot! Please!", "It's yours, man!"], angry: ["You son of a--!", "That's MY car!", "I'm calling the cops!", "Hey! HEY!"], run: ["Help! HELP!", "Somebody call the police!"] };
+    G.stealGate = (v) => { if (!g.prisonMode || !v || v.named || v.storyCar || v.owner === "player" || v.open || v.bus || /^pd_|cruiser/.test((v.m && v.m.k) || "")) return false;
+      if (!v.dead && !v.parked) {                                           // somebody's driving it
+        const n = occOf(v), fight = Math.random() < [0.05, 0.15, 0.3, 0.5][n - 1];
+        if (fight) { v.spd = 0; v.cruise = 0; v.parked = 1; v.dead = 1; v.open = 1; let cr = null; try { cr = hostile("wolves", v.x, v.y, n); } catch (e) { cr = null; }
+          if (cr) for (const m of cr.members) { m.line = cpick(["Wrong car, pal!", "You picked the wrong guy!", "Get him!"]); m.say = 2.5; }
+          g.jackSay = { x: v.x, y: v.y - 40, line: n > 1 ? "THEY ALL GET OUT -- AND THEY'RE NOT RUNNING" : "HE GETS OUT SWINGING", t: 2.6 }; if (G.seenFn) G.seenFn(v.x, v.y, 1); return true; }
+        const mood = cpick(["scared", "scared", "angry", "run"]); g.jackSay = { x: v.x, y: v.y - 40, line: "“" + cpick(JACK_LINES[mood]) + "”", t: 2.6 };
+        for (let k = 1; k < n; k++) { const a = Math.random() * 6.28, x = v.x + Math.cos(a) * 46, y = v.y + Math.sin(a) * 46;   // the others pile out and run
+          g.peds.push({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, mode: "panic", timer: 4 + Math.random() * 2, fx: Math.cos(a), fy: Math.sin(a), hp: 3, fly: 0,
+            bi: clamp(Math.floor(x / PITCH), 0, N - 1), bj: clamp(Math.floor(y / PITCH), 0, N - 1), ck: (Math.random() * 4) | 0, off: [0, 0], tgt: [x, y], spd: 70 + Math.random() * 30 }); }
+        return false; }                                                     // the take goes ahead
+      // parked: locked
+      if (g.pickCar && g.pickCar.v === v) return true;
+      const P = pickSet(); if (!P) { g.pickupFlash = { nm: "lift:IT'S LOCKED · YOU NEED LOCKPICKS (A PAWN SHOP, $15)", t: 2.2 }; return true; }
+      const st = (((g.lv || {}).rey || { st: {} }).st.stealth || 1); g.pickCar = { v, t: 0, need: Math.max(1.2, PICK.need - 0.15 * st) }; G.sfx && G.sfx("door", 0.2); return true; };
+    function stepPick(dt) { const Q = g.pickCar; if (g.jackSay) { g.jackSay.t -= dt; if (g.jackSay.t <= 0) g.jackSay = null; } if (!Q) return;
+      if (g.mode !== "foot" || g.inside || g.traffic.indexOf(Q.v) < 0 || Math.hypot(g.p.x - Q.v.x, g.p.y - Q.v.y) > 120) { g.pickCar = null; return; }
+      Q.t += dt; if (Q.t < Q.need) return; g.pickCar = null; const v = Q.v, P = pickSet(); v.open = 1;
+      if (P) { P.uses = (P.uses == null ? PICK.uses : P.uses) - 1; if (P.uses <= 0) g.p.bag.splice(g.p.bag.indexOf(P), 1); }
+      if (Math.random() < PICK.alarm) { v.alarm = 6; if (G.seenFn) G.seenFn(v.x, v.y, 1); g.pickupFlash = { nm: "lift:CAR ALARM! · E TO GET IN AND GO", t: 2.2 }; }
+      else g.pickupFlash = { nm: "lift:UNLOCKED · E TO GET IN" + (P && P.uses > 0 ? " · PICKS: " + P.uses + " LEFT" : " · THAT WAS THE LAST PICK"), t: 2.2 }; }
+    function drawPick() { const Q = g.pickCar; if (Q) { const v = Q.v; ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(v.x - 34, v.y - 44, 68, 7); ctx.fillStyle = "#e8c46a"; ctx.fillRect(v.x - 34, v.y - 44, 68 * Math.min(1, Q.t / Q.need), 7); lab8("PICKING THE LOCK", v.x, v.y - 50); }
+      const J = g.jackSay; if (J) lab8(J.line, J.x, J.y, "#ffd65a");
+      for (const v of g.traffic || []) { if (!v.alarm) continue; v.alarm -= 1 / 60; if (v.alarm <= 0) { v.alarm = 0; continue; } if (((g.t || 0) * 4 | 0) % 2) { ctx.fillStyle = "rgba(255,200,80,0.35)"; ctx.beginPath(); ctx.arc(v.x, v.y, 60, 0, 6.3); ctx.fill(); } } }
+    // Leroy's set, before Raven Auto
+    { const b0 = BEGIN98.ravenauto; BEGIN98.ravenauto = () => { b0 && b0(); if (!g.leroyPicks) { g.leroyPicks = 1; (g.p.bag = g.p.bag || []).push({ nm: "LOCKPICKS", val: 15, uses: PICK.uses }); setTimeout(() => { g.pickupFlash = { nm: "lift:LEROY HANDS YOU A SET OF LOCKPICKS · 5 USES", t: 3 }; }, 6500); } }; }
+    BIZ_MENU.pawn.splice(BIZ_MENU.pawn.length - 1, 0, ["LOCKPICKS", 15]);
+    G.pickT = () => ({ pick: g.pickCar && { t: +g.pickCar.t.toFixed(2), need: g.pickCar.need }, picks: (pickSet() || {}).uses, say: g.jackSay && g.jackSay.line });   // test hook
+    /* ---------- LAYER 506: COPS THAT RAM AND BACK OFF, CALLED SHOTS ----------
+       THE RAM (updatePursuit): one shove and a dent, then the car drops back (v.ramCd, 2.6 s at 55% speed) -- it used to
+       push and crush you every frame it touched you, which pinned you and ended the chase. Cop top speed stays under
+       yours: open road, you outrun them.
+       CALLED SHOTS: lock a car with TARGET (RB), then each press of TARGET steps round the car before moving on:
+       TIRES / ENGINE / GAS TANK / DRIVER / each passenger. Fire and the shot rolls against odds that grow with Rey's AIM
+       and shrink with range (shown over the car). TIRES blow (it crawls); ENGINE: smoke, then fire, then it's done;
+       GAS TANK: it goes up; DRIVER: it rolls off line and stops, and whoever else is inside gets out and shoots from
+       where they stand -- they don't chase; a PASSENGER hit is one fewer to get out. */
+    const PARTS506 = [["tires", "TIRES", 0.38], ["engine", "ENGINE", 0.42], ["tank", "GAS TANK", 0.12], ["driver", "DRIVER", 0.22]];
+    const isCar506 = (o) => !!o && !!o.m && o.hp == null;
+    function partsOf(v) { const cop = isCopCar(v), n = cop ? 2 : (v.occ || (v.parked || v.dead ? 0 : occOf(v))), L = PARTS506.slice(0, n ? 4 : 3);
+      for (let k = 1; k < n; k++) if (!(v.passDown || {})[k]) L.push(["pass" + k, cop ? "PARTNER" : "PASSENGER " + k, 0.26]); return L; }
+    function partOdds(v, P) { const aim = (((g.lv || {}).rey || { st: {} }).st.aim || 2), d = Math.hypot(v.x - g.p.x, v.y - g.p.y);
+      return clamp(P[2] + aim * 0.045 - Math.max(0, d - 120) / 900 - (Math.hypot(g.p.vx || 0, g.p.vy || 0) > 40 ? 0.1 : 0), 0.04, 0.95); }
+    /* layer 506b (Donny): TARGET steps round the parts of the car you're locked on and wraps on THAT car; SWITCH (right stick
+       left/right on the pad, R / [ on the keyboard, the SWITCH button) moves to the next or previous target -- and every car
+       remembers the part you were aiming at (v.aimPart), so: tires on one, switch, driver on another, switch back, tires. */
+    G.partNext = () => { const v = g.lockOn; if (!isCar506(v) || g.lockPart == null || !lockAlive(v)) return false; const L = partsOf(v); g.lockPart = (g.lockPart + 1) % L.length; v.aimPart = g.lockPart;
+      g.pickupFlash = { nm: "lift:AIMING AT THE " + L[g.lockPart][1], t: 1 }; return true; };
+    G.partStart = (o) => { if (!isCar506(o)) { g.lockPart = null; return; } const L = partsOf(o); g.lockPart = Math.min(o.aimPart || 0, L.length - 1);
+      g.pickupFlash = { nm: "lift:AIMING AT THE " + L[g.lockPart][1] + (o.aimPart == null ? " \u00b7 TARGET: NEXT PART \u00b7 SWITCH: NEXT CAR" : ""), t: 1.6 }; };
+    G.switchTargetFn = (dir) => G.cycleTargetFn && G.cycleTargetFn(dir || 1);
+    function bailOut506(v, n) { const out = (g.bail506 = g.bail506 || []), cop = isCopCar(v);
+      for (let k = 1; k < n; k++) { if ((v.passDown || {})[k]) continue;
+        const a = (v.ang || 0) + (k % 2 ? 1 : -1) * Math.PI / 2; out.push({ x: v.x + Math.cos(a) * 40, y: v.y + Math.sin(a) * 40, vx: 0, vy: 0, hp: 4, maxHp: 4, fireCd: 0.8 + Math.random(), swing: 0, anim: 0, jit: 1,
+          yt: cop ? "cv2_ef_captain" : null, wpn: cop ? "pistol_auto" : cpick(["pistol_auto", "revolver_snub"]), cop, t: 0 }); } }
+    G.calledShotFn = (v) => { if (!isCar506(v) || g.lockPart == null || g.lockOn !== v) return false; const L = partsOf(v), P = L[g.lockPart]; if (!P) return false;
+      if (Math.random() > partOdds(v, P)) { g.pickupFlash = { nm: "lift:MISSED THE " + P[1], t: 0.8 }; return true; }
+      const k = P[0];
+      if (k === "tires") { v.flat = 9999; v.tiresOut = 1; g.pickupFlash = { nm: "lift:TIRE BLOWN", t: 1.2 }; }
+      else if (k === "engine") { v.engHits = (v.engHits || 0) + 1; v.dmg = Math.min(0.95, (v.dmg || 0) + 0.15); v.smoke506 = Math.max(v.smoke506 || 0, v.engHits); g.pickupFlash = { nm: "lift:ENGINE HIT · " + (v.engHits >= 4 ? "IT'S ON FIRE" : v.engHits >= 2 ? "SMOKING" : "IT COUGHS"), t: 1.2 };
+        if (v.engHits >= 4 && !v.fire506) { v.fire506 = 1; v.cruise = 0; v.chasing = 0; v.driverDown = 1; setTimeout(() => { if (Number.isFinite(v.x)) { v.dmg = 1; carBoom(v.x, v.y); } }, 4000); } }
+      else if (k === "tank") { carBoom(v.x, v.y); blastAt(v.x, v.y, "grenade"); v.dmg = 1; v.chasing = 0; g.lockOn = null; g.lockPart = null; g.pickupFlash = { nm: "lift:THE GAS TANK GOES UP", t: 1.6 }; }
+      else if (k === "driver") { if (!v.driverDown) { v.driverDown = 1; v.chasing = 0; v.cruise = 0; v.rollTurn = (Math.random() < 0.5 ? -1 : 1) * 0.9; const n = isCopCar(v) ? 2 : (v.occ || occOf(v)); setTimeout(() => bailOut506(v, n), 1400); }
+        g.pickupFlash = { nm: "lift:DRIVER DOWN · IT ROLLS TO A STOP", t: 1.6 }; g.lockPart = Math.min(g.lockPart, partsOf(v).length - 1); v.aimPart = g.lockPart; }
+      else if (/^pass/.test(k)) { (v.passDown = v.passDown || {})[+k.slice(4)] = 1; g.pickupFlash = { nm: "lift:" + P[1] + " DOWN", t: 1.2 }; g.lockPart = Math.min(g.lockPart, partsOf(v).length - 1); v.aimPart = g.lockPart; }
+      return true; };
+    function stepCalled(dt) { for (const v of g.traffic || []) { if (v.driverDown && v.rollTurn && Math.abs(v.spd || 0) > 5) v.ang += v.rollTurn * dt; if (v.smoke506 && !(v.dmg >= 0.96)) { v.smT = (v.smT || 0) - dt; if (v.smT <= 0) { v.smT = 0.25; (g.puffs506 = g.puffs506 || []).push({ x: v.x + (Math.random() - 0.5) * 20, y: v.y - 10, t: 0, fire: !!v.fire506 }); } } }
+      const P = g.puffs506 || []; for (let i = P.length - 1; i >= 0; i--) { P[i].t += dt; P[i].y -= 22 * dt; if (P[i].t > 1.6) P.splice(i, 1); }
+      const B = g.bail506 || []; for (let i = B.length - 1; i >= 0; i--) { const u = B[i]; u.t += dt; if (u.hp <= 0 || (!u.snitch && (Math.hypot(u.x - g.p.x, u.y - g.p.y) > 2000 || u.t > 90))) { B.splice(i, 1); continue; } if (u.noShoot) continue;   // the case's snitch runs instead (layer 509)
+        u.fireCd -= dt; u.swing = Math.max(0, u.swing - dt); u.vx = 0; u.vy = 0;                      // they stand their ground
+        const d = Math.hypot(g.p.x - u.x, g.p.y - u.y); if (u.fireCd <= 0 && d < 380 && !g.inside) { const a = Math.atan2(g.p.y - u.y, g.p.x - u.x); u.fireCd = 1.1 + Math.random() * 0.8; u.swing = 0.14; u.bang = a;
+          try { fireBullet(u, a + (Math.random() - 0.5) * 0.3, 900, 2, 380, false, u.cop ? "cop" : "sec"); } catch (e) {} } } }
+    function drawCalled() { for (const p of g.puffs506 || []) { const a = Math.max(0, 1 - p.t / 1.6); ctx.fillStyle = p.fire && p.t < 0.6 ? "rgba(255,140,40," + (0.7 * a) + ")" : "rgba(70,70,70," + (0.5 * a) + ")"; ctx.beginPath(); ctx.arc(p.x, p.y, 8 + p.t * 14, 0, 6.3); ctx.fill(); }
+      if (!g.inside) for (const u of g.bail506 || []) { drawShadow(u.x, u.y + 3, 12, 5, 0.36); drawYouth(u); drawHealthBar(u); }
+      const v = g.lockOn; if (!isCar506(v) || g.lockPart == null || !lockAlive(v) || g.inside) return; const L = partsOf(v), P = L[g.lockPart]; if (!P) return;
+      const c = Math.cos(v.ang || 0), s = Math.sin(v.ang || 0), len = ((v.m && v.m.len) || 108) / 2, w = ((v.m && v.m.w) || 48) / 2;
+      const at = P[0] === "tires" ? [len * 0.62, w] : P[0] === "engine" ? [len * 0.8, 0] : P[0] === "tank" ? [-len * 0.8, -w * 0.5] : P[0] === "driver" ? [len * 0.1, -w * 0.45] : [len * 0.1 - (+P[0].slice(4) > 1 ? len * 0.4 : 0), w * 0.45];
+      const x = v.x + c * at[0] - s * at[1], y = v.y + s * at[0] + c * at[1], pu = 0.6 + 0.4 * Math.sin((g.t || 0) * 8);
+      ctx.strokeStyle = "rgba(255,80,60," + pu + ")"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 9, 0, 6.3); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x - 14, y); ctx.lineTo(x + 14, y); ctx.moveTo(x, y - 14); ctx.lineTo(x, y + 14); ctx.stroke();
+      lab8(P[1] + " · " + Math.round(partOdds(v, P) * 100) + "%  (TARGET: NEXT PART \u00b7 SWITCH: NEXT CAR)", v.x, v.y - 62, "#ff8a6a"); }
+    G.calledT = () => ({ lock: !!g.lockOn, part: g.lockPart, parts: isCar506(g.lockOn) ? partsOf(g.lockOn).map((q) => q[1]) : null, bail: (g.bail506 || []).length });   // test hook
+    /* ---------- LAYER 507: SELLING WHERE IT MAKES SENSE, YOUR BUSINESSES' COUNTERS, THE LEDGER ----------
+       SELLING: a PAWN SHOP takes anything (half what it's worth), a GUN STORE takes guns (one and a half times what a
+       pawn pays), a JEWELLER takes jewellery (80%), and one corner store / bodega / liquor store in four has a cashier
+       who'll buy drugs ("You holding?" -- 70% of street price). Gas stations and restaurants don't buy.
+       YOUR COUNTERS: every business you own has THE COUNTER on its screen; what's on it opens up with its level
+       (BSTOCK). THE LEDGER: a book on a little table left of the scrapyard's map table -- every business, its level, its
+       take, the next upgrade, collect everything, open any one. Upgrades cost more now: $8k / $20k / $45k. */
+    const JEWEL_RX = /WATCH|CHAIN|RING|JEWEL|GOLD|DIAMOND|PEARL|NECKLACE|BRACELET|BROOCH|EARRING/i;
+    const isDrugCashier = (b) => !!b && /^(corner|grocer|general|bodega|liquor|news|deli)$/.test(b.biz || "") && ((Math.abs(Math.round(b.x * 3 + b.y * 7)) >> 2) % 4 === 0);
+    function sellList507() { const S = g.shop, b = S && S.b, bz = (b && b.biz) || "", L = [];
+      if (bz === "pawn") return null;                                                     // the old list, as it was
+      if (bz === "guns") { (g.rack || []).forEach((k) => { if (k !== g.p.wpn) L.push({ id: "biz:sell:gun:" + k, nm: (WPN[k] && WPN[k].nm) || k.replace(/_/g, " ").toUpperCase(), val: Math.round(GUN_VAL(k) * 1.5) }); }); return L; }
+      if (bz === "jewel") { (g.p.bag || []).forEach((it, n) => { if (JEWEL_RX.test(it.nm || "")) L.push({ id: "biz:sell:bag:" + n, nm: it.nm, val: Math.max(1, Math.round((it.val || 20) * 0.8)) }); }); return L; }
+      if (isDrugCashier(b)) { const D = g.p.drugs || {}; for (const k in D) if (D[k] > 0 && DRUG_PRICE[k]) L.push({ id: "biz:sell:drug:" + k, nm: D[k] + " BAG" + (D[k] > 1 ? "S" : "") + " OF " + DRUGS[k].nm, val: Math.round(DRUG_PRICE[k] * 0.7) * D[k] }); return L; }
+      return []; }
+    BIZ_MENU.guns.push(["SELL A GUN", 0, "sell"]);
+    BIZ_MENU.jewel = [["GOLD RING", 380], ["PEARL NECKLACE", 650], ["DIAMOND EARRINGS", 1200], ["SELL JEWELRY", 0, "sell"]];
+    // your own businesses' counters: [name, price, level needed (1-4), what it does]
+    const BSTOCK = {
+      hippie: [["CLEAN CLOTHES", 40, 1, "a change -- the cops lose a step on your description"], ["LOCKPICKS", 10, 2, "a set, 5 uses"], ["FAKE PLATES", 250, 3, "new plates on the car you're in: it's not stolen any more"], ["A CLEAN RECORD", 5000, 4, "heat and suspicion gone"]],
+      corner: [["A BAG OF LEAF", 10, 1, "at cost"], ["A BAG OF STONE", 17, 2, "at cost"], ["A BAG OF DIAMOND", 30, 3, "at cost"], ["A BAG OF SKY", 60, 4, "the Deuce's own, at cost"]],
+      nest: [["A DRINK", 5, 1, "+2 health"], ["BOTTLE SERVICE", 50, 2, "full health"], ["UZI FROM UNDER THE BAR", 1500, 3, "no questions"], ["AR, FULL AUTO", 1300, 4, "no questions"]],
+      auto: [["FUEL CAN", 25, 1, "70% of a tank"], ["LOCKPICKS", 8, 2, "a set, 5 uses"], ["A FULL REPAIR", 300, 3, "the car you came in, good as new"], ["PAINT AND PLATES", 400, 4, "new colour on the papers, new plates, clean"]] };
+    function bstockPanel(k) { const B = (g.biz || {})[k], L = BSTOCK[k] || []; if (!B) return { title: "THE COUNTER", text: "", opts: [{ id: "close", label: "CLOSE" }] };
+      const opts = L.map((it, i) => { const ok = B.lvl + 1 >= it[2]; SPA["sp_bsb_" + k + "_" + i] = () => bstockBuy(k, i);
+        return { id: "story:sp_bsb_" + k + "_" + i, label: ok ? it[0] + " · $" + it[1].toLocaleString() + " · " + it[3] : "🔒 " + it[0] + " · LEVEL " + it[2], dim: !ok }; });
+      opts.push({ id: "emp:" + k + ":back", label: "BACK" }, { id: "close", label: "CLOSE" });
+      return { title: EMP[k].nm + " · THE COUNTER · LEVEL " + (B.lvl + 1), face: null, text: (g.bsSaid ? g.bsSaid + "\n\n" : "") + "Your place, your prices. More opens up with every level. You have $" + (g.p.cash || 0).toLocaleString() + ".", opts }; }
+    for (const k of Object.keys(BSTOCK)) SP["sp_bshop_" + k] = () => bstockPanel(k);
+    function bstockBuy(k, i) { const B = (g.biz || {})[k], it = (BSTOCK[k] || [])[i]; g.bsSaid = null; if (!B || !it) return; const re = () => G.pickOpen("sp_bshop_" + k);
+      if (B.lvl + 1 < it[2]) { g.bsSaid = "That opens at level " + it[2] + "."; re(); return; } if ((g.p.cash || 0) < it[1]) { g.bsSaid = "You need $" + it[1].toLocaleString() + "."; re(); return; }
+      const nm = it[0], bag = (x) => { if (carryKg() + itemKg(x) > carryMax()) { g.bsSaid = "Too heavy -- " + carryKg() + " of " + carryMax() + " kg."; return false; } (g.p.bag = g.p.bag || []).push(x); return true; };
+      const car = g.car && g.car.x > -50000 && Math.hypot(g.car.x - g.p.x, g.car.y - g.p.y) < 900 ? g.car : null;
+      if (nm === "LOCKPICKS") { if (!bag({ nm: "LOCKPICKS", val: it[1], uses: 5 })) { re(); return; } }
+      else if (nm === "FUEL CAN") { if (!bag({ nm: "FUEL CAN", val: it[1] })) { re(); return; } }
+      else if (nm === "CLEAN CLOTHES") { g.heat = Math.max(0, (g.heat || 0) - 1); g.suspicion = Math.max(0, (g.suspicion || 0) - 30); }
+      else if (nm === "A CLEAN RECORD") { g.heat = 0; g.suspicion = 0; }
+      else if (nm === "FAKE PLATES" || nm === "PAINT AND PLATES") { if (!car) { g.bsSaid = "Bring the car round first."; re(); return; } const L3 = "ABCDEFGHJKLMNPRSTUVWXYZ", r = () => L3[(Math.random() * L3.length) | 0];
+        car.idn = { ...(car.idn || {}), plate: r() + r() + r() + " " + (100 + ((Math.random() * 900) | 0)), stolen: 0, owner: "REY" }; if (nm === "PAINT AND PLATES") { car.dmg = 0; car.dents = []; car.crush = null; } }
+      else if (nm === "A FULL REPAIR") { if (!car) { g.bsSaid = "Bring the car round first."; re(); return; } car.dmg = 0; car.dents = []; car.crush = null; }
+      else if (/^A BAG OF /.test(nm)) { const dk = { LEAF: "leaf", STONE: "stone", DIAMOND: "diamond", SKY: "sky" }[nm.slice(9)]; g.p.drugs = g.p.drugs || {}; g.p.drugs[dk] = (g.p.drugs[dk] || 0) + 1; }
+      else if (nm === "A DRINK") { g.p.hp = Math.min(g.p.maxHp || 10, (g.p.hp || 0) + 2); try { boozeDrink(1, "A DRINK"); } catch (e) {} }
+      else if (nm === "BOTTLE SERVICE") { g.p.hp = g.p.maxHp || 10; }
+      else if (nm === "UZI FROM UNDER THE BAR" || nm === "AR, FULL AUTO") { const wk = nm === "AR, FULL AUTO" ? "rifle_auto" : "smg_uzi"; g.rack = g.rack || []; if (g.rack.indexOf(wk) < 0) g.rack.push(wk); }
+      g.p.cash -= it[1]; g.bsSaid = nm.charAt(0) + nm.slice(1).toLowerCase() + ". -$" + it[1].toLocaleString() + "."; G.sfx && G.sfx("door", 0.4); re(); }
+    // THE LEDGER
+    function ledgerAt() { const T = mtTable(); if (!T || g.inside !== T.H || (g.floor || 0) !== 0) return null; return [T.x - 112, T.y + 8]; }
+    function drawLedger() { const P = ledgerAt(); if (!P) return; const [x, y] = P; ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(x - 24, y - 14, 50, 36); ctx.fillStyle = "#5a3d24"; ctx.fillRect(x - 26, y - 18, 50, 34);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(0.12); ctx.fillStyle = "#2e3b2a"; ctx.fillRect(-15, -11, 30, 22); ctx.fillStyle = "#e8dcc0"; ctx.fillRect(-13, -9, 26, 18); ctx.fillStyle = "#2e3b2a"; ctx.fillRect(-1, -11, 2, 22);
+      ctx.fillStyle = "rgba(60,50,40,0.6)"; for (let k = 0; k < 4; k++) { ctx.fillRect(-11, -6 + k * 4, 9, 1); ctx.fillRect(2, -6 + k * 4, 9, 1); } ctx.restore();
+      if (near(P, 60) && g.mode === "foot") lab8("E: THE LEDGER", x, y - 26); }
+    SP.sp_ledger = () => { const E = g.biz || {}, ks = Object.keys(E); try { empTick(); } catch (e) {} let tot = 0; const lines = [], opts = [];
+      for (const k of ks) { const B = E[k]; tot += Math.max(0, B.cash || 0); const take = Math.round(EMP[k].base * EMP_MULT[B.lvl] * (B.boss ? 1 : 0.5));
+        lines.push(EMP[k].nm + " · LEVEL " + (B.lvl + 1) + " · ~$" + take.toLocaleString() + "/HR · " + B.guards.length + " GUARDS · $" + Math.round(Math.max(0, B.cash || 0)).toLocaleString() + " WAITING" + (B.lvl < 3 ? " · NEXT LEVEL $" + EMP_COST[B.lvl].toLocaleString() : " · MAXED"));
+        opts.push({ id: "emp:" + k + ":open", label: "OPEN " + EMP[k].nm }); }
+      if (tot >= 1) opts.unshift({ id: "story:sp_ledger_all", label: "COLLECT EVERYTHING · $" + Math.round(tot).toLocaleString() });
+      opts.push({ id: "close", label: "CLOSE THE BOOK" });
+      return { title: "THE LEDGER", face: null, text: (g.ledSaid ? g.ledSaid + "\n\n" : "") + (ks.length ? lines.join("\n") : "Nothing in it yet. Take a business and it goes in the book."), opts }; };
+    SPA.sp_ledger_all = () => { let n = 0; for (const k in g.biz || {}) { const B = g.biz[k]; if (B.cash >= 1) { n += Math.round(B.cash); B.cash = 0; } } g.p.cash = (g.p.cash || 0) + n; g.ledSaid = "+$" + n.toLocaleString() + " from the book."; G.pickOpen("sp_ledger"); };
+    G.ledgerFn = () => { const P = ledgerAt(); if (!P || g.mode !== "foot" || !near(P, 60)) return false; g.ledSaid = null; G.pickOpen("sp_ledger"); return true; };
+    G.ledgerT = () => ledgerAt();   // test hook
+    G.sellT = (b) => { const s0 = g.shop; g.shop = { b }; const L = sellList507(); g.shop = s0; return { L, drugMan: isDrugCashier(b) }; };   // test hook
+    /* ---------- LAYER 508: ROOM BETWEEN CARS, PASSING ON THE OTHER SIDE, TIRE MARKS AND SMOKE ----------
+       ROOM: a car keeps a quarter of its length clear in front of it (it stops behind the car ahead with that gap, at
+       lights too) -- AGGRESSIVE drivers (1 in 10, faster) ride closer. PASSING: an aggressive driver stuck behind a slow
+       car, your own driver when he's going fast or losing someone, swing out into the oncoming lane when it's clear far
+       enough ahead and there's road before the next corner, then come back in once they're past. COPS and STREET-RACE
+       rivals dodge round a car in front instead of driving into it. TIRES: anyone turning hard at speed leaves rubber
+       and a puff of smoke (and the player's skids smoke too). */
+    const gap508 = (v, o) => { const L1 = (v.m && v.m.len) || 110, L2 = (o.m && o.m.len) || (o.skin && o.skin.len) || 110; return (L1 + L2) / 2 + (v.aggro ? 6 : 0.25 * L1); };
+    function clearAhead508(v, fx, fy, dist, laneOff, skip) { const cand = g.traffic.concat(policeCars().filter(Boolean)); if (inVehicle()) cand.push(activeVeh());
+      for (const o of cand) { if (!o || o === v || o === skip || !Number.isFinite(o.x)) continue; const ox = o.x - v.x, oy = o.y - v.y, ah = ox * fx + oy * fy; if (ah < -60 || ah > dist) continue;
+        const lat = -ox * fy + oy * fx; if (lat < -laneOff - 60 && lat > -laneOff * 2 - 90) return false; if (Math.abs(lat + laneOff) < 50) return false; } return true; }
+    // traffic: aggressive drivers pass on the other side
+    function overtake508(v, blk, d, dt, fx, fy) { if (v.aggro == null) { v.aggro = Math.random() < 0.1 ? 1 : 0; if (v.aggro) v.cruise = (v.cruise || 150) * 1.25; }
+      const lw = 2 * halfW(v.si) * LANE;
+      if (!v.aggro || v.bus) { v.ov = Math.max(0, (v.ov || 0) - dt * 1.6); return; }
+      if (!v.ovGo && blk && (blk.spd || 0) < (v.cruise || 150) * 0.8 && d > 340 && clearAhead508(v, fx, fy, 520, lw, blk)) { v.ovGo = 1; v.ovCar = blk; }
+      if (v.ovGo) { const o = v.ovCar, past = !o || g.traffic.indexOf(o) < 0 || ((o.x - v.x) * fx + (o.y - v.y) * fy) < -((v.m && v.m.len) || 110) * 0.9;
+        if (past || d < 200 || !clearAhead508(v, fx, fy, 240, lw, o)) v.ovGo = 0; }
+      v.ov = clamp((v.ov || 0) + clamp((v.ovGo ? 1 : 0) - (v.ov || 0), -dt * 1.6, dt * 1.6), 0, 1); }
+    // cops and racers: steer round a car in front
+    function dodge508(v, want) { const fx = Math.cos(want), fy = Math.sin(want); let best = null, bd = 170;
+      for (const o of g.traffic) { if (o === v || !Number.isFinite(o.x) || o.patrol && o.chasing) continue; const ox = o.x - v.x, oy = o.y - v.y, ah = ox * fx + oy * fy; if (ah < 10 || ah > bd) continue;
+        const lat = -ox * fy + oy * fx; if (Math.abs(lat) > 46) continue; bd = ah; best = lat; }
+      return best == null ? 0 : (best > 0 ? -1 : 1) * 0.6 * (1 - bd / 200); }
+    // rubber and smoke when a car turns hard at speed
+    function tireFx508(v, rate, spd) { if (!(spd > 190) || Math.abs(rate) < 0.95 || !g.skids) return; const L = (v.m && v.m.len) || (v.skin && v.skin.len) || 108, W = (v.m && v.m.w) || 48, fx = Math.cos(v.ang), fy = Math.sin(v.ang), rx = -fy, ry = fx;
+      if (g.skids.length < 460) for (const s of [-1, 1]) g.skids.push({ x: v.x - fx * L * 0.32 + rx * W * 0.4 * s, y: v.y - fy * L * 0.32 + ry * W * 0.4 * s, a: v.ang, life: 1 });
+      v.smk = (v.smk || 0) - 1 / 60; if (v.smk <= 0) { v.smk = 0.09; (g.puffs506 = g.puffs506 || []).push({ x: v.x - fx * L * 0.36, y: v.y - fy * L * 0.36, t: 0 }); } }
+    G.trafT = () => ({ aggro: g.traffic.filter((v) => v.aggro).length, ov: g.traffic.filter((v) => v.ov > 0.2).length, n: g.traffic.length, skids: g.skids.length, puffs: (g.puffs506 || []).length });   // test hook
+    /* ---------- LAYER 509: THE CASE ----------
+       Run hot long enough (heat 2+) and DETECTIVE HAL DRUMMOND -- not Malcolm, not Ramos -- opens a case on Rey. THE CASE
+       bar (top right) fills while the heat's up (faster the hotter). It only comes down two ways: PABLO'S JOBS (two on
+       offer at a time) -- TAKE OUT THE SNITCH, BRIBE THE WITNESS ($500), THE MORGUE (switch the tags), THE EVIDENCE ROOM
+       (lose the evidence) -- each knocks 50% off, and under 50% one job kills it; or ALONZO, who makes it go away at once
+       for $2,000 + $80 a percent. Let it hit 100% and Drummond gets a WARRANT: he raids one of your businesses and the
+       take goes into evidence, and the case keeps going at 70%. Map (Start) -> THE CASE; Pablo calls when it opens. */
+    const RCASE = { rate: 0.2, open: 2, warrant: 100, after: 70, alonzo: 2000, perPct: 80, bribe: 500, hold: 4 };
+    const RCASE_JOBS = { snitch: ["TAKE OUT THE SNITCH", "A kid from the corner's been talking to Drummond. He's on the street. He runs when he sees you."],
+      witness: ["BRIBE THE WITNESS", "A woman saw your face. $500 and she saw nothing."], morgue: ["THE MORGUE", "Back door of the hospital, the basement. Switch the toe tags -- the body they've got is somebody else now."],
+      evidence: ["THE EVIDENCE ROOM", "Round the back of the precinct. Five minutes with the evidence locker and the gun's gone."] };
+    function caseSpot(kind) { const p = [g.p.x, g.p.y];
+      if (kind === "morgue") { const H = namedB((b) => b.kind === "hospital"); if (H) return { b: H, pt: wallPt(H, backSide(H), 0.5, 40) }; }
+      if (kind === "evidence") { const P = precinctB(); if (P) return { b: P, pt: wallPt(P, backSide(P), 0.5, 40) }; }
+      const out = []; for (let di = -5; di <= 5; di++) for (let dj = -5; dj <= 5; dj++) { const c = getCell(Math.floor(p[0] / PITCH) + di, Math.floor(p[1] / PITCH) + dj); if (!c || !c.blds) continue;
+        for (const b of c.blds) { if (!b.door || b.landmark || b.inPrison) continue; const f = frontOf(b), d = Math.hypot(f[0] - p[0], f[1] - p[1]); if (d > 1800 && d < 6000) out.push({ b, pt: f }); } }
+      return out.length ? out[(Math.random() * out.length) | 0] : { b: null, pt: [p[0] + 2500, p[1]] }; }
+    function caseOffer() { const C = g.rcase; if (!C) return; const ks = Object.keys(RCASE_JOBS).filter((k) => !(C.offer || []).includes(k)); C.offer = []; while (C.offer.length < 2 && ks.length) C.offer.push(ks.splice((Math.random() * ks.length) | 0, 1)[0]); }
+    function caseDown(why) { const C = g.rcase; if (!C) return; C.fill = C.fill < 50 ? 0 : C.fill - 50; C.job = null; for (const u of g.bail506 || []) if (u.snitch) u.hp = 0;
+      if (C.fill <= 0) { g.rcase = { closed: 1, n: (C.n || 0) + 1, cd: 180 }; g.pickupFlash = { nm: "lift:" + why + " · DRUMMOND'S CASE GOES COLD", t: 3 }; try { lvGive("rey", 150); } catch (e) {} return; }
+      caseOffer(); g.pickupFlash = { nm: "lift:" + why + " · THE CASE IS DOWN TO " + Math.round(C.fill) + "%", t: 2.6 }; }
+    function stepRcase(dt) { if (!g.prisonMode || !(g.storyDone || {}).dayout || g.title) return;
+      let C = g.rcase; const heat = g.heat || 0;
+      if (C && C.closed && C.cd > 0) C.cd -= dt;                                          // three minutes before anyone opens a new one
+      if ((!C || (C.closed && !(C.cd > 0))) && heat >= RCASE.open) { g.rcase = C = { fill: 1, n: (C && C.n) || 0, job: null, offer: null }; caseOffer();
+        g.pickupFlash = { nm: "lift:DETECTIVE HAL DRUMMOND HAS OPENED A CASE ON YOU", t: 3 };
+        setTimeout(() => { if (g.rcase && !g.rcase.closed && !g.pickOpen && !g.sleepFx) { g.rcaseSaid = "PABLO (PHONE): “Rey. There's a cop asking about you. Drummond -- not one of Alonzo's. He keeps digging, he gets a warrant. I can make some of it go away. Or Alonzo can make ALL of it go away, if you can pay.”"; G.pickOpen("sp_case"); } }, 2500); }
+      if (!C || C.closed) return;
+      if (heat >= RCASE.open) C.fill = Math.min(100, C.fill + dt * RCASE.rate * heat);
+      if (C.fill >= RCASE.warrant) { const ks = Object.keys(g.biz || {}); C.fill = RCASE.after; g.heat = Math.max(heat, 2);
+        if (ks.length) { const k = ks[(Math.random() * ks.length) | 0], B = g.biz[k]; B.cash = 0; try { const eb = empB(k); if (eb) { const f = frontOf(eb); g.rcDrum = { x: f[0], y: f[1], t: 90, nm: EMP[k].nm }; } } catch (e) {} g.pickupFlash = { nm: "lift:WARRANT · DRUMMOND RAIDS " + EMP[k].nm + " · THE TAKE'S IN EVIDENCE", t: 3.5 }; }
+        else g.pickupFlash = { nm: "lift:WARRANT · DRUMMOND TOSSES YOUR PLACE", t: 3 }; }
+      const J = C.job; if (!J) return;
+      if (J.kind === "snitch") { const u = (g.bail506 || []).find((q) => q.snitch); if (!u || u.hp <= 0) { caseDown("THE SNITCH WON'T TALK"); return; }
+        const d = Math.hypot(u.x - g.p.x, u.y - g.p.y); if (d < 280) { const a = Math.atan2(u.y - g.p.y, u.x - g.p.x); u.x += Math.cos(a) * 118 * dt; u.y += Math.sin(a) * 118 * dt; u.anim = (u.anim || 0) + dt * 9; try { collideBuildings(u, 10, false); } catch (e) {} } J.pt = [u.x, u.y]; }
+      if (J.hold != null) { if (g.mode !== "foot" || !near(J.pt, 70)) { J.hold = null; g.pickupFlash = { nm: "lift:YOU WALKED OFF -- START AGAIN", t: 1.4 }; return; }
+        J.hold += dt; if (J.hold >= RCASE.hold) caseDown(J.kind === "morgue" ? "THE TAGS ARE SWITCHED" : "THE EVIDENCE IS GONE"); } }
+    SP.sp_case = () => { const C = g.rcase; if (!C || C.closed) return { title: "THE CASE", face: null, text: "Nobody's looking at you. For now.", opts: [{ id: "close", label: "OK" }] };
+      const price = Math.round(RCASE.alonzo + C.fill * RCASE.perPct), opts = [];
+      if (C.job) opts.push({ id: "story:sp_case_drop", label: "DROP THE JOB YOU'RE ON (" + RCASE_JOBS[C.job.kind][0] + ")" });
+      else (C.offer || []).forEach((k, i) => { SPA["sp_case_job" + i] = () => caseTake(k); opts.push({ id: "story:sp_case_job" + i, label: "PABLO: " + RCASE_JOBS[k][0] }); });
+      opts.push({ id: "story:sp_case_alonzo", label: "ALONZO MAKES IT GO AWAY · $" + price.toLocaleString(), dim: (g.p.cash || 0) < price }, { id: "close", label: "CLOSE" });
+      return { title: "THE CASE · DET. HAL DRUMMOND · " + Math.round(C.fill) + "%", face: "assets/crew/pt_det_drummond.png",
+        text: (g.rcaseSaid ? g.rcaseSaid + "\n\n" : "") + (C.job ? "On it: " + RCASE_JOBS[C.job.kind][0] + " -- " + RCASE_JOBS[C.job.kind][1] : "Every job Pablo gives knocks the case down by half; under 50% one job kills it. At 100% Drummond gets a warrant.") + "\nHeat keeps it filling.", opts }; };
+    function caseTake(k) { const C = g.rcase; if (!C || C.closed) return; g.rcaseSaid = null; const S = caseSpot(k); C.job = { kind: k, pt: S.pt, b: S.b, hold: null };
+      if (k === "snitch") { (g.bail506 = g.bail506 || []).push({ x: S.pt[0], y: S.pt[1], vx: 0, vy: 0, hp: 3, maxHp: 3, fireCd: 9, swing: 0, anim: 0, jit: 1, yt: null, snitch: 1, noShoot: 1, t: -1e9 }); }
+      spClose(); g.pickupFlash = { nm: "lift:" + RCASE_JOBS[k][0] + " · FOLLOW THE ARROW", t: 2.2 }; }
+    SPA.sp_case_drop = () => { const C = g.rcase; if (C) { C.job = null; for (const u of g.bail506 || []) if (u.snitch) u.hp = 0; } G.pickOpen("sp_case"); };
+    SPA.sp_case_alonzo = () => { const C = g.rcase; if (!C || C.closed) return; const price = Math.round(RCASE.alonzo + C.fill * RCASE.perPct); if ((g.p.cash || 0) < price) { g.rcaseSaid = "Alonzo wants $" + price.toLocaleString() + "."; G.pickOpen("sp_case"); return; }
+      g.p.cash -= price; C.fill = 1; caseDown("ALONZO MAKES A CALL"); spClose(); };
+    G.caseFn = () => { const C = g.rcase, J = C && !C.closed && C.job; if (!J || g.mode !== "foot" || g.inside) return false; if (!near(J.pt, 60)) return false;
+      if (J.kind === "witness") { if ((g.p.cash || 0) < RCASE.bribe) { g.pickupFlash = { nm: "lift:SHE WANTS $" + RCASE.bribe, t: 1.6 }; return true; } g.p.cash -= RCASE.bribe; caseDown("THE WITNESS SAW NOTHING"); return true; }
+      if (J.kind === "morgue" || J.kind === "evidence") { if (J.hold == null) J.hold = 0; return true; } return false; };
+    function drawRcase() { const C = g.rcase, J = C && !C.closed && C.job; if (!J || g.inside) return; const [x, y] = J.pt;
+      if (J.kind === "witness") { const q = { x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.15, yt: "yt_girl_b", bang: Math.atan2(g.p.y - y, g.p.x - x) }; try { drawShadow(x, y + 2, 9, 4, 0.3); drawYouth(q); } catch (e) {} }
+      if (J.kind !== "snitch") ring(J.pt, 40 + Math.sin((g.t || 0) * 5) * 4, J.hold != null ? "" : RCASE_JOBS[J.kind][0] + (near(J.pt, 90) ? " · E" : ""));
+      else lab8("THE SNITCH", x, y - 30, "#ff8a6a");
+      if (J.hold != null) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(x - 34, y - 46, 68, 7); ctx.fillStyle = "#e8c46a"; ctx.fillRect(x - 34, y - 46, 68 * Math.min(1, J.hold / RCASE.hold), 7); lab8(J.kind === "morgue" ? "SWITCHING THE TAGS" : "IN THE LOCKER", x, y - 52); } }
+    // the edge arrow toward the job, in screen space
+    function drawRcaseArrow() { const C = g.rcase, J = C && !C.closed && C.job; if (!J || g.inside) return; const W = ctx.canvas.width, H = ctx.canvas.height, z = (g.zoomNow || 1);
+      const dx = J.pt[0] - g.cam.x, dy = J.pt[1] - g.cam.y, d = Math.hypot(dx, dy); if (d < 500) return; const a = Math.atan2(dy, dx), rr = Math.min(W, H) * 0.42;
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.translate(W / 2 + Math.cos(a) * rr, H / 2 + Math.sin(a) * rr); ctx.rotate(a); ctx.fillStyle = "rgba(255,138,106,0.9)"; ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-10, 10); ctx.lineTo(-10, -10); ctx.closePath(); ctx.fill();
+      ctx.rotate(-a); ctx.font = "700 10px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffb09a"; ctx.fillText(RCASE_JOBS[J.kind][0] + " · " + Math.round(d / 20) + "m", 0, -16); ctx.restore(); void z; }
+    G.caseT = () => g.rcase ? { ...g.rcase, job: g.rcase.job && { kind: g.rcase.job.kind, pt: g.rcase.job.pt.map(Math.round), hold: g.rcase.job.hold } } : null;   // test hook
+    /* ---------- LAYER 509b: SEE-THROUGH DECKS, DRUMMOND IN PERSON ----------
+       UNDER THE EXPRESSWAY: when you (on foot or in a car) are under a deck, that leg of the viaduct fades to 30% --
+       the deck, its rails and the traffic on it -- so you can see yourself. Back out and it fills in again.
+       DRUMMOND: after a warrant he stands outside the business he raided for 90 s (dt_drummond, faces you). */
+    function fwyPt509() { try { if (inVehicle()) { const v = activeVeh(); if (v) return [v.x, v.y]; } } catch (e) {} return g.p ? [g.p.x, g.p.y] : null; }
+    function fwyFade509(vert, L) { const F = (g.fwyFade = g.fwyFade || {}), k = (vert ? "v" : "h") + L, p = fwyPt509();
+      const inB = !g.onFwy && !g.inside && p && (vert ? Math.abs(p[0] - L) < FWY_HW + 24 : Math.abs(p[1] - L) < FWY_HW + 24);
+      const a = F[k] == null ? 1 : F[k]; F[k] = a + ((inB ? 0.3 : 1) - a) * 0.15; return F[k]; }
+    function fwyFadeAt(x, y) { const F = g.fwyFade; if (!F) return 1; let a = 1;
+      for (const k in F) { if (F[k] > 0.99) continue; const L = +k.slice(1); if (k[0] === "v" ? Math.abs(x - L) < FWY_HW + 30 : Math.abs(y - L) < FWY_HW + 30) a = Math.min(a, F[k]); } return a; }
+    function fwyFadeMin() { const F = g.fwyFade; let a = 1; if (F) for (const k in F) a = Math.min(a, F[k]); return a; }
+    function drawDrum509() { const D = g.rcDrum; if (!D || g.inside) return; const im = imgs.current.dt_drummond, a = Math.atan2(g.p.y - D.y, g.p.x - D.x);
+      drawShadow(D.x, D.y + 4, 15, 6, 0.36);
+      if (im && im.width) { ctx.save(); ctx.translate(D.x, D.y); ctx.rotate(a - Math.PI / 2); ctx.drawImage(im, -18, -20, 36, 40); ctx.restore(); }
+      else { ctx.fillStyle = "#a08a62"; ctx.beginPath(); ctx.arc(D.x, D.y, 13, 0, 6.3); ctx.fill(); }
+      if (near([D.x, D.y], 420)) lab8("DET. DRUMMOND · " + D.nm, D.x, D.y - 34, "#ffb09a"); }
+    G.fwyFadeT = () => ({ fade: { ...(g.fwyFade || {}) }, onFwy: !!g.onFwy, v: FWY_V.map(SX), h: FWY_H.map(SX), pbox: PRISON_BOX });   // test hook
     /* ---------- LAYER 489: STORY HUD, THE STORY ARROW AND ROUTE, PABLO AT THE HIPPIE, THE BOZNOVS ON THEIR FEET ----------
        storyOnly(): Rey's story (Kestrel mode, out of prison). The HUD shows the story and nothing else -- no scanner calls,
        no street races, no RHPD line unless it's you they're after, no SAVED/LOST, no JUICE, no SKY.
@@ -38115,7 +38621,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (walls.some((q) => px > q.x && px < q.x + q.w && py > q.y && py < q.y + q.h)) return false; } }
       return true; }
     function storyStep(dt) {
-      stepSleepFx(dt); stepDinner(dt); if (((g.t || 0) * 2 | 0) !== g.empTk) { g.empTk = (g.t || 0) * 2 | 0; empTick(); }      // layer 498
+      stepSleepFx(dt); stepDinner(dt); stepHillCars(); stepTrophy(dt); stepCrush(dt); stepBplate(dt); stepPayDrain(dt); stepCarry(dt); stepPick(dt); stepCalled(dt); stepRcase(dt); if (g.rcDrum && (g.rcDrum.t -= dt) <= 0) g.rcDrum = null; if (((g.t || 0) * 2 | 0) !== g.empTk) { g.empTk = (g.t || 0) * 2 | 0; empTick(); }      // layer 498
       if (g.slam) { g.slam.t += dt; if (g.slam.kind !== "fail" && g.slam.t > (g.slam.kind === "start" || g.slam.kind === "side" ? 3 : 4.5)) g.slam = null;
         else if (g.slam.kind === "fail") { g.p.vx = 0; g.p.vy = 0; if (g.pickOpen !== "storyfail") G.pickOpen("storyfail"); return; } }
       stepEarlCab(dt);
@@ -40419,6 +40925,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
            Police only once they are actually after you: auto-aiming at a passing patrolman
            every time you draw would start fights you never chose. */
         if ((g.heat || 0) > 0) for (const u of policeUnits()) consider(u);
+        for (const u of (g.bail506 || [])) consider(u);
         for (const f of federals()) consider(f);
         /* A LOCK YOU CHOSE beats the nearest man. Held for as long as he is alive and in range,
            so a burst stays on one target instead of drifting to whoever wandered closer. */
@@ -40445,6 +40952,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           g.p.aimAng = base;
           g.p.muzzle = 0.16; g.p.drawnT = 0.85;
           sfxGunshot();
+          if (best && G.calledShotFn) G.calledShotFn(best);                    // a called shot at a locked car (layer 506)
           /* Spread grows with range and shrinks in LION time, and standing still is worth as
              much as the weapon is -- a reason to stop moving. */
           const moving = Math.hypot(g.p.vx || 0, g.p.vy || 0) > 40;
@@ -40993,6 +41501,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
     function drawFwyTraffic() {
       for (const v of g.fwy) {
+        ctx.globalAlpha = fwyFadeAt(v.x, v.y);                     // under the deck: the cars on it fade with it (layer 509b)
         if (v.trFree) {
           const t2 = v.trFree, fim = imgs.current[t2.k];
           if (fim && fim.width) {
@@ -41690,13 +42199,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
            a car length or two and keeps it there. */
         let want;
         if (d > TRAFFIC_LANE.look) {
-          const lx = v.axis === "v" ? tx : v.x + v.dir * TRAFFIC_LANE.look;
-          const ly = v.axis === "v" ? v.y + v.dir * TRAFFIC_LANE.look : ty;
+          const ovS = (v.ov || 0) * 2 * v.dir * halfW(v.si) * LANE;                    // passing: the oncoming lane (layer 508)
+          const lx = v.axis === "v" ? tx + ovS : v.x + v.dir * TRAFFIC_LANE.look;
+          const ly = v.axis === "v" ? v.y + v.dir * TRAFFIC_LANE.look : ty + ovS;
           want = Math.atan2(ly - v.y, lx - v.x);
         } else want = Math.atan2(dy, dx);
         let diff = ((want - v.ang + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
         const rate = 2.3 * clamp(v.spd / 130, 0.25, 1);
-        v.ang += clamp(diff, -rate * dt, rate * dt);
+        v.ang += clamp(diff, -rate * dt, rate * dt); tireFx508(v, clamp(diff, -rate * dt, rate * dt) / Math.max(dt, 1e-3), v.spd);   // layer 508
         const fx = Math.cos(v.ang), fy = Math.sin(v.ang);
 
         // red light
@@ -41737,14 +42247,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           target = stopDist < 6 ? 0 : clamp(stopDist * 1.7, 0, v.cruise);
         }
         // follow the vehicle ahead
+        let blk508 = null;
         for (const o of g.traffic) {
           if (o === v) continue;
           const ox = o.x - v.x, oy = o.y - v.y;
-          const along2 = ox * fx + oy * fy;
-          if (along2 < 4 || along2 > 122) continue;
+          const along2 = ox * fx + oy * fy, gp508 = gap508(v, o);                       // a quarter of a car clear (layer 508)
+          if (along2 < 4 || along2 > gp508 + 130) continue;
           if (Math.abs(-ox * fy + oy * fx) > 26) continue;
-          target = Math.min(target, clamp((along2 - 44) * 2.4, 0, v.cruise));
+          const t508 = clamp((along2 - gp508) * 2.4, 0, v.cruise); if (t508 < target) { target = t508; blk508 = o; }
         }
+        overtake508(v, blk508, d, dt, fx, fy); if (v.ov > 0.5) target = Math.max(target, v.cruise);
         // the player's car and Black Lion on foot
         const rel = (ax, ay, rad) => {
           const ox = ax - v.x, oy = ay - v.y;
@@ -41753,7 +42265,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (Math.abs(-ox * fy + oy * fx) > 34) return;
           target = Math.min(target, clamp((a2 - 52) * 2.2, 0, v.cruise));
         };
-        if (g.mode === "car") rel(pc.x, pc.y, 150); else rel(g.p.x, g.p.y, 120);
+        if (g.mode === "car") { const r0 = rel; const gpP = gap508(v, pc); const ox = pc.x - v.x, oy = pc.y - v.y, a2 = ox * fx + oy * fy;
+          if (a2 > 2 && a2 < gpP + 120 && Math.abs(-ox * fy + oy * fx) <= 34) target = Math.min(target, clamp((a2 - gpP) * 2.2, 0, v.cruise)); void r0; }      // room behind your car (layer 508)
+        else rel(g.p.x, g.p.y, 120);
         for (const p of g.peds) {
           if (Math.abs(p.x - v.x) > 130 || Math.abs(p.y - v.y) > 130) continue;
           rel(p.x, p.y, 108);
@@ -42210,6 +42724,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const a0 = (vert ? view.y0 : view.x0) - 400, a1 = (vert ? view.y1 : view.x1) + 400;
         if (vert && (view.x1 < L - FWY_HW - 90 || view.x0 > L + FWY_HW + 90)) continue;
         if (!vert && (view.y1 < L - FWY_HW - 90 || view.y0 > L + FWY_HW + 90)) continue;
+        const fa509 = fwyFade509(vert, L); if (fa509 < 0.99) { ctx.save(); ctx.globalAlpha = fa509; }   // under it: see-through (layer 509b)
         if (under) {
           ctx.fillStyle = "rgba(0,0,0,0.42)";
           if (vert) ctx.fillRect(L - FWY_HW + 26, a0, FWY_HW * 2, a1 - a0);
@@ -42272,6 +42787,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (vert) ctx.fillRect(e - (across > L ? 8 : 0), along - RAMP_HW - 40, 8, (RAMP_HW + 40) * 2);
           else ctx.fillRect(along - RAMP_HW - 40, e - (across > L ? 8 : 0), (RAMP_HW + 40) * 2, 8);
         }
+        if (fa509 < 0.99) ctx.restore();
       }
     }
 
@@ -43328,6 +43844,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             if (gone) break;
           }
           if (!gone && g.crime) for (const t of g.crime.thugs) if (hit(t)) { gone = true; break; }
+          if (!gone && g.bail506) for (const t of g.bail506) if (hit(t)) { gone = true; break; }      // layer 506
           if (!gone && g.shop && g.shop.rob)
             for (const t of g.shop.rob.thugs) if (hit(t)) { gone = true; break; }
           if (!gone && g.boss && (!g.boss.roof || g.roof === g.boss.roof)) if (hit(g.boss)) gone = true;
@@ -45244,7 +45761,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return;
       }
       drawGround(view);
-      if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawDealers(view); drawStanLot(view); drawAptLot(view); bozHouseInit(); drawYard(view); drawHill(view); drawBozHouse(view); stepRhu(); drawRhu(view); drawWoods(view); drawDirtJumps(view); drawTrackRiders(view); drawAirport(view); drawStudentWorld(view); }
+      if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawDealers(view); drawStanLot(view); drawAptLot(view); bozHouseInit(); drawYard(view); drawHill(view); drawCrush(view); drawBozHouse(view); stepRhu(); drawRhu(view); drawWoods(view); drawDirtJumps(view); drawTrackRiders(view); drawAirport(view); drawStudentWorld(view); }
       if (!g.inside) drawMarkGround(view);
       if (!g.inside) drawCasings(view);
       if (!g.inside) { drawLake(view); drawRiver(view); }   // over the ground, under everything that floats on it
@@ -45423,7 +45940,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (kind === 9) p.__draw();
       }
       if (g.inside && g.insideT > 0.5) { drawHoopsOver(); drawBizExtras(); }
-      drawStory(); drawSetup(); drawEmp(); drawMimi(); drawNest2(); DRAW98.forEach((f) => f()); drawYardDoorIn(); drawFirstOut(); drawScrap2(); drawFriday(); drawAllin(); drawWash(); drawWashCrew(); drawParty(); drawMorning(); drawMaptable(); drawPabloHang(); drawBozFolk(); drawDreadCorner(); drawCornerMark(); drawCellParty(); drawEscort(); drawEddie(); drawJose(); drawSiteCones(); drawCover(); drawBombed(view); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
+      drawStory(); drawSetup(); drawEmp(); drawMimi(); drawNest2(); DRAW98.forEach((f) => f()); drawYardDoorIn(); drawTrophy(); drawCarry(); drawPick(); drawCalled(); drawLedger(); drawRcase(); drawDrum509(); drawFirstOut(); drawScrap2(); drawFriday(); drawAllin(); drawWash(); drawWashCrew(); drawParty(); drawMorning(); drawMaptable(); drawPabloHang(); drawBozFolk(); drawDreadCorner(); drawCornerMark(); drawCellParty(); drawEscort(); drawEddie(); drawJose(); drawSiteCones(); drawCover(); drawBombed(view); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
       if (!g.inside) {
         // Roofs belong ABOVE the sorted building list, not before it -- drawn early, every
         // building painted straight over the roof and the man standing on it.
@@ -45446,8 +45963,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         drawLotPaint(view); drawGarageSigns(view); drawGraves(view); drawCold(view); homes();
         drawViaduct(view);
         // deck traffic belongs on top of the viaduct, whichever level the player is on
-        drawFwyTraffic();
-        drawExpwySigns(view, true);                                 // the overhead EXIT signs over the deck (layer 516)
+        drawFwyTraffic(); ctx.globalAlpha = fwyFadeMin();
+        drawExpwySigns(view, true); ctx.globalAlpha = 1;                                 // the overhead EXIT signs over the deck (layer 516)
         /* The L goes ABOVE the viaduct and everything on it. It was drawn earlier, before this
            block, so expressway traffic painted straight over the platform -- which is exactly
            what "cars are driving on the train platform" was. It is the highest structure in the
@@ -45611,7 +46128,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }
       }
 
-      drawMinimap(); drawFireworks(); drawPaper();                            // layer 499: over the night and the map
+      drawMinimap(); drawRcaseArrow(); drawFireworks(); drawPaper();                            // layer 499: over the night and the map
       // the card and the book are held up in front of everything, including the map
       drawIdCard();
       if (g.inside && g.inside.inPrison || (g.p.x > PRISON_BOX.x0 && g.p.x < PRISON_BOX.x1 && g.p.y > PRISON_BOX.y0 && g.p.y < PRISON_BOX.y1)) {
@@ -45913,6 +46430,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             slam: g.slam ? { kind: g.slam.kind, title: g.slam.title, sub: g.slam.sub, pay: g.slam.pay || 0 } : null,
             blackA: g.blackA > 0.01 ? Math.round(g.blackA * 100) / 100 : 0,
             sleepCard: g.sleepFx && g.sleepFx.text ? { text: g.sleepFx.text, a: Math.round(sleepCardA() * 100) / 100 } : null,
+            bplate: g.bplate ? { nm: g.bplate.nm, addr: g.bplate.addr, k: g.bplate.k } : null,
+            lockAsk: G.lockAsk ? 1 : null,
+            caseBar: g.rcase && !g.rcase.closed ? { fill: Math.round(g.rcase.fill), job: !!g.rcase.job } : null,
+            money: moneyShown(), juiceNow: g.prisonMode ? Math.round(g.rep || 0) : Math.round(g.juice || 0),
+            payLeft: g.payDrain ? Math.max(0, Math.round(g.payDrain.left)) : null, payFly: g.payDrain && g.payDrain.t > 1.1 ? g.payDrain.k : null,
             flash76: !!g.flash1976, t76: g.flash1976 ? (Math.random() * 160) | 0 : 0,
             watch: g.watchOn ? (() => { const c = Math.floor(g.clock || 0), h = Math.floor(c / 60) % 24, m = c % 60; return ((h + 11) % 12 + 1) + ":" + String(m).padStart(2, "0") + (h < 12 ? "a" : "p"); })() : null,
             crime: g.crime ? { place: g.crime.place, result: g.crime.result,
@@ -45994,6 +46516,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.slotsFn = () => { const out = []; for (let n = 1; n <= SAVE_SLOTS; n++) { let o = null; try { const raw = window.localStorage.getItem(slotKey(n) + ":lite") || window.localStorage.getItem(slotKey(n)); o = raw ? JSON.parse(raw) : null; } catch (e) { o = null; }
         out.push({ n, on: n === curSlot(), empty: !o, tag: o ? o.slotTag || (o.v === SNAP_V ? "SAVED GAME" : "THE LION") : "EMPTY", cash: o ? Math.round(o.cash || (o.p && o.p.cash) || 0) : 0, t: o && o.t ? new Date(o.t).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "" }); }
       return out; };
+    /* the newest save across every slot (layer 501): CONTINUE on the title loads it */
+    G.newestSlot = () => { let best = 0, bt = -1; for (let n = 1; n <= SAVE_SLOTS; n++) { let o = null; try { const raw = window.localStorage.getItem(slotKey(n) + ":lite") || window.localStorage.getItem(slotKey(n)); o = raw ? JSON.parse(raw) : null; } catch (e) { o = null; }
+        if (o) { const t = +o.t || +(o.savedAt) || 1; if (t > bt) { bt = t; best = n; } } } return best; };
+    G.firstEmptySlot = () => { for (let n = 1; n <= SAVE_SLOTS; n++) { try { if (!window.localStorage.getItem(slotKey(n)) && !window.localStorage.getItem(slotKey(n) + ":lite")) return n; } catch (e) { return 1; } } return 0; };
     G.slotPick = (n) => { g.saveSlot = clamp(n, 1, SAVE_SLOTS); try { window.localStorage.setItem("ironlion.slot", String(g.saveSlot)); } catch (e) {} setHud((h) => ({ ...h, slot: g.saveSlot, hasSave: !!loadSave() })); };
     G.saveToFn = (n) => { G.slotPick(n); const ok = saveGame(); G.current.pickupFlash = { nm: ok ? "lift:SAVED TO SLOT " + n : "save_failed", t: 1.8 }; setHud((h) => ({ ...h, slot: n, slotsAt: Date.now() })); };
     /* G.loadFn() puts back the exact moment; G.loadFn("lite") only the Lion's numbers (a mode start from the title
@@ -51060,7 +51586,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        twin-stick control on a phone with one thumb on the joystick is a control you cannot use
        while driving away from anything. It is a button: tap to take the nearest, tap again to
        step to the next, and it clears itself when the man is down or out of range. */
-    G.cycleTargetFn = () => {
+    G.cycleTargetFn = (dir) => {                                            // dir: SWITCH to the next (1) / previous (-1) target (layer 506b)
       const gg = G.current;
       const p = gg.p;
       const list = [];
@@ -51075,6 +51601,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       if (gg.job && gg.job.boss) add(gg.job.boss);
       for (const u of policeUnits()) add(u);
+      for (const u of (gg.bail506 || [])) add(u);                                 // the ones out of a stopped car (layer 506)
       for (const f of federals()) add(f);
       if (gg.crime && gg.crime.thugs) for (const t of gg.crime.thugs) add(t);
       /* ...and then anything else you could put a round into (layer 519): police cars, the cars around you, the
@@ -51088,8 +51615,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const dd = (o) => Math.hypot(o.x - p.x, o.y - p.y);
       const head = list.slice(0, fightN).sort((a, b) => dd(a) - dd(b)), tail = list.slice(fightN).sort((a, b) => dd(a) - dd(b));
       list.length = 0; list.push(...head, ...tail);
-      const i = gg.lockOn ? list.indexOf(gg.lockOn) : -1;
-      gg.lockOn = list[(i + 1) % list.length];
+      if (!dir && G.partNext && G.partNext()) return true;                 // the next part of the locked car (layer 506); SWITCH skips it
+      const i = gg.lockOn ? list.indexOf(gg.lockOn) : -1, st506 = dir || 1;
+      gg.lockOn = list[(((i < 0 && st506 < 0 ? 0 : i) + st506) % list.length + list.length) % list.length]; if (G.partStart) G.partStart(gg.lockOn);
       gg.pickupFlash = { nm: "locked", t: 1.2 };
       return true;
     };
@@ -52162,7 +52690,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           </>
         )}
         <div style={{ fontSize: 9, opacity: 0.6, marginTop: 3, letterSpacing: "0.1em" }}>
-          ${Math.floor(hud.cash ?? 0).toLocaleString()}{hud.skill > 0 ? ` · STUDY ${hud.skill}` : ""}
+          {hud.skill > 0 ? `STUDY ${hud.skill}` : ""}
         </div>
         {hud.show && hud.show.stats && !hud.storyOnly && (
           <div style={{ fontSize: 9, opacity: 0.55, marginTop: 3, letterSpacing: "0.14em" }}>
@@ -52291,11 +52819,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             </div>
           </div>
 
-          <div
+          {G.newestSlot && G.newestSlot() > 0 && <div
             onClick={() => {
               const gg = G.current;
-              // a save is picked up here rather than on boot, so the attract screen is always
-              // the same city and starting fresh is still one tap away
+              // CONTINUE (layer 501): the newest save in any of the four slots
+              G.slotPick(G.newestSlot());
               const how = G.loadFn ? G.loadFn() : false;
               gg.title = false;
               if (how !== "exact") {           // an exact save already has you where you were
@@ -52309,15 +52837,30 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               background: "rgba(10,11,14,0.72)", color: "#e8d9b5", fontSize: 12,
               letterSpacing: "0.28em", cursor: "pointer", userSelect: "none",
               boxShadow: "0 0 22px rgba(217,164,65,0.18)" }}>
-            {hud.hasSave ? "CONTINUE · SLOT " + (G.slotsFn ? G.slotsFn().find((q) => q.on).n : 1) : "BEGIN · SLOT " + (G.slotsFn ? G.slotsFn().find((q) => q.on).n : 1)}
+            {"CONTINUE \u00b7 SLOT " + G.newestSlot()}
+          </div>}
+          {/* NEW GAME (layer 501): Rey's story from the 1969 flashback -- what was PRISON MODE is the game now. Into the
+              first empty slot; with all four full, into the selected one (it says so). */}
+          <div
+            onClick={() => {
+              const gg = G.current, e0 = G.firstEmptySlot ? G.firstEmptySlot() : 0;
+              G.slotPick(e0 || (G.slotsFn ? G.slotsFn().find((q) => q.on).n : 1));
+              gg.title = false; gg.nightTarget = 0; gg.bootDen = false; gg.prisonStart = true;
+              setHud((h) => ({ ...h, title: false }));
+            }}
+            style={{ marginTop: 12, padding: "13px 42px", border: "1px solid #d2641e",
+              background: "rgba(10,11,14,0.72)", color: "#f2d2b8", fontSize: 12,
+              letterSpacing: "0.28em", cursor: "pointer", userSelect: "none" }}>
+            {"NEW GAME" + (G.firstEmptySlot && !G.firstEmptySlot() ? " \u00b7 OVERWRITES SLOT " + (G.slotsFn ? G.slotsFn().find((q) => q.on).n : 1) : "")}
           </div>
           {G.slotsFn && (
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap", justifyContent: "center", maxWidth: "92vw" }}>
               {G.slotsFn().map((q) => (
-                <div key={q.n} data-pickopt="1" onClick={() => G.slotPick(q.n)}
+                <div key={q.n} data-pickopt="1" onClick={() => { G.slotPick(q.n); if (q.empty) return; const gg = G.current; const how = G.loadFn ? G.loadFn() : false;     // a slot loads (layer 501)
+                    gg.title = false; if (how !== "exact") { gg.nightTarget = 0; gg.bootDen = true; if (!how) gg.freshHome = 1; } setHud((h) => ({ ...h, title: false })); }}
                   style={{ padding: "7px 12px", minWidth: 150, border: "1px solid " + (q.on ? C.gold : "rgba(232,217,181,0.25)"), background: q.on ? "rgba(217,164,65,0.14)" : "rgba(10,11,14,0.6)",
                     color: q.on ? "#f2dc9a" : "rgba(232,217,181,0.7)", fontSize: 9, letterSpacing: "0.14em", cursor: "pointer", userSelect: "none", textAlign: "left", lineHeight: 1.5 }}>
-                  <div style={{ fontWeight: 700 }}>SLOT {q.n}{q.on ? " \u00b7 SELECTED" : ""}</div>
+                  <div style={{ fontWeight: 700 }}>SLOT {q.n}{q.empty ? "" : " \u00b7 LOAD"}{q.on ? " \u00b7 SELECTED" : ""}</div>
                   <div>{q.empty ? "EMPTY" : q.tag}</div>
                   {!q.empty && <div style={{ opacity: 0.7 }}>${q.cash.toLocaleString()}{" \u00b7 "}{q.t}</div>}
                 </div>))}
@@ -52338,18 +52881,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               style={{ height: 18, verticalAlign: "middle", marginRight: 10, imageRendering: "pixelated" }} />
             DETECTIVE MODE
           </div>
-          {/* PRISON MODE: its own start. A clean prisoner, not the saved city. */}
-          <div
-            onClick={() => {
-              const gg = G.current;
-              gg.title = false; gg.nightTarget = 0; gg.bootDen = false; gg.prisonStart = true;
-              setHud((h) => ({ ...h, title: false }));
-            }}
-            style={{ marginTop: 12, padding: "11px 30px", border: "1px solid #d2641e",
-              background: "rgba(10,11,14,0.72)", color: "#f2d2b8", fontSize: 11,
-              letterSpacing: "0.26em", cursor: "pointer", userSelect: "none" }}>
-            PRISON MODE
-          </div>
+          {/* PRISON MODE is NEW GAME now (layer 501); detective and student stay as their own stories */}
           {/* STUDENT MODE (layer 458): a kid at Central High, a home, the school day. */}
           <div
             onClick={() => {
@@ -52362,21 +52894,6 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               letterSpacing: "0.26em", cursor: "pointer", userSelect: "none" }}>
             STUDENT MODE
           </div>
-          {hud.hasSave && (
-            /* Starting over has to be deliberate. The button above always picks the save up if
-               there is one, so the only way to a clean city is through here. */
-            <div onClick={() => {
-                const gg = G.current;
-                if (G.wipeFn) G.wipeFn();
-                gg.title = false; gg.nightTarget = 0; gg.bootDen = true; gg.freshHome = 1;
-                setHud((h) => ({ ...h, title: false, hasSave: false }));
-              }}
-              style={{ marginTop: 12, fontSize: 9, letterSpacing: "0.20em",
-                color: "rgba(232,217,181,0.45)", cursor: "pointer", userSelect: "none" }}>
-              START OVER
-            </div>
-          )}
-
           <div style={{ position: "absolute", bottom: 16, textAlign: "center",
             fontSize: 8, letterSpacing: "0.18em", color: "rgba(232,217,181,0.35)", pointerEvents: "none" }}>
             A RAVEN HOOK STORY · DARIUS KING
@@ -52390,6 +52907,43 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       {hud.blackA > 0 && <div style={{ position: "absolute", inset: 0, background: "#000", opacity: hud.blackA, pointerEvents: "none", zIndex: 39 }} />}
       {hud.sleepCard && hud.sleepCard.a > 0 && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 40, opacity: hud.sleepCard.a,
         color: "#e8d9b5", fontFamily: "ui-monospace, monospace", fontSize: 26, letterSpacing: "0.28em", textAlign: "center", padding: "0 24px" }}>{hud.sleepCard.text}</div>}
+      {/* HIDE THE CURSOR (layer 505): one press of A on this -- the console's click -- goes full screen and hides the arrow */}
+      {hud.lockAsk && (
+        <div onClick={(e) => { e.stopPropagation(); G.lockAsk = 0; setHud((h) => ({ ...h, lockAsk: null }));
+            try { const de = document.documentElement; if (!document.fullscreenElement && de.requestFullscreen) { const r = de.requestFullscreen({ navigationUI: "hide" }); if (r && r.catch) r.catch(() => {}); } } catch (err) {}
+            G.cursorLockSet && G.cursorLockSet(true); }}
+          style={{ position: "absolute", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.62)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", fontFamily: mono, color: "#e8d9b5", textAlign: "center", padding: 20 }}>
+          <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "0.14em", color: "#f2c45a" }}>PRESS A TO HIDE THE CURSOR</div>
+          <div style={{ fontSize: 12, letterSpacing: "0.2em", marginTop: 12, opacity: 0.85 }}>THE GAME GOES FULL SCREEN TOO -- NO BROWSER BAR, NO REFRESH BUTTON TO HIT</div>
+          <div style={{ fontSize: 10, letterSpacing: "0.2em", marginTop: 8, opacity: 0.6 }}>B TO CANCEL {"\u00b7"} R3 AGAIN LATER BRINGS THE CURSOR BACK</div>
+        </div>)}
+      {/* MONEY AND JUICE (layer 503): bold, top right, under the map */}
+      {!hud.title && hud.money != null && (
+        <div style={{ position: "absolute", top: 216, right: 12, textAlign: "right", pointerEvents: "none", zIndex: 7, fontFamily: mono }}>
+          <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "0.04em", color: hud.payFly ? "#9be37a" : "#f2c45a", textShadow: "0 2px 0 #000, 0 0 10px rgba(0,0,0,0.8)", transition: "color .3s" }}>${hud.money.toLocaleString()}</div>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.22em", color: "#e8d9b5", textShadow: "0 2px 0 #000" }}>JUICE {hud.juiceNow ?? 0}</div>
+          {hud.caseBar && <div style={{ marginTop: 6, fontSize: 9, fontWeight: 800, letterSpacing: "0.18em", color: hud.caseBar.fill >= 80 ? "#ff6a5a" : "#ffb09a", textShadow: "0 2px 0 #000" }}>
+            THE RCASE {"\u00b7"} DRUMMOND {hud.caseBar.fill}%
+            <div style={{ width: 130, height: 6, marginLeft: "auto", marginTop: 3, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,138,106,0.6)" }}><div style={{ width: hud.caseBar.fill + "%", height: "100%", background: hud.caseBar.fill >= 80 ? "#e8302a" : "#ff8a6a" }} /></div>
+          </div>}
+        </div>)}
+      {hud.payFly && !hud.title && (
+        <div key={"pf" + hud.payFly} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 41, overflow: "hidden" }}>
+          <style>{`@keyframes rhCash { 0% { left: 50%; top: 40%; opacity: 0; transform: scale(1.4); } 15% { opacity: 1; } 85% { opacity: 1; } 100% { left: calc(100% - 60px); top: 222px; opacity: 0; transform: scale(0.7); } }`}</style>
+          {Array.from({ length: 10 }, (_, i) => (
+            <span key={i} style={{ position: "absolute", left: "50%", top: "40%", fontFamily: mono, fontSize: 22, fontWeight: 900, color: "#7fd35a", textShadow: "0 2px 0 #000",
+              animation: `rhCash 0.95s ease-in ${(i * 0.13).toFixed(2)}s infinite both`, marginLeft: ((i * 37) % 60) - 30 }}>$</span>))}
+        </div>)}
+      {/* THE BUILDING PLATE (layer 502): the name and the address slide in, hold, fade -- a size down from MISSION COMPLETE */}
+      {hud.bplate && !hud.title && (
+        <div key={"bp" + hud.bplate.k} style={{ position: "absolute", left: 0, right: 0, top: "15%", textAlign: "center", pointerEvents: "none", zIndex: 37, fontFamily: mono,
+          animation: "rhPlate 3.8s ease both" }}>
+          <style>{`@keyframes rhPlate { 0% { opacity: 0; transform: translateX(-60px); } 12% { opacity: 1; transform: none; } 78% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateX(40px); } }`}</style>
+          <div style={{ display: "inline-block", fontSize: "clamp(22px, 4.2vw, 38px)", fontWeight: 900, letterSpacing: "0.12em", color: "#f0e2bc",
+            textShadow: "0 3px 0 rgba(0,0,0,0.85), 0 0 24px rgba(0,0,0,0.9)", background: "linear-gradient(90deg, transparent, rgba(8,8,10,0.72) 15%, rgba(8,8,10,0.72) 85%, transparent)", padding: "8px 80px",
+            borderTop: "1px solid rgba(217,164,65,0.55)", borderBottom: "1px solid rgba(217,164,65,0.55)" }}>{hud.bplate.nm}</div>
+          {hud.bplate.addr && <div style={{ marginTop: 8, fontSize: 12, letterSpacing: "0.32em", color: "#d9a441", textShadow: "0 2px 0 #000" }}>{hud.bplate.addr}</div>}
+        </div>)}
       {hud.slam && (
         <div key={hud.slam.kind + hud.slam.title + hud.slam.sub} style={{ position: "absolute", left: 0, right: 0, top: "26%", textAlign: "center", pointerEvents: "none", zIndex: 40, fontFamily: mono }}>
           <style>{`@keyframes rhSlam { 0% { transform: scale(2.6); opacity: 0; } 55% { transform: scale(0.94); opacity: 1; } 75% { transform: scale(1.03); } 100% { transform: scale(1); opacity: 1; } }
@@ -52400,7 +52954,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             {hud.slam.title}
           </div>
           {hud.slam.sub && <div style={{ marginTop: 10, fontSize: 13, letterSpacing: "0.3em", color: "#e8d9b5", textShadow: "0 2px 0 #000", animation: "rhSlamSub .9s ease both" }}>{hud.slam.sub}</div>}
-          {hud.slam.kind === "done" && hud.slam.pay > 0 && <div style={{ marginTop: 8, fontSize: 30, fontWeight: 900, color: "#7fd35a", textShadow: "0 3px 0 #000", animation: "rhSlamSub 1.2s ease both" }}>+${hud.slam.pay.toLocaleString()}</div>}
+          {hud.slam.kind === "done" && hud.slam.pay > 0 && <div style={{ marginTop: 8, fontSize: 30, fontWeight: 900, color: "#7fd35a", textShadow: "0 3px 0 #000", animation: "rhSlamSub 1.2s ease both" }}>+${(hud.payLeft != null ? hud.payLeft : hud.slam.pay).toLocaleString()}</div>}
         </div>
       )}
       {/* THE FUEL GAUGE (layer 478, Donny's art): lower left, see-through, a red needle E to F -- only in a vehicle, the one you're in */}
@@ -52408,7 +52962,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const f = Math.max(0, Math.min(1, (hud.fuel ?? 100) / (hud.maxFuel || 100))), a = (-148 + f * 116) * Math.PI / 180, W = 132, H = W * 221 / 333;
         const cx = W * 0.5, cy = H * 0.758, L = W * 0.40, low = f < 0.15;
         return (
-          <div style={{ position: "absolute", left: 14, bottom: 176, width: W, height: H, opacity: 0.78, pointerEvents: "none", zIndex: 6 }}>
+          <div style={{ position: "absolute", left: 14, bottom: padOn ? 14 : 176, width: W, height: H, opacity: 0.85, pointerEvents: "none", zIndex: 6 }}>
             <img src="assets/ui/ui_fuel_gauge.png" alt="" style={{ width: W, height: H, imageRendering: "pixelated", display: "block" }}
               onError={(e) => { e.currentTarget.style.display = "none"; }} />
             <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0 }}>
@@ -53658,6 +54212,45 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             A act · B strike/back · X brake/jump · Y cover · LB this wheel · RB target / draw · LT draw (car: brake) · RT run (car: gas) · L3 sprint · R3 cursor · START map · VIEW book · D-pad down pockets/ID · Q weapons
           </div>}
         </div>); })()}
+      {(() => { G.statsToggle = (on) => { G.statsOpenNow = !!on; if (G.current) G.current.statSel = -1; setStatsOpen(!!on); }; G.statsCycle = (d) => setStatsI((i) => i + d); return null; })()}
+      {mapOpen && statsOpen && G.lvList && (() => {
+        const L = G.lvList(), n = L.length, P = L[((statsI % n) + n) % n]; if (!P) return null;
+        return (
+          <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", inset: 0, zIndex: 61, fontFamily: mono, color: "#e8d9b5", display: "flex", alignItems: "center", justifyContent: "center",
+            background: "linear-gradient(rgba(6,7,9,0.80), rgba(6,7,9,0.92)), url(assets/ui/load_bg_2.jpg) center / cover" }}>
+            <div style={{ display: "flex", gap: 28, alignItems: "flex-start", maxWidth: "94vw", maxHeight: "92vh", overflowY: "auto", padding: 12 }}>
+              <div style={{ textAlign: "center", flexShrink: 0 }}>
+                <div style={{ fontSize: 10, letterSpacing: "0.3em", color: C.gold, marginBottom: 8 }}>REY &amp; THE CREW {"\u00b7"} {((statsI % n) + n) % n + 1} / {n}</div>
+                <img src={P.face} alt="" onError={(e) => { e.currentTarget.style.opacity = 0.2; }} style={{ width: "min(30vw, 240px)", height: "min(30vw, 240px)", objectFit: "cover", border: "2px solid " + C.gold, imageRendering: "pixelated", background: "#111" }} />
+                <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "0.14em", marginTop: 10 }}>{P.nm}</div>
+                <div style={{ fontSize: 10, letterSpacing: "0.24em", opacity: 0.7 }}>{P.role}</div>
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12 }}>
+                  <div data-statopt="1" onClick={() => setStatsI((i) => i - 1)} style={{ padding: "7px 14px", border: "1px solid rgba(217,164,65,0.5)", cursor: "pointer", fontSize: 12 }}>{"\u25c0"} {padOn ? "LEFT" : ""}</div>
+                  <div data-statopt="1" onClick={() => setStatsI((i) => i + 1)} style={{ padding: "7px 14px", border: "1px solid rgba(217,164,65,0.5)", cursor: "pointer", fontSize: 12 }}>{padOn ? "RIGHT" : ""} {"\u25b6"}</div>
+                </div>
+              </div>
+              <div style={{ minWidth: "min(46vw, 380px)" }}>
+                <div style={{ fontSize: 30, fontWeight: 900, color: "#f2c45a" }}>LEVEL {P.lv}</div>
+                <div style={{ height: 8, background: "rgba(255,255,255,0.1)", margin: "6px 0 4px", border: "1px solid rgba(217,164,65,0.4)" }}><div style={{ height: "100%", width: Math.min(100, P.xp / P.need * 100) + "%", background: "#d9a441" }} /></div>
+                <div style={{ fontSize: 10, letterSpacing: "0.14em", opacity: 0.75 }}>XP {P.xp} / {P.need} {"\u00b7"} {P.pts} POINT{P.pts === 1 ? "" : "S"} TO SPEND</div>
+                <div style={{ marginTop: 14 }}>
+                  {P.stats.map(([k, lab, v, what]) => (
+                    <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0" }}>
+                      <div style={{ width: 104, fontSize: 11, fontWeight: 700, letterSpacing: "0.14em" }}>{lab}</div>
+                      <div style={{ display: "flex", gap: 3 }}>{Array.from({ length: 10 }, (_, i) => <div key={i} style={{ width: 12, height: 12, background: i < v ? "#d9a441" : "rgba(255,255,255,0.08)", border: "1px solid rgba(217,164,65,0.35)" }} />)}</div>
+                      <div data-statopt="1" onClick={() => { if (G.lvSpend(P.id, k)) setStatsV((x) => x + 1); }}
+                        style={{ padding: "3px 10px", fontSize: 13, fontWeight: 900, cursor: P.pts > 0 && v < 10 ? "pointer" : "default", border: "1px solid " + (P.pts > 0 && v < 10 ? "#7fd35a" : "rgba(255,255,255,0.15)"),
+                          color: P.pts > 0 && v < 10 ? "#7fd35a" : "rgba(255,255,255,0.25)" }}>+</div>
+                      <div style={{ fontSize: 9, opacity: 0.55, maxWidth: 210, lineHeight: 1.35 }}>{what}</div>
+                    </div>))}
+                </div>
+                <div data-statopt="1" onClick={() => G.statsToggle(false)} style={{ marginTop: 16, display: "inline-block", padding: "8px 16px", border: "1px solid " + C.gold, cursor: "pointer", fontSize: 10, letterSpacing: "0.2em", color: C.gold }}>
+                  BACK TO THE MAP {padOn ? "(B)" : ""}
+                </div>
+                <div style={{ fontSize: 9, opacity: 0.45, marginTop: 10, letterSpacing: "0.1em", display: statsV < 0 ? "none" : "block" }}>XP COMES FROM WINS. REY GETS 2 POINTS A LEVEL, THE CREW 1.</div>
+              </div>
+            </div>
+          </div>); })()}
       {mapOpen && (
         <div onClick={() => setMapOpen(false)}
           style={{ position: "absolute", inset: 0, background: "rgba(6,7,9,0.93)", zIndex: 60,
@@ -53682,7 +54275,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           </div>
           {/* Call a job from the map instead of waiting out the cooldown. It closes the map on
               its way, because the point of the button is to go now. */}
-          <div onClick={(e) => { e.stopPropagation();
+          <div data-mapopt="1" onClick={(e) => { e.stopPropagation();
                                  if (G.jobFn) G.jobFn();
                                  setMapOpen(false); }}
             style={{ cursor: "pointer", margin: "6px 0 10px 0", padding: "7px 12px",
@@ -53690,14 +54283,25 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               letterSpacing: "0.16em", background: "rgba(232,196,106,0.08)" }}>
             PUT A ROGUE ON THE BOARD
           </div>
+          {/* THE RCASE (layer 509): Drummond, Pablo's jobs, Alonzo */}
+          {hud.caseBar && <div data-mapopt="1" onClick={(e) => { e.stopPropagation(); setMapOpen(false); setTimeout(() => { G.current.rcaseSaid = null; G.pickOpen && G.pickOpen("sp_case"); }, 60); }}
+            style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "9px 14px", border: "1px solid #ff8a6a", color: "#ffb09a", fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", background: "rgba(255,138,106,0.10)" }}>
+            THE RCASE {"\u00b7"} DRUMMOND {hud.caseBar.fill}% {"\u00b7"} PABLO'S JOBS, ALONZO
+          </div>}
+          {/* REY & THE CREW (layer 503): levels and stats. Y on the pad. */}
+          <div data-mapopt="1" onClick={(e) => { e.stopPropagation(); G.statsToggle && G.statsToggle(true); }}
+            style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "9px 14px", border: "1px solid #f2c45a", color: "#f2c45a", fontSize: 11, fontWeight: 700,
+              letterSpacing: "0.18em", background: "rgba(242,196,90,0.12)" }}>
+            REY &amp; THE CREW {padOn ? "(Y)" : ""} {"\u00b7"} LEVELS AND STATS
+          </div>
           {/* FAST TRAVEL (layer 514): the airport, the train, the port, home. A on the pad. */}
-          <div onClick={(e) => { e.stopPropagation(); setMapOpen(false); setTimeout(() => G.hubOpen && G.hubOpen(), 60); }}
+          <div data-mapopt="1" onClick={(e) => { e.stopPropagation(); setMapOpen(false); setTimeout(() => G.hubOpen && G.hubOpen(), 60); }}
             style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "7px 12px",
               border: "1px solid #6fa8dc", color: "#cfe0f2", fontSize: 10,
               letterSpacing: "0.16em", background: "rgba(111,168,220,0.08)" }}>
-            FAST TRAVEL {padOn ? "(A)" : ""} {"\u00b7"} AIRPORT {"\u00b7"} TRAIN {"\u00b7"} PORT {"\u00b7"} HOME
+            FAST TRAVEL {"\u00b7"} AIRPORT {"\u00b7"} TRAIN {"\u00b7"} PORT {"\u00b7"} HOME
           </div>
-          <div onClick={(e) => { e.stopPropagation();
+          <div data-mapopt="1" onClick={(e) => { e.stopPropagation();
                                  if (G.raceNowFn) G.raceNowFn();
                                  setMapOpen(false); }}
             style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "7px 12px",
@@ -53816,18 +54420,18 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap",
             justifyContent: "center" }}>
-            <div onClick={(e) => { e.stopPropagation(); G.saveFn && G.saveFn(); }}
+            <div data-mapopt="1" onClick={(e) => { e.stopPropagation(); G.saveFn && G.saveFn(); }}
               style={{ padding: "8px 14px", border: `1px solid ${C.gold}`, cursor: "pointer",
                 background: "rgba(217,164,65,0.10)", color: C.gold, fontSize: 10,
                 letterSpacing: "0.18em" }}>
               SAVE NOW{G.slotsFn ? " \u00b7 SLOT " + G.slotsFn().find((q) => q.on).n : ""}
             </div>
-            {[1, 2, 3].map((n) => (
-              <div key={"sv" + n} onClick={(e) => { e.stopPropagation(); G.saveToFn && G.saveToFn(n); }}
+            {[1, 2, 3, 4].map((n) => (
+              <div key={"sv" + n} data-mapopt="1" onClick={(e) => { e.stopPropagation(); G.saveToFn && G.saveToFn(n); }}
                 style={{ padding: "8px 12px", border: "1px solid rgba(217,164,65,0.45)", cursor: "pointer", background: "rgba(217,164,65,0.06)", color: C.gold, fontSize: 10, letterSpacing: "0.16em" }}>
                 SAVE TO {n}
               </div>))}
-            <div onClick={(e) => { e.stopPropagation(); G.wipeFn && G.wipeFn(); }}
+            <div data-mapopt="1" onClick={(e) => { e.stopPropagation(); G.wipeFn && G.wipeFn(); }}
               style={{ padding: "8px 14px", border: "1px solid rgba(235,70,56,0.55)",
                 cursor: "pointer", background: "rgba(40,12,12,0.6)", color: "#ef8a80",
                 fontSize: 10, letterSpacing: "0.18em" }}>
@@ -54016,8 +54620,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                 : hud.wpn === "grenade" || hud.wpn === "molotov" ? "throw"
                 : hud.wpn === "bat" || hud.wpn === "knife" ? "swing" : "shoot",
               () => G.strikeFn && G.strikeFn())}
-            {hud.wpn && !hud.holstered && btn("TGT", hud.locked ? "next" : "lock on",
+            {hud.wpn && !hud.holstered && btn("TGT", hud.locked ? "next part" : "lock on",
               () => G.cycleTargetFn && G.cycleTargetFn(), hud.locked)}
+            {hud.wpn && !hud.holstered && hud.locked && btn("SWITCH", "next target",
+              () => G.switchTargetFn && G.switchTargetFn(1), null)}
             {hud.atMalcolm && btn(hud.detMode ? "RAMOS" : "MALCOLM", "talk", () => G.malcolmFn && G.malcolmFn(), null, !!hud.malcolm)}
             {hud.atTalk && btn("TALK", "question", () => G.talkFn && G.talkFn(), null, !!hud.talk)}
             {hud.atTrunk && btn("TRUNK", "long guns", () => G.pickOpen && G.pickOpen("trunk"), null, false)}
