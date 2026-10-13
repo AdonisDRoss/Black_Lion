@@ -32163,6 +32163,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (const q of F0) {
         if (!q.angry || q.down || q.cards) continue;
         const d = dist(q);
+        if (q.storyFoe && d > PFIGHT.reach && g.inside) { const pl9 = buildingPlans(g.inside)[g.floor], tr = pl9 && pl9.rooms.find((r) => r.k === "tier");      // layer 512c
+          if (tr) { const ty = (tr.y0 + tr.y1) / 2, onT = q.y > tr.y0 && q.y < tr.y1, pOnT = g.p.y > tr.y0 && g.p.y < tr.y1, tx = !pOnT && Math.abs(q.x - g.p.x) > 20 ? g.p.x : null;
+            if (tx != null || (!onT && !pOnT && Math.abs(q.x - g.p.x) > 20)) { const gx = tx != null ? tx : g.p.x, gy = onT ? ty : ty, dd = Math.hypot(gx - q.x, gy - q.y) || 1, sp = PFIGHT.spd * dt;
+              if (!onT) { const d2 = Math.abs(ty - q.y) || 1; q.y += Math.sign(ty - q.y) * Math.min(d2, sp); q.vy = Math.sign(ty - q.y) * 60; q.vx = 0; }
+              else { q.x += (gx - q.x) / dd * Math.min(dd, sp); q.y += (gy - q.y) / dd * Math.min(dd, sp); q.vx = (gx - q.x) / dd * 60; q.vy = (gy - q.y) / dd * 60; }
+              q.anim = (q.anim || 0) + dt; continue; } } }
         if (d > PFIGHT.reach) { const sp = PFIGHT.spd * dt; q.x += (g.p.x - q.x) / d * sp; q.y += (g.p.y - q.y) / d * sp; q.vx = (g.p.x - q.x) / d * 60; q.vy = (g.p.y - q.y) / d * 60; q.anim = (q.anim || 0) + dt; collideCrew(q); continue; }
         q.swing = (q.swing || 0) - dt;
         if (q.swing <= 0) { q.swing = PFIGHT.every; g.p.hp = (g.p.hp || 0) - (q.hitman ? PC.hitDmg : PFIGHT.dmg); g.hurtT = 0.25;
@@ -38913,9 +38919,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         // LEROY: a con on your tier comes for your seat; put him down
         if (S.talked.leroy && !S.side.leroy && g.inside && g.pcell && g.inside === g.pcell.b && g.floor === 0) {
           const F = prisonFolk() || []; let foe = S.foeKey ? F.find((q) => folkKey(q) === S.foeKey) : null;
-          if (!foe && !S.foeKey) { foe = F.filter((q) => q.convict && !q.crew && !q.guard && !q.store && !q.down && !q.shot && !q.bodyguard && !q.queen && Math.hypot(q.x - g.p.x, q.y - g.p.y) < 420)
-              .sort((a, c) => Math.hypot(a.x - g.p.x, a.y - g.p.y) - Math.hypot(c.x - g.p.x, c.y - g.p.y))[0];
-            if (foe) { S.foeKey = folkKey(foe); foe.angry = 1; foe.storyFoe = 1; g.pickupFlash = { nm: "lift:" + (foe.name ? foe.name.toUpperCase() : "A WOLVES CON") + " WANTS YOUR SEAT · F TO STRIKE", t: 2.6 }; } }
+          if (S.foeSpawn && !S.foeSpawn.down && F.indexOf(S.foeSpawn) < 0) F.push(S.foeSpawn);          // he stays on the tier (layer 512c)
+          if (!foe && S.foeSpawn) foe = S.foeSpawn;
+          if (!foe && !S.foeKey) { const d0 = introInsidePt(g.inside), L = (PR_PEOPLE.inmate || []);
+              foe = S.foeSpawn = { x: d0[0], y: d0[1], vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.35, yt: L.length ? L[L.length - 1] : "yt_pr_inmate_1", bang: 0, convict: 1, threat: 3, name: "Dutch Wolfe",
+                cast: { sex: "m", tone: "light" }, inmate: { no: "WOLF-1", block: g.inside.pwing, cell: "?", threat: 3, charge: "ASSAULT", sentence: "12 YEARS", gang: "THE WOLVES" } }; F.push(foe);
+            if (foe) { S.foeKey = folkKey(foe); foe.angry = 1; foe.storyFoe = 1; g.pickupFlash = { nm: "lift:" + (foe.name ? foe.name.toUpperCase() : "A WOLVES CON") + " WANTS YOUR SEAT · F TO STRIKE", t: 2.6 }; g.driveTalk = { who: "DUTCH WOLFE", text: "From the block door: “Seventeen years in the good seat, Rey. Tomorrow it's mine. Thought I'd collect early.”", t: 5 }; } }
           if (foe) { foe.storyFoe = 1; if (!foe.down) foe.angry = 1; if (foe.down) { S.side.leroy = 1; sideDone("leroy"); } } }
         // PABLO: the cake
         if (S.talked.viejo && !S.side.viejo) {
