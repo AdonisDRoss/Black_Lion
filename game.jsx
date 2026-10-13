@@ -3717,7 +3717,7 @@ PD_ART.pr_cone = "assets/props/pr_cone.png";        // the race cones (layer 500
 // layer 501: Donny's second yard sheet (kept for later; the lion medallion is the mansion court's centre) and the paper trophy
 for (const k of ["yd_lion_patio", "yd_chair_blue_a", "yd_chair_blue_b", "yd_glass_table", "yd_grill_kettle", "yd_spatula", "yd_tongs2", "yd_sausages", "yd_cooler_blue", "yd_drink", "yd_towel",
   "yd_charcoal_bag", "yd_chair_green_a", "yd_chair_green_b", "yd_table_green", "yd_beachball2", "yd_pool_shell", "yd_pool_ladder", "yd_pool_light"]) PD_ART[k] = "assets/yard/" + k + ".png";
-PD_ART.it_paper_trophy = "assets/items/it_paper_trophy.png"; PD_ART.sy_crush_pit = "assets/scrap/sy_crush_pit.png"; PD_ART.sy_crush_block = "assets/scrap/sy_crush_block.png"; PD_ART.tx_rust_plate = "assets/tex/tx_rust_plate.png"; PD_ART.dt_drummond = "assets/crew/dt_drummond.png"; PD_ART.pr_cone_side = "assets/props/pr_cone_side.png"; PD_ART.tx_ivory_tile = "assets/tex/tx_ivory_tile.png";
+PD_ART.it_paper_trophy = "assets/items/it_paper_trophy.png"; PD_ART.sy_crush_pit = "assets/scrap/sy_crush_pit.png"; PD_ART.sy_crush_block = "assets/scrap/sy_crush_block.png"; PD_ART.tx_rust_plate = "assets/tex/tx_rust_plate.png"; PD_ART.dt_drummond = "assets/crew/dt_drummond.png"; PD_ART.yt_rey_boxers = "assets/prison/yt_rey_boxers.png"; PD_ART.pr_cake = "assets/prison/pr_cake.png"; PD_ART.pr_cone_side = "assets/props/pr_cone_side.png"; PD_ART.tx_ivory_tile = "assets/tex/tx_ivory_tile.png";
 /* layer 497: Dread, Tony, Harlan, Nicky, Yuri, the 1969 cast, Mission 11 props, 1969 cars, construction props, the verdict folder */
 for (const k of ["dread", "tony", "harlan", "nicky", "yuri", "rey69", "rochelle69", "damian69", "julian69", "tiny69", "cop69_a", "cop69_b"]) PD_ART["yt_" + k] = "assets/crew/yt_" + k + ".png";
 for (const k of ["it_ledger", "pr_office_safe", "pr_office_safe_open", "it_gascan", "it_gascan_b", "it_pinkslip"]) PD_ART[k] = "assets/items/" + k + ".png";
@@ -12342,6 +12342,8 @@ export default function IronLionLayer004() {
     if (G.trophyFn && G.trophyFn()) return;                               // the paper on the scrapyard wall (layer 501)
     if (G.ledgerFn && G.ledgerFn()) return;                               // the ledger (layer 507)
     if (G.caseFn && G.caseFn()) return;                                   // a job off the case (layer 509)
+    if (G.aptDoorFn && G.aptDoorFn()) return;                             // Palm Court's flat doors, the rent (layer 512)
+    if (G.aptConsoleFn && G.aptConsoleFn()) return;                       // the Atari in 1A (layer 512b)
     if (G.crushFn && G.crushFn()) return;                                 // the crusher's switch (layer 502)
     if (G.carryFn && G.carryFn()) return;                                 // the trunk, the fuel can at the driver's door (layer 504)
     if (G.canBuyFn && G.canBuyFn()) return;                               // a fuel can at the pump (layer 504)
@@ -13131,7 +13133,7 @@ export default function IronLionLayer004() {
       /* 214 sprinting is a jog next to traffic. Sho at 1.62 tops about 347, which is a slow
          car -- he can run a block down with one and that is the point of him. */
       const kSlow = g.who === "kenny" ? 0.78 : 1;
-      const spd = (running ? 214 : 116) * lionBoost() * swimMul * shoSpeed() * kSlow * (g.p.sneak ? 0.55 : 1) * (g.p.heavy || 1);   // over the weight limit: slow (layer 504)
+      const spd = (running ? 232 : 126) * lionBoost() * swimMul * shoSpeed() * kSlow * (g.p.sneak ? 0.55 : 1) * (g.p.heavy || 1);   // over the weight limit: slow (layer 504)
       /* Sho's legs are his whole kit. He runs at car speed and barely tires -- that is the
          reason to take him rather than the man with the gadgets or the man with the gun. */
       if (running) g.p.stamina = Math.max(0, g.p.stamina - dt * (g.who === "sho" ? 1.6 : 5.5));
@@ -16410,6 +16412,27 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const iA = clamp(Math.round(x0 / PITCH), 0, N), jA = clamp(Math.round(y0 / PITCH), 0, N);
       const iT = clamp(Math.round(x1 / PITCH), 0, N), jT = clamp(Math.round(y1 / PITCH), 0, N);
       const onV = Math.abs(x0 - SX(iA)) < Math.abs(y0 - SX(jA));
+      { const onVT = Math.abs(x1 - SX(iT)) < Math.abs(y1 - SX(jT));
+        // start and end nodes: the intersection at each end of the segment you're on; try both, keep the cheaper
+        const ends = (x, y, v, i, j) => v ? [[i, clamp(Math.floor(y / PITCH), 0, N)], [i, clamp(Math.ceil(y / PITCH), 0, N)]] : [[clamp(Math.floor(x / PITCH), 0, N), j], [clamp(Math.ceil(x / PITCH), 0, N), j]];
+        const near2 = (x, y) => { const L = [], ci = Math.round(x / PITCH), cj = Math.round(y / PITCH); for (let di = -2; di <= 2; di++) for (let dj = -2; dj <= 2; dj++) { const i = ci + di, j = cj + dj; if (i >= 0 && j >= 0 && i <= N && j <= N) L.push([i, j]); } return L; };
+        for (let pass = 0; pass < 2; pass++) {
+        const S0 = pass ? near2(x0, y0) : ends(x0, y0, onV, iA, jA), T0 = pass ? near2(x1, y1) : ends(x1, y1, onVT, iT, jT), M = N + 1, key = (i, j, d) => (j * M + i) * 5 + d;
+        const D = [[0, 1], [1, 0], [0, -1], [-1, 0]], can = (i, j, d) => { const [di, dj] = D[d], ni = i + di, nj = j + dj; if (ni < 0 || nj < 0 || ni > N || nj > N) return false;
+          return di ? !hCut(Math.min(i, ni), j) : !vCut(i, Math.min(j, nj)); };
+        const cost = new Map(), from = new Map(), open = [];
+        for (const s of S0) { const c0 = (Math.abs(SX(s[0]) - x0) + Math.abs(SX(s[1]) - y0)) * (pass ? 2 : 1); const k = key(s[0], s[1], 4); if (!(cost.get(k) <= c0)) { cost.set(k, c0); open.push([c0, s[0], s[1], 4]); } }
+        const goal = new Map(T0.map((t) => [t[1] * M + t[0], (Math.abs(SX(t[0]) - x1) + Math.abs(SX(t[1]) - y1)) * (pass ? 2 : 1)])); let best = null, bestC = 1e18, it = 0;
+        while (open.length && it++ < 20000) { let bi = 0; for (let q = 1; q < open.length; q++) if (open[q][0] < open[bi][0]) bi = q; const [c, i, j, d] = open.splice(bi, 1)[0];
+          if (c > (cost.get(key(i, j, d)) ?? 1e18) || c >= bestC) continue;
+          const gl = goal.get(j * M + i); if (gl != null && c + gl < bestC) { bestC = c + gl; best = key(i, j, d); }
+          for (let nd = 0; nd < 4; nd++) { if (!can(i, j, nd)) continue; const ni = i + D[nd][0], nj = j + D[nd][1], nc = c + PITCH + (d !== 4 && nd !== d ? PITCH * 0.35 : 0), k2 = key(ni, nj, nd);
+            if (nc < (cost.get(k2) ?? 1e18)) { cost.set(k2, nc); from.set(k2, key(i, j, d)); open.push([nc, ni, nj, nd]); } } }
+        if (best != null) { const nodes = []; for (let k = best; k != null; k = from.get(k)) { const n = (k / 5) | 0; nodes.push([n % M, (n / M) | 0]); } nodes.reverse();
+          const pts = [onV ? [SX(iA), y0] : [x0, SX(jA)]].concat(nodes.map(([i, j]) => [SX(i), SX(j)]), [onVT ? [SX(iT), y1] : [x1, SX(jT)]]);
+          const out = [pts[0]]; for (let k = 1; k < pts.length - 1; k++) { const a = out[out.length - 1], b = pts[k], c2 = pts[k + 1];
+            if ((Math.abs(a[0] - b[0]) < 1 && Math.abs(b[0] - c2[0]) < 1) || (Math.abs(a[1] - b[1]) < 1 && Math.abs(b[1] - c2[1]) < 1)) continue; out.push(b); }
+          out.push(pts[pts.length - 1]); return out; } } }
       return onV
         ? [[SX(iA), y0], [SX(iA), SX(jT)], [SX(iT), SX(jT)]]
         : [[x0, SX(jA)], [SX(iT), SX(jA)], [SX(iT), SX(jT)]];
@@ -16485,13 +16508,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          unless he's losing the cops, when he squeezes past (the hop below) instead of queueing. */
       if (A.who) { const hx = dx / d, hy = dy / d; let near = 1e9;
         for (const o of g.traffic.concat(policeCars().filter(Boolean))) { if (!o || o === v || !Number.isFinite(o.x)) continue;
-          const rx = o.x - v.x, ry = o.y - v.y, ah = rx * hx + ry * hy; if (ah <= 0 || ah > 190) continue;
-          if (Math.abs(-rx * hy + ry * hx) > 40) continue; if (ah < near) near = ah; }
+          const rx = o.x - v.x, ry = o.y - v.y, ah = rx * hx + ry * hy; if (ah <= 0 || ah > 300) continue;
+          if (Math.abs(-rx * hy + ry * hx) > 42) continue; if (ah < near) near = ah; }
+        { const vh = Math.atan2(dy, dx), va = v.ang || vh, fx = Math.cos(va), fy = Math.sin(va);      // and along the way the car points, round corners (layer 511)
+          for (const o of g.traffic) { if (!o || o === v || !Number.isFinite(o.x)) continue; const rx = o.x - v.x, ry = o.y - v.y, ah = rx * fx + ry * fy; if (ah <= 0 || ah > 200) continue;
+            if (Math.abs(-rx * fy + ry * fx) > 36) continue; if (ah < near) near = ah; } }
         const fast508 = A.lose || A.escape || A.sk === "fast" || (A.spd || 0) >= 280, hx5 = dx / d, hy5 = dy / d;
         if (fast508 && !A.ovGo && near < 200 && d > 360 && clearAhead508(v, hx5, hy5, 520, 110, null)) { A.ovGo = 1; A.ovT = 0; }
         if (A.ovGo) { A.ovT += dt; if (d < 220 || A.ovT > 4 || (near > 320 && A.ovT > 1.2) || !clearAhead508(v, hx5, hy5, 220, 110, null)) A.ovGo = 0; }
         A.ov = clamp((A.ov || 0) + clamp((A.ovGo ? 1 : 0) - (A.ov || 0), -dt * 1.8, dt * 1.8), 0, 1);
-        A.brk = near < 190 && !A.lose && !A.escape && !(A.ov > 0.3); if (A.brk) sp = Math.min(sp, Math.max(0, (near - 75) * 2.2)); }
+        A.brk = near < 300 && !A.lose && !A.escape && !(A.ov > 0.3); if (A.brk) sp = Math.min(sp, Math.max(0, (near - 136) * 2.0)); }      // stops a quarter of a car short of the bumper (layer 511)
       let mx5 = dx, my5 = dy; if (A.ov > 0.01) { mx5 = dx + (dy / d) * A.ov * 110; my5 = dy - (dx / d) * A.ov * 110; } const md5 = Math.hypot(mx5, my5) || 1;   // the other lane (layer 508)
       v.x += mx5 / md5 * sp * dt; v.y += my5 / md5 * sp * dt;
       /* She moves it; the car's own physics must not move it a second time on the same speed,
@@ -17127,7 +17153,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function nearTalk() {
       const C = g.case;
-      if (!C || C.stage === "done" || g.mode !== "foot") return null;
+      if (!C || C.stage === "done" || g.mode !== "foot" || g.prisonMode || g.studentMode) return null;      // detective mode only (layer 510b)
       const sceneIn = C.inB ? g.inside === C.inB : !g.inside;
       let best = null, bd = CASE.talkR;
       for (const q of C.people.filter(caseHere).concat(sceneIn ? [C.cop] : [], sceneIn && C.tech ? [C.tech] : [])) {
@@ -17141,6 +17167,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const ROLE_NM = { witness: "WITNESS", victim: "VICTIM", perp: "", decoy: "", cop: "OFFICER ON SCENE", lead: "",
                       crowd: "ONLOOKER", csu: "CRIME SCENE UNIT" };
     function talkPanel(q) {
+      if (!q.tr && q.caseRole !== "cop") { try { rollTraits(q, q.caseRole, g.case); } catch (e) {} if (!q.tr) q.tr = { mood: "calm", attitude: "evasive", influence: "none", look: [], strikes: 0, told: 0, cool: 0 }; }   // layer 510b
       const C = g.case, t = q.tr, id = q.caseRole === "cop" ? null : identOf(q);
       const title = (q.carded && id ? id.name : "") || (q.caseRole === "lead" && C.stops[q.stopIdx] ? LEAD_KIND[C.stops[q.stopIdx].kind].who : "")
                     || ROLE_NM[q.caseRole] || "MAN ON THE CORNER";
@@ -19020,7 +19047,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return { x: cx - 40, y: c.ly0 + 130, w: 300, h: 150 };          // set in 130 from the back: the dealer's strip (layer 475)
     }
     function gasCanopy(c) {
-      const cx = (c.lx0 + c.lx1) / 2, sh = gasShop(c), y = Math.max(sh.y + sh.h + 110, (c.ly0 + c.ly1) / 2 - 20);
+      const cx = (c.lx0 + c.lx1) / 2, sh = gasShop(c), y = sh.y + sh.h + 96;      // one lane in front of the shop (layer 511)
       return { x: cx - 190, y: Math.min(y, c.ly1 - 250), w: 380, h: 190 };
     }
     const inRect = (x, y, r) => x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h;
@@ -29246,7 +29273,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        blocks over the painted furniture. b.artFloors = { floor: key }. */
     const ART2_SOLID = {
       /* layer 477: Palm Court's flats (walls and furniture, generated with the pictures), RIGHT TO ARMS, the Happy Hippy's club */
-      int_apt_long_f0: [[0.0, 0.444, 0.0644, 0.476], [0.0984, 0.444, 0.218, 0.476], [0.252, 0.444, 0.3717, 0.476], [0.4057, 0.444, 0.452, 0.476], [0.3214, 0.0, 0.3294, 0.46], [0.1678, 0.0, 0.1758, 0.46], [0.0669, 0.056, 0.1049, 0.248], [0.1119, 0.06, 0.1199, 0.1], [0.2376, 0.056, 0.2596, 0.232], [0.2666, 0.06, 0.2746, 0.1], [0.3334, 0.06, 0.3554, 0.244], [0.3907, 0.052, 0.4027, 0.124], [0.426, 0.064, 0.442, 0.112], [0.008, 0.872, 0.028, 0.968], [0.008, 0.504, 0.026, 0.576], [0.007, 0.608, 0.025, 0.696], [0.0784, 0.674, 0.1184, 0.834], [0.2804, 0.876, 0.3524, 0.964], [0.3014, 0.726, 0.3314, 0.782], [0.3034, 0.496, 0.3294, 0.568], [0.548, 0.444, 0.5943, 0.476], [0.6283, 0.444, 0.748, 0.476], [0.782, 0.444, 0.9016, 0.476], [0.9356, 0.444, 1.0, 0.476], [0.6706, 0.0, 0.6786, 0.46], [0.8242, 0.0, 0.8322, 0.46], [0.8951, 0.056, 0.9331, 0.248], [0.8801, 0.06, 0.8881, 0.1], [0.7404, 0.056, 0.7624, 0.232], [0.7254, 0.06, 0.7334, 0.1], [0.6446, 0.06, 0.6666, 0.244], [0.5973, 0.052, 0.6093, 0.124], [0.558, 0.064, 0.574, 0.112], [0.972, 0.872, 0.992, 0.968], [0.974, 0.504, 0.992, 0.576], [0.975, 0.608, 0.993, 0.696], [0.8816, 0.674, 0.9216, 0.834], [0.6476, 0.876, 0.7196, 0.964], [0.6686, 0.726, 0.6986, 0.782], [0.6706, 0.496, 0.6966, 0.568], [0.448, 0.0, 0.456, 0.732], [0.448, 0.868, 0.456, 1.0], [0.544, 0.0, 0.552, 0.732], [0.544, 0.868, 0.552, 1.0]],
+      int_apt_long_f0: [[0.0, 0.444, 0.0644, 0.476], [0.0984, 0.444, 0.218, 0.476], [0.252, 0.444, 0.3717, 0.476], [0.4057, 0.444, 0.452, 0.476], [0.3214, 0.0, 0.3294, 0.46], [0.1678, 0.0, 0.1758, 0.46], [0.0669, 0.056, 0.1049, 0.248], [0.1119, 0.06, 0.1199, 0.1], [0.2376, 0.056, 0.2596, 0.232], [0.2666, 0.06, 0.2746, 0.1], [0.3334, 0.06, 0.3554, 0.244], [0.3907, 0.052, 0.4027, 0.124], [0.426, 0.064, 0.442, 0.112], [0.008, 0.872, 0.028, 0.968], [0.008, 0.504, 0.026, 0.576], [0.007, 0.608, 0.025, 0.696], [0.0784, 0.674, 0.1184, 0.834], [0.2804, 0.486, 0.3524, 0.588], [0.3014, 0.726, 0.3314, 0.782], [0.3034, 0.872, 0.3294, 0.964], [0.548, 0.444, 0.5943, 0.476], [0.6283, 0.444, 0.748, 0.476], [0.782, 0.444, 0.9016, 0.476], [0.9356, 0.444, 1.0, 0.476], [0.6706, 0.0, 0.6786, 0.46], [0.8242, 0.0, 0.8322, 0.46], [0.8951, 0.056, 0.9331, 0.248], [0.8801, 0.06, 0.8881, 0.1], [0.7404, 0.056, 0.7624, 0.232], [0.7254, 0.06, 0.7334, 0.1], [0.6446, 0.06, 0.6666, 0.244], [0.5973, 0.052, 0.6093, 0.124], [0.558, 0.064, 0.574, 0.112], [0.972, 0.872, 0.992, 0.968], [0.974, 0.504, 0.992, 0.576], [0.975, 0.608, 0.993, 0.696], [0.8816, 0.674, 0.9216, 0.834], [0.6476, 0.876, 0.7196, 0.964], [0.6686, 0.726, 0.6986, 0.782], [0.6706, 0.496, 0.6966, 0.568], [0.448, 0.0, 0.456, 0.732], [0.448, 0.868, 0.456, 1.0], [0.544, 0.0, 0.552, 0.732], [0.544, 0.868, 0.552, 1.0]],
       int_apt_long_f1: [[0.0, 0.444, 0.0644, 0.476], [0.0984, 0.444, 0.218, 0.476], [0.252, 0.444, 0.3717, 0.476], [0.4057, 0.444, 0.452, 0.476], [0.3214, 0.0, 0.3294, 0.46], [0.1678, 0.0, 0.1758, 0.46], [0.0669, 0.056, 0.1049, 0.248], [0.1119, 0.06, 0.1199, 0.1], [0.2376, 0.056, 0.2596, 0.232], [0.2666, 0.06, 0.2746, 0.1], [0.3334, 0.06, 0.3554, 0.244], [0.3907, 0.052, 0.4027, 0.124], [0.426, 0.064, 0.442, 0.112], [0.008, 0.872, 0.028, 0.968], [0.008, 0.504, 0.026, 0.576], [0.007, 0.608, 0.025, 0.696], [0.0784, 0.674, 0.1184, 0.834], [0.2804, 0.876, 0.3524, 0.964], [0.3014, 0.726, 0.3314, 0.782], [0.3034, 0.496, 0.3294, 0.568], [0.548, 0.444, 0.5943, 0.476], [0.6283, 0.444, 0.748, 0.476], [0.782, 0.444, 0.9016, 0.476], [0.9356, 0.444, 1.0, 0.476], [0.6706, 0.0, 0.6786, 0.46], [0.8242, 0.0, 0.8322, 0.46], [0.8951, 0.056, 0.9331, 0.248], [0.8801, 0.06, 0.8881, 0.1], [0.7404, 0.056, 0.7624, 0.232], [0.7254, 0.06, 0.7334, 0.1], [0.6446, 0.06, 0.6666, 0.244], [0.5973, 0.052, 0.6093, 0.124], [0.558, 0.064, 0.574, 0.112], [0.972, 0.872, 0.992, 0.968], [0.974, 0.504, 0.992, 0.576], [0.975, 0.608, 0.993, 0.696], [0.8816, 0.674, 0.9216, 0.834], [0.6476, 0.876, 0.7196, 0.964], [0.6686, 0.726, 0.6986, 0.782], [0.6706, 0.496, 0.6966, 0.568], [0.448, 0.0, 0.456, 0.732], [0.448, 0.868, 0.456, 1.0], [0.544, 0.0, 0.552, 0.732], [0.544, 0.868, 0.552, 1.0]],
       int_apt_side_f0: [[0.0, 0.444, 0.0939, 0.476], [0.1546, 0.444, 0.2928, 0.476], [0.3535, 0.444, 0.4143, 0.476], [0.2331, 0.0, 0.2474, 0.46], [0.0862, 0.056, 0.1541, 0.248], [0.1666, 0.06, 0.1809, 0.1], [0.2546, 0.06, 0.2939, 0.244], [0.3309, 0.052, 0.3523, 0.124], [0.3679, 0.064, 0.3964, 0.112], [0.0143, 0.872, 0.05, 0.968], [0.0143, 0.504, 0.0464, 0.576], [0.0125, 0.608, 0.0446, 0.696], [0.0739, 0.674, 0.1453, 0.834], [0.2614, 0.876, 0.3435, 0.964], [0.2756, 0.726, 0.3292, 0.782], [0.2792, 0.496, 0.3256, 0.568], [0.5857, 0.444, 0.6465, 0.476], [0.7072, 0.444, 0.8454, 0.476], [0.9061, 0.444, 1.0, 0.476], [0.7526, 0.0, 0.7669, 0.46], [0.8459, 0.056, 0.9138, 0.248], [0.8191, 0.06, 0.8334, 0.1], [0.7061, 0.06, 0.7454, 0.244], [0.6477, 0.052, 0.6691, 0.124], [0.6036, 0.064, 0.6321, 0.112], [0.95, 0.872, 0.9857, 0.968], [0.9536, 0.504, 0.9857, 0.576], [0.9554, 0.608, 0.9875, 0.696], [0.8547, 0.674, 0.9261, 0.834], [0.6565, 0.876, 0.7386, 0.964], [0.6708, 0.726, 0.7244, 0.782], [0.6744, 0.496, 0.7208, 0.568], [0.4071, 0.0, 0.4214, 0.732], [0.4071, 0.868, 0.4214, 1.0], [0.5786, 0.0, 0.5929, 0.732], [0.5786, 0.868, 0.5929, 1.0]],
       int_apt_side_f1: [[0.0, 0.444, 0.0939, 0.476], [0.1546, 0.444, 0.2928, 0.476], [0.3535, 0.444, 0.4143, 0.476], [0.2331, 0.0, 0.2474, 0.46], [0.0862, 0.056, 0.1541, 0.248], [0.1666, 0.06, 0.1809, 0.1], [0.2546, 0.06, 0.2939, 0.244], [0.3309, 0.052, 0.3523, 0.124], [0.3679, 0.064, 0.3964, 0.112], [0.0143, 0.872, 0.05, 0.968], [0.0143, 0.504, 0.0464, 0.576], [0.0125, 0.608, 0.0446, 0.696], [0.0739, 0.674, 0.1453, 0.834], [0.2614, 0.876, 0.3435, 0.964], [0.2756, 0.726, 0.3292, 0.782], [0.2792, 0.496, 0.3256, 0.568], [0.5857, 0.444, 0.6465, 0.476], [0.7072, 0.444, 0.8454, 0.476], [0.9061, 0.444, 1.0, 0.476], [0.7526, 0.0, 0.7669, 0.46], [0.8459, 0.056, 0.9138, 0.248], [0.8191, 0.06, 0.8334, 0.1], [0.7061, 0.06, 0.7454, 0.244], [0.6477, 0.052, 0.6691, 0.124], [0.6036, 0.064, 0.6321, 0.112], [0.95, 0.872, 0.9857, 0.968], [0.9536, 0.504, 0.9857, 0.576], [0.9554, 0.608, 0.9875, 0.696], [0.8547, 0.674, 0.9261, 0.834], [0.6565, 0.876, 0.7386, 0.964], [0.6708, 0.726, 0.7244, 0.782], [0.6744, 0.496, 0.7208, 0.568], [0.4071, 0.0, 0.4214, 0.732], [0.4071, 0.868, 0.4214, 1.0], [0.5786, 0.0, 0.5929, 0.732], [0.5786, 0.868, 0.5929, 1.0]],
@@ -31498,7 +31525,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     /* PRISON MODE. You are inmate #0001, nobody, in a cell in whichever block has room, at the
        7:00 count. No car, no badge, no gun -- a carton of cigarettes, which is money in here. */
     function startPrisonMode() {
-      g.prisonStart = false;
+      g.prisonStart = false; g.case = null; if (g.talkTo) { g.talkTo = null; g.paused = false; }      // no detective's case in Kestrel (layer 510b)
       const wings = [];
       for (let i = PRISON.i0; i <= PRISON.i1; i++) for (let j = PRISON.j0; j <= PRISON.j1; j++)
         for (const b2 of (getCell(i, j).blds || [])) if (b2.kind === "prisonwing" && !b2.pwomen) wings.push(b2);
@@ -31995,7 +32022,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const CELL_DOOR = { grace: 20, slide: 1.4, w: 50 };
     function inCellR(R, x, y, pad) { return x > R.x0 - (pad || 0) && x < R.x1 + (pad || 0) && y > R.y0 - (pad || 0) && y < R.y1 + (pad || 0); }
     function stepCellDoors(dt) {
-      const lock = prisonPhase(g.clock || CLOCK.start)[2] === "cells";
+      const lock = prisonPhase(g.clock || CLOCK.start)[2] === "cells" && !g.escort;      // open for the walk out (layer 511)
       const P = g.pcell;
       if (!lock) { g.lockT = 0; g.doorT = Math.max(0, (g.doorT || 0) - dt / CELL_DOOR.slide); return; }
       g.lockT = (g.lockT || 0) + dt;
@@ -32085,7 +32112,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function stepPrisonFx(dt) {
       const cv = canvasRef.current;
       if (g.pfx) { g.pfx.t -= dt; if (g.pfx.t <= 0) g.pfx = null; }
-      stepBooze(dt); stepMorning(dt); stepEscort(dt);                                    // layers 487, 493
+      stepBooze(dt); stepMorning(dt); stepEscort511(dt);                                    // layers 487, 493
       const fx = g.pfx && PFX[g.pfx.k];
       let css = fx ? fx.css : "";
       if (fx && fx.sway) css += " "; // the sway is done with a transform below
@@ -35929,7 +35956,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           for (let n = g.traffic.length - 1; n >= 0; n--) if (g.traffic[n].pabloCar) g.traffic.splice(n, 1);
           storyMark("PABLO'S IN \u00b7 YOUR DRIVER"); g.jobNote = "PABLO: \u201cGet some sleep. I'll come by early.\u201d"; }
         g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return; }
-      if (a === "bye") { const S = g.story; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); if (S && S.step === 1) { S.step = 2; storyMark("THE LAST NIGHT"); escortBegin(); } return; }
+      if (a === "bye") { const S = g.story; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); if (S && S.step === 1) partyBegin511(); return; }      // celebrate, fade, the next morning (layer 511)
       if (a.startsWith("talk:")) { const k = a.slice(5), S = g.story; if (!S) return;
         if (!S.talked[k]) { S.talked[k] = 1;
           if (k === "ras") { (g.pinv = g.pinv || []).push("shank"); S.shankBase = shankCount(); g.pickupFlash = { nm: "lift:RAS SLIPS YOU A SHANK · POCKETS (I / D-PAD DOWN) · HIDE IT AT YOUR BUNK", t: 3 }; }
@@ -35974,7 +36001,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const c = aptC(); if (c) ord.push({ k: "home", x: (c.lx0 + c.lx1) / 2, y: c.ly1 + 100, nm: "PALM COURT" });
       return ord; }
     function cabLeg(S) { const st = S.stops[S.si], v = g.car; if (!st) return;
-      g.auto = { pts: streetRoute(v, st.x, st.y), i: 0, sk: "fast", spd: CCAR.fast, who: "EDDIE", whoKey: "cab", mode: "to", label: st.nm, cab: 1 }; g.canAimDriving = true; S.leg = 1; }
+      g.auto = { pts: streetRoute(v, st.x, st.y), i: 0, sk: "normal", spd: CCAR.spd * 1.15, who: "EDDIE", whoKey: "cab", mode: "to", label: st.nm, cab: 1 }; g.canAimDriving = true; S.leg = 1; }
     function dayOutStep(dt) { const S = g.story;
       if (S.step === 0) { if (g.mode === "car" && inVehicle()) { S.step = 1; S.stops = cabStops(); S.si = 0; storyMark("IN THE CAB"); cabLeg(S);
           g.driveTalk = { who: "EDDIE · THE CAB", text: "Seventeen years? Man, the whole city changed. Sit back. I'll show you around on the way.", t: 6 }; } return; }   // (Eddie met you at the cab first: G.eddieFn)
@@ -35984,7 +36011,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (S.wait > 0) { S.wait -= dt; if (S.wait <= 0) { S.si++; if (S.si >= S.stops.length) { S.step = 2; storyMark("PALM COURT"); } else cabLeg(S); } return; }
         if (!g.auto) { if (!S.leg) { cabLeg(S); return; } const st = S.stops[S.si]; S.leg = 0;
           g.driveTalk = { who: "EDDIE · " + st.nm, text: EDDIE[st.k] || "", t: 7 }; S.wait = st.k === "home" ? 0.5 : 7;
-          if (st.k !== "home") camPanTo(st.x, st.y, 6);                                       // he points; the camera goes and looks (layer 493)
+          if (st.k !== "home") camPanTo(st.x, st.y, 4.5);                                       // he points; the camera goes and looks (layer 493)
           if (st.k !== "home" && typeof bookNote === "function") bookNote(st.nm + ": " + (EDDIE[st.k] || "")); }
         return; }
       if (S.step === 2) { if (g.mode === "foot") { const W = S.carWas;
@@ -36034,7 +36061,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (a === "wear") { g.pfit = b; g.aptSaid = b === "76" ? "Wide collar, seventeen years out of style. It's yours." : "Leroy's shirt. A little big. Smells like his sister's house."; }
       if (a === "call") g.aptSaid = "LEROY (from his sister's): “You made it! Key under the mat, like I said? Good. Rest, man. Tomorrow you look around. And Rey -- don't go near the Deuce. Not yet.”"; };
 
-    const APT_OBJ = {"int_apt_long_f0":[["bed",0.0859,0.152],["nightstand",0.1159,0.08],["bed",0.2486,0.144],["nightstand",0.2706,0.08],["tub",0.3444,0.152],["toilet",0.3967,0.088],["sink",0.434,0.088],["fridge",0.018,0.92],["stove",0.017,0.54],["ksink",0.016,0.652],["sofa",0.3164,0.92],["tv",0.3164,0.532],["bed",0.9141,0.152],["nightstand",0.8841,0.08],["bed",0.7514,0.144],["nightstand",0.7294,0.08],["tub",0.6556,0.152],["toilet",0.6033,0.088],["sink",0.566,0.088],["fridge",0.982,0.92],["stove",0.983,0.54],["ksink",0.984,0.652],["sofa",0.6836,0.92],["tv",0.6836,0.532]],"int_apt_long_f1":[["bed",0.0859,0.152],["nightstand",0.1159,0.08],["bed",0.2486,0.144],["nightstand",0.2706,0.08],["tub",0.3444,0.152],["toilet",0.3967,0.088],["sink",0.434,0.088],["fridge",0.018,0.92],["stove",0.017,0.54],["ksink",0.016,0.652],["sofa",0.3164,0.92],["tv",0.3164,0.532],["bed",0.9141,0.152],["nightstand",0.8841,0.08],["bed",0.7514,0.144],["nightstand",0.7294,0.08],["tub",0.6556,0.152],["toilet",0.6033,0.088],["sink",0.566,0.088],["fridge",0.982,0.92],["stove",0.983,0.54],["ksink",0.984,0.652],["sofa",0.6836,0.92],["tv",0.6836,0.532]],"int_apt_side_f0":[["bed",0.1201,0.152],["nightstand",0.1737,0.08],["tub",0.2742,0.152],["toilet",0.3416,0.088],["sink",0.3821,0.088],["fridge",0.0321,0.92],["stove",0.0304,0.54],["ksink",0.0286,0.652],["sofa",0.3024,0.92],["tv",0.3024,0.532],["bed",0.8799,0.152],["nightstand",0.8263,0.08],["tub",0.7258,0.152],["toilet",0.6584,0.088],["sink",0.6179,0.088],["fridge",0.9679,0.92],["stove",0.9696,0.54],["ksink",0.9714,0.652],["sofa",0.6976,0.92],["tv",0.6976,0.532]],"int_apt_side_f1":[["bed",0.1201,0.152],["nightstand",0.1737,0.08],["tub",0.2742,0.152],["toilet",0.3416,0.088],["sink",0.3821,0.088],["fridge",0.0321,0.92],["stove",0.0304,0.54],["ksink",0.0286,0.652],["sofa",0.3024,0.92],["tv",0.3024,0.532],["bed",0.8799,0.152],["nightstand",0.8263,0.08],["tub",0.7258,0.152],["toilet",0.6584,0.088],["sink",0.6179,0.088],["fridge",0.9679,0.92],["stove",0.9696,0.54],["ksink",0.9714,0.652],["sofa",0.6976,0.92],["tv",0.6976,0.532]]};
+    const APT_OBJ = {"int_apt_long_f0":[["bed",0.0859,0.152],["nightstand",0.1159,0.08],["bed",0.2486,0.144],["nightstand",0.2706,0.08],["tub",0.3444,0.152],["toilet",0.3967,0.088],["sink",0.434,0.088],["fridge",0.018,0.92],["stove",0.017,0.54],["ksink",0.016,0.652],["sofa",0.3164,0.54],["tv",0.3164,0.92],["bed",0.9141,0.152],["nightstand",0.8841,0.08],["bed",0.7514,0.144],["nightstand",0.7294,0.08],["tub",0.6556,0.152],["toilet",0.6033,0.088],["sink",0.566,0.088],["fridge",0.982,0.92],["stove",0.983,0.54],["ksink",0.984,0.652],["sofa",0.6836,0.92],["tv",0.6836,0.532]],"int_apt_long_f1":[["bed",0.0859,0.152],["nightstand",0.1159,0.08],["bed",0.2486,0.144],["nightstand",0.2706,0.08],["tub",0.3444,0.152],["toilet",0.3967,0.088],["sink",0.434,0.088],["fridge",0.018,0.92],["stove",0.017,0.54],["ksink",0.016,0.652],["sofa",0.3164,0.92],["tv",0.3164,0.532],["bed",0.9141,0.152],["nightstand",0.8841,0.08],["bed",0.7514,0.144],["nightstand",0.7294,0.08],["tub",0.6556,0.152],["toilet",0.6033,0.088],["sink",0.566,0.088],["fridge",0.982,0.92],["stove",0.983,0.54],["ksink",0.984,0.652],["sofa",0.6836,0.92],["tv",0.6836,0.532]],"int_apt_side_f0":[["bed",0.1201,0.152],["nightstand",0.1737,0.08],["tub",0.2742,0.152],["toilet",0.3416,0.088],["sink",0.3821,0.088],["fridge",0.0321,0.92],["stove",0.0304,0.54],["ksink",0.0286,0.652],["sofa",0.3024,0.92],["tv",0.3024,0.532],["bed",0.8799,0.152],["nightstand",0.8263,0.08],["tub",0.7258,0.152],["toilet",0.6584,0.088],["sink",0.6179,0.088],["fridge",0.9679,0.92],["stove",0.9696,0.54],["ksink",0.9714,0.652],["sofa",0.6976,0.92],["tv",0.6976,0.532]],"int_apt_side_f1":[["bed",0.1201,0.152],["nightstand",0.1737,0.08],["tub",0.2742,0.152],["toilet",0.3416,0.088],["sink",0.3821,0.088],["fridge",0.0321,0.92],["stove",0.0304,0.54],["ksink",0.0286,0.652],["sofa",0.3024,0.92],["tv",0.3024,0.532],["bed",0.8799,0.152],["nightstand",0.8263,0.08],["tub",0.7258,0.152],["toilet",0.6584,0.088],["sink",0.6179,0.088],["fridge",0.9679,0.92],["stove",0.9696,0.54],["ksink",0.9714,0.652],["sofa",0.6976,0.92],["tv",0.6976,0.532]]};
 
     /* EVERY THING HAS A WHEEL (layer 481, Donny): walk up to a thing, E, and its wheel comes up -- always STASH (any bed, sink,
        toilet, tub, fridge, stove, nightstand, desk, dresser hides cash, guns and what's in your pockets) plus what the thing is
@@ -36094,7 +36121,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (a === "shower") { g.p.stamina = g.p.maxStamina || g.p.stamina; g.clock = ((g.clock || 0) + 15) % 1440; say("A HOT SHOWER, AS LONG AS YOU WANT IT · STAMINA FULL"); }
       if (a === "eat") { g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 20); say("COLD CHICKEN AND A SODA · +20 HEALTH"); }
       if (a === "cook") { g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 35); g.clock = ((g.clock || 0) + 20) % 1440; say("EGGS, GRITS, HOT SAUCE · +35 HEALTH"); }
-      if (a === "tv") { g.clock = ((g.clock || 0) + 60) % 1440; say(cpick(["THE NEWS: A SHOOTING IN THE HOOD. NOBODY'S TALKING.", "THE NEWS: VANCE TOWER'S NEW FLOOR OPENS. JULIAN VANCE CUTS THE RIBBON.", "THE NEWS: KESTREL STATE RELEASES 40 MEN THIS MONTH."])); }
+      if (a === "tv") { later(() => G.pickOpen("sp_tv")); return; }                     // Channel 6: ad, ad, news (layer 512b)
       if (a === "sit") { g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 5); g.clock = ((g.clock || 0) + 10) % 1440; say("YOU SIT. THE QUIET IS LOUD."); } };
     G.osPick = (id) => { const [, a, b] = id.split(":"), O = g.owNow; if (!O) return; const S = osGet(O);
       if (a === "take") { if (b === "cash") { g.p.cash = (g.p.cash || 0) + S.cash; g.pickupFlash = { nm: "lift:+$" + S.cash.toLocaleString(), t: 1.6 }; S.cash = 0; }
@@ -36546,13 +36573,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (M.t > 3 && !M.s1) { M.s1 = 1; g.driveTalk = { who: "KATYA", text: again ? "“...No. No, no, no. AGAIN?”" : "“...Rey?” A long pause. “REY?!”", t: 3 }; }
       if (M.t > 7.4 && !M.s2) { M.s2 = 1; g.driveTalk = { who: "KATYA", text: again ? "“BLYAT'!” (louder than last time)" : "“Blyat'!” (from the bathroom -- you don't need it translated)", t: 4 }; }
       if (M.t > 12.6 && !M.s3) { M.s3 = 1; g.driveTalk = { who: "KATYA", text: again ? "Dressed in half the time. At the door she stops. “This ALSO never happened.” Slam." : "Dressed, hair up, heels in her hand. She doesn't look at you. “This never happened.” The door shuts.", t: 6 }; }
-      if (M.t > 17.5) { g.morning = null; const S = g.story; if (S && S.id === "washday" && S.step === 8) storyComplete();
+      if (M.t > 17.5) { g.morning = null; g.reyBoxers = 0; const S = g.story; if (S && S.id === "washday" && S.step === 8) storyComplete();
         else if (S && S.id === "nest" && S.step === 0) { S.step = 1; storyMark("THE YARD"); g.driveTalk = { who: "REY", text: "“...What the hell.” You find your shirt. Then your pants. Then your head. Leroy wants everybody at the yard.", t: 7 }; } } }
     function drawMosaic(x, y, hw, hh, pal, seed) { const px = 4; ctx.save(); ctx.translate(x, y);
       for (let yy = -hh; yy < hh; yy += px) for (let xx = -hw; xx < hw; xx += px) { ctx.fillStyle = pal[Math.abs(xx * 7 + yy * 13 + seed + Math.floor(g.t * 2)) % 3]; ctx.fillRect(xx, yy, px, px); }
       ctx.restore(); }
     function drawMorning() { const M = g.morning; if (!M || !g.inside) return; const P = morningPts(); if (!P) return; const t = M.t, [bx, by] = P.bed;
-      if (t < 12.5) drawMosaic(bx - 6, by, 6, 17, MOS_REY, 3);                                          // him, under the sheet (his mosaic lifts when hers does)
+      g.reyBoxers = t < 12.5 && G.reyBoxersOn() ? 1 : 0;                                              // layer 512: in his boxers when the art is there
+      if (t < 12.5 && !g.reyBoxers) drawMosaic(bx - 6, by, 6, 17, MOS_REY, 3);                          // him, under the sheet (his mosaic lifts when hers does)
       let kx, ky, show = 1, dressed = 0;
       if (t < 5) { kx = bx + 6; ky = by; }
       else if (t < 7) { const k = (t - 5) / 2; kx = bx + 6 + (P.bath[0] - bx - 6) * k; ky = by + (P.bath[1] - by) * k; }
@@ -36561,7 +36589,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else show = 0;
       if (!show) return;
       if (dressed) { drawShadow(kx, ky + 2, 10, 4, 0.3); drawYouth({ x: kx, y: ky, vx: (P.door[0] - P.bath[0]) * 0.1, vy: (P.door[1] - P.bath[1]) * 0.1, anim: t * 6, jit: 1, tall: 1.2, yt: "yt_bozni_katya" }); }
-      else drawMosaic(kx, ky, t < 5 ? 6 : 9, t < 5 ? 16 : 19, MOS_KAT, 9); }
+      else { const mv = t >= 5 && t < 7; drawShadow(kx, ky + 2, 10, 4, 0.3); drawModest512({ x: kx, y: ky, vx: mv ? (P.bath[0] - bx) * 0.5 : 0, vy: mv ? (P.bath[1] - by) * 0.5 : 0, anim: t * 6, jit: 1, tall: 1.2, yt: "yt_bozni_katya", bang: mv ? null : Math.PI / 2 }); } }      // her, blurred below the head (layer 512)
     /* ---------- LAYER 488: MISSION 8, THE MAP TABLE -- and MISSION 9, THE BANK JOB ----------
        MISSION 8. Leroy calls the morning after: everybody at the yard. At the map table he walks you through it -- the
        board (hire, your people, plan a job, send them or LEAD IT), respect and who'll work for you, the motor pool, the
@@ -36873,7 +36901,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const streetRoute = (v, x, y) => { const [sx, sy] = streetStop(x, y); return roadRoute(v.x, v.y, sx, sy).concat([[sx, sy]]); };
     function camPanTo(x, y, dur) { g.camPan = { x, y, t: 0, dur: dur || 6 }; }
     function camPanOff(e) { const P = g.camPan; if (!P) return null; P.t += g.dt || 0.016; if (P.t >= P.dur) { g.camPan = null; return null; }
-      const k = P.t < 1.5 ? P.t / 1.5 : P.t > P.dur - 1.5 ? Math.max(0, (P.dur - P.t) / 1.5) : 1, s = k * k * (3 - 2 * k); return [e.x + (P.x - e.x) * s, e.y + (P.y - e.y) * s]; }
+      const k = P.t < 1.2 ? P.t / 1.2 : P.t > P.dur - 0.7 ? Math.max(0, (P.dur - P.t) / 0.7) : 1, s = k * k * (3 - 2 * k); return [e.x + (P.x - e.x) * s, e.y + (P.y - e.y) * s]; }
     // the faces on the talk box
     const TALK_FACE = { EDDIE: "assets/crew/pt_eddie.png", JOSE: "assets/crew/pt_jose.png", MIMI: "assets/crew/pt_mimi.png", PABLO: "assets/crew/pt_crew_viejo_civ.png", LEROY: "assets/crew/pt_crew_leroy_civ.png",
       RAS: "assets/crew/pt_crew_ras.png", KATYA: "assets/crew/pt_bozni_katya.png", VICTOR: "assets/crew/pt_bozni_victor.png", DREAD: "assets/crew/pt_dread.png",
@@ -36888,15 +36916,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function sideDone(k) { const S = g.story; storyCheckpoint(); g.slam = { kind: "side", title: "SIDE JOB COMPLETE", sub: HOMIE[k] + " · " + SIDE[k] + " · " + ["ras", "leroy", "viejo"].filter((q) => S.side[q]).length + " / 3", t: 0 }; G.sfx && G.sfx("door", 0.6); }
     const cellSpots = () => { const P = g.pcell; if (!P) return null; const cx = (P.x0 + P.x1) / 2, cy = (P.y0 + P.y1) / 2, w = P.x1 - P.x0, h = P.y1 - P.y0;
       return { cake: [cx, cy], men: [[cx - w * 0.28, cy - h * 0.18, "yt_crew_leroy_in", "LEROY"], [cx + w * 0.28, cy - h * 0.18, "yt_crew_ras_in", "RAS"], [cx, cy + h * 0.30, "yt_crew_viejo_in", "PABLO"]] }; };
-    PD_ART.pr_cake = "assets/prison/pr_cake.png";                     // the warden's cake, top down (Donny's prompt, layer 493)
+    // PD_ART.pr_cake is registered at the top (layer 510b) -- here it ran after the loader and never loaded
     function drawCake(x, y, s) { const im = imgs.current.pr_cake; if (im && im.width) { const w = 48 * (s || 1), h = w * im.height / im.width; ctx.drawImage(im, x - w / 2, y - h / 2, w, h); return; }
       ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(x - 15, y - 9, 34, 22); ctx.fillStyle = "#f4ecdc"; ctx.fillRect(x - 17, y - 12, 34, 22);
       ctx.fillStyle = "#e58bb0"; ctx.fillRect(x - 17, y - 12, 34, 5); ctx.fillStyle = "#c0392b"; for (let q = 0; q < 4; q++) ctx.fillRect(x - 12 + q * 8, y - 4, 3, 3); }
     function drawCellParty() { const S = g.story; if (!S || S.id !== "lastday" || S.step < 1 || !g.pcell || g.inside !== g.pcell.b || g.floor !== 0) return; const C = cellSpots(); if (!C) return;
       if (S.step <= 2) { ctx.fillStyle = "#6b5a44"; ctx.fillRect(C.cake[0] - 22, C.cake[1] - 14, 44, 28); drawCake(C.cake[0], C.cake[1], 0.9); }
-      for (const [x, y, yt, nm] of C.men) { drawShadow(x, y + 2, 9, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.2, yt, bang: Math.atan2(C.cake[1] - y, C.cake[0] - x) + Math.sin(g.t * 1.3 + x) * 0.15 });
+      for (const [x, y, yt, nm] of C.men) { drawShadow(x, y + 2, 9, 4, 0.3); { const pq = S.party ? Math.abs(Math.sin(g.t * 9 + x)) * 4 : 0; drawYouth({ x, y: y - pq, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.2, yt, bang: Math.atan2(C.cake[1] - y, C.cake[0] - x) + Math.sin(g.t * (S.party ? 6 : 1.3) + x) * (S.party ? 0.5 : 0.15) }); }
         ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#9fe0a0"; ctx.fillText(nm, x, y - 28); ctx.textAlign = "start"; }
-      const E = g.escort; if (E && E.phase === 0) for (const gd of E.guards) { drawShadow(gd[0], gd[1] + 2, 10, 4, 0.3); drawYouth({ x: gd[0], y: gd[1], vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt: "yt_pr_guard_2", bang: -Math.PI / 2 }); } }
+      const E = g.escort; if (E && E.phase === 0 && 0) for (const gd of E.guards) { drawShadow(gd[0], gd[1] + 2, 10, 4, 0.3); drawYouth({ x: gd[0], y: gd[1], vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt: "yt_pr_guard_2", bang: -Math.PI / 2 }); } }
     /* the walk out: inside the block to its door (phase 1), then across the yard to the gate (phase 2), two C.O.s at your shoulders */
     function escortBegin() { const P = g.pcell, b = P && P.b; if (!b) return; const B = PRISON_BOX, gx = (B.x0 + B.x1) / 2, dp = doorPoint(b), cx = (P.x0 + P.x1) / 2, cy = (P.y0 + P.y1) / 2;
       g.clock = 5 * 60; g.nightTarget = 0; g.blackA = 1; g.p.x = cx; g.p.y = cy + 10;
@@ -36915,7 +36943,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
     /* DAY OUT: EDDIE */
     function drawEddie() { const S = g.story; if (!S || S.id !== "dayout" || S.step !== 0 || S.met || g.inside || g.mode !== "foot") return; const x = g.car.x + 10, y = g.car.y + 52;
-      drawShadow(x, y + 2, 10, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt: "yt_eddie", bang: Math.atan2(g.p.y - y, g.p.x - x) });
+      drawShadow(x, y + 2, 10, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 0.92, yt: "yt_eddie", bang: Math.atan2(g.p.y - y, g.p.x - x) });
       ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd36a"; ctx.fillText("EDDIE · THE CAB · E", x, y - 30); ctx.textAlign = "start"; }
     G.eddieFn = () => { const S = g.story; if (!S || S.id !== "dayout" || S.step !== 0 || S.met || g.mode !== "foot" || g.inside) return false;
       if (Math.hypot(g.p.x - g.car.x, g.p.y - g.car.y) > 160) return false; G.pickOpen("do_eddie"); return true; };
@@ -37817,7 +37845,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const bedPt = () => { const M = g.bozHouseB || manorB(); return M ? artPt(M, 1, 0.245, 0.33) : null; };
     STEP98.kings1 = (dt) => { const S = g.story; if (g.sleepFx) return; S.t = (S.t || 0) + dt; const M = g.bozHouseB || manorB();
       if (S.step === 0) { if (S.t > 4.6 && !S.go) { S.go = 1; G.sleepFade(() => { nextDay(9, 10); const b = bedPt(); if (M && b) { putIn(M, 1, 0.235, 0.33); } g.booze = { n: 2, t: 9 }; S.step = 1; S.t = 0; S.kx = null; }, "THE NEXT MORNING · THE BOZNOV HOUSE"); } return; }
-      if (S.step === 1) { const b = bedPt(); if (b) { g.p.x = b[0] - 8; g.p.y = b[1]; g.p.vx = g.p.vy = 0; }
+      if (S.step === 1) { const b = bedPt(); if (b) { g.p.x = b[0] - 8; g.p.y = b[1]; g.p.vx = g.p.vy = 0; } g.reyBoxers = !S.pp && G.reyBoxersOn() ? 1 : 0;      // layer 512
         if (S.t > 1.5 && !S.l1) { S.l1 = 1; say("KATYA", "She props herself up on one elbow, sheet to her chin, and looks at you for a long time. “Sooo... this is turning into a thing.”", 7); }
         if (S.t > 8 && !S.up) { S.up = 1; say("KATYA", "She gets up, finds her dress on the floor, and goes downstairs without another word. You hear her laughing at something on the stairs.", 6); }
         if (S.up) { const dst = artPt(M, 1, 0.5, 0.36); if (!S.kx && b) S.kx = [b[0] + 16, b[1]]; if (dst && S.kx) { const dx = dst[0] - S.kx[0], dy = dst[1] - S.kx[1], d = Math.hypot(dx, dy); if (d > 4) { S.kx[0] += dx / d * 70 * dt; S.kx[1] += dy / d * 70 * dt; } } }
@@ -37842,7 +37870,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     OBJ98.kings1 = () => { const S = g.story; return { head: "A SEAT AT THE TABLE · " + ["", "", "", "BREAKFAST", "THE TOP CREW", "A SIT-DOWN"][S.step], sub: ["", "", "", "Out the back door (the war room, top right) -- breakfast in the backyard.", "Leroy's at the round table (E).", "Find somebody who can call a sit-down with Andre Cole. Dread's corner is a start. (The rest of this mission is the next build.)"][S.step] || "" }; };
     TGT98.kings1 = (h) => { const S = g.story, M = g.bozHouseB, Y = yardOf(M); if (S.step === 3) { if (g.inside === M && g.floor === 0) { const BD = yardBackDoor(M); return BD ? BD.pin : null; } return Y ? yardAt(Y, 0.86, 0.3) : null; } if (S.step === 5) return cornerSpot(); return null; };
     DRAW98.push(() => { const S = g.story; if (!S || S.id !== "kings1") return; const M = g.bozHouseB;
-      if (S.step === 1 && M && g.inside === M && g.floor === 1) { const b = bedPt(); if (b) { if (!S.up) person(b[0] + 16, b[1], "yt_bozni_katya", null, Math.PI / 2, null, 1.1); else if (S.kx) person(S.kx[0], S.kx[1], "yt_bozni_katya", "KATYA", 0, "#e8c46a", 1.15);
+      if (S.step === 1 && M && g.inside === M && g.floor === 1) { const b = bedPt(); if (b) { if (!S.up) drawModest512({ x: b[0] + 16, y: b[1], vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.1, yt: "yt_bozni_katya", bang: Math.PI / 2 }); else if (S.kx) person(S.kx[0], S.kx[1], "yt_bozni_katya", "KATYA", 0, "#e8c46a", 1.15);
           ctx.fillStyle = "rgba(122,20,26,0.96)"; ctx.fillRect(b[0] - 26, b[1] + 6, S.up ? 30 : 56, 38); ctx.fillStyle = "rgba(220,180,90,0.8)"; ctx.fillRect(b[0] - 26, b[1] + 6, S.up ? 30 : 56, 3); } }
       if (S.step >= 4 && !g.inside) { const Y = yardOf(M); if (Y) { const crew = [["LEROY", "yt_crew_leroy", 0.83, 0.26], ["RAS", "yt_crew_ras", 0.9, 0.25], ["PABLO", "yt_crew_viejo", 0.82, 0.12], ["KATYA", "yt_bozni_katya", 0.9, 0.11], ["DREAD", "yt_dread", 0.95, 0.18]];
           for (const [nm, yt, fx, fy] of crew) { const p = yardAt(Y, fx, fy); person(p[0], p[1], yt, nm + (nm === "LEROY" && S.step === 4 ? " · E" : ""), Math.atan2(yardAt(Y, 0.86, 0.18)[1] - p[1], yardAt(Y, 0.86, 0.18)[0] - p[0]), "#e8c46a", 1.1); } } } });
@@ -38400,6 +38428,203 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (S.w510 > 5 && !g.pickOpen) { S.open510 = 1; if (prisonPhase(g.clock || CLOCK.start)[2] === "cells" && (g.clock || 0) < 7 * 60 + 30) g.clock = 7 * 60 + 30;
         g.jobBanner = "COUNT CLEAR"; g.jobNote = "The doors roll back. Go find the crew."; G.sfx && G.sfx("door", 0.6); } }
     G.printsT = () => ({ n: (g.bprints || []).length, bloodT: g.p.bloodT || 0 });   // test hook
+    G.nearDoorT = (kind) => { let best = null, bd = 1e12; const ci = Math.floor(g.p.x / PITCH), cj = Math.floor(g.p.y / PITCH);
+      for (let di = -3; di <= 3; di++) for (let dj = -3; dj <= 3; dj++) { const c = getCell(ci + di, cj + dj); for (const b of (c && c.blds) || []) { if (!b.door || b.driveIn || b.landmark || (kind && (kind === "biz" ? !b.biz : b.kind !== kind))) continue; const dp = doorPoint(b), d = Math.hypot(dp[0] - g.p.x, dp[1] - g.p.y); if (d < bd) { bd = d; best = b; } } }
+      if (!best) return null; G.nearDoorB = best; return { kind: best.kind, name: best.name, side: best.door.side, dp: doorPoint(best).map(Math.round), entry: best.entry || 0 }; };   // test hook
+    /* ---------- LAYER 511: THE LAST NIGHT, THE NEXT MORNING, THE WALK OUT ON THE PATHS ----------
+       Donny: after the cake, CELEBRATE (six seconds: the crew up on their feet, the lines, the cake going), FADE TO BLACK,
+       "THE NEXT MORNING · 5:30 AM", Harlan standing in your cell with two C.O.s at the bars; then they walk you out --
+       down the tier, out the block door, and across the grounds on a path that goes AROUND the buildings and the yard
+       fence (grid A* over the campus, `path511`), not straight through them. Harlan leads, a C.O. at each shoulder. */
+    const PARTY_LINES = [["LEROY", "“Seventeen years, Rey. SEVENTEEN.”"], ["RAS", "“Cut it, cut it! Biggest piece fi di free man!”"], ["PABLO", "“To the outside, mijo. Save me a seat.”"],
+      ["LEROY", "“Warden's cake. Tastes like the warden.”"], ["RAS", "“Don't cry pon di cake, bredda.”"]];
+    function partyBegin511() { const S = g.story; if (!S) return; S.step = 2; S.party = { t: 0, said: -1 }; storyMark("THE LAST NIGHT"); g.p.vx = g.p.vy = 0; G.sfx && G.sfx("door", 0.5); }
+    function stepParty511(dt) { const S = g.story; if (!S || S.id !== "lastday" || !S.party || g.escort) return; const Q = S.party; Q.t += dt; g.p.vx = 0; g.p.vy = 0; g.pickOpen = null;
+      const n = Math.min(PARTY_LINES.length - 1, Math.floor(Q.t / 1.3)); if (n !== Q.said && Q.t < 6.5) { Q.said = n; const L = PARTY_LINES[n]; g.driveTalk = { who: L[0], text: L[1], t: 1.6 }; }
+      if (Q.t > 6.5) g.blackA = Math.min(1, (Q.t - 6.5) / 1.5);
+      if (Q.t > 8.6) { S.party = null; escortBegin511(); } }
+    // the grid path: around every building on the campus and the yard fence
+    function path511(a, b2) { const B = PRISON_BOX, cs = 40, W = Math.ceil((B.x1 - B.x0) / cs), H = Math.ceil((B.y1 - B.y0) / cs), block = new Uint8Array(W * H);
+      const W2 = B.x1 - B.x0, H2 = B.y1 - B.y0, Y = PRISON_YARD, rects = [[B.x0 + W2 * Y.u0, B.y0 + H2 * Y.v0, B.x0 + W2 * Y.u1, B.y0 + H2 * Y.v1]];
+      const inR = (r, p) => p[0] > r[0] && p[0] < r[2] && p[1] > r[1] && p[1] < r[3];
+      for (let i = PRISON.i0; i <= PRISON.i1; i++) for (let j = PRISON.j0; j <= PRISON.j1; j++) for (const q of (getCell(i, j).blds || [])) {
+        const r = [q.x, q.y, q.x + q.w, q.y + q.h]; if (inR(r, a) || inR(r, b2) || q.w > 1500) continue; rects.push(r); }
+      for (const r of rects) { const x0 = Math.max(0, Math.floor((r[0] - 22 - B.x0) / cs)), x1 = Math.min(W - 1, Math.floor((r[2] + 22 - B.x0) / cs)), y0 = Math.max(0, Math.floor((r[1] - 22 - B.y0) / cs)), y1 = Math.min(H - 1, Math.floor((r[3] + 22 - B.y0) / cs));
+        for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) block[y * W + x] = 1; }
+      const cell = (p) => [clamp(Math.floor((p[0] - B.x0) / cs), 0, W - 1), clamp(Math.floor((p[1] - B.y0) / cs), 0, H - 1)], s = cell(a), t = cell(b2), si = s[1] * W + s[0], ti = t[1] * W + t[0];
+      block[si] = 0; block[ti] = 0;
+      // the concrete walks (door to the hub, the hub to the gate) are cheap, the grass dear: they keep to the paths
+      const walk = new Uint8Array(W * H), wr = [], hubM = MARKS_REF.find((m) => m.prisonMark && m.prisonMark.prison);
+      if (hubM && hubM.b && hubM.b.door) { const hd = doorPoint(hubM.b); for (const m of MARKS_REF) { if (!m.prisonMark || !m.b || !m.b.door || m === hubM) continue; const d0 = doorPoint(m.b);
+          wr.push([Math.min(d0[0], hd[0]) - 30, d0[1] - 30, Math.max(d0[0], hd[0]) + 30, d0[1] + 30], [hd[0] - 30, Math.min(d0[1], hd[1]) - 30, hd[0] + 30, Math.max(d0[1], hd[1]) + 30]); }
+        wr.push([B.x0 + W2 * 0.5 - 38, B.y0, B.x0 + W2 * 0.5 + 38, hd[1] + 30]); }
+      for (const r of wr) { const x0 = Math.max(0, Math.floor((r[0] - B.x0) / cs)), x1 = Math.min(W - 1, Math.floor((r[2] - B.x0) / cs)), y0 = Math.max(0, Math.floor((r[1] - B.y0) / cs)), y1 = Math.min(H - 1, Math.floor((r[3] - B.y0) / cs));
+        for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) walk[y * W + x] = 1; }
+      G.walk511 = { n: wr.length, hub: hubM && hubM.b ? doorPoint(hubM.b).map(Math.round) : null, wr: wr.map((r) => r.map(Math.round)) };
+      const gS = new Float32Array(W * H).fill(1e9), from = new Int32Array(W * H).fill(-1), open = [si]; gS[si] = 0; const hh = (k) => 0.5 * Math.hypot(k % W - t[0], ((k / W) | 0) - t[1]);
+      let it = 0; while (open.length && it++ < 40000) { let bi = 0, bf = 1e18; for (let k = 0; k < open.length; k++) { const f = gS[open[k]] + hh(open[k]); if (f < bf) { bf = f; bi = k; } } const c = open.splice(bi, 1)[0]; if (c === ti) break;
+        const cx = c % W, cy = (c / W) | 0; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { if (!dx && !dy) continue; const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const n = ny * W + nx; if (block[n]) continue;
+          if (dx && dy && (block[cy * W + nx] || block[ny * W + cx])) continue; const ng = gS[c] + (dx && dy ? 1.414 : 1) * (walk[n] ? 0.5 : 1.6); if (ng < gS[n]) { if (gS[n] >= 1e9) open.push(n); gS[n] = ng; from[n] = c; } } }
+      if (from[ti] < 0 && ti !== si) return [a, b2];
+      const raw = []; for (let k = ti; k >= 0 && k !== si; k = from[k]) raw.push([B.x0 + (k % W + 0.5) * cs, B.y0 + (((k / W) | 0) + 0.5) * cs]); raw.reverse();
+      const clear = (p, q) => { const n = Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 12); for (let k = 0; k <= n; k++) { const c = cell([p[0] + (q[0] - p[0]) * k / n, p[1] + (q[1] - p[1]) * k / n]); const ci = c[1] * W + c[0]; if (block[ci] || (!walk[ci] && wOn)) return false; } return true; };
+      const pts = [a].concat(raw, [b2]), out = [a]; let k = 0, wOn = false; while (k < pts.length - 1) { const c0 = cell(pts[k]); wOn = !!walk[c0[1] * W + c0[0]]; let m = pts.length - 1; while (m > k + 1 && !clear(pts[k], pts[m])) m--; out.push(pts[m]); k = m; }
+      return out; }
+    function escortBegin511() { const P = g.pcell, b = P && P.b; if (!b) return; const B = PRISON_BOX, gx = (B.x0 + B.x1) / 2, cx = (P.x0 + P.x1) / 2, cy = (P.y0 + P.y1) / 2;
+      const pl = buildingPlans(b)[0], tier = pl && pl.rooms.find((r) => r.k === "tier"), d0 = introInsidePt(b), ty = tier ? (tier.y0 + tier.y1) / 2 : d0[1] - 80;
+      const sd = b.door ? b.door.side : 2, o = [[0, -1], [1, 0], [0, 1], [-1, 0]][sd], dp = doorPoint(b), outPt = [dp[0] + o[0] * 44, dp[1] + o[1] * 44];
+      g.inside = b; g.floor = 0; g.insideT = 1; g.mode = "foot"; g.clock = 5 * 60 + 30; g.nightTarget = 0; g.blackA = 1; g.p.x = cx; g.p.y = cy + 6; g.cam.x = g.p.x; g.cam.y = g.p.y;
+      const barsY = P.top ? P.y1 + 22 : P.y0 - 22;
+      g.escort = { phase: 0, t: 0, b, harlan: { x: cx + 16, y: P.top ? P.y1 - 18 : P.y0 + 18, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.3, yt: "yt_harlan" },
+        guards: [[cx - 26, barsY], [cx + 26, barsY]], inPts: [[cx, cy + 6], [cx, ty], [d0[0], ty], d0, [dp[0], dp[1]]], outPts: path511(outPt, [gx, B.y0 + 70]), i: 0 };
+      g.slam = { kind: "start", title: "THE NEXT MORNING", sub: "5:30 AM · KESTREL STATE", t: 0 };
+      g.driveTalk = { who: "C.O. HARLAN", text: "Flashlight in your face. “Rey. Up. It's five-thirty and you're somebody else's problem now.” Leroy, Ras and Pablo are still on the floor of your cell, half asleep. “Walk good, bredda.” “Don't come back.” “See you outside, mijo.”", t: 9 }; }
+    function walk511(E, pts, dt, sp) { const P = g.p; let tgt = pts[E.i]; while (tgt && Math.hypot(tgt[0] - P.x, tgt[1] - P.y) < 4) { E.i++; tgt = pts[E.i]; } if (!tgt) return true;
+      const dx = tgt[0] - P.x, dy = tgt[1] - P.y, d = Math.hypot(dx, dy), m = Math.min(d, sp * dt); P.x += dx / d * m; P.y += dy / d * m; E.dir = Math.atan2(dy, dx); P.anim = (P.anim || 0) + dt * 6;
+      // Harlan out front along the same path, the two C.O.s at his shoulders behind
+      let rem = 36, at = [P.x, P.y], j = E.i; while (rem > 0 && pts[j]) { const q = pts[j], L = Math.hypot(q[0] - at[0], q[1] - at[1]); if (L >= rem) { at = [at[0] + (q[0] - at[0]) * rem / L, at[1] + (q[1] - at[1]) * rem / L]; rem = 0; } else { rem -= L; at = q; j++; } }
+      const H = E.harlan; H.vx = (at[0] - H.x) / Math.max(dt, 0.001); H.vy = (at[1] - H.y) / Math.max(dt, 0.001); H.x = at[0]; H.y = at[1]; H.anim += dt * 6; H.bang = E.dir;
+      const px = -Math.sin(E.dir) * 26, py = Math.cos(E.dir) * 26; E.guards = [[P.x + px - Math.cos(E.dir) * 14, P.y + py - Math.sin(E.dir) * 14], [P.x - px - Math.cos(E.dir) * 14, P.y - py - Math.sin(E.dir) * 14]];
+      if (g.board) g.board.ang = E.dir; g.cam.x += (P.x - g.cam.x) * Math.min(1, dt * 4); g.cam.y += (P.y - g.cam.y) * Math.min(1, dt * 4); return false; }
+    function stepEscort511(dt) { stepParty511(dt); const E = g.escort; if (!E) return; E.t += dt; g.p.vx = 0; g.p.vy = 0; g.pickOpen = null;
+      if (E.phase === 0) { g.blackA = clamp(1 - (E.t - 1.4) / 1.6, 0, 1); if (E.t > 6) { E.phase = 1; E.t = 0; E.i = 0; } return; }
+      if (E.phase === 1) { if (walk511(E, E.inPts, dt, 72)) { E.phase = 2; E.t = 0; E.i = 0; g.inside = null; g.floor = 0; g.insideT = 0; g.pfolk = null; const q = E.outPts[0]; g.p.x = q[0]; g.p.y = q[1]; } return; }
+      if (E.phase === 2) { if (E.t > 2 && !E.said) { E.said = 1; g.driveTalk = { who: "C.O. HARLAN", text: "“Seventeen years and you never once tried the fence. Don't make me wrong about you.”", t: 5 }; }
+        if (walk511(E, E.outPts, dt, 84) || E.t > 60) { g.escort = null; const S = g.story; if (S && S.id === "lastday") storyComplete(); } } }
+    function drawEscort511() { const E = g.escort; if (!E) return; const inCell = E.phase === 0;
+      if (inCell || (E.phase === 1) === !!g.inside) { const H = E.harlan, im = imgs.current.yt_harlan;
+        drawShadow(H.x, H.y + 2, 10, 4, 0.34); drawYouth({ ...H, yt: im && im.width ? "yt_harlan" : "yt_pr_guard_1", bang: inCell ? Math.atan2(g.p.y - H.y, g.p.x - H.x) : H.bang, vx: inCell ? 0 : H.vx, vy: inCell ? 0 : H.vy });
+        lab8("C.O. HARLAN", H.x, H.y - 30, "#e8c46a");
+        if (!inCell) for (const gd of E.guards) { drawShadow(gd[0], gd[1] + 2, 10, 4, 0.3); drawYouth({ x: gd[0], y: gd[1], vx: Math.cos(E.dir || 0) * 30, vy: Math.sin(E.dir || 0) * 30, anim: (g.t || 0) * 6, jit: 1, tall: 1.3, yt: "yt_pr_guard_2", bang: E.dir || 0 }); } } }
+    function drawParty511() { const S = g.story; if (!S || S.id !== "lastday" || !S.party || !g.pcell || g.inside !== g.pcell.b) return; const C = cellSpots(); if (!C) return; const t = S.party.t;
+      for (let k = 0; k < 14; k++) { const a = k * 2.4 + t * 2, r = 20 + ((k * 37) % 40) + Math.sin(t * 3 + k) * 6; ctx.fillStyle = ["#f2c45a", "#e58bb0", "#7fd35a", "#7fb8ff"][k % 4]; ctx.fillRect(C.cake[0] + Math.cos(a) * r, C.cake[1] + Math.sin(a) * r - ((t * 30 + k * 13) % 30), 3, 3); } }
+    G.escort511T = () => { const E = g.escort, S = g.story; return { party: S && S.party ? +S.party.t.toFixed(1) : null, phase: E ? E.phase : null, i: E ? E.i : null, out: E ? E.outPts.length : 0, inside: !!g.inside, clock: Math.round(g.clock || 0), slam: g.slam && g.slam.title }; };   // test hook
+    G.routeCutT = (pts) => { const bad = []; for (let k = 1; k < (pts || []).length; k++) { const a = pts[k - 1], b = pts[k];
+        if (Math.abs(a[0] - b[0]) < Math.abs(a[1] - b[1])) { const i = Math.round(a[0] / PITCH); for (let j = Math.floor(Math.min(a[1], b[1]) / PITCH); j < Math.floor(Math.max(a[1], b[1]) / PITCH); j++) if (vCut(i, j)) bad.push(["v", i, j]); }
+        else { const j = Math.round(a[1] / PITCH); for (let i = Math.floor(Math.min(a[0], b[0]) / PITCH); i < Math.floor(Math.max(a[0], b[0]) / PITCH); i++) if (hCut(i, j)) bad.push(["h", i, j]); } } return bad; };
+    G.routeT = (x0, y0, x1, y1) => roadRoute(x0, y0, x1, y1).map((p) => p.map(Math.round));   // test hooks
+    G.gasAllT = () => GAS_CELLS.map((gc) => { const c = getCell(gc.i, gc.j); return { i: gc.i, j: gc.j, zone: c.zone, pump: gasSpots(c)[0].map(Math.round), shop: gasShop(c), can: gasCanopy(c) }; });   // test hook
+    let mmPaths511 = null;   // the minimap streets, built once (layer 511)
+    /* ---------- LAYER 512: APARTMENT DOORS AND THE RENT, THE MODESTY BLUR, A LITTLE QUICKER ON YOUR FEET ----------
+       PALM COURT'S DOORS (Donny): every flat's doorway onto the hall gets a door that slides like the cell doors.
+       Yours (1A) opens and shuts with E -- unless the rent is owed. Mimi's (2B, building A upstairs) opens once she's
+       moved in. Every other flat is LOCKED. THE RENT: $25 a week, taken on its own from your cash the morning it's due;
+       short, and it's OWED and your door locks (never with you inside) until you pay it at the door (E). */
+    const DOOR_Y512 = [0.732, 0.868];
+    const DOOR_X512 = { int_apt_long_f0: [[0.448, 0.456], [0.544, 0.552]], int_apt_long_f1: [[0.448, 0.456], [0.544, 0.552]],
+      int_apt_side_f0: [[0.4071, 0.4214], [0.5786, 0.5929]], int_apt_side_f1: [[0.4071, 0.4214], [0.5786, 0.5929]] };
+    const RENT = { week: 25, days: 7 };
+    function aptName512(b, f, side) { const lt = b.aptTop ? "" : /BUILDING B/.test(b.name || "") ? "B" : "C"; return (f + 1) + (lt ? lt + "-" : "") + (side ? "B" : "A"); }
+    function aptDoors512(b, f) { if (!b || !b.artFloors || !DOOR_X512[b.artFloors[f]]) return null; const pl = fitArtFloor(b, f, b.artFloors[f], b.artKeep); if (!pl || !pl.artR2) return null;
+      if (pl.doors512) return pl.doors512; const key = b.artFloors[f];
+      pl.doors512 = DOOR_X512[key].map(([fx0, fx1], side) => { const p0 = artAt(pl, fx0, DOOR_Y512[0]), p1 = artAt(pl, fx1, DOOR_Y512[1]), r = { x: Math.min(p0[0], p1[0]), y: Math.min(p0[1], p1[1]), w: Math.abs(p1[0] - p0[0]), h: Math.abs(p1[1] - p0[1]) };
+        const ua = artAt(pl, side ? fx1 : 0, 0), ub = artAt(pl, side ? 1 : fx0, 1), unit = { x0: Math.min(ua[0], ub[0]), y0: Math.min(ua[1], ub[1]), x1: Math.max(ua[0], ub[0]), y1: Math.max(ua[1], ub[1]) };
+        const prop = { x: r.x - 2, y: r.y, w: r.w + 4, h: r.h, t: "artblock", hard: 1 }; pl.props.push(prop);
+        const home = !!b.aptTop && f === 0 && side === 0, mimi = !!b.aptTop && f === 1 && side === 1;
+        return { b, f, side, r, unit, prop, home, mimi, nm: aptName512(b, f, side), open: 0, want: 0 }; });
+      return pl.doors512; }
+    const inUnit512 = (D) => g.p.x > D.unit.x0 && g.p.x < D.unit.x1 && g.p.y > D.unit.y0 && g.p.y < D.unit.y1;
+    function doorLocked512(D) { if (D.home) return (g.rent && g.rent.owed > 0) && !inUnit512(D); if (D.mimi) return !(g.mimiHome || g.dinner); return true; }
+    function stepAptDoors512(dt) { const b = g.inside; if (!b) return; const L = aptDoors512(b, g.floor); if (!L) return;
+      for (const D of L) { if (doorLocked512(D)) D.want = 0; if (D.home && g.rent && g.rent.owed > 0 && inUnit512(D) && D.want === 0 && D.open < 0.05) D.want = 1;   // never shut in
+        D.open = clamp(D.open + (D.want ? 1 : -1) * dt / 0.5, 0, 1); const shut = D.open < 0.85; D.prop.hard = shut ? 1 : 0; D.prop.t = shut ? "artblock" : "artdoor_open"; } }
+    function drawAptDoors512() { const b = g.inside; if (!b) return; const L = aptDoors512(b, g.floor); if (!L) return;
+      for (const D of L) { const r = D.r, vert = r.h > r.w, len = vert ? r.h : r.w, th = vert ? r.w : r.h, cov = len * (1 - D.open);
+        ctx.fillStyle = "#2a1d12"; if (vert) { ctx.fillRect(r.x - 3, r.y - 3, r.w + 6, 4); ctx.fillRect(r.x - 3, r.y + r.h - 1, r.w + 6, 4); } else { ctx.fillRect(r.x - 3, r.y - 3, 4, r.h + 6); ctx.fillRect(r.x + r.w - 1, r.y - 3, 4, r.h + 6); }
+        if (cov > 1) { ctx.fillStyle = D.home ? "#7a5634" : D.mimi ? "#6d4a63" : "#5c4632"; if (vert) ctx.fillRect(r.x - 1, r.y, th + 2, cov); else ctx.fillRect(r.x, r.y - 1, cov, th + 2);
+          ctx.fillStyle = "rgba(255,230,180,0.18)"; if (vert) ctx.fillRect(r.x, r.y + 2, 2, cov - 4); else ctx.fillRect(r.x + 2, r.y, cov - 4, 2);
+          ctx.fillStyle = "#d9b26a"; if (cov > 14) { if (vert) ctx.fillRect(r.x + th / 2 - 1.5, r.y + cov - 10, 3, 3); else ctx.fillRect(r.x + cov - 10, r.y + th / 2 - 1.5, 3, 3); } }
+        const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+        if (g.mode === "foot" && Math.hypot(g.p.x - cx, g.p.y - cy) < 64) { const owed = D.home && g.rent && g.rent.owed > 0 && !inUnit512(D);
+          lab8(D.nm + " · " + (owed ? "RENT OWED $" + g.rent.owed + " · E" : doorLocked512(D) ? "LOCKED" : "E: " + (D.want ? "SHUT" : "OPEN")), cx, cy - 34, owed ? "#ff8a6a" : doorLocked512(D) ? "#a89a80" : "#e8c46a"); } } }
+    G.aptDoorFn = () => { const b = g.inside; if (!b || g.mode !== "foot") return false; const L = aptDoors512(b, g.floor); if (!L) return false;
+      let best = null, bd = 64; for (const D of L) { const d = Math.hypot(g.p.x - (D.r.x + D.r.w / 2), g.p.y - (D.r.y + D.r.h / 2)); if (d < bd) { bd = d; best = D; } } if (!best) return false;
+      if (best.home && g.rent && g.rent.owed > 0 && !inUnit512(best)) { G.pickOpen("sp_rent"); return true; }
+      if (doorLocked512(best)) { g.pickupFlash = { nm: "lift:" + best.nm + " · LOCKED · NOT YOUR PLACE", t: 1.4 }; G.sfx && G.sfx("door", 0.2); return true; }
+      best.want = best.want ? 0 : 1; G.sfx && G.sfx("door", 0.4); return true; };
+    // THE RENT: from the day you first walk into 1A
+    function stepRent512() { if (!g.prisonMode || !g.aptHomeB || !(g.storyDone || {}).dayout) return; const day = g.day || 0;
+      const R = (g.rent = g.rent || { from: day, last: day, owed: 0 }); while (day - R.last >= RENT.days) { R.last += RENT.days;
+        if (!R.owed && (g.p.cash || 0) >= RENT.week) { g.p.cash -= RENT.week; g.pickupFlash = { nm: "lift:RENT · 1A · -$" + RENT.week, t: 2 }; }
+        else { R.owed += RENT.week; g.jobBanner = "RENT DUE · 1A"; g.jobNote = "$" + R.owed + " owed. The landlord's locked you out till you pay -- at your door."; } } }
+    SP.sp_rent = () => { const R = g.rent || { owed: 0 }, can = (g.p.cash || 0) >= R.owed;
+      return { title: "1A · PALM COURT · THE RENT", face: null, text: "A new lock, and a note taped over the old one: “$" + RENT.week + " A WEEK. YOU OWE $" + R.owed + ". PAY UP AND IT OPENS. -- MGMT.”\n\nYou have $" + Math.floor(g.p.cash || 0).toLocaleString() + ".",
+        opts: (can ? [{ id: "story:sp_rent_pay", label: "PAY THE $" + R.owed + " YOU OWE" }] : [{ id: "close", label: "YOU DON'T HAVE $" + R.owed, dim: true }]).concat([{ id: "close", label: "NOT NOW" }]) }; };
+    SPA.sp_rent_pay = () => { const R = g.rent; if (R && (g.p.cash || 0) >= R.owed) { g.p.cash -= R.owed; g.pickupFlash = { nm: "lift:RENT PAID · -$" + R.owed + " · THE DOOR'S OPEN", t: 2 }; R.owed = 0;
+        const L = g.inside && aptDoors512(g.inside, g.floor); if (L) for (const D of L) if (D.home) D.want = 1; } spClose(); };
+    G.rentT = () => ({ rent: g.rent, doors: g.inside && (aptDoors512(g.inside, g.floor) || []).map((D) => ({ nm: D.nm, open: +D.open.toFixed(2), locked: doorLocked512(D), hard: D.prop.hard, r: [D.r.x | 0, D.r.y | 0, D.r.w | 0, D.r.h | 0] })) });   // test hook
+    /* THE MODESTY BLUR (Donny): in the love scenes her body below the head is a soft blur IN HER OWN SKIN COLOUR (from
+       YT_ARMS, or sampled off the sprite), her head left clear. Rey is drawn in his boxers (yt_rey_boxers) when the file
+       is there; till then the old mosaic stands in for him. */
+    const skinCache512 = {};
+    function skinOf512(yt) { if (skinCache512[yt]) return skinCache512[yt]; const A = YT_ARMS[yt]; if (A && A[1]) return (skinCache512[yt] = A[1]);
+      const im = imgs.current[yt]; if (!im || !im.width) return "#c8956f"; try { const c = document.createElement("canvas"); c.width = 48; c.height = 48; const x = c.getContext("2d"); x.drawImage(im, 0, 0, 48, 48);
+        const d = x.getImageData(0, 0, 48, 48).data; let r = 0, gg = 0, bb = 0, n = 0; for (let i = 0; i < d.length; i += 4) { const R = d[i], G2 = d[i + 1], B = d[i + 2]; if (d[i + 3] > 200 && R > G2 && G2 > B && R - B > 25 && R - B < 130 && R > 70) { r += R; gg += G2; bb += B; n++; } }
+        return (skinCache512[yt] = n > 8 ? "rgb(" + ((r / n) | 0) + "," + ((gg / n) | 0) + "," + ((bb / n) | 0) + ")" : "#c8956f"); } catch (e) { return "#c8956f"; } }
+    function drawModest512(p) { drawYouth(p); const im = imgs.current[p.yt]; if (!im || !im.width) return; const h = 30 * (p.jit || 1) * 0.82 * (p.tall || 1) * (YT_SCALE[p.yt] || 1), w = h * (im.width / im.height);
+      const sp = Math.hypot(p.vx || 0, p.vy || 0), face = (p.bang != null && sp <= 10) ? p.bang : Math.atan2(p.vy || 0, p.vx || 0), hr = Math.min(w * 0.15, h * 0.17), hy = -h / 2 + hr * 1.05;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(face + YOUTH_FACE); ctx.fillStyle = skinOf512(p.yt); ctx.filter = "blur(3px)"; ctx.globalAlpha = 0.96;
+      const top = hy + hr * 0.95, bot = h * 0.5; ctx.beginPath(); ctx.ellipse(0, (top + bot) / 2, w * 0.46, (bot - top) / 2 + 2, 0, 0, 6.3); ctx.fill(); ctx.restore(); }
+    G.reyBoxersOn = () => !!(imgs.current.yt_rey_boxers && imgs.current.yt_rey_boxers.width);
+    G.aptObjT = () => { const b = g.inside; if (!b || !b.artFloors) return null; const P2 = fitArtFloor(b, g.floor, b.artFloors[g.floor], b.artKeep); const L = APT_OBJ[b.artFloors[g.floor]] || [];
+      return { key: b.key, top: !!b.aptTop, floor: g.floor, art: b.artFloors[g.floor], objs: L.map(([k, fx, fy]) => { const [x, y] = artAt(P2, fx, fy); return [k, Math.round(x), Math.round(y), fx, fy]; }) }; };   // test hook
+    /* ---------- LAYER 512b: 1A'S LIVING ROOM, THE CONSOLE, CHANNEL 6 ----------
+       Donny: the couch and the TV swap places (the art, int_apt_long_f0.png, and its blocks) so the TV is in front of the
+       couch; an Atari on the floor by the set (E: the cartridges, same as the kid's / Malcolm's); and the TV runs a real
+       channel -- AD, AD, NEWS, AD, AD, NEWS... -- the ads for nearly every business in town, the news written from what's
+       actually going on (the war, your crew, your businesses, Drummond, the cops). */
+    const CONSOLE_AT512 = [0.272, 0.93];
+    function aptConsole512() { const b = g.inside; if (!b || !b.aptTop || g.floor !== 0 || !b.artFloors) return null; const pl = fitArtFloor(b, 0, b.artFloors[0], b.artKeep); if (!pl || !pl.artR2) return null; return artAt(pl, CONSOLE_AT512[0], CONSOLE_AT512[1]); }
+    function drawAptConsole512() { const p = aptConsole512(); if (!p) return; const im = imgs.current.ap_atari; if (im && im.width) ctx.drawImage(im, p[0] - 12, p[1] - 13, 24, 26); else { ctx.fillStyle = "#1c1c1c"; ctx.fillRect(p[0] - 12, p[1] - 8, 24, 16); ctx.fillStyle = "#b8742e"; ctx.fillRect(p[0] - 12, p[1] - 2, 24, 3); }
+      if (g.mode === "foot" && near(p, 44)) lab8("THE ATARI · E", p[0], p[1] - 18); }
+    G.aptConsoleFn = () => { const p = aptConsole512(); if (!p || g.mode !== "foot" || !near(p, 44)) return false; G.pickOpen("console"); return true; };
+    const TV_ADS = [
+      ["KUM N PAY", "“Kum n Pay! Gas! Groceries! Hot dogs that have been rotating since the Carter administration! Kum n Pay -- we're open when you're desperate.”"],
+      ["TOP TANK", "A cartoon gas pump in sunglasses: “Fill 'er up at TOP TANK, baby! Free windshield squeegee with every fill-up! Squeegee not guaranteed clean.”"],
+      ["CHICKEN CHEW'YS", "“Chicken Chew'ys! The bucket's bigger! The chicken's chewier! It's in the NAME, people! Chicken Chew'ys -- you'll be chewing for days.”"],
+      ["RIGHT TO ARMS", "A man in a cowboy hat, very calm: “Right To Arms. Because the Constitution said so, and because your neighbour is a weirdo. Layaway available.”"],
+      ["STAN'S", "Stan, under a car, not getting out from under it: “Stan's. I fix it. I don't talk about it. ...That's the commercial.”"],
+      ["THE RUSTY NAIL", "Dim, grainy footage of a bar: “The Rusty Nail. Cold beer. Pool tables. Questions not asked. Happy hour is whenever Silas says it is.”"],
+      ["THE HAPPY HIPPIE LAUNDRY", "A van covered in flowers: “Peace, love, and CLEAN SHEETS, man. The Happy Hippie Laundry Co. We wash anything. And we mean anything.”"],
+      ["RAVEN AUTO", "A man slapping the roof of a sedan: “This baby can fit SO many problems in it. Raven Auto! Cash talks, financing walks!”"],
+      ["LEE'S HAND LAUNDRY", "An old woman pointing straight at the camera: “Lee's Hand Laundry. No ticket, no shirt. I don't care who you are.”"],
+      ["THE DAILY GRIND", "“The Daily Grind -- coffee strong enough to make you forget you work downtown. Now with DONUTS. The donuts are also strong.”"],
+      ["THE STARLITE MOTEL", "A neon sign buzzing: “The Starlite Motel. Hourly, nightly, weekly. Colour TV in every room! Most rooms!”"],
+      ["THE RAVEN'S NEST", "Strobe lights, a saxophone: “The Raven's Nest. Thursday is ladies' night. Friday is ladies' night. Look, it's mostly ladies' night.”"],
+      ["UNION TERMINAL", "A conductor waving: “Ride the rails from UNION TERMINAL! Downtown in twelve minutes! The El -- now with eighty percent fewer pigeons.”"],
+      ["MOLLOY'S PAWN", "“We buy gold! We buy guitars! We buy that thing your uncle left you! We do NOT ask where it came from! Pawn it today!”"],
+      ["THE JEWELLERS' ROW", "Diamonds on black velvet: “Show her you're sorry. Again. Raven Hook's finest jewellers -- because flowers die.”"],
+      ["PIXEL PALACE ARCADE", "Bleeps and bloops: “Over one hundred machines! Air hockey! A claw machine that is TOTALLY fair! Pixel Palace -- where your quarters go to party.”"],
+      ["THE STADIUM", "Crowd roar: “This Sunday! Raven Hook versus whoever we're playing! Two-dollar hot dogs! Bring the kids! Leave the kids!”"],
+      ["THE CHRONICLE", "A paperboy shouting: “Read all about it! The Raven Hook Chronicle -- now with MORE crosswords and only SLIGHTLY less crime!”"],
+      ["VANCE TOWER RESIDENCES", "Slow piano, a skyline: “Vance Tower Residences. Live above it all. Julian Vance invites you to stop worrying about the street. Literally. You'll be very high up.”"],
+      ["KESTREL AIRPORT", "A jet taking off: “Fly Kestrel Air! Miami! Vegas! Anywhere but here! Kestrel Airport -- leave your troubles on the runway.”"],
+      ["DR. MARV'S BACK CLINIC", "A man in a white coat holding a skeleton: “Back hurt? Neck hurt? Wallet feel too heavy? Doctor Marv can help with all three.”"],
+      ["SLICK RICK'S CARPET OUTLET", "A man in a cape screaming: “EVERYTHING MUST GO! The carpet! The pad! My marriage! SLICK RICK'S -- PRICES SO LOW I'M CRYING!”"],
+      ["THE CITY OF RAVEN HOOK", "A public service announcement, a cartoon raven: “Don't litter. Don't jaywalk. Don't tell the cops I said this. -- Raven Hook City Hall.”"],
+      ["MIMI'S KITCHEN", "A lady with a wooden spoon, not smiling: “You're too skinny. Come eat. Mimi's Kitchen, Palm Court. No reservations. No complaints.”"] ];
+    function tvNews512() { const L = [], gn = g.gangName, S = g.storyDone || {}, B = g.biz || {}, ks = Object.keys(B);
+      if ((g.kingsTurfHeat || 0) > 60) L.push("CHANNEL 6 NEWS: More shots fired in the hood overnight. Police describe it as “a turf dispute” and say it is “under control.” Residents say it is not.");
+      else if ((g.kingsTurfHeat || 0) > 20) L.push("CHANNEL 6 NEWS: Tension on the east side. Two corners changed hands this week, police say, “and not through a realtor.”");
+      else L.push("CHANNEL 6 NEWS: A quiet week on the east side. Police are calling it “suspicious.”");
+      if (S.mansion || S.kings1) L.push("CHANNEL 6 NEWS: Still no arrests in the explosion at the Boznov house in Old Town. Police say the family feud theory “remains our favourite.”");
+      if (gn) L.push("CHANNEL 6 NEWS: Sources on the street are talking about a new crew calling itself " + gn + ". RHPD says it has “never heard of them.” Everyone else has.");
+      if (ks.length) { const k = ks[(g.tvNewsI || 0) % ks.length]; L.push("CHANNEL 6 NEWS: New management at " + EMP[k].nm + ". Regulars say the place is “cleaner, quieter, and nobody's asking questions anymore.”"); }
+      if (g.rcase && !g.rcase.closed) L.push("CHANNEL 6 NEWS: Detective Hal Drummond says his investigation into “organised activity on the east side” is " + (g.rcase.fill > 60 ? "“very close” to an arrest." : "“ongoing.” He declined to say more."));
+      if ((g.heat || 0) >= 2) L.push("CHANNEL 6 NEWS: A police chase tore through downtown tonight. The suspect vehicle got away. The police vehicles hit a fruit stand.");
+      if (S.bankjob) L.push("CHANNEL 6 NEWS: Still no leads in the bank robbery. The FBI has been called in. The FBI says it “would like to be called out again.”");
+      L.push("CHANNEL 6 NEWS: Kestrel State released forty men this month. The warden calls it “a normal month.” Neighbours of the prison call it “the month we buy a dog.”");
+      L.push("CHANNEL 6 NEWS: Vance Tower adds a new floor. Julian Vance cut the ribbon and declined to answer questions about his brother Damian's “business associates.”");
+      L.push("CHANNEL 6 SPORTS: The Raven Hook Ravens lose again. Coach says the team is “building.” Fans say the team is “bad.”");
+      L.push("CHANNEL 6 WEATHER: Grey. Then greyer. Then rain. This has been the weather.");
+      return L; }
+    function tvItem512() { const i = g.tvI || 0; if (i % 3 === 2) { const L = tvNews512(), n = g.tvNewsI || 0; return { kind: "NEWS", text: L[n % L.length] }; }
+      const a = TV_ADS[(g.tvAdI || 0) % TV_ADS.length]; return { kind: "AD · " + a[0], text: a[1] }; }
+    function tvNext512() { const i = g.tvI || 0; if (i % 3 === 2) g.tvNewsI = (g.tvNewsI || 0) + 1; else g.tvAdI = (g.tvAdI || 0) + 1; g.tvI = i + 1; g.clock = ((g.clock || 0) + 10) % 1440; }
+    SP.sp_tv = () => { const it = tvItem512(); return { title: "CHANNEL 6 · " + it.kind, face: null, text: it.text, opts: [{ id: "story:sp_tv_next", label: "KEEP WATCHING" }, { id: "story:sp_tv_off", label: "TURN IT OFF" }] }; };
+    SPA.sp_tv_next = () => { tvNext512(); G.pickOpen("sp_tv"); };
+    SPA.sp_tv_off = () => { tvNext512(); spClose(); };
+    G.tvT = () => ({ i: g.tvI || 0, item: tvItem512() });   // test hook
     /* ---------- LAYER 489: STORY HUD, THE STORY ARROW AND ROUTE, PABLO AT THE HIPPIE, THE BOZNOVS ON THEIR FEET ----------
        storyOnly(): Rey's story (Kestrel mode, out of prison). The HUD shows the story and nothing else -- no scanner calls,
        no street races, no RHPD line unless it's you they're after, no SAVED/LOST, no JUICE, no SKY.
@@ -38630,7 +38855,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!S.talked[k]) return { title, face, text: "“" + L.hi + "”\n\n“" + L.job + "”", opts: [{ id: "story:talk:" + k, label: L.ok + " · " + SIDE[k] }] };
       return { title, face, text: "“" + (S.side[k] ? L.after : L.job) + "”", opts: [{ id: "close", label: "LATER" }] }; }
     function storyByePanel() { return { title: "LAST DAY IN · THE CAKE", face: "assets/crew/pt_crew_leroy.png",
-      text: "The four of you on two bunks, the warden's cake on a towel, plastic forks.\n\nLEROY: “Key's under the mat. Palm Court, Building A, 1A. Don't thank me. Just don't come back.”\nRAS: “Me pay a man fi tomorrow. You'll see. Walk good, Rey.”\nPABLO: “A few weeks, mijo. Don't start the war without me.”",
+      text: "The four of you on two bunks, the warden's cake on a towel, plastic forks.\n\nLEROY: “Key's under the mat. Palm Court, Building A, 1A. And lift the lid on the toilet tank -- my sister's old man kept his money in there. Don't thank me. Just don't come back.”\nRAS: “Me pay a man fi tomorrow. You'll see. Walk good, Rey.”\nPABLO: “A few weeks, mijo. Don't start the war without me.”",
       opts: [{ id: "story:bye", label: "“SEVENTEEN YEARS. I'LL SEE YOU OUT THERE.”" }] }; }
     function storyObjective() { const S = g.story; if (S && S.id === "setup") return setupObjective(); if (S && S.id === "dayout") return dayOutObjective(); if (S && S.id === "firstout") return firstOutObjective(); if (S && S.id === "scrapyard") return scrapObjective(); if (S && S.id === "friday") return fridayObjective(); if (S && S.id === "allin") return allinObjective(); if (S && S.id === "washday") return washObjective(); if (S && S.id === "maptable") return maptableObjective(); if (S && S.id === "bankjob") return bankjobObjective(); if (S && S.id === "corner") return cornerObjective(); if (S && S.id === "nest") return nest2Objective(); if (S && OBJ98[S.id]) return OBJ98[S.id](); if (!S || S.id !== "lastday") return null; const nm = "LAST DAY IN";
       if (S.step === 0) { const ks = ["leroy", "ras", "viejo"], left = ks.filter((k) => !S.talked[k]);
@@ -38659,7 +38884,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (walls.some((q) => px > q.x && px < q.x + q.w && py > q.y && py < q.y + q.h)) return false; } }
       return true; }
     function storyStep(dt) {
-      stepSleepFx(dt); stepDinner(dt); stepHillCars(); stepTrophy(dt); stepCrush(dt); stepBplate(dt); stepPayDrain(dt); stepCarry(dt); stepPick(dt); stepCalled(dt); stepRcase(dt); if (g.rcDrum && (g.rcDrum.t -= dt) <= 0) g.rcDrum = null; stepPrints510(dt); stepWake510(dt); if (((g.t || 0) * 2 | 0) !== g.empTk) { g.empTk = (g.t || 0) * 2 | 0; empTick(); }      // layer 498
+      stepSleepFx(dt); stepDinner(dt); stepHillCars(); stepTrophy(dt); stepCrush(dt); stepBplate(dt); stepPayDrain(dt); stepCarry(dt); stepPick(dt); stepCalled(dt); stepRcase(dt); if (g.rcDrum && (g.rcDrum.t -= dt) <= 0) g.rcDrum = null; stepPrints510(dt); stepWake510(dt); stepAptDoors512(dt); stepRent512(); if (g.prisonMode && g.case) { g.case = null; if (g.talkTo) { g.talkTo = null; g.paused = false; } } if (((g.t || 0) * 2 | 0) !== g.empTk) { g.empTk = (g.t || 0) * 2 | 0; empTick(); }      // layer 498
       if (g.slam) { g.slam.t += dt; if (g.slam.kind !== "fail" && g.slam.t > (g.slam.kind === "start" || g.slam.kind === "side" ? 3 : 4.5)) g.slam = null;
         else if (g.slam.kind === "fail") { g.p.vx = 0; g.p.vy = 0; if (g.pickOpen !== "storyfail") G.pickOpen("storyfail"); return; } }
       stepEarlCab(dt);
@@ -43442,7 +43667,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       // PRISON MODE: you are the man on the intake page
       /* #0001's own plates: the jumpsuit inside, the leather jacket once he has changed (g.pcivvies).
          The old intake plate is the fallback while the new files are not up. */
-      const pkey = [g.flash1976 ? "yt_rey69" : null, g.pcivvies && g.pfit && REY_FITS[g.pfit] ? REY_FITS[g.pfit].k : null, g.pcivvies ? "yt_player_civ" : "yt_player_in", "yt_pr_player"].find((k) => k && imgs.current[k] && imgs.current[k].width);   // Rey's outfits (layer 483)
+      const pkey = [g.reyBoxers ? "yt_rey_boxers" : null, g.flash1976 ? "yt_rey69" : null, g.pcivvies && g.pfit && REY_FITS[g.pfit] ? REY_FITS[g.pfit].k : null, g.pcivvies ? "yt_player_civ" : "yt_player_in", "yt_pr_player"].find((k) => k && imgs.current[k] && imgs.current[k].width);   // Rey's outfits (layer 483)
       const skey = g.studentMode ? (g.stu && g.stu.school === "aldric" ? "yt_stu_player_sa" : "yt_stu_player_ch") : null;
       if (g.studentMode && g.pRiding) return;                // inside the bus: not drawn
       const conv = g.studentMode && imgs.current[skey] && imgs.current[skey].width ? imgs.current[skey] : g.prisonMode && pkey ? imgs.current[pkey] : null;
@@ -45023,12 +45248,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.beginPath(); ctx.rect(ox, oy, S, S); ctx.clip();
       ctx.fillStyle = "rgba(10,11,14,0.82)"; ctx.fillRect(ox, oy, S, S);
       ctx.translate(ox + S / 2, oy + S / 2); ctx.scale(k, k); ctx.translate(-cx, -cy);
-      ctx.strokeStyle = "rgba(217,164,65,0.35)";
-      for (let i = 0; i <= N; i++) {
-        ctx.lineWidth = (i % AVE_EVERY === 0 ? 22 : 10);
-        ctx.beginPath(); ctx.moveTo(SX(i), WORLD_MIN); ctx.lineTo(SX(i), WORLD_MAX); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(WORLD_MIN, SX(i)); ctx.lineTo(WORLD_MAX, SX(i)); ctx.stroke();
-      }
+      ctx.strokeStyle = "rgba(217,164,65,0.35)"; ctx.lineCap = "square";
+      { const mmP = (mmPaths511 = mmPaths511 || (() => { const P = [new Path2D(), new Path2D()];       // [streets, avenues], built once (layer 511)
+          for (let i = 0; i <= N; i++) for (let j = 0; j < N; j++) if (!vCut(i, j)) { const q = P[i % AVE_EVERY === 0 ? 1 : 0]; q.moveTo(SX(i), SX(j)); q.lineTo(SX(i), SX(j + 1)); }
+          for (let j = 0; j <= N; j++) for (let i = 0; i < N; i++) if (!hCut(i, j)) { const q = P[j % AVE_EVERY === 0 ? 1 : 0]; q.moveTo(SX(i), SX(j)); q.lineTo(SX(i + 1), SX(j)); }
+          return P; })());
+        ctx.strokeStyle = "rgba(217,164,65,0.42)"; ctx.lineWidth = 70; ctx.stroke(mmP[0]); ctx.strokeStyle = "rgba(232,190,100,0.6)"; ctx.lineWidth = 120; ctx.stroke(mmP[1]);
+        ctx.strokeStyle = "rgba(150,175,215,0.7)"; ctx.lineWidth = 170; ctx.beginPath();
+        for (const L of FWY_V) { ctx.moveTo(SX(L), WORLD_MIN); ctx.lineTo(SX(L), WORLD_MAX); } for (const L of FWY_H) { ctx.moveTo(WORLD_MIN, SX(L)); ctx.lineTo(WORLD_MAX, SX(L)); } ctx.stroke();
+        ctx.lineCap = "butt"; }
       // Kings turf, tinted by how firm their grip currently is -- gold and solid when strong,
       // thin and flickering while contested, gone gray once the block's actually unclaimed
       const turfState = g.kingsTurfHeat > 60 ? "held" : g.kingsTurfHeat > 20 ? "contested" : "unclaimed";
@@ -45980,7 +46208,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (kind === 9) p.__draw();
       }
       if (g.inside && g.insideT > 0.5) { drawHoopsOver(); drawBizExtras(); }
-      drawStory(); drawSetup(); drawEmp(); drawMimi(); drawNest2(); DRAW98.forEach((f) => f()); drawYardDoorIn(); drawTrophy(); drawCarry(); drawPick(); drawCalled(); drawLedger(); drawRcase(); drawDrum509(); drawFirstOut(); drawScrap2(); drawFriday(); drawAllin(); drawWash(); drawWashCrew(); drawParty(); drawMorning(); drawMaptable(); drawPabloHang(); drawBozFolk(); drawDreadCorner(); drawCornerMark(); drawCellParty(); drawEscort(); drawEddie(); drawJose(); drawSiteCones(); drawCover(); drawBombed(view); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
+      drawStory(); drawSetup(); drawEmp(); drawMimi(); drawNest2(); DRAW98.forEach((f) => f()); drawYardDoorIn(); drawTrophy(); drawCarry(); drawPick(); drawCalled(); drawLedger(); drawRcase(); drawDrum509(); drawAptDoors512(); drawAptConsole512(); drawFirstOut(); drawScrap2(); drawFriday(); drawAllin(); drawWash(); drawWashCrew(); drawParty(); drawMorning(); drawMaptable(); drawPabloHang(); drawBozFolk(); drawDreadCorner(); drawCornerMark(); drawCellParty(); drawEscort511(); drawParty511(); drawEddie(); drawJose(); drawSiteCones(); drawCover(); drawBombed(view); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
       if (!g.inside) {
         // Roofs belong ABOVE the sorted building list, not before it -- drawn early, every
         // building painted straight over the roof and the man standing on it.
@@ -46245,7 +46473,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             atLift: !!liftNear(), liftOpen: !!g.liftOpen,
             atCiv: !!nearCiv(), idOpen: !!g.idCard, bookOpen: !!g.bookOpen, bookBox: g.bookOpen ? g.bookBox : null,
             atMalcolm: nearMalcolm(), caseObj: caseObjective(), detMode: !!g.detMode, malcolm: g.malcolmOpen ? malcolmPanel() : null,
-            atTalk: !!nearTalk(), talk: g.talkTo ? talkPanel(g.talkTo) : null,
+            atTalk: !!nearTalk(), talk: g.talkTo && g.case && !g.prisonMode ? talkPanel(g.talkTo) : null,
             atTrunk: nearTrunk(), canRadio: canRadio(), pick: g.pickOpen ? pickPanel(g.pickOpen) : null,
             atCarver: !!nearCarver(), atSuspect: nearSuspect(), interro: g.interro ? interroPanel() : null,
             atComputer: nearComputer(), objMin: !!g.objMin,
