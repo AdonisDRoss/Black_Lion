@@ -9367,12 +9367,13 @@ function makeFloor(b, f, rnd) {
     };
     place(0.50, 0.12, "ct_bench", 130, 58); place(0.35, 0.10, "ct_flag", 14, 42); place(0.65, 0.10, "ct_flag", 14, 42);
     place(0.76, 0.14, "ct_witness", 52, 50); place(0.50, 0.33, "ct_steno", 60, 36); place(0.22, 0.15, "ct_podium", 30, 34);
-    place(0.89, 0.40, "ct_jury", 108, 58); place(0.11, 0.38, "ct_evidence", 80, 52); place(0.11, 0.56, "ct_easel", 44, 44);
+    { const n0 = props.length; place(0.89, 0.40, "ct_jury", 58, 108); if (props.length > n0) props[props.length - 1].turn = Math.PI / 2; }      // facing the room (layer 510)
+    place(0.11, 0.38, "ct_evidence", 80, 52); place(0.11, 0.56, "ct_easel", 44, 44);
     place(0.34, 0.50, "ct_counsel", 84, 52); place(0.64, 0.50, "ct_counsel", 84, 52);
     // the rail across the room, its gate on the aisle
     const railY = 0.66;
     place(0.50, railY, "ct_rail_gate", 150, 30, true); place(0.20, railY, "ct_rail_long", 150, 22, true); place(0.80, railY, "ct_rail_long", 150, 22, true);
-    for (let k = 0; k < 3; k++) { place(0.25, 0.75 + k * 0.08, "ct_pew", 170, 30); place(0.75, 0.75 + k * 0.08, "ct_pew", 170, 30); }
+    for (let k = 0; k < 3; k++) for (const fx of [0.25, 0.75]) { const n0 = props.length; place(fx, 0.75 + k * 0.08, "ct_pew", 170, 30); if (props.length > n0) props[props.length - 1].turn = Math.PI; }   // backs to the door, facing the bench (layer 510)
   }
   /* THE DAILY GRIND, furnished: the counter side along the back wall -- espresso, grinders, the
      donut case, the cup shelf and the fridges -- and the tables, booths and stools out front. */
@@ -15405,8 +15406,8 @@ export default function IronLionLayer004() {
         pros: tabs[0] && c(tabs[0], -18, tabs[0].h / 2 + 16), pros2: tabs[0] && c(tabs[0], 20, tabs[0].h / 2 + 16),
         def: tabs[1] && c(tabs[1], -18, tabs[1].h / 2 + 16), def2: tabs[1] && c(tabs[1], 20, tabs[1].h / 2 + 16),
         bailiff: pod && c(pod, 0, pod.h / 2 + 14),
-        jury: jury ? [0, 1, 2, 3, 4, 5].map((k) => [jury.x + 16 + (k % 3) * ((jury.w - 32) / 2), jury.y + 14 + ((k / 3) | 0) * 22]) : [],
-        gallery: pews.slice(0, 4).map((q) => c(q, (Math.random() - 0.5) * 60, 4)),
+        jury: jury ? [0, 1, 2, 3, 4, 5].map((k) => jury.turn ? [jury.x + 14 + ((k / 3) | 0) * (jury.w - 28), jury.y + 20 + (k % 3) * ((jury.h - 40) / 2)] : [jury.x + 16 + (k % 3) * ((jury.w - 32) / 2), jury.y + 14 + ((k / 3) | 0) * 22]) : [],
+        gallery: pews.slice(0, 4).map((q) => c(q, (Math.random() - 0.5) * 60, q.turn ? -3 : 4)),
         da: pews[0] && c(pews[0], 40, -2),
       });
     }
@@ -15416,9 +15417,11 @@ export default function IronLionLayer004() {
       // everybody seated faces the front: the jury the witness stand, the gallery the bench (not the door)
       const look = (xy, at) => at ? Math.atan2(at[1] - xy[1], at[0] - xy[0]) : -Math.PI / 2;
       const civ = (xy, extra) => xy && ppl.push({ x: xy[0], y: xy[1], vx: 0, vy: 0, anim: Math.random() * 6, jit: 0.95, civ: pickCiv(), mode: "idle",
-        bang: look(xy, extra && extra.juror ? (S.witness || S.judge) : S.judge), ...extra });
+        bang: look(xy, S.judge), ...extra });                                    // everybody looks at the judge (layer 510)
+      const faceAll = () => { for (const p of ppl) p.faceTo = p.bang; };
       for (const j of S.jury) civ(j, { juror: 1 });
       for (const q of S.gallery) civ(q, {});
+      faceAll();
       if (S.bailiff) ppl.push({ x: S.bailiff[0], y: S.bailiff[1], vx: 0, vy: 0, anim: 0, jit: 1, state: "idle", rank: DUTY_SGT, cop: 1, label: "BAILIFF" });
       return (b.courtPpl = ppl);
     }
@@ -18341,6 +18344,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          rather than at spawn, so the crowd fills in as soon as the sheet is ready instead of
          staying on the old art for the whole session. */
       if (!p.civ && civPool.length) p.civ = pickCiv();
+      if (p.civ && p.faceTo != null && p.civ.faced !== p.faceTo) { faceCiv(p.civ, p.faceTo); p.civ.faced = p.faceTo; }      // seated, facing something (layer 510)
       if (p.civ && drawCivilian(p.civ, p.x, p.y, p.vx, p.vy, (p.anim || 0) * 0.16)) return;
       const o = p.o;
       if (!outfitOK(o)) return;
@@ -24549,6 +24553,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          the tables read grey while the carpet and the staff were right. */
       const OWNED_BY_FLOOR = { slotbank: 1, cardtable: 1, wheeltable: 1 };
       for (const p of plan.props) {
+        if (p.turn) { const im = imgs.current[p.t]; if (im && im.width) { const q = Math.abs(Math.sin(p.turn)) > 0.5, dw = q ? p.h : p.w, dh = q ? p.w : p.h;      // a turned prop (layer 510)
+            ctx.save(); ctx.translate(p.x + p.w / 2, p.y + p.h / 2); ctx.rotate(p.turn); ctx.drawImage(im, -dw / 2, -dh / 2, dw, dh); ctx.restore(); continue; } }
         if (OWNED_BY_FLOOR[p.t]) continue;
         if (p.wallArt) continue;               // hung after the walls, below
         if (HOOP_FACE[p.t]) continue;          // the hoops hang OVER the players: drawHoopsOver, after everyone
@@ -37144,15 +37150,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function drawSetup() { const S = g.story; if (!S || S.id !== "setup") return;
       const H = suHouse(), b = S.wareKey ? suWare() : null;
       if (H && g.inside === H && g.floor === S.rFloor && S.step <= 1 && S.rx != null) { drawShadow(S.rx, S.ry + 2, 9, 4, 0.3); drawYouth({ x: S.rx, y: S.ry, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.15, yt: "yt_rochelle69", bang: Math.PI }); suLab("ROCHELLE", S.rx, S.ry - 30, "#e8c46a"); }
-      if (S.scene && b && g.inside === b && g.floor === (b.entry || 0)) { const Q = S.scene;
-        ctx.fillStyle = "rgba(90,8,8,0.85)"; ctx.beginPath(); ctx.ellipse(Q.bx + 4, Q.by + 6, 30, 16, 0.3, 0, 6.3); ctx.fill();
-        ctx.save(); ctx.filter = "brightness(0.6) saturate(0.5)"; drawYouth({ x: Q.bx, y: Q.by, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.2, yt: "yt_hire_fence_1", bang: 0.4 }); ctx.restore();
+      if (S.scene && b && g.inside === b && g.floor === (b.entry || 0)) { const Q = S.scene;      // the body and the pool: drawSetupGround, under you (layer 510)
         if (!S.gun) { const im = imgs.current.wp_revolver_long; if (im && im.width) { ctx.save(); ctx.translate(Q.gx, Q.gy); ctx.rotate(0.6); ctx.drawImage(im, -14, -7, 28, 14); ctx.restore(); }
           else { ctx.fillStyle = "#333"; ctx.fillRect(Q.gx - 10, Q.gy - 3, 20, 6); } if (S.step === 4 && Math.hypot(g.p.x - Q.gx, g.p.y - Q.gy) < 70) suLab("E: PICK IT UP", Q.gx, Q.gy - 16, "#e8c46a"); } }
       if (S.step === 5) { for (const v of S.cruisers || []) { const on = Math.sin((g.t || 0) * 12) > 0; ctx.fillStyle = on ? "rgba(255,40,40,0.4)" : "rgba(255,120,60,0.15)"; ctx.beginPath(); ctx.arc(v.x, v.y, 40, 0, 6.3); ctx.fill(); }
         if (S.cop && !g.inside) { drawShadow(S.cop.x, S.cop.y + 2, 9, 4, 0.3); if (!drawYouth(S.cop)) { try { drawCop({ ...S.cop, state: "run", rank: DUTY_PATROL, cop: 1 }); } catch (e) {} } suLab("RHPD", S.cop.x, S.cop.y - 28, "#8fb8ff"); } }
       if (S.step === 7 && g.inside === courtB()) { const Sp = courtSpots(g.inside), gal = Sp.gallery || [];
-        const put = (xy, dx, yt, nm) => { if (!xy) return; const x = xy[0] + dx, y = xy[1] + 6; drawShadow(x, y + 2, 9, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.2, yt, bang: -Math.PI / 2 }); suLab(nm, x, y - 28, "#e8c46a"); };
+        const put = (xy, dx, yt, nm) => { if (!xy) return; const x = xy[0] + dx, y = xy[1]; drawShadow(x, y + 2, 9, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.2, yt, bang: -Math.PI / 2 }); suLab(nm, x, y - 28, "#e8c46a"); };
         put(gal[0], 34, "yt_damian69", "DAMIAN VANCE"); const back = gal[gal.length - 1]; put(back, -40, "yt_julian69", "JULIAN"); put(back, 22, "yt_rochelle69", "ROCHELLE"); }
       if (S.step === 10 && g.pcell && g.inside === g.pcell.b && g.floor === 0) suLab("E: LIE DOWN", g.p.x, g.p.y - 34, "#e8c46a"); }
     // over the roofs: Rochelle's roof and driveway, Tiny pulling away, and the city past the four blocks under construction
@@ -38362,6 +38366,40 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else { ctx.fillStyle = "#a08a62"; ctx.beginPath(); ctx.arc(D.x, D.y, 13, 0, 6.3); ctx.fill(); }
       if (near([D.x, D.y], 420)) lab8("DET. DRUMMOND · " + D.nm, D.x, D.y - 34, "#ffb09a"); }
     G.fwyFadeT = () => ({ fade: { ...(g.fwyFade || {}) }, onFwy: !!g.onFwy, v: FWY_V.map(SX), h: FWY_H.map(SX), pbox: PRISON_BOX });   // test hook
+    /* ---------- LAYER 510: THE COURT FACES THE BENCH, THE BODY ON THE FLOOR, BLOODY FOOTPRINTS, THE CELLS OPEN ----------
+       THE COURTROOM (Donny): the pews are turned round (their backs to the door) and the jury box turned to face the room
+       from the east wall; everybody seated -- jury and gallery -- looks at the judge (p.faceTo turns a civilian's idle
+       sprite: rotated sheets get o.ang, eight-way sheets o.dir8).
+       UNDER YOU: the body and its pool (the flashback), the alleys' clutter and people, the Old Town props are on the
+       floor now, under the player, not over him.
+       BLOODY FOOTPRINTS: step in blood (any pool, the flashback body's) and for five seconds you leave prints; each print
+       fades over five seconds. Kept on g.bprints with the building and floor (detective mode can read them later).
+       THE LAST DAY: five seconds after you wake, the 7:00 count clears and the cell doors roll back. */
+    function faceCiv(o, a) { if (!o) return; if (o.eight) { try { o.dir8 = civDir8(Math.cos(a) * 20, Math.sin(a) * 20); } catch (e) {} return; }
+      o.ang = a + Math.PI / 2 + (o.top ? (o.face || 0) : TOPDOWN_FACE); }
+    function drawSetupGround() { const S = g.story; if (!S || S.id !== "setup" || !S.scene || !S.wareKey) return; const b = suWare(); if (!b || g.inside !== b || g.floor !== (b.entry || 0)) return; const Q = S.scene;
+      ctx.fillStyle = "rgba(90,8,8,0.85)"; ctx.beginPath(); ctx.ellipse(Q.bx + 4, Q.by + 6, 30, 16, 0.3, 0, 6.3); ctx.fill();
+      ctx.save(); ctx.filter = "brightness(0.6) saturate(0.5)"; drawYouth({ x: Q.bx, y: Q.by, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.2, yt: "yt_hire_fence_1", bang: 0.4 }); ctx.restore(); }
+    const inKey510 = () => g.inside ? (g.inside.key || g.inside.name || "in") : null;
+    function inBlood510() { const x = g.p.x, y = g.p.y, k = inKey510();
+      for (const b of g.blood || []) if ((b.in || null) === k && Math.hypot(x - b.x, (y - b.y) / 0.72) < b.r) return true;
+      const S = g.story; if (S && S.id === "setup" && S.scene && S.wareKey) { const W = suWare(); if (W && g.inside === W) { const Q = S.scene, dx = x - Q.bx - 4, dy = y - Q.by - 6; if ((dx * dx) / 900 + (dy * dy) / 256 < 1) return true; } }
+      return false; }
+    function stepPrints510(dt) { const P = (g.bprints = g.bprints || []);
+      for (let i = P.length - 1; i >= 0; i--) { P[i].t += dt; if (P[i].t > 5) P.splice(i, 1); }
+      if (g.mode !== "foot") return; if (inBlood510()) g.p.bloodT = 5; if (!(g.p.bloodT > 0)) return; g.p.bloodT -= dt;
+      const sp = Math.hypot(g.p.vx || 0, g.p.vy || 0); if (sp < 20) return; g.p.stepD = (g.p.stepD || 0) + sp * dt; if (g.p.stepD < 20) return; g.p.stepD = 0;
+      const a = Math.atan2(g.p.vy, g.p.vx), s = (g.p.stepS = -(g.p.stepS || 1));
+      P.push({ x: g.p.x - Math.sin(a) * 5 * s, y: g.p.y + 8 + Math.cos(a) * 5 * s, a, t: 0, k: Math.min(1, g.p.bloodT / 5 + 0.25), in: inKey510(), fl: g.floor || 0 });
+      if (P.length > 240) P.splice(0, P.length - 240); }
+    function drawPrints510() { const k = inKey510(), fl = g.floor || 0;
+      for (const q of g.bprints || []) { if (q.in !== k || (k && q.fl !== fl)) continue; const al = 0.9 * q.k * Math.max(0, 1 - q.t / 5); if (al <= 0.01) continue;
+        ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.a + Math.PI / 2); ctx.fillStyle = "rgba(110,12,12," + al + ")";
+        ctx.beginPath(); ctx.ellipse(0, -2, 3.4, 4.8, 0, 0, 6.3); ctx.fill(); ctx.beginPath(); ctx.ellipse(0, 4.6, 2.7, 2.3, 0, 0, 6.3); ctx.fill(); ctx.restore(); } }
+    function stepWake510(dt) { const S = g.story; if (!S || S.id !== "lastday" || S.step !== 0 || S.open510) return; S.w510 = (S.w510 || 0) + dt;
+      if (S.w510 > 5 && !g.pickOpen) { S.open510 = 1; if (prisonPhase(g.clock || CLOCK.start)[2] === "cells" && (g.clock || 0) < 7 * 60 + 30) g.clock = 7 * 60 + 30;
+        g.jobBanner = "COUNT CLEAR"; g.jobNote = "The doors roll back. Go find the crew."; G.sfx && G.sfx("door", 0.6); } }
+    G.printsT = () => ({ n: (g.bprints || []).length, bloodT: g.p.bloodT || 0 });   // test hook
     /* ---------- LAYER 489: STORY HUD, THE STORY ARROW AND ROUTE, PABLO AT THE HIPPIE, THE BOZNOVS ON THEIR FEET ----------
        storyOnly(): Rey's story (Kestrel mode, out of prison). The HUD shows the story and nothing else -- no scanner calls,
        no street races, no RHPD line unless it's you they're after, no SAVED/LOST, no JUICE, no SKY.
@@ -38621,7 +38659,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (walls.some((q) => px > q.x && px < q.x + q.w && py > q.y && py < q.y + q.h)) return false; } }
       return true; }
     function storyStep(dt) {
-      stepSleepFx(dt); stepDinner(dt); stepHillCars(); stepTrophy(dt); stepCrush(dt); stepBplate(dt); stepPayDrain(dt); stepCarry(dt); stepPick(dt); stepCalled(dt); stepRcase(dt); if (g.rcDrum && (g.rcDrum.t -= dt) <= 0) g.rcDrum = null; if (((g.t || 0) * 2 | 0) !== g.empTk) { g.empTk = (g.t || 0) * 2 | 0; empTick(); }      // layer 498
+      stepSleepFx(dt); stepDinner(dt); stepHillCars(); stepTrophy(dt); stepCrush(dt); stepBplate(dt); stepPayDrain(dt); stepCarry(dt); stepPick(dt); stepCalled(dt); stepRcase(dt); if (g.rcDrum && (g.rcDrum.t -= dt) <= 0) g.rcDrum = null; stepPrints510(dt); stepWake510(dt); if (((g.t || 0) * 2 | 0) !== g.empTk) { g.empTk = (g.t || 0) * 2 | 0; empTick(); }      // layer 498
       if (g.slam) { g.slam.t += dt; if (g.slam.kind !== "fail" && g.slam.t > (g.slam.kind === "start" || g.slam.kind === "side" ? 3 : 4.5)) g.slam = null;
         else if (g.slam.kind === "fail") { g.p.vx = 0; g.p.vy = 0; if (g.pickOpen !== "storyfail") G.pickOpen("storyfail"); return; } }
       stepEarlCab(dt);
@@ -44369,7 +44407,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function bleed(x, y, big) {
       (g.blood = g.blood || []).push({
         x: x + (Math.random() - 0.5) * 6, y: y + (Math.random() - 0.5) * 6,
-        r: 0, max: (big ? 13 : 6) + Math.random() * 5, a: big ? 0.62 : 0.42,
+        r: 0, max: (big ? 13 : 6) + Math.random() * 5, a: big ? 0.62 : 0.42, in: g.inside ? (g.inside.key || g.inside.name || "in") : null,
       });
       if (g.blood.length > 60) g.blood.splice(0, g.blood.length - 60);
     }
@@ -45887,6 +45925,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!g.inside) drawSecondAlarm();
       if (g.crime && !g.inside) drawCrime();
       if (!g.inside) drawBailers();
+      if (!g.inside) { drawOldTownProps(view); drawAlleys(view); }      // on the ground, under the people (layer 510)
+      drawSetupGround(); drawPrints510();
       drawItems(view);
       drawSpriteLabels(view);
       if (!g.inside) for (const u of policeUnits()) drawList.push([u.y, 5, u, 0]);
@@ -46023,7 +46063,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       drawUnitNumbers(view);
       drawCoroner();
       drawTrailEvidence(view);
-      if (!g.inside) { drawOldTownProps(view); drawAlleys(view); drawSchoolsOutside(view); drawBestFriend(); drawHangouts(view); drawNeighbours(view); drawBikes(view); drawTrackRunners(view); drawBusRoute(); drawLights(view); drawBustMarks(view); }
+      if (!g.inside) { drawSchoolsOutside(view); drawBestFriend(); drawHangouts(view); drawNeighbours(view); drawBikes(view); drawTrackRunners(view); drawBusRoute(); drawLights(view); drawBustMarks(view); }
       if (g.inside) drawCasings(view);
       drawBackup(view);
       drawRoofHatch();
