@@ -3797,7 +3797,9 @@ for (const sc of ["ch", "sa"]) { const P2 = SCHOOL_PEOPLE[sc];
    choir and theatre sheets), plus the first 24 looks, plus THE PLAYER (stu_player_ch / _sa / _sa2). */
 const STU_N = { ch: 58, sa: 76 };
 /* Per-plate size fixes: some plates are drawn bigger than their neighbours (wide jackets). */
-const YT_SCALE = { yt_stu_ch_17: 0.8 };
+const YT_SCALE = { yt_stu_ch_17: 0.8,
+  yt_bozni_vlad: 0.72, yt_bozni_victor: 0.68, yt_bozni_grigori: 0.72, yt_bozni_katya: 0.74,                       // busts: heads back to size (layer 512d)
+  yt_rey_suit: 1.11, yt_rey_track: 1.1, yt_rey_work: 1.18, yt_rey_workvest: 1.2, yt_rey_leather: 1.2, yt_rey_boxers: 1.22 };   // Rey's outfits: his street size
 for (const sc of ["ch", "sa"]) for (let n = 1; n <= STU_N[sc]; n++) { const k = "stu_" + sc + "_" + n; PD_ART["yt_" + k] = "assets/school/yt_" + k + ".png"; PD_ART["pt_" + k] = "assets/school/pt_" + k + ".png"; }
 for (const k of ["stu_mom", "stu_bestfriend"]) { PD_ART["yt_" + k] = "assets/school/yt_" + k + ".png"; PD_ART["pt_" + k] = "assets/school/pt_" + k + ".png"; }   // stu_bestfriend art in -- hip-cut plate + portrait, drop the two PNGs in assets/school/
 PD_ART.car_stu_mom = "assets/cars/car_stu_mom.png";
@@ -12161,6 +12163,7 @@ export default function IronLionLayer004() {
       sel = 0;
       const K = input.current.keys, press = (i) => B(i) && !was[i];
       if (G.lockAsk) { if (press(1) || press(11)) { G.lockAsk = 0; setHud((h) => ({ ...h, lockAsk: null })); } for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i); return; }   // waiting for the console's A-click (layer 505)
+      if (g && g.mapOpen && !document.querySelector("[data-mapopt]") && !G.statsOpenNow) { g.mapOpen = false; g.paused = false; }      // a map that isn't there (layer 512d)
       if (g && !g.mapOpen) { g.mapSel = -1; if (G.statsOpenNow) G.statsToggle(false); }
       if (g && g.mapOpen && G.statsOpenNow) {                                    // the stats screen: B/Y back, left/right who, up/down + A spend (layer 503)
         if (press(1) || press(3)) G.statsToggle(false);
@@ -20328,6 +20331,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else g[k] = nv; }
       // caches that are rebuilt on their own: start them fresh
       g.pfolk = null; g.pickOpen = null; g.title = false; g.plateShow = null; g.airport = undefined; g.wheelPause = 0; g.paused = false;
+      g.mapOpen = false; g.mapSel = -1; g.statSel = -1; g.talkTo = null; g.lockerOpen = false; g.travelOpen = false; g.liftOpen = false; g.malcolmOpen = false;      // nothing on screen survives a load (layer 512d)
+      g.raceTalk = false; g.truckOpen = null; g.idCard = null; g.leaderTalk = null; g.tableAsk = null; g.cab = null; g.cut = null; g.sleepFx = null; G.lockAsk = 0;
       if (o.zoom) { zoomRef.current = o.zoom; setZoomUI(o.zoom); }
       return true; }
     function saveGame() {
@@ -35952,7 +35957,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (S && S.id === "friday") { S.step = 8; storyMark("LEROY'S IN · HE HAS THE YARD"); } g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return; }
       if (a === "katya2") { const S = g.story; if (S) S.tonyDown = 1; G.pickOpen("katya2"); return; }
       if (a === "katya3") { const S = g.story; g.crewJoin = { ...(g.crewJoin || {}), katya: "spy" }; g.katyaSpy = 1; g.yardOurs = 1;
-        if (S && S.id === "scrapyard") { S.step = 10; storyMark("KATYA'S IN \u00b7 YOUR SPY"); const H = hideoutB();
+        if (S && S.id === "scrapyard") { S.step = 10; if (S.pfolWas) { g.pfol = S.pfolWas; S.pfolWas = null; } storyMark("KATYA'S IN \u00b7 YOUR SPY"); const H = hideoutB();
           if (H) { const dp = doorPoint(H), o = [[0, -1], [1, 0], [0, 1], [-1, 0]][H.door.side] || [0, 1]; g.inside = null; g.floor = 0; g.mode = "car"; g.car.x = dp[0] + o[0] * 160; g.car.y = dp[1] + o[1] * 160; g.car.vx = 0; g.car.vy = 0; g.p.x = g.car.x; g.p.y = g.car.y; g.cam.x = g.p.x; g.cam.y = g.p.y; }
           g.driveTalk = { who: "KATYA", text: "\u201cThe guards go with me. The yard is yours by morning. My brothers will hear it was Tony's mistake.\u201d", t: 7 }; }
         g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return; }
@@ -36220,7 +36225,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (S.step === 4) { const gs = g.inside; if (gs && gs.name === "RIGHT TO ARMS") { S.step = 5; S.gsB = gs.key; storyMark("RIGHT TO ARMS"); } return; }
       if (S.step === 6) { const Y = yardBack(), v = inVehicle() ? activeVeh() : null;
         if (Y && v && !g.auto && Math.hypot(v.x - Y.start[0], v.y - Y.start[1]) < 320) { S.step = 7; g.clock = 23 * 60; g.nightTarget = 1; g.mode = "foot"; g.p.x = v.x + 40; g.p.y = v.y; g.p.sneak = 1;
-            S.pab = { x: v.x + 70, y: v.y, i: 0, wait: 0 }; S.guards = null; S.calm = 4; storyMark("11 PM · THE BACK FENCE"); g.driveTalk = { who: "PABLO", text: "“Stay low, stay behind me. When I stop, you stop.”", t: 6 }; } return; }
+            S.pab = { x: v.x + 70, y: v.y, i: 0, wait: 0 }; S.guards = null; S.calm = 4; S.pfolWas = (g.pfol || []).slice(); g.pfol = (g.pfol || []).filter((f) => f.crew !== "viejo"); /* one Pablo (layer 512d) */ storyMark("11 PM · THE BACK FENCE"); g.driveTalk = { who: "PABLO", text: "“Stay low, stay behind me. When I stop, you stop.”", t: 6 }; } return; }
       if (S.step === 7 || S.step === 8) { const Y = yardBack(); if (!Y) return;
         if (S.calm > 0) S.calm -= dt;
         if (!S.guards) { const H = Y.H, c = [H.x + H.w / 2, H.y + H.h / 2], R = Math.max(H.w, H.h) / 2 + 120;
