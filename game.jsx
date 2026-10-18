@@ -3717,7 +3717,7 @@ PD_ART.pr_cone = "assets/props/pr_cone.png";        // the race cones (layer 500
 // layer 501: Donny's second yard sheet (kept for later; the lion medallion is the mansion court's centre) and the paper trophy
 for (const k of ["yd_lion_patio", "yd_chair_blue_a", "yd_chair_blue_b", "yd_glass_table", "yd_grill_kettle", "yd_spatula", "yd_tongs2", "yd_sausages", "yd_cooler_blue", "yd_drink", "yd_towel",
   "yd_charcoal_bag", "yd_chair_green_a", "yd_chair_green_b", "yd_table_green", "yd_beachball2", "yd_pool_shell", "yd_pool_ladder", "yd_pool_light"]) PD_ART[k] = "assets/yard/" + k + ".png";
-PD_ART.it_paper_trophy = "assets/items/it_paper_trophy.png"; PD_ART.sy_crush_pit = "assets/scrap/sy_crush_pit.png"; PD_ART.sy_crush_block = "assets/scrap/sy_crush_block.png"; PD_ART.tx_rust_plate = "assets/tex/tx_rust_plate.png"; PD_ART.dt_drummond = "assets/crew/dt_drummond.png"; PD_ART.yt_rey_boxers = "assets/prison/yt_rey_boxers.png"; PD_ART.pr_cake = "assets/prison/pr_cake.png"; PD_ART.pr_cone_side = "assets/props/pr_cone_side.png"; PD_ART.tx_ivory_tile = "assets/tex/tx_ivory_tile.png";
+PD_ART.it_paper_trophy = "assets/items/it_paper_trophy.png"; PD_ART.sy_crush_pit = "assets/scrap/sy_crush_pit.png"; PD_ART.sy_crush_block = "assets/scrap/sy_crush_block.png"; PD_ART.tx_rust_plate = "assets/tex/tx_rust_plate.png"; PD_ART.dt_drummond = "assets/crew/dt_drummond.png"; PD_ART.yt_rey_boxers = "assets/prison/yt_rey_boxers.png"; PD_ART.pr_cake = "assets/prison/pr_cake.png"; PD_ART.pr_toilet_apt = "assets/props/pr_toilet_apt.png"; PD_ART.pr_cone_side = "assets/props/pr_cone_side.png"; PD_ART.tx_ivory_tile = "assets/tex/tx_ivory_tile.png";
 /* layer 497: Dread, Tony, Harlan, Nicky, Yuri, the 1969 cast, Mission 11 props, 1969 cars, construction props, the verdict folder */
 for (const k of ["dread", "tony", "harlan", "nicky", "yuri", "rey69", "rochelle69", "damian69", "julian69", "tiny69", "cop69_a", "cop69_b"]) PD_ART["yt_" + k] = "assets/crew/yt_" + k + ".png";
 for (const k of ["it_ledger", "pr_office_safe", "pr_office_safe_open", "it_gascan", "it_gascan_b", "it_pinkslip"]) PD_ART[k] = "assets/items/" + k + ".png";
@@ -12371,6 +12371,7 @@ export default function IronLionLayer004() {
     if (G.aptDoorFn && G.aptDoorFn()) return;                             // Palm Court's flat doors, the rent (layer 512)
     if (G.aptConsoleFn && G.aptConsoleFn()) return;                       // the Atari in 1A (layer 512b)
     if (G.crushFn && G.crushFn()) return;                                 // the crusher's switch (layer 502)
+    if (G.ghActFn && G.ghActFn()) return;                                 // gun heists: crates, the trunk, unload (layer 528)
     if (G.carryFn && G.carryFn()) return;                                 // the trunk, the fuel can at the driver's door (layer 504)
     if (G.canBuyFn && G.canBuyFn()) return;                               // a fuel can at the pump (layer 504)
     if (G.raShopFn && G.raShopFn()) return;                               // Raven Auto's parts counter (layer 499)
@@ -12415,6 +12416,7 @@ export default function IronLionLayer004() {
 
     if (G.backroomFn && G.backroomFn()) return;                      // RIGHT TO ARMS' back room (layer 482)
     if (g.inside && G.aptSpotFn && G.aptSpotFn()) return;            // the closet, the phone, the mail
+    if (G.sitFn && G.sitFn()) return;                                     // sofas and chairs: sit (layer 531)
     if (G.objWheelFn && G.objWheelFn(false)) return;                 // every thing has a wheel (layer 481)
     if (!g.inside && G.boothFn && G.boothFn()) return;               // a phone booth (layer 480)
     if (g.inside && G.hippyFn && G.hippyFn()) return;                // the Happy Hippy's back-room door (layer 477)
@@ -12497,6 +12499,7 @@ export default function IronLionLayer004() {
       if (who && who.shot) { g.shotCaller = who; g.gangSaid = null; G.pickOpen("pgang"); return; }
       if (G.laundryFn && G.laundryFn()) return;
       // a hiding place: its wheel (STASH + what it's for), then the stash menu (layer 481)
+      if (G.sitFn && G.sitFn()) return;                                     // layer 531
       if (G.objWheelFn && G.objWheelFn(true)) return;
       if (G.stashOpenFn && G.stashOpenFn()) return;
     }
@@ -13146,6 +13149,7 @@ export default function IronLionLayer004() {
       let ix = inp.x + (k["a"] || k["arrowleft"] ? -1 : 0) + (k["d"] || k["arrowright"] ? 1 : 0);
       let iy = inp.y + (k["w"] || k["arrowup"] ? -1 : 0) + (k["s"] || k["arrowdown"] ? 1 : 0);
       if (g.pintro || g.pRiding) { ix = 0; iy = 0; }     // the walk in / riding the bus: no control
+      if (stepSit(ix, iy)) return;                         // sitting: stay put till you move (layer 531)
       if (Math.hypot(ix, iy) > 0.15) g.p.face = Math.atan2(iy, ix);   // he keeps facing the way he last went
       if (g.studentMode && stepBike(dt)) return;            // on the bike: its own movement
       const len = Math.hypot(ix, iy);
@@ -16909,6 +16913,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind && kind.startsWith("apt_")) return aptSpotPanel(kind.slice(4));      // layer 479
       if (kind === "outfit") return outfitPanel();
       if (kind === "armory") return armoryPanel();
+      if (kind === "gunheist") return ghPanel();                                          // layer 528
+      if (kind === "ghtake") return ghTakePanel();
       if (kind === "bizshop") return bizShopPanel();
       if (kind === "artstaff") return artStaffPanel();
       if (kind === "motorpool") return motorPanel();
@@ -17093,6 +17099,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("aptx:")) { G.aptPick(id); G.pickOpen(g.pickOpen); return; }     // layer 479
       else if (id === "apt:save") { g.aptSaid = saveGame() ? "Saved. CONTINUE on the title brings you back right here." : "Couldn't save -- the browser said no."; G.pickOpen("aptbed"); return; }               // layer 476
       else if (id.startsWith("arm:")) { G.armoryPick(id); G.pickOpen("armory"); return; }
+      else if (id.startsWith("gh:")) { G.ghPick(id); return; }                                     // layer 528
       else if (id.startsWith("wsel:")) { G.wheelWeapon(id.slice(5)); return; }
       else if (id.startsWith("bm:")) { G.baseManPick(id); G.pickOpen("baseman"); return; }
       else if (id.startsWith("emp:")) { G.empPick(id); return; }                                   // the business screen (layer 498)
@@ -18276,29 +18283,53 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function armsReady(A) { const t = imgs.current[A.torso], a = imgs.current["ar_" + A.set + "_hang"]; return !!(t && t.width && a && a.width); }
     /* Local frame: +y is the way he faces (down the body in the art), and his RIGHT side is -x (the art faces the
        camera). Arms are drawn before the torso so his shoulders cover the joints. */
+    const MELEE_RX = /bat|knife|pipe|crowbar|machete|katana|sword|club|stick|axe|hammer|blade|bayonet|wrench|shank|razor|bottle/;
+    const LONG_RX = /rifle|shotgun|pump|sawn|smg|uzi|mac|tommy|ar15|ak|m16|hunting/;
+    function heldImg(wp) { const w2 = WPN2[wp], a2 = w2 && imgs.current.wpn2_atlas, at = imgs.current.weapon_atlas;
+      if (a2 && a2.width) return { im: a2, r: w2 }; if (WPN[wp] && at && at.width) return { im: at, r: WPN[wp] };
+      const im = imgs.current["wp_" + wp]; return im && im.width ? { im, r: null } : null; }
+    /* A weapon in a hand at (x, y), pointing along `ang`, `len` long. The art's muzzle/tip points left, so it's turned
+       half round and slid so the grip sits in the fist. */
+    function drawHeld(wp, x, y, ang, len) { const H = heldImg(wp); if (!H) return;
+      const sw = H.r ? H.r[2] : H.im.width, sh = H.r ? H.r[3] : H.im.height, gw = len * (WPN_SCALE[wp] || 1), gh = gw * sh / sw;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(ang + Math.PI);
+      if (H.r) ctx.drawImage(H.im, H.r[0], H.r[1], H.r[2], H.r[3], -gw * 0.85, -gh / 2, gw, gh); else ctx.drawImage(H.im, -gw * 0.85, -gh / 2, gw, gh);
+      ctx.restore(); }
+    /* Local frame: +y is the way he faces, his RIGHT side is -x (the art faces the camera). The hanging arms go under the
+       torso; anything thrown out in front (a jab, a hook, a swing, a gun) is returned as a function and drawn OVER it. */
     function drawArms525(p, A, w, h, stride) {
-      const hang = armTint("ar_" + A.set + "_hang", A); if (!hang) return;
+      const hang = armTint("ar_" + A.set + "_hang", A); if (!hang) return null;
       const k = (h * 0.86) / hang.height;                   // one scale for the whole set: the hanging arm is 0.86h
       const sy = -h * 0.12, sx = w * 0.40;
-      const arm = (cv, x, y, rot, mirror, horiz) => {
+      const arm = (cv, x, y, rot, mirror) => {
         if (!cv) return; const aw = cv.width * k, ah = cv.height * k;
         ctx.save(); ctx.translate(x, y); ctx.rotate(rot); if (mirror) ctx.scale(-1, 1);
-        if (horiz) ctx.drawImage(cv, -ah * 0.5, -ah / 2, aw, ah);     // shoulder ball at the left end
-        else ctx.drawImage(cv, -aw / 2, -aw * 0.5, aw, ah);           // shoulder ball at the top
-        ctx.restore();
+        ctx.drawImage(cv, -aw / 2, -aw * 0.5, aw, ah); ctx.restore();
       };
-      const jab = p.swing > 0 && p.move === "jab", punch = jab ? Math.sin(clamp(1 - p.swing / (p.swingDur || 0.18), 0, 1) * Math.PI) : 0;
-      const sw = stride * 1.25;
-      // his left arm (+x): hangs and swings against his left leg
-      arm(hang, sx, sy + sw, -0.06 + (sw / h) * 0.5, true, false);
-      // his right arm (-x): hanging under the torso, or -- punching, aiming -- thrown out OVER his chest, drawn after it
-      if (!jab && !p.aim) { arm(hang, -sx, sy - sw, 0.06 - (sw / h) * 0.5, false, false); return null; }
-      const cv = armTint("ar_" + A.set + (jab ? "_punch" : "_gun"), A); if (!cv) return null;
-      const len = jab ? h * (0.55 + punch * 0.75) : h * 1.0, kk = len / cv.width;     // a jab shoots out to 1.1h and back
-      return () => { const aw = cv.width * kk, ah = cv.height * kk;
-        ctx.save(); ctx.translate(-sx * 0.82, sy + h * 0.02); ctx.rotate(Math.PI / 2 - (jab ? 0.16 : 0.2));
-        const cut = cv.height * 0.55;                         // leave the shoulder ball off: his shoulder is already there
-        ctx.drawImage(cv, cut, 0, cv.width - cut, cv.height, -ah * 0.5 + cut * kk, -ah / 2, aw - cut * kk, ah); ctx.restore(); };
+      /* a horizontal arm (punch art, shoulder ball at the left end) from (px, py) along `th`, `len` long; mirrored for
+         the left arm. Returns where the fist is. The ball is left off: his shoulder is already there. */
+      const thrown = (cv, px, py, th, len, mir) => { if (!cv) return [px, py]; const kk = len / cv.width, aw = cv.width * kk, ah = cv.height * kk, cut = cv.height * 0.55;
+        ctx.save(); ctx.translate(px, py); ctx.rotate(th); if (mir) ctx.scale(1, -1);
+        ctx.drawImage(cv, cut, 0, cv.width - cut, cv.height, -ah * 0.5 + cut * kk, -ah / 2, aw - cut * kk, ah); ctx.restore();
+        const f = aw - ah * 0.5 - ah * 0.45; return [px + Math.cos(th) * f, py + Math.sin(th) * f]; };
+      const fist = armTint("ar_" + A.set + "_punch", A);
+      const sw = stride * 1.25, wp = p.held || null, melee = !!(wp && MELEE_RX.test(wp)), gun = !!(wp && !melee && p.aim);
+      const on = p.swing > 0, kq = on ? clamp(1 - p.swing / (p.swingDur || 0.26), 0, 1) : 0, punch = Math.sin(kq * Math.PI);
+      const mv = on && !gun ? (melee ? "swing" : p.move === "hook" ? "hook" : "jab") : null;
+      const RS = [-sx * 0.82, sy + h * 0.02], LS = [sx * 0.82, sy + h * 0.02];
+      const over = [];
+      // LEFT arm (+x): the hook, the support hand under a long gun, or hanging and swinging against the left leg
+      if (mv === "hook") over.push(() => thrown(fist, LS[0], LS[1], 0.25 + kq * 1.75, h * (0.8 + 0.3 * punch), true));
+      else if (gun && LONG_RX.test(wp)) over.push(() => thrown(fist, LS[0], LS[1], Math.PI / 2 + 0.42, h * 0.78, true));
+      else arm(hang, sx, sy + sw, -0.06 + (sw / h) * 0.5, true);
+      // RIGHT arm (-x)
+      if (gun) over.push(() => { const th = Math.PI / 2 - 0.2, F = thrown(fist, RS[0], RS[1], th, h * 1.0, false); drawHeld(wp, F[0], F[1], Math.PI / 2 - 0.06, h * (LONG_RX.test(wp) ? 1.15 : 0.5)); });
+      else if (mv === "jab") over.push(() => thrown(fist, RS[0], RS[1], Math.PI / 2 - 0.16, h * (0.55 + punch * 0.75), false));
+      else if (mv === "swing") over.push(() => { const th = Math.PI - 0.15 - kq * 2.4, F = thrown(fist, RS[0], RS[1], th, h * 0.95, false); drawHeld(wp, F[0], F[1], th, h * 0.95); });
+      else { arm(hang, -sx, sy - sw, 0.06 - (sw / h) * 0.5, false);
+        if (melee) { const hy = sy - sw + h * 0.74; over.push(() => drawHeld(wp, -sx * 1.02, hy, Math.PI / 2 + 0.15, h * 0.8)); } }      // a weapon held at his side
+      if (mv === "jab" || mv === "hook") {} 
+      return over.length ? () => { for (const f of over) f(); } : null;
     }
     function drawYouth(p, angOverride, backOff) {
       const AP = p.arms && !g.noArms && armsReady(p.arms) ? p.arms : null;      // the arms pilot (layer 525)
@@ -18306,7 +18337,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!im || !im.width) return false;
       /* Drawn at 0.82. Measured, these came out 75-112% as wide as they are tall against
          57-90% on the gang sheets, so at parity they read a size bigger than everyone else. */
-      const h = 30 * (p.jit || 1) * 0.82 * (p.tall || 1) * (AP ? AP.scale : (YT_SCALE[p.yt] || 1)), w = h * (im.width / im.height);
+      const inK = g.inside && g.insideT > 0.5 ? 0.9 : 1;                  // indoors a hair smaller, so the furniture reads its size (layer 531)
+      const h = 30 * (p.jit || 1) * 0.82 * (p.tall || 1) * (AP ? AP.scale : (YT_SCALE[p.yt] || 1)) * inK, w = h * (im.width / im.height);
       const sp = Math.hypot(p.vx || 0, p.vy || 0);
       const face = p.faceLock != null && angOverride == null ? p.faceLock : (p.bang != null && angOverride == null && sp <= 10) ? p.bang : Math.atan2(p.vy, p.vx);
       const ang = angOverride != null ? angOverride : face + YOUTH_FACE;
@@ -18353,7 +18385,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
            jab       the arm SHOOTS OUT and comes back. No arc. Length is the animation.
            uppercut  a short arm coming up from the hip and across the body, and he leans in.
            swing     a long arc over the shoulder, all the way through. */
-      if (p.swing > 0 && !(AP && p.move === "jab")) {            // the pilot's arm throws its own jab (layer 525)
+      if (p.swing > 0 && !AP) {                                    // the arms throw their own jab, hook and swing (layers 525, 530)
         const k = clamp(1 - p.swing / (p.swingDur || 0.26), 0, 1);
         const punch = Math.sin(k * Math.PI);          // out and back in one motion
         const sx = w * 0.30, sy = -h * 0.06;          // right shoulder
@@ -24779,6 +24811,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          the tables read grey while the carpet and the staff were right. */
       const OWNED_BY_FLOOR = { slotbank: 1, cardtable: 1, wheeltable: 1 };
       for (const p of plan.props) {
+        if (p.t === "toilet" && b.inPrison) { const im = imgs.current.pr_toilet_apt; if (im && im.width) {        // 1A's toilet, in Kestrel too (layer 531)
+            const cx = p.x + p.w / 2, cy = p.y + p.h / 2, r = (plan.rooms || []).find((q) => cx >= q.x0 && cx <= q.x1 && cy >= q.y0 && cy <= q.y1) || { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
+            const face = cy - r.y0 <= r.y1 - cy ? Math.PI / 2 : -Math.PI / 2, L = Math.max(30, Math.min(46, Math.max(p.w, p.h))), W = L * im.width / im.height;
+            ctx.save(); ctx.translate(cx, cy); ctx.rotate(face - Math.PI / 2); ctx.drawImage(im, -W / 2, -L / 2, W, L); ctx.restore(); continue; } }
         if (p.turn) { const im = imgs.current[p.t]; if (im && im.width) { const q = Math.abs(Math.sin(p.turn)) > 0.5, dw = q ? p.h : p.w, dh = q ? p.w : p.h;      // a turned prop (layer 510)
             ctx.save(); ctx.translate(p.x + p.w / 2, p.y + p.h / 2); ctx.rotate(p.turn); ctx.drawImage(im, -dw / 2, -dh / 2, dw, dh); ctx.restore(); continue; } }
         if (OWNED_BY_FLOOR[p.t]) continue;
@@ -34630,7 +34666,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       } else {
         opts.push({ id: "bd:view:hire", label: "HIRE PEOPLE" }, { id: "bd:view:people", label: "YOUR PEOPLE \u00b7 GIVE ORDERS" }, { id: "bd:view:plan", label: "PLAN A JOB" },
                   { id: "bd:view:gangs", label: "THE GANGS AND YOU" }, { id: "open:sitcall", label: "CALL A SIT-DOWN" }, { id: "open:crewrules", label: "CREW RULES \u00b7 WHO WE FIGHT" },
-                  { id: "open:outfit", label: "THE OUTFIT \u00b7 TOP CREW, CAPTAINS, COURIERS" }, { id: "open:armory", label: "THE ARMORY \u00b7 GEAR" },
+                  { id: "open:outfit", label: "THE OUTFIT \u00b7 TOP CREW, CAPTAINS, COURIERS" }, { id: "open:armory", label: "THE ARMORY \u00b7 GEAR" }, { id: "open:gunheist", label: "GUN HEISTS \u00b7 THE STORE, THE TRUCK, THE BOAT" },
                   { id: "bd:view:kestrel", label: "GET A MAN OUT OF KESTREL" }, { id: "close", label: "WALK AWAY" });
       }
       const staff = Object.keys(HIRES).map((k) => HIRES[k].nm.toLowerCase() + " " + boardFree(k) + "/" + boardHave(k)).join(", ");
@@ -35819,7 +35855,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function drawTargetArrow() {
       const st = storyTarget();                                            // the story first (layer 489); in the story, nothing else unless it's a job you started
       const tg = st ? st : storyOnly() && !g.mis && !(g.board2 && g.board2.attack) ? null : g.mis ? misArrow() : g.merc ? doorPoint(g.merc.b) : g.board2 && g.board2.attack ? [g.board2.attack.x, g.board2.attack.y] : !g.inside && g.pescaped && g.mercBar && !g.mercSeen ? doorPoint(g.mercBar) : null;
-      const tgX = tg || (g.story && !g.auto ? g.lastDest : null);                         // layer 513
+      const tgX = ghTarget() || tg || (g.story && !g.auto ? g.lastDest : null);           // layer 513; a gun heist first (layer 528)
       if (!tgX || g.inside) return;
       const dx = tgX[0] - g.p.x, dy = tgX[1] - g.p.y, d = Math.hypot(dx, dy); if (d < 140) return;
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -36289,6 +36325,37 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else for (const o of pl.props || []) { const k = kindOfProp(o.t || ""); if (!k) continue; const x = clamp(g.p.x, o.x, o.x + o.w), y = clamp(g.p.y, o.y, o.y + o.h), d = Math.hypot(g.p.x - x, g.p.y - y);
         if (d < bd - 10) { bd = d + 10; best = { k, x: o.x + o.w / 2, y: o.y + o.h / 2 }; } }
       return best; }
+    /* SEATS (layer 531). The spots on a thing you can sit on, each with the way you face sitting there. A sofa has two or
+       three spots along it, a chair or a toilet one. Facing: at a sofa in 1A, toward its TV; otherwise away from the
+       nearest wall of the room it's in (its back is against that wall). */
+    const SEAT_RX = /chair|stool|bench|pew|seat|armchair/;
+    const seatKind = (t) => { const k = kindOfProp(t || ""); return k === "sofa" || k === "toilet" ? k : SEAT_RX.test(t || "") ? "chair" : null; };
+    function awayFromWall(x, y, r) { const d = [[y - r.y0, Math.PI / 2], [r.x1 - x, Math.PI], [r.y1 - y, -Math.PI / 2], [x - r.x0, 0]]; d.sort((a, c) => a[0] - c[0]); return d[0][1]; }
+    function seatsNear(maxD) { const b = g.inside; if (!b || g.mode !== "foot") return []; const out = [], pl = buildingPlans(b)[g.floor]; if (!pl) return out;
+      const roomOf = (x, y) => (pl.rooms || []).find((r) => x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) || { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
+      const art = b.artFloors && b.artFloors[g.floor] && APT_OBJ[b.artFloors[g.floor]];
+      if (art) { const P2 = fitArtFloor(b, g.floor, b.artFloors[g.floor], b.artKeep); if (!P2 || !P2.artR2) return out; const L = APT_OBJ[b.artFloors[g.floor]];
+        for (const [k, fx, fy] of L) { if (k !== "sofa" && k !== "toilet") continue; const [x, y] = artAt(P2, fx, fy); if (Math.hypot(g.p.x - x, g.p.y - y) > maxD + 40) continue;
+          let ang; if (k === "sofa") { let tv = null, td = 1e9; for (const [k2, fx2, fy2] of L) if (k2 === "tv") { const [tx, ty] = artAt(P2, fx2, fy2), d = Math.hypot(tx - x, ty - y); if (d < td) { td = d; tv = [tx, ty]; } }
+              ang = tv && td < 400 ? Math.atan2(tv[1] - y, tv[0] - x) : awayFromWall(x, y, { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h }); }
+          else ang = awayFromWall(x, y, { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h });
+          const along = Math.abs(Math.cos(ang)) > 0.7 ? [0, 1] : [1, 0];
+          for (const s of k === "sofa" ? [-28, 0, 28] : [0]) out.push({ k, x: x + along[0] * s, y: y + along[1] * s, ang }); } }
+      for (const o of pl.props || []) { const k = seatKind(o.t); if (!k) continue; const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+        if (Math.hypot(g.p.x - cx, g.p.y - cy) > maxD + Math.max(o.w, o.h) / 2) continue;
+        const ang = o.turn != null && k === "chair" ? o.turn + Math.PI / 2 : k === "toilet" ? (cy - roomOf(cx, cy).y0 <= roomOf(cx, cy).y1 - cy ? Math.PI / 2 : -Math.PI / 2) : awayFromWall(cx, cy, roomOf(cx, cy));
+        const long = Math.max(o.w, o.h), n = k === "sofa" ? Math.max(1, Math.min(4, Math.round(long / 32))) : 1, alongX = o.w >= o.h;
+        for (let q = 0; q < n; q++) { const t = n === 1 ? 0 : (q / (n - 1) - 0.5) * (long - 30); out.push({ k, x: cx + (alongX ? t : 0), y: cy + (alongX ? 0 : t), ang }); } }
+      return out.filter((s) => Math.hypot(g.p.x - s.x, g.p.y - s.y) < maxD).sort((a, c) => Math.hypot(g.p.x - a.x, g.p.y - a.y) - Math.hypot(g.p.x - c.x, g.p.y - c.y));
+    }
+    function sitAt(s) { if (!s) return false; g.p.sit = { x: s.x, y: s.y, ang: s.ang, k: s.k, b: g.inside, f: g.floor }; g.p.x = s.x; g.p.y = s.y; g.p.vx = 0; g.p.vy = 0; g.p.face = s.ang;
+      g.pickupFlash = { nm: "lift:" + (s.k === "toilet" ? "YOU SIT. NOBODY WATCHING." : "YOU SIT DOWN") + " \u00b7 MOVE TO GET UP", t: 1.6 }; return true; }
+    G.sitFn = () => { if (g.p.sit || g.mode !== "foot" || !g.inside) return false; const s = seatsNear(56).find((q) => q.k !== "toilet"); return s ? sitAt(s) : false; };
+    G.seatsT = () => seatsNear(400).map((s) => [s.k, Math.round(s.x), Math.round(s.y), +s.ang.toFixed(2)]);      // test hook
+    function stepSit(ix, iy) { const S = g.p.sit; if (!S) return false;
+      if (g.inside !== S.b || g.floor !== S.f || g.mode !== "foot") { g.p.sit = null; return false; }
+      if (Math.hypot(ix, iy) > 0.3) { g.p.sit = null; g.p.x = S.x + Math.cos(S.ang) * 30; g.p.y = S.y + Math.sin(S.ang) * 30; return false; }
+      g.p.x = S.x; g.p.y = S.y; g.p.vx = 0; g.p.vy = 0; g.p.face = S.ang; return true; }
     const osKey = (O) => g.inside.key + ":" + g.floor + ":" + O.k + ":" + Math.round(O.x / 10) + ":" + Math.round(O.y / 10);
     function osGet(O) { const S = (g.ostash = g.ostash || {}), k = osKey(O);
       if (!S[k]) { S[k] = { cash: 0, items: [], wpn: [] }; if (g.inside.aptTop && g.floor === 0 && O.k === "toilet" && O.fx != null && O.fx < 0.5) S[k].cash = 1000; }   // the tank in 1A
@@ -36325,12 +36392,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (a === "closet") { later(() => G.closetWheel()); return; }
       const say = (t, nm) => { g.pickupFlash = { nm: "lift:" + t, t: 1.8 }; };
       if (a === "wash") say("YOU WASH YOUR HANDS. SEVENTEEN YEARS OF KESTREL, STILL THERE.");
-      if (a === "use") say("YOU USE IT. NOBODY WATCHING. THAT'S NEW.");
+      if (a === "use") { const s = seatsNear(80).find((q) => q.k === "toilet"); if (s) { sitAt(s); return; } say("YOU USE IT. NOBODY WATCHING. THAT'S NEW."); }
       if (a === "shower") { g.p.stamina = g.p.maxStamina || g.p.stamina; g.clock = ((g.clock || 0) + 15) % 1440; say("A HOT SHOWER, AS LONG AS YOU WANT IT · STAMINA FULL"); }
       if (a === "eat") { g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 20); say("COLD CHICKEN AND A SODA · +20 HEALTH"); }
       if (a === "cook") { g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 35); g.clock = ((g.clock || 0) + 20) % 1440; say("EGGS, GRITS, HOT SAUCE · +35 HEALTH"); }
       if (a === "tv") { later(() => G.pickOpen("sp_tv")); return; }                     // Channel 6: ad, ad, news (layer 512b)
-      if (a === "sit") { g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 5); g.clock = ((g.clock || 0) + 10) % 1440; say("YOU SIT. THE QUIET IS LOUD."); } };
+      if (a === "sit") { const s = seatsNear(80).find((q) => q.k !== "toilet"); if (s) sitAt(s); g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 5); g.clock = ((g.clock || 0) + 10) % 1440; say("YOU SIT. THE QUIET IS LOUD."); } };
     G.osPick = (id) => { const [, a, b] = id.split(":"), O = g.owNow; if (!O) return; const S = osGet(O);
       if (a === "take") { if (b === "cash") { g.p.cash = (g.p.cash || 0) + S.cash; g.pickupFlash = { nm: "lift:+$" + S.cash.toLocaleString(), t: 1.6 }; S.cash = 0; }
         else if (b[0] === "i") { const it = S.items.splice(+b.slice(1), 1)[0]; if (it) (g.pinv = g.pinv || []).push(it); }
@@ -37263,7 +37330,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (best && S) S.wareKey = best.key; return (suWareB = best); }
     function suBox() { const S = g.story; if (S.box) return S.box; const H = suHouse(), W = suWare(); if (!H || !W) return null; const m = PITCH * 0.6;
       return (S.box = { x0: Math.min(H.x, W.x) - m, y0: Math.min(H.y, W.y) - m, x1: Math.max(H.x + H.w, W.x + W.w) + m, y1: Math.max(H.y + H.h, W.y + W.h) + m }); }
-    function suEra(on) { for (const v of g.traffic || []) { if (on) { if (!v.m69 && v.m && !v.suCop && !v.parked && (v.m.len || 0) < 150) { v.m69 = v.m; v.m = { ...v.m, k: ERA69[(Math.abs(Math.round(v.x * 7 + v.y * 3)) >> 4) % 4], len: 112, w: 54 }; } }
+    function suEra(on) { for (const v of g.traffic || []) { if (on) { if (!v.m69 && v.m && !v.suCop && !v.parked && (v.m.len || 0) < 150) { v.m69 = v.m; v.m = { ...v.m, k: ERA69[(Math.abs(Math.round(v.x * 7 + v.y * 3)) >> 4) % 4], len: 112, w: 44 }; } }
         else if (v.m69) { v.m = v.m69; v.m69 = null; } } }
     function setupBegin() {
       const H = suHouse(); if (!H || !suWare()) return;
@@ -37278,7 +37345,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       S.rFloor = f; S.rx = rp[0]; S.ry = rp[1];
       g.inside = H; g.floor = f; g.insideT = 1; g.mode = "foot"; g.p.x = pt[0]; g.p.y = pt[1]; g.p.vx = 0; g.p.vy = 0; g.cam.x = pt[0]; g.cam.y = pt[1];
       const [fx, fy] = frontOf(H), [kx, ky] = streetStop(fx, fy);
-      g.car.x = kx; g.car.y = ky; g.car.ang = Math.abs(kx - fx) > Math.abs(ky - fy) ? 0 : Math.PI / 2; g.car.vx = 0; g.car.vy = 0; g.car.skin = { k: "veh_69_sedan", len: 112, w: 54 }; g.car.fuel = 100; g.car.dmg = 0;
+      g.car.x = kx; g.car.y = ky; g.car.ang = Math.abs(kx - fx) > Math.abs(ky - fy) ? 0 : Math.PI / 2; g.car.vx = 0; g.car.vy = 0; g.car.skin = { k: "veh_69_sedan", len: 112, w: 44 }; g.car.fuel = 100; g.car.dmg = 0;
       g.jobBanner = "RAVEN HOOK · 1969"; g.jobNote = "Rochelle's. Old Town. The morning it all went wrong."; }
     function setupIntake() { const S = g.story; suEra(false);
       g.setupSiren = null; g.auto = null; g.mode = "foot"; g.inside = null; g.pescaped = 0; g.preleased = 0; g.pcivvies = 0;
@@ -38910,6 +38977,101 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.carWas513 = null; }
     const L4_PERK513 = { hippie: "CLEAN MONEY -- Drummond's case fills half as fast", corner: "LOOKOUTS -- the heat cools twice as fast", nest: "THE BACK ROOM -- hires 20% cheaper", auto: "THE GARAGE -- your car mends while you're on foot" };
     G.stats513T = () => ({ drv: drv513(activeVeh()), stealth: stealth513(), buy: charmBuy513(), sell: charmSell513(), heat: g.heat || 0, calm: g.heatCalm || 0, lastDest: g.lastDest, carWas: !!g.carWas513 });   // test hook
+    /* ---------- LAYER 528: GUN HEISTS ----------
+       Off the MAP menu or the board: pick a job. g.gh holds it: { k, step: go|hit|home, x, y (the site), crates [{x,y,
+       taken}], carry, trunk, crew, truck }. Not a story slot, so it runs beside whatever the story is doing. */
+    const GH = {
+      store: { nm: "THE GUN STORE", stars: 1, guards: 3, crates: 2, heat: 1, cash: [2000, 4500], items: ["pistol", "shotgun", "vest"],
+               brief: "RIGHT TO ARMS gets its stock in the back. The stockroom door's propped open after five. Two crates, three men." },
+      truck: { nm: "THE ARMS TRUCK", stars: 2, guards: 5, crates: 3, heat: 2, cash: [6000, 12000], items: ["pistol", "shotgun", "smg", "vest"],
+               brief: "A Boznov box truck parked up on a side street, waiting on a buyer. Three crates in the back and five men watching it." },
+      boat:  { nm: "THE BOAT SHIPMENT", stars: 3, guards: 8, crates: 4, heat: 3, cash: [15000, 30000], items: ["pistol", "shotgun", "smg", "rifle", "vest"],
+               brief: "A freighter's in at THE PORT with a container that isn't on the manifest. Four crates on the quay. Eight men, and they're serious." },
+    };
+    const ghStars = (n) => "\u2605".repeat(n) + "\u2606".repeat(3 - n);
+    function ghSite(k) {
+      if (k === "store") { const B = namedB((b) => b.name === "RIGHT TO ARMS"); if (!B) return null; const s = backSide(B), P = wallPt(B, s, 0.5, 70);
+        const along = s === 0 || s === 2 ? [1, 0] : [0, 1], out = [[0, -1], [1, 0], [0, 1], [-1, 0]][s];
+        return { x: P[0], y: P[1], crates: [-1, 1].map((q) => [P[0] + along[0] * q * 46 + out[0] * 10, P[1] + along[1] * q * 46 + out[1] * 10]), addr: addressOf(B) }; }
+      if (k === "truck") { const i0 = Math.floor(g.p.x / PITCH), j0 = Math.floor(g.p.y / PITCH);
+        for (let t = 0; t < 80; t++) { const i = i0 + ((Math.random() * 7) | 0) - 3, j = j0 + ((Math.random() * 7) | 0) - 3;
+          if (Math.abs(i - i0) + Math.abs(j - j0) < 2 || i < 1 || j < 1 || i > CITY_N - 2 || j > CITY_N - 2 || hCut(i, j) || isPortCell(i, j)) continue;
+          const x = SX(i) + PITCH * 0.5, y = laneY(j, 1); if (!Number.isFinite(y)) continue;
+          return { x, y, truck: 1, crates: [[x - 110, y + 6], [x - 110, y - 34], [x - 150, y - 14]], addr: (addressOf({ x: x - 1, y: y - 1, w: 2, h: 2, door: { side: 2 } }) || "a side street") }; }
+        return null; }
+      if (k === "boat") { const P = hubTargets().find((q) => q.id === "port"); if (!P) return null;
+        return { x: P.x, y: P.y + 40, crates: [[P.x - 70, P.y + 70], [P.x - 20, P.y + 90], [P.x + 30, P.y + 70], [P.x + 80, P.y + 90]], addr: "THE PORT" }; }
+      return null;
+    }
+    function ghPanel() {
+      const H = g.gh, opts = [];
+      if (H) { const J = GH[H.k]; opts.push({ id: "gh:quit", label: "CALL IT OFF (" + J.nm + ")" }, { id: "close", label: "BACK" });
+        return { title: "GUN HEISTS \u00b7 ON NOW", face: null, text: J.nm + " " + ghStars(J.stars) + ". " + ghObjective().sub, opts }; }
+      for (const k in GH) { const J = GH[k]; opts.push({ id: "gh:go:" + k, label: J.nm + "  " + ghStars(J.stars) + "  \u00b7  " + J.guards + " MEN \u00b7 $" + (J.cash[0] / 1000) + "-" + (J.cash[1] / 1000) + "K \u00b7 " + J.items.map((q) => GEAR[q].nm.toLowerCase()).join(", ") }); }
+      opts.push({ id: "close", label: "NOT NOW" });
+      return { title: "GUN HEISTS", face: null, text: (g.ghSaid ? g.ghSaid + "\n\n" : "") + "Guns and money. The harder the job, the more men on it and the more comes home: 5 to 12 of every kind of gun on the job, and vests, into THE ARMORY. You need a car with a trunk at the scene. Bring it all back to the scrapyard or the Hippie and unload.", opts };
+    }
+    G.ghPick = (id) => { const [, a, k] = id.split(":"); const close = () => { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); };
+      if (a === "quit") { ghEnd(); g.jobBanner = "CALLED OFF"; g.jobNote = "Another day."; close(); return; }
+      if (a === "go" && GH[k]) { if (g.gh) { g.ghSaid = "One at a time."; G.pickOpen("gunheist"); return; }
+        const S = ghSite(k); if (!S) { g.ghSaid = "Nobody's got a line on that one right now."; G.pickOpen("gunheist"); return; }
+        const J = GH[k]; g.gh = { k, step: "go", x: S.x, y: S.y, crates: S.crates.slice(0, J.crates).map(([x, y]) => ({ x, y, taken: 0 })), carry: 0, trunk: 0, crew: null, addr: S.addr };
+        while (g.gh.crates.length < J.crates) { const c = g.gh.crates[g.gh.crates.length - 1]; g.gh.crates.push({ x: c.x + 36, y: c.y + 22, taken: 0 }); }
+        if (S.truck) { const M = truckM(); g.gh.truck = parkCar(S.x, S.y, 0, M.k, { ghTruck: 1 }); g.gh.truck.m = M; }
+        g.jobBanner = "GUN HEIST \u00b7 " + J.nm; g.jobNote = J.brief + " " + S.addr + ".";
+        if (typeof bookNote === "function") bookNote(J.nm + ": " + J.brief);
+        close(); return; } };
+    function ghEnd() { const H = g.gh; if (!H) return; if (H.truck) dropCars([H.truck]); g.gh = null; g.bagsOn = 0; }
+    function ghCar() { return g.car && g.car.x > -50000 && !g.car.flying ? g.car : null; }
+    function ghHome() { const L = [hideoutB(), hippyB()].filter(Boolean); let best = null, bd = 1e12;
+      for (const b of L) { const f = frontOf(b), d = Math.hypot(f[0] - g.p.x, f[1] - g.p.y); if (d < bd) { bd = d; best = { b, f, d }; } } return best; }
+    function stepGH(dt) { const H = g.gh; if (!H) return; const J = GH[H.k], p = inVehicle() ? activeVeh() : g.p;
+      if (H.step === "go" && Math.hypot(p.x - H.x, p.y - H.y) < 700) { H.step = "hit"; H.crew = hostile("rus", H.x, H.y, J.guards);
+        for (const m of H.crew.members) { m.hp = (m.hp || 10) * (1 + 0.25 * (J.stars - 1)); }
+        say(H.k === "store" ? "THE STOCK BOY" : H.k === "truck" ? "BOZNOV MAN" : "THE DOCK BOSS", H.k === "store" ? "“Hey -- HEY! Get away from that door!”" : H.k === "truck" ? "“That's Grigori's truck, friend. Walk away.”" : "“Nobody's on this quay tonight. Kill him.”", 5); }
+      if (H.step === "hit" && H.trunk >= H.crates.length) { H.step = "home"; g.jobBanner = "EVERY CRATE'S IN"; g.jobNote = ((g.heat || 0) > 0 ? "Lose the heat, then " : "") + "back to the scrapyard or the Hippie. E at the trunk: UNLOAD."; }
+    }
+    function ghTarget() { const H = g.gh; if (!H || g.inside) return null;
+      if (H.step === "go") return [H.x, H.y];
+      if (H.step === "hit") { const c = ghCar(); if (H.carry) return c ? [c.x, c.y] : null; const n = H.crates.find((q) => !q.taken); return n ? [n.x, n.y] : null; }
+      const h = ghHome(); return h ? h.f : null; }
+    function ghObjective() { const H = g.gh; if (!H) return null; const J = GH[H.k], head = "GUN HEIST \u00b7 " + J.nm + " " + ghStars(J.stars), left = H.crates.filter((q) => !q.taken).length;
+      if (H.step === "go") return { head, sub: "Get there: " + H.addr + ". Bring a car -- you need the trunk." };
+      if (H.step === "hit") { if (!ghCar()) return { head, sub: "You need a car here for the crates. Get one." };
+        return { head: head + " \u00b7 " + H.trunk + "/" + H.crates.length + " IN THE TRUNK", sub: H.carry ? "Carrying a crate: E at your car to put it in the trunk." : left ? "E at a crate to pick it up (" + left + " left)." + (crewDead(H.crew) ? "" : " Their men are still up.") : "Get the last one in the trunk." }; }
+      const hot = (g.heat || 0) > 0 || (g.wantedT || 0) > 0;
+      return { head: head + " \u00b7 HOME", sub: hot ? "Lose the heat first. Then the scrapyard or the Hippie." : "The scrapyard or the Hippie. Out of the car, E at the trunk: UNLOAD." }; }
+    G.ghActFn = () => { const H = g.gh; if (!H || g.mode !== "foot" || g.inside) return false; const c = ghCar(), nearCar = c && Math.hypot(g.p.x - c.x, g.p.y - c.y) < 150;
+      if (H.step === "hit" && H.carry && nearCar) { H.carry = 0; g.bagsOn = 0; H.trunk++; g.pickupFlash = { nm: "lift:IN THE TRUNK \u00b7 " + H.trunk + "/" + H.crates.length, t: 1.6 }; return true; }
+      if (H.step === "hit" && !H.carry) { const q = H.crates.find((r) => !r.taken && Math.hypot(r.x - g.p.x, r.y - g.p.y) < 56);
+        if (q) { q.taken = 1; H.carry = 1; g.bagsOn = 1; const J = GH[H.k]; if (!H.hot) { H.hot = 1; g.heat = Math.max(g.heat || 0, J.heat); g.wantedT = Math.max(g.wantedT || 0, 40 * J.heat); }
+          g.pickupFlash = { nm: "lift:A CRATE \u00b7 TO THE CAR", t: 1.6 }; return true; } }
+      if (H.step === "home" && nearCar) { const h = ghHome(); if (!h || h.d > 460) return false;
+        if ((g.heat || 0) > 0 || (g.wantedT || 0) > 0) { g.pickupFlash = { nm: "lift:NOT WITH COPS ON YOU", t: 1.6 }; return true; }
+        ghPayout(); return true; }
+      return false; };
+    function ghPayout() { const H = g.gh, J = GH[H.k], B = (g.board2 = g.board2 || { hires: {}, ops: [], corners: 0 }), A = (B.armory = B.armory || {}), got = [];
+      for (const k of J.items) { const n = 5 + ((Math.random() * 8) | 0); A[k] = (A[k] || 0) + n; got.push(n + " " + GEAR[k].nm.toLowerCase() + (n > 1 && !/s$/.test(GEAR[k].nm) ? "s" : "")); }
+      const cash = Math.round((J.cash[0] + Math.random() * (J.cash[1] - J.cash[0])) / 50) * 50; g.p.cash = (g.p.cash || 0) + cash; g.rep = (g.rep || 0) + 10 * J.stars;
+      if (typeof lvWin === "function") lvWin(cash); if (G.sideXP) try { G.sideXP(10 * J.stars); } catch (e) {}
+      g.ghLast = { nm: J.nm, stars: J.stars, cash, got }; ghEnd();
+      g.jobBanner = "THE STASH"; g.jobNote = "+$" + cash.toLocaleString() + " and " + got.join(", ") + " in THE ARMORY.";
+      G.pickOpen("ghtake"); }
+    function ghTakePanel() { const L = g.ghLast || { nm: "", got: [], cash: 0, stars: 1 };
+      return { title: "THE TAKE \u00b7 " + L.nm + " " + ghStars(L.stars), face: null, text: "The trunk comes open in the yard. Into the locker:\n\n" + L.got.map((q) => "\u00b7 " + q).join("\n") + "\n\nAnd $" + L.cash.toLocaleString() + " in a duffel.  +" + (10 * L.stars) + " respect.\n\nHand them out from a man's card (YOUR PEOPLE), or TAKE ONE FOR YOURSELF in THE ARMORY.",
+        opts: [{ id: "open:armory", label: "THE ARMORY" }, { id: "open:gunheist", label: "ANOTHER JOB" }, { id: "close", label: "DONE" }] }; }
+    G.ghHomeT = () => { const h = ghHome(); return h ? h.f : null; };                    // test hook
+    G.ghT = () => g.gh ? { k: g.gh.k, step: g.gh.step, carry: g.gh.carry, trunk: g.gh.trunk, n: g.gh.crates.length, crates: g.gh.crates, x: g.gh.x, y: g.gh.y, crew: !!g.gh.crew } : null;   // test hook
+    function drawGH() { const H = g.gh; if (!H || g.inside) return;
+      for (const q of H.crates) { if (q.taken) continue;
+        ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(q.x - 14 + 4, q.y - 10 + 4, 28, 20);
+        ctx.fillStyle = "#6b5233"; ctx.fillRect(q.x - 14, q.y - 10, 28, 20); ctx.strokeStyle = "#3a2b18"; ctx.lineWidth = 2; ctx.strokeRect(q.x - 14, q.y - 10, 28, 20);
+        ctx.beginPath(); ctx.moveTo(q.x - 14, q.y - 10); ctx.lineTo(q.x + 14, q.y + 10); ctx.moveTo(q.x + 14, q.y - 10); ctx.lineTo(q.x - 14, q.y + 10); ctx.stroke();
+        ctx.fillStyle = "#c9b48a"; ctx.font = "700 6px system-ui"; ctx.textAlign = "center"; ctx.fillText("ARMS", q.x, q.y + 2); ctx.textAlign = "start";
+        if (H.step === "hit" && !H.carry && Math.hypot(q.x - g.p.x, q.y - g.p.y) < 90) lab8("E: TAKE THE CRATE", q.x, q.y - 18); }
+      const c = ghCar(); if (H.step === "hit" && H.carry && c && Math.hypot(c.x - g.p.x, c.y - g.p.y) < 200) lab8("E: IN THE TRUNK", c.x, c.y - 44);
+      if (H.step === "home" && c) { const h = ghHome(); if (h && h.d < 460 && Math.hypot(c.x - g.p.x, c.y - g.p.y) < 220) lab8("E: UNLOAD", c.x, c.y - 44); } }
+
     /* ---------- LAYER 489: STORY HUD, THE STORY ARROW AND ROUTE, PABLO AT THE HIPPIE, THE BOZNOVS ON THEIR FEET ----------
        storyOnly(): Rey's story (Kestrel mode, out of prison). The HUD shows the story and nothing else -- no scanner calls,
        no street races, no RHPD line unless it's you they're after, no SAVED/LOST, no JUICE, no SKY.
@@ -39142,7 +39304,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function storyByePanel() { return { title: "LAST DAY IN · THE CAKE", face: "assets/crew/pt_crew_leroy.png",
       text: "The four of you on two bunks, the warden's cake on a towel, plastic forks.\n\nLEROY: “Key's under the mat. Palm Court, Building A, 1A. And lift the lid on the toilet tank -- my sister's old man kept his money in there. Don't thank me. Just don't come back.”\nRAS: “Me pay a man fi tomorrow. You'll see. Walk good, Rey.”\nPABLO: “A few weeks, mijo. Don't start the war without me.”",
       opts: [{ id: "story:bye", label: "“SEVENTEEN YEARS. I'LL SEE YOU OUT THERE.”" }] }; }
-    function storyObjective() { const S = g.story; if (S && S.id === "setup") return setupObjective(); if (S && S.id === "dayout") return dayOutObjective(); if (S && S.id === "firstout") return firstOutObjective(); if (S && S.id === "scrapyard") return scrapObjective(); if (S && S.id === "friday") return fridayObjective(); if (S && S.id === "allin") return allinObjective(); if (S && S.id === "washday") return washObjective(); if (S && S.id === "maptable") return maptableObjective(); if (S && S.id === "bankjob") return bankjobObjective(); if (S && S.id === "corner") return cornerObjective(); if (S && S.id === "nest") return nest2Objective(); if (S && OBJ98[S.id]) return OBJ98[S.id](); if (!S || S.id !== "lastday") return null; const nm = "LAST DAY IN";
+    function storyObjective() { if (g.gh) return ghObjective(); const S = g.story; if (S && S.id === "setup") return setupObjective(); if (S && S.id === "dayout") return dayOutObjective(); if (S && S.id === "firstout") return firstOutObjective(); if (S && S.id === "scrapyard") return scrapObjective(); if (S && S.id === "friday") return fridayObjective(); if (S && S.id === "allin") return allinObjective(); if (S && S.id === "washday") return washObjective(); if (S && S.id === "maptable") return maptableObjective(); if (S && S.id === "bankjob") return bankjobObjective(); if (S && S.id === "corner") return cornerObjective(); if (S && S.id === "nest") return nest2Objective(); if (S && OBJ98[S.id]) return OBJ98[S.id](); if (!S || S.id !== "lastday") return null; const nm = "LAST DAY IN";
       if (S.step === 0) { const ks = ["leroy", "ras", "viejo"], left = ks.filter((k) => !S.talked[k]);
         if (left.length) return { head: nm + " · TALK TO YOUR PEOPLE", sub: ks.map((k) => (S.talked[k] ? "✓ " : "· ") + HOMIE[k]).join("   ") + " — E to talk. They're on your tier." };
         const sub = [S.side.ras ? "✓ RAS: the shank's hidden" : "RAS: hide the shank in your mattress (POCKETS, E at your bunk)",
@@ -39169,7 +39331,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (walls.some((q) => px > q.x && px < q.x + q.w && py > q.y && py < q.y + q.h)) return false; } }
       return true; }
     function storyStep(dt) {
-      stepSleepFx(dt); stepDinner(dt); stepHillCars(); stepTrophy(dt); stepCrush(dt); stepBplate(dt); stepPayDrain(dt); stepCarry(dt); stepPick(dt); stepCalled(dt); stepRcase(dt); if (g.rcDrum && (g.rcDrum.t -= dt) <= 0) g.rcDrum = null; stepPrints510(dt); stepWake510(dt); stepAptDoors512(dt); stepRent512(); if (g.prisonMode && g.case) { g.case = null; if (g.talkTo) { g.talkTo = null; g.paused = false; } } if (((g.t || 0) * 2 | 0) !== g.empTk) { g.empTk = (g.t || 0) * 2 | 0; empTick(); }      // layer 498
+      stepSleepFx(dt); stepDinner(dt); stepHillCars(); stepTrophy(dt); stepCrush(dt); stepBplate(dt); stepPayDrain(dt); stepCarry(dt); stepPick(dt); stepCalled(dt); stepRcase(dt); if (g.rcDrum && (g.rcDrum.t -= dt) <= 0) g.rcDrum = null; stepPrints510(dt); stepGH(dt); stepWake510(dt); stepAptDoors512(dt); stepRent512(); if (g.prisonMode && g.case) { g.case = null; if (g.talkTo) { g.talkTo = null; g.paused = false; } } if (((g.t || 0) * 2 | 0) !== g.empTk) { g.empTk = (g.t || 0) * 2 | 0; empTick(); }      // layer 498
       if (g.slam) { g.slam.t += dt; if (g.slam.kind !== "fail" && g.slam.t > (g.slam.kind === "start" || g.slam.kind === "side" ? 3 : 4.5)) g.slam = null;
         else if (g.slam.kind === "fail") { g.p.vx = 0; g.p.vy = 0; if (g.pickOpen !== "storyfail") G.pickOpen("storyfail"); return; } }
       stepEarlCab(dt);
@@ -44023,10 +44185,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (conv && conv.width) {
         drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
         const armsOn = !g.studentMode && pkey === "yt_player_civ" ? ARM_SETS.rey : null;      // the arms pilot (layer 525)
-        const aimOn = !!(g.p.wpn && !g.p.holstered && (g.p.drawnT || 0) > 0 && /pistol|gun|revolver|snub|colt|glock|beretta|rifle|smg|uzi|mac|shot|pump|sawn|ar15|ak|m16|tommy/.test(g.p.wpn));
-        drawYouth({ hero: 1, arms: armsOn, aim: aimOn, x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1, tall: 1.0, yt: g.studentMode ? skey : pkey, bang: g.p.face != null ? g.p.face : g.board.ang, faceLock: heroLockAng(),
+        /* layer 530: a gun out of the holster is held out, all the time; strikes alternate JAB and HOOK, unarmed */
+        const heldW = armsOn && g.p.wpn && !g.p.holstered && !WPN_THROWN[g.p.wpn] ? g.p.wpn : null;
+        const aimOn = !!(heldW && !MELEE_RX.test(heldW));
+        if ((g.p.atk || 0) > (g.p.atkWas || 0) + 0.05) g.p.atkN = (g.p.atkN || 0) + 1; g.p.atkWas = g.p.atk || 0;
+        drawYouth({ hero: 1, arms: armsOn, aim: aimOn, held: heldW, x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1, tall: 1.0, yt: g.studentMode ? skey : pkey, bang: g.p.face != null ? g.p.face : g.board.ang, faceLock: heroLockAng(),
                     swing: Math.max(g.p.atk || 0, g.p.punT || 0), swingDur: (g.p.punT || 0) > 0 ? (g.p.punDur || 0.18) : 0.26,
-                    move: (g.p.punT || 0) > 0 ? (g.p.punMove || "jab") : "swing" });
+                    move: (g.p.punT || 0) > 0 ? (g.p.punMove || "jab") : armsOn && !heldW ? ((g.p.atkN || 0) % 2 ? "hook" : "jab") : "swing" });
         return;
       }
       const malc = g.detMode ? imgs.current.yt_malcolm : null;
@@ -46501,7 +46666,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!g.inside) drawBailers();
       if (!g.inside) { drawOldTownProps(view); drawAlleys(view); drawSchoolsOutside(view); drawLotPaint(view); drawGraves(view); }      // on the ground, under the people (layers 510, 513b)
       drawCold(view);
-      drawSetupGround(); drawPrints510();
+      drawSetupGround(); drawPrints510(); drawGH();
       drawItems(view);
       drawSpriteLabels(view);
       if (!g.inside) for (const u of policeUnits()) drawList.push([u.y, 5, u, 0]);
@@ -54909,6 +55074,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           {hud.skipPrison && <div data-mapopt="1" onClick={(e) => { e.stopPropagation(); setMapOpen(false); setTimeout(() => G.skipPrisonFn && G.skipPrisonFn(), 60); }}
             style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "9px 14px", border: "1px solid #b48cff", color: "#d6c2ff", fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", background: "rgba(180,140,255,0.12)" }}>
             CHEAT {"\u00b7"} {hud.skipMorn ? "SKIP TO THE NEXT MORNING" : "SKIP PRISON \u00b7 TO FIRST DAY OUT"}
+          </div>}
+          {/* GUN HEISTS (layer 528) */}
+          {!hud.flash76 && <div data-mapopt="1" onClick={(e) => { e.stopPropagation(); setMapOpen(false); setTimeout(() => { G.current.ghSaid = null; G.pickOpen && G.pickOpen("gunheist"); }, 60); }}
+            style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "9px 14px", border: "1px solid #d0703c", color: "#f0a77a", fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", background: "rgba(208,112,60,0.12)" }}>
+            GUN HEISTS {"\u00b7"} THE STORE {"\u00b7"} THE TRUCK {"\u00b7"} THE BOAT
           </div>}
           {/* REY & THE CREW (layer 503): levels and stats. Y on the pad. */}
           <div data-mapopt="1" onClick={(e) => { e.stopPropagation(); G.statsToggle && G.statsToggle(true); }}
