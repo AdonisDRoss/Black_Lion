@@ -19388,11 +19388,37 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return best;
     }
     function fireGrapple() {
+      if (g.prisonMode || g.studentMode) return false;                                       // Rey has a rope, the kid nothing (layer 527)
       const b = grappleTarget();
       if (!b) return false;
       g.grap = { x0: g.p.x, y0: g.p.y, x1: b.x + b.w / 2, y1: b.y + b.h / 2, t: 0, b };
       return true;
     }
+    /* REY'S ROPE (layer 527). Not a grapple: you stand AT the wall (within ROPE_REACH of a building with a roof you can
+       stand on), throw a rope up and climb it -- about a second and a half, hand over hand, and you come over the edge
+       nearest you. g.grap with .rope: updateRoof moves him up the rope, drawRoof draws it. */
+    const ROPE_REACH = 70;
+    function ropeTarget() {
+      if (g.inside || inVehicle() || g.roof || g.grap || g.mode !== "foot") return null;
+      const ci = clamp(Math.floor(g.p.x / PITCH), 0, N - 1), cj = clamp(Math.floor(g.p.y / PITCH), 0, N - 1);
+      let best = null, bd = ROPE_REACH;
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+        const c = getCell(ci + di, cj + dj); if (!c || !c.blds) continue;
+        for (const b of c.blds) {
+          if ((b.floors || 1) < GRAP_MIN_FLOORS) continue;
+          const ex = clamp(g.p.x, b.x, b.x + b.w), ey = clamp(g.p.y, b.y, b.y + b.h), d = Math.hypot(ex - g.p.x, ey - g.p.y);
+          if (d < bd) { bd = d; best = { b, ex, ey }; }
+        }
+      }
+      return best;
+    }
+    G.ropeTargetT = () => { const T = ropeTarget(); return T ? { ex: T.ex, ey: T.ey, fl: T.b.floors } : null; };     // test hook
+    G.ropeFn = () => {
+      if (g.studentMode || !g.prisonMode) return false;
+      const T = ropeTarget(); if (!T) { g.pickupFlash = { nm: "lift:GET UP AGAINST A WALL", t: 1.4 }; return false; }
+      const b = T.b; g.grap = { rope: 1, x0: g.p.x, y0: g.p.y, ex: T.ex, ey: T.ey, x1: b.x + b.w / 2, y1: b.y + b.h / 2, t: 0, b };
+      g.p.vx = 0; g.p.vy = 0; return true;
+    };
     /* Roof to roof. A gap you can clear is a jump; anything wider needs the hook. The arc is
        a timer plus a target, not physics -- there is no z axis to fall through, so the jump
        either lands or it does not, decided at the moment you leave the parapet. */
@@ -19448,7 +19474,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function updateRoof(dt) {
       // the line travels, then he does
       if (g.grap) {
-        g.grap.t += dt * 3.4;
+        g.grap.t += dt * (g.grap.rope ? 0.7 : 3.4);                       // a rope is climbed, not fired (layer 527)
+        if (g.grap.rope) { const q = g.grap, k = Math.min(1, q.t); g.p.x = q.x0 + (q.ex - q.x0) * k; g.p.y = q.y0 + (q.ey - q.y0) * k; g.p.vx = 0; g.p.vy = 0; g.p.anim = (g.p.anim || 0) + dt * 9; }
         if (g.grap.t >= 1) {
           const b = g.grap.b, r = roofRect(b);
           g.roof = b;
@@ -19494,6 +19521,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const q = g.grap;
         // the far end of the line lands where the roof is DRAWN, not on the footprint
         const [gox, goy] = roofOffset(q.b);
+        if (q.rope) {                                                    // Rey's rope: up the wall to the edge above him (layer 527)
+          const tx = q.ex + gox, ty = q.ey + goy;
+          ctx.save(); ctx.lineCap = "round";
+          ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(q.x0 + 3, q.y0 + 3); ctx.lineTo(tx + 3, ty + 3); ctx.stroke();
+          ctx.strokeStyle = "#8a6a3e"; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(q.x0, q.y0); ctx.lineTo(tx, ty); ctx.stroke();
+          ctx.strokeStyle = "#c9a56a"; ctx.lineWidth = 1; ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.moveTo(q.x0, q.y0); ctx.lineTo(tx, ty); ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = "#4a4d52"; ctx.beginPath(); ctx.arc(tx, ty, 4, 0, 6.3); ctx.fill();          // the hook over the parapet
+          ctx.restore();
+        } else {
         const tx = q.x0 + (q.x1 + gox - q.x0) * q.t, ty = q.y0 + (q.y1 + goy - q.y0) * q.t;
         const whip = g.who === "eclipse";
         if (whip) {
@@ -19526,6 +19562,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           ctx.fillStyle = "#d9a441";
           ctx.beginPath(); ctx.arc(tx, ty, 4, 0, 6.3); ctx.fill();
         }
+        }                                                                // end of the non-rope lines (layer 527)
       }
       /* These used to be drawn here, at the tail of drawRoof -- which only runs when you are
          standing ON a roof. That is why the guide arrow, the oil, the rocket and the muzzle
@@ -36521,6 +36558,29 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function allinBegin() { aptStartHome(); storyStart("allin"); g.clock = 19 * 60; g.nightTarget = 1;
       g.driveTalk = { who: "KATYA (ON THE PHONE)", text: "“Victor plays tonight, the back room at the Hippy. Put on a suit -- a real one. I'll bring twenty thousand. You beat him three times, I do the rest.”", t: 10 };
       g.jobBanner = "7:00 PM · PALM COURT"; g.jobNote = "Katya called. Victor's game. Wear the suit."; }
+    /* CHEAT (layer 526, Donny): once Eddie's dropped you at Palm Court, skip the walk-in, the closet/phone/mail and the
+       bed: you're home, the fade, DAY OUT is done, and FIRST DAY OUT starts at 4:30 the next morning. */
+    G.skipMornOk = () => !!(g.story && g.story.id === "dayout" && g.story.step >= 3 && !g.slam && !g.sleepFx);
+    /* From the very start (layer 527, Donny: skip prison to test): the 1969 flashback, Kestrel's last day, the cab ride --
+       straight to the morning after the drop-off: DAY OUT done, FIRST DAY OUT at 4:30 in 1A. */
+    G.skipPrisonOk = () => !!(g.story && /^(setup|lastday|dayout)$/.test(g.story.id) && !g.sleepFx && !g.detMode && !g.studentMode);
+    G.skipPrisonFn = () => {
+      if (!G.skipPrisonOk()) return false;
+      if (G.skipMornOk()) return G.skipMornFn();
+      if (g.story.id === "setup") G.setupSkipT();
+      g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); g.slam = null; g.cut = null; g.pintro = null; g.flash1976 = 0; g.storyNext = null; g.driveTalk = null; g.camPan = null; g.auto = null;
+      g.storyDone = { ...(g.storyDone || {}), setup: 1, lastday: 1 }; g.story = null;
+      aptC(); dayOutBegin(); g.slam = null;
+      const S = g.story; S.step = 3; const W = S.carWas; if (W) g.car.skin = W.skin; S.carWas = null; g.car.x = -90000; g.car.y = -90000; g.car.vx = 0; g.car.vy = 0; g.earlNum = 1; g.driveTalk = null;
+      return G.skipMornFn();
+    };
+    G.skipMornFn = () => {
+      if (!G.skipMornOk()) return false;
+      const S = g.story; S.did = { closet: 1, phone: 1, mail: 1 }; S.step = 5; g.auto = null; g.driveTalk = null; g.camPan = null;
+      G.sleepFade(() => { aptStartHome(); g.pday = (g.pday || 0) + 1; g.p.hp = g.p.maxHp || g.p.hp; g.p.stamina = g.p.maxStamina || g.p.stamina;
+        if (g.story && g.story.id === "dayout") storyComplete(); g.jobBanner = "THE NEXT MORNING"; g.jobNote = "You slept. Palm Court, flat 1A."; });
+      return true;
+    };
     function aptStartHome() { const b = g.aptHomeB || (aptC(), g.aptHomeB); if (!b) return; g.inside = b; g.floor = 0; g.mode = "foot"; const pl = fitArtFloor(b, 0, b.artFloors[0], b.artKeep);
       const [x, y] = artAt(pl, APTC.bed[0] + 0.02, APTC.bed[1] + 0.22); g.p.x = x; g.p.y = y; g.cam.x = x; g.cam.y = y; }
     const muscleAt = (b) => [b.x + b.w * 0.5 - 90, b.y + b.h - 70];
@@ -37236,7 +37296,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function suPanel(k) { const S = g.story || {};
       if (k === "su_morning") return { title: "ROCHELLE'S · OLD TOWN · 1969", face: "assets/crew/pt_rochelle69.png",
         text: "Morning through the blinds. Rochelle's already awake, sitting on the edge of the bed with her back to you.\n\nROCHELLE: “Rey... can I tell you something?”\n\nShe turns round. Whatever it is, it's big.",
-        opts: [{ id: "story:su_tell", label: "“TELL ME.”" }, { id: "story:su_skip", label: "SKIP THE FLASHBACK (TO KESTREL, 1986)" }] };
+        opts: [{ id: "story:su_tell", label: "“TELL ME.”" }, { id: "story:su_skip", label: "SKIP THE FLASHBACK (TO KESTREL, 1986)" },
+               { id: "story:su_cheat", label: "CHEAT \u00b7 SKIP PRISON (TO FIRST DAY OUT)" }] };
       if (k === "su_morning2") return { title: "ROCHELLE", face: "assets/crew/pt_rochelle69.png",
         text: "ROCHELLE: “I'm...”\n\nA car horn outside. Twice. Then a voice from the street: “REY! Damian says NOW, not later!”\n\nShe looks at the window, and back at you, and whatever it was goes back behind her eyes.\n\nROCHELLE: “It'll keep. Go on. Come back tonight and I'll tell you.”",
         opts: [{ id: "story:su_go", label: "“TONIGHT. I PROMISE.”" }] };
@@ -37251,6 +37312,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function suPick(a) { const S = g.story, close = () => { g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); };
       if (!S || S.id !== "setup") { close(); return; }
       if (a === "su_skip") { G.setupSkipT(); return; }
+      if (a === "su_cheat") { G.skipPrisonFn(); return; }                                    // layer 527
       if (a === "su_tell") { G.pickOpen("su_morning2"); return; }
       if (a === "su_go") { close(); if (S.step === 0) { S.step = 1; storyMark("TINY'S CAR"); g.driveTalk = { who: "TINY", text: "From the street, leaning on the horn: “REY! I ain't getting any younger out here!”", t: 6 }; } return; }
       if (/^su_say_/.test(a)) { S.courtSeen = 1; S.said = a.slice(7); G.pickOpen("su_said"); return; }
@@ -46848,6 +46910,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               if (Math.hypot(g.p.x - sx2, g.p.y - sy2) < 44) return g.fireFloor ? "DOWN" : "UP";
               return null;
             })(),
+            skipMorn: !!(G.skipMornOk && G.skipMornOk()), skipPrison: !!(G.skipPrisonOk && G.skipPrisonOk()),   // the cheats (layers 526, 527)
+            plainMan: !!(g.prisonMode || g.studentMode), stuMode: !!g.studentMode, canRope: !!(g.prisonMode && !g.studentMode && ropeTarget()),    // no Lion powers; Rey's rope (layer 527)
             atManhole: (() => {
               if (g.inside || inVehicle()) return false;
               const m = nearestManhole(g.p.x, g.p.y);
@@ -51115,7 +51179,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     /* Hard gate, not just a hidden button -- the key binding and any other path in has to hit
        the same wall or the power is still there for anyone who finds it. */
-    function lionPowersOn() { return g.who === "lion"; }
+    function lionPowersOn() { return g.who === "lion" && !g.prisonMode && !g.studentMode; }      // not Rey, not the kid (layer 527)
     G.swapFn = () => {
       if (!g.inside || g.inside.kind !== "den" || g.floor !== 0) return false;
       // whoever you are actually stood in front of, not "the other one"
@@ -51445,7 +51509,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
     }
     G.guardFn = () => {
-      const gg = G.current, G0 = GUARD[gg.who];
+      const gg = G.current, G0 = GUARD[gg.who]; if (gg.prisonMode || gg.studentMode) return false;      // layer 527
       if (!G0 || (gg.p.grdCd || 0) > 0 || (gg.p.grdT || 0) > 0) return false;
       gg.p.grdT = G0.t; gg.p.grdCd = G0.cd;
       gg.pickupFlash = { nm: G0.nm.toLowerCase(), t: 1.0 };
@@ -52687,7 +52751,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                      arrested -- he gets in and drives away, which is what makes him a
                      recurring problem rather than a boss you have finished. */
     G.fisHuntFn = () => {
-      const gg = G.current;
+      const gg = G.current; if (gg.prisonMode || gg.studentMode) return false;                          // layer 527
       gg.fisHunt = gg.fisHunt || { on: false, wins: 0, cd: 6, squad: [], stage: "agents" };
       const h = gg.fisHunt;
       h.on = !h.on;
@@ -52705,7 +52769,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const ROAR = { r: 210, cd: 16, stun: 4.0, dmg: 12, push: 320 };
     G.roarFn = () => {
       const gg = G.current;
-      if (gg.who !== "lion") return false;
+      if (gg.who !== "lion" || gg.prisonMode || gg.studentMode) return false;                           // layer 527
       if ((gg.roarCd || 0) > 0) return false;
       if (gg.dampT > 0) { gg.pickupFlash = { nm: "damped", t: 1.2 }; return false; }
       gg.roarCd = ROAR.cd;
@@ -54841,6 +54905,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "9px 14px", border: "1px solid #ff8a6a", color: "#ffb09a", fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", background: "rgba(255,138,106,0.10)" }}>
             THE RCASE {"\u00b7"} DRUMMOND {hud.caseBar.fill}% {"\u00b7"} PABLO'S JOBS, ALONZO
           </div>}
+          {/* CHEAT (layer 526): after Eddie's dropped you off, straight to the next morning */}
+          {hud.skipPrison && <div data-mapopt="1" onClick={(e) => { e.stopPropagation(); setMapOpen(false); setTimeout(() => G.skipPrisonFn && G.skipPrisonFn(), 60); }}
+            style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "9px 14px", border: "1px solid #b48cff", color: "#d6c2ff", fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", background: "rgba(180,140,255,0.12)" }}>
+            CHEAT {"\u00b7"} {hud.skipMorn ? "SKIP TO THE NEXT MORNING" : "SKIP PRISON \u00b7 TO FIRST DAY OUT"}
+          </div>}
           {/* REY & THE CREW (layer 503): levels and stats. Y on the pad. */}
           <div data-mapopt="1" onClick={(e) => { e.stopPropagation(); G.statsToggle && G.statsToggle(true); }}
             style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "9px 14px", border: "1px solid #f2c45a", color: "#f2c45a", fontSize: 11, fontWeight: 700,
@@ -55012,10 +55081,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         visibility: padOn ? "hidden" : "visible" }}>          {/* hidden, not removed, on a pad: the ACTION WHEEL reads what's live from here */}
         {/* The Lion's, and only his. Rio has smoke and Sho has his hands; handing either of
              them slow time would make the swap a costume change. */}
-        {hud.who === "lion" && !hud.detMode && btn("LION", hud.lionOn ? "ON" : hud.lion > 4 ? "slow time" : "empty",
+        {hud.who === "lion" && !hud.detMode && !hud.plainMan && btn("LION", hud.lionOn ? "ON" : hud.lion > 4 ? "slow time" : "empty",
           () => { input.current.lion = !input.current.lion; }, null, hud.lionOn,
           (hud.mode !== "foot") ? 56 : null)}
-        {!hud.detMode && btn(hud.who !== "lion" ? (hud.hero ? "OFF" : "SUIT") : (hud.plain ? "MASK" : "OFF"),
+        {!hud.detMode && !hud.plainMan && btn(hud.who !== "lion" ? (hud.hero ? "OFF" : "SUIT") : (hud.plain ? "MASK" : "OFF"),
           hud.who !== "lion" ? (hud.hero ? "street clothes" : "suit up")
                              : (hud.plain ? "suit up" : "plain clothes"),
           () => { const gg = G.current;
@@ -55023,7 +55092,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                   if (!gg.inside || gg.inside.kind === "den") gg.plain = !gg.plain; },
           null, hud.plain,
           (hud.mode !== "foot") ? 56 : null)}
-        {hud.mode === "foot" && !hud.detMode && btn(
+        {/* REY'S ROPE (layer 527): at a wall, climb to the roof; on a roof, jump a short gap or climb down. No hook. */}
+        {hud.mode === "foot" && hud.plainMan && !hud.stuMode && btn(
+          hud.roof ? (hud.canJump ? "JUMP" : "DOWN") : "ROPE",
+          hud.roof ? (hud.canJump ? "next roof" : "climb down") : hud.canRope ? "climb up" : "find a wall",
+          () => { const gg = G.current;
+            if (gg.roof) { if (G.jumpFn && G.jumpFn()) return; const r2 = { x0: gg.roof.x + 6, y0: gg.roof.y + 6, x1: gg.roof.x + gg.roof.w - 6, y1: gg.roof.y + gg.roof.h - 6 };
+              gg.roof = null; gg.p.x = r2.x0 - 30; gg.p.y = (r2.y0 + r2.y1) / 2; gg.pickupFlash = { nm: "down", t: 1.0 }; return; }
+            G.ropeFn && G.ropeFn(); }, null, hud.roof, null)}
+        {hud.mode === "foot" && !hud.detMode && !hud.plainMan && btn(
           hud.who === "sho" ? "JUMP"
             : hud.roof ? (hud.canJump ? "JUMP" : hud.canHook ? "HOOK" : "DROP") : "HOOK",
           hud.who === "sho" ? (hud.roof ? "get down" : "to the roof")
@@ -55103,7 +55180,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           </>
         ) : (
           <>
-            {!hud.cab && hud.grdNm && btn(hud.grdNm, (hud.grdCd || 0) > 0 ? Math.ceil(hud.grdCd) + "s" : "defend",
+            {!hud.cab && hud.grdNm && !hud.plainMan && btn(hud.grdNm, (hud.grdCd || 0) > 0 ? Math.ceil(hud.grdCd) + "s" : "defend",
               () => { G.guardFn && G.guardFn(); }, null, !!hud.grdOn)}
             {!hud.cab && hud.turbo && btn("BOOST", (hud.turboCd || 0) > 0 ? Math.ceil(hud.turboCd) + "s" : "ready",
               () => { G.turboFn && G.turboFn(); }, null, (hud.turboOn || 0) > 0)}
@@ -55152,9 +55229,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               () => { input.current.fire = false; })}
             {hud.cab && btn("QUIT", "leave machine",
               () => { G.cabFn && G.cabFn(); }, null)}
-            {!hud.cab && btn("FIS", hud.hunt ? "hunting" : "stood down",
+            {!hud.cab && !hud.plainMan && btn("FIS", hud.hunt ? "hunting" : "stood down",
               () => { G.fisHuntFn && G.fisHuntFn(); }, hud.hunt)}
-            {!hud.cab && hud.who === "lion" && !hud.detMode && btn("ROAR",
+            {!hud.cab && hud.who === "lion" && !hud.detMode && !hud.plainMan && btn("ROAR",
               hud.roarCd > 0 ? Math.ceil(hud.roarCd) + "s" : "knock down",
               () => { G.roarFn && G.roarFn(); }, hud.roarCd <= 0)}
             {!hud.cab && btn(hud.board ? "PUSH" : "RUN",
