@@ -3717,7 +3717,9 @@ PD_ART.pr_cone = "assets/props/pr_cone.png";        // the race cones (layer 500
 // layer 501: Donny's second yard sheet (kept for later; the lion medallion is the mansion court's centre) and the paper trophy
 for (const k of ["yd_lion_patio", "yd_chair_blue_a", "yd_chair_blue_b", "yd_glass_table", "yd_grill_kettle", "yd_spatula", "yd_tongs2", "yd_sausages", "yd_cooler_blue", "yd_drink", "yd_towel",
   "yd_charcoal_bag", "yd_chair_green_a", "yd_chair_green_b", "yd_table_green", "yd_beachball2", "yd_pool_shell", "yd_pool_ladder", "yd_pool_light"]) PD_ART[k] = "assets/yard/" + k + ".png";
-PD_ART.it_paper_trophy = "assets/items/it_paper_trophy.png"; PD_ART.sy_crush_pit = "assets/scrap/sy_crush_pit.png"; PD_ART.sy_crush_block = "assets/scrap/sy_crush_block.png"; PD_ART.tx_rust_plate = "assets/tex/tx_rust_plate.png"; PD_ART.dt_drummond = "assets/crew/dt_drummond.png"; PD_ART.yt_rey_boxers = "assets/prison/yt_rey_boxers.png"; PD_ART.pr_cake = "assets/prison/pr_cake.png"; PD_ART.pr_toilet_apt = "assets/props/pr_toilet_apt.png"; PD_ART.pr_cone_side = "assets/props/pr_cone_side.png"; PD_ART.tx_ivory_tile = "assets/tex/tx_ivory_tile.png";
+PD_ART.it_paper_trophy = "assets/items/it_paper_trophy.png"; PD_ART.sy_crush_pit = "assets/scrap/sy_crush_pit.png"; PD_ART.sy_crush_block = "assets/scrap/sy_crush_block.png"; PD_ART.tx_rust_plate = "assets/tex/tx_rust_plate.png"; PD_ART.dt_drummond = "assets/crew/dt_drummond.png"; PD_ART.yt_rey_boxers = "assets/prison/yt_rey_boxers.png"; PD_ART.pr_cake = "assets/prison/pr_cake.png"; PD_ART.pr_toilet_apt = "assets/props/pr_toilet_apt.png";
+for (const k of ["revolver", "pistol_auto", "shotgun_short", "shotgun_long", "smg_uzi", "mac10", "rifle_auto", "rifle_bolt", "bat", "crowbar", "machete", "knife", "switchblade", "knuckles", "pipe", "cue", "tire_iron", "molotov"]) PD_ART["hw_" + k] = "assets/weapons/hw_" + k + ".png";   /* held weapons from above (layer 535) */
+PD_ART.stop_roof = "assets/city/stop_roof.png"; PD_ART.stop_roof_glass = "assets/city/stop_roof_glass.png"; PD_ART.pr_cone_side = "assets/props/pr_cone_side.png"; PD_ART.tx_ivory_tile = "assets/tex/tx_ivory_tile.png";
 /* layer 497: Dread, Tony, Harlan, Nicky, Yuri, the 1969 cast, Mission 11 props, 1969 cars, construction props, the verdict folder */
 for (const k of ["dread", "tony", "harlan", "nicky", "yuri", "rey69", "rochelle69", "damian69", "julian69", "tiny69", "cop69_a", "cop69_b"]) PD_ART["yt_" + k] = "assets/crew/yt_" + k + ".png";
 for (const k of ["it_ledger", "pr_office_safe", "pr_office_safe_open", "it_gascan", "it_gascan_b", "it_pinkslip"]) PD_ART[k] = "assets/items/" + k + ".png";
@@ -8391,10 +8393,10 @@ function makeFloor(b, f, rnd) {
            the door gap and the sink right of it. */
         const topRow = r.gy0 === 0;                          // top-row cells open downward
         const bw = Math.min(38, W2 * 0.42), bl = Math.min(64, H2 * 0.42), gapW = 30;
-        const back0 = topRow ? q2.y0 + 14 : q2.y1 - 14 - bl;          // clear of the outer wall
-        P(q2.x0 + 3, back0, bw, bl, "bed");
-        const dw = Math.min(32, W2 - bw - 10), dh = 24;
-        P(q2.x1 - 3 - dw, topRow ? q2.y0 + 14 : q2.y1 - 14 - dh, dw, dh, "pr_desk");
+        const back0 = topRow ? q2.y0 + 3 : q2.y1 - 3 - bl;            // against the back wall, its head to it (layer 534)
+        P(q2.x0 + 3, back0, bw, bl, "bed"); if (!topRow) props[props.length - 1].flip = 1;
+        const dw = Math.min(40, W2 - bw - 8), dh = 30;                  // a bigger desk (layer 534)
+        P(q2.x1 - 3 - dw, topRow ? q2.y0 + 4 : q2.y1 - 4 - dh, dw, dh, "pr_desk");
         const fixY = topRow ? q2.y1 - 30 : q2.y0 + 4, fw = Math.min(26, (W2 - gapW) / 2 - 4);
         P(q2.x0 + 3, fixY, fw, 26, "toilet");
         P(q2.x1 - 3 - fw, fixY, fw, 24, "sink");
@@ -18363,15 +18365,18 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function armsReady(A) { const t = imgs.current[A.torso], a = imgs.current["ar_" + A.set + "_hang"]; return !!(t && t.width && a && a.width); }
     /* Local frame: +y is the way he faces (down the body in the art), and his RIGHT side is -x (the art faces the
        camera). Arms are drawn before the torso so his shoulders cover the joints. */
-    const MELEE_RX = /bat|knife|pipe|crowbar|machete|katana|sword|club|stick|axe|hammer|blade|bayonet|wrench|shank|razor|bottle/;
+    const MELEE_RX = /bat|knife|pipe|crowbar|machete|katana|sword|club|stick|axe|hammer|blade|bayonet|wrench|shank|razor|bottle|cue|tire|knuckle|brass/;
     const LONG_RX = /rifle|shotgun|pump|sawn|smg|uzi|mac|tommy|ar15|ak|m16|hunting/;
-    function heldImg(wp) { const w2 = WPN2[wp], a2 = w2 && imgs.current.wpn2_atlas, at = imgs.current.weapon_atlas;
+    const HW_K = { pistol_auto: 1.35, revolver: 1.25, smg_uzi: 1.1, mac10: 1.1, knife: 1.1, switchblade: 1.1 };
+    const HW_ALIAS = { beretta: "pistol_auto", smg_hk: "mac10", sixgun: "revolver", sawn: "shotgun_short", pump: "shotgun_long", brass: "knuckles", tireiron: "tire_iron" };   /* layer 535 */
+    function heldImg(wp) { const hw = imgs.current["hw_" + (HW_ALIAS[wp] || wp)]; if (hw && hw.width) return { im: hw, r: null, hw: 1 };      /* the top-down sheet (layer 535) */
+      const w2 = WPN2[wp], a2 = w2 && imgs.current.wpn2_atlas, at = imgs.current.weapon_atlas;
       if (a2 && a2.width) return { im: a2, r: w2 }; if (WPN[wp] && at && at.width) return { im: at, r: WPN[wp] };
       const im = imgs.current["wp_" + wp]; return im && im.width ? { im, r: null } : null; }
     /* A weapon in a hand at (x, y), pointing along `ang`, `len` long. The art's muzzle/tip points left, so it's turned
        half round and slid so the grip sits in the fist. */
     function drawHeld(wp, x, y, ang, len) { const H = heldImg(wp); if (!H) return;
-      const sw = H.r ? H.r[2] : H.im.width, sh = H.r ? H.r[3] : H.im.height, gw = len * (WPN_SCALE[wp] || 1), gh = gw * sh / sw;
+      const sw = H.r ? H.r[2] : H.im.width, sh = H.r ? H.r[3] : H.im.height, gw = len * (WPN_SCALE[wp] || 1) * (H.hw ? (HW_K[HW_ALIAS[wp] || wp] || 1) : 1), gh = gw * sh / sw;
       ctx.save(); ctx.translate(x, y); ctx.rotate(ang + Math.PI);
       if (H.r) ctx.drawImage(H.im, H.r[0], H.r[1], H.r[2], H.r[3], -gw * 0.85, -gh / 2, gw, gh); else ctx.drawImage(H.im, -gw * 0.85, -gh / 2, gw, gh);
       ctx.restore(); }
@@ -18430,7 +18435,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.translate(p.x + Math.cos(bang) * off, p.y + Math.sin(bang) * off);
       ctx.rotate(ang);
       // legs first, so the torso plate overlaps the hips -- the staff are drawn the same way
-      const stride = sp > 10 ? Math.sin((p.anim || 0) * 1.1) * h * 0.09 : 0;
+      const stride = sp > 10 && !p.lying ? Math.sin((p.anim || 0) * 1.1) * h * 0.09 : 0;
+      if (p.lying) { const lw2 = Math.min(w, h * 0.95); ctx.fillStyle = "#20222a"; ctx.fillRect(-lw2 * 0.24, h * 0.12, lw2 * 0.2, h * 0.95); ctx.fillRect(lw2 * 0.04, h * 0.12, lw2 * 0.2, h * 0.95);   // legs out straight (layer 534)
+        ctx.fillStyle = "#15161b"; ctx.fillRect(-lw2 * 0.26, h * 1.02, lw2 * 0.24, h * 0.1); ctx.fillRect(lw2 * 0.02, h * 1.02, lw2 * 0.24, h * 0.1); }
       ctx.fillStyle = "#20222a";
       /* Legs were starting at 0.26h and running to 0.66h -- the torso plate only reaches 0.50h,
          so a sixth of every leg stuck out past the bottom of the body and read as standing in
@@ -24893,6 +24900,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          the tables read grey while the carpet and the staff were right. */
       const OWNED_BY_FLOOR = { slotbank: 1, cardtable: 1, wheeltable: 1 };
       for (const p of plan.props) {
+        if (p.flip) { ctx.save(); ctx.translate(p.x + p.w / 2, p.y + p.h / 2); ctx.rotate(Math.PI); const ok = propSprite(p.t, -p.w / 2, -p.h / 2, p.w, p.h); ctx.restore(); if (ok) continue; }   // turned round (layer 534)
         if (p.t === "toilet" && b.inPrison) { const im = imgs.current.pr_toilet_apt; if (im && im.width) {        // 1A's toilet, in Kestrel too (layer 531)
             const cx = p.x + p.w / 2, cy = p.y + p.h / 2, r = (plan.rooms || []).find((q) => cx >= q.x0 && cx <= q.x1 && cy >= q.y0 && cy <= q.y1) || { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
             const face = cy - r.y0 <= r.y1 - cy ? Math.PI / 2 : -Math.PI / 2, L = Math.max(30, Math.min(46, Math.max(p.w, p.h))), W = L * im.width / im.height;
@@ -28472,9 +28480,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       shotgun_short: 1.35, shotgun_long: 1.85, rifle_bolt: 2.0, rifle_auto: 1.85,
       bat: 1.5, knife: 0.85, grenade: 0.7, molotov: 0.75, katana: 1.7, machete: 1.5,
       katana2: 1.8, longsword: 1.6, tommy: 1.2, laser: 1.4,
+      crowbar: 1.45, pipe: 1.45, cue: 2.0, tire_iron: 1.3, switchblade: 0.8, knuckles: 0.42, mac10: 1.15,      /* layer 535 */
     };
     // these are swung, not fired: no muzzle, no ammo, no drawn-weapon aim behaviour
-    const WPN_MELEE = { bat: 1, knife: 1 };
+    const WPN_MELEE = { bat: 1, knife: 1, crowbar: 1, pipe: 1, cue: 1, tire_iron: 1, switchblade: 1, knuckles: 1, machete: 1 };
     const WPN_THROWN = { grenade: 1, molotov: 1 };
 
     /* Who carries what. A gang is not an armoury -- the Wolves are a garage crew and a
@@ -30157,7 +30166,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         for (const m of (cr.members || [])) {
           if (!m || m.hp <= 0 || !Number.isFinite(m.x)) continue;
           if (Math.hypot(m.x - g.p.x, m.y - g.p.y) < r)
-            return { kind: "gang", who: GANG_LABEL[cr.gang] || (cr.gang || "").toUpperCase() };
+            return { kind: "gang", who: GANG_LABEL[cr.gang] || (cr.gang || "").toUpperCase(), gk: cr.gang };
         }
       }
       return null;
@@ -30230,7 +30239,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const seen = pursuerNear(SEE);
       if (seen) {
         if (seen.kind === "cop") { g.copFrom = seen.who; g.copLost = LOSE_AFTER; }
-        else { g.gangFrom = seen.who; g.gangHeat = Math.max(g.gangHeat || 0, 1); g.gangLost = LOSE_AFTER; }
+        else { g.gangFrom = seen.who; g.gangGK = seen.gk || g.gangGK; g.gangHeat = Math.max(g.gangHeat || 0, 1); g.gangLost = LOSE_AFTER; }
       }
       /* Ninety seconds of wanted time was already the police rule; this is the SIGHTLINE rule
          on top of it. Forty-five clear seconds and they have lost you, whatever the clock says. */
@@ -31332,6 +31341,24 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       return { b, floor, room: r, folk, rob: null, robT: 40 + Math.random() * 60, biz: 1, pts, cr, dancers };
     }
+    /* PEOPLE INDOORS GO ROUND THINGS (layer 535). Shop people walked in straight lines to where they were going,
+       over the gun cases and the counters. Now each step is pushed back out of the walls and anything solid, and
+       someone who's walking into a counter gives up on that spot and stands. */
+    const folkSolids = new WeakMap();
+    function solidsOf(pl) { const key = pl.props || pl; let L = folkSolids.get(key); if (L && L.n === (pl.props || []).length) return L; L = [];
+      for (const w of pl.walls || []) L.push([w.x, w.y, w.x + w.w, w.y + w.h]);
+      for (const p of pl.props || []) if (p.hard || SOLID_PROP[p.t]) L.push([p.x + 2, p.y + 2, p.x + p.w - 2, p.y + p.h - 2]);
+      L.n = (pl.props || []).length; folkSolids.set(key, L); return L; }
+    function folkBump(f, ox, oy, dt, r) { const b = g.inside; if (!b) return; const pl = buildingPlans(b)[g.floor]; if (!pl) return; r = r || 9;
+      for (const [x0, y0, x1, y1] of solidsOf(pl)) { const nx = clamp(f.x, x0, x1), ny = clamp(f.y, y0, y1), dx = f.x - nx, dy = f.y - ny, d = Math.hypot(dx, dy);
+        if (d >= r) continue;
+        if (d > 0.01) { f.x = nx + dx / d * r; f.y = ny + dy / d * r; }
+        else { const e = [[f.x - x0, -1, 0], [x1 - f.x, 1, 0], [f.y - y0, 0, -1], [y1 - f.y, 0, 1]].sort((a, c) => a[0] - c[0])[0]; f.x += e[1] * (e[0] + r); f.y += e[2] * (e[0] + r); } }
+      const want = Math.hypot(f.vx || 0, f.vy || 0) * dt, got = Math.hypot(f.x - ox, f.y - oy);
+      if (want > 0.2 && got < want * 0.35) { f.stuck = (f.stuck || 0) + dt; if (f.stuck > 0.6) { f.hx = f.x; f.hy = f.y; f.vx = 0; f.vy = 0; f.stuck = 0; f.wt = Math.min(f.wt || 0, 1.2); } } else f.stuck = 0;
+      f.vx = (f.x - ox) / Math.max(dt, 1e-3); f.vy = (f.y - oy) / Math.max(dt, 1e-3); }
+    G.folkBumpT = () => { const S = g.shop; if (!S) return null; const pl = buildingPlans(g.inside)[g.floor]; const L = solidsOf(pl); let n = 0;
+      for (const f of S.folk) for (const [x0, y0, x1, y1] of L) if (f.x > x0 + 3 && f.x < x1 - 3 && f.y > y0 + 3 && f.y < y1 - 3) n++; return [S.folk.length, n]; };   // test hook: folk standing inside something solid
     function stepBizFolk(S, dt) {
       for (const f of S.folk) {
         f.anim += dt * 4;
@@ -31349,7 +31376,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (Math.random() < 0.08) { f.say = 2.6; f.line = cpick(BIZ_CHAT[f.act] || BIZ_CHAT.browse); }
         } else if (f.seated && f.wt <= 0) { f.wt = 6 + Math.random() * 8; if (Math.random() < 0.15) { f.say = 2.6; f.line = cpick(BIZ_CHAT[f.act] || BIZ_CHAT.eat); } }
         const dx = f.hx - f.x, dy = f.hy - f.y, d = Math.hypot(dx, dy), sp = f.staff ? 48 : 30;
-        if (d > 5) { f.vx = (dx / d) * sp; f.vy = (dy / d) * sp; f.x += f.vx * dt; f.y += f.vy * dt; } else { f.vx = 0; f.vy = 0; }
+        if (d > 5) { const ox = f.x, oy = f.y; f.vx = (dx / d) * sp; f.vy = (dy / d) * sp; f.x += f.vx * dt; f.y += f.vy * dt; folkBump(f, ox, oy, dt); } else { f.vx = 0; f.vy = 0; }
       }
       for (const d of S.dancers || []) {      // the club's people (layer 504)
         if (d.dance) { d.ph += dt; d.x = d.hx + Math.sin(d.ph * 2.2) * 10; d.y = d.hy + Math.cos(d.ph * 1.6) * 5; d.bang = d.ph * 1.3; d.vx = Math.cos(d.ph * 2.2) * 30; d.vy = 0; d.anim += dt * 6; }
@@ -31361,6 +31388,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     // over the folk: labels on staff, a glass or a plate, a lifted drink, a line
     function drawBizExtras() {
+      if (g.dbgSolids && g.inside) { const pl = buildingPlans(g.inside)[g.floor]; if (pl) { ctx.strokeStyle = "#ff3060"; ctx.lineWidth = 2; for (const [x0, y0, x1, y1] of solidsOf(pl)) ctx.strokeRect(x0, y0, x1 - x0, y1 - y0); } }   // test overlay (layer 535c)
       const S = g.shop; if (!S || !S.biz) return;
       for (const d of S.dancers || []) { const im = imgs.current[d.yt]; if (im && im.width && !d.sized) { d.sized = 1; d.tall *= 26 / (24.6 * im.width / im.height); }
         drawShadow(d.x, d.y + 2, 9, 4, 0.3); drawYouth(d);
@@ -31602,8 +31630,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               f.wt = 3 + Math.random() * 4;
             }
             const dx = f.hx - f.x, dy = f.hy - f.y, d = Math.hypot(dx, dy);
-            if (d > 5) { f.vx = (dx / d) * 42; f.vy = (dy / d) * 42;
-                         f.x += f.vx * dt; f.y += f.vy * dt; }
+            if (d > 5) { const ox = f.x, oy = f.y; f.vx = (dx / d) * 42; f.vy = (dy / d) * 42;
+                         f.x += f.vx * dt; f.y += f.vy * dt; folkBump(f, ox, oy, dt); }
             else { f.vx = 0; f.vy = 0; }
           } else {
             // dealers and the boss hold their post exactly
@@ -31622,7 +31650,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           f.hy = S.room.y0 + 34 + Math.random() * Math.max(1, (S.room.y1 - S.room.y0) - 78);
         }
         const dx = f.hx - f.x, dy = f.hy - f.y, d = Math.hypot(dx, dy);
-        if (d > 6) { f.vx = (dx / d) * 26; f.vy = (dy / d) * 26; f.x += f.vx * dt; f.y += f.vy * dt; }
+        if (d > 6) { const ox = f.x, oy = f.y; f.vx = (dx / d) * 26; f.vy = (dy / d) * 26; f.x += f.vx * dt; f.y += f.vy * dt; folkBump(f, ox, oy, dt); }
         else { f.vx = f.vy = 0; }
       }
       /* A robbery in progress happens where the till is, not on a corner outside. The street
@@ -32548,7 +32576,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       while (have.length < Math.min(PGUARD.n, n)) { const a = Math.random() * 6.28;
         have.push({ x: g.p.x + Math.cos(a) * 260, y: g.p.y + Math.sin(a) * 260, skill: 1 + ((Math.random() * 5) | 0), yt: "yt_pr_guard_1", b: g.inside, f: g.floor }); }
     }
-    function drawPrisonFx() {
+    /* SOAP (layer 534): bubbles off the sink when you wash, drifting up, wobbling, popping. */
+    function drawBubbles534() { const L = g.bubbles; if (!L || !L.length) return; const dt = 1 / 60;
+      for (let n = L.length - 1; n >= 0; n--) { const q = L[n]; q.t += dt; if (q.t > q.life) { L.splice(n, 1); continue; } q.x += (q.vx + Math.sin(q.t * 7 + n) * 6) * dt; q.y += q.vy * dt;
+        const a = 1 - q.t / q.life; ctx.strokeStyle = `rgba(230,240,255,${0.75 * a})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, 6.3); ctx.stroke();
+        ctx.fillStyle = `rgba(255,255,255,${0.5 * a})`; ctx.fillRect(q.x - q.r * 0.4, q.y - q.r * 0.5, 1, 1); } }
+    function drawPrisonFx() { drawBubbles534();
       const fx = g.pfx && PFX[g.pfx.k];
       if (fx && fx.puff && g.pfx.t > 0) {       // a drag every few seconds, the smoke drifting up off him
         const ph = (g.t * 0.33) % 1;
@@ -34648,6 +34681,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.enterNamedT = (nm, f) => { for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const c = getCell(i, j); for (const b of (c && c.blds) || []) if (b.name === nm) {
           g.inside = b; g.floor = f || 0; g.insideT = 1; g.mode = "foot"; const pl = buildingPlans(b)[g.floor]; const r = pl.rooms.slice().sort((a, q) => (q.x1 - q.x0) * (q.y1 - q.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))[0];
           g.p.x = (r.x0 + r.x1) / 2; g.p.y = (r.y0 + r.y1) / 2; g.cam.x = g.p.x; g.cam.y = g.p.y; return [b.name, g.floor, b.floors, !!(b.artFloors && b.artFloors[g.floor])]; } } return null; };   // test hook (layer 476)
+    G.findPropT = (rx, kind) => { const R2 = new RegExp(rx), out = []; for (let i = 0; i < N && out.length < 12; i++) for (let j = 0; j < N && out.length < 12; j++) { const c = getCell(i, j);
+        for (const b of (c && c.blds) || []) { if (kind && b.kind !== kind) continue; if (!b.name) continue; const P = buildingPlans(b); for (let f = 0; f < P.length; f++) if (P[f] && (P[f].props || []).some((p) => R2.test(p.t))) { out.push([b.name, f, b.kind]); break; } } } return out; };   // test hook (layer 535)
+    G.stoveAtT = () => { const pl = g.inside && buildingPlans(g.inside)[g.floor]; const p = pl && (pl.props || []).find((q) => /stove|range/.test(q.t)); return p ? [p.x + p.w / 2, p.y + p.h / 2, p.t] : null; };   // test hook
+    G.propsT = (rx) => { const pl = g.inside && buildingPlans(g.inside)[g.floor]; const R2 = new RegExp(rx || "."); return pl ? (pl.props || []).filter((p) => R2.test(p.t)).map((p) => [p.t, p.x | 0, p.y | 0, p.w | 0, p.h | 0, p.turn || 0, p.flip || 0]) : null; };   // test hook (layer 535)
     G.artAtT = (fx, fy) => { const b = g.inside; if (!b || !b.artFloors) return null; const pl = fitArtFloor(b, g.floor, b.artFloors[g.floor], b.artKeep); return pl && pl.artR2 ? artAt(pl, fx, fy) : null; };   // test hook
     G.bozT = () => ({ fronts: (() => { const out = []; for (let i = 0; i < CITY_N; i++) for (let j = 0; j < CITY_N; j++) { const c = getCell(i, j); for (const b of (c && c.blds) || []) if (b.bozni || b.bozHouse) out.push([b.name, b.bozni || "house", b.x | 0, b.y | 0, b.w | 0, b.h | 0]); } return out; })(), rhu: (g.rhu || []).length });   // test hook
     // a gang hits back with a bomb on one of your shops
@@ -34700,7 +34737,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.p.holstered = false; setHud((h) => ({ ...h, wpn: k, ammo: g.p.ammo, holstered: false })); };
     G.pocketsWheel = () => { if (!g.prisonMode) return false; g.pocketSaid = null; const P = pocketsPanel();
       const items = P.opts.filter((o) => o.id !== "close").map((o) => { const k = o.id.slice(7); return { label: o.label, short: k === "cigs" ? "SMOKE" : (CONTRABAND[k] || {}).nm || o.label, icon: o.icon, id: o.id }; });
-      if (g.watchHave) items.push({ label: "THE DAVIES WATCH", short: g.watchOn ? "WATCH · ON" : "WATCH · OFF", sub: g.watchOn ? "on your wrist · take it off" : "in your pocket · put it on", icon: "assets/ui/ui_watch_icon.png", id: "watch:toggle" });   // layer 481
+      if (g.watchHave) items.push({ label: "THE DAVIES WATCH", short: g.watchOn ? "WATCH · ON" : "WATCH · OFF", sub: g.watchOn ? "on your wrist · take it off" : "in your pocket · put it on", icon: "assets/ui/ui_watch_davies.png", id: "watch:toggle" });   // layer 481
       if (!items.length) items.push({ label: "NOTHING", sub: "empty pockets", id: "close" });
       return G.radialOpen({ kind: "pockets", title: "POCKETS", text: P.text, items }); };
     /* PRISON PISTOLS (layer 520: Donny's odds). A zip gun or a smuggled pistol: the man you hit goes to the infirmary
@@ -36439,6 +36476,23 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        three spots along it, a chair or a toilet one. Facing: at a sofa in 1A, toward its TV; otherwise away from the
        nearest wall of the room it's in (its back is against that wall). */
     const SEAT_RX = /chair|stool|bench|pew|seat|armchair/;
+    /* layer 534: a desk's chair is in front of it (away from its wall), facing it; a bed is somewhere to LIE, head on
+       the pillow end (a prop's pillow is the top of its plate unless it's turned round). */
+    function deskSeat(o, r) { const cx = o.x + o.w / 2, cy = o.y + o.h / 2, a = awayFromWall(cx, cy, r);
+      const dd = (Math.abs(Math.cos(a)) > 0.5 ? o.w / 2 : o.h / 2) + 12; return { k: "desk", x: cx + Math.cos(a) * dd, y: cy + Math.sin(a) * dd, ang: a + Math.PI }; }
+    function bedSpot(o) { const cx = o.x + o.w / 2, cy = o.y + o.h / 2, long = Math.max(o.w, o.h), alongX = o.w > o.h;
+      const foot = alongX ? 0 : (o.flip ? -Math.PI / 2 : Math.PI / 2), ux = Math.cos(foot), uy = Math.sin(foot);
+      return { k: "bed", x: cx - ux * long * 0.12, y: cy - uy * long * 0.12, ang: foot }; }
+    function lieNear(maxD) { const b = g.inside; if (!b || g.mode !== "foot") return null; const pl = buildingPlans(b)[g.floor]; if (!pl) return null; let best = null, bd = maxD;
+      const art = b.artFloors && b.artFloors[g.floor] && APT_OBJ[b.artFloors[g.floor]];
+      if (art) { const P2 = fitArtFloor(b, g.floor, b.artFloors[g.floor], b.artKeep); if (P2 && P2.artR2) for (const [k, fx, fy] of art) { if (k !== "bed") continue; const [x, y] = artAt(P2, fx, fy), d = Math.hypot(g.p.x - x, g.p.y - y);
+          if (d < bd) { bd = d; best = { k: "bed", x, y: y - 8, ang: Math.PI / 2 }; } } }
+      for (const o of pl.props || []) { if (kindOfProp(o.t || "") !== "bed") continue; const s = bedSpot(o), d = Math.hypot(g.p.x - s.x, g.p.y - s.y) - Math.max(o.w, o.h) / 2; if (d < bd) { bd = d; best = s; } }
+      return best; }
+    function deskNear(maxD) { const b = g.inside; if (!b) return null; const pl = buildingPlans(b)[g.floor]; if (!pl) return null; let best = null, bd = maxD;
+      const roomOf = (x, y) => (pl.rooms || []).find((r) => x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) || { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
+      for (const o of pl.props || []) { if (kindOfProp(o.t || "") !== "desk") continue; const s = deskSeat(o, roomOf(o.x + o.w / 2, o.y + o.h / 2)), d = Math.hypot(g.p.x - s.x, g.p.y - s.y); if (d < bd) { bd = d; best = s; } }
+      return best; }
     const seatKind = (t) => { const k = kindOfProp(t || ""); return k === "sofa" || k === "toilet" ? k : SEAT_RX.test(t || "") ? "chair" : null; };
     function awayFromWall(x, y, r) { const d = [[y - r.y0, Math.PI / 2], [r.x1 - x, Math.PI], [r.y1 - y, -Math.PI / 2], [x - r.x0, 0]]; d.sort((a, c) => a[0] - c[0]); return d[0][1]; }
     function seatsNear(maxD) { const b = g.inside; if (!b || g.mode !== "foot") return []; const out = [], pl = buildingPlans(b)[g.floor]; if (!pl) return out;
@@ -36462,7 +36516,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return out.filter((s) => Math.hypot(g.p.x - s.x, g.p.y - s.y) < maxD).sort((a, c) => Math.hypot(g.p.x - a.x, g.p.y - a.y) - Math.hypot(g.p.x - c.x, g.p.y - c.y));
     }
     function sitAt(s) { if (!s) return false; g.p.sit = { x: s.x, y: s.y, ang: s.ang, k: s.k, b: g.inside, f: g.floor }; g.p.x = s.x; g.p.y = s.y; g.p.vx = 0; g.p.vy = 0; g.p.face = s.ang;
-      g.pickupFlash = { nm: "lift:" + (s.k === "toilet" ? "YOU SIT. NOBODY WATCHING." : "YOU SIT DOWN") + " \u00b7 MOVE TO GET UP", t: 1.6 }; return true; }
+      g.pickupFlash = { nm: "lift:" + (s.k === "toilet" ? "YOU SIT. NOBODY WATCHING." : s.k === "bed" ? "YOU LIE DOWN" : "YOU SIT DOWN") + " \u00b7 MOVE TO GET UP", t: 1.6 }; return true; }
     G.sitFn = () => { if (g.p.sit || g.mode !== "foot") return false;
       { const S = g.sit, T = S && !g.inside && sitTable(S); if (T && Math.hypot(T.yours.x - g.p.x, T.yours.y - g.p.y) < 70) return sitAt({ k: "sitdown", x: T.yours.x, y: T.yours.y, ang: T.yours.ang }); }   // the sit-down's chair (layer 533)
       if (!g.inside) return false; const s = seatsNear(56).find((q) => q.k !== "toilet"); return s ? sitAt(s) : false; };
@@ -36479,6 +36533,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (b.inPrison) { if (!prisonPass || !g.prisonMode) return false; const q = nearStash(); if (!q) return false;
         const t = q.o.t || "", k = kindOfProp(t) || (/shelf/.test(t) ? "shelf" : /washers/.test(t) ? "washer" : "spot"), mine = myCellHere(), items = [{ label: "STASH", sub: "hide it or take it", icon: PD_ART.ci_cigs, id: "ow:pstash" }];
         if (k === "bed" && mine && !g.hole) items.push({ label: "SLEEP", sub: "your bunk", id: "ow:psleep" });
+        if (k === "desk") items.push({ label: "SIT AT THE DESK", id: "ow:dsit" });                      // layer 534
+        if (k === "bed") items.push({ label: "LIE DOWN", id: "ow:lie" });
         if (k === "desk" && mine) items.push({ label: "THE MAIL", sub: ((g.pmail || []).filter((m) => !m.read).length || "no") + " new", id: "mailopen" });
         if (k === "sink") items.push({ label: "WASH YOUR HANDS", id: "ow:wash" }); if (k === "toilet") items.push({ label: "USE IT", id: "ow:use" });
         g.owNow = { k, x: q.o.x, y: q.o.y, prison: q }; return G.radialOpen({ kind: "object", title: (mine && k === "bed" ? "YOUR BUNK" : (OBJ_NM[k] || "HIDING PLACE")), items }); }
@@ -36487,6 +36543,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const home = !!(b.aptTop && g.floor === 0), items = [];
       if (!OBJ_NOSTASH[O.k]) { const S = osGet(O), n = (S.cash ? 1 : 0) + S.items.length + S.wpn.length; items.push({ label: "STASH", sub: n ? n + " thing" + (n > 1 ? "s" : "") + " in it" : "empty", icon: PD_ART.ci_cash || null, id: "ow:stash" }); }
       for (const [lab, a] of OBJ_DO[O.k] || []) items.push({ label: lab, id: "ow:" + a });
+      if (O.k === "desk") items.push({ label: "SIT AT THE DESK", id: "ow:dsit" }); if (O.k === "bed") items.push({ label: "LIE DOWN", id: "ow:lie" });      // layer 534
       if ((O.k === "dresser" || (O.k === "nightstand" && home)) && g.prisonMode && g.pescaped) items.push({ label: "CHANGE CLOTHES", id: "ow:closet" });   // layer 483
       if (O.k === "bed" && home) items.push({ label: "SAVE THE GAME", sub: "your bed", id: "apt:save" });
       return G.radialOpen({ kind: "object", title: OBJ_NM[O.k] || "IT", items }); };
@@ -36502,11 +36559,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function sleepWheel() { G.radialOpen({ kind: "sleep", title: "SLEEP UNTIL", items: SLEEP_TO.map(([k, lab]) => ({ label: lab, id: "sleep:" + k })) }); }
     G.owPick = (id) => { const [, a, b] = id.split(":"), O = g.owNow; const later = (f) => setTimeout(f, 40);
       if (a === "pstash") { later(() => { G.stashOpenFn && G.stashOpenFn(); }); return; }
-      if (a === "psleep" || a === "sleep") { later(sleepWheel); return; }
+      if (a === "psleep" || a === "sleep") { const s = lieNear(90); if (s) sitAt(s); later(sleepWheel); return; }        // lie down, then sleep (layer 534)
+      if (a === "lie") { const s = lieNear(90); if (s) sitAt(s); return; }
+      if (a === "dsit") { const s = deskNear(90); if (s) sitAt(s); return; }
       if (a === "stash") { later(stashWheel); return; }
       if (a === "closet") { later(() => G.closetWheel()); return; }
       const say = (t, nm) => { g.pickupFlash = { nm: "lift:" + t, t: 1.8 }; };
-      if (a === "wash") say("YOU WASH YOUR HANDS. SEVENTEEN YEARS OF KESTREL, STILL THERE.");
+      if (a === "wash") { say("YOU WASH YOUR HANDS. SEVENTEEN YEARS OF KESTREL, STILL THERE."); const o = O || {}; const bx = o.x != null ? (o.x + (o.w ? o.w / 2 : 0)) : g.p.x, by = o.y != null ? (o.y + (o.h ? o.h / 2 : 0)) : g.p.y;
+        g.bubbles = (g.bubbles || []).concat(Array.from({ length: 14 }, () => ({ x: (g.p.x + bx) / 2 + (Math.random() - 0.5) * 18, y: (g.p.y + by) / 2 + (Math.random() - 0.5) * 12, r: 1.5 + Math.random() * 3, vx: (Math.random() - 0.5) * 10, vy: -8 - Math.random() * 14, t: 0, life: 1.4 + Math.random() * 1.2 }))); }
       if (a === "use") { const s = seatsNear(80).find((q) => q.k === "toilet"); if (s) { sitAt(s); return; } say("YOU USE IT. NOBODY WATCHING. THAT'S NEW."); }
       if (a === "shower") { g.p.stamina = g.p.maxStamina || g.p.stamina; g.clock = ((g.clock || 0) + 15) % 1440; say("A HOT SHOWER, AS LONG AS YOU WANT IT · STAMINA FULL"); }
       if (a === "eat") { g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 20); say("COLD CHICKEN AND A SODA · +20 HEALTH"); }
@@ -42133,12 +42193,21 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.fillStyle = "rgba(0,0,0,0.32)"; ctx.fillRect(x - W / 2 + 5, y - H / 2 + 6, W, H);
       ctx.fillStyle = "#5c6067"; ctx.fillRect(x - side * (W / 2 - 3) - 4, y - H / 2 + 6, 8, H - 12);            // the bench, on the road side
       for (const py of [-H / 2 + 3, H / 2 - 3]) { ctx.fillStyle = "#2c2e33"; ctx.beginPath(); ctx.arc(x + side * (W / 2 - 3), y + py, 3, 0, 6.3); ctx.fill(); }
+      const lit = g.night > 0.35, roofIm = imgs.current[((route * 7 + key.length) % 3 === 0) ? "stop_roof_glass" : "stop_roof"];
+      if (roofIm && roofIm.width) {                        /* the drawn roof (layer 535): long way along the kerb, its front edge (the plate) to the road */
+        const L = 72, D = L * roofIm.height / roofIm.width, cx = x + side * 8;
+        ctx.save(); ctx.translate(cx, y); ctx.rotate(side * Math.PI / 2); ctx.drawImage(roofIm, -L / 2, -D / 2, L, D); ctx.restore();
+        const px = cx - side * D * 0.31;
+        ctx.fillStyle = lit ? "#ffd27a" : "#efe9d8"; ctx.fillRect(px - 7, y - 8, 14, 16); ctx.strokeStyle = "#1c3a2e"; ctx.lineWidth = 1.5; ctx.strokeRect(px - 7, y - 8, 14, 16);
+        ctx.fillStyle = "#16130f"; ctx.font = "bold 10px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(String(route), px, y + 1); ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+      } else {
       ctx.fillStyle = "#2f5d4a"; ctx.fillRect(x - W / 2 + side * 6, y - H / 2, W - 6, H);                        // the awning (the half toward the buildings)
       ctx.fillStyle = "rgba(255,255,255,0.10)"; for (let q = 0; q < H; q += 10) ctx.fillRect(x - W / 2 + side * 6, y - H / 2 + q, W - 6, 4);
       ctx.strokeStyle = "#1c3a2e"; ctx.lineWidth = 2; ctx.strokeRect(x - W / 2 + side * 6, y - H / 2, W - 6, H);
-      const lit = g.night > 0.35; ctx.fillStyle = lit ? "#ffd27a" : "#e6dcc0"; ctx.fillRect(x - 9 + side * 3, y - 9, 18, 18);
+      ctx.fillStyle = lit ? "#ffd27a" : "#e6dcc0"; ctx.fillRect(x - 9 + side * 3, y - 9, 18, 18);
       ctx.fillStyle = "#16130f"; ctx.font = "bold 11px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(String(route), x + side * 3, y + 1); ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+      ctx.fillText(String(route), x + side * 3, y + 1); ctx.textAlign = "start"; ctx.textBaseline = "alphabetic"; }
       // the people waiting
       const F = (g.stopFolk = g.stopFolk || {}), now = g.t || 0; let S = F[key];
       if (!S) { const n = (hash(route * 13 + (key.length * 7), (x | 0) % 97, 3) * 3) | 0; S = F[key] = { list: [], next: 0 }; for (let k = 0; k < Math.min(2, n); k++) S.list.push({ civ: pickCiv(), slot: k }); }
@@ -44328,7 +44397,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const heldW = armsOn && g.p.wpn && !g.p.holstered && !WPN_THROWN[g.p.wpn] ? g.p.wpn : null;
         const aimOn = !!(heldW && !MELEE_RX.test(heldW));
         if ((g.p.atk || 0) > (g.p.atkWas || 0) + 0.05) g.p.atkN = (g.p.atkN || 0) + 1; g.p.atkWas = g.p.atk || 0;
-        drawYouth({ hero: 1, arms: armsOn, aim: aimOn, held: heldW, x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1, tall: 1.0, yt: g.studentMode ? skey : pkey, bang: g.p.face != null ? g.p.face : g.board.ang, faceLock: heroLockAng(),
+        drawYouth({ hero: 1, lying: !!(g.p.sit && g.p.sit.k === "bed"), arms: armsOn, aim: aimOn, held: heldW, x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1, tall: 1.0, yt: g.studentMode ? skey : pkey, bang: g.p.face != null ? g.p.face : g.board.ang, faceLock: heroLockAng(),
                     swing: Math.max(g.p.atk || 0, g.p.punT || 0), swingDur: (g.p.punT || 0) > 0 ? (g.p.punDur || 0.18) : 0.26,
                     move: (g.p.punT || 0) > 0 ? (g.p.punMove || "jab") : armsOn && !heldW ? ((g.p.atkN || 0) % 2 ? "hook" : "jab") : "swing" });
         return;
@@ -47187,6 +47256,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             specCd: g.specCd || 0,
             pull: Math.min(1, (g.pullT || 0) / 1.6),
             copHeat: g.heat || 0, copFrom: g.copFrom || null,
+            /* layer 534: what the badges show -- a level, losing half a badge halfway to the next cool-down */
+            copHeatV: (g.heat || 0) > 0 ? Math.max(0.5, Math.ceil(g.heat) - Math.floor(2 * (g.heatCalm || 0) / (l4_513("corner") ? 20 : 40)) / 2) : 0,
+            gangHeatV: (g.gangHeat || 0) > 0 ? Math.max(0.5, Math.ceil(2 * Math.min(5, g.gangHeat) * Math.max(0, g.gangLost || 0) / LOSE_AFTER) / 2) : 0,
+            gangCard: g.gangGK ? "assets/cards/card_" + (({ rus: "rus", mob: "mob_old", mob_old: "mob_old", mob_young: "mob_young", deuce: "deuce", wolves: "wolves", chi: "chi", irish: "irish", barrio: "barrio", brack: "brack", kings: "kings", gomez: "gomez", sec: "sec" })[g.gangGK] || "city") + ".png" : "assets/cards/card_city.png",
             copLost: Math.max(0, g.copLost || 0),
             gangHeat: g.gangHeat || 0, gangFrom: g.gangFrom || null,
             gangLost: Math.max(0, g.gangLost || 0),
@@ -53522,18 +53595,27 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       )}
       {(hud.copHeat > 0 || hud.gangHeat > 0) && (
         <div style={{ marginTop: 4, fontSize: 9, letterSpacing: "0.12em", lineHeight: 1.7 }}>
+          {/* layer 534: badges for the police, the gang's card for a gang -- five slots, each full, half, or a ghost */}
           {hud.copHeat > 0 && (
-            <div style={{ color: "#7ab6ff" }}>
-              {(hud.copFrom || "RHPD")} · {"\u2588".repeat(Math.min(5, hud.copHeat))}
-              {"\u2591".repeat(Math.max(0, 5 - Math.min(5, hud.copHeat)))}
-              {"  LOSE IN " + Math.ceil(hud.copLost) + "s"}
+            <div style={{ color: "#7ab6ff", display: "flex", alignItems: "center", gap: 3 }}>
+              <span style={{ marginRight: 4 }}>{hud.copFrom || "RHPD"}</span>
+              {[0, 1, 2, 3, 4].map((n) => { const f = Math.max(0, Math.min(1, (hud.copHeatV || hud.copHeat) - n));
+                return <span key={"cb" + n} style={{ position: "relative", width: 16, height: 18, display: "inline-block" }}>
+                  <img src="assets/ui/ui_badge.png" style={{ position: "absolute", left: 0, top: 0, width: 16, height: 18, objectFit: "contain", opacity: 0.16 }} />
+                  {f > 0 && <span style={{ position: "absolute", left: 0, top: 0, width: 16 * f, height: 18, overflow: "hidden" }}><img src="assets/ui/ui_badge.png" style={{ width: 16, height: 18, objectFit: "contain" }} /></span>}
+                </span>; })}
+              <span style={{ marginLeft: 4 }}>{"LOSE IN " + Math.ceil(hud.copLost) + "s"}</span>
             </div>
           )}
           {hud.gangHeat > 0 && (
-            <div style={{ color: "#ff8a5a" }}>
-              {(hud.gangFrom || "GANG")} · {"\u2588".repeat(Math.min(5, hud.gangHeat))}
-              {"\u2591".repeat(Math.max(0, 5 - Math.min(5, hud.gangHeat)))}
-              {"  LOSE IN " + Math.ceil(hud.gangLost) + "s"}
+            <div style={{ color: "#ff8a5a", display: "flex", alignItems: "center", gap: 3 }}>
+              <span style={{ marginRight: 4 }}>{hud.gangFrom || "GANG"}</span>
+              {[0, 1, 2, 3, 4].map((n) => { const f = Math.max(0, Math.min(1, (hud.gangHeatV || hud.gangHeat) - n));
+                return <span key={"gb" + n} style={{ position: "relative", width: 13, height: 18, display: "inline-block" }}>
+                  <img src={hud.gangCard} style={{ position: "absolute", left: 0, top: 0, width: 13, height: 18, objectFit: "cover", borderRadius: 2, opacity: 0.16 }} />
+                  {f > 0 && <span style={{ position: "absolute", left: 0, top: 0, width: 13 * f, height: 18, overflow: "hidden" }}><img src={hud.gangCard} style={{ width: 13, height: 18, objectFit: "cover", borderRadius: 2 }} /></span>}
+                </span>; })}
+              <span style={{ marginLeft: 4 }}>{"LOSE IN " + Math.ceil(hud.gangLost) + "s"}</span>
             </div>
           )}
         </div>
@@ -53587,10 +53669,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         </div>
         {/* THE DAVIES WATCH (layer 481): Pablo's gift in Mission 4 -- the time on its face; take it off in POCKETS */}
         {hud.watch && (
-          <div style={{ position: "relative", width: 132, height: 132 * 307 / 330, marginTop: 6, pointerEvents: "none" }}>
-            <img src="assets/ui/ui_watch_davies.png" alt="" style={{ width: "100%", height: "100%", imageRendering: "pixelated", display: "block" }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
-            <div style={{ position: "absolute", left: "44.5%", top: "56.2%", transform: "translate(-50%,-50%) rotate(20deg)", fontFamily: "ui-monospace,Menlo,monospace", fontWeight: 900,
-              fontSize: 17, letterSpacing: "0.04em", color: "#0e130f", whiteSpace: "nowrap" }}>{hud.watch}</div>
+          <div style={{ position: "relative", width: 112, height: 112 * 176 / 172, marginTop: 6, pointerEvents: "none" }}>
+            <img src="assets/ui/ui_watch_icon.png" alt="" style={{ width: "100%", height: "100%", imageRendering: "pixelated", display: "block" }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            <div style={{ position: "absolute", left: "26.7%", top: "44.9%", width: "48.8%", height: "17.6%", background: "#bac17e", display: "flex", alignItems: "center", justifyContent: "center",
+              fontFamily: "ui-monospace,Menlo,monospace", fontWeight: 900, fontSize: 15, letterSpacing: "0.02em", color: "#1d2214", whiteSpace: "nowrap" }}>{hud.watch}</div>
           </div>
         )}
         {(hud.mode !== "foot") && (
