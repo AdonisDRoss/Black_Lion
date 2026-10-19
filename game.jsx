@@ -10631,13 +10631,36 @@ const REY_FITS = { street: { nm: "STREET CLOTHES", k: "yt_player_civ" }, track: 
 for (const k of ["track", "suit", "work", "workvest", "leather"]) PD_ART["yt_rey_" + k] = "assets/prison/yt_rey_" + k + ".png";
 /* THE ARMS PILOT (layer 525). Armless torsos and grey/blue arms: grey is skin and blue is sleeve, tinted per man at
    load. Poses: hang, punch, gun (fwd/back are cut but not used yet). The game mirrors right arms to make the left. */
-for (const n of ["rey", "leroy", "pablo"]) PD_ART["ar_torso_" + n] = "assets/arms/ar_torso_" + n + ".png";
-for (const s of ["bare", "short", "long", "jacket"]) for (const q of ["hang", "punch", "gun", "fwd", "back"]) PD_ART["ar_" + s + "_" + q] = "assets/arms/ar_" + s + "_" + q + ".png";
+for (const n of ["rey", "leroy", "pablo", "rey_street", "rey_track", "rey_suit", "rey_work", "dread", "nicky", "mimi", "jose", "yuri", "silas", "drummond", "alonzo",
+  "ramos", "malcolm", "rochelle69", "tiny69", "damian69", "julian69", "cop69a", "cop69b"]) PD_ART["ar_torso_" + n] = "assets/arms/ar_torso_" + n + ".png";      // layer 532
+for (const n of ["cop_m", "cop_f", "cop_sgt", "swat"]) for (const t of ["pale", "tan", "brown", "dark"]) PD_ART["ar_torso_" + n + "_" + t] = "assets/arms/ar_torso_" + n + "_" + t + ".png";
+for (const s of ["bare", "short", "long", "jacket", "police", "swat"]) for (const q of ["hang", "punch", "gun", "fwd", "back"]) PD_ART["ar_" + s + "_" + q] = "assets/arms/ar_" + s + "_" + q + ".png";
+/* LAYER 532: a sprite key -> its armless torso, arm set, skin and sleeve. `wid` sizes the torso by its WIDTH (these are
+   taller than the pilot ones -- more of the head -- so sizing by height made them huge). */
+const W532 = 1.476;
+const AS = (torso, set, skin, sleeve) => ({ torso: "ar_torso_" + torso, set, skin: skin.map((v) => Math.round(v * 0.78)), sleeve, wid: W532 });
+const ARM_BY_YT = {
+  yt_dread: AS("dread", "short", [159, 84, 33], [196, 168, 118]), yt_nicky: AS("nicky", "jacket", [203, 119, 64], [180, 36, 36]),
+  yt_mimi: AS("mimi", "short", [199, 115, 53], [36, 140, 138]), yt_jose: AS("jose", "short", [191, 110, 53], [228, 228, 222]),
+  yt_yuri: AS("yuri", "jacket", [217, 132, 70], [104, 28, 34]), yt_merc_silas: AS("silas", "long", [201, 133, 69], [112, 82, 50]),
+  dt_drummond: AS("drummond", "jacket", [198, 121, 69], [188, 160, 112]), yt_alonzo: AS("alonzo", "jacket", [149, 77, 31], [36, 36, 40]),
+  yt_ramos: AS("ramos", "long", [198, 113, 48], [30, 44, 100]), yt_malcolm: AS("malcolm", "jacket", [161, 88, 35], [188, 146, 92]),
+  yt_rochelle69: AS("rochelle69", "bare", [169, 86, 31], [0, 0, 0]), yt_tiny69: AS("tiny69", "jacket", [151, 76, 28], [100, 64, 40]),
+  yt_damian69: AS("damian69", "long", [172, 87, 30], [30, 44, 100]), yt_julian69: AS("julian69", "jacket", [180, 96, 33], [166, 106, 58]),
+  yt_cop69_a: AS("cop69a", "short", [178, 90, 31], [140, 180, 224]), yt_cop69_b: AS("cop69b", "short", [180, 91, 31], [140, 180, 224]),
+};
+for (let n = 1; n <= 8; n++) ARM_BY_YT["yt_swat_" + n] = AS("swat_tan", "swat", [180, 130, 95], [32, 32, 36]);
+/* Rey's coded outfits: the torso's blue is tinted to the OUTER colour, its green to the INNER one (g.pcol[fit]). */
+const REY_CODED = { yt_player_civ: ["street", "jacket"], yt_rey_track: ["track", "long"], yt_rey_suit: ["suit", "long"], yt_rey_work: ["work", "jacket"] };
+const REY_COL0 = { street: { o: 0, i: 3 }, track: { o: 4, i: 1 }, suit: { o: 2, i: 1 }, work: { o: 8, i: 6 } };
+const CLOTH_COLS = [["BLACK", [38, 38, 42]], ["WHITE", [226, 226, 220]], ["CHARCOAL", [62, 62, 70]], ["GREY", [132, 132, 138]], ["NAVY", [34, 48, 108]], ["ROYAL BLUE", [40, 80, 190]],
+  ["RED", [168, 40, 40]], ["MAROON", [104, 30, 40]], ["TAN", [176, 140, 86]], ["BROWN", [96, 62, 38]], ["OLIVE", [92, 96, 52]], ["FOREST GREEN", [34, 86, 52]], ["MUSTARD", [196, 160, 52]], ["PURPLE", [92, 50, 120]]];
 const ARM_SETS = {
   rey:   { torso: "ar_torso_rey",   set: "jacket", skin: [118, 62, 30], sleeve: [30, 30, 34],   scale: 1.24 },
   leroy: { torso: "ar_torso_leroy", set: "long",   skin: [120, 64, 30], sleeve: [36, 82, 44],   scale: 1.24 },
   pablo: { torso: "ar_torso_pablo", set: "short",  skin: [160, 92, 46], sleeve: [214, 198, 160], scale: 1.24 },
 };
+ARM_BY_YT.yt_crew_leroy = ARM_SETS.leroy; ARM_BY_YT.yt_crew_viejo = ARM_SETS.pablo;
 PD_ART.vh_hippy_truck = "assets/vehicles/vh_hippy_truck.png";   // the Happy Hippie Laundry Co. truck (layer 485)
 PD_ART.pr_phone_booth = "assets/city/pr_phone_booth.png"; PD_ART.fu_phone = "assets/home2/fu_phone.png";   // layer 480
 for (const k of ["rf_apartment", "rf_gun_store", "ap_pool", "ap_tree_big", "ap_tree_small", "ap_fountain"]) PD_ART[k] = "assets/city/" + k + ".png";
@@ -12371,6 +12394,8 @@ export default function IronLionLayer004() {
     if (G.aptDoorFn && G.aptDoorFn()) return;                             // Palm Court's flat doors, the rent (layer 512)
     if (G.aptConsoleFn && G.aptConsoleFn()) return;                       // the Atari in 1A (layer 512b)
     if (G.crushFn && G.crushFn()) return;                                 // the crusher's switch (layer 502)
+    if (G.busOffFn && G.busOffFn()) return;                               // off the bus (layer 533)
+    if (G.busBoardFn && G.busBoardFn()) return;                           // on the bus
     if (G.ghActFn && G.ghActFn()) return;                                 // gun heists: crates, the trunk, unload (layer 528)
     if (G.carryFn && G.carryFn()) return;                                 // the trunk, the fuel can at the driver's door (layer 504)
     if (G.canBuyFn && G.canBuyFn()) return;                               // a fuel can at the pump (layer 504)
@@ -13131,7 +13156,41 @@ export default function IronLionLayer004() {
       g.shock = null;
       g.pickupFlash = { nm: "recovered", t: 0.8 };
     }
+    /* RIDING THE BUS (layer 533). At a stop, while the bus is standing there, E by its door and you get on and take a seat
+       (g.onBus = { v, seat }). You ride where it goes, sitting; E again while it's stopped and you get off at the kerb. */
+    function busDoor(v) { const L = (v.m && v.m.len) || 200, W = (v.m && v.m.w) || 60, fx = Math.cos(v.ang), fy = Math.sin(v.ang);
+      return [v.x + fx * L * 0.28 - fy * (W / 2 + 18), v.y + fy * L * 0.28 + fx * (W / 2 + 18)]; }
+    function busSeat(v, n) { const L = (v.m && v.m.len) || 200, W = (v.m && v.m.w) || 60, row = n >> 1, side = n & 1 ? 1 : -1;
+      return [-L * 0.3 + row * (L * 0.62 / 4), side * W * 0.24]; }
+    G.busBoardFn = () => { if (g.onBus || g.mode !== "foot" || g.inside) return false;
+      const v = (g.traffic || []).find((q) => q.bus && !q.dead && Math.hypot(busDoor(q)[0] - g.p.x, busDoor(q)[1] - g.p.y) < 90); if (!v) return false;
+      if ((v.spd || 0) > 6 && !(v.hold > 0)) { g.pickupFlash = { nm: "lift:WAIT FOR IT TO STOP", t: 1.2 }; return true; }
+      g.onBus = { v, seat: 2 + ((Math.random() * 5) | 0) }; v.pax = Math.min(8, (v.pax || 0) + 1); v.hold = Math.max(v.hold || 0, 1.5); g.p.sit = null;
+      g.pickupFlash = { nm: "lift:ROUTE " + (v.route || "") + " \u00b7 E AT A STOP TO GET OFF", t: 2 }; return true; };
+    G.busOffFn = () => { const R2 = g.onBus; if (!R2) return false; const v = R2.v;
+      if ((v.spd || 0) > 6 && !(v.hold > 0)) { g.pickupFlash = { nm: "lift:AT THE NEXT STOP", t: 1.2 }; return true; }
+      const d = busDoor(v); g.onBus = null; g.p.x = d[0]; g.p.y = d[1]; g.p.vx = 0; g.p.vy = 0; v.pax = Math.max(0, (v.pax || 1) - 1); v.hold = Math.max(v.hold || 0, 1); return true; };
+    function stepBusRide() { const R2 = g.onBus; if (!R2) return false; const v = R2.v;
+      if (!g.traffic.includes(v) || v.dead || g.mode !== "foot") { g.onBus = null; return false; }
+      const [a, b] = busSeat(v, R2.seat), fx = Math.cos(v.ang), fy = Math.sin(v.ang);
+      g.p.x = v.x + fx * a - fy * b; g.p.y = v.y + fy * a + fx * b; g.p.vx = 0; g.p.vy = 0; g.p.face = v.ang; g.inside = null; return true; }
+    G.cityBusT = () => { const v = (g.traffic || []).filter((q) => q.bus).sort((a, c) => Math.hypot(a.x - g.p.x, a.y - g.p.y) - Math.hypot(c.x - g.p.x, c.y - g.p.y))[0]; return v ? { x: v.x, y: v.y, spd: v.spd, hold: v.hold, door: busDoor(v), on: !!g.onBus } : null; };   // test hook
+    /* Inside, drawn over the bus while you're on it: the floor, the seats down both sides, the others aboard, you. */
+    function drawBusRide() { const R2 = g.onBus; if (!R2) return; const v = R2.v, L = (v.m && v.m.len) || 200, W = (v.m && v.m.w) || 60;
+      ctx.save(); ctx.translate(v.x, v.y); ctx.rotate(v.ang);
+      ctx.fillStyle = "#3a3c40"; ctx.fillRect(-L / 2 + 6, -W / 2 + 5, L - 12, W - 10);
+      ctx.fillStyle = "#2b2d31"; ctx.fillRect(-L / 2 + 6, -3, L - 12, 6);                 // the aisle
+      for (let n = 0; n < 10; n++) { const [a, b] = busSeat(v, n); ctx.fillStyle = "#7a2e2a"; ctx.fillRect(a - 9, b - 8, 16, 16); ctx.fillStyle = "#5a201d"; ctx.fillRect(a - 9, b - 8, 4, 16); }
+      ctx.fillStyle = "#1b1c20"; ctx.fillRect(L / 2 - 30, -W / 2 + 6, 20, 16);             // the driver's seat
+      ctx.restore();
+      let others = Math.max(0, (v.pax || 1) - 1);
+      for (let n = 0; n < 10 && others > 0; n++) { if (n === R2.seat) continue; others--; const [a, b] = busSeat(v, (n * 7 + (v.route || 1)) % 10), fx = Math.cos(v.ang), fy = Math.sin(v.ang);
+        const x = v.x + fx * a - fy * b, y = v.y + fy * a + fx * b; ctx.fillStyle = ["#2a2420", "#4a3020", "#151515", "#6a5030"][n % 4]; ctx.beginPath(); ctx.arc(x, y, 6.5, 0, 6.3); ctx.fill();
+        ctx.fillStyle = ["#3d4f6b", "#6b3d3d", "#4b5b3a", "#5a5a5a"][n % 4]; ctx.fillRect(x - 8 + fx * -6, y - 8 + fy * -6, 0, 0); }
+      { const [a, b] = busSeat(v, R2.seat), fx = Math.cos(v.ang), fy = Math.sin(v.ang); g.p.x = v.x + fx * a - fy * b; g.p.y = v.y + fy * a + fx * b; }
+      g.busDrawing = 1; try { drawHeroBody(); } finally { g.busDrawing = 0; } }
     function stepFoot(dt) {
+      if (g.onBus && stepBusRide()) return;               // riding the bus: sat in your seat (layer 533)
       // and every frame, in case anything else hands one over
       if (g.who !== "lion" && isGun(g.p.wpn)) { g.p.wpn = null; g.p.ammo = 0; }
       trafficVsPlayer(dt);
@@ -13149,7 +13208,7 @@ export default function IronLionLayer004() {
       let ix = inp.x + (k["a"] || k["arrowleft"] ? -1 : 0) + (k["d"] || k["arrowright"] ? 1 : 0);
       let iy = inp.y + (k["w"] || k["arrowup"] ? -1 : 0) + (k["s"] || k["arrowdown"] ? 1 : 0);
       if (g.pintro || g.pRiding) { ix = 0; iy = 0; }     // the walk in / riding the bus: no control
-      if (stepSit(ix, iy)) return;                         // sitting: stay put till you move (layer 531)
+      if (stepSeat531(ix, iy)) return;                     // sitting: stay put till you move (layer 531)
       if (Math.hypot(ix, iy) > 0.15) g.p.face = Math.atan2(iy, ix);   // he keeps facing the way he last went
       if (g.studentMode && stepBike(dt)) return;            // on the bike: its own movement
       const len = Math.hypot(ix, iy);
@@ -14341,7 +14400,12 @@ export default function IronLionLayer004() {
     /* A name off the roster, and what happens to it when the man wearing it goes down. */
     /* A UNIFORM off his own plate, picked by who he is: the sheet is drawn once per skin tone and
        per sex, so a roster name and a body match. Falls back to the old drawn cop. */
+    const COP_SKIN = { pale: [205, 160, 130], tan: [180, 130, 95], brown: [140, 95, 65], dark: [95, 62, 42] };
     function drawCopPlate(u) {
+      { let tone = COP_TONE[u.race || "white"] || "pale"; if (u.race === "black" && ((Math.abs(Math.round((u.id || u.x0 || 0) * 7)) % 2) === 1)) tone = "dark";      // torso + arms (layer 532)
+        const kind = u.swat ? "swat" : u.sex === "f" ? "cop_f" : u.rank === "sgt" || /SGT|SERGEANT/.test(u.rank || "") ? "cop_sgt" : "cop_m";
+        const A = { torso: "ar_torso_" + kind + "_" + tone, set: kind === "swat" ? "swat" : "police", skin: COP_SKIN[tone].map((v) => Math.round(v * 0.85)), sleeve: kind === "swat" ? [32, 32, 36] : [30, 40, 92], wid: W532 };
+        if (!g.noArms && armsReady(A) && drawYouth({ x: u.x, y: u.y, vx: u.vx || 0, vy: u.vy || 0, anim: u.anim || 0, jit: u.jit || 1, bang: u.bang != null ? u.bang : Math.PI / 2, yt: A.torso, arms: A, held: u.wpn && (u.drawnT || 0) > 0 ? u.wpn : null, aim: !!(u.wpn && (u.drawnT || 0) > 0) })) return; }
       const tone = COP_TONE[u.race || "white"] || "pale";
       const key = "cop_" + (u.sex === "f" ? "f" : "m") + "_" + (u.race === "black" && Math.random() < 0 ? "dark" : tone);
       const im = imgs.current[key];
@@ -17088,6 +17152,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("otf:")) { G.outfitPick(id); G.pickOpen("outfit"); return; }          // layer 520
       else if (id.startsWith("bz:")) { G.bozPick(id); G.pickOpen("boznov"); return; }
       else if (id.startsWith("story:")) { G.storyPick(id.slice(6)); return; }   // layer 478
+      else if (id.startsWith("fitcol:")) { const f = g.pfit || "street", c = reyCol(f), w = id.slice(7); c[w] = ((c[w] || 0) + 1) % CLOTH_COLS.length;    // next colour (layer 532)
+        g.pickupFlash = { nm: "lift:" + (w === "o" ? "JACKET" : "SHIRT") + " \u00b7 " + CLOTH_COLS[c[w]][0], t: 1.2 }; setTimeout(() => G.closetWheel && G.closetWheel(), 40); return; }
       else if (id.startsWith("fit:")) { const k = id.slice(4); if (REY_FITS[k]) { g.pfit = k; g.pcivvies = 1; g.pickupFlash = { nm: "lift:" + REY_FITS[k].nm, t: 1.4 }; } return; }   // layer 483
       else if (id.startsWith("ow:")) { G.owPick(id); return; }                  // layer 481
       else if (id.startsWith("r2a:")) { if (G.r2aPick(id.slice(4)) !== "x") G.pickOpen("r2a"); return; }   // layer 482
@@ -18280,6 +18346,20 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       } catch (e) { /* tainted canvas: leave it grey */ }
       armTintC.set(key, cv); return cv;
     }
+    /* Rey's coded torso, tinted: blue -> outer, green -> inner, everything else (face, hair) as drawn (layer 532). */
+    const codeTintC = new Map();
+    function codedTorso(A) { const src = imgs.current[A.torso]; if (!src || !src.width) return null; const key = A.torso + "|" + A.outer + "|" + A.inner; if (codeTintC.has(key)) return codeTintC.get(key);
+      const cv = document.createElement("canvas"); cv.width = src.width; cv.height = src.height; const cx = cv.getContext("2d"); cx.drawImage(src, 0, 0);
+      try { const d = cx.getImageData(0, 0, cv.width, cv.height), px = d.data;
+        for (let i = 0; i < px.length; i += 4) { if (!px[i + 3]) continue; const r = px[i], gg = px[i + 1], b = px[i + 2];
+          const blue = b > r + 40 && b > gg + 25, green = gg > r + 40 && gg > b + 25; if (!blue && !green) continue;
+          const C = blue ? A.outer : A.inner, L = Math.min(1.35, (blue ? b : gg) / 190);
+          px[i] = Math.min(255, C[0] * L + 14 * L * L); px[i + 1] = Math.min(255, C[1] * L + 14 * L * L); px[i + 2] = Math.min(255, C[2] * L + 16 * L * L); }
+        cx.putImageData(d, 0, 0); } catch (e) {}
+      if (codeTintC.size > 60) codeTintC.clear(); codeTintC.set(key, cv); return cv; }
+    function reyCol(fit) { const P = (g.pcol = g.pcol || {}); if (!P[fit]) P[fit] = { ...(REY_COL0[fit] || { o: 0, i: 1 }) }; return P[fit]; }
+    function reyArms(pkey) { const [fit, set] = REY_CODED[pkey], c = reyCol(fit), outer = CLOTH_COLS[c.o % CLOTH_COLS.length][1], inner = CLOTH_COLS[c.i % CLOTH_COLS.length][1];
+      return { torso: "ar_torso_rey_" + fit, set, skin: [118, 62, 30], sleeve: outer, outer, inner, wid: W532 }; }
     function armsReady(A) { const t = imgs.current[A.torso], a = imgs.current["ar_" + A.set + "_hang"]; return !!(t && t.width && a && a.width); }
     /* Local frame: +y is the way he faces (down the body in the art), and his RIGHT side is -x (the art faces the
        camera). Arms are drawn before the torso so his shoulders cover the joints. */
@@ -18299,8 +18379,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        torso; anything thrown out in front (a jab, a hook, a swing, a gun) is returned as a function and drawn OVER it. */
     function drawArms525(p, A, w, h, stride) {
       const hang = armTint("ar_" + A.set + "_hang", A); if (!hang) return null;
+      const hT = h; if (A.wid) h = w / 1.19;                // layer 532: lengths from the shoulders, the shoulder line from the torso
       const k = (h * 0.86) / hang.height;                   // one scale for the whole set: the hanging arm is 0.86h
-      const sy = -h * 0.12, sx = w * 0.40;
+      const sy = -hT * 0.12, sx = w * 0.40;
       const arm = (cv, x, y, rot, mirror) => {
         if (!cv) return; const aw = cv.width * k, ah = cv.height * k;
         ctx.save(); ctx.translate(x, y); ctx.rotate(rot); if (mirror) ctx.scale(-1, 1);
@@ -18323,7 +18404,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (gun && LONG_RX.test(wp)) over.push(() => thrown(fist, LS[0], LS[1], Math.PI / 2 + 0.42, h * 0.78, true));
       else arm(hang, sx, sy + sw, -0.06 + (sw / h) * 0.5, true);
       // RIGHT arm (-x)
-      if (gun) over.push(() => { const th = Math.PI / 2 - 0.2, F = thrown(fist, RS[0], RS[1], th, h * 1.0, false); drawHeld(wp, F[0], F[1], Math.PI / 2 - 0.06, h * (LONG_RX.test(wp) ? 1.15 : 0.5)); });
+      if (gun && (A.set === "police" || A.set === "swat") && !LONG_RX.test(wp)) over.push(() => thrown(armTint("ar_" + A.set + "_gun", A), RS[0], RS[1], Math.PI / 2 - 0.2, h * 1.1, false));   // their gun arm has the pistol in it (layer 532)
+      else if (gun) over.push(() => { const th = Math.PI / 2 - 0.2, F = thrown(fist, RS[0], RS[1], th, h * 1.0, false); drawHeld(wp, F[0], F[1], Math.PI / 2 - 0.06, h * (LONG_RX.test(wp) ? 1.15 : 0.5)); });
       else if (mv === "jab") over.push(() => thrown(fist, RS[0], RS[1], Math.PI / 2 - 0.16, h * (0.55 + punch * 0.75), false));
       else if (mv === "swing") over.push(() => { const th = Math.PI - 0.15 - kq * 2.4, F = thrown(fist, RS[0], RS[1], th, h * 0.95, false); drawHeld(wp, F[0], F[1], th, h * 0.95); });
       else { arm(hang, -sx, sy - sw, 0.06 - (sw / h) * 0.5, false);
@@ -18332,13 +18414,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return over.length ? () => { for (const f of over) f(); } : null;
     }
     function drawYouth(p, angOverride, backOff) {
-      const AP = p.arms && !g.noArms && armsReady(p.arms) ? p.arms : null;      // the arms pilot (layer 525)
-      const im = AP ? imgs.current[AP.torso] : imgs.current[p.yt];
+      const A0 = p.arms || ARM_BY_YT[p.yt], AP = A0 && !g.noArms && armsReady(A0) ? A0 : null;      // the arms (layers 525, 532)
+      const im = AP ? (AP.outer ? codedTorso(AP) : imgs.current[AP.torso]) : imgs.current[p.yt];
       if (!im || !im.width) return false;
       /* Drawn at 0.82. Measured, these came out 75-112% as wide as they are tall against
          57-90% on the gang sheets, so at parity they read a size bigger than everyone else. */
       const inK = g.inside && g.insideT > 0.5 ? 0.9 : 1;                  // indoors a hair smaller, so the furniture reads its size (layer 531)
-      const h = 30 * (p.jit || 1) * 0.82 * (p.tall || 1) * (AP ? AP.scale : (YT_SCALE[p.yt] || 1)) * inK, w = h * (im.width / im.height);
+      const h = AP && AP.wid ? 30 * (p.jit || 1) * 0.82 * (p.tall || 1) * AP.wid * inK / (im.width / im.height) : 30 * (p.jit || 1) * 0.82 * (p.tall || 1) * (AP ? AP.scale : (YT_SCALE[p.yt] || 1)) * inK, w = h * (im.width / im.height);
       const sp = Math.hypot(p.vx || 0, p.vy || 0);
       const face = p.faceLock != null && angOverride == null ? p.faceLock : (p.bang != null && angOverride == null && sp <= 10) ? p.bang : Math.atan2(p.vy, p.vx);
       const ang = angOverride != null ? angOverride : face + YOUTH_FACE;
@@ -33856,13 +33938,36 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.pickupFlash = { nm: "lift:SIT-DOWN \u00b7 " + gangNm(gk) + " \u00b7 " + at.label, t: 3 };
       return true;
     }
+    /* THE TABLE (layer 533, Donny): you sit down to start it. A table set up in front of the meeting place, their man
+       already in his chair (two of his standing behind), an empty chair facing him. E at the empty chair. */
+    function sitTable(S) { if (S.tbl) return S.tbl; const b = S.at && S.at.b; if (!b) return null;
+      const dp = doorPoint(b), o = [[0, -1], [1, 0], [0, 1], [-1, 0]][b.door ? b.door.side : 2] || [0, 1], T = [dp[0] + o[0] * 150, dp[1] + o[1] * 150];
+      const yours = { x: T[0] + o[0] * 40, y: T[1] + o[1] * 40, ang: Math.atan2(-o[1], -o[0]) }, theirs = { x: T[0] - o[0] * 40, y: T[1] - o[1] * 40, ang: Math.atan2(o[1], o[0]) };
+      const LA = LEADER_ART[S.gk], boss = (LA && LA[0] && LA[0][0]) || "yt_bratva_1", guard = (LA && LA[2] && LA[2][0]) || "yt_bratva_2";
+      return (S.tbl = { x: T[0], y: T[1], o, yours, theirs, boss, guard }); }
+    G.sitCallT = (gk, ag, wh) => sitCall(gk, ag || "peace", wh || "theirs");                // test hook
+    G.sitTableT = () => { const S = g.sit; const t = S && sitTable(S); return t ? { x: t.x, y: t.y, yours: t.yours } : null; };      // test hook
+    function drawSitTable() { const S = g.sit; if (!S || !g.pescaped) return; const T = sitTable(S); if (!T || g.inside || Math.hypot(T.x - g.p.x, T.y - g.p.y) > 1400) return;
+      const chair = (c) => { ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.ang - Math.PI / 2); ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(-11, -9, 26, 24);
+        ctx.fillStyle = "#5a3d24"; ctx.fillRect(-12, -12, 24, 22); ctx.fillStyle = "#3b2716"; ctx.fillRect(-12, -16, 24, 6); ctx.restore(); };
+      chair(T.yours); chair(T.theirs);
+      ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.beginPath(); ctx.arc(T.x + 4, T.y + 5, 27, 0, 6.3); ctx.fill();
+      ctx.fillStyle = "#6b4a2c"; ctx.beginPath(); ctx.arc(T.x, T.y, 26, 0, 6.3); ctx.fill(); ctx.strokeStyle = "#3b2716"; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = "#e8e2d0"; ctx.fillRect(T.x - 6, T.y - 4, 12, 8);                 // a glass and a napkin
+      drawShadow(T.theirs.x, T.theirs.y + 2, 9, 4, 0.3);
+      drawYouth({ x: T.theirs.x, y: T.theirs.y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.05, yt: T.boss, bang: T.theirs.ang });
+      for (const s of [-1, 1]) { const gx = T.theirs.x - T.o[0] * 36 + T.o[1] * 30 * s, gy = T.theirs.y - T.o[1] * 36 - T.o[0] * 30 * s;
+        drawShadow(gx, gy + 2, 9, 4, 0.3); drawYouth({ x: gx, y: gy, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.05, yt: T.guard, bang: T.theirs.ang }); }
+      if (!(g.p.sit && g.p.sit.k === "sitdown") && Math.hypot(T.yours.x - g.p.x, T.yours.y - g.p.y) < 140) lab8("E: SIT DOWN", T.yours.x, T.yours.y - 26); }
     function stepSit(dt) {
       const S = g.sit; if (!S || g.pickOpen) return;
       if (nowMin() - S.set > 2 * 1440) { moveStand(S.gk, -15); g.jobBanner = "STOOD UP"; g.jobNote = gangNm(S.gk) + " waited two days. They won't forget it."; g.sit = null; return; }
       if (g.mode !== "foot") return;
       const at = S.at, here = (g.inside && g.inside === at.b) || (!g.inside && Math.hypot(g.p.x - at.x, g.p.y - at.y) < 170);
-      if (here && !S.open) { S.open = 1; if (S.agenda === "war") { sitWar(S); return; } G.pickOpen("sit"); }
-      if (!here) S.open = 0;
+      const T = sitTable(S), seated = !!(g.p.sit && g.p.sit.k === "sitdown");
+      if (T && !seated) { if (here && !S.toldSit) { S.toldSit = 1; g.jobNote = "They're at the table out front. Sit down across from him (E at the empty chair)."; } if (!here) S.open = 0; return; }   // layer 533: sit first
+      if ((here || seated) && !S.open) { S.open = 1; if (S.agenda === "war") { sitWar(S); return; } G.pickOpen("sit"); }
+      if (!here && !seated) S.open = 0;
     }
     const SIT_OPEN = {
       hurt: ["You put hands on one of ours. We have a pact. So tell me why I shouldn't tear it up.", "One of our boys is in the hospital. You did that. Talk."],
@@ -36290,7 +36395,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (k === "phone" && !(g.story && g.story.id === "dayout" && g.story.step === 4 && !g.story.did.phone)) return G.phoneWheel();
       G.pickOpen("apt_" + k); return true; };
     G.closetWheel = () => G.radialOpen({ kind: "closet", title: "THE CLOSET", text: g.pfit && REY_FITS[g.pfit] ? "On you: " + REY_FITS[g.pfit].nm.toLowerCase() + "." : "Pick what you wear.",
-      items: Object.keys(REY_FITS).map((k) => ({ label: REY_FITS[k].nm, short: REY_FITS[k].nm.replace("THE ", ""), icon: PD_ART[REY_FITS[k].k] || "assets/prison/yt_player_civ.png", sub: (g.pfit || "street") === k ? "wearing it" : "put it on", id: "fit:" + k })) });
+      items: (() => { const f = g.pfit || "street", cd = Object.values(REY_CODED).find((q) => q[0] === f), c = cd ? reyCol(f) : null;            // colours (layer 532)
+          return c ? [{ label: (f === "suit" ? "SUIT" : "JACKET") + " COLOUR \u00b7 " + CLOTH_COLS[c.o % CLOTH_COLS.length][0], short: "JACKET \u00b7 " + CLOTH_COLS[c.o % CLOTH_COLS.length][0], sub: "next colour", id: "fitcol:o" },
+                      { label: (f === "street" ? "HOODIE" : "SHIRT") + " COLOUR \u00b7 " + CLOTH_COLS[c.i % CLOTH_COLS.length][0], short: "SHIRT \u00b7 " + CLOTH_COLS[c.i % CLOTH_COLS.length][0], sub: "next colour", id: "fitcol:i" }] : []; })().concat(Object.keys(REY_FITS).map((k) => ({ label: REY_FITS[k].nm, short: REY_FITS[k].nm.replace("THE ", ""), icon: PD_ART[REY_FITS[k].k] || "assets/prison/yt_player_civ.png", sub: (g.pfit || "street") === k ? "wearing it" : "put it on", id: "fit:" + k }))) });
     function aptSpotPanel(k) { const S = g.story && g.story.id === "dayout" ? g.story : null; if (S && S.step === 4 && !S.did[k]) { S.did[k] = 1; storyCheckpoint(); }
       if (k === "closet") return { title: "THE CLOSET · 1A", face: null, text: g.aptSaid || "Leroy left two shirts, a jacket and a pair of shoes that almost fit, beside what you walked out in. The closet is where you change. More to hang in it once you've got money.",
         opts: [{ id: "aptx:wear:76", label: "THE CLOTHES YOU WALKED OUT IN (1969)" }, { id: "aptx:wear:leroy", label: "WHAT LEROY LEFT YOU" }, { id: "close", label: "SHUT IT" }] };
@@ -36305,6 +36412,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (a === "wear") { g.pfit = b; g.aptSaid = b === "76" ? "Wide collar, seventeen years out of style. It's yours." : "Leroy's shirt. A little big. Smells like his sister's house."; }
       if (a === "call") g.aptSaid = "LEROY (from his sister's): “You made it! Key under the mat, like I said? Good. Rest, man. Tomorrow you look around. And Rey -- don't go near the Deuce. Not yet.”"; };
 
+    const APT_DINE = [["dtable", 0.0975, 0.756], ["dchair", 0.0975, 0.686], ["dchair", 0.0975, 0.82], ["dchair", 0.081, 0.756], ["dchair", 0.1145, 0.756]];
+    const APT_DINE2 = APT_DINE.map(([k, x, y]) => [k, +(1 - x).toFixed(4), y]);
     const APT_OBJ = {"int_apt_long_f0":[["bed",0.0859,0.152],["nightstand",0.1159,0.08],["bed",0.2486,0.144],["nightstand",0.2706,0.08],["tub",0.3444,0.152],["toilet",0.3967,0.088],["sink",0.434,0.088],["fridge",0.018,0.92],["stove",0.017,0.54],["ksink",0.016,0.652],["sofa",0.3164,0.54],["tv",0.3164,0.92],["bed",0.9141,0.152],["nightstand",0.8841,0.08],["bed",0.7514,0.144],["nightstand",0.7294,0.08],["tub",0.6556,0.152],["toilet",0.6033,0.088],["sink",0.566,0.088],["fridge",0.982,0.92],["stove",0.983,0.54],["ksink",0.984,0.652],["sofa",0.6836,0.92],["tv",0.6836,0.532]],"int_apt_long_f1":[["bed",0.0859,0.152],["nightstand",0.1159,0.08],["bed",0.2486,0.144],["nightstand",0.2706,0.08],["tub",0.3444,0.152],["toilet",0.3967,0.088],["sink",0.434,0.088],["fridge",0.018,0.92],["stove",0.017,0.54],["ksink",0.016,0.652],["sofa",0.3164,0.92],["tv",0.3164,0.532],["bed",0.9141,0.152],["nightstand",0.8841,0.08],["bed",0.7514,0.144],["nightstand",0.7294,0.08],["tub",0.6556,0.152],["toilet",0.6033,0.088],["sink",0.566,0.088],["fridge",0.982,0.92],["stove",0.983,0.54],["ksink",0.984,0.652],["sofa",0.6836,0.92],["tv",0.6836,0.532]],"int_apt_side_f0":[["bed",0.1201,0.152],["nightstand",0.1737,0.08],["tub",0.2742,0.152],["toilet",0.3416,0.088],["sink",0.3821,0.088],["fridge",0.0321,0.92],["stove",0.0304,0.54],["ksink",0.0286,0.652],["sofa",0.3024,0.92],["tv",0.3024,0.532],["bed",0.8799,0.152],["nightstand",0.8263,0.08],["tub",0.7258,0.152],["toilet",0.6584,0.088],["sink",0.6179,0.088],["fridge",0.9679,0.92],["stove",0.9696,0.54],["ksink",0.9714,0.652],["sofa",0.6976,0.92],["tv",0.6976,0.532]],"int_apt_side_f1":[["bed",0.1201,0.152],["nightstand",0.1737,0.08],["tub",0.2742,0.152],["toilet",0.3416,0.088],["sink",0.3821,0.088],["fridge",0.0321,0.92],["stove",0.0304,0.54],["ksink",0.0286,0.652],["sofa",0.3024,0.92],["tv",0.3024,0.532],["bed",0.8799,0.152],["nightstand",0.8263,0.08],["tub",0.7258,0.152],["toilet",0.6584,0.088],["sink",0.6179,0.088],["fridge",0.9679,0.92],["stove",0.9696,0.54],["ksink",0.9714,0.652],["sofa",0.6976,0.92],["tv",0.6976,0.532]]};
 
     /* EVERY THING HAS A WHEEL (layer 481, Donny): walk up to a thing, E, and its wheel comes up -- always STASH (any bed, sink,
@@ -36312,6 +36421,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        FOR: a bed SLEEP (and SAVE at home), a sink WASH YOUR HANDS, a toilet USE IT, a tub SHOWER, a fridge EAT, a stove COOK,
        a TV WATCH THE NEWS, a sofa SIT DOWN. In Kestrel the hiding places and your own bunk and desk go through the same wheel.
        $1,000 is hidden somewhere in 1A (Leroy's sister's man left it). */
+    for (const k of ["int_apt_long_f0", "int_apt_long_f1"]) APT_OBJ[k] = APT_OBJ[k].concat(APT_DINE, APT_DINE2);      // layer 533
     const OBJ_DO = { bed: [["SLEEP", "sleep"]], sink: [["WASH YOUR HANDS", "wash"]], ksink: [["WASH YOUR HANDS", "wash"]], toilet: [["USE IT", "use"]], tub: [["SHOWER", "shower"]],
       fridge: [["EAT SOMETHING", "eat"]], stove: [["COOK", "cook"]], tv: [["WATCH THE NEWS", "tv"]], sofa: [["SIT DOWN", "sit"]], nightstand: [], desk: [], dresser: [] };
     const OBJ_NM = { bed: "THE BED", sink: "THE SINK", ksink: "THE KITCHEN SINK", toilet: "THE TOILET", tub: "THE TUB", fridge: "THE FRIDGE", stove: "THE STOVE", tv: "THE TV", sofa: "THE SOFA", nightstand: "THE NIGHTSTAND", desk: "THE DESK", dresser: "THE DRESSER" };
@@ -36321,7 +36431,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function objNear() { const b = g.inside; if (!b || g.mode !== "foot") return null; let best = null, bd = 50;
       const pl = buildingPlans(b)[g.floor]; if (!pl) return null;
       if (b.artFloors && b.artFloors[g.floor] && APT_OBJ[b.artFloors[g.floor]]) { const P2 = fitArtFloor(b, g.floor, b.artFloors[g.floor], b.artKeep);
-        if (P2 && P2.artR2) for (const [k, fx, fy] of APT_OBJ[b.artFloors[g.floor]]) { const [x, y] = artAt(P2, fx, fy), d = Math.hypot(g.p.x - x, g.p.y - y); if (d < bd) { bd = d; best = { k, x, y, fx, fy }; } } }
+        if (P2 && P2.artR2) for (const [k, fx, fy] of APT_OBJ[b.artFloors[g.floor]]) { if (k === "dtable" || k === "dchair") continue; const [x, y] = artAt(P2, fx, fy), d = Math.hypot(g.p.x - x, g.p.y - y); if (d < bd) { bd = d; best = { k, x, y, fx, fy }; } } }
       else for (const o of pl.props || []) { const k = kindOfProp(o.t || ""); if (!k) continue; const x = clamp(g.p.x, o.x, o.x + o.w), y = clamp(g.p.y, o.y, o.y + o.h), d = Math.hypot(g.p.x - x, g.p.y - y);
         if (d < bd - 10) { bd = d + 10; best = { k, x: o.x + o.w / 2, y: o.y + o.h / 2 }; } }
       return best; }
@@ -36335,7 +36445,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const roomOf = (x, y) => (pl.rooms || []).find((r) => x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) || { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
       const art = b.artFloors && b.artFloors[g.floor] && APT_OBJ[b.artFloors[g.floor]];
       if (art) { const P2 = fitArtFloor(b, g.floor, b.artFloors[g.floor], b.artKeep); if (!P2 || !P2.artR2) return out; const L = APT_OBJ[b.artFloors[g.floor]];
-        for (const [k, fx, fy] of L) { if (k !== "sofa" && k !== "toilet") continue; const [x, y] = artAt(P2, fx, fy); if (Math.hypot(g.p.x - x, g.p.y - y) > maxD + 40) continue;
+        for (const [k0, fx, fy] of L) { if (k0 === "dchair") { const [x, y] = artAt(P2, fx, fy); if (Math.hypot(g.p.x - x, g.p.y - y) > maxD + 40) continue;   // a kitchen chair, facing its table (layer 533)
+            let tb = null, td = 1e9; for (const [k2, fx2, fy2] of L) if (k2 === "dtable") { const [tx, ty] = artAt(P2, fx2, fy2), d = Math.hypot(tx - x, ty - y); if (d < td) { td = d; tb = [tx, ty]; } }
+            out.push({ k: "chair", x, y, ang: tb ? Math.atan2(tb[1] - y, tb[0] - x) : Math.PI / 2 }); continue; }
+          const k = k0; if (k !== "sofa" && k !== "toilet") continue; const [x, y] = artAt(P2, fx, fy); if (Math.hypot(g.p.x - x, g.p.y - y) > maxD + 40) continue;
           let ang; if (k === "sofa") { let tv = null, td = 1e9; for (const [k2, fx2, fy2] of L) if (k2 === "tv") { const [tx, ty] = artAt(P2, fx2, fy2), d = Math.hypot(tx - x, ty - y); if (d < td) { td = d; tv = [tx, ty]; } }
               ang = tv && td < 400 ? Math.atan2(tv[1] - y, tv[0] - x) : awayFromWall(x, y, { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h }); }
           else ang = awayFromWall(x, y, { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h });
@@ -36350,9 +36463,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function sitAt(s) { if (!s) return false; g.p.sit = { x: s.x, y: s.y, ang: s.ang, k: s.k, b: g.inside, f: g.floor }; g.p.x = s.x; g.p.y = s.y; g.p.vx = 0; g.p.vy = 0; g.p.face = s.ang;
       g.pickupFlash = { nm: "lift:" + (s.k === "toilet" ? "YOU SIT. NOBODY WATCHING." : "YOU SIT DOWN") + " \u00b7 MOVE TO GET UP", t: 1.6 }; return true; }
-    G.sitFn = () => { if (g.p.sit || g.mode !== "foot" || !g.inside) return false; const s = seatsNear(56).find((q) => q.k !== "toilet"); return s ? sitAt(s) : false; };
+    G.sitFn = () => { if (g.p.sit || g.mode !== "foot") return false;
+      { const S = g.sit, T = S && !g.inside && sitTable(S); if (T && Math.hypot(T.yours.x - g.p.x, T.yours.y - g.p.y) < 70) return sitAt({ k: "sitdown", x: T.yours.x, y: T.yours.y, ang: T.yours.ang }); }   // the sit-down's chair (layer 533)
+      if (!g.inside) return false; const s = seatsNear(56).find((q) => q.k !== "toilet"); return s ? sitAt(s) : false; };
     G.seatsT = () => seatsNear(400).map((s) => [s.k, Math.round(s.x), Math.round(s.y), +s.ang.toFixed(2)]);      // test hook
-    function stepSit(ix, iy) { const S = g.p.sit; if (!S) return false;
+    function stepSeat531(ix, iy) { const S = g.p.sit; if (!S) return false;
       if (g.inside !== S.b || g.floor !== S.f || g.mode !== "foot") { g.p.sit = null; return false; }
       if (Math.hypot(ix, iy) > 0.3) { g.p.sit = null; g.p.x = S.x + Math.cos(S.ang) * 30; g.p.y = S.y + Math.sin(S.ang) * 30; return false; }
       g.p.x = S.x; g.p.y = S.y; g.p.vx = 0; g.p.vy = 0; g.p.face = S.ang; return true; }
@@ -39062,7 +39177,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         opts: [{ id: "open:armory", label: "THE ARMORY" }, { id: "open:gunheist", label: "ANOTHER JOB" }, { id: "close", label: "DONE" }] }; }
     G.ghHomeT = () => { const h = ghHome(); return h ? h.f : null; };                    // test hook
     G.ghT = () => g.gh ? { k: g.gh.k, step: g.gh.step, carry: g.gh.carry, trunk: g.gh.trunk, n: g.gh.crates.length, crates: g.gh.crates, x: g.gh.x, y: g.gh.y, crew: !!g.gh.crew } : null;   // test hook
-    function drawGH() { const H = g.gh; if (!H || g.inside) return;
+    G.lineupT = (L) => { g.lineup = L; return true; };
+    function drawLineup() { const L = g.lineup; if (!L) return; L.forEach((q, n) => { const x = g.p.x + 60 + (n % 6) * 58, y = g.p.y - 40 + Math.floor(n / 6) * 70;
+        if (q.cop) drawCopPlate({ x, y, vx: 0, vy: 0, bang: Math.PI / 2, race: q.race, sex: q.sex, rank: q.rank, swat: q.swat, anim: 0, wpn: q.wpn, drawnT: q.wpn ? 1 : 0 });
+        else drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, yt: q.yt, bang: Math.PI / 2, swing: q.swing || 0, move: q.move, held: q.wpn, aim: !!q.wpn }); }); }
+    function drawGH() { drawLineup(); const H = g.gh; if (!H || g.inside) return;
       for (const q of H.crates) { if (q.taken) continue;
         ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(q.x - 14 + 4, q.y - 10 + 4, 28, 20);
         ctx.fillStyle = "#6b5233"; ctx.fillRect(q.x - 14, q.y - 10, 28, 20); ctx.strokeStyle = "#3a2b18"; ctx.lineWidth = 2; ctx.strokeRect(q.x - 14, q.y - 10, 28, 20);
@@ -42006,6 +42125,33 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       g.busInfo = { pax: v.pax, route: v.route, t: 2.5 };
     }
+    /* THE SHELTER (layer 533): from above, a small awning over a bench, its back to the buildings, the route number
+       painted on the roof. Up to two people wait on the bench, facing the road; when a bus stands at the stop they walk
+       to its door and get on (and it counts them). They come back a while later. */
+    function drawShelter533(x, y, side, route, key, roadX) {
+      const W = 26, H = 64;
+      ctx.fillStyle = "rgba(0,0,0,0.32)"; ctx.fillRect(x - W / 2 + 5, y - H / 2 + 6, W, H);
+      ctx.fillStyle = "#5c6067"; ctx.fillRect(x - side * (W / 2 - 3) - 4, y - H / 2 + 6, 8, H - 12);            // the bench, on the road side
+      for (const py of [-H / 2 + 3, H / 2 - 3]) { ctx.fillStyle = "#2c2e33"; ctx.beginPath(); ctx.arc(x + side * (W / 2 - 3), y + py, 3, 0, 6.3); ctx.fill(); }
+      ctx.fillStyle = "#2f5d4a"; ctx.fillRect(x - W / 2 + side * 6, y - H / 2, W - 6, H);                        // the awning (the half toward the buildings)
+      ctx.fillStyle = "rgba(255,255,255,0.10)"; for (let q = 0; q < H; q += 10) ctx.fillRect(x - W / 2 + side * 6, y - H / 2 + q, W - 6, 4);
+      ctx.strokeStyle = "#1c3a2e"; ctx.lineWidth = 2; ctx.strokeRect(x - W / 2 + side * 6, y - H / 2, W - 6, H);
+      const lit = g.night > 0.35; ctx.fillStyle = lit ? "#ffd27a" : "#e6dcc0"; ctx.fillRect(x - 9 + side * 3, y - 9, 18, 18);
+      ctx.fillStyle = "#16130f"; ctx.font = "bold 11px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(String(route), x + side * 3, y + 1); ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+      // the people waiting
+      const F = (g.stopFolk = g.stopFolk || {}), now = g.t || 0; let S = F[key];
+      if (!S) { const n = (hash(route * 13 + (key.length * 7), (x | 0) % 97, 3) * 3) | 0; S = F[key] = { list: [], next: 0 }; for (let k = 0; k < Math.min(2, n); k++) S.list.push({ civ: pickCiv(), slot: k }); }
+      if (!S.list.length && now > S.next && S.next > 0) { const n = 1 + ((Math.random() * 2) | 0); for (let k = 0; k < n; k++) S.list.push({ civ: pickCiv(), slot: k }); S.next = 0; }
+      const bus = (g.traffic || []).find((v) => v.bus && v.hold > 0 && Math.abs(v.x - roadX) < 90 && Math.abs(v.y - y) < 140);
+      for (let k = S.list.length - 1; k >= 0; k--) { const P = S.list[k]; if (!P.civ) { S.list.splice(k, 1); continue; }
+        const bx = x - side * (W / 2 - 3), by = y + (P.slot ? 16 : -16);
+        if (bus && !P.go) { P.go = 1; P.t = 0; P.door = busDoor(bus); P.bus = bus; }
+        if (P.go) { P.t += 1 / 60; const k2 = Math.min(1, P.t / 1.2), px = bx + (P.door[0] - bx) * k2, py = by + (P.door[1] - by) * k2;
+          drawCivilian(P.civ, px, py, (P.door[0] - bx), (P.door[1] - by), now);
+          if (k2 >= 1) { S.list.splice(k, 1); if (P.bus) P.bus.pax = Math.min(8, (P.bus.pax || 0) + 1); if (!S.list.length) S.next = now + 40 + Math.random() * 50; } continue; }
+        P.civ.ang = side > 0 ? Math.PI : 0; drawCivilian(P.civ, bx, by, 0, 0, now); }
+    }
     function drawBusStops(view) {
       const i0 = clamp(Math.floor(view.x0 / PITCH), 0, N), i1 = clamp(Math.ceil(view.x1 / PITCH), 0, N);
       const j0 = clamp(Math.floor(view.y0 / PITCH), 0, N), j1 = clamp(Math.ceil(view.y1 / PITCH), 0, N);
@@ -42014,16 +42160,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         for (let j = j0; j <= j1; j++) {
           for (const dir of [1, -1]) {
             const [sx, sy] = busStopPoint("v", i, j, dir);
-            const kx = sx + (dir > 0 ? -1 : 1) * (halfW(i) * 0.52);
-            ctx.fillStyle = "rgba(217,164,65,0.5)";
-            ctx.fillRect(kx - 3, sy - 22, 6, 44);
-            ctx.fillStyle = g.night > 0.35 ? "rgba(255,206,120,0.9)" : "rgba(190,180,150,0.8)";
-            ctx.fillRect(kx - 10, sy - 31, 20, 14);
-            ctx.fillStyle = "rgba(24,22,20,0.9)";
-            ctx.font = "bold 9px ui-monospace, monospace";
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(String(routeFor(i)), kx, sy - 24);
-            ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+            const side = dir > 0 ? -1 : 1, kx = sx + side * (halfW(i) * 0.52);
+            drawShelter533(kx + side * 22, sy, side, routeFor(i), i + "," + j + "," + dir, sx);
           }
         }
       }
@@ -44101,6 +44239,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       try { drawHeroBody(); } finally { ctx.restore(); }
     }
     function drawHero() {
+      if (g.onBus && !g.busDrawing) return;                // drawn in his seat, over the bus (layer 533c)
       const a = g.air;
       if (!a || a.h <= 0.02) {
         drawBoardUnder();
@@ -44184,7 +44323,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       if (conv && conv.width) {
         drawShadow(g.p.x, g.p.y + 3, 12, 5, 0.38);
-        const armsOn = !g.studentMode && pkey === "yt_player_civ" ? ARM_SETS.rey : null;      // the arms pilot (layer 525)
+        const armsOn = !g.studentMode && REY_CODED[pkey] ? reyArms(pkey) : null;             // Rey's coded outfits (layers 525, 532)
         /* layer 530: a gun out of the holster is held out, all the time; strikes alternate JAB and HOOK, unarmed */
         const heldW = armsOn && g.p.wpn && !g.p.holstered && !WPN_THROWN[g.p.wpn] ? g.p.wpn : null;
         const aimOn = !!(heldW && !MELEE_RX.test(heldW));
@@ -46666,7 +46805,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!g.inside) drawBailers();
       if (!g.inside) { drawOldTownProps(view); drawAlleys(view); drawSchoolsOutside(view); drawLotPaint(view); drawGraves(view); }      // on the ground, under the people (layers 510, 513b)
       drawCold(view);
-      drawSetupGround(); drawPrints510(); drawGH();
+      drawSetupGround(); drawPrints510(); drawGH(); drawSitTable();
       drawItems(view);
       drawSpriteLabels(view);
       if (!g.inside) for (const u of policeUnits()) drawList.push([u.y, 5, u, 0]);
@@ -46857,7 +46996,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         for (const o2 of (c2 && c2.crew ? c2.crew : [])) if (o2 && o2.hp > 0) (g.barList = g.barList || []).push(o2);
       for (const m of (g.barList || [])) { drawHealthBar(m); drawZap(m); }
       g.barList = null;
-      if (!g.inside) { drawLampPosts(view); drawPolesAndWires(view); drawSignalHeads(view); }      // signal heads overhead (layer 524)
+      if (!g.inside) { drawLampPosts(view); drawPolesAndWires(view); drawSignalHeads(view); drawBusRide(); }      // signal heads overhead (layer 524); you on the bus (533)
       if (!g.inside) {
         for (const p of g.peds) if (p.say > 0 && p.line) bubble(p.x, p.y, p.line, p.sky ? SKY_LINES.tint : undefined);
         for (const u of policeUnits()) if (u.say > 0) bubble(u.x, u.y, u.line, "#7fb0e0");
