@@ -3737,7 +3737,9 @@ PD_ART.stop_roof = "assets/city/stop_roof.png";
 for (const k of ["ui_wh_lockpicks", "ui_wh_glass", "ui_wh_walk"]) PD_ART[k] = "assets/ui/" + k + ".png";                  /* layer 538 */
 for (let n = 1; n <= 12; n++) PD_ART["pt_cop_" + n] = "assets/police/pt_cop_" + n + ".png";
 for (const k of ["px_crane_top", "px_bollard", "px_bollard_rope", "px_rope", "px_pallets", "px_barrier", "px_drums", "px_lampbase", "px_booth"]) PD_ART[k] = "assets/port2/" + k + ".png";
-for (let n = 1; n <= 16; n++) PD_ART["px_ct_" + n] = "assets/port2/px_ct_" + n + ".png"; PD_ART.stop_roof_glass = "assets/city/stop_roof_glass.png"; PD_ART.pr_cone_side = "assets/props/pr_cone_side.png"; PD_ART.tx_ivory_tile = "assets/tex/tx_ivory_tile.png";
+for (let n = 1; n <= 16; n++) PD_ART["px_ct_" + n] = "assets/port2/px_ct_" + n + ".png";
+for (let n = 1; n <= 7; n++) PD_ART["px_c20_" + n] = "assets/port2/px_c20_" + n + ".png"; for (let n = 1; n <= 4; n++) PD_ART["px_c40_" + n] = "assets/port2/px_c40_" + n + ".png";   /* layer 539 */
+for (const k of ["nc_cliff", "br_deck", "br_broken", "br_girder", "br_tcrane", "br_closed", "br_scaffold"]) PD_ART[k] = "assets/city/" + k + ".png"; PD_ART.stop_roof_glass = "assets/city/stop_roof_glass.png"; PD_ART.pr_cone_side = "assets/props/pr_cone_side.png"; PD_ART.tx_ivory_tile = "assets/tex/tx_ivory_tile.png";
 /* layer 497: Dread, Tony, Harlan, Nicky, Yuri, the 1969 cast, Mission 11 props, 1969 cars, construction props, the verdict folder */
 for (const k of ["dread", "tony", "harlan", "nicky", "yuri", "rey69", "rochelle69", "damian69", "julian69", "tiny69", "cop69_a", "cop69_b"]) PD_ART["yt_" + k] = "assets/crew/yt_" + k + ".png";
 for (const k of ["it_ledger", "pr_office_safe", "pr_office_safe_open", "it_gascan", "it_gascan_b", "it_pinkslip"]) PD_ART[k] = "assets/items/" + k + ".png";
@@ -49312,22 +49314,22 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const BX0 = Q.x0 + 340, BX1 = Q.x1 - 170, stacks = [];
       for (const [ya, yb] of [[Q.y0 + 120, Q.roadY - 190], [Q.roadY + 190, Q.y1 - 120]]) { let y = ya, row = 0;
         while (y < yb - 90) { let x = BX0;
-          while (x < BX1 - 120) { if (rnd() < 0.1) { x += 150; continue; } const n = 1 + ((rnd() * 16) | 0), long = PD_ART["px_ct_" + n] && [1, 3, 5, 7, 10, 12, 13, 15].includes(n), w = long ? 250 : 118, h = 95;
-            if (x + w > BX1) break; const hi = 1 + ((rnd() * 3) | 0); stacks.push({ k: "px_ct_" + n, x: x + w / 2, y: y + h / 2, w, h, hi }); solids.push({ x: x + 2, y: y + 2, w: w - 4, h: h - 4 }); x += w + 8; }
-          y += row % 2 ? 150 : 104; row++; } }
+          while (x < BX1 - 120) { if (rnd() < 0.1) { x += 150; continue; } const long = rnd() < 0.6, k = long ? "px_c40_" + (1 + ((rnd() * 4) | 0)) : "px_c20_" + (1 + ((rnd() * 7) | 0)), w = long ? 250 : 125, h = long ? 119 : 91;
+            if (x + w > BX1) break; const hi = 1 + ((rnd() * 3) | 0); stacks.push({ k, x: x + w / 2, y: y + 119 / 2, w, h, hi }); solids.push({ x: x + 2, y: y + 60 - h / 2 + 2, w: w - 4, h: h - 4 }); x += w + 8; }
+          y += row % 2 ? 190 : 130; row++; } }
       // the machines, to scale
       put("px_veh_1", (Q.x0 + Q.x1) / 2 + 160, Q.roadY + 44, 360, 360 * 227 / 1337, 0, [340, 52]);
       put("px_veh_3", Q.x0 + 330, Q.roadY - 330, 230, 230 * 316 / 625, Math.PI / 2, [110, 220]);
       put("px_veh_4", BX1 + 70, Q.roadY + 230, 82, 82 * 123 / 278, Math.PI, [76, 34]);
       put("px_veh_2", Q.x1 - 230, Q.roadY - 74, 112, 112 * 160 / 320, Math.PI, [106, 48]);
       // the dock things
-      for (let y = Q.y0 + 80, k = 0; y < Q.y1 - 40; y += 170, k++) put(k % 3 === 1 ? "px_bollard_rope" : "px_bollard", Q.x0 + 16, y, 26, 26 * (k % 3 === 1 ? 225 / 189 : 1), 0, [20, 20]);
-      for (const [x, y] of [[Q.x0 + 70, Q.y0 + 300], [Q.x0 + 70, Q.y1 - 300], [Q.x0 + 90, Q.roadY + 260]]) put("px_rope", x, y, 30, 30 * 200 / 175, 0, null);
-      for (const [x, y] of [[Q.x1 - 90, Q.y0 + 140], [Q.x1 - 140, Q.y0 + 150], [Q.x0 + 300, Q.y1 - 160], [BX1 + 60, Q.roadY - 260]]) put("px_pallets", x, y, 52, 52 * 224 / 222, 0, [44, 44]);
-      for (const [x, y] of [[Q.x1 - 70, Q.y1 - 160], [Q.x0 + 240, Q.roadY + 230]]) put("px_drums", x, y, 58, 58, 0, [50, 50]);
-      for (let x = Q.x0 + 320; x < Q.x1 - 200; x += 260) { put("px_barrier", x, Q.roadY - 150, 34, 34 * 221 / 172, Math.PI / 2, null); put("px_barrier", x + 130, Q.roadY + 150, 34, 34 * 221 / 172, Math.PI / 2, null); }
-      for (const [x, y] of [[Q.x0 + 280, Q.y0 + 120], [Q.x0 + 280, Q.y1 - 120], [Q.x1 - 160, Q.roadY - 220], [Q.x1 - 160, Q.roadY + 220]]) put("px_lampbase", x, y, 34, 34, 0, [26, 26]);
-      put("px_booth", Q.x1 - 70, Q.roadY - 190, 96, 96 * 190 / 221, 0, [70, 60]);
+      for (let y = Q.y0 + 80, k = 0; y < Q.y1 - 40; y += 170, k++) put(k % 3 === 1 ? "px_bollard_rope" : "px_bollard", Q.x0 + 18, y, k % 3 === 1 ? 34 : 24, k % 3 === 1 ? 34 * 77 / 87 : 24, 0, [20, 20]);
+      for (const [x, y] of [[Q.x0 + 70, Q.y0 + 300], [Q.x0 + 70, Q.y1 - 300], [Q.x0 + 90, Q.roadY + 260]]) put("px_rope", x, y, 30, 30, 0, null);
+      for (const [x, y] of [[Q.x1 - 90, Q.y0 + 140], [Q.x1 - 140, Q.y0 + 150], [Q.x0 + 300, Q.y1 - 160], [BX1 + 60, Q.roadY - 260]]) put("px_pallets", x, y, 50, 50 * 78 / 81, 0, [44, 44]);
+      for (const [x, y] of [[Q.x1 - 70, Q.y1 - 160], [Q.x0 + 240, Q.roadY + 230]]) put("px_drums", x, y, 60, 60, 0, [50, 50]);
+      for (let x = Q.x0 + 320; x < Q.x1 - 200; x += 260) { put("px_barrier", x, Q.roadY - 146, 70, 70 * 42 / 104, 0, null); put("px_barrier", x + 130, Q.roadY + 146, 70, 70 * 42 / 104, 0, null); }
+      for (const [x, y] of [[Q.x0 + 280, Q.y0 + 120], [Q.x0 + 280, Q.y1 - 120], [Q.x1 - 160, Q.roadY - 220], [Q.x1 - 160, Q.roadY + 220]]) put("px_lampbase", x, y, 30, 30 * 85 / 62, 0, [24, 24]);
+      put("px_booth", Q.x1 - 90, Q.roadY - 150, 140, 140 * 101 / 165, 0, [70, 60]);
       g.quayL538 = { items, solids, stacks, cranes }; return g.quayL538; }
     /* THE DEPTH TRICK on a box (layer 538), the buildings' one: its top lifted away from the camera by its height, the
        sides an extrusion in the box's own colour, darker, a line at each container, a shadow on the ground. */
@@ -49376,7 +49378,29 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        is down for repairs -- a span missing in the middle, barriers and a sign at the city end; the EAST BRIDGE (20th Ave)
        is half built -- deck out from each side, girders, a crane on the far bank. That's the edge of the world. */
     const NORTH538 = { top: -halfW(0) - 4, gorge: 1150, bridges: [{ i: 4, k: "repair", nm: "BRIDGE CLOSED \u00b7 DOWN FOR REPAIRS" }, { i: 20, k: "build", nm: "UNDER CONSTRUCTION \u00b7 NO ENTRY" }] };
-    function drawNorth538(view) { const T = NORTH538.top; if (view.y0 > T + 10) return; const x0 = Math.max(view.x0, WORLD_MIN - 2000), x1 = Math.min(view.x1, WORLD_MAX + 2000), y0 = Math.max(view.y0, T - NORTH538.gorge - 900);
+    /* LAYER 539: Donny's cliff strip along the edge (rail at the bottom, on our side; every other tile mirrored so it
+       runs on), water from there to the end of the world, and the bridges from his pieces. Falls back to the painted
+       version (538) until the art's in. */
+    function drawNorth539(view) { const T = NORTH538.top, cl = imgs.current.nc_cliff; if (!cl || !cl.width) return false; if (view.y0 > T + 10) return true;
+      const CH = 400, CW = CH * cl.width / cl.height, cy = T - CH + 6, x0 = view.x0 - 50, x1 = view.x1 + 50, y0 = view.y0 - 50;
+      if (y0 < cy) { ctx.fillStyle = "#4e6470"; ctx.fillRect(x0, y0, x1 - x0, cy - y0 + 20);                                      // the water
+        const t = g.t || 0; ctx.fillStyle = "rgba(200,225,235,0.22)"; for (let y = Math.floor(y0 / 46) * 46; y < cy; y += 46) for (let x = Math.floor(x0 / 120) * 120; x < x1; x += 120) { const h2 = hash(x | 0, y | 0, 5); ctx.fillRect(x + ((t * 18 + h2 * 120) % 120), y + h2 * 30, 22 + h2 * 20, 2); }
+        const fog = ctx.createLinearGradient(0, cy - 2200, 0, cy - 400); fog.addColorStop(0, "rgba(160,175,185,0.75)"); fog.addColorStop(1, "rgba(160,175,185,0)"); ctx.fillStyle = fog; ctx.fillRect(x0, Math.max(y0, cy - 2200), x1 - x0, Math.min(cy, cy - 400) - Math.max(y0, cy - 2200) + 1); }
+      for (let n = Math.floor(x0 / CW); n * CW < x1; n++) { const x = n * CW; if (n & 1) { ctx.save(); ctx.translate(x + CW, cy); ctx.scale(-1, 1); ctx.drawImage(cl, 0, 0, CW, CH); ctx.restore(); } else ctx.drawImage(cl, x, cy, CW, CH); }
+      const piece = (k, bx, ya, W, flipY) => { const im = imgs.current[k]; if (!im || !im.width) return 0; const L = W * im.width / im.height * 0.42;            // laid north from ya, its length along y
+        ctx.save(); ctx.translate(bx, ya - L / 2); ctx.rotate(-Math.PI / 2); if (flipY) ctx.scale(-1, 1); ctx.drawImage(im, -L / 2, -W / 2, L, W); ctx.restore(); return L; };
+      for (const B of NORTH538.bridges) { const bx = SX(B.i), W = halfW(B.i) * 2.1; if (bx + W < view.x0 - 300 || bx - W > view.x1 + 300) continue;
+        let y = T + 4; ctx.fillStyle = "rgba(0,0,0,0.28)"; ctx.fillRect(bx - W / 2 + 50, y - 4200, W, 4200);                 // its shadow on the water
+        if (B.k === "repair") { y -= piece("br_deck", bx, y, W); y -= 120; y -= piece("br_broken", bx, y, W);
+          y -= 300; for (let k = 0; k < 5; k++) y -= piece("br_deck", bx, y, W); }
+        else { y -= piece("br_deck", bx, y, W); const gy = y; for (let k = 0; k < 5; k++) y -= piece("br_girder", bx, y, W * 0.92);
+          const sc = imgs.current.br_scaffold; if (sc && sc.width) { const sw = W * 0.8, sh = sw * sc.height / sc.width; ctx.drawImage(sc, bx - sw / 2, gy - sh - 60, sw, sh); }
+          const tc = imgs.current.br_tcrane; if (tc && tc.width) { const tw = W * 2.3, th = tw * tc.height / tc.width; ctx.drawImage(tc, bx - tw * 0.36, gy - 420 - th / 2, tw, th); } }
+        const bc = imgs.current.br_closed; if (bc && bc.width) { const bw = W * 0.98, bh = bw * bc.height / bc.width; ctx.drawImage(bc, bx - bw / 2, T - bh - 8, bw, bh); }
+        const cone = imgs.current.pr_cone; if (cone && cone.width) for (let x = bx - W / 2 + 20; x < bx + W / 2; x += 60) ctx.drawImage(cone, x - 10, T - 90, 22, 22);
+        ctx.fillStyle = "rgba(10,10,14,0.85)"; ctx.fillRect(bx - 150, T - 130, 300, 24); ctx.fillStyle = B.k === "repair" ? "#ff6a4a" : "#ffb030"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText(B.nm, bx, T - 113); ctx.textAlign = "start"; }
+      return true; }
+    function drawNorth538(view) { if (drawNorth539(view)) return; const T = NORTH538.top; if (view.y0 > T + 10) return; const x0 = Math.max(view.x0, WORLD_MIN - 2000), x1 = Math.min(view.x1, WORLD_MAX + 2000), y0 = Math.max(view.y0, T - NORTH538.gorge - 900);
       const F = T - NORTH538.gorge;
       // the far side: scrub and trees up there
       ctx.fillStyle = "#2f3a28"; ctx.fillRect(x0, y0, x1 - x0, F - y0);
