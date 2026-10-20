@@ -10048,8 +10048,11 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
      city should read as heavier than the banks around them, so it takes more of its lot than a
      bank does and none of the retail flags. */
   if (isPortCell(i, j) && !civicAt(i, j)) {
-    // one long transit shed per port cell, set back from the quay edge
-    if (rnd() < 0.45) return dryOut(out);
+    /* LAYER 561: the port moved to the water, so the four inland cells are KESTREL INTERMODAL -- the boxes come off the
+       ships and onto the trains here. One yard office on the first cell; the rest is open yard (drawYard561). */
+    if (!(i === PORT_CELLS[0].i && j === PORT_CELLS[0].j)) return dryOut(out);
+    { const b = mkB(lx0 + 30, ly0 + 30, Math.min(LW * 0.30, 300), Math.min(LH * 0.20, 190), 2, "office", rnd, key); b.tone = 0.3; b.retail = false; b.port = true; b.name = "KESTREL INTERMODAL";
+      b.door = { side: 2, pos: 0.5 }; out.push(b); return dryOut(out); }
     const bw = Math.min(LW * 0.86, 40 * MU), bh = Math.min(LH * 0.30, 13 * MU);
     const b = mkB(lx0 + (LW - bw) / 2, ly0 + LH * 0.06, bw, bh, 1, "warehouse", rnd, key);
     b.tone = 0.30; b.retail = false; b.port = true;
@@ -10328,7 +10331,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     return dryOut(out);
   }
 
-  if (zone === "chinatown") {
+  if (zone === "chinatown" && !(hash(i, j, 561) < 0.6 && LW > 760 && LH > 760 && i > 0 && j > 0 && !inOldTown(i, j))) {      // layer 561: some blocks take the alley layout (below)
     // built to the lot line in a terrace of narrow shophouses, the opposite of Uptown's
     // setback: a solid street wall broken only by a service gap
     const n = 4 + Math.floor(rnd() * 3);
@@ -10355,7 +10358,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     return dryOut(out);
   }
 
-  if (zone === "irish") {
+  if (zone === "irish" && !(hash(i, j, 561) < 0.6 && LW > 760 && LH > 760 && i > 0 && j > 0 && !inOldTown(i, j))) {
     // terraced row houses, uniform frontage, plus one parish building per few blocks
     const n = 5 + Math.floor(rnd() * 3);
     const rowH = LH * (0.30 + rnd() * 0.10);
@@ -10386,7 +10389,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     return dryOut(out);
   }
 
-  if (zone === "barrio") {
+  if (zone === "barrio" && !(hash(i, j, 561) < 0.6 && LW > 760 && LH > 760 && i > 0 && j > 0 && !inOldTown(i, j))) {
     // walk-ups around an open courtyard -- a doughnut, not a slab
     const cw = LW * (0.32 + rnd() * 0.10), chh = LH * (0.30 + rnd() * 0.10);
     const ox = lx0 + (LW - cw) / 2, oy = ly0 + (LH - chh) / 2;
@@ -10416,7 +10419,7 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     return dryOut(out);
   }
 
-  if (zone === "uptown") {
+  if (zone === "uptown" && !(hash(i, j, 561) < 0.6 && LW > 760 && LH > 760 && i > 0 && j > 0 && !inOldTown(i, j))) {
     // Uptown reads as money by massing, not by texture: one tall slab set well back off the
     // street with a plaza in front of it, plus a low retail wing along one flank. Downtown
     // builds to the lot line and stacks 4-8; here it's 9-16 and deliberately sparse.
@@ -10462,12 +10465,22 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
      side streets). Hood: three houses a side, each facing its street, a front yard and a back yard. City: one or two
      businesses a side with a concrete lot beside them. Everything gets a back door on the alley; two floors and up a
      fire escape. Half the alleys are fenced at one end. */
-  if ((zone === "hood" || zone === "city") && LW > 760 && LH > 760 && i > 0 && j > 0 && !inOldTown(i, j) && !(i === CLUB_CELL.i && j === CLUB_CELL.j)) {
+  if ((zone === "hood" || zone === "city" || ((zone === "chinatown" || zone === "irish" || zone === "barrio" || (zone === "uptown" && !(i === CORVO_CELL.i && j === CORVO_CELL.j))) && hash(i, j, 561) < 0.6)) && LW > 760 && LH > 760 && i > 0 && j > 0 && !inOldTown(i, j) && !(i === CLUB_CELL.i && j === CLUB_CELL.j)) {      // + the four districts, in their own buildings (layer 561)
     const AW = 92, ay = ly0 + Math.round((LH - AW) / 2), res = [], lots = [], fence = [];
     [{ y0: ly0, y1: ay, door: 0, back: 2 }, { y0: ay + AW, y1: ly1, door: 2, back: 0 }].forEach((Rw, ri) => { const D = Rw.y1 - Rw.y0;
       const front = (h) => Rw.door === 0 ? Rw.y0 + Math.min(D * 0.1, 40) : Rw.y1 - Math.min(D * 0.1, 40) - h;
       const put = (bx, bw, bh, fl, kd, kk) => { const bb = mkB(bx, front(bh), bw, bh, fl, kd, rnd, kk); bb.door = { side: Rw.door, pos: 0.35 + rnd() * 0.3 }; bb.back543 = { side: Rw.back, pos: 0.5 + (rnd() - 0.5) * 0.3 }; if (fl >= 2) bb.fire543 = 1; return bb; };
-      if (zone === "hood") { const PW = LW / 3;
+      /* layer 561: the districts keep their own buildings, backed onto the alley -- Chinatown's shophouse terraces, the
+         Sixth Ward's row houses, La Perla's walk-ups, Uptown's towers with a retail wing */
+      if (zone === "chinatown" || zone === "irish") { const n = zone === "irish" ? 5 + ((rnd() * 2) | 0) : 4 + ((rnd() * 2) | 0), bw = (LW - 12) / n, bh = Math.min(D * 0.78, zone === "irish" ? 13 * MU : 15 * MU);
+        for (let k = 0; k < n; k++) { if (zone === "chinatown" && rnd() < 0.12) continue; const bb = put(lx0 + 6 + k * bw + 1, bw - 2, bh, 2 + (rnd() < 0.35 ? 1 : 0), zone === "irish" ? "rowhouse" : "shophouse", key + k * 7 + ri * 31);
+          bb.tone = zone === "irish" ? 0.14 : 0.2; if (zone === "chinatown") { bb.retail = true; assignBiz(bb, zone, bb.key || key + k); } res.push(bb); } }
+      else if (zone === "barrio") { const n = rnd() < 0.5 ? 2 : 3, bw = (LW - 16) / n - 12, bh = Math.min(D * 0.74, 16 * MU);
+        for (let k = 0; k < n; k++) { const bb = put(lx0 + 8 + k * (bw + 12), bw, bh, 2 + ((rnd() * 3) | 0), "walkup", key + k * 7 + ri * 31); bb.tone = 0.17; res.push(bb); } }
+      else if (zone === "uptown") { const tall = ri === 0 ? rnd() < 0.7 : rnd() < 0.3, bw = LW * (tall ? 0.5 : 0.36), bh = Math.min(D * 0.8, (tall ? 20 : 13) * MU), left = rnd() < 0.5;
+        const bb = put(left ? lx0 + 10 : lx1 - 10 - bw, bw, bh, tall ? 8 + ((rnd() * 7) | 0) : 1 + ((rnd() * 2) | 0), tall ? (rnd() < 0.5 ? "tower" : "office") : "office", key + ri * 31); bb.tone = 0.14; res.push(bb);
+        lots.push({ x: left ? lx0 + bw + 30 : lx0 + 10, y: Rw.y0 + 6, w: LW - bw - 50, h: D - 12 }); }
+      else if (zone === "hood") { const PW = LW / 3;
         for (let k = 0; k < 3; k++) { if (rnd() < 0.07) continue; const pw = Math.min(PW * 0.8, (10 + rnd() * 3) * MU), ph = Math.min(D * 0.62, (8.5 + rnd() * 2.5) * MU);
           res.push(put(lx0 + k * PW + (PW - pw) / 2, pw, ph, rnd() < 0.38 ? 2 : 1, "house", key + k * 7 + ri * 31)); } }
       else { const n = rnd() < 0.5 ? 1 : 2, bh = Math.min(D * 0.74, (14 + rnd() * 6) * MU);
@@ -12593,7 +12606,9 @@ export default function IronLionLayer004() {
 
     if (G.backroomFn && G.backroomFn()) return;                      // RIGHT TO ARMS' back room (layer 482)
     if (g.inside && G.aptSpotFn && G.aptSpotFn()) return;            // the closet, the phone, the mail
-    if (G.dadFn559 && G.dadFn559()) return;                                      // Mom, the garage (layer 559)
+    if (G.dadFn559 && G.dadFn559()) return;
+    if (G.gasFn561 && G.gasFn561()) return;
+    if (G.courtFn561 && G.courtFn561()) return;                                  // the Old Town courts (layer 561)                                      // the station's counter (layer 561)                                      // Mom, the garage (layer 559)
     if (G.alley543Fn && G.alley543Fn()) return;
     if (G.jukeFn557 && G.jukeFn557()) return;
     if (G.back558Fn && G.back558Fn()) return;                                   // a painted shop's back door (layer 558)                                   // the jukebox (layer 557)                           // back doors, fire escapes, fences, the alley people (layer 543)
@@ -17160,6 +17175,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "aldice") return aldicePanel();
       if (kind === "juke557") return jukePanel557();
       if (kind === "dadmom") return dadMomPanel559();
+      if (kind === "gas561") return gasPanel561();
+      if (kind === "court561") return courtPanel561();
       if (kind === "alcamp") return alcampPanel();
       if (kind === "gunheist") return ghPanel();                                          // layer 528
       if (kind === "ghtake") return ghTakePanel();
@@ -17346,7 +17363,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("carin:")) { G.carInPick(id); return; }                 // layer 537
       else if (id.startsWith("ald:") || id.startsWith("alc:") || id.startsWith("alm:")) { G.alPick543(id); return; }
       else if (id.startsWith("juke:")) { G.jukePick557(id); return; }      // layer 557
-      else if (id.startsWith("dad:")) { G.dadPick559(id.slice(4)); return; }      // layer 559      // layer 543
+      else if (id.startsWith("dad:")) { G.dadPick559(id.slice(4)); return; }      // layer 559
+      else if (id.startsWith("gas:")) { G.gasPick561(id.slice(4)); return; }      // layer 561
+      else if (id.startsWith("ct:")) { G.courtPick561(id.slice(3)); return; }      // layer 543
       else if (id === "dock:more") { if (g.dockTalk) g.dockTalk.line = cpick(g.dockTalk.f.guard ? GUARD_LINES : DOCK_LINES); G.pickOpen("docktalk"); return; }   // layer 543
       else if (id.startsWith("idc:")) { g.idView = +id.slice(4); G.pickOpen("idcard"); return; }      // layer 536
       else if (id.startsWith("idv:")) { G.idPick(id); return; }
@@ -19617,7 +19636,37 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
     /* Canopy and shop roof, drawn after the world for the same reason the viaduct is: the
        overlap is what says "you are underneath this". */
-    function drawGasRoofs(view) {
+    /* LAYER 561: THE STATION SHOP OPENS. A clerk behind the counter (the cashier from the shops), E at him: coffee, a candy
+       bar, smokes, a lottery scratcher, a road map (marks the nearest station), a gas can (fills the car you came in) --
+       or, with a gun out, ROB THE TILL. The till refills each day; a robbery is a witnessed crime. */
+    const GAS_MENU561 = [["COFFEE", 1, "stam"], ["CANDY BAR", 1, "hp"], ["SMOKES", 2, "smokes"], ["SCRATCHER", 1, "lotto"], ["GAS CAN, FILLED", 12, "can"]];
+    function gasClerk561(c) { const sh = gasShop(c); return [sh.x + 68, sh.y + 62]; }
+    function nearGas561() { const i = Math.floor(g.p.x / PITCH), j = Math.floor(g.p.y / PITCH); if (!isGasCell(i, j)) return null; const c = getCell(i, j), p = gasClerk561(c); return Math.hypot(g.p.x - p[0], g.p.y - p[1]) < 70 ? c : null; }
+    function drawGasClerk561(view) { if (g.inside) return; const i0 = Math.floor(view.x0 / PITCH), i1 = Math.floor(view.x1 / PITCH), j0 = Math.floor(view.y0 / PITCH), j1 = Math.floor(view.y1 / PITCH);
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { if (!isGasCell(i, j)) continue; const c = getCell(i, j), [x, y] = gasClerk561(c), T = (g.gasTill561 || {})[i * 100 + j];
+        const robbed = T && T.day === (g.pday || 0) && T.robbed; drawShadow(x, y + 2, 9, 4, 0.3);
+        drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.2, yt: "yt_hire_chemist_1", bang: robbed ? -Math.PI / 2 : Math.atan2(g.p.y - y, g.p.x - x) });
+        ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText(robbed ? "HANDS UP" : "CLERK", x, y - 28);
+        if (Math.hypot(g.p.x - x, g.p.y - y) < 70) { ctx.font = "700 10px system-ui"; ctx.fillText("E \u00b7 THE COUNTER", x, y - 40); } ctx.textAlign = "start"; } }
+    G.gasFn561 = () => { if (g.mode !== "foot" || g.inside) return false; const c = nearGas561(); if (!c) return false; g.gasC561 = c; g.gasSaid = null; G.pickOpen("gas561"); return true; };
+    function gasPanel561() { const c = g.gasC561; if (!c) return null; const key = c.i * 100 + c.j, T = ((g.gasTill561 = g.gasTill561 || {})[key] = (g.gasTill561[key] && g.gasTill561[key].day === (g.pday || 0)) ? g.gasTill561[key] : { day: g.pday || 0, cash: 120 + ((Math.random() * 180) | 0) });
+      const armed = g.p.wpn && !g.p.holstered && !/bat|knife|pipe|crowbar|machete|katana|switch|knuck|tire|cue/.test(g.p.wpn);
+      const opts = GAS_MENU561.map(([nm, p], n) => ({ id: "gas:" + n, label: nm + " \u00b7 $" + p }));
+      if (armed && !T.robbed) opts.push({ id: "gas:rob", label: "ROB THE TILL" }); opts.push({ id: "close", label: "NOTHING" });
+      return { title: "THE STATION \u00b7 THE COUNTER", face: "assets/hires/pt_hire_chemist_1.png", text: (g.gasSaid || (T.robbed ? "He won't look at you. The drawer's still open, and empty." : armed ? "His eyes go to the gun and stay there. \u201cWhatever you want, man.\u201d" : "\u201cPump number?\u201d He doesn't look up from the paper.")) + "\n\nYOU HAVE $" + (g.p.cash || 0), opts }; }
+    G.gasPick561 = (a) => { const c = g.gasC561; if (!c) return; const key = c.i * 100 + c.j, T = (g.gasTill561 || {})[key];
+      if (a === "rob") { if (!T || T.robbed) return; T.robbed = 1; g.p.cash = (g.p.cash || 0) + T.cash; g.gasSaid = "He opens the drawer with both hands where you can see them. $" + T.cash + ". \u201cJust go. Please.\u201d"; T.cash = 0;
+        try { witnessed(g.p.x, g.p.y, 2, true); } catch (e) {} g.rep = (g.rep || 0) + 1; G.pickOpen("gas561"); return; }
+      const it = GAS_MENU561[+a]; if (!it) return; if ((g.p.cash || 0) < it[1]) { g.gasSaid = "\u201cThat's $" + it[1] + ".\u201d"; G.pickOpen("gas561"); return; } g.p.cash -= it[1]; if (T) T.cash += it[1];
+      const k = it[2];
+      if (k === "stam") { g.p.stamina = g.p.maxStamina || 100; g.gasSaid = "Burnt, and twelve hours old. It works."; }
+      else if (k === "hp") { g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 10); g.gasSaid = "A Clark bar. Breakfast."; }
+      else if (k === "smokes") { g.gasSaid = "Kools. He slides a book of matches across without being asked."; }
+      else if (k === "lotto") { const w = Math.random(); const pay = w < 0.02 ? 500 : w < 0.1 ? 20 : w < 0.25 ? 2 : 0; g.p.cash += pay; g.gasSaid = pay ? "You scratch it on the counter. $" + pay + "! He pays you out of the drawer like it hurts." : "Nothing. Never is."; if (T) T.cash -= pay; }
+      else if (k === "can") { g.car.fuel = 100; g.gasSaid = "A red can, filled. If your car's dry somewhere, it isn't now -- you top it off on the way back."; }
+      G.pickOpen("gas561"); };
+    G.gasT561 = () => GAS_CELLS.slice(0, 3).map((q) => gasClerk561(getCell(q.i, q.j)).map((v) => v | 0));
+    function drawGasRoofs(view) { drawGasClerk561(view);
       const i0 = clamp(Math.floor(view.x0 / PITCH) - 1, 0, N - 1);
       const i1 = clamp(Math.floor(view.x1 / PITCH) + 1, 0, N - 1);
       const j0 = clamp(Math.floor(view.y0 / PITCH) - 1, 0, N - 1);
@@ -25610,6 +25659,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           }
           if (isShopCell(i, j)) for (const w of joeWalls(getCell(i, j))) list.push(w);      // Joe's (layer 475)
         }
+        if (isPortCell(ci, cj)) for (const w of yard561(getCell(ci, cj)).solids) list.push(w);      // the intermodal yard's boxes (layer 561)
         if (o.x > QUAY537.x0 - 700 && o.x < QUAY537.x1 + 100 && o.y > QUAY537.y0 - 100 && o.y < QUAY537.y1 + 100) for (const w of quayLayout537().solids) list.push(w);   // the quay's boxes and machines (layer 537)
       }
       for (const w of list) {
@@ -40356,7 +40406,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        ALLEYS: every ordinary city lot gets two or three trash corners in its open ground (never
        under a building): a dumpster or cans, bags, pallets -- and pigeons, which scatter when you
        walk up and settle again. Made per cell the first time it is on screen (c.alley). */
-    const ALLEY_ZONES = /hood|downtown|city|industrial|midtown|docks|oldtown|town|uptown|campus|civic|northend/;
+    const ALLEY_ZONES = /hood|downtown|city|industrial|midtown|docks|oldtown|town|uptown|campus|civic|northend|chinatown|irish|barrio/;      // + the districts (layer 561)
     /* LAYER 544 -- THE ALLEY CAMP. The sewer camp's kit (sc_*) and the alley mattress, laid against one wall of an
        alley-block alley, u along the alley, v out from the wall. A barrel or a pot is the fire; one to three people
        round it, from the same plates as the Sky folk. Plates are never turned. Kept with the cell's alley, so it is
@@ -40478,6 +40528,57 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else { ctx.strokeStyle = "#4a3e32"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(-W / 2, front * Hh / 2); ctx.lineTo(-W / 2, -front * Hh / 2); ctx.lineTo(W / 2, -front * Hh / 2); ctx.lineTo(W / 2, front * Hh / 2); ctx.stroke(); }
       ctx.restore();
       if (D.keys && !D.open && Math.hypot(g.p.x - G5.door[0], g.p.y - G5.door[1]) < 90) { ctx.font = "700 10px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText("E \u00b7 OPEN THE GARAGE", G5.door[0], G5.door[1] - 26); ctx.textAlign = "start"; } }
+    /* LAYER 561: LIFE IN THE OLD TOWN COURTS. Every cul-de-sac has a neighbour on her front step (she knows things), and by
+       the hour one of: kids playing stickball in the turning circle (day), a man washing his car (day; he'll do yours),
+       a cookout in the circle (evening; grab a plate), a dice game (late). */
+    const COURT_LADY561 = ["MRS. ODOM", "MISS HATTIE", "MRS. KOWALSKI", "OLD MRS. REYES", "MISS PEARL", "MRS. DUNN"];
+    function courtsNear561(r) { const out = [], i0 = Math.floor((g.p.x - r) / PITCH), i1 = Math.floor((g.p.x + r) / PITCH), j0 = Math.floor((g.p.y - r) / PITCH), j1 = Math.floor((g.p.y + r) / PITCH);
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const c = getCell(i, j); if (!c || !c.courts) continue; c.courts.forEach((k, n) => out.push({ c, k, n, id: i * 1000 + j * 10 + n })); } return out; }
+    function courtScene561(K) { const h = (g.clock || 0) / 60, s = Math.floor(hash(K.id, 5, 61) * 4);
+      if (h >= 21 || h < 3) return s % 2 ? "dice" : "quiet"; if (h >= 17) return s < 2 ? "grill" : s === 2 ? "dice" : "quiet"; if (h >= 8) return s === 0 || s === 3 ? "stickball" : s === 1 ? "wash" : "grill0"; return "quiet"; }
+    function courtSpots561(K) { const k = K.k, W = k.west, hs = k.houses[0], yc = k.yc;
+      return { lady: hs ? [hs.x + RH.hw / 2, yc - RH.road - RH.walk / 2] : [k.cx, yc - RH.road - 20], ladyNm: COURT_LADY561[K.id % COURT_LADY561.length],
+        circle: [k.cx, yc], wash: [W ? k.cx + RH.bulb + 90 : k.cx - RH.bulb - 90, yc + RH.road - 30], washer: [W ? k.cx + RH.bulb + 90 : k.cx - RH.bulb - 90, yc + RH.road + 16] }; }
+    function drawCourts561() { if (g.inside) return; const t = g.t || 0;
+      for (const K of courtsNear561(1600)) { const S = courtSpots561(K), sc = courtScene561(K), P = (x, y, yt, bang, tall) => { drawShadow(x, y + 2, 9, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: t * 3, jit: 1, tall: tall || 1.2, yt, bang }); };
+        if ((g.clock || 0) / 60 >= 7 && (g.clock || 0) / 60 < 22) { P(S.lady[0], S.lady[1], "yt_hire_forger_4", Math.atan2(g.p.y - S.lady[1], g.p.x - S.lady[0]));
+          ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#e8c46a"; ctx.fillText(S.ladyNm, S.lady[0], S.lady[1] - 28); ctx.textAlign = "start"; }
+        const [cx, cy] = S.circle;
+        if (sc === "stickball") { const kids = ["yt_skater_a", "yt_bmx_a", "yt_walkman_c", "yt_bro_a"]; const ph = t * 1.3;
+          kids.forEach((yt, n) => { const a = n * Math.PI / 2 + 0.4, x = cx + Math.cos(a) * 90, y = cy + Math.sin(a) * 70; P(x, y, yt, Math.atan2(cy - y, cx - x), 0.95); });
+          const fr = (ph % 1), a0 = Math.floor(ph) % 4 * Math.PI / 2 + 0.4, a1 = a0 + Math.PI, bx = cx + Math.cos(a0) * 90 * (1 - fr) + Math.cos(a1) * 90 * fr, by = cy + Math.sin(a0) * 70 * (1 - fr) + Math.sin(a1) * 70 * fr - Math.sin(fr * Math.PI) * 26;
+          ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.beginPath(); ctx.arc(bx, by + Math.sin(fr * Math.PI) * 26, 3, 0, 6.3); ctx.fill(); ctx.fillStyle = "#e8e0c8"; ctx.beginPath(); ctx.arc(bx, by, 3.5, 0, 6.3); ctx.fill(); }
+        if (sc === "wash") { const im = imgs.current.sedan_maroon; if (im && im.width) { ctx.save(); ctx.translate(S.wash[0], S.wash[1]); ctx.rotate(Math.PI / 2); ctx.drawImage(im, -24, -52, 48, 104); ctx.restore(); }
+          ctx.fillStyle = "rgba(220,230,240,0.35)"; ctx.beginPath(); ctx.ellipse(S.wash[0], S.wash[1] + 30, 70, 14, 0, 0, 6.3); ctx.fill(); P(S.washer[0], S.washer[1], "yt_hire_mechanic_2", -Math.PI / 2);
+          ctx.fillStyle = "#3a6ab0"; ctx.fillRect(S.washer[0] + 16, S.washer[1] - 4, 10, 10); }
+        if (sc === "grill") { ctx.fillStyle = "#1c1c1e"; ctx.beginPath(); ctx.arc(cx, cy, 14, 0, 6.3); ctx.fill(); ctx.fillStyle = `rgba(255,140,60,${0.5 + 0.3 * Math.sin(t * 7)})`; ctx.beginPath(); ctx.arc(cx, cy, 9, 0, 6.3); ctx.fill();
+          for (let q = 0; q < 4; q++) { const life = (t * 0.4 + q * 0.25) % 1; ctx.fillStyle = `rgba(200,200,200,${(0.35 * (1 - life)).toFixed(2)})`; ctx.beginPath(); ctx.arc(cx + Math.sin(q * 3 + t) * 6, cy - 12 - life * 50, 6 + life * 10, 0, 6.3); ctx.fill(); }
+          ctx.fillStyle = "#6a4a2a"; ctx.fillRect(cx + 40, cy - 30, 60, 24); ctx.fillStyle = "#e8e0c8"; ctx.fillRect(cx + 46, cy - 26, 12, 8); ctx.fillRect(cx + 70, cy - 24, 14, 8);
+          [["yt_hire_driver_2", -40, 10], ["yt_hire_dealer_5", 30, 40], ["yt_hire_fence_2", -20, -50], ["yt_hire_lookout_4", 60, 0]].forEach(([yt, dx, dy]) => P(cx + dx, cy + dy, yt, Math.atan2(-dy, -dx))); }
+        if (sc === "dice") { const im = imgs.current.alp_dice2_a; if (im && im.width) ctx.drawImage(im, cx - 39, cy - 48, 78, 96); drawDice544({ x: cx, y: cy }); } } }
+    G.courtFn561 = () => { if (g.mode !== "foot" || g.inside) return false; for (const K of courtsNear561(400)) { const S = courtSpots561(K), sc = courtScene561(K), d = (p) => Math.hypot(g.p.x - p[0], g.p.y - p[1]);
+        if (d(S.lady) < 55 && (g.clock || 0) / 60 >= 7 && (g.clock || 0) / 60 < 22) { g.court561 = { K, S }; g.courtSaid = null; G.pickOpen("court561"); return true; }
+        if (sc === "wash" && d(S.washer) < 60) { g.court561 = { K, S, wash: 1 }; g.courtSaid = null; G.pickOpen("court561"); return true; }
+        if (sc === "grill" && d(S.circle) < 90) { g.court561 = { K, S, grill: 1 }; g.courtSaid = null; G.pickOpen("court561"); return true; }
+        if (sc === "dice" && d(S.circle) < 70) { openTable("craps", "THE DICE GAME \u00b7 " + S.ladyNm.replace(/^(MRS\.|MISS|OLD MRS\.) /, "") + "'S COURT"); const t = g.table; t.lo = 5; t.hi = 200; t.step = 1; t.bet = 10; t.dice = [6, 6]; t.msg = "\u201cQuiet, man, people sleeping. ...You in?\u201d"; tableSync(); return true; } }
+      return false; };
+    function courtPanel561() { const C = g.court561; if (!C) return null; const day = g.pday || 0;
+      if (C.wash) { const near = g.car && g.car.skin && Math.hypot(g.car.x - g.p.x, g.car.y - g.p.y) < 400;
+        return { title: "THE COURT \u00b7 THE CAR WASH", face: "assets/hires/pt_hire_mechanic_2.png", text: g.courtSaid || (near ? "\u201cThat yours? Ten bucks, I'll get it shining. Whatever's on it, comes off.\u201d" : "\u201cBring it round, I'll wash it. Ten bucks.\u201d"),
+          opts: (near && (g.p.cash || 0) >= 10 ? [{ id: "ct:wash", label: "WASH MY CAR \u00b7 $10" }] : []).concat([{ id: "close", label: "LATER" }]) }; }
+      if (C.grill) { const fed = g.grill561 === day; return { title: "THE COURT \u00b7 THE COOKOUT", face: null, text: g.courtSaid || (fed ? "\u201cYou ate already! ...Take a rib for the road.\u201d" : "Somebody's uncle is at the grill in an apron that says KISS THE COOK. \u201cYou hungry? Course you're hungry. Get a plate.\u201d"),
+        opts: (fed ? [] : [{ id: "ct:plate", label: "GRAB A PLATE" }]).concat([{ id: "close", label: "THANKS" }]) }; }
+      const hot = (g.heat || 0) > 0 || (g.wantedT || 0) > 0;
+      return { title: "THE COURT \u00b7 " + C.S.ladyNm, face: "assets/hires/pt_hire_forger_4.png", text: g.courtSaid || "She's been on this step since the Truman administration. \u201cWell, look what the cat dragged in.\u201d",
+        opts: [{ id: "ct:word", label: "\u201cWHAT'S THE WORD?\u201d" }, { id: "ct:asked", label: "\u201cANYBODY ASKING ABOUT ME?\u201d" }].concat(hot && (g.p.cash || 0) >= 20 ? [{ id: "ct:quiet", label: "\u201cYOU NEVER SAW ME.\u201d \u00b7 $20" }] : []).concat([{ id: "close", label: "\u201cTAKE CARE, MA'AM.\u201d" }]) }; }
+    G.courtPick561 = (a) => { const C = g.court561; if (!C) return;
+      if (a === "wash") { const v = g.car; g.p.cash -= 10; v.hit = null; v.dirt = 0; if (v.idn && v.idn.flag === "blood") v.idn = { ...v.idn, flag: null }; g.courtSaid = "Twenty minutes with a sponge and a bucket. It shines. Whatever was on it went down the drain, and he didn't ask."; }
+      if (a === "plate") { g.grill561 = g.pday || 0; g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 25); g.courtSaid = "Ribs, greens, potato salad somebody's grandmother made. You eat standing up. (+25 health)"; }
+      if (a === "word") { g.alCamp = { nm: C.S.ladyNm }; g.courtSaid = campWord544().replace(/Tell him .* sent you\. \.\.\.Don't tell him .* sent you\./, "Don't say I told you.").replace("Makes a man nervous.", "Makes me nervous."); }
+      if (a === "asked") g.courtSaid = (g.heat || 0) > 1 ? "\u201cTwo of them in a brown Plymouth. Asked about you by name, baby. I said I don't know any you.\u201d" : (g.heat || 0) > 0 ? "\u201cA patrol car came round twice this morning. Slow. They weren't looking for a parking space.\u201d" : "\u201cNobody. You keep it that way.\u201d";
+      if (a === "quiet") { g.p.cash -= 20; g.heat = Math.max(0, (g.heat || 0) - 1); g.courtSaid = "She tucks it in her housecoat. \u201cYou moved to Ohio. Two years ago. Broke your mother's heart.\u201d"; }
+      G.pickOpen("court561"); };
+    G.courtT561 = () => courtsNear561(30000).slice(0, 3).map((K) => { const S = courtSpots561(K); return [K.id, courtScene561(K), S.lady.map((v) => v | 0), S.circle.map((v) => v | 0), S.washer.map((v) => v | 0)]; });
     function drawMom560() { if (!dadAvail559() || g.inside) return; const D = g.dadCar || {}; const mp = momPt559(); if (mp && !D.keys) { drawShadow(mp[0], mp[1] + 2, 9, 4, 0.3); drawYouth({ x: mp[0], y: mp[1], vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.25, yt: "yt_rey_mom", bang: Math.atan2(g.p.y - mp[1], g.p.x - mp[0]) });
         ctx.font = "700 9px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd65a"; ctx.fillText("MOM", mp[0], mp[1] - 30); ctx.textAlign = "start"; } }
     G.dadFn559 = () => { if (!dadAvail559() || g.mode !== "foot" || g.inside) return false; const D = (g.dadCar = g.dadCar || {}), mp = momPt559(), G5 = dadGarage559();
@@ -44795,7 +44896,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }
         if (c.zone === "prison") continue;             // so does the prison, in one campus
         if (c.zone === "neon") { drawNeon(c); continue; }
-        if (isPortCell(c.i, c.j)) { drawPort(c); continue; }
+        if (isPortCell(c.i, c.j)) { drawYard561(c); continue; }      // layer 561: the intermodal yard
         if (isTrailerCell(c.i, c.j)) { drawTrailerYard(c); continue; }
         if (c.zone === "farm") { drawFarm(c); continue; }
         if (c.zone === "town") { drawTownLot(c); continue; }
@@ -47830,7 +47931,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else if (kind === 9) p.__draw();
       }
       if (g.inside && g.insideT > 0.5) { drawHoopsOver(); drawBizExtras(); }
-      if (!g.inside) { drawFireOver560(view); drawMom560(); }      // + Mom on her step, in front of the house (layer 560)      // the fire escapes hang over the alley (layer 560)
+      if (!g.inside) { drawFireOver560(view); drawMom560(); drawCourts561(); }      // + Mom on her step, in front of the house (layer 560)      // the fire escapes hang over the alley (layer 560)
       drawStory(); drawSetup(); drawEmp(); drawMimi(); drawNest2(); DRAW98.forEach((f) => f()); drawYardDoorIn(); drawTrophy(); drawCarry(); drawPick(); drawCalled(); drawLedger(); drawRcase(); drawDrum509(); drawAptDoors512(); drawAptConsole512(); drawFirstOut(); drawScrap2(); drawFriday(); drawAllin(); drawWash(); drawWashCrew(); drawParty(); drawMorning(); drawMaptable(); drawPabloHang(); drawBozFolk(); drawDreadCorner(); drawCornerMark(); drawCellParty(); drawEscort511(); drawParty511(); drawEddie(); drawJose(); drawSiteCones(); drawCover(); drawBombed(view); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
       if (!g.inside) {
         // Roofs belong ABOVE the sorted building list, not before it -- drawn early, every
@@ -50160,6 +50261,43 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const cone = imgs.current.pr_cone; if (cone && cone.width) for (let x = bx - hw + 30; x < bx + hw; x += 70) ctx.drawImage(cone, x - 10, T - 70, 22, 22);
         ctx.fillStyle = "rgba(10,10,14,0.85)"; ctx.fillRect(bx - 150, T - 110, 300, 26); ctx.fillStyle = B.k === "repair" ? "#ff6a4a" : "#ffb030"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText(B.nm, bx, T - 92); ctx.textAlign = "start"; } }
     G.northT = () => NORTH538.bridges.map((B) => [B.k, SX(B.i)]);      // test hook
+    /* LAYER 561: KESTREL INTERMODAL. Per cell: concrete apron, two rail tracks across the middle with a train of flatcars
+       (containers on them), stacks of boxes either side (the quay's depth trick, solid), a straddle carrier, semis waiting
+       in a row, lamps, the gate. */
+    const yardC561 = new Map();
+    function yard561(c) { const key = c.i * 100 + c.j; if (yardC561.has(key)) return yardC561.get(key); const rnd = mulberry((c.i * 7717 + c.j * 3301) >>> 0);
+      const L = { stacks: [], solids: [], cars: [], rigs: [], lamps: [] }, x0 = c.lx0 + 40, x1 = c.lx1 - 40, W = x1 - x0, office = c.i === PORT_CELLS[0].i && c.j === PORT_CELLS[0].j;
+      const ty = c.ly0 + (c.ly1 - c.ly0) * 0.56; L.tracks = [ty - 46, ty + 46];
+      for (const tyy of L.tracks) { let x = x0 + 30; while (x < x1 - 260) { const k = "px_c40_" + (1 + ((rnd() * 4) | 0)); if (rnd() < 0.8) L.cars.push({ x: x + 125, y: tyy, k }); x += 270; } }
+      const rows = office ? [[c.ly0 + 260, ty - 120]] : [[c.ly0 + 50, ty - 120]]; rows.push([ty + 120, c.ly1 - 160]);
+      for (const [ya, yb] of rows) { let y = ya; while (y < yb - 100) { let x = x0 + 10;
+          while (x < x1 - 130) { if (rnd() < 0.15) { x += 140; continue; } const long = rnd() < 0.6, k = long ? "px_c40_" + (1 + ((rnd() * 4) | 0)) : "px_c20_" + (1 + ((rnd() * 7) | 0)), w = long ? 250 : 125, h = long ? 119 : 91;
+            if (x + w > x1) break; const hi = 1 + ((rnd() * 3) | 0); L.stacks.push({ k, x: x + w / 2, y: y + 60, w, h, hi }); L.solids.push({ x: x + 2, y: y + 60 - h / 2 + 2, w: w - 4, h: h - 4 }); x += w + 10; }
+          y += 150; } }
+      for (let n = 0, x = x0 + 120; n < 3 && x < x1 - 200; n++, x += 380) if (rnd() < 0.8) L.rigs.push({ x, y: c.ly1 - 80, k: rnd() < 0.5 ? "vh_semi_blue" : "vh_semi_orange", box: rnd() < 0.6 ? "px_c40_" + (1 + ((rnd() * 4) | 0)) : null });
+      for (const r of L.rigs) L.solids.push({ x: r.x - 165, y: r.y - 38, w: 330, h: 76 });
+      L.carrier = { x: x0 + W * (0.3 + rnd() * 0.4), y: ty - 90 }; L.solids.push({ x: L.carrier.x - 55, y: L.carrier.y - 110, w: 110, h: 220 });
+      for (const lx of [x0 + 10, x1 - 10]) L.lamps.push([lx, ty - 100], [lx, ty + 100]);
+      yardC561.set(key, L); return L; }
+    function drawYard561(c) { const L = yard561(c), w = c.lx1 - c.lx0, h = c.ly1 - c.ly0, ap = imgs.current.tx_port_apron || imgs.current.tx_concrete;
+      if (ap && ap.width) { const pat = ctx.createPattern(ap, "repeat"); ctx.save(); ctx.translate(c.lx0, c.ly0); ctx.scale(0.5, 0.5); ctx.fillStyle = pat; ctx.fillRect(0, 0, w * 2, h * 2); ctx.restore(); } else { ctx.fillStyle = "#6a6862"; ctx.fillRect(c.lx0, c.ly0, w, h); }
+      ctx.fillStyle = "rgba(0,0,0,0.14)"; ctx.fillRect(c.lx0, c.ly0, w, h);
+      // the tracks: ballast, sleepers, two rails
+      for (const ty of L.tracks) { ctx.fillStyle = "#4a4640"; ctx.fillRect(c.lx0 - 30, ty - 30, w + 60, 60); ctx.fillStyle = "#3a2c22"; for (let x = c.lx0 - 30; x < c.lx1 + 30; x += 22) ctx.fillRect(x, ty - 24, 9, 48);
+        ctx.fillStyle = "#9a9a9e"; ctx.fillRect(c.lx0 - 30, ty - 16, w + 60, 4); ctx.fillRect(c.lx0 - 30, ty + 12, w + 60, 4); }
+      // the flatcars and their boxes
+      for (const f of L.cars) { ctx.fillStyle = "#2c2a28"; ctx.fillRect(f.x - 132, f.y - 26, 264, 52); ctx.fillStyle = "#1a1918"; for (const dx of [-100, -70, 70, 100]) ctx.fillRect(f.x + dx - 8, f.y - 30, 16, 60); const im = imgs.current[f.k]; if (im && im.width) ctx.drawImage(im, f.x - 125, f.y - 24, 250, 48 * 119 / 119 * 1.0 + 0); }
+      // lane paint
+      ctx.fillStyle = "rgba(226,206,90,0.55)"; for (const y of [L.tracks[0] - 70, L.tracks[1] + 70]) for (let x = c.lx0 + 20; x < c.lx1 - 40; x += 70) ctx.fillRect(x, y - 2, 40, 4);
+      for (const s of L.stacks) drawStack538(s);
+      // the semis waiting to be loaded
+      for (const r of L.rigs) { const im = imgs.current[r.k]; if (!im || !im.width) continue; ctx.save(); ctx.translate(r.x, r.y); ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(-160, -30, 330, 70); ctx.drawImage(im, -165, -38, 330, 76);
+        const bi = r.box && imgs.current[r.box]; if (bi && bi.width) ctx.drawImage(bi, -150, -30, 250, 60); ctx.restore(); }
+      { const im = imgs.current.px_veh_3, C2 = L.carrier; if (im && im.width) { ctx.save(); ctx.translate(C2.x, C2.y); ctx.rotate(Math.PI / 2); ctx.drawImage(im, -115, -55, 230, 230 * 316 / 625); ctx.restore(); } }
+      for (const [x, y] of L.lamps) { const im = imgs.current.px_lampbase; if (im && im.width) ctx.drawImage(im, x - 15, y - 20, 30, 41); }
+      if (c.i === PORT_CELLS[0].i && c.j === PORT_CELLS[0].j) { ctx.fillStyle = "#2a2d33"; ctx.fillRect(c.lx1 - 360, c.ly0 + 40, 300, 46); ctx.fillStyle = "#d8a032"; ctx.fillRect(c.lx1 - 360, c.ly0 + 40, 300, 5);
+        ctx.fillStyle = "#e8e2d0"; ctx.font = "bold 18px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText("KESTREL INTERMODAL", c.lx1 - 210, c.ly0 + 72); ctx.textAlign = "start"; } }
+    G.yardT561 = () => PORT_CELLS.map((p) => { const c = getCell(p.i, p.j), L = yard561(c); return [p.i, p.j, L.stacks.length, L.cars.length, L.rigs.length, (c.blds || []).map((b) => b.name || b.kind)]; });
     function drawPort(c) {
       const w = c.lx1 - c.lx0, h = c.ly1 - c.ly0;
       const ap = imgs.current["tx_port_apron"];
