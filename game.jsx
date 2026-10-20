@@ -14686,11 +14686,25 @@ export default function IronLionLayer004() {
     /* A UNIFORM off his own plate, picked by who he is: the sheet is drawn once per skin tone and
        per sex, so a roster name and a body match. Falls back to the old drawn cop. */
     const COP_SKIN = { pale: [205, 160, 130], tan: [180, 130, 95], brown: [140, 95, 65], dark: [95, 62, 42] };
+    /* LAYER 572 (Donny): a dead officer is a BODY, not a stretched frame over a shadow -- his own uniform torso (tone and
+       sex off the roster, seeded when there is none), arms flung out, legs out straight, laid at the angle he fell, on a
+       pool that spreads over the first six seconds. If the rig's art is not in yet it falls back to the old KO frame. */
+    function drawDeadCop572(u) {
+      if (u.deadSeed == null) { u.deadSeed = (Math.random() * 1e6) | 0; u.deadAng = Math.random() * 6.283; u.deadT0 = g.t || 0;
+        if (!u.race) u.race = ["white", "white", "black", "latino", "asian", "black"][u.deadSeed % 6]; if (!u.sex) u.sex = u.deadSeed % 7 === 0 ? "f" : "m"; }
+      const R = clamp(((g.t || 0) - u.deadT0) / 6, 0.15, 1);
+      ctx.save(); ctx.translate(u.x, u.y); ctx.rotate(u.deadAng);
+      ctx.fillStyle = "rgba(78,6,8,0.80)"; ctx.beginPath(); ctx.ellipse(0, -4, 5 + 12 * R, 4 + 9 * R, 0.25, 0, 6.3); ctx.fill();
+      ctx.fillStyle = "rgba(110,10,12,0.55)"; ctx.beginPath(); ctx.ellipse(6 * R, 6 * R, 3 + 8 * R, 2 + 6 * R, -0.4, 0, 6.3); ctx.fill();
+      ctx.restore();
+      drawCopPlate({ x: u.x, y: u.y, vx: 0, vy: 0, anim: 0, jit: u.jit || 1, race: u.race, sex: u.sex, rank: u.rank, swat: u.swat, id: u.deadSeed, hp: 0,
+        bang: u.deadAng, dead: 1, lying: 1, legK: "lg_lie_slacks", deadSeed: u.deadSeed, wpn: null, drawnT: 0, state: u.state, toprow: u.toprow, o: u.o });
+    }
     function drawCopPlate(u) {
       { let tone = COP_TONE[u.race || "white"] || "pale"; if (u.race === "black" && ((Math.abs(Math.round((u.id || u.x0 || 0) * 7)) % 2) === 1)) tone = "dark";      // torso + arms (layer 532)
         const kind = u.swat ? "swat" : u.sex === "f" ? "cop_f" : u.rank === "sgt" || /SGT|SERGEANT/.test(u.rank || "") ? "cop_sgt" : "cop_m";
         const A = { torso: "ar_torso_" + kind + "_" + tone, set: kind === "swat" ? "swat" : "police", skin: COP_SKIN[tone].map((v) => Math.round(v * 0.85)), sleeve: kind === "swat" ? [32, 32, 36] : [30, 40, 92], wid: W532 };
-        if (!g.noArms && armsReady(A) && drawYouth({ x: u.x, y: u.y, vx: u.vx || 0, vy: u.vy || 0, anim: u.anim || 0, jit: u.jit || 1, bang: u.bang != null ? u.bang : Math.PI / 2, yt: A.torso, arms: A, held: u.wpn && (u.drawnT || 0) > 0 ? u.wpn : null, aim: !!(u.wpn && (u.drawnT || 0) > 0) })) return; }
+        if (!g.noArms && armsReady(A) && drawYouth({ x: u.x, y: u.y, vx: u.vx || 0, vy: u.vy || 0, anim: u.anim || 0, jit: u.jit || 1, bang: u.bang != null ? u.bang : Math.PI / 2, yt: A.torso, arms: A, held: u.wpn && (u.drawnT || 0) > 0 ? u.wpn : null, aim: !!(u.wpn && (u.drawnT || 0) > 0), dead: u.dead, lying: u.lying, legK: u.legK, deadSeed: u.deadSeed })) return; }
       const tone = COP_TONE[u.race || "white"] || "pale";
       const key = "cop_" + (u.sex === "f" ? "f" : "m") + "_" + (u.race === "black" && Math.random() < 0 ? "dark" : tone);
       const im = imgs.current[key];
@@ -18777,6 +18791,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const mv = on && !gun ? (melee ? "swing" : p.move === "hook" ? "hook" : "jab") : null;
       const RS = [-sx * 0.82, sy + h * 0.02], LS = [sx * 0.82, sy + h * 0.02];
       const over = [];
+      /* LAYER 572: A BODY. Both arms flung out from the shoulders at angles seeded off the man (so he lands one way and
+         stays that way), drawn now -- under the torso, the way arms lie under a man on his back. */
+      if (p.dead) { const sd = Math.abs(p.deadSeed || 0), r1 = (sd % 97) / 97, r2 = (sd % 89) / 89;
+        thrown(fist, LS[0], LS[1], -0.75 + r1 * 1.6, h * 0.86, true); thrown(fist, RS[0], RS[1], Math.PI + 0.75 - r2 * 1.6, h * 0.86, false); return null; }
       // LEFT arm (+x): the hook, the support hand under a long gun, or hanging and swinging against the left leg
       if (mv === "hook") over.push(() => thrown(fist, LS[0], LS[1], 0.25 + kq * 1.75, h * (0.8 + 0.3 * punch), true));
       else if (gun && LONG_RX.test(wp)) over.push(() => thrown(fist, LS[0], LS[1], Math.PI / 2 + 0.42, h * 0.78, true));
@@ -31154,6 +31172,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.police = { x, y, car, units, life: 70, arrived: false };
       g.scanner = 2.5;
     }
+    G.dispatchPolice572 = (x, y) => dispatchPolice(x, y);      // tests
 
     /* --- police who actually police -----------------------------------------------
 
@@ -31187,7 +31206,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else { u.vx = 0; u.vy = 0; }
       u.aimAng = Math.atan2(g.p.y - u.y, g.p.x - u.x);
       u.fireCd = (u.fireCd || 0) - dt;
-      if (u.peek && pd < 540 && u.fireCd <= 0 && u.stun <= 0) {
+      if (u.peek && pd < 540 && u.fireCd <= 0 && (u.stun || 0) <= 0) {      // layer 572: stun starts undefined, and undefined <= 0 is false -- nobody in cover fired until you had hit him
         u.fireCd = 1.0 + Math.random() * 0.9;
         u.muzzle = 0.16; u.drawnT = 0.9;
         sfxGunshot();
@@ -31269,8 +31288,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             }
           }
           for (const u of Q.units) {
-            u.anim += dt * 4;
+            u.anim += dt * 4; u.stun = Math.max(0, (u.stun || 0) - dt);       // layer 572: nothing ever counted a cop's stun down
             if (u.state !== "out") { u.x = qc.x; u.y = qc.y; continue; }
+            if (u.hp != null && u.hp <= 0) { u.vx = 0; u.vy = 0; continue; }      // layer 572: a dead officer stays down -- the backup cars had no check at all, so they kept taking cover and FIRING
             if (copCover(u, qc, dt)) continue;
             const dx = u.hx - u.x, dy = u.hy - u.y, d = Math.hypot(dx, dy);
             if (d > 6) { u.vx = (dx / d) * 60; u.vy = (dy / d) * 60; u.x += u.vx * dt; u.y += u.vy * dt; }
@@ -31299,10 +31319,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }
       }
       for (const u of P.units) {
-        u.anim += dt * 6;
+        u.anim += dt * 6; u.stun = Math.max(0, (u.stun || 0) - dt);       // layer 572
         u.say -= dt;
         u.fireCd = Math.max(0, u.fireCd - dt);
         if (u.state === "wait") { u.x = c.x; u.y = c.y; continue; }
+        if (u.hp != null && u.hp <= 0) { u.vx = 0; u.vy = 0; u.say = 0; continue; }      // layer 572: down is down -- he was still walking his canvass route
         // wanted and in sight: work the car rather than canvassing past him
         if (u.hp > 0 && copCover(u, c, dt)) continue;
         /* WANTED MEANS SHOT AT. Officers had exactly two behaviours -- canvass, and engage a
@@ -46376,7 +46397,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (byPlayer) g.p.peekT = COVER.peekT;                                          // shooting from cover is peeking
       (g.bullets = g.bullets || []).push({
         x: from.x, y: from.y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
-        dmg, left: range, byPlayer: !!byPlayer, gang: gang || null, t: 0,
+        dmg, left: range, byPlayer: !!byPlayer, gang: gang || null, t: 0, ox: from.x, oy: from.y, src: from,
       });
     }
     function updateBullets(dt) {
@@ -46393,6 +46414,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
            testing only the end point would let it pass straight through him. */
         const hit = (o, isPlayer) => {
           if (!o || (o.hp != null && o.hp <= 0)) return false;
+          if (o === b.src) return false;                    // layer 572: a man is not hit by his own round (it starts inside him)
           const dx = b.x - sx, dy = b.y - sy, len2 = dx * dx + dy * dy || 1;
           let t = ((o.x - sx) * dx + (o.y - sy) * dy) / len2;
           t = Math.max(0, Math.min(1, t));
@@ -46420,6 +46442,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         for (const v of g.traffic.concat(policeCars().filter(Boolean))) {
           if (v.fwy || !Number.isFinite(v.x)) continue;
           const rr = (v.rad || 20) + 12;
+          /* LAYER 572: a round fired by somebody leaning on a car clears that car. A cop peeking at his cruiser's wing
+             stands 30 from its middle and the car's hit circle is 32 -- every shot he took from cover went into his own
+             door, which is why the police behind their car never landed one. Same for you crouched behind a bumper. */
+          if (b.ox != null && Math.hypot(v.x - b.ox, v.y - b.oy) < rr + 6) continue;
           const dxv = b.x - sx, dyv = b.y - sy, l2 = dxv * dxv + dyv * dyv || 1;
           let tv = ((v.x - sx) * dxv + (v.y - sy) * dyv) / l2;
           tv = Math.max(0, Math.min(1, tv));
@@ -46481,8 +46507,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         } else if (g.mode === "foot") {
           /* Police and federals were never on this loop. Every round the player fired went
              straight through an officer standing in the road. */
-          if (!gone) for (const u of policeUnits()) if (hit(u)) { gone = true; break; }
-          if (!gone) for (const f of federals()) if (hit(f)) { gone = true; break; }
+          const lawRound = b.gang === "police" || b.gang === "cop";      // layer 572: the law does not shoot the law -- two officers on one wing were killing each other
+          if (!gone && !lawRound) for (const u of policeUnits()) if (hit(u)) { gone = true; break; }
+          if (!gone && !lawRound) for (const f of federals()) if (hit(f)) { gone = true; break; }
           if (hit(g.p, true)) gone = true;
         }
         /* Rounds fired by one crew hit the OTHER crew. Without this a gang fight was two lines
@@ -48561,7 +48588,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       drawList.sort((a, b) => a[0] - b[0]);
       for (const [, kind, p, extra] of drawList) {
         if (kind === 6) drawDetective(p);
-        else if (kind === 5) drawCop(p);
+        else if (kind === 5) { if (p.hp != null && p.hp <= 0) drawDeadCop572(p); else drawCop(p); }      // a body (layer 572)
         else if (kind === 4) {
           drawBuildingExt(p, g.roof && p !== g.roof ? 0.55 : 1);
           if (p.fire || p.burnt) drawBurn(p);
