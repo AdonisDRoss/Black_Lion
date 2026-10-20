@@ -239,6 +239,9 @@ const carSpecialFor = (c, who, mode) => {
    you fought in, short enough that the city does not silt up with them. */
 const WRECK_M = [{ k: "wreck_shell", len: 118, w: 50 }, { k: "wreck_frame", len: 122, w: 52 }];
 const WRECK_LIFE = 150;
+/* layer 566: one size for every bike on the road, and what's left of one */
+const RIDE_K566 = 0.7;                 // a rider is drawn crouched: 0.7 of standing
+const MOTO_WRECK566 = [{ k: "moto_wreck_v_a", len: 64, w: 33 }, { k: "moto_wreck_v_b", len: 62, w: 33 }];
 const carThirst0 = (c) => (c && c.m && CARTHIRST[c.m.k]) || 1;
 const carThirst = (c) => { const b = carThirst0(c), m = modsOf(c), e = m && partOf("engine", m.engine); return e ? b * e.th : b; };   // layer 468: the engine drinks what it drinks
 const carStat0 = (c) => (c && c.m && CARSTAT[c.m.k]) || (c && c.skin && c.skin.k && carModel(c.skin.k)) || { s: 1, a: 1, g: 1 };   // the player's car too, by its make (layer 511)
@@ -367,7 +370,7 @@ const NAMED_CARS = [
      stretched at speed, which cost four of the villain cars a re-measure. */
   { k: "hh_det", len: 124, w: 52 },
   { k: "hh_sec_van", len: 128, w: 63 },
-  { k: "vh_kuru_bike", len: 96, w: 34 },
+  { k: "vh_kuru_bike", len: 66, w: 23 },
   { k: "vh_mvp_atv", len: 92, w: 62 },
   { k: "vh_mons_rod", len: 112, w: 58 },
   { k: "vh_drive_van", len: 122, w: 66 },
@@ -2274,7 +2277,7 @@ const VIL_CARS = [
   /* `w` is MEASURED off each plate now, not guessed: w = len * (plate width / plate height),
      with every one cut nose-UP. A width that disagrees with the art is what makes a car look
      stretched at speed and read as a different vehicle from the one parked. */
-  { k: "vh_kuru_bike", len: 96, w: 32, who: "kuru" },
+  { k: "vh_kuru_bike", len: 66, w: 22, who: "kuru" },
   { k: "vh_mvp_atv", len: 92, w: 62, who: "mvp" },
   { k: "vh_mons_rod", len: 112, w: 67, who: "monstruo" },
   { k: "vh_drive_van", len: 122, w: 68, who: "drive", rockets: 1 },
@@ -2806,10 +2809,10 @@ const GANGTOP_ART = {
   shop2_atlas: "assets/shop2_atlas.webp",
   /* The elevated. Registered before the art exists so the loader is the thing that reports them
      missing, rather than the train silently staying grey with no explanation. */
-  el_roof: "assets/el_roof.webp", el_roof_front: "assets/el_roof_front.webp",
-  el_roof2: "assets/el_roof2.webp", el_roof3: "assets/el_roof3.webp",
-  el_roof4: "assets/el_roof4.webp",
-  el_eng_roof: "assets/el_eng_roof.webp", el_eng_in: "assets/el_eng_in.webp",
+  el_roof: "assets/el_roof.png", el_roof_front: "assets/el_roof_front.webp",          // layer 566: your new cars (png)
+  el_roof2: "assets/el_roof2.png", el_roof3: "assets/el_roof3.png",
+  el_roof4: "assets/el_roof.png",
+  el_eng_roof: "assets/el_eng_roof.png", el_eng_in: "assets/el_eng_in.webp",
   transit_top: "assets/transit_top.png",
   el_in: "assets/el_in.webp", el_in_front: "assets/el_in_front.webp",
   el_in2: "assets/el_in2.webp", el_in3: "assets/el_in3.webp",
@@ -2960,9 +2963,14 @@ const MAP_ZONE_COL = {
   barrio: "#664a28", cemetery: "#2a3828", northend: "#4a4038", civic: "#40485a", stadium: "#3a4a3e",
   neonflats: "#583a4c", neon: "#583a4c", county: "#34402c", kestrel: "#3a3e36", mountain: "#3a3a36",
 };
-function mapBase() {
-  if (mapBase._c) return mapBase._c;
-  const S = 1024, span = SX(N), k = S / span;
+/* LAYER 564: THE CITY'S ART ON IT. Still the world's geometry, but drawn like a city again: 2048 square, pavements either side
+   of every street, the dashed centre line, parks and the cemetery with their trees, and every building that has art drawn
+   with its own roof plate (the same plate the street shows, via `roofFn` = platedRoof), the rest in a roof tone by kind. A
+   plate still loading means the map is rebuilt a few seconds later (up to six times) so the art fills in. */
+function mapBase(roofFn) {
+  if (mapBase._c && !(mapBase._miss > 0 && (mapBase._n || 0) < 6 && Date.now() - (mapBase._t || 0) > 4000 && roofFn)) return mapBase._c;
+  mapBase._n = (mapBase._n || 0) + (mapBase._c ? 1 : 0); mapBase._t = Date.now(); let miss = 0;
+  const S = 2048, span = SX(N), k = S / span;
   const cv = document.createElement("canvas"); cv.width = S; cv.height = S;
   const x = cv.getContext("2d");
   const cell = S / N;
@@ -2977,19 +2985,36 @@ function mapBase() {
     const d = waterDepth((px + step / 2) / k, (py + step / 2) / k);
     if (d > 0) { x.fillStyle = d > 0.5 ? "#1c3448" : "#28465c"; x.fillRect(px, py, step, step); }
   }
-  // streets at their real widths
+  // parks and the cemetery: trees
+  { const rnd = mulberry(5641);
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const z = zoneOf(i, j); if (!/park|cemetery|county|mountain/.test(z || "")) continue;
+      const n = z === "county" ? 3 : 14; for (let q = 0; q < n; q++) { const px = (i + 0.1 + rnd() * 0.8) * PITCH * k, py = (j + 0.1 + rnd() * 0.8) * PITCH * k, r = 2 + rnd() * 3.5;
+        x.fillStyle = "rgba(0,0,0,0.3)"; x.beginPath(); x.arc(px + 1, py + 1.4, r, 0, 6.3); x.fill();
+        x.fillStyle = z === "cemetery" ? "#22301f" : "#2f5a2c"; x.beginPath(); x.arc(px, py, r, 0, 6.3); x.fill();
+        x.fillStyle = "rgba(120,170,90,0.25)"; x.beginPath(); x.arc(px - r * 0.3, py - r * 0.3, r * 0.5, 0, 6.3); x.fill(); } } }
+  // pavements, then the streets at their real widths, then the centre lines
+  x.fillStyle = "#5a5c60";
+  for (let i = 0; i <= N; i++) { const w = Math.max(2, (halfW(i) + SW) * 2 * k); x.fillRect(SX(i) * k - w / 2, 0, w, S); x.fillRect(0, SX(i) * k - w / 2, S, w); }
   x.fillStyle = "#1d1e22";
   for (let i = 0; i <= N; i++) {
     const w = Math.max(1.2, halfW(i) * 2 * k);
     x.fillRect(SX(i) * k - w / 2, 0, w, S);
     x.fillRect(0, SX(i) * k - w / 2, S, w);
   }
-  // every building's footprint
+  x.fillStyle = "rgba(214,184,92,0.55)";
+  for (let i = 0; i <= N; i++) { if (halfW(i) * 2 * k < 4) continue; for (let q = 0; q < S; q += 9) { x.fillRect(SX(i) * k - 0.4, q, 0.8, 5); x.fillRect(q, SX(i) * k - 0.4, 5, 0.8); } }
+  // every building: its own roof plate if it has one, else a roof tone by kind
+  const TONE = { house: "#6a4a3c", apt: "#5c5852", walkup: "#5e4a40", store: "#55585e", office: "#4c5664", warehouse: "#5a5650", garage: "#4e4c48", tower: "#47505c", church: "#6a5e50", bar: "#4e3e3a" };
   for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
     const c = getCell(i, j);
     for (const b of (c && c.blds) || []) {
-      x.fillStyle = "rgba(14,15,18,0.55)";
-      x.fillRect(b.x * k, b.y * k, Math.max(1, b.w * k), Math.max(1, b.h * k));
+      const bw = Math.max(1, b.w * k), bh = Math.max(1, b.h * k), im = roofFn && b.door ? roofFn(b) : null;
+      x.fillStyle = "rgba(0,0,0,0.35)"; x.fillRect(b.x * k + 1, b.y * k + 1.4, bw, bh);
+      if (im) { x.save(); if (b.door && b.door.side === 0) { x.translate(b.x * k + bw, b.y * k + bh); x.rotate(Math.PI); x.drawImage(im, 0, 0, bw, bh); } else x.drawImage(im, b.x * k, b.y * k, bw, bh); x.restore(); continue; }
+      if (roofFn && b._plate) miss++;
+      const kk = Object.keys(TONE).find((q) => (b.kind || "").indexOf(q) >= 0);
+      x.fillStyle = /wall/.test(b.kind || "") ? "#77736a" : kk ? TONE[kk] : "#50535a"; x.fillRect(b.x * k, b.y * k, bw, bh);
+      if (bw > 4 && bh > 4) { x.fillStyle = "rgba(255,255,255,0.08)"; x.fillRect(b.x * k, b.y * k, bw, Math.max(1, bh * 0.18)); x.strokeStyle = "rgba(0,0,0,0.4)"; x.lineWidth = 0.6; x.strokeRect(b.x * k, b.y * k, bw, bh); }
     }
   }
   // the expressway and its ramps
@@ -3001,6 +3026,7 @@ function mapBase() {
   x.fillStyle = "rgba(40,40,44,0.8)";
   for (const i of FWY_V) x.fillRect(SX(i) * k - 0.6, 0, 1.2, S);
   for (const j of FWY_H) x.fillRect(0, SX(j) * k - 0.6, S, 1.2);
+  mapBase._miss = miss;
   return (mapBase._c = cv);
 }
 /* Map icons. Drawn shapes until the art exists; each is one plate at assets/map/<key>.png. */
@@ -3776,6 +3802,11 @@ for (const k of ["veh_69_sedan", "veh_69_coupe", "veh_69_wagon", "veh_69_pickup"
 for (const k of ["pr_sawhorse", "pr_chainlink", "pr_worklamp", "pr_dirtpile"]) PD_ART[k] = "assets/city/" + k + ".png";
 for (const k of ["ui_folder", "ui_stamp_guilty", "ui_stamp_notguilty"]) PD_ART[k] = "assets/ui/" + k + ".png";
 PD_ART.rf_rochelle69 = "assets/roofs/rf_rochelle69.png";
+/* layer 565: your flame sheet (16 frames, 96 square: 1-5 catching, 6-13 burning, 14-16 dying) and the burnt car parts */
+const DEB565 = ["db_tire_a", "db_tire_b", "db_door", "db_steer", "db_fan", "db_battery", "db_disc", "db_muffler"];
+PD_ART.fx_fire16 = "assets/fx/fx_fire16.png";
+for (const k of ["sp_shuttle_roof", "sp_platform", "sp_stairs"]) PD_ART[k] = "assets/" + k + ".png";      // the spur's own art when it lands (PROMPTS_565.md)
+for (const k of ["ft_hotdog", "ft_burger", "ft_chips", "ft_coffee", "ft_taco", "ft_noodle"]) { PD_ART[k + "_old"] = "assets/" + k + ".webp"; PD_ART[k + "_top"] = "assets/city/" + k + "_top.png"; } for (const k of DEB565) PD_ART[k] = "assets/fx/" + k + ".png";
 for (const k of ["eddie", "jose", "mimi"]) PD_ART["yt_" + k] = "assets/crew/yt_" + k + ".png";   // Eddie (the cab), Jose (Pablo's nephew), Mimi (Pablo's sister) -- layer 493      // the Happy Hippie duffel: the money bags (layer 489)
 // card_rus: the Bratva's card, Donny's art (layer 492) -- registered with the other cards
 for (const k of BRATVA_YT) PD_ART[k] = "assets/crew/" + k + ".png";
@@ -3794,6 +3825,10 @@ const SCRAP_KEYS = ["bs_bench", "bs_bunk", "bs_cot", "bs_drums", "bs_gasmasks", 
   "sy_rolldoor", "sy_scrap_pile", "sy_shed_wall", "sy_tire", "sy_tires_a", "sy_tires_b", "sy_tires_c", "sy_tires_d", "sy_tires_e",
   "sy_wreck_a", "sy_wreck_b", "sy_wreck_burnt", "sy_wreck_c", "sy_wreck_crushed", "sy_wreck_d", "sy_wreck_van"];
 for (const k of SCRAP_KEYS) PD_ART[k] = "assets/scrap/" + k + ".png";
+/* layer 565: the yard's wrecks were side-on photos. Top-down ones in their place, lying long-ways (the props are wider than
+   tall): the three bs_wreck shells, the two burnt sov shells, a crushed one, the crew's van rusted out. */
+for (const [k, f] of [["sy_wreck_a", "wk_sy_a"], ["sy_wreck_b", "wk_sy_b"], ["sy_wreck_c", "wk_sy_c"], ["sy_wreck_burnt", "wk_sy_burnt"], ["sy_wreck_d", "wk_sy_d"],
+  ["sy_wreck_crushed", "wk_sy_crushed"], ["sy_wreck_van", "wk_sy_van"]]) PD_ART[k] = "assets/scrap/" + f + ".png";
 for (const k of ["tx_bunker", "tx_bunker_b", "tx_shack_wood"]) PD_ART[k] = "assets/tex/" + k + ".png";
 /* THE RUSTY NAIL's fittings (layer 444), assets/bar/. */
 const MB_KEYS = ["mb_shelf_a", "mb_shelf_b", "mb_stool", "mb_stools_pair", "mb_counter", "mb_stool_b", "mb_stool_c", "mb_stool_d", "mb_pool",
@@ -3818,7 +3853,8 @@ OVERHEAD_ICON.tommy = "wi_tommy";
 /* layer 503: FX frames, the motorcycle wrecks, the hacker, the club dancers */
 for (const [k, n] of [["fx_boom", 8], ["fx_pop", 6], ["fx_flash", 6], ["fx_spark", 3], ["fx_smoke", 4], ["fx_fire", 4], ["fx_dust", 4], ["fx_blood", 4], ["fx_glass", 4]])
   for (let i = 1; i <= n; i++) PD_ART[k + "_" + i] = "assets/fx/" + k + "_" + i + ".png";
-PD_ART.moto_wreck_a = "assets/vehicles/moto_wreck_a.png"; PD_ART.moto_wreck_b = "assets/vehicles/moto_wreck_b.png";
+PD_ART.moto_wreck_a = "assets/scrap/wk_moto_a.png"; PD_ART.moto_wreck_b = "assets/scrap/wk_moto_b.png";
+PD_ART.moto_wreck_v_a = "assets/scrap/wk_moto_a_v.png"; PD_ART.moto_wreck_v_b = "assets/scrap/wk_moto_b_v.png";      // nose-up, for the road      // top-down, rusted (layer 565)
 PD_ART.yt_hire_hacker_1 = "assets/hires/yt_hire_hacker_1.png";
 for (let n = 1; n <= 8; n++) PD_ART["yt_dn_" + n] = "assets/club/yt_dn_" + n + ".png";
 const ALLEY_KEYS = ["al_can", "al_can_open", "al_dumpster", "al_dumpster_open", "al_bag_a", "al_bag_b", "al_bag_c", "al_garbage_truck", "al_pigeon_a",
@@ -3853,7 +3889,7 @@ for (const sc of ["ch", "sa"]) { const P2 = SCHOOL_PEOPLE[sc];
    choir and theatre sheets), plus the first 24 looks, plus THE PLAYER (stu_player_ch / _sa / _sa2). */
 const STU_N = { ch: 58, sa: 76 };
 /* Per-plate size fixes: some plates are drawn bigger than their neighbours (wide jackets). */
-const YT_SCALE = { yt_stu_ch_17: 0.8,
+const YT_SCALE = { yt_rey69: 1.3, yt_stu_ch_17: 0.8,
   yt_bozni_vlad: 0.72, yt_bozni_victor: 0.68, yt_bozni_grigori: 0.72, yt_bozni_katya: 0.74,                       // busts: heads back to size (layer 512d)
   yt_rey_suit: 1.11, yt_rey_track: 1.1, yt_rey_work: 1.18, yt_rey_workvest: 1.2, yt_rey_leather: 1.2, yt_rey_boxers: 1.22 };   // Rey's outfits: his street size
 for (const sc of ["ch", "sa"]) for (let n = 1; n <= STU_N[sc]; n++) { const k = "stu_" + sc + "_" + n; PD_ART["yt_" + k] = "assets/school/yt_" + k + ".png"; PD_ART["pt_" + k] = "assets/school/pt_" + k + ".png"; }
@@ -5169,6 +5205,7 @@ for (const k of ["tc_trailer_a", "tc_trailer_b", "tc_trailer_c", "tc_trailer_d",
                  "tc_res_5", "tc_res_6", "tc_res_7", "tc_res_8",
                  "tx_tr_carpet", "tx_tr_dirt", "tx_tr_road"])
   TC_ART[k] = "assets/tc/" + k + ".png";
+for (const [k, f] of [["tc_deadcar_a", "wk_tc_a"], ["tc_deadcar_b", "wk_tc_b"], ["tc_deadcar_c", "wk_tc_c"]]) TC_ART[k] = "assets/scrap/" + f + ".png";   // top-down, rusted (layer 565)
 const TC_ROOF = ["tc_trailer_a", "tc_trailer_b", "tc_trailer_c", "tc_trailer_d"];
 const TC_RES = ["tc_res_1", "tc_res_2", "tc_res_3", "tc_res_4",
                 "tc_res_5", "tc_res_6", "tc_res_7", "tc_res_8"];
@@ -5985,6 +6022,27 @@ function mulberry(seed) {
 
 /* ---------- cell (block) generation ---------- */
 const cells = new Map();
+/* LAYER 563: NOTHING STANDS IN ANYTHING ELSE. Old Town's decor marks (ct_church, ct_walkup, ct_laundro, ct_policehq...)
+   don't `clear`, so several landed half inside a landmark -- the flashback's warehouse sat under the pawn shop, so you
+   walked into the pawn and the body wasn't there. And the newer generators (alley blocks, uptown's tower + wing) could
+   stack two of their own. Per cell: a plain generated building inside another is dropped, and so is a decor-mark store
+   (mark_ct_*) inside a real one. Two named marks in each other (the gym/church, Gomez/tavern) are left as they were.
+   (Sliding them was tried: Old Town's stone lanes put them on the paths.) */
+function rank563(b) { const k = typeof b.key === "string" ? b.key : "";
+  return (k.startsWith("mark_") ? (k.startsWith("mark_ct_") ? 2 : 4) : 0) + (b.name || b.dealer || b.biz || b.landmark || b.pd || b.school || b.hideout || b.homeOf || b.stuHome || b.nf ? 1 : 0); }
+const SKIP563 = /wall|silo|spire|terminal|farmhouse/;
+function over563(A, B, m) { return Math.min(A.x + A.w, B.x + B.w) - Math.max(A.x, B.x) > -m && Math.min(A.y + A.h, B.y + B.h) - Math.max(A.y, B.y) > -m; }
+function settle563(c) { const L = c && c.blds; if (!Array.isArray(L) || L.length < 2) return 0; let n = 0;
+  for (let pass = 0; pass < 4; pass++) { let ch = false;
+    for (let a = 0; a < L.length && !ch; a++) for (let q = a + 1; q < L.length && !ch; q++) { const A = L[a], B = L[q];
+      if (SKIP563.test(A.kind || "") || SKIP563.test(B.kind || "") || A.inPrison || B.inPrison || !over563(A, B, -8)) continue;
+      const lo0 = rank563(A) < rank563(B) ? A : B, rk = rank563(lo0);
+      if (rk === 0) { L.splice(L.indexOf(lo0), 1); ch = true; n++; break; }
+      if (!ch && rk <= 2 && lo0.kind === "store") { L.splice(L.indexOf(lo0), 1); ch = true; n++; } }
+    if (!ch) break; }
+  return n; }
+/* layer 564: which panels go on the talk wheel -- see the render */
+const talkWheel564 = (P) => !!P && Array.isArray(P.opts) && P.opts.length >= 1 && P.opts.length <= 15 && !P.list && (!!P.wheel || (!!P.face && !P.opts.some((o) => o.card)));
 function getCell(i, j) {
   const key = i * 1000 + j;
   let c = cells.get(key);
@@ -6154,6 +6212,7 @@ function getCell(i, j) {
   c = { i, j, x0, y0, x1, y1, lx0, ly0, lx1, ly1, type, det, walls, blds, zone, alley543: al543 ? al543.alley : null, lots543: al543 ? al543.lots : null,
         barriers: barriers.length ? barriers : null,
         piers: piers.length ? piers : null };
+  settle563(c);                                                     // layer 563
   // each building's state as the city made it: the exact save writes only what changed since (layer 514)
   for (const b of blds) { const O = {}; for (const k of Object.keys(b)) { const v = b[k]; if (v !== null && typeof v === "object") { try { O[k] = JSON.stringify(v); } catch (e) {} } else O[k] = v; }
     Object.defineProperty(b, "__orig", { value: O, enumerable: false, writable: true }); }
@@ -6436,6 +6495,30 @@ function skateObs() {
   S(X(700), Y(2200), 42, 13, "bench");
   S(X(830), Y(2198), 15, 15, "bin");
   S(X(1620), Y(560), 47, 30, "pile");
+
+  /* LAYER 564: the rest of the lot. The first pass only used the west two thirds -- the east and south were a sheet of slab.
+     A STREET SECTION east (ledges, a manual pad, a pyramid, a stair set with its handrail, banks), a MINI RAMP west, a
+     quarter wall north, and the things a park has round its edge: bleachers, light poles, painted walls, planters, picnic
+     tables and the snack shack by the gate. */
+  R(X(2040), Y(400), 400, 95, "quarter", 0, 0.85);    // the north wall, a long quarter
+  R(X(140), Y(1360), 150, 270, "halfpipe", 1, 0.8);   // the mini ramp
+  R(X(2120), Y(880), 190, 190, "pyramid", 0, 0.55);   // a pyramid, four banks
+  R(X(1960), Y(1240), 210, 34, "ledge", 0, 0.2);      // ledges and a manual pad
+  R(X(2290), Y(1240), 210, 34, "ledge", 0, 0.2);
+  R(X(1960), Y(1560), 250, 70, "manual", 0, 0.25);
+  R(X(2330), Y(1520), 47, 34, "kicker", 0, 0.7);
+  R(X(1880), Y(700), 120, 70, "bank", 0, 0.6);       // a bank up to the quarter
+  R(X(2300), Y(1830), 110, 120, "stairs", 0, 0.35);  // five steps and the rail down them
+  R(X(2300) + 50, Y(1830), 6, 120, "rail", 1, 0.2);
+  R(X(1100), Y(1880), 230, 50, "ledge", 0, 0.2);      // a long ledge on the way out
+
+  S(X(980), Y(80), 440, 66, "bleacher"); S(X(1500), Y(80), 300, 66, "bleacher");
+  for (const [lx, ly] of [[60, 60], [1300, 60], [2500, 60], [60, 1300], [2500, 1300], [60, 2300], [1180, 2300], [2500, 2300]]) S(X(lx), Y(ly), 16, 16, "light");
+  S(X(1560), Y(1960), 320, 24, "wall"); S(X(2560), Y(560), 24, 320, "wall"); S(X(80), Y(420), 24, 260, "wall");
+  S(X(2180), Y(2150), 220, 150, "shack");
+  S(X(1930), Y(2200), 70, 46, "picnic"); S(X(1930), Y(2290), 70, 46, "picnic"); S(X(2060), Y(2330), 70, 46, "picnic");
+  for (const [px, py] of [[950, 2280], [1050, 2280], [1660, 2280], [1760, 2280], [400, 2280]]) S(X(px), Y(py), 64, 64, "planter");
+  S(X(1460), Y(2200), 42, 13, "bench"); S(X(1600), Y(2200), 42, 13, "bench"); S(X(1530), Y(2198), 15, 15, "bin"); S(X(2150), Y(2080), 15, 15, "bin");
 
   /* The fence. Four runs with a gap in the south one -- that gap is the way in, and it is
      also where the rack sits, so you cannot arrive without walking past a board. */
@@ -10806,6 +10889,8 @@ const HIRE_R553 = { hire_enforcer_1: ["jacket", [214, 160, 128], [30, 30, 34]], 
 for (const k in HIRE_R553) { const [set, skin, sleeve] = HIRE_R553[k]; ARM_BY_YT["yt_" + k] = { ...AS(k, set, skin, sleeve), wid: W532 * 0.72 }; }
 for (let n = 1; n <= 8; n++) ARM_BY_YT["yt_swat_" + n] = AS("swat_tan", "swat", [180, 130, 95], [32, 32, 36]);
 /* Rey's coded outfits: the torso's blue is tinted to the OUTER colour, its green to the INNER one (g.pcol[fit]). */
+/* layer 563: the 1969 cast at the sizes the 1986 people got (women 0.72, men 0.8 of W532) -- Rochelle stood a head over Rey */
+for (const [k, f] of [["yt_rochelle69", 0.8], ["yt_tiny69", 0.8], ["yt_damian69", 0.8], ["yt_julian69", 0.8], ["yt_cop69_a", 0.8], ["yt_cop69_b", 0.8]]) if (ARM_BY_YT[k]) ARM_BY_YT[k].wid = W532 * f;
 const REY_CODED = { yt_player_civ: ["street", "jacket"], yt_rey_track: ["track", "long"], yt_rey_suit: ["suit", "long"], yt_rey_work: ["work", "jacket"],
   yt_rey_workvest: ["workvest", "full"], yt_rey_leather: ["leather", "full"], yt_rey_boxers: ["boxers", "full"] };      /* "full": arms in the plate (layer 540) */
 for (const k of ["workvest", "leather", "boxers"]) PD_ART["yt_rey_" + k + "_c"] = "assets/prison/yt_rey_" + k + "_c.png";
@@ -11446,7 +11531,7 @@ export default function IronLionLayer004() {
          exact even where the drawing wanders. */
       let painted = false;
       {
-        const base = mapBase();
+        const base = mapBase(G.mapRoof564);
         x.save(); x.imageSmoothingEnabled = true;
         x.drawImage(base, ox, oy, span * k, span * k);
         x.restore();
@@ -11463,7 +11548,7 @@ export default function IronLionLayer004() {
           if (!t.owner) continue;
           count[t.owner] = (count[t.owner] || 0) + 1;
           const [ax, ay] = P(t.ti * side, t.tj * side), [bx, by] = P((t.ti + 1) * side, (t.tj + 1) * side);
-          x.fillStyle = (GANG_COL[t.owner] || "#999") + "55";
+          x.fillStyle = (GANG_COL[t.owner] || "#999") + "2e";      // lighter (layer 564), so the city shows through
           x.fillRect(ax, ay, bx - ax, by - ay);
           x.strokeStyle = GANG_COL[t.owner] || "#999"; x.lineWidth = 2;
           const edge = (dx, dy, x0, y0, x1, y1) => { if (own(t.ti + dx, t.tj + dy) !== t.owner) {
@@ -12350,7 +12435,7 @@ export default function IronLionLayer004() {
             if (st && navT <= 0) { sel = sel >= n ? (st > 0 ? 0 : n - 1) : (sel + st + n) % n; navT = 0.22; } if (!st) navT = Math.min(navT, 0); }
           mark(L); const info = document.querySelector("[data-radialinfo]"); if (info && L[sel]) { const t = L[sel].getAttribute("data-info") || ""; if (info.textContent !== t) info.textContent = t; }
           if (B(0) && !was[0]) { L[sel] && L[sel].click(); sel = 0; }
-          if ((B(1) && !was[1]) || (B(4) && !was[4])) { G.wheelClose(); sel = 0; }
+          if ((B(1) && !was[1]) || (B(4) && !was[4])) { const talk = !!document.querySelector("[data-talkwheel]"); G.wheelClose(); if (talk && B(1)) { G.pickFn && G.pickFn("close"); } sel = 0; }   // layer 564: B leaves a talk wheel
           for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i);
           input.current.x = 0; input.current.y = 0; input.current.run = false; return; }
         const down = B(13) || ay > 0.6, up = B(12) || ay < -0.6, right = B(15) || ax > 0.6, left = B(14) || ax < -0.6;
@@ -12795,6 +12880,9 @@ export default function IronLionLayer004() {
       if (G.tableFn && G.tableFn()) return;
       return;
     }
+    if (g.mode === "foot" && G.spurSkipFn && G.spurSkipFn()) return;          // layer 565: the shuttle
+    if (g.mode === "foot" && G.spurClerkFn && G.spurClerkFn()) return;
+    if (g.mode === "foot" && G.spurDownFn && G.spurDownFn()) return;
     if (g.mode === "foot" && G.clerkFn && G.clerkFn()) return;
     if (g.mode === "foot" && G.trainFn && G.trainFn()) return;
     if (g.mode === "foot" && G.downElFn && G.downElFn()) return;
@@ -13379,7 +13467,7 @@ export default function IronLionLayer004() {
       const inp = input.current, k = inp.keys;
       let ix = inp.x + (k["a"] || k["arrowleft"] ? -1 : 0) + (k["d"] || k["arrowright"] ? 1 : 0);
       let iy = inp.y + (k["w"] || k["arrowup"] ? -1 : 0) + (k["s"] || k["arrowdown"] ? 1 : 0);
-      if (g.pintro || g.pRiding) { ix = 0; iy = 0; }     // the walk in / riding the bus: no control
+      if (g.pintro || g.pRiding || g.spurRide || g.trainSit565) { ix = 0; iy = 0; }     // the walk in / riding the bus / the shuttle / sat on the train: no control
       if (stepSeat531(ix, iy)) return;                     // sitting: stay put till you move (layer 531)
       if (Math.hypot(ix, iy) > 0.15) g.p.face = Math.atan2(iy, ix);   // he keeps facing the way he last went
       if (g.studentMode && stepBike(dt)) return;            // on the bike: its own movement
@@ -17190,6 +17278,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "jobplay") return jobPlayPanel();
       if (kind === "misorders") return misPanel();
       if (kind === "ccar") return ccarPanel();
+      if (kind === "spur565") return G.spurPanel565();
       if (kind === "merc") return mercPanel();
       if (kind === "pool") return poolPanel();
       if (kind === "plates") return platesPanel();
@@ -17348,6 +17437,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("bd:")) { G.opsPick(id); if (!g.jobRide && !g.misStarted) G.pickOpen("opsboard"); g.misStarted = 0; return; }
       else if (id.startsWith("mis:")) { G.misPick && G.misPick(id); return; }
       else if (id.startsWith("ccar:")) { G.ccarPick && G.ccarPick(id); return; }
+      else if (id.startsWith("spur:")) { G.spurPick565 && G.spurPick565(id); return; }
       else if (id.startsWith("don:")) { donAct(id.slice(4)); return; }
       else if (id.startsWith("eng:")) { const E = engage(), k = id.slice(4); E[k] = E[k] ? 0 : 1; G.pickOpen("crewrules"); return; }   // crew rules (layer 519)
       else if (id.startsWith("sit:")) { sitAct(id.slice(4)); return; }
@@ -19249,6 +19339,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (let y = b.y0; y <= b.y1; y += 220) {
         ctx.beginPath(); ctx.moveTo(b.x0, y); ctx.lineTo(b.x1, y); ctx.stroke();
       }
+      /* layer 564: the slab is used -- patched squares, wheel marks swept round the ramps, oil, chalk, a painted logo */
+      { const rnd = mulberry(5640); ctx.save();
+        for (let q = 0; q < 26; q++) { const px = b.x0 + 60 + rnd() * (b.x1 - b.x0 - 120), py = b.y0 + 60 + rnd() * (b.y1 - b.y0 - 120); ctx.fillStyle = rnd() < 0.5 ? "rgba(0,0,0,0.10)" : "rgba(255,255,255,0.04)"; ctx.fillRect(Math.floor((px - b.x0) / 220) * 220 + b.x0, Math.floor((py - b.y0) / 220) * 220 + b.y0, 220, 220); }
+        ctx.strokeStyle = "rgba(0,0,0,0.13)"; ctx.lineWidth = 2;
+        for (let q = 0; q < 70; q++) { const px = b.x0 + rnd() * (b.x1 - b.x0), py = b.y0 + rnd() * (b.y1 - b.y0), r0 = 40 + rnd() * 160, a0 = rnd() * 6.3; ctx.beginPath(); ctx.arc(px, py, r0, a0, a0 + 0.6 + rnd()); ctx.stroke(); }
+        for (let q = 0; q < 14; q++) { const px = b.x0 + rnd() * (b.x1 - b.x0), py = b.y0 + rnd() * (b.y1 - b.y0); ctx.fillStyle = "rgba(10,10,10,0.18)"; ctx.beginPath(); ctx.ellipse(px, py, 12 + rnd() * 26, 8 + rnd() * 14, rnd() * 3, 0, 6.3); ctx.fill(); }
+        const mx = (b.x0 + b.x1) / 2, my = b.y0 + (b.y1 - b.y0) * 0.78;
+        ctx.globalAlpha = 0.22; ctx.fillStyle = "#c0392b"; ctx.beginPath(); ctx.arc(mx, my, 120, 0, 6.3); ctx.fill(); ctx.fillStyle = "#4a4844"; ctx.beginPath(); ctx.arc(mx, my, 96, 0, 6.3); ctx.fill();
+        ctx.fillStyle = "#f1c40f"; ctx.font = "bold 46px monospace"; ctx.textAlign = "center"; ctx.fillText("SK8", mx, my + 16); ctx.font = "bold 18px monospace"; ctx.fillText("RAVEN HOOK · EST. 1979", mx, my + 150); ctx.textAlign = "start";
+        ctx.restore(); }
       for (const o of skateObs()) drawSkateObs(o);
       // the rack. Same plate as the shop and the den -- one object, drawn once.
       const r = skateRack();
@@ -19283,6 +19383,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const RISE = {
         halfpipe: 1.0, quarter: 0.75, funbox: 0.4, kicker: 0.3, rail: 0.25,
         pool: -0.8, bowl: -0.7, bowl_sq: -0.7, fence: 0.5, bench: 0.2, bin: 0.3, pile: 0.35,
+        ledge: 0.15, manual: 0.12, pyramid: 0.35, bank: 0.3, stairs: 0.2, bleacher: 0.45, light: 1.6, wall: 0.7, shack: 0.9, picnic: 0.2, planter: 0.3,     // layer 564
       };
       const k = (RISE[o.k] || 0) * FLOOR_RISE;
       const ox = clamp((cx - g.cam.x) * k, -190, 190);
@@ -19359,6 +19460,57 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           ctx.fillStyle = "#8d9298";
           if (w > h) for (let px = x; px < x + w; px += 90) ctx.fillRect(px, y - 2, 7, h + 4);
           else for (let py = y; py < y + h; py += 90) ctx.fillRect(x - 2, py, w + 4, 7);
+          break;
+        /* layer 564: the street section and the edge of the lot */
+        case "ledge": case "manual":
+          ctx.fillStyle = o.k === "ledge" ? "#8c877c" : "#7a766c"; ctx.fillRect(x, y, w, h);
+          ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(x, y, w, Math.min(6, h * 0.25));
+          ctx.strokeStyle = o.k === "ledge" ? "#c9ced3" : "rgba(0,0,0,0.35)"; ctx.lineWidth = o.k === "ledge" ? 3 : 2; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+          ctx.fillStyle = "rgba(20,20,20,0.25)"; for (let q = 0; q < 4; q++) ctx.fillRect(x + w * (0.15 + q * 0.2), y + h * 0.4, w * 0.08, 2);   // wax and scuffs
+          break;
+        case "pyramid": {
+          const cols = ["#8f8372", "#7a6e5e", "#6a5f51", "#857968"];
+          const P4 = [[x, y, x + w, y], [x + w, y, x + w, y + h], [x + w, y + h, x, y + h], [x, y + h, x, y]];
+          P4.forEach(([ax, ay, bx2, by2], q) => { ctx.fillStyle = cols[q]; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx2, by2); ctx.lineTo(cx, cy); ctx.closePath(); ctx.fill(); });
+          ctx.fillStyle = "#a59a88"; ctx.fillRect(cx - w * 0.18, cy - h * 0.18, w * 0.36, h * 0.36);
+          ctx.strokeStyle = "#c9ced3"; ctx.lineWidth = 3; ctx.strokeRect(cx - w * 0.18, cy - h * 0.18, w * 0.36, h * 0.36);
+          break; }
+        case "bank": {
+          const gr = ctx.createLinearGradient(0, y + h, 0, y); gr.addColorStop(0, "#9a9083"); gr.addColorStop(1, "#5b554c");
+          ctx.fillStyle = gr; ctx.fillRect(x, y, w, h); break; }
+        case "stairs":
+          for (let q = 0; q < 5; q++) { ctx.fillStyle = q % 2 ? "#7d786e" : "#8f8a7f"; ctx.fillRect(x, y + q * h / 5, w, h / 5); ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(x, y + (q + 1) * h / 5 - 3, w, 3); }
+          break;
+        case "bleacher":
+          for (let q = 0; q < 4; q++) { ctx.fillStyle = q % 2 ? "#8a8f95" : "#a3a8ad"; ctx.fillRect(x, y + q * h / 4, w, h / 4 - 3); }
+          ctx.fillStyle = "#55595e"; for (let px = x + 10; px < x + w; px += 70) ctx.fillRect(px, y, 4, h);
+          break;
+        case "light":
+          ctx.fillStyle = "#5c6066"; ctx.beginPath(); ctx.arc(cx, cy, w / 2, 0, 6.3); ctx.fill();
+          ctx.fillStyle = "#d8d2b6"; ctx.fillRect(cx - 14, cy - 3, 28, 6);
+          if (g.night > 0.3) { ctx.fillStyle = "rgba(255,236,170," + (0.12 * g.night) + ")"; ctx.beginPath(); ctx.arc(cx, cy, 170, 0, 6.3); ctx.fill(); }
+          break;
+        case "wall": {
+          ctx.fillStyle = "#8a8378"; ctx.fillRect(x, y, w, h);
+          const tags = ["#c0392b", "#2e86c1", "#f1c40f", "#27ae60", "#8e44ad", "#e67e22"], L2 = Math.max(w, h), s0 = (Math.abs(x * 7 + y * 3) | 0) % 6;
+          for (let q = 0; q < L2 / 40; q++) { ctx.fillStyle = tags[(s0 + q) % 6]; ctx.globalAlpha = 0.75;
+            if (w > h) ctx.fillRect(x + q * 40 + 4, y + 3, 28, h - 6); else ctx.fillRect(x + 3, y + q * 40 + 4, w - 6, 28); }
+          ctx.globalAlpha = 1; break; }
+        case "shack":
+          ctx.fillStyle = "#6b4b34"; ctx.fillRect(x, y, w, h);
+          ctx.fillStyle = "#8a6446"; for (let q = 0; q < h; q += 16) ctx.fillRect(x, y + q, w, 8);
+          ctx.fillStyle = "#c0392b"; ctx.fillRect(x - 6, y + h - 26, w + 12, 26);                    // the awning over the window
+          ctx.fillStyle = "#f2efe4"; for (let q = 0; q < w + 12; q += 24) ctx.fillRect(x - 6 + q, y + h - 26, 12, 26);
+          ctx.fillStyle = "#1a1a1a"; ctx.font = "bold 16px monospace"; ctx.textAlign = "center"; ctx.fillText("SNACKS · WAX · TAPE", cx, y + 30); ctx.textAlign = "start";
+          break;
+        case "picnic":
+          ctx.fillStyle = "#7a5a3a"; ctx.fillRect(x, y + h * 0.25, w, h * 0.5);
+          ctx.fillStyle = "#5e452c"; ctx.fillRect(x + 4, y, w - 8, h * 0.14); ctx.fillRect(x + 4, y + h * 0.86, w - 8, h * 0.14);
+          break;
+        case "planter":
+          ctx.fillStyle = "#7d786e"; ctx.fillRect(x, y, w, h); ctx.fillStyle = "#3b2d22"; ctx.fillRect(x + 6, y + 6, w - 12, h - 12);
+          ctx.fillStyle = "#2f5a2c"; ctx.beginPath(); ctx.arc(cx, cy, w * 0.62, 0, 6.3); ctx.fill();
+          ctx.fillStyle = "#3e7038"; ctx.beginPath(); ctx.arc(cx - w * 0.12, cy - h * 0.14, w * 0.36, 0, 6.3); ctx.fill();
           break;
         default:
           ctx.fillStyle = "#5a5650"; ctx.fillRect(x, y, w, h);
@@ -19437,6 +19589,34 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.fillStyle = "rgba(255,255,255,0.06)";
         ctx.fillRect(bx, bayY - 40, bw, 6);
       }
+      /* LAYER 564: the forecourt was bare asphalt past the bays. Now: the bus lane in front of them (two lanes, the dashed
+         centre, arrows, BUS ONLY, stop bars, three zebras across), a kerbed island with planters, the car park in rows with
+         its aisles and IN / OUT, the taxi rank, and a kerb and footpath round the edge. */
+      { const X0 = T.x0, X1 = T.x1, Y1 = T.y1, W = X1 - X0, ln = bayY + 230, lh = 220, isl = ln + lh + 20, pk = isl + 80;
+        const paint = "rgba(236,232,214,0.62)", yel = "rgba(232,196,70,0.75)";
+        ctx.fillStyle = PF("walk", "#43464a"); ctx.fillRect(X0, Y1 - 40, W, 40); ctx.fillRect(X0, bayY + 190, 40, Y1 - bayY - 190); ctx.fillRect(X1 - 40, bayY + 190, 40, Y1 - bayY - 190);   // the footpath round it
+        ctx.strokeStyle = paint; ctx.lineWidth = 4; ctx.strokeRect(X0 + 60, ln, W - 120, lh);                                // the bus lane
+        ctx.strokeStyle = yel; ctx.lineWidth = 4; ctx.setLineDash([46, 34]); ctx.beginPath(); ctx.moveTo(X0 + 60, ln + lh / 2); ctx.lineTo(X1 - 60, ln + lh / 2); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = paint; ctx.font = "bold 40px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        for (let q = 0; q < 3; q++) { const tx = X0 + W * (0.2 + q * 0.3); ctx.fillText("BUS ONLY", tx, ln + lh * 0.25); ctx.fillText("BUS ONLY", tx, ln + lh * 0.75); }
+        const arrow = (ax, ay, d) => { ctx.beginPath(); ctx.moveTo(ax + 40 * d, ay); ctx.lineTo(ax + 10 * d, ay - 18); ctx.lineTo(ax + 10 * d, ay - 7); ctx.lineTo(ax - 40 * d, ay - 7); ctx.lineTo(ax - 40 * d, ay + 7); ctx.lineTo(ax + 10 * d, ay + 7); ctx.lineTo(ax + 10 * d, ay + 18); ctx.closePath(); ctx.fill(); };
+        for (let q = 0; q < 4; q++) { arrow(X0 + W * (0.08 + q * 0.28), ln + lh * 0.25, -1); arrow(X0 + W * (0.12 + q * 0.28), ln + lh * 0.75, 1); }
+        for (let q = 0; q < 3; q++) { const zx = X0 + W * (0.35 + q * 0.3) - 60; ctx.fillStyle = "rgba(236,232,214,0.55)"; for (let s = 0; s < 120; s += 24) ctx.fillRect(zx + s, ln + 6, 13, lh - 12);   // zebras
+          ctx.fillStyle = paint; ctx.fillRect(zx - 30, ln + 6, 6, lh / 2 - 6); ctx.fillRect(zx + 150, ln + lh / 2, 6, lh / 2 - 6); }                                                                          // stop bars
+        ctx.fillStyle = PF("walk", "#43464a"); ctx.fillRect(X0 + 60, isl, W - 120, 46);                                         // the island
+        ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(X0 + 60, isl + 46, W - 120, 4);
+        for (let px = X0 + 140; px < X1 - 120; px += 260) { ctx.fillStyle = "#6e6a60"; ctx.fillRect(px, isl + 6, 34, 34); ctx.fillStyle = "#2f5a2c"; ctx.beginPath(); ctx.arc(px + 17, isl + 23, 19, 0, 6.3); ctx.fill(); }
+        ctx.fillStyle = yel; ctx.fillRect(X0 + 70, pk, 280, 120); ctx.fillStyle = "rgba(44,45,50,1)"; ctx.fillRect(X0 + 78, pk + 8, 264, 104);      // the taxi rank
+        ctx.fillStyle = yel; ctx.font = "bold 34px ui-monospace, monospace"; ctx.fillText("TAXI", X0 + 210, pk + 60);
+        const rows = Math.max(1, Math.floor((Y1 - 80 - pk) / 300)), sw = 58, sl = 110;                                       // the car park: double rows, aisles between
+        ctx.strokeStyle = paint; ctx.lineWidth = 3;
+        for (let r = 0; r < rows; r++) { const ry = pk + 150 + r * 300; if (ry + sl * 2 > Y1 - 60) break;
+          for (let sx = X0 + 400; sx + sw < X1 - 80; sx += sw) { ctx.beginPath(); ctx.moveTo(sx, ry); ctx.lineTo(sx, ry + sl * 2); ctx.stroke(); }
+          ctx.beginPath(); ctx.moveTo(X0 + 400, ry + sl); ctx.lineTo(X1 - 80 - ((X1 - 80 - X0 - 400) % sw), ry + sl); ctx.stroke();
+          ctx.fillStyle = paint; arrow(X0 + W * 0.5, ry - 40, r % 2 ? 1 : -1); }
+        ctx.fillStyle = paint; ctx.font = "bold 46px ui-monospace, monospace"; ctx.fillText("P", X0 + 210, pk + 230); ctx.font = "bold 18px ui-monospace, monospace"; ctx.fillText("SHORT STAY · 2 HRS", X0 + 210, pk + 270);
+        ctx.font = "bold 30px ui-monospace, monospace"; ctx.fillText("IN", X0 + W * 0.3, Y1 - 70); ctx.fillText("OUT", X0 + W * 0.7, Y1 - 70);
+        ctx.textAlign = "start"; ctx.textBaseline = "alphabetic"; }
       ctx.restore();
     }
 
@@ -20508,9 +20688,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const p = truckPos(t);
         if (p[0] < view.x0 - 200 || p[0] > view.x1 + 200 ||
             p[1] < view.y0 - 200 || p[1] > view.y1 + 200) continue;
-        const im = imgs.current[t.k];
-        if (!im || !im.width) continue;
-        const h = im.height * 0.58, w = im.width * 0.58;   // sedan scale, not sprite scale
+        /* layer 565: the side-on truck pictures are out. The new top-down plates go at assets/city/<k>_top.png (prompts in
+           PROMPTS_565.md); until they land, the old top-down plates (two carts, four vans) stand in. A truck is a van's length. */
+        const top = imgs.current[t.k + "_top"], old = imgs.current[t.k + "_old"], im = top && top.width ? top : old && old.width ? old : null;
+        if (!im) continue;
+        const Lw = im === top ? 150 : im.height < 100 ? 84 : 140, h = Lw, w = Lw * im.width / im.height;
         drawShadow(p[0], p[1] + 3, w * 0.46, h * 0.30, 0.34);
         ctx.drawImage(im, p[0] - w / 2, p[1] - h / 2, w, h);
       }
@@ -21826,14 +22008,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const bike = imgs.current.police_bike, rider = imgs.current.house_top;
       if (!bike || !bike.width) return;
       for (const m of list) {
-        const L = 210 * 0.42, w = L * (bike.width / bike.height);
+        const L = 62, w = L * (bike.width / bike.height);          // a bike's size (layer 566: was 88)
         ctx.save();
         ctx.translate(m.x, m.y); ctx.rotate(m.ang + Math.PI / 2);
         drawShadow(1, 4, w * 0.42, L * 0.40, 0.32);
         ctx.drawImage(bike, -w / 2, -L / 2, w, L);
         if (rider && rider.width) {
-          const d = L * 0.62;
-          ctx.translate(0, L * 0.05);
+          const d = GANGTOP_CELL * GANGTOP_SCALE * RIDE_K566;     // crouched, same as everyone (layer 566)
+          ctx.translate(0, L * 0.07);
           ctx.rotate(Math.PI);
           ctx.drawImage(rider, 4 * GANGTOP_CELL, HOUSE_MOTOR * GANGTOP_CELL,
             GANGTOP_CELL, GANGTOP_CELL, -d / 2, -d / 2, d, d);
@@ -21984,8 +22166,101 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         g.p.x = p0.x + Math.cos(a0 + Math.PI / 2) * g.trainV;
         g.p.y = p0.y + Math.sin(a0 + Math.PI / 2) * g.trainV;
         g.p.vx = 0; g.p.vy = 0;
-      }
+        if (g.trainSit565) g.p.face = a0 + (g.trainV > 0 ? -Math.PI / 2 : Math.PI / 2);     // sat facing the aisle (layer 565)
+      } else g.trainSit565 = 0;
     }
+    /* ---------- LAYER 565: THE AIRPORT SPUR ----------
+       The loop's south-east corner carries on east as a second elevated line along 21st St to the 26th Ave, then south
+       down the avenue to the airport. A three-car SHUTTLE runs it end to end and back. Two stations: SPUR JUNCTION (just
+       past the corner -- a walk from SOUTH CROSS on the loop) and AIRPORT (at the terminal). Same stair feet as the loop
+       (walk into one, up you go; E at the top to go down), a clerk on each platform: talk to him, SHUTTLE TO..., and you
+       sit in the middle car for the ride (E skips it). */
+    const SP_CARS = 3, SP_TOP = 320, SP_STA = { AL: 300, AC: 100 };
+    let SPUR_C = null;
+    function spur() { if (SPUR_C) return SPUR_C; const AP = airport(), ty = AP && AP.term ? AP.term.y + AP.term.h / 2 : SX(26) + 700;
+      const AX = SX(26), pts = [[EL_X1 + 60, EL_Y1], [AX, EL_Y1], [AX, clamp(ty, EL_Y1 + 1200, SX(28))]];
+      const segs = []; let L = 0; for (let k = 0; k < pts.length - 1; k++) { const [x0, y0] = pts[k], [x1, y1] = pts[k + 1], l = Math.hypot(x1 - x0, y1 - y0); segs.push({ x0, y0, x1, y1, l, s0: L, ang: Math.atan2(y1 - y0, x1 - x0) }); L += l; }
+      const stops = [{ name: "SPUR JUNCTION", s: 520 }, { name: "AIRPORT", s: L - 360 }];
+      return (SPUR_C = { pts, segs, L, stops }); }
+    function spurPos(s) { const S = spur(); s = clamp(s, 0, S.L); for (const q of S.segs) if (s <= q.s0 + q.l) { const f = (s - q.s0) / q.l; return { x: q.x0 + (q.x1 - q.x0) * f, y: q.y0 + (q.y1 - q.y0) * f, ang: q.ang }; }
+      const q = S.segs[S.segs.length - 1]; return { x: q.x1, y: q.y1, ang: q.ang }; }
+    function spurPlat(k) { const p = spurPos(spur().stops[k].s), vert = Math.abs(Math.sin(p.ang)) > 0.5, { AL, AC } = SP_STA;
+      return { x0: p.x - (vert ? AC : AL), x1: p.x + (vert ? AC : AL), y0: p.y - (vert ? AL : AC), y1: p.y + (vert ? AL : AC), p, vert }; }
+    function spurFeet(k) { const r = spurPlat(k); return r.vert ? [[r.x0 - 40, r.y0 + 20], [r.x1 + 40, r.y0 + 20], [r.x0 - 40, r.y1 - 20], [r.x1 + 40, r.y1 - 20]]
+      : [[r.x0 + 20, r.y0 - 40], [r.x0 + 20, r.y1 + 40], [r.x1 - 20, r.y0 - 40], [r.x1 - 20, r.y1 + 40]]; }
+    function spurClerk(k) { const r = spurPlat(k), a = r.p.ang + Math.PI / 2; return { x: r.p.x + Math.cos(a) * 62, y: r.p.y + Math.sin(a) * 62 }; }
+    function spurCarPos(k) { const t = g.spurT; return spurPos(t.d + t.dir * (1 - k) * (EL_CAR_LEN + EL_GAP)); }     // t.d is the MIDDLE car; car 0 leads
+    function updateSpur(dt) {
+      const S = spur(); const t = (g.spurT = g.spurT || { d: S.stops[0].s, dir: 1, spd: 0, wait: 8, at: 0 });
+      if (t.wait > 0) { t.wait -= dt; t.spd = 0; }
+      else { const tgt = t.dir > 0 ? S.stops[1].s : S.stops[0].s, ahead = (tgt - t.d) * t.dir;      // the middle car stops at the platform
+        t.spd = ahead < 420 ? Math.max(40, SP_TOP * ahead / 420) : Math.min(SP_TOP, t.spd + 90 * dt);
+        const st = t.spd * dt; if (ahead <= st + 2) { t.d = tgt; t.spd = 0; t.wait = 12; t.dir = -t.dir; t.at = t.dir < 0 ? 1 : 0;
+          if (g.spurRide && g.spurRide.to === t.at) spurArrive(); } else t.d += st * t.dir; }
+      if (g.spurRide) { const c = spurCarPos(1), a = c.ang + Math.PI / 2; g.p.x = c.x + Math.cos(a) * 16; g.p.y = c.y + Math.sin(a) * 16; g.p.vx = g.p.vy = 0; g.p.face = c.ang + Math.PI; g.mode = "foot"; }
+      // the platforms and their stairs (the loop's rules: up by walking in, a drop if you walk off the edge)
+      if (g.onSpur != null && !g.spurRide) { if (g.inside || inVehicle()) g.onSpur = null; else { const r = spurPlat(g.onSpur);
+        if (g.p.x < r.x0 - 12 || g.p.x > r.x1 + 12 || g.p.y < r.y0 - 12 || g.p.y > r.y1 + 12) { g.onSpur = null; g.p.hp = Math.max(0, g.p.hp - 10 / TOUGH); g.shake = Math.max(g.shake, 14); g.pickupFlash = { nm: "long_way_down", t: 2 }; } } }
+      else if (g.onSpur == null && !g.spurRide && g.mode === "foot" && !g.inside && g.onPlat == null && !g.onTrain && !(g.spurCd > 0)) {
+        for (let k = 0; k < S.stops.length; k++) for (const c of spurFeet(k)) if (Math.hypot(g.p.x - c[0], g.p.y - c[1]) < 44) { const r = spurPlat(k); g.onSpur = k; g.p.x = clamp(g.p.x, r.x0 + 26, r.x1 - 26); g.p.y = clamp(g.p.y, r.y0 + 26, r.y1 - 26); g.spurCd = 0.9; g.pickupFlash = { nm: "up_top", t: 1.2 }; return; } }
+      if (g.spurCd > 0) g.spurCd -= dt;
+    }
+    function spurArrive() { const R2 = g.spurRide; if (!R2) return; const r = spurPlat(R2.to); g.spurRide = null; g.onSpur = R2.to; g.p.x = (r.x0 + r.x1) / 2; g.p.y = (r.y0 + r.y1) / 2; g.pickupFlash = { nm: "lift:" + spur().stops[R2.to].name, t: 2 }; }
+    G.spurClerkFn = () => { if (g.onSpur == null || g.spurRide) return false; const c = spurClerk(g.onSpur); if (Math.hypot(g.p.x - c.x, g.p.y - c.y) > 90) return false; G.pickOpen("spur565"); return true; };
+    G.spurDownFn = () => { if (g.onSpur == null || g.spurRide) return false; let best = null, bd = 70; for (const c of spurFeet(g.onSpur)) { const d = Math.hypot(g.p.x - c[0], g.p.y - c[1]); if (d < bd) { bd = d; best = c; } }
+      if (!best) return false; g.onSpur = null; g.p.x = best[0]; g.p.y = best[1]; g.spurCd = 1.2; return true; };
+    G.spurSkipFn = () => { if (!g.spurRide) return false; const S = spur(), t = g.spurT, to = g.spurRide.to; t.d = S.stops[to].s; t.spd = 0; t.wait = 12; t.dir = to ? -1 : 1; t.at = to; spurArrive(); return true; };
+    function spurPanel() { const k = g.onSpur || 0, S = spur(), other = k ? 0 : 1, t = g.spurT || {};
+      const here = t.wait > 0 && t.at === k, eta = here ? "It's in. Doors are open." : "Next one's a couple of minutes. You can wait on it -- or I'll call it in.";
+      return { title: S.stops[k].name + " · THE SHUTTLE", face: "assets/ui/ui_badge.png", wheel: 1,
+        text: "TRANSIT CLERK: “" + (k ? "Back into the city. It meets the loop at the junction -- South Cross is a two-minute walk." : "Straight out to the airport. Every twenty minutes, give or take.") + " " + eta + "”",
+        opts: [{ id: "spur:ride", label: "SHUTTLE TO " + S.stops[other].name + " · $2" }, { id: "close", label: "NOT NOW" }] }; }
+    G.spurPanel565 = spurPanel;
+    G.spurPick565 = (id) => { g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+      if (id !== "spur:ride" || g.onSpur == null) return; if ((g.p.cash || 0) < 2) { g.pickupFlash = { nm: "lift:TWO DOLLARS", t: 1.4 }; return; } g.p.cash -= 2;
+      const S = spur(), k = g.onSpur, t = (g.spurT = g.spurT || { d: 0, dir: 1, spd: 0, wait: 0 });
+      t.d = S.stops[k].s; t.dir = k ? -1 : 1; t.spd = 0; t.wait = 3; t.at = k;   // it's in (or comes in) and you sit down
+      g.spurRide = { from: k, to: k ? 0 : 1 }; g.onSpur = null; g.pickupFlash = { nm: "lift:SIT DOWN · E TO SKIP THE RIDE", t: 2.4 }; };
+    G.spurT565 = () => { const S = spur(); return { L: S.L | 0, pts: S.pts, stops: S.stops.map((q, k) => [q.name, spurPos(q.s).x | 0, spurPos(q.s).y | 0, spurFeet(k)[0].map((v) => v | 0)]), t: g.spurT, on: g.onSpur, ride: g.spurRide }; };   // test hook
+    function drawSpur(view) { const S = spur(); if (!g.spurT) return;
+      const pv = inVehicle() ? activeVeh() : g.p, under = g.onSpur == null && !g.spurRide && !g.roof && !g.inside && S.segs.some((q) => { const vx = q.x1 - q.x0, vy = q.y1 - q.y0, f = clamp(((pv.x - q.x0) * vx + (pv.y - q.y0) * vy) / (q.l * q.l), 0, 1); return Math.hypot(q.x0 + vx * f - pv.x, q.y0 + vy * f - pv.y) < 60; });
+      ctx.save(); ctx.globalAlpha = under ? 0.26 : 1; const w = 54, tk = imgs.current.tx_track;
+      for (const q of S.segs) { const vert = Math.abs(q.x1 - q.x0) < 1, x = Math.min(q.x0, q.x1), y = Math.min(q.y0, q.y1), len = q.l;
+        if (vert ? (x + 40 < view.x0 || x - 40 > view.x1 || y > view.y1 || y + len < view.y0) : (y + 40 < view.y0 || y - 40 > view.y1 || x > view.x1 || x + len < view.x0)) continue;
+        ctx.fillStyle = "rgba(0,0,0,0.30)"; if (vert) ctx.fillRect(x - w / 2 + 10, y, w, len); else ctx.fillRect(x, y - w / 2 + 10, len, w);
+        ctx.fillStyle = "#2b2b30"; if (vert) ctx.fillRect(x - w / 2, y, w, len); else ctx.fillRect(x, y - w / 2, len, w);
+        ctx.fillStyle = "rgba(18,18,20,0.55)"; const lo = vert ? Math.max(y, view.y0 - 40) : Math.max(x, view.x0 - 40), hi = vert ? Math.min(y + len, view.y1 + 40) : Math.min(x + len, view.x1 + 40);
+        for (let u = lo - ((lo - (vert ? y : x)) % 26); u < hi; u += 26) { if (vert) ctx.fillRect(x - 18, u, 36, 6); else ctx.fillRect(u, y - 18, 6, 36); }
+        ctx.fillStyle = "#6a6a72"; for (const o of [-13, 13]) { if (vert) ctx.fillRect(x + o - 2, y, 4, len); else ctx.fillRect(x, y + o - 2, len, 4); }
+        ctx.fillStyle = "#55565c"; for (let u = 0; u < len; u += 300) { const px = vert ? x : x + u, py = vert ? y + u : y; if (px < view.x0 - 60 || px > view.x1 + 60 || py < view.y0 - 60 || py > view.y1 + 60) continue; ctx.fillRect(px - 9, py - 9, 18, 18); } }   // the columns
+      for (let k = 0; k < S.stops.length; k++) { const r = spurPlat(k); if (r.x1 < view.x0 - 200 || r.x0 > view.x1 + 200 || r.y1 < view.y0 - 200 || r.y0 > view.y1 + 200) continue;
+        ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(r.x0 + 10, r.y0 + 10, r.x1 - r.x0, r.y1 - r.y0);
+        const spl = imgs.current.sp_platform; if (spl && spl.width) { if (r.vert) { platStrip566(r.x0, r.y0, 70, r.y1 - r.y0, true, true); platStrip566(r.x1 - 70, r.y0, 70, r.y1 - r.y0, true, false); } else { platStrip566(r.x0, r.y0, r.x1 - r.x0, 70, false, true); platStrip566(r.x0, r.y1 - 70, r.x1 - r.x0, 70, false, false); } }
+        else { ctx.fillStyle = "#5c5a55"; } if (!(spl && spl.width)) if (r.vert) { ctx.fillRect(r.x0, r.y0, 70, r.y1 - r.y0); ctx.fillRect(r.x1 - 70, r.y0, 70, r.y1 - r.y0); } else { ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, 70); ctx.fillRect(r.x0, r.y1 - 70, r.x1 - r.x0, 70); }
+        ctx.fillStyle = spl && spl.width ? "rgba(0,0,0,0)" : "rgba(232,196,70,0.85)"; if (r.vert) { ctx.fillRect(r.x0 + 66, r.y0, 4, r.y1 - r.y0); ctx.fillRect(r.x1 - 70, r.y0, 4, r.y1 - r.y0); } else { ctx.fillRect(r.x0, r.y0 + 66, r.x1 - r.x0, 4); ctx.fillRect(r.x0, r.y1 - 70, r.x1 - r.x0, 4); }   // the yellow line
+        const sst = imgs.current.sp_stairs; for (const c of spurFeet(k)) { if (sst && sst.width) ctx.drawImage(sst, c[0] - 30, c[1] - 33, 60, 66); else { ctx.fillStyle = "#3e3c38"; ctx.fillRect(c[0] - 18, c[1] - 18, 36, 36); } }           // the stair towers
+        ctx.fillStyle = "#e8c46a"; ctx.font = "700 12px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText(S.stops[k].name, r.p.x, r.y0 - 44); ctx.textAlign = "start"; }
+      // the shuttle
+      const ROOFS = ["el_roof", "el_roof2", "el_roof3"], imf = imgs.current.el_roof_front || imgs.current.el_eng_roof;
+      for (let k = SP_CARS - 1; k >= 0; k--) { const c = spurCarPos(k); if (Math.abs(c.x - g.cam.x) > 2400 || Math.abs(c.y - g.cam.y) > 2400) continue;
+        const shu = imgs.current.sp_shuttle_roof, end = k === 0 || k === SP_CARS - 1, im = shu && shu.width ? shu : end && imf && imf.width ? imf : imgs.current[ROOFS[k % 3]] || imgs.current.el_roof;
+        ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.ang + Math.PI / 2 + (k === SP_CARS - 1 ? 0 : g.spurT.dir < 0 ? Math.PI : 0) * (k === 0 ? 1 : 0)); ctx.globalAlpha = (g.spurRide && k === 1) ? 0.3 : under ? 0.34 : 1;
+        ctx.fillStyle = "rgba(0,0,0,0.34)"; ctx.fillRect(-20, -EL_CAR_LEN / 2 + 10, 60, EL_CAR_LEN);
+        if (im && im.width) ctx.drawImage(im, -30, -EL_CAR_LEN / 2, 60, EL_CAR_LEN); else { ctx.fillStyle = "#8a8f96"; ctx.fillRect(-30, -EL_CAR_LEN / 2, 60, EL_CAR_LEN); }
+        ctx.restore(); }
+      for (let k = 0; k < S.stops.length; k++) { const c = spurClerk(k); if (Math.abs(c.x - g.cam.x) > 1400 || Math.abs(c.y - g.cam.y) > 1400) continue; drawActorTop("transit", TR_CLERK, { x: c.x, y: c.y, vx: 0, vy: 0, anim: g.t * 1.2 + k, jit: 1, toprow: TR_CLERK }, "hang"); }
+      ctx.restore();
+      if ((g.onSpur != null || g.spurRide) && g.mode === "foot" && !g.inside) drawHero(); }
+    /* layer 566: your platform strip (bench, bin, timetable, the yellow line on its right edge), tiled down a side platform
+       with the yellow line on the TRACK side -- the near platform as drawn, the far one mirrored (turned for an east-west
+       station). Used by the loop's stations and the spur's. */
+    function platStrip566(px0, py0, pw, ph, vert, nearSide) { const im = imgs.current.sp_platform; if (!im || !im.width) return false;
+      ctx.save(); ctx.beginPath(); ctx.rect(px0, py0, pw, ph); ctx.clip();
+      const across = vert ? pw : ph, along = vert ? ph : pw, th = across * im.height / im.width;
+      ctx.translate(px0 + pw / 2, py0 + ph / 2);
+      if (!vert) ctx.rotate(nearSide ? Math.PI / 2 : -Math.PI / 2); else if (!nearSide) ctx.scale(-1, 1);
+      for (let u = -along / 2; u < along / 2; u += th) ctx.drawImage(im, -across / 2, u, across, th);
+      ctx.restore(); return true; }
     function trainCarPos(k) {
       // car 0 is the front; each sits a car-length plus a coupling behind the last
       return elPos(g.train.d - k * (EL_CAR_LEN + EL_GAP));
@@ -22732,7 +23007,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (rnd() < 0.25) continue;
         const im = imgs.current[W[k]];
         if (!im || !im.width) continue;
-        const w = 84, h = w * (im.height / im.width);
+        const w = 50, h = w * (im.height / im.width);          // a car's width (layer 565: was 84 -- a wreck twice the size of a car)
         const px = c.lx0 + (c.lx1 - c.lx0) * (0.12 + rnd() * 0.76);
         const py = r.y + r.h + 30 + rnd() * 50;
         drawShadow(px, py + h * 0.36, w * 0.40, h * 0.20, 0.30);
@@ -23489,6 +23764,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const h = Math.abs(b.key || ((b.x * 7 + b.y * 13) | 0));
       return (h >> 3) % 3 === 0 ? null : L[(h >> 5) % L.length];
     }
+    G.mapRoof564 = (b) => platedRoof(b);       // the map draws the same plates (layer 564)
     function platedRoof(b) {
       if (!b || b.trailer) return null;
       if (b._plate === undefined) {
@@ -23532,8 +23808,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (tq === 1) { ctx.translate(b.x + b.w, b.y); ctx.rotate(Math.PI / 2); ctx.drawImage(pk, 0, 0, b.h, b.w); }
           else if (tq === 2) { ctx.translate(b.x + b.w, b.y + b.h); ctx.rotate(Math.PI); ctx.drawImage(pk, 0, 0, b.w, b.h); }
           else { ctx.translate(b.x, b.y + b.h); ctx.rotate(-Math.PI / 2); ctx.drawImage(pk, 0, 0, b.h, b.w); }
-        } else if (b.door && b.door.side === 0) {
-          ctx.translate(b.x, b.y + b.h); ctx.scale(1, -1);
+        } else if (b.door && b.door.side === 0) {         // layer 564: turned round, not flipped -- a flip wrote GROCERY backwards
+          ctx.translate(b.x + b.w, b.y + b.h); ctx.rotate(Math.PI);
           ctx.drawImage(pk, 0, 0, b.w, b.h);
         } else {
           ctx.drawImage(pk, b.x, b.y, b.w, b.h);
@@ -29140,7 +29416,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!im || !im.width || !im.height) return;
       if (v.riderRow == null) v.riderRow = (Math.random() * GANGTOP_ROWS) | 0;
       const f = (v.spd || 0) > 8 ? 1 : 0;         // leaned once he is actually moving
-      const d = GANGTOP_CELL * GANGTOP_SCALE;
+      const d = GANGTOP_CELL * GANGTOP_SCALE * RIDE_K566;       // crouched (layer 566)
       ctx.save();
       ctx.translate(0, v.m.len * 0.07);           // back on the saddle, not up on the tank
       ctx.rotate(Math.PI);
@@ -30487,7 +30763,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function makeWreck(v) {
       if (!v || v.wreck) return;
       v.wreck = 1; v.wreckT = WRECK_LIFE;
-      v.m = WRECK_M[(Math.abs(Math.round(v.x) + Math.round(v.y)) % WRECK_M.length)];
+      const bike = v.bike || (v.m && v.m.len < 90);
+      v.m = bike ? MOTO_WRECK566[(Math.abs(Math.round(v.x) + Math.round(v.y)) % 2)] : WRECK_M[(Math.abs(Math.round(v.x) + Math.round(v.y)) % WRECK_M.length)];   // a bike wrecks as a bike (layer 566)
       v.skin = v.m;
       v.spd = 0; v.cruise = 0; v.brake = 1;
       v.dead = 1; v.parked = 1; v.trFree = 1;
@@ -31366,7 +31643,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       "LET IT GO.", "FILE IT AND MOVE ON."];
     const DETM = { len: 106, w: 42 };
     // a real cruiser motorcycle is roughly half a sedan's length -- 2.4m vs ~5.1m for the cars above
-    const MOTO_M = { len: 50, w: 19, k: "rd_lion_bike" };
+    const MOTO_M = { len: 62, w: 24, k: "rd_lion_bike" };      // every bike one size (layer 566: was 50)
 
     function detKit(build) {
       const img = imgs.current["det_" + build];
@@ -33649,13 +33926,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const P = []; const x0 = best.x - 150, y0 = best.y - 150, x1 = best.x + best.w + 150, y1 = best.y + best.h + 150;
       const put = (t, x, y, w, h) => P.push({ t, x, y, w, h });
       for (let x = x0; x < x1; x += 120) { put("sy_fence", x, y0 - 20, 120, 40); put("sy_fence", x, y1 - 20, 120, 40); }
-      const L = [["sy_wreck_a", 120, 60], ["sy_wreck_b", 120, 60], ["sy_wreck_burnt", 120, 60], ["sy_wreck_van", 130, 64], ["sy_crusher", 150, 80],
+      const L = [["sy_wreck_a", 118, 52], ["sy_wreck_b", 118, 52], ["sy_wreck_burnt", 118, 52], ["sy_wreck_van", 128, 62], ["sy_crusher", 150, 80],
                  ["sy_container", 150, 110], ["sy_cubes", 60, 60], ["sy_tires_a", 50, 50], ["sy_tires_b", 60, 50], ["sy_drum_a", 20, 26], ["sy_drum_b", 20, 26],
-                 ["sy_scrap_pile", 70, 60], ["sy_crane", 150, 110], ["sy_wreck_crushed", 110, 60]];
+                 ["sy_scrap_pile", 70, 60], ["sy_crane", 150, 110], ["sy_wreck_crushed", 80, 58]];
       L.forEach(([t, w, h], k) => {
         const side = k % 4, f = ((k * 0.37) % 1);
         const x = side === 0 ? x0 + 10 + f * (x1 - x0 - w - 20) : side === 1 ? x1 - w - 10 : side === 2 ? x0 + 10 + f * (x1 - x0 - w - 20) : x0 + 10;
-        const y = side === 0 ? y0 + 26 : side === 1 ? y0 + 26 + f * (y1 - y0 - h - 52) : side === 2 ? y1 - h - 26 : y0 + 26 + f * (y1 - y0 - h - 52);
+        let y = side === 0 ? y0 + 26 : side === 1 ? y0 + 26 + f * (y1 - y0 - h - 52) : side === 2 ? y1 - h - 26 : y0 + 26 + f * (y1 - y0 - h - 52);
+        for (let n = 0; n < 6 && P.some((q) => q.t !== "sy_fence" && q.x < x + w && x < q.x + q.w && q.y < y + h && y < q.y + q.h); n++) y += (side % 2 ? 1 : 0) * (h + 12) || 0, n += side % 2 ? 0 : 6;   // layer 565: not on top of each other
         put(t, x, y, w, h);
       });
       g.hideProps = P;
@@ -36022,7 +36300,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const opts = L.map((q, n) => ({ id: "ccar:who:" + n, label: first(q.name) + " · " + (q.role || "crew").toUpperCase() + (A && A.whoKey === q.key ? " · DRIVING" : ""), card: crewFace(q) || "assets/ui/ui_badge.png" }));
         if (A) opts.push({ id: "ccar:me", label: "I'LL DRIVE" });
         opts.push({ id: "close", label: "NEVER MIND" });
-        return { title: "THE CAR · WHO DRIVES", face: null, text: g.ccSaid || driving || "Everybody in the car. Pick who takes the wheel.", opts };
+        return { title: "THE CAR · WHO DRIVES", face: null, wheel: 1, text: g.ccSaid || driving || "Everybody in the car. Pick who takes the wheel.", opts };
       }
       if (view === "where") {
         const D = (g.ccDests = ccarDests().concat(barsNear(activeVeh() || g.p)));
@@ -36031,6 +36309,22 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return { title: first(P.name) + " · WHERE TO", face: crewFace(P), text: "Name it.", opts };
       }
       const isDrv = P.role === "driver", me = A && A.whoKey === P.key;
+      /* layer 564: the orders on a wheel -- eleven slots at most, so where-to-head and how-fast are wheels of their own */
+      if (view === "head" || view === "speed") {
+        const sub = view === "head" ? [["n", "DRIVE NORTH"], ["e", "DRIVE EAST"], ["s", "DRIVE SOUTH"], ["w", "DRIVE WEST"], ["circle", "CIRCLE THE BLOCK"], ["cruise", "JUST DRIVE AROUND"]]
+          : [["fast", "FASTER"], ["normal", "NORMAL SPEED"], ["slower", "SLOWER"], ["slow", "DRIVE-BY CRAWL"]];
+        return { title: first(P.name) + " · " + (view === "head" ? "WHICH WAY" : "HOW FAST"), face: crewFace(P), text: g.ccSaid || null,
+          opts: sub.map(([k, l]) => ({ id: "ccar:o:" + k, label: l })).concat([{ id: "ccar:back", label: "BACK" }]) };
+      }
+      if (true) {
+        const o2 = [{ id: "ccar:o:where", label: "DRIVE TO…" }, { id: "ccar:v:head", label: "WHICH WAY…" }, { id: "ccar:v:speed", label: "HOW FAST…" }, { id: "ccar:o:gas", label: "GET GAS" },
+          { id: "ccar:o:fix", label: "GET IT FIXED · STAN'S" }, { id: "ccar:o:lose", label: "LOSE 'EM" + ((g.heat || 0) > 0 ? "" : " (NOBODY ON US)") }, { id: "ccar:o:escape", label: "GET US OUT · SCRAPYARD, FAST" }];
+        if (A) o2.push({ id: "ccar:me", label: "PULL OVER · I'LL DRIVE" });
+        if (L.length > 1) o2.push({ id: "ccar:back", label: "SWITCH DRIVER" });
+        o2.push({ id: "close", label: "CARRY ON" });
+        return { title: "DRIVER · " + first(P.name) + " · " + (P.role || "crew").toUpperCase(), face: crewFace(P),
+          text: g.ccSaid || (me ? driving : null) || (isDrv ? "“Where we going? I can do it fast or I can do it slow.”" : "“I can drive. Don't ask me to do anything fancy.”"), opts: o2 };
+      }
       const opts = [{ id: "ccar:o:where", label: "DRIVE TO…" }, { id: "ccar:o:gas", label: "GET GAS" }, { id: "ccar:o:fix", label: "GET IT FIXED · STAN'S" },
         { id: "ccar:o:cruise", label: "JUST DRIVE AROUND" }, { id: "ccar:o:n", label: "DRIVE NORTH" }, { id: "ccar:o:s", label: "DRIVE SOUTH" }, { id: "ccar:o:e", label: "DRIVE EAST" }, { id: "ccar:o:w", label: "DRIVE WEST" },
         { id: "ccar:o:fast", label: "FASTER" }, { id: "ccar:o:slower", label: "SLOWER" }, { id: "ccar:o:normal", label: "NORMAL SPEED" },
@@ -36045,7 +36339,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.ccarPick = (id) => {
       const L = carCrew(), [, a, b] = id.split(":");
       if (a === "who") { const P = L[+b]; if (P) { g.ccWho = P.key; g.ccView = "orders"; } G.pickOpen("ccar"); return; }
-      if (a === "back") { g.ccView = g.ccView === "where" ? "orders" : "who"; G.pickOpen("ccar"); return; }
+      if (a === "back") { g.ccView = /where|head|speed/.test(g.ccView || "") ? "orders" : "who"; G.pickOpen("ccar"); return; }
+      if (a === "v") { g.ccView = b; G.pickOpen("ccar"); return; }      // layer 564: the which-way / how-fast wheels
       if (a === "me") { const nm = g.auto && g.auto.who; g.auto = null; g.canAimDriving = false; const v = activeVeh(); if (v) { v.vx = 0; v.vy = 0; v.fwd = 0; }
         g.pickupFlash = { nm: "lift:" + (nm ? nm + " PULLS OVER · " : "") + "YOUR WHEEL", t: 1.8 }; g.ccView = "who"; g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return; }
       const P = L.find((q) => q.key === g.ccWho); if (!P) { g.ccView = "who"; G.pickOpen("ccar"); return; }
@@ -38156,12 +38451,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!best) best = namedB((b) => b.kind === "house" && !b.landmark && !b.hideout && !b.stuHome);
       if (best && S) S.houseKey = best.key; return (suHouseB = best); }
     function suWare() { const S = g.story; if (suWareB && S && S.wareKey === suWareB.key) return suWareB;
-      if (S && S.wareKey) { const b = namedB((q) => q.key === S.wareKey); if (b) return (suWareB = b); }
+      if (S && S.wareKey) { const b = namedB((q) => q.key === S.wareKey); if (b) return (suWareB = b); S.scene = null; S.box = null; }   // gone (layer 563): pick again, the body goes with it
       const H = suHouse(); if (!H) return null; let best = null, bd = 1e12;
       const ci = clamp(Math.floor(H.x / PITCH), 0, N - 1), cj = clamp(Math.floor(H.y / PITCH), 0, N - 1);
       for (let i = Math.max(0, ci - 7); i <= Math.min(N - 1, ci + 7); i++) for (let j = Math.max(0, cj - 7); j <= Math.min(N - 1, cj + 7); j++) { const c = getCell(i, j);
         for (const b of (c && c.blds) || []) { const kp = { warehouse: 0, garage: 1000, store: 2000, office: 2500 }[b.kind]; if (kp == null || !b.door || b.landmark || b.hideout || b.inPrison || b.pd) continue;
-          const d = Math.hypot(b.x - H.x, b.y - H.y); if (d < PITCH * 1.4 || d > PITCH * 3.6) continue; const sc = d + kp + (b.name ? 6000 : 0); if (sc < bd) { bd = sc; best = b; } } }
+          const d = Math.hypot(b.x - H.x, b.y - H.y); if (d < PITCH * 1.4 || d > PITCH * 3.6) continue; const sc = d + kp + (b.name ? 6000 : 0) + (typeof b.key === "string" ? 3000 : 0); if (sc < bd) { bd = sc; best = b; } } }
       if (!best) best = namedB((b) => (b.kind === "warehouse" || b.kind === "garage") && !b.landmark && !b.hideout);
       if (best && S) S.wareKey = best.key; return (suWareB = best); }
     function suBox() { const S = g.story; if (S.box) return S.box; const H = suHouse(), W = suWare(); if (!H || !W) return null; const m = PITCH * 0.6;
@@ -38314,7 +38609,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const suLab = (t, x, y, c) => { ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = c; ctx.fillText(t, x, y); ctx.textAlign = "start"; };
     function drawSetup() { const S = g.story; if (!S || S.id !== "setup") return;
       const H = suHouse(), b = S.wareKey ? suWare() : null;
-      if (H && g.inside === H && g.floor === S.rFloor && S.step <= 1 && S.rx != null) { drawShadow(S.rx, S.ry + 2, 9, 4, 0.3); drawYouth({ x: S.rx, y: S.ry, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.15, yt: "yt_rochelle69", bang: Math.PI }); suLab("ROCHELLE", S.rx, S.ry - 30, "#e8c46a"); }
+      if (H && g.inside === H && g.floor === S.rFloor && S.step <= 1 && S.rx != null) { drawShadow(S.rx, S.ry + 2, 9, 4, 0.3); drawYouth({ x: S.rx, y: S.ry, vx: 0, vy: 0, anim: 0, jit: 1, tall: 1.1, yt: "yt_rochelle69", bang: Math.PI }); suLab("ROCHELLE", S.rx, S.ry - 30, "#e8c46a"); }
       if (S.scene && b && g.inside === b && g.floor === (b.entry || 0)) { const Q = S.scene;      // the body and the pool: drawSetupGround, under you (layer 510)
         if (!S.gun) { const im = imgs.current.wp_revolver_long; if (im && im.width) { ctx.save(); ctx.translate(Q.gx, Q.gy); ctx.rotate(0.6); ctx.drawImage(im, -14, -7, 28, 14); ctx.restore(); }
           else { ctx.fillStyle = "#333"; ctx.fillRect(Q.gx - 10, Q.gy - 3, 20, 6); } if (S.step === 4 && Math.hypot(g.p.x - Q.gx, g.p.y - Q.gy) < 70) suLab("E: PICK IT UP", Q.gx, Q.gy - 16, "#e8c46a"); } }
@@ -39930,6 +40225,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        draws the road route there (drawStoryRoute), refreshed every second. */
     const storyOnly = () => !!(g.prisonMode && g.pescaped && g.preleased);
     G.storyOnlyT = () => storyOnly();
+    G.storyTgtT = () => { try { return storyTarget(); } catch (e) { return 'ERR ' + e.message; } };   // test hook (layer 563)
     function storyTarget() { const S = g.story; if (!S || !storyOnly() || g.slam && g.slam.kind === "fail") return null;
       const fr = (b) => b && b.door ? frontOf(b) : null, home = () => { const c = aptC(); return c ? [(c.lx0 + c.lx1) / 2, c.ly1 + 100] : null; };
       const notIn = (b, p) => (b && g.inside === b) ? null : p, H = hideoutB(), HP = hippyB(), yard = () => notIn(H, fr(H)), hip = () => notIn(HP, fr(HP)), atHome = () => notIn(g.aptHomeB, home());
@@ -43851,6 +44147,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       updateTrain(dt);
       updatePlatform();
       autoStairs();
+      updateSpur(dt);                    // the airport shuttle (layer 565)
       /* Wanted decays. Without this `heat` latched on forever and the chase music never stopped
          -- a pursuit has to be something you can get out of. */
       /* The identity check. If you are no longer the man they are hunting, the hunt is over --
@@ -44267,7 +44564,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.save();
         ctx.translate(v.x, v.y); ctx.rotate(v.ang + Math.PI / 2);
         drawShadow(2, 5, w * 0.42, L * 0.40, 0.32);
+        if (v.husk565) ctx.filter = v.wreck ? "brightness(0.55)" : "brightness(0.2) saturate(0.1)";          // burnt out (layer 565)
         drawBody(im, w, L, v);
+        if (v.husk565) { ctx.filter = "none"; ctx.restore(); continue; }
         if (v.hit) drawHitMarks(w, L, v);
         // a chopper with nobody on it is just scenery; the rust buckets are cars, so skip them
         if (v.gang && L < 90) drawGangRider(v);   // parked chopper or turf patrol alike
@@ -44449,7 +44748,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         // exits: on the deck, 260 back up the expressway from where the ramp leaves; entrances: at the ramp's foot
         const back = S.r.vert ? [0, Math.sign(r.ay - SX(S.k)) * 260] : [Math.sign(r.ax - SX(S.k)) * 260, 0];
         const x = S.exit ? r.ax + back[0] : r.bx + r.ux * 40, y = S.exit ? r.ay + back[1] : r.by + r.uy * 40;
-        if (x < view.x0 - 300 || x > view.x1 + 300 || y < view.y0 - 300 || y > view.y1 + 300) continue;
+        if (!Number.isFinite(x) || !Number.isFinite(y) || x < view.x0 - 300 || x > view.x1 + 300 || y < view.y0 - 300 || y > view.y1 + 300) continue;   // layer 564: a ramp with no foot drew its sign at the top of the screen
         ctx.save(); ctx.translate(x, y);
         if (S.exit) {
           // an overhead gantry across the outer lane: EXIT n on a yellow tab, the street, an arrow off
@@ -45653,7 +45952,83 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     /* CAR BOOMS (layer 501): a car going up gets its own fireball -- 0.4 s flash to 170 wide, a rolling orange ball,
        black smoke climbing for 3 s -- and a hard shake. */
-    function carBoom(x, y) { (g.booms = g.booms || []).push({ x, y, t: 0 }); g.shake = Math.max(g.shake || 0, 16); sfxImpact && sfxImpact(1); }
+    /* ---------- LAYER 565: A CAR THAT GOES UP BURNS ----------
+       The car stays where it went up, a black husk, ON FIRE for two minutes (your flame sheet, three to five flames along it),
+       then smokes for one more. The blast throws its parts -- tyres, a door, the wheel, the fan, the battery, a disc, the
+       muffler, burnt -- and a spray of flamelets. Whatever comes down still burning sets light to what it touches: people
+       (they run, alight), other cars (they cook toward going up themselves), you (it hurts), and roofs -- a roof gets a fire
+       on it where the burning thing landed, which burns out and does NOT damage the building. Debris lies charred after. */
+    const F565 = { car: 120, smoke: 60, deb: [22, 40], flm: [7, 16], bld: [30, 60], cap: 60 };
+    function fire565Boom(x, y) {
+      const L = g.traffic || []; let v = null, bd = 60;
+      for (const q of L) { if (q.husk565) continue; const d = Math.hypot(q.x - x, q.y - y); if (d < bd) { bd = d; v = q; } }
+      if (v && (v.bike || (v.m && v.m.len < 90))) { v.m = MOTO_WRECK566[(Math.abs(Math.round(v.x)) >> 3) % 2]; v.skin = v.m; v.wreck = 1; v.wreckT = 240; v.trFree = 1; }   // a bike burns as a bike wreck (layer 566)
+      if (v) Object.assign(v, { husk565: 1, burn565: F565.car, dead: 1, spd: 0, vx: 0, vy: 0, cruise: 0, brake: 0, parked: 1, onFire: 0, chasing: 0, sig: 0, dmg: Math.max(v.dmg || 0, 1) });
+      else (g.gfire565 = g.gfire565 || []).push({ x, y, t: 0, life: 60, s: 64 });
+      const D = (g.deb565 = g.deb565 || []), F = (g.flm565 = g.flm565 || []);
+      const nd = 5 + ((Math.random() * 4) | 0);
+      for (let n = 0; n < nd; n++) { const a = Math.random() * 6.283, sp = 160 + Math.random() * 300;
+        D.push({ x, y, z: 6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: 260 + Math.random() * 320, a: Math.random() * 6.3, va: (Math.random() - 0.5) * 14,
+          k: DEB565[(Math.random() * DEB565.length) | 0], sz: 26 + Math.random() * 16, burn: F565.deb[0] + Math.random() * (F565.deb[1] - F565.deb[0]), t: 0, land: 0 }); }
+      for (let n = 0; n < 14; n++) { const a = Math.random() * 6.283, sp = 120 + Math.random() * 380;
+        F.push({ x, y, z: 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: 200 + Math.random() * 380, burn: F565.flm[0] + Math.random() * (F565.flm[1] - F565.flm[0]), t: 0, land: 0, s: 14 + Math.random() * 10 }); }
+      while (D.length > F565.cap) D.shift(); while (F.length > F565.cap) F.shift();
+    }
+    function bldAt565(x, y) { const c = getCell(clamp(Math.floor(x / PITCH), 0, N - 1), clamp(Math.floor(y / PITCH), 0, N - 1));
+      for (const b of (c && c.blds) || []) if (!/wall|fence/.test(b.kind || "") && x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return b; return null; }
+    // a burning thing at (x, y), radius r: what it touches catches
+    function ignite565(x, y, r, dt) {
+      if (g.mode === "foot" && !g.inside && Math.hypot(g.p.x - x, g.p.y - y) < r + 12) { g.p.hp = Math.max(0, g.p.hp - dt * 5 / TOUGH); g.p.burn565 = Math.max(g.p.burn565 || 0, 1.2); }
+      for (const p of g.peds || []) { if (p.dead) continue; if (Math.hypot(p.x - x, p.y - y) < r + 9) { p.burn565 = Math.max(p.burn565 || 0, 6); p.mode = "panic"; p.timer = Math.max(p.timer || 0, 6); p.fx = p.x - x; p.fy = p.y - y; } }
+      for (const v of g.traffic || []) { if (v.husk565 || v.bus) continue; const L = (v.m && v.m.len) || 100; if (Math.hypot(v.x - x, v.y - y) < r + L * 0.42) v.dmg = Math.min(0.99, (v.dmg || 0) + dt * 0.05); }
+    }
+    function update565(dt) {
+      const D = g.deb565 || [], F = g.flm565 || [], B = (g.bfire565 = g.bfire565 || []), GF = g.gfire565 || [];
+      const fly = (o) => { if (o.land) return; o.vz -= 900 * dt; o.z += o.vz * dt; o.x += o.vx * dt; o.y += o.vy * dt; if (o.va) o.a += o.va * dt;
+        if (o.z <= 0) { o.z = 0; if (o.vz < -260 && !o.bounced) { o.vz = -o.vz * 0.3; o.vx *= 0.55; o.vy *= 0.55; o.bounced = 1; return; }
+          o.land = 1; o.vx = o.vy = 0; o.va = 0; const b = bldAt565(o.x, o.y);
+          if (b && o.burn > 0 && B.length < 40) B.push({ x: o.x, y: o.y, t: 0, life: F565.bld[0] + Math.random() * (F565.bld[1] - F565.bld[0]), s: 26 + Math.random() * 20, key: b.key }); } };
+      for (let n = D.length - 1; n >= 0; n--) { const o = D[n]; o.t += dt; fly(o); if (o.land && o.t < o.burn) ignite565(o.x, o.y, 14, dt); if (o.t > o.burn + 150) D.splice(n, 1); }
+      for (let n = F.length - 1; n >= 0; n--) { const o = F[n]; o.t += dt; fly(o); if (o.land && o.t < o.burn) ignite565(o.x, o.y, 9, dt); if (o.t > o.burn) F.splice(n, 1); }
+      for (let n = B.length - 1; n >= 0; n--) { B[n].t += dt; if (B[n].t > B[n].life + 20) B.splice(n, 1); }
+      for (let n = GF.length - 1; n >= 0; n--) { const o = GF[n]; o.t += dt; if (o.t < o.life) ignite565(o.x, o.y, 26, dt); if (o.t > o.life + 30) GF.splice(n, 1); }
+      for (const v of g.traffic || []) if (v.husk565) { if (v.wreck && !v.wk565) { v.wk565 = 1; v.wreckT = 240; } v.burn565 -= dt; v.vx = v.vy = 0; v.spd = 0; if (v.burn565 > 0) ignite565(v.x, v.y, ((v.m && v.m.len) || 100) * 0.42, dt); }
+      for (const p of g.peds || []) if (p.burn565 > 0) { p.burn565 -= dt; p.mode = "panic"; }
+      if (g.p.burn565 > 0) g.p.burn565 -= dt;
+    }
+    // one flame from the sheet: catching (0-4) while t < 0.6, burning (5-12, back and forth), dying (13-15) in the last 2 s
+    function flame565(x, y, s, t, left, seed) { const im = imgs.current.fx_fire16; const ph = (seed || 0) * 3.7;
+      if (!im || !im.width) { const gr = ctx.createRadialGradient(x, y - s * 0.3, 1, x, y - s * 0.3, s * 0.5); gr.addColorStop(0, "rgba(255,236,170,0.9)"); gr.addColorStop(0.6, "rgba(240,110,30,0.7)"); gr.addColorStop(1, "rgba(120,30,10,0)"); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y - s * 0.3, s * 0.5, 0, 6.3); ctx.fill(); return; }
+      let f; if (t < 0.6) f = Math.min(4, Math.floor(t / 0.12)); else if (left < 2) f = 13 + Math.min(2, Math.floor((2 - left) / 0.67));
+      else { const q = Math.floor((g.t || 0) * 11 + ph) % 14; f = 5 + (q < 8 ? q : 14 - q); f = Math.min(12, f); }
+      const fs = im.height; ctx.drawImage(im, f * fs, 0, fs, fs, x - s / 2, y - s * 0.86, s, s); }
+    function smoke565(x, y, k, seed) { const t = (g.t || 0) * 1.6 + (seed || 0);
+      for (let i = 0; i < 3; i++) { const ph = t + i * 2.1, off = (ph % 3) / 3; ctx.fillStyle = "rgba(40,40,44," + (0.4 * k * (1 - off)) + ")"; ctx.beginPath(); ctx.arc(x + Math.sin(ph) * 8, y - 10 - off * 46, 9 + off * 18, 0, 6.3); ctx.fill(); } }
+    // the ground layer: charred debris lying, ground flames, husk flames
+    function draw565Ground() {
+      for (const o of g.deb565 || []) { if (!o.land) continue; const im = imgs.current[o.k]; ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.a);
+        if (im && im.width) ctx.drawImage(im, -o.sz / 2, -o.sz * im.height / im.width / 2, o.sz, o.sz * im.height / im.width); else { ctx.fillStyle = "#1c1a18"; ctx.fillRect(-o.sz / 2, -o.sz / 3, o.sz, o.sz * 0.66); }
+        ctx.restore(); }
+      for (const o of g.gfire565 || []) if (o.t < o.life) { flame565(o.x - 14, o.y + 4, o.s * 0.8, o.t, o.life - o.t, 1); flame565(o.x + 12, o.y, o.s, o.t, o.life - o.t, 2); } else smoke565(o.x, o.y, 1 - (o.t - o.life) / 30, 3);
+    }
+    // over everything: husk fires, burning debris, flamelets, roof fires, flying parts
+    function draw565Over() {
+      for (const v of g.traffic || []) { if (!v.husk565) continue; const L = (v.m && v.m.len) || 100, ca = Math.cos(v.ang), sa = Math.sin(v.ang), t = F565.car - v.burn565;
+        if (v.burn565 > 0) { const k = (v.burn565 < 30 ? 0.5 + v.burn565 / 60 : 1) * Math.min(1, L / 110);     // a bike burns smaller (layer 566)
+          for (const [f, s, sd] of [[-0.3, 66, 1], [0.02, 92, 2], [0.32, 72, 3], [-0.08, 56, 4]]) flame565(v.x + ca * L * f, v.y + sa * L * f, s * k, t - sd * 0.15, v.burn565, sd + v.x * 0.01); smoke565(v.x, v.y - 20, 1, v.x); }
+        else if (v.burn565 > -F565.smoke) smoke565(v.x, v.y, 1 + v.burn565 / F565.smoke, v.x); }
+      for (const o of g.deb565 || []) { if (o.land) { if (o.t < o.burn) flame565(o.x, o.y + 4, 34, o.t, o.burn - o.t, o.sz); else if (o.t < o.burn + 30) smoke565(o.x, o.y, 0.4, o.sz); continue; }
+        const im = imgs.current[o.k], sc = 1 + o.z / 260; drawShadow(o.x, o.y, o.sz * 0.4, o.sz * 0.25, 0.3); ctx.save(); ctx.translate(o.x, o.y - o.z); ctx.rotate(o.a); ctx.scale(sc, sc);
+        if (im && im.width) ctx.drawImage(im, -o.sz / 2, -o.sz * im.height / im.width / 2, o.sz, o.sz * im.height / im.width); ctx.restore(); flame565(o.x, o.y - o.z + 6, 18, 1, 9, o.sz); }
+      for (const o of g.flm565 || []) flame565(o.x, o.y - o.z + 4, o.land ? o.s : o.s * 0.8, o.land ? o.t : 1, o.burn - o.t, o.s);
+      for (const o of g.bfire565 || []) { if (o.t < o.life) { flame565(o.x - o.s * 0.3, o.y + 4, o.s * 0.8, o.t, o.life - o.t, o.s); flame565(o.x + o.s * 0.25, o.y, o.s, o.t - 0.2, o.life - o.t, o.s + 1); smoke565(o.x, o.y - 10, 0.8, o.s); }
+        else smoke565(o.x, o.y, 1 - (o.t - o.life) / 20, o.s); }
+      for (const p of g.peds || []) if (p.burn565 > 0) flame565(p.x, p.y + 6, 26, 6 - p.burn565, p.burn565, p.x * 0.01);
+      if (g.p.burn565 > 0 && g.mode === "foot") flame565(g.p.x, g.p.y + 6, 26, 1, g.p.burn565, 9);
+    }
+    G.fire565T = () => ({ husks: (g.traffic || []).filter((v) => v.husk565).map((v) => [v.x | 0, v.y | 0, +v.burn565.toFixed(1)]), deb: (g.deb565 || []).map((o) => [o.k, o.land, o.x | 0, o.y | 0]), flm: (g.flm565 || []).length, bld: (g.bfire565 || []).length, pedsOnFire: (g.peds || []).filter((p) => p.burn565 > 0).length });   // test hook
+    G.boom565T = (x, y) => carBoom(x, y);
+    function carBoom(x, y) { (g.booms = g.booms || []).push({ x, y, t: 0 }); g.shake = Math.max(g.shake || 0, 16); sfxImpact && sfxImpact(1); fire565Boom(x, y); }
     function drawBooms() { const L = g.booms; if (!L || !L.length) return;
       for (let n = L.length - 1; n >= 0; n--) { const b = L[n]; b.t += 1 / 60; if (b.t > 3) { L.splice(n, 1); continue; }
         const k = Math.min(1, b.t / 0.4);
@@ -46059,6 +46434,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
            Missing file: the old grey wash, exactly as it was. */
         const PLATE_TILE = 44;
         const dk = imgs.current.tx_deckplate;
+        if (imgs.current.sp_platform && imgs.current.sp_platform.width) { for (const [px0, py0, pw, ph] of plats) platStrip566(px0, py0, pw, ph, vert, vert ? px0 < p.x : py0 < p.y); plats.length = 0; }   // your platform art (layer 566)
         const dpat = dk && dk.width ? ctx.createPattern(dk, "repeat") : null;
         for (const [px0, py0, pw, ph] of plats) {
           if (pw <= 0 || ph <= 0) continue;
@@ -46130,8 +46506,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const car = 1 + ((Math.random() * (EL_CARS - 1)) | 0);
         g.riders.push({
           car,
-          u: car * (EL_CAR_LEN + EL_GAP) + 28 + Math.random() * (EL_CAR_LEN - 56),
-          v: (Math.random() < 0.5 ? -1 : 1) * (13 + Math.random() * 5),
+          /* layer 565: most of them SIT -- on the seat rows down each side (v ±19), on a seat's spacing (24) -- and a few
+             stand in the aisle holding a pole */
+          u: car * (EL_CAR_LEN + EL_GAP) + 30 + Math.floor(Math.random() * ((EL_CAR_LEN - 60) / 24)) * 24,
+          v: Math.random() < 0.8 ? (Math.random() < 0.5 ? -1 : 1) * 19 : (Math.random() - 0.5) * 8,
           civ: undefined, anim: Math.random() * 6, jit: 0.95 + Math.random() * 0.12,
           // one in six is a guard riding the line rather than a passenger
           staff: Math.random() < 0.17,
@@ -46383,6 +46761,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (let n = g.traffic.length - 1; n >= 0; n--) {
         const v = g.traffic[n];
         if (v.hitFx > 0) v.hitFx -= dt;
+        if (v.husk565) continue;                      // burnt out (layer 565)
         const d = v.dmg || 0;
         if (d < 0.55) continue;
         if (d >= 0.85 && !v.onFire) { v.onFire = 0.0001; }
@@ -46390,9 +46769,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           v.onFire += dt;
           v.dmg = Math.min(1.4, d + dt * 0.06);
           if (v.onFire > 4.5 + Math.random()) {
-            // it goes up, and the blast is the same one a grenade makes
+            // it goes up, and the blast is the same one a grenade makes -- and stays there burning (layer 565)
             blastAt(v.x, v.y, "grenade"); carBoom(v.x, v.y);
-            g.traffic.splice(n, 1);
             continue;
           }
         }
@@ -46834,7 +47212,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const k = (c.skin && c.skin.k) || c.model || null;
       return {
         im: k ? firstImg(k, "rd_lion_bike", "motorcycle") : firstImg("rd_lion_bike", "motorcycle"),
-        len: (c.skin && c.skin.len) || MOTO_M.len,
+        len: clamp((c.skin && c.skin.len) || MOTO_M.len, 56, 66),      // a bike is a bike's size, whatever skin (layer 566)
         named: !!k && k !== "rd_lion_bike",
       };
     }
@@ -46861,9 +47239,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }
         const r = rosterOf(g.who);
         const plate = heroPlate(r);
-        drawYouth({ x: c.x, y: c.y, vx: Math.cos(c.ang), vy: Math.sin(c.ang),
+        /* layer 566: crouched over the tank -- drawn at 0.7 of his size and back on the saddle, so the bike shows round him */
+        const bk = -L * 0.08;
+        drawYouth({ x: c.x + Math.cos(c.ang) * bk, y: c.y + Math.sin(c.ang) * bk, vx: Math.cos(c.ang), vy: Math.sin(c.ang),
                     anim: 0, jit: 1, yt: plate,
-                    tall: heroTall(r) });
+                    tall: heroTall(r) * RIDE_K566 });
         motoLight(c);
         return;
       }
@@ -47382,6 +47762,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!g.title) updateThrown(dt);
       if (!g.title) updateBlasts(dt);
       if (!g.title) updateCarDamage(dt);
+      if (!g.title) update565(dt);
       if (!g.title) updateBullets(dt);
       /* Drive it home and it gets fixed. The den is a garage with a lift in it and a crew who
          do nothing else -- charging for repairs somewhere else while that sat unused was the
@@ -47784,7 +48165,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       drawComp();
       drawThrown();
       drawBlood();
-      drawCarDamage();
+      drawCarDamage(); draw565Ground();
       drawBlasts();
       /* The drive-by car has a gun out of it. It fired, took lives and left, and the only sign
          was a muzzle flash inside the bodywork -- from above you could not tell a drive-by from
@@ -47938,7 +48319,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       if (g.inside && g.insideT > 0.5) { drawHoopsOver(); drawBizExtras(); }
       if (!g.inside) { drawFireOver560(view); drawMom560(); drawCourts561(); }      // + Mom on her step, in front of the house (layer 560)      // the fire escapes hang over the alley (layer 560)
-      drawStory(); drawSetup(); drawEmp(); drawMimi(); drawNest2(); DRAW98.forEach((f) => f()); drawYardDoorIn(); drawTrophy(); drawCarry(); drawPick(); drawCalled(); drawLedger(); drawRcase(); drawDrum509(); drawAptDoors512(); drawAptConsole512(); drawFirstOut(); drawScrap2(); drawFriday(); drawAllin(); drawWash(); drawWashCrew(); drawParty(); drawMorning(); drawMaptable(); drawPabloHang(); drawBozFolk(); drawDreadCorner(); drawCornerMark(); drawCellParty(); drawEscort511(); drawParty511(); drawEddie(); drawJose(); drawSiteCones(); drawCover(); drawBombed(view); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
+      drawStory(); drawSetup(); drawEmp(); drawMimi(); drawNest2(); DRAW98.forEach((f) => f()); drawYardDoorIn(); drawTrophy(); drawCarry(); drawPick(); drawCalled(); drawLedger(); drawRcase(); drawDrum509(); drawAptDoors512(); drawAptConsole512(); drawFirstOut(); drawScrap2(); drawFriday(); drawAllin(); drawWash(); drawWashCrew(); drawParty(); drawMorning(); drawMaptable(); drawPabloHang(); drawBozFolk(); drawDreadCorner(); drawCornerMark(); drawCellParty(); drawEscort511(); drawParty511(); drawEddie(); drawJose(); drawSiteCones(); drawCover(); drawBombed(view); draw565Over(); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
       if (!g.inside) {
         // Roofs belong ABOVE the sorted building list, not before it -- drawn early, every
         // building painted straight over the roof and the man standing on it.
@@ -47968,6 +48349,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
            what "cars are driving on the train platform" was. It is the highest structure in the
            city and it has to be drawn last. */
         drawEl(view);
+        drawSpur(view);                  // the airport spur and its shuttle (layer 565)
         drawTrain();
         drawTransitFolk();
         // riders go on after the cars so they are inside them, not under the floor
@@ -48740,6 +49122,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     };
     G.trainFn = () => {
       const gg = G.current;
+      /* layer 565: a seat. Aboard and moving, E sits you down on the nearest seat row (and the train carries you); E again
+         stands you up. Standing at a station, E steps off as before. */
+      if (gg.onTrain && gg.train && (gg.train.spd > 4 || gg.trainSit565)) {
+        if (gg.trainSit565) { gg.trainSit565 = 0; gg.trainV = Math.sign(gg.trainV || 1) * 10; gg.pickupFlash = { nm: "lift:STANDING", t: 0.8 }; return true; }
+        gg.trainSit565 = 1; const side = (gg.trainV || 0) >= 0 ? 1 : -1; gg.trainV = side * 19; const u0 = gg.trainU || 0, car = Math.floor(u0 / (EL_CAR_LEN + EL_GAP)), loc = u0 - car * (EL_CAR_LEN + EL_GAP);
+        gg.trainU = car * (EL_CAR_LEN + EL_GAP) + 30 + clamp(Math.round((loc - 30) / 24), 0, Math.floor((EL_CAR_LEN - 60) / 24)) * 24;
+        gg.pickupFlash = { nm: "lift:SAT DOWN · E TO STAND", t: 1.4 }; return true; }
       if (gg.onTrain) {
         // stepping off leaves him on the platform if one is under him, not in the road
         const { stop } = elNearestStop(gg.train ? gg.train.d : 0);
@@ -50379,7 +50768,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const band = rnd() < 0.5 ? 0.14 : 0.80;
         const px = c.lx0 + w * (0.08 + rnd() * 0.84);
         const py = c.ly0 + h * (band + (rnd() - 0.5) * 0.10);
-        const ww = Math.min(84, 26 + im.width * 0.16), hh = ww * (im.height / im.width);
+        const ww = /deadcar/.test(JUNK[k]) ? 112 : Math.min(84, 26 + im.width * 0.16), hh = ww * (im.height / im.width);      // a dead car is a car's length (layer 565)
         drawShadow(px, py + hh * 0.42, ww * 0.42, hh * 0.20, 0.30);
         ctx.drawImage(im, px - ww / 2, py - hh / 2, ww, hh);
       }
@@ -52016,6 +52405,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         c.blds.push(b);
         m.b = b;
       }
+      if (any) { const seen = new Set(); for (const m of MARKS) { if (!m.b) continue; const c = getCell(m.i, m.j); if (!c || seen.has(c)) continue; seen.add(c); settle563(c); } }   // layer 563
       if (any && MARKS.every((m) => m.b)) g.marksPlaced = 1;
     }
     function marksClamp() {
@@ -55890,8 +56280,42 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           </div>
         </div>
       )}
+      {/* LAYER 564: TALK ON A WHEEL. A panel with someone's face (anyone you're talking to), or one that asks WHO (the car's
+          crew, their faces), lays its answers round a ring: the face in the middle, what they said in a box above, and the
+          leave / not now / close line in the centre. Stick points, A takes it, B leaves -- the same ring as the action wheel.
+          Card tables (jobs) and long lists (over 14) stay lists. */}
+      {hud.pick && talkWheel564(hud.pick) && (() => { const P = hud.pick, isClose = (o) => o.id === "close" || /^(close|leave|not now|never ?mind|bye|done|back|nothing|walk away|forget it|ok)\b/i.test(String(o.label || "").replace(/[^a-z ]/gi, "").trim());
+        let cl = P.opts.filter(isClose).pop() || null; const ring = P.opts.filter((o) => o !== cl), n = ring.length;
+        const pick = (o) => G.pickFn && G.pickFn(o ? o.id : "close"), setInfo = (t) => { const el = document.querySelector("[data-radialinfo]"); if (el) el.textContent = t; };
+        const rad = n > 8 ? 0.40 : 0.37, pw = n > 10 ? 0.27 : 0.31;
+        return (
+        <div style={{ position: "absolute", inset: 0, zIndex: 90, background: "rgba(6,7,9,0.55)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: mono, padding: "8px 8px 4px", boxSizing: "border-box" }}>
+          <div style={{ maxWidth: "min(720px, 94vw)", width: "100%", background: "rgba(10,11,14,0.94)", border: "1px solid rgba(217,164,65,0.45)", padding: "10px 14px", boxSizing: "border-box", marginBottom: 6 }}>
+            <div style={{ fontSize: 9, letterSpacing: "0.24em", color: "#6fa8dc" }}>{P.title}</div>
+            {P.text && <div style={{ fontSize: 11, lineHeight: 1.5, color: "#e8d9b5", marginTop: 6, maxHeight: "22vh", overflowY: "auto", whiteSpace: "pre-line" }}>{P.text}</div>}
+          </div>
+          <div data-pickradial="1" data-talkwheel="1" onClick={(e) => e.stopPropagation()} style={{ position: "relative", width: "min(560px, 94vw, 66vh)", height: "min(560px, 94vw, 66vh)", color: "#e8d9b5", flexShrink: 0 }}>
+            <div style={{ position: "absolute", inset: "3%", borderRadius: "50%", border: "2px solid rgba(217,164,65,0.5)", background: "radial-gradient(circle, rgba(18,17,14,0.96) 0%, rgba(12,13,17,0.88) 60%, rgba(12,13,17,0.4) 100%)" }} />
+            {ring.map((o, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / Math.max(1, n), x = 50 + Math.cos(a) * rad * 100, y = 50 + Math.sin(a) * rad * 100, im = o.card || o.icon;
+              return (
+              <div key={o.id + "_" + i} data-pickopt="1" data-info={o.label} onClick={() => pick(o)} onMouseEnter={() => setInfo(o.label)}
+                style={{ position: "absolute", left: x + "%", top: y + "%", width: pw * 100 + "%", minHeight: im ? "17%" : "9%", transform: "translate(-50%,-50%)", borderRadius: im ? 10 : 18,
+                  border: "1px solid rgba(217,164,65,0.55)", background: "rgba(12,13,17,0.93)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  textAlign: "center", boxSizing: "border-box", padding: "5px 7px", opacity: o.dim ? 0.5 : 1, fontSize: n > 10 ? 8 : 9, lineHeight: 1.25, letterSpacing: "0.05em" }}>
+                {im && <img src={im} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: "54%", aspectRatio: "1", objectFit: "cover", imageRendering: "pixelated", borderRadius: 6, marginBottom: 3 }} />}
+                <span style={{ display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{o.label}</span>
+              </div>); })}
+            <div data-pickopt="1" data-info={cl ? cl.label : "LEAVE IT"} onClick={() => pick(cl)} onMouseEnter={() => setInfo(cl ? cl.label : "LEAVE IT")}
+              style={{ position: "absolute", left: "50%", top: "50%", width: "27%", height: "27%", transform: "translate(-50%,-50%)", borderRadius: "50%", border: "1px solid rgba(217,164,65,0.65)",
+                background: "rgba(12,13,17,0.95)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 6, boxSizing: "border-box", cursor: "pointer", overflow: "hidden" }}>
+              {P.face && <img key={P.face} src={P.face} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: "52%", height: "52%", objectFit: "contain", imageRendering: "pixelated" }} />}
+              <div data-radialinfo="1" style={{ fontSize: 8, marginTop: 3, lineHeight: 1.3, color: "#e8c46a" }}>{padOn ? "point the stick \u00b7 A" : "pick a line"}</div>
+              <div style={{ fontSize: 7, marginTop: 3, opacity: 0.55 }}>{"B \u00b7 centre: " + (cl ? cl.label : "LEAVE IT")}</div>
+            </div>
+          </div>
+        </div>); })()}
       {/* THE TRUNK / THE RADIO / WHERE RAMOS DRIVES. */}
-      {hud.pick && (
+      {hud.pick && !talkWheel564(hud.pick) && (
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 90,
           background: "linear-gradient(transparent, rgba(6,7,9,0.94) 22%)", padding: "40px 16px 22px", fontFamily: mono }}>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
