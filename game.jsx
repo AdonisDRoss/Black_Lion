@@ -13386,6 +13386,10 @@ export default function IronLionLayer004() {
       const len = Math.hypot(ix, iy);
       if (len > 1) { ix /= len; iy /= len; }
       if (g.p.sneak && (g.mode !== "foot" || inVehicle())) g.p.sneak = 0;
+      /* layer 562: going through a door stands you up, and so does RUN -- a crouch picked up in the flat (Y indoors) or
+         left over from a job used to follow you out onto the Palm Court concrete, and sneaking never runs. */
+      if (g.p.sneak && g.inside !== g._sneakIn562) g.p.sneak = 0; g._sneakIn562 = g.inside;
+      if (g.p.sneak && (inp.run || k["shift"]) && Math.hypot(ix, iy) > 0.15) { g.p.sneak = 0; g.pickupFlash = { nm: "lift:STANDING", t: 0.6 }; }
       if (!Number.isFinite(g.p.maxStamina) || g.p.maxStamina <= 0) g.p.maxStamina = 100;      // layer 549: a lost max (some saves / hand-offs) made stamina NaN -- and NaN never runs
       if (!Number.isFinite(g.p.stamina)) g.p.stamina = g.p.maxStamina;
       const wantRun = (inp.run || k["shift"]) && !g.p.sneak;
@@ -47925,7 +47929,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           /* IN COVER (layer 490): he crouches -- the whole hero drawn 82% size about his feet and a shade darker,
              so tucked in reads at a glance without a crouch sprite. */
           if ((g.p.cover || g.p.sneak) && g.mode === "foot") { ctx.save(); ctx.translate(g.p.x, g.p.y + 6); ctx.scale(0.88, 0.88); ctx.translate(-g.p.x, -g.p.y - 6);
-            ctx.filter = "brightness(0.78)"; drawHero(); ctx.restore(); }
+            ctx.filter = "brightness(0.78)"; drawHero(); ctx.restore();
+            if (g.p.sneak) { ctx.save(); ctx.font = "bold 9px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "rgba(10,10,14,0.7)"; ctx.fillRect(g.p.x - 58, g.p.y + 30, 116, 13);
+              ctx.fillStyle = "#e8c46a"; ctx.fillText("SNEAKING \u00b7 Y / RUN TO STAND", g.p.x, g.p.y + 40); ctx.restore(); } }
           else drawHero();
         }
         else if (kind === 9) p.__draw();
