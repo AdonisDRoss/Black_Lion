@@ -2134,18 +2134,20 @@ for (const k of SEWER_CAMP.keys) SC_ART[k] = "assets/sewer/" + k + ".png";
    width factor against the width the camp tables already give it (a barrel seen from above is wider than the side of
    one); an array picks by position. Every camp -- the sewer's and the alleys' -- and the alley clutter draw through it. */
 const HL_ASP = { hl_barrel_fire: 1.045, hl_barrel_cold: 1.029, hl_cart: 1.716, hl_cardboard: 0.958, hl_tarp: 0.88, hl_bucket_blue: 1.019, hl_bucket_white: 1.019, hl_lights_l: 1.053,
-  hl_cookpot: 0.972, hl_lights_s: 0.427, hl_barrel_lid: 1.008, hl_crate_radio: 0.983, hl_battery: 1.021, hl_case: 0.835, hl_lantern: 1.13, hl_bedroll_a: 0.592, hl_bedroll_b: 0.587,
-  hl_bedroll_c: 0.584, hl_rags: 0.736, hl_dog: 0.736, hl_sign: 0.622 };
+  hl_cookpot: 0.972, hl_lights_s: 0.427, hl_barrel_lid: 1.008, hl_crate_radio: 0.983, hl_battery: 1.021, hl_case: 0.835, hl_lantern: 1.13, hl_bedroll_a: 0.500, hl_bedroll_b: 1.059,
+  hl_bedroll_c: 0.757, hl_bedroll_d: 0.530, hl_rags: 0.736, hl_dog: 0.736, hl_sign: 0.622 };
 for (const k in HL_ASP) SC_ART[k] = "assets/sewer/" + k + ".png";
 Object.assign(HL_ASP, { hl_box: 1.031, hl_leanto: 0.987, hl_chair: 1.375, hl_papers: 1.154, hl_cans: 1.073, hl_tv: 1.439, hl_jug: 1.316, hl_dogbowl: 0.98 });      // layer 547
 for (const k of ["hl_box", "hl_leanto", "hl_chair", "hl_papers", "hl_cans", "hl_tv", "hl_jug", "hl_dogbowl"]) SC_ART[k] = "assets/sewer/" + k + ".png";
 const TD546 = { sc_barrel_fire: ["hl_barrel_fire", 1.3], sc_barrel_cold: ["hl_barrel_cold", 1.3], al2_barrel: ["hl_barrel_lid", 0.9], sc_bucket_blue: ["hl_bucket_blue", 1.2],
   sc_bucket_white: ["hl_bucket_white", 1.2], sc_cart: ["hl_cart", 1.2], al2_cart: ["hl_cart", 0.55], sc_cardboard: ["hl_cardboard", 1], sc_tarp: ["hl_tarp", 1], sc_shelter: ["hl_tarp", 1.05],
   sc_cookpot: ["hl_cookpot", 1.35], sc_crate_radio: ["hl_crate_radio", 1.25], sc_lantern: ["hl_lantern", 1.2], sc_battery_lamp: ["hl_battery", 0.6], sc_lights: ["hl_lights_s", 0.9],
-  sc_bedrolls: [["hl_bedroll_a", "hl_bedroll_b", "hl_bedroll_c"], 1.15], sc_sign: ["hl_sign", 1.25] };
+  sc_bedrolls: [["hl_bedroll_a", "hl_bedroll_b", "hl_bedroll_c", "hl_bedroll_d"], 1.15], sc_sign: ["hl_sign", 1.25] };
 /* -> [key, width] for the top-down plate, or null when there is none (or it has not loaded: the caller keeps the old one) */
 TD546.sc_shelter = [["hl_box", "hl_leanto"], 1.15];      // layer 547
-function td546(k, w, x, y) { const s = TD546[k]; if (!s) return null; const key = Array.isArray(s[0]) ? s[0][Math.abs(((x | 0) * 7 + (y | 0) * 3)) % s[0].length] : s[0]; return [key, w * s[1]]; }
+/* layer 571: Donny's bedrolls -- a flat patched blanket, a green quilt, and two ROLLED ones, which are smaller than a bed laid out */
+const TDW571 = { hl_bedroll_b: 0.78, hl_bedroll_c: 0.5, hl_bedroll_d: 0.5 };
+function td546(k, w, x, y) { const s = TD546[k]; if (!s) return null; const key = Array.isArray(s[0]) ? s[0][Math.abs(((x | 0) * 7 + (y | 0) * 3)) % s[0].length] : s[0]; return [key, w * s[1] * (TDW571[key] || 1)]; }
 /* WHAT EVERYONE ELSE SAYS ABOUT IT. Ordinary people, talking to each other, about Sky. How often it
    comes up depends on how much Sky there is where they are standing -- see skyPresence(). `near`
    is for when one of them is right there. */
@@ -3715,7 +3717,7 @@ PD_ART.id_card_prison = "assets/ui/id_card_prison.png";
 for (const k in PRISON_GUARDS) { const B = PRISON_GUARDS[k]; PD_ART[B.yt] = "assets/prison/" + B.yt + ".png"; PD_ART[B.face] = "assets/prison/" + B.face + ".png"; }
 PD_ART.yt_pr_player = "assets/prison/yt_pr_player.png"; PD_ART.pt_pr_player = "assets/prison/pt_pr_player.png";
 // THE PLAYER, #0001: his jumpsuit and his street clothes, and a face in each (layer 426)
-for (const k of ["yt_player_in", "yt_player_civ", "pt_player_in", "pt_player_civ", "yd_track_oval"]) PD_ART[k] = "assets/prison/" + k + ".png";
+for (const k of ["yt_player_in", "yt_player_civ", "pt_player_in", "pt_player_civ", "yd_track_oval", "yt_rey_head"]) PD_ART[k] = "assets/prison/" + k + ".png";   // + Rey's own head (layer 570)
 for (const c of INMATE_CAST) { PD_ART[c.yt] = "assets/prison/" + c.yt + ".png"; PD_ART[c.face] = "assets/prison/" + c.face + ".png"; }
 for (const k of PR_PEOPLE.guard.concat(PR_PEOPLE.guardW)) PD_ART[k] = "assets/prison/" + k + ".png";
 for (const k in GUARD_FACE) PD_ART[GUARD_FACE[k][0]] = "assets/prison/" + GUARD_FACE[k][0] + ".png";
@@ -5187,6 +5189,7 @@ for (const k of ["wx_cal_1", "wx_cal_2", "wx_cal_3", "wx_cal_one", "wx_mg", "wx_
 for (const k of ["tr_cab_blue", "tr_cab_red", "tr_cab_brown", "tr_flatbed_wood", "tr_flatbed_metal"])
   CITY_ART[k] = "assets/vehicles/" + k + ".png";
 const SOV2_ART = {};
+PD_ART.mh_cover = "assets/sewer/mh_cover.png"; PD_ART.mh_cover_open = "assets/sewer/mh_cover_open.png";      // layer 571: the CITY SEWER 1982 cover, cut clean from sw_00 / sw_01
 for (const k of ["sv_arch", "sv_pillar", "sv_stair", "sv_manhole", "sv_desk", "sv_map_table",
                  "sv_switchgear", "sv_strongdoor", "sv_crates_a", "sv_crates_b",
                  "sv_pipes", "sv_lamp", "tx_sv_water_edge"])
@@ -8605,7 +8608,7 @@ function makeFloor(b, f, rnd) {
         const tw = Math.min(120, (W2 - 40) / 2 - 10), th = tw * 0.47;
         for (let r = 0; r < 3; r++) for (let k = 0; k < 2; k++) { const ty = q2.y0 + 84 + r * (th + 14); if (ty + th > q2.y1 - 6) continue;
           P(q2.x0 + 16 + k * (tw + 20), ty, tw, th, "sch_cafe_table"); if ((r + k) % 2 === 0) P(q2.x0 + 16 + k * (tw + 20) + tw * 0.4, ty + th * 0.3, 18, 14, "sch_tray_full"); }
-        if (!prep) P(q2.x1 - 24, q2.y1 - 28, 18, 22, "al_can");
+        if (!prep) P(q2.x1 - 24, q2.y1 - 26, 21, 21, "al_can");
         break;
       }
       case "schlibrary":
@@ -10857,7 +10860,7 @@ const LEG547 = { lg_lie_jeans: [0.46, 0.30], lg_lie_work: [0.52, 0.30], lg_lie_s
   lg_stand_tan: [0.42, 0.30], lg_stand_jeans: [0.44, 0.30], lg_stand_green: [0.46, 0.30] };
 for (const k in LEG547) PD_ART[k] = "assets/arms/" + k + ".png";
 /* layer 549: Rey's walking legs, one set per outfit's trousers; LEGW549 = their [width share, top] */
-const LEG_SETS549 = ["jeansblk", "track", "slacks", "work", "jeansblue", "boxers"];
+const LEG_SETS549 = ["jeansblk", "track", "slacks", "work", "jeansblue", "boxers", "orange"];      // orange: the jumpsuit's trousers (layer 570, recoloured from work)
 for (const s of LEG_SETS549) for (let f = 0; f < 3; f++) PD_ART["lg_walk_" + s + "_" + f] = "assets/arms/lg_walk_" + s + "_" + f + ".png";
 const LEGW549 = [0.44, 0.36];
 const REY_LEGS548 = { street: "jeansblk", track: "track", suit: "slacks", work: "work", workvest: "jeansblue", leather: "jeansblk", boxers: "boxers" };
@@ -10891,7 +10894,7 @@ for (let n = 1; n <= 8; n++) ARM_BY_YT["yt_swat_" + n] = AS("swat_tan", "swat", 
 /* Rey's coded outfits: the torso's blue is tinted to the OUTER colour, its green to the INNER one (g.pcol[fit]). */
 /* layer 563: the 1969 cast at the sizes the 1986 people got (women 0.72, men 0.8 of W532) -- Rochelle stood a head over Rey */
 for (const [k, f] of [["yt_rochelle69", 0.8], ["yt_tiny69", 0.8], ["yt_damian69", 0.8], ["yt_julian69", 0.8], ["yt_cop69_a", 0.8], ["yt_cop69_b", 0.8]]) if (ARM_BY_YT[k]) ARM_BY_YT[k].wid = W532 * f;
-const REY_CODED = { yt_player_civ: ["street", "jacket"], yt_rey_track: ["track", "long"], yt_rey_suit: ["suit", "long"], yt_rey_work: ["work", "jacket"],
+const REY_CODED = { yt_player_in: ["work", "jacket"], yt_player_civ: ["street", "jacket"], yt_rey_track: ["track", "long"], yt_rey_suit: ["suit", "long"], yt_rey_work: ["work", "jacket"],
   yt_rey_workvest: ["workvest", "full"], yt_rey_leather: ["leather", "full"], yt_rey_boxers: ["boxers", "full"] };      /* "full": arms in the plate (layer 540) */
 for (const k of ["workvest", "leather", "boxers"]) PD_ART["yt_rey_" + k + "_c"] = "assets/prison/yt_rey_" + k + "_c.png";
 /* defaults (layer 548, picked): street black jacket + grey hoodie, track maroon + white, suit charcoal + white, work tan + brown,
@@ -12880,6 +12883,7 @@ export default function IronLionLayer004() {
       if (G.tableFn && G.tableFn()) return;
       return;
     }
+    if (g.mode === "foot" && G.tsPayImpound568 && G.tsPayImpound568()) return;   // the impound (layer 568)
     if (g.mode === "foot" && G.spurSkipFn && G.spurSkipFn()) return;          // layer 565: the shuttle
     if (g.mode === "foot" && G.spurClerkFn && G.spurClerkFn()) return;
     if (g.mode === "foot" && G.spurDownFn && G.spurDownFn()) return;
@@ -14077,10 +14081,24 @@ export default function IronLionLayer004() {
       ctx.fillText("TAP TO PUT IT BACK", W / 2, y0 + CH + 22); ctx.textAlign = "start";
       ctx.restore();
     }
+    /* layer 568: YOUR ID on the card art -- the blank card, your picture, your name and number, and a stamp for what it is
+       (the real one: PAROLED; a fake: its maker and how good it is). Shown while the ID is open from your pockets. */
+    function drawReyId568(c) { if (g.pickOpen !== "idcard") { g.idCard = null; return; } const I = c.rey, blankA = imgs.current.id_card_blank;
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); const CW = Math.min(420, W * 0.84), CH = CW / (blankA && blankA.width ? blankA.width / blankA.height : 1.7), x0 = (W - CW) / 2, y0 = Math.max(20, H * 0.12);
+      if (blankA && blankA.width) ctx.drawImage(blankA, x0, y0, CW, CH); else { ctx.fillStyle = "#d9d3c2"; ctx.fillRect(x0, y0, CW, CH); ctx.fillStyle = "#2f4f7a"; ctx.fillRect(x0, y0, CW, CH * 0.17); }
+      const px = x0 + CW * 0.075, py = y0 + CH * 0.33, pw = CW * 0.27, ph = pw * 1.16; ctx.fillStyle = "#b9b3a2"; ctx.fillRect(px - 2, py - 2, pw + 4, ph + 4);
+      const ph0 = (drawReyId568.im = drawReyId568.im || Object.assign(new Image(), { src: I.k === "real" ? "assets/crew/pt_rey.png" : "assets/crew/pt_rey.png" }));
+      if (ph0.complete && ph0.naturalWidth) { const s = Math.max(pw / ph0.naturalWidth, ph / ph0.naturalHeight); ctx.save(); ctx.beginPath(); ctx.rect(px, py, pw, ph); ctx.clip(); if (I.k !== "real") ctx.filter = "sepia(0.35) contrast(0.9)"; ctx.drawImage(ph0, px + (pw - ph0.naturalWidth * s) / 2, py, ph0.naturalWidth * s, ph0.naturalHeight * s); ctx.restore(); }
+      const tx = px + pw + CW * 0.06; const rows = [["NAME", I.nm], ["NO.", I.no], ["ISSUED", I.k === "real" ? "KESTREL STATE" : "DAY " + (I.day || 0)], ["CLASS", I.k === "real" ? "ID ONLY" : "D · OPERATOR"]];
+      rows.forEach(([k, v], i) => { const ly = y0 + CH * 0.375 + i * CH * 0.128; ctx.fillStyle = "rgba(29,31,36,0.5)"; ctx.font = "11px ui-monospace, monospace"; ctx.fillText(k, tx, ly); ctx.fillStyle = "#1d1f24"; ctx.font = (i ? "" : "700 ") + "12px ui-monospace, monospace"; ctx.fillText(String(v), tx + CW * 0.17, ly); });
+      ctx.save(); ctx.translate(x0 + CW * 0.78, y0 + CH * 0.86); ctx.rotate(-0.16); ctx.strokeStyle = I.k === "real" ? "rgba(180,40,40,0.8)" : "rgba(40,90,170,0.8)"; ctx.lineWidth = 3; ctx.strokeRect(-70, -14, 140, 28);
+      ctx.fillStyle = ctx.strokeStyle; ctx.font = "800 14px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText(I.k === "real" ? "PAROLED" : "Q " + I.q + " " + idStars(I.q), 0, 5); ctx.restore();
+      ctx.restore(); }
     function drawIdCard() {
       const c = g.idCard;
       if (!c) return;
       if (c.inmate) { drawPrisonCard(c); return; }
+      if (c.rey) { drawReyId568(c); return; }
       const id = c.id;
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -16875,6 +16893,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const last = A.i >= A.pts.length - 1;
       if (d < (last ? (A.who && A.loop == null && !A.lose ? 40 : A.who ? DET.arrive : DET.park || 150) : DET.arrive)) {
         A.i++;
+        if (A.i >= A.pts.length && A.who && A.park568 != null) v.ang = A.park568;          // parked at the kerb, along it (layer 568)
         if (A.i >= A.pts.length && A.who) { if (!ccarLegEnd(A, v)) { g.auto = null; v.vx = 0; v.vy = 0; v.fwd = 0; } return; }   // your people driving (layer 514)
         if (A.i >= A.pts.length) {
           g.auto = null; v.vx = 0; v.vy = 0; v.fwd = 0;
@@ -16898,7 +16917,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (fast508 && !A.ovGo && near < 200 && d > 360 && clearAhead508(v, hx5, hy5, 520, 110, null)) { A.ovGo = 1; A.ovT = 0; }
         if (A.ovGo) { A.ovT += dt; if (d < 220 || A.ovT > 4 || (near > 320 && A.ovT > 1.2) || !clearAhead508(v, hx5, hy5, 220, 110, null)) A.ovGo = 0; }
         A.ov = clamp((A.ov || 0) + clamp((A.ovGo ? 1 : 0) - (A.ov || 0), -dt * 1.8, dt * 1.8), 0, 1);
-        A.brk = near < 300 && !A.lose && !A.escape && !(A.ov > 0.3); if (A.brk) sp = Math.min(sp, Math.max(0, (near - 136) * 2.0)); }      // stops a quarter of a car short of the bumper (layer 511)
+        A.brk = near < 300 && !A.lose && !A.escape && !(A.ov > 0.3); if (A.brk) sp = Math.min(sp, Math.max(0, (near - 136) * 2.0));
+        /* layer 568: NOBODY ON FOOT GETS HIT -- before anything else, chase or no chase. A person in his path (the car's
+           width and a bit, as far ahead as his speed needs) and he slows to stop short of them. */
+        { const vh = Math.atan2(dy, dx), va = v.ang || vh, fx = Math.cos(va), fy = Math.sin(va), look = 120 + sp * 0.7; let pn = 1e9;
+          const chk = (px, py) => { const rx = px - v.x, ry = py - v.y, ah = rx * fx + ry * fy; if (ah <= 0 || ah > look) return; if (Math.abs(-rx * fy + ry * fx) > 40) return; if (ah < pn) pn = ah; };
+          for (const p of g.peds) { if (p.dead || Math.abs(p.x - v.x) > 400 || Math.abs(p.y - v.y) > 400) continue; chk(p.x, p.y); }
+          if (g.mode === "foot") chk(g.p.x, g.p.y);
+          if (pn < 1e9) sp = Math.min(sp, Math.max(0, (pn - 58) * 2.4)); } }      // stops a quarter of a car short of the bumper (layer 511)
       let mx5 = dx, my5 = dy;
       { if (A.i === 0 && (!A.p0 || A.p0for !== A.pts)) { A.p0 = [v.x, v.y]; A.p0for = A.pts; }       /* ON THE LINE (layer 536; 540: from where THIS leg started) */
         const pv = A.i > 0 ? A.pts[A.i - 1] : A.p0, sx = tx - pv[0], sy = ty - pv[1], sL = Math.hypot(sx, sy);
@@ -17279,6 +17305,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (kind === "misorders") return misPanel();
       if (kind === "ccar") return ccarPanel();
       if (kind === "spur565") return G.spurPanel565();
+      if (kind === "ts568") return G.tsPanel568 ? G.tsPanel568() : null;
       if (kind === "merc") return mercPanel();
       if (kind === "pool") return poolPanel();
       if (kind === "plates") return platesPanel();
@@ -17438,6 +17465,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else if (id.startsWith("mis:")) { G.misPick && G.misPick(id); return; }
       else if (id.startsWith("ccar:")) { G.ccarPick && G.ccarPick(id); return; }
       else if (id.startsWith("spur:")) { G.spurPick565 && G.spurPick565(id); return; }
+      else if (id.startsWith("ts:")) { G.tsPick568 && G.tsPick568(id); return; }
       else if (id.startsWith("don:")) { donAct(id.slice(4)); return; }
       else if (id.startsWith("eng:")) { const E = engage(), k = id.slice(4); E[k] = E[k] ? 0 : 1; G.pickOpen("crewrules"); return; }   // crew rules (layer 519)
       else if (id.startsWith("sit:")) { sitAct(id.slice(4)); return; }
@@ -18431,7 +18459,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
     }
 
+    /* layer 568: people don't walk through each other. Any two within 20 are eased apart (half each), every frame, on a
+       spatial grid so it stays cheap; the hero is a fixed body they step round. */
+    function separatePeds568() { const P = g.peds; if (!P || P.length < 2) return; const cell = 40, M = new Map();
+      for (const p of P) { if (p.dead || p.sit || p.inBus) continue; const k = Math.floor(p.x / cell) * 4096 + Math.floor(p.y / cell); let a = M.get(k); if (!a) M.set(k, (a = [])); a.push(p); }
+      for (const p of P) { if (p.dead || p.sit || p.inBus) continue; const ci = Math.floor(p.x / cell), cj = Math.floor(p.y / cell);
+        for (let a = ci - 1; a <= ci + 1; a++) for (let b = cj - 1; b <= cj + 1; b++) { const L = M.get(a * 4096 + b); if (!L) continue;
+          for (const q of L) { if (q === p) continue; const dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy); if (d >= 20 || d < 0.01) continue; const push = (20 - d) * 0.25; p.x += dx / d * push; p.y += dy / d * push; } }
+        if (g.mode === "foot" && !g.inside) { const dx = p.x - g.p.x, dy = p.y - g.p.y, d = Math.hypot(dx, dy); if (d < 22 && d > 0.01) { p.x += dx / d * (22 - d) * 0.5; p.y += dy / d * (22 - d) * 0.5; } } } }
     function updatePeds(dt, cx, cy) {
+      separatePeds568();
       const cap = Math.min(W, H) < 520 ? 56 : 104;
       if (inSkate(cx, cy)) {
         let np = 0;
@@ -18677,8 +18714,19 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         cx.putImageData(d, 0, 0); } catch (e) {}
       if (codeTintC.size > 60) codeTintC.clear(); codeTintC.set(key, cv); return cv; }
     function reyCol(fit) { const P = (g.pcol = g.pcol || {}); if (!P[fit]) P[fit] = { ...(REY_COL0[fit] || { o: 0, i: 1 }) }; return P[fit]; }
-    function reyArms(pkey) { const [fit, set] = REY_CODED[pkey], c = reyCol(fit), outer = CLOTH_COLS[c.o % CLOTH_COLS.length][1], inner = CLOTH_COLS[c.i % CLOTH_COLS.length][1];
-      if (set === "full") return { torso: pkey + "_c", set, full: 1, skin: [118, 62, 30], sleeve: outer, outer, inner, scale: (YT_SCALE[pkey] || 1.2) * 0.8 };
+    /* LAYER 570 (Donny): the jumpsuit is his own -- yt_player_in is now the orange top with no head and no arms, and
+       yt_rey_head is his head from above. Put together on the coded torso's canvas (355 x 407, shoulders at ~95) and
+       cached as ar_torso_rey_in569. Orange, so the blue/green recolour leaves it alone. Until both are in, the Kestrel blues. */
+    function reyInTorso569() { const T = imgs.current.ar_torso_rey_in569; if (T && T.width) return true;
+      const h = imgs.current.yt_rey_head, j = imgs.current.yt_player_in; if (!(h && h.width && j && j.width) || j.height > j.width * 0.62) return false;
+      try { const cv = document.createElement("canvas"); cv.width = 355; cv.height = 407; const x = cv.getContext("2d");
+        const jw = 355, jh = jw * j.height / j.width, hw = 136, hh = hw * h.height / h.width;
+        x.drawImage(j, 0, 92, jw, jh); x.drawImage(h, (355 - hw) / 2, 2, hw, hh);
+        imgs.current.ar_torso_rey_in569 = cv; return true; } catch (e) { return false; } }
+    function reyArms(pkey) { if (pkey === "yt_player_in" && reyInTorso569()) return { torso: "ar_torso_rey_in569", set: "jacket", skin: [118, 62, 30], sleeve: [214, 104, 34], outer: [214, 104, 34], inner: [214, 214, 206], wid: W532 };
+      if (pkey === "yt_player_in") return { torso: "ar_torso_rey_work", set: "jacket", skin: [118, 62, 30], sleeve: [64, 88, 132], outer: [64, 88, 132], inner: [214, 214, 206], wid: W532 };   /* Kestrel blues on his own head -- no more bald Rey (layer 568) */
+      const [fit, set] = REY_CODED[pkey], c = reyCol(fit), outer = CLOTH_COLS[c.o % CLOTH_COLS.length][1], inner = CLOTH_COLS[c.i % CLOTH_COLS.length][1];
+      if (set === "full") return { torso: pkey + "_c", set, full: 1, skin: [118, 62, 30], sleeve: outer, outer, inner, scale: (YT_SCALE[pkey] || 1.2) * 0.8 * 1.42 };      /* the arms-in-the-plate fits were a third smaller than the others (layer 568) */
       return { torso: "ar_torso_rey_" + fit, set, skin: [118, 62, 30], sleeve: outer, outer, inner, wid: W532 }; }
     function armsReady(A) { const t = imgs.current[A.torso]; if (A.full) return !!(t && t.width); const a = imgs.current["ar_" + A.set + "_hang"]; return !!(t && t.width && a && a.width); }
     /* Local frame: +y is the way he faces (down the body in the art), and his RIGHT side is -x (the art faces the
@@ -18761,6 +18809,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (let k = 0; k < 2; k++) { const q = ((t * 0.9 + k * 0.5) % 1); ctx.globalAlpha = 1 - q; ctx.beginPath(); ctx.ellipse(x, y + 1, r + 3 + q * 10, (r + 3 + q * 10) * 0.7, 0, 0, 6.3); ctx.stroke(); } ctx.globalAlpha = 1; }
     function drawYouth(p, angOverride, backOff) { const r = p && swimClip538(p.x, p.y, (p.tall || 1) * (p.hero ? 1.1 : 1)); if (!r) return drawYouth0(p, angOverride, backOff);
       const out = drawYouth0(p, angOverride, backOff); swimRing538(p.x, p.y, r); return out; }
+    G.ytSizeT = (yt, tall) => { const A0 = ARM_BY_YT[yt], AP = A0 && armsReady(A0) ? A0 : null; const im = AP ? imgs.current[AP.torso] : imgs.current[yt]; if (!im || !im.width) return null;
+      const h = AP && AP.wid ? 30 * 0.82 * (tall || 1) * AP.wid * 0.8 / (im.width / im.height) : 30 * 0.82 * (tall || 1) * (AP ? AP.scale : (YT_SCALE[yt] || 1)), w = h * (im.width / im.height); return { w: +w.toFixed(1), h: +h.toFixed(1), arms: !!AP }; };   // test hook (layer 567)
     function drawYouth0(p, angOverride, backOff) {
       const A0 = p.arms || ARM_BY_YT[p.yt], AP = A0 && !g.noArms && armsReady(A0) ? A0 : null;      // the arms (layers 525, 532)
       const im = AP ? (AP.outer ? codedTorso(AP) : imgs.current[AP.torso]) : imgs.current[p.yt];
@@ -18768,7 +18818,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       /* Drawn at 0.82. Measured, these came out 75-112% as wide as they are tall against
          57-90% on the gang sheets, so at parity they read a size bigger than everyone else. */
       const inK = g.inside && g.insideT > 0.5 ? 0.9 : 1;                  // indoors a hair smaller, so the furniture reads its size (layer 531)
-      const h = AP && AP.wid ? 30 * (p.jit || 1) * 0.82 * (p.tall || 1) * AP.wid * inK * 0.8 / (im.width / im.height) : 30 * (p.jit || 1) * 0.82 * (p.tall || 1) * (AP ? AP.scale : (YT_SCALE[p.yt] || 1)) * inK, w = h * (im.width / im.height);
+      /* layer 567: NOBODY BIGGER THAN REY. A plate with its own width (the armless torsos) is already sized to his -- a `tall`
+         over 1 only made them a head taller than him (Jose at 1.25, half the cast at 1.2), so it's capped at 1 for anyone but
+         the hero. A whole-body plate is held to 40 across (his shoulders and arms), however wide its picture is (Tony was 54). */
+      const tl567 = AP && AP.wid && !p.hero && !p.big ? Math.min(p.tall || 1, 1) : (p.tall || 1);
+      let h = AP && AP.wid ? 30 * (p.jit || 1) * 0.82 * tl567 * AP.wid * inK * 0.8 / (im.width / im.height) : 30 * (p.jit || 1) * 0.82 * tl567 * (AP ? AP.scale : (YT_SCALE[p.yt] || 1)) * inK;
+      if (!AP && !p.hero && !p.big && h * (im.width / im.height) > 40 * inK) h = 40 * inK / (im.width / im.height);
+      const w = h * (im.width / im.height);
       const sp = Math.hypot(p.vx || 0, p.vy || 0);
       const face = p.faceLock != null && angOverride == null ? p.faceLock : (p.bang != null && angOverride == null && sp <= 10) ? p.bang : Math.atan2(p.vy, p.vx);
       const ang = angOverride != null ? angOverride : face + YOUTH_FACE;
@@ -18783,7 +18839,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const seated551 = !!(p.carSeat || g.convSeat); let lk = seated551 ? null : p.legK; if (!lk && !seated551 && p.legSet && !p.lying) { const s5 = Math.sin((p.anim || 0) * 1.1); lk = "lg_walk_" + p.legSet + "_" + (sp > 10 ? (s5 > 0.3 ? 0 : s5 < -0.3 ? 2 : 1) : 1); }
       const LD = lk ? LEG547[lk] || (p.legSet ? LEGW549 : null) : null, LGI = LD ? imgs.current[lk] : null; let legImg = !!(LGI && LGI.width);      // layer 547: a leg plate (lying, sitting)
       if (legImg) { const lw3 = w * LD[0], lh3 = lw3 * LGI.height / LGI.width, sk = AP && AP.skin ? (AP.wid ? AP.skin.map((v) => Math.round(v / 0.78)) : AP.skin) : null;      // the wearer's skin on bare legs (layer 550)
-        ctx.drawImage(sk && /boxers|skirt|ripped/.test(lk) ? legTint550(lk, sk) : LGI, -lw3 / 2, h * LD[1] - h / 2 + h * 0.2, lw3, lh3); }
+        ctx.drawImage(sk && /boxers|skirt|ripped/.test(lk) ? legTint550(lk, sk) : LGI, -lw3 / 2, h * LD[1] - h / 2 + h * (/^lg_walk_/.test(lk) ? 0.06 : 0.2), lw3, lh3); }   /* walking legs tucked further under the torso (layer 567) */
       if (p.carSeat || g.convSeat) legImg = true;      // sat in the open car: the door hides the legs (layer 551)
       if (!legImg && p.lying) { const lw2 = Math.min(w, h * 0.95); ctx.fillStyle = "#20222a"; ctx.fillRect(-lw2 * 0.24, h * 0.12, lw2 * 0.2, h * 0.56); ctx.fillRect(lw2 * 0.04, h * 0.12, lw2 * 0.2, h * 0.56);   // legs out straight (layer 534; 541: a bed's length)
         ctx.fillStyle = "#15161b"; ctx.fillRect(-lw2 * 0.26, h * 0.64, lw2 * 0.24, h * 0.09); ctx.fillRect(lw2 * 0.02, h * 0.64, lw2 * 0.24, h * 0.09); }
@@ -19702,6 +19758,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const cx = (c.lx0 + c.lx1) / 2;
       return { x: cx - 40, y: c.ly0 + 130, w: 300, h: 150 };          // set in 130 from the back: the dealer's strip (layer 475)
     }
+    /* layer 568: the station shop is a ROOM -- four walls, so nobody drives through it on the way to the pumps -- and its
+       door on the front, by the counter, facing the pumps. */
+    function gasWalls568(c) { const s = gasShop(c), t = 10, d0 = s.x + 26, d1 = s.x + 96;
+      return [{ x: s.x, y: s.y, w: s.w, h: t }, { x: s.x, y: s.y, w: t, h: s.h }, { x: s.x + s.w - t, y: s.y, w: t, h: s.h },
+        { x: s.x, y: s.y + s.h - t, w: d0 - s.x, h: t }, { x: d1, y: s.y + s.h - t, w: s.x + s.w - d1, h: t }]; }
     function gasCanopy(c) {
       const cx = (c.lx0 + c.lx1) / 2, sh = gasShop(c), y = sh.y + sh.h + 96;      // one lane in front of the shop (layer 511)
       return { x: cx - 190, y: Math.min(y, c.ly1 - 250), w: 380, h: 190 };
@@ -19751,6 +19812,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       // ---- the shop floor, laid out like any interior: front, back room, bathroom ----
       ctx.fillStyle = PF("gasfloor", "#43454a");
       ctx.fillRect(sh.x, sh.y, sh.w, sh.h);
+
       const backY = sh.y + sh.h * 0.58;
       ctx.fillStyle = "rgba(0,0,0,0.20)";
       ctx.fillRect(sh.x, backY, sh.w, sh.h - (backY - sh.y));       // stock room, dimmer
@@ -19816,6 +19878,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.textAlign = "center";
       ctx.fillText("FUEL", cx, sh.y - 18);
       ctx.textAlign = "start";
+      ctx.fillStyle = "#24252a"; for (const w of gasWalls568(c)) ctx.fillRect(w.x, w.y, w.w, w.h);          // its walls, and the door (layer 568)
+      ctx.fillStyle = "rgba(232,196,106,0.75)"; ctx.fillRect(sh.x + 26, sh.y + sh.h - 4, 70, 4);
     }
 
     /* Canopy and shop roof, drawn after the world for the same reason the viaduct is: the
@@ -19911,11 +19975,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!v || !nearGasPump()) { g.refueling = false; return; }
       const sp = Math.hypot(v.vx, v.vy);
       if (sp > 30 || v.fuel >= v.maxFuel) { g.refueling = false; return; }
-      const cost = 0.28;                       // $ per unit of fuel
-      if (g.p.cash < cost * dt * 14) { g.refueling = false; return; }
+      /* layer 567: with a driver along (at the wheel, or riding with you), the gas is on him */
+      const drv567 = !!((g.auto && g.auto.who) || (g.pfol || []).some((f) => f.seat === "car" && f.role === "driver"));
+      const cost = drv567 ? 0 : 0.28;          // $ per unit of fuel
+      if (cost && g.p.cash < cost * dt * 14) { g.refueling = false; return; }
+      if (drv567 && !g.gasFree567) { g.gasFree567 = 1; g.pickupFlash = { nm: "lift:YOUR DRIVER'S GOT THE GAS", t: 1.6 }; }
       g.refueling = true;
       const add = Math.min(14 * dt, v.maxFuel - v.fuel);
       v.fuel += add; g.p.cash -= add * cost;
+      if (v.fuel >= v.maxFuel) g.gasFree567 = 0;
     }
 
     /* Damage has to be undoable or the car is a consumable. The bay is where you fix it:
@@ -20248,8 +20316,31 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     /* THE WAY DOWN, from above. isManhole has decided where the entrances are since the sewer
        went in, and nothing has ever drawn one on the street -- 22 plates were cut and named for
        exactly this and never used. You had to already know where a hole was to use it. */
+    const mhArt571 = () => firstImg("mh_cover", "sv_manhole");
+    /* LAYER 571 (Donny): steam off the ways down. One soft puff, baked once, drawn rising and spreading from every
+       entrance in view -- five puffs each, staggered, leaning the same way so the street has a wind. Sits over the
+       cars and the people, under the rain and the night. */
+    let puff571 = null;
+    function drawSteam571(view) {
+      if (!puff571) { try { const c = document.createElement("canvas"); c.width = c.height = 64; const x = c.getContext("2d"), gr = x.createRadialGradient(32, 32, 2, 32, 32, 31);
+        gr.addColorStop(0, "rgba(236,236,232,0.9)"); gr.addColorStop(0.5, "rgba(220,220,216,0.45)"); gr.addColorStop(1, "rgba(210,210,206,0)"); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); puff571 = c; } catch (e) { return; } }
+      const pts = [];
+      const i0 = Math.floor(view.x0 / PITCH) - 1, i1 = Math.ceil(view.x1 / PITCH) + 1, j0 = Math.floor(view.y0 / PITCH) - 1, j1 = Math.ceil(view.y1 / PITCH) + 1;
+      for (let i = Math.max(0, i0); i <= Math.min(SEWER_MAX, i1); i++) { if (i % SEWER_EVERY) continue;
+        for (let j = Math.max(0, j0); j <= Math.min(SEWER_MAX, j1); j++) if (!(j % SEWER_EVERY) && isManhole(i, j)) pts.push([SX(i), SX(j), i * 7 + j * 13]); }
+      if (CULVERT.x > view.x0 - 80 && CULVERT.x < view.x1 + 80 && CULVERT.exitY > view.y0 - 80 && CULVERT.exitY < view.y1 + 80) pts.push([CULVERT.x, CULVERT.exitY, 5]);
+      if (!pts.length) return;
+      const t = g.t || 0, wind = Math.sin(t * 0.05) * 0.6 + 0.8;
+      ctx.save();
+      for (const [cx, cy, h] of pts) for (let k = 0; k < 5; k++) {
+        const ph = (t * 0.32 + k / 5 + (h % 17) / 17) % 1, r = 9 + ph * 30, a = 0.36 * Math.sin(Math.PI * ph);
+        const x = cx + ph * 26 * wind + Math.sin(t * 1.3 + k * 2.1 + h) * 5, y = cy - ph * 46;
+        ctx.globalAlpha = Math.max(0, a); ctx.drawImage(puff571, x - r, y - r, r * 2, r * 2);
+      }
+      ctx.restore();
+    }
     function drawManholes(view) {
-      const im = imgs.current["sv_manhole"];
+      const im = mhArt571();
       if (!im || !im.width) return;
       if (CULVERT.x > view.x0 - 40 && CULVERT.x < view.x1 + 40 && CULVERT.exitY > view.y0 - 40 && CULVERT.exitY < view.y1 + 40)
         ctx.drawImage(im, CULVERT.x - 19, CULVERT.exitY - 19, 38, 38);       // the culvert's outfall (layer 523b)
@@ -20474,8 +20565,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             /* The new plates sit over the old markers, and fall back to them if they have not
                landed. The pip is the point: a ladder you can only see once you are standing on
                it is not an exit, it is a surprise. */
-            const cover = imgs.current["sv_manhole"];
-            prop(cover && cover.width ? "sv_manhole" : "sw_00", cx, cy - 40, 46);
+            const cover = imgs.current.mh_cover_open;           // layer 571: the cover set aside, the hole open to the street
+            prop(cover && cover.width ? "mh_cover_open" : "sw_00", cx, cy - 40, 52);
             /* THE LADDER, drawn rather than plated. Every ladder plate that came in was a flat
                elevation -- rungs seen from the side -- and from directly overhead you would see
                two rails and the rungs foreshortened to bars, which is four lines of canvas and
@@ -23055,7 +23146,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.fillStyle = "#1c1d21"; for (const w of joeWalls(c)) ctx.fillRect(w.x, w.y, w.w, w.h);
         ctx.fillStyle = "rgba(226,217,181,0.16)"; ctx.fillRect(q.x + 10, r.y + r.h, q.w - 20, 80);          // the apron in front of the bays
         const rnd = mulberry((c.i * 401 + c.j * 977) >>> 0), WR = ["bs_wreck_a", "bs_wreck_b", "bs_wreck_c"];
-        for (let k = 0; k < 3; k++) { if (rnd() < 0.25) continue; const im = imgs.current[WR[k]]; if (!im || !im.width) continue; const w = 84, h = w * (im.height / im.width);
+        for (let k = 0; k < 3; k++) { if (rnd() < 0.25) continue; const im = imgs.current[WR[k]]; if (!im || !im.width) continue; const w = 50, h = w * (im.height / im.width);   /* a car's width (layer 567: was 84) */
           const px = c.lx0 + 60 + k * ((c.lx1 - c.lx0 - 120) / 2), py = r.y + r.h + 150 + rnd() * 60; drawShadow(px, py + h * 0.36, w * 0.40, h * 0.20, 0.30); ctx.drawImage(im, px - w / 2, py - h / 2, w, h); }
         return; }
 
@@ -23779,7 +23870,25 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       if (!b._plate) return null;
       const im = imgs.current[b._plate];
-      return im && im.width ? im : null;
+      if (!(im && im.width)) return null;
+      return roofVar569(b, im);
+    }
+    /* LAYER 569 (Donny): a plate stretched onto a footprint the wrong shape looks goofy (lawn chairs a car long). Each
+       plate may have up to two extra cuts in assets/roofs/: <name>_sq.png (about square) and <name>_tall.png (about 3:5,
+       taller than wide). Whichever of the three is closest to the footprint's shape draws; a cut that isn't there
+       simply never loads, so nothing changes until the art arrives. */
+    const RV569 = {};
+    function rvImg569(src) { let e = RV569[src]; if (!e) { e = RV569[src] = { im: new Image(), bad: 0 }; e.im.onerror = () => { e.bad = 1; }; e.im.src = src; } return !e.bad && e.im.complete && e.im.naturalWidth ? e.im : null; }
+    function roofVar569(b, im) {
+      if (b.roofKey && !/^rf_(g|z)_/.test(b.roofKey)) return im;          // the landmarks keep their one plate
+      const tq = artTurn(b), want = (tq === 1 || tq === 3) ? b.h / b.w : b.w / b.h;
+      let best = im, bd = Math.abs(Math.log((im.width / im.height) / want));
+      if (bd < 0.25) return im;
+      for (const suf of ["_sq", "_tall", "_wide"]) {
+        const v = rvImg569("assets/roofs/" + b._plate + suf + ".png"); if (!v) continue;
+        const d = Math.abs(Math.log((v.width / v.height) / want)); if (d < bd) { bd = d; best = v; }
+      }
+      return best;
     }
     function drawBuildingExt(b, alpha) {
       if (alpha <= 0.01) return;
@@ -23796,7 +23905,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          is -- which is what makes it line up perfectly instead of nearly. */
       const pk = platedRoof(b);
       if (pk) {
-        drawParking(b, alpha);
+        if (!g.parkDone567) drawParking(b, alpha);
         if (b.fis) drawFisPlaza(b, alpha);
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -23846,7 +23955,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           return;
         }
       }
-      drawParking(b, alpha);
+      if (!g.parkDone567) drawParking(b, alpha);
       if (b.landmark) drawCasinoStair(b, alpha);
       if (b.fis) drawFisPlaza(b, alpha);
       const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
@@ -25938,6 +26047,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             if (b.fences) for (const f of b.fences) list.push(f);
           }
           if (isShopCell(i, j)) for (const w of joeWalls(getCell(i, j))) list.push(w);      // Joe's (layer 475)
+          if (isGasCell(i, j)) for (const w of gasWalls568(getCell(i, j))) list.push(w);   // the station shop has walls (layer 568)
+          if (di === 0 && dj === 0) for (const D of (g.dealersB || [])) { const [X0, Y0, X1, Y1] = D.lot; if (X1 < SX(i - 1) || X0 > SX(i + 2) || Y1 < SX(j - 1) || Y0 > SX(j + 2)) continue;
+            for (const q of D.cars) if (!q.sold) list.push({ x: q.x - 22, y: q.y - 50, w: 44, h: 100 }); }      // the cars on a lot are solid (layer 568)
         }
         if (isPortCell(ci, cj)) for (const w of yard561(getCell(ci, cj)).solids) list.push(w);      // the intermodal yard's boxes (layer 561)
         if (o.x > QUAY537.x0 - 700 && o.x < QUAY537.x1 + 100 && o.y > QUAY537.y0 - 100 && o.y < QUAY537.y1 + 100) for (const w of quayLayout537().solids) list.push(w);   // the quay's boxes and machines (layer 537)
@@ -29987,7 +30099,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               /* HIT A COP CAR AND THEY'RE ON YOU; hit anyone's car in front of a cop and they come too (layer 519) */
               const cop = (v.m && (v.m.k === "cruiser" || /^pd_/.test(v.m.k || ""))) || v.patrol || v.chasing;
               if (cop && !g.detMode && -dot > 110) witnessed(pc.x, pc.y, 2, true);
-              else if (!g.detMode && -dot > 150 && !g.studentMode) witnessed(pc.x, pc.y, 1, false); } }
+              else if (!g.detMode && -dot > 150 && !g.studentMode) { if (!(G.tsInfraction568 && G.tsInfraction568(pc, "bump"))) witnessed(pc.x, pc.y, 1, false); } } }
         }
       }
     }
@@ -31324,7 +31436,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       "MY SISTER SAW HIM.", "THEY SAY HE WEARS A MASK.", "I'M NOT WALKING HOME.",
       "RENT'S DUE FRIDAY.", "BUS IS LATE AGAIN.", "KEEP YOUR HEAD DOWN.",
       "SOMETHING'S GOING ON.", "POLICE WON'T COME.", "YOU SEE THE CAR?"];
-    function bubble(x, y, text, tint) {
+    /* layer 567: TALK IS ON TOP OF EVERYTHING. A bubble is queued with the transform it was asked for under and drawn after
+       the whole world -- roofs, the El, the lights, the night -- so nothing paints over what somebody's saying. */
+    function bubble(x, y, text, tint) { const L = (g.bub567 = g.bub567 || []); if (L.length < 80) L.push({ x, y, text, tint, T: ctx.getTransform() }); }
+    function flushBubbles567() { const L = g.bub567; if (!L || !L.length) return; for (const b of L) { ctx.save(); ctx.setTransform(b.T); bubbleNow(b.x, b.y, b.text, b.tint); ctx.restore(); } g.bub567 = []; }
+    function bubbleNow(x, y, text, tint) {
       ctx.font = "10px ui-monospace, monospace";
       // a long line wraps (layer 518) instead of running off across the screen
       const L = [], words = String(text || "").split(" "); let cur = "";
@@ -35373,7 +35489,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.fillRect(b0, yc - RH.road + 24, b1 - b0 - 4, 2); ctx.fillRect(b0, yc + RH.road - 26, b1 - b0 - 4, 2); } }
     function bmExtraOpts(p) { ensureStats(p); const o = [];
       if (p.role === "mechanic") o.push({ id: "gp:open", label: "WORK ON A CAR \u00b7 PARTS & TUNING" });       // layer 468
-      if (p.role === "forger") o.push({ id: "bm:x:fakeid", label: "MAKE ME A FAKE ID \u00b7 $200" });                 // layer 536
+      if (p.role === "forger") o.push({ id: "bm:x:fakeid", label: "MAKE ME A FAKE ID \u00b7 $200" }, { id: "bm:x:fakelic", label: "MAKE ME A DRIVER'S LICENSE \u00b7 $300" });      // the license (layer 568)                 // layer 536
       if (!p.crew) o.push({ id: "bm:x:view:trade", label: "TRADE: " + HIRES[p.role].nm + " \u00b7 CHANGE" });
       o.push({ id: "bm:x:view:rank", label: "RANK: " + OUT_RANK[rankOf(p)] + " \u00b7 CHANGE" });
       o.push({ id: "bm:x:view:gear", label: "GEAR: " + ((p.rec.gear || []).map((k) => GEAR[k].nm).join(", ") || "NOTHING") + " \u00b7 CHANGE" });
@@ -35383,6 +35499,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function bmX(p, parts) { const [a, k] = parts, B = g.board2 || {}; ensureStats(p);
       if (a === "back") { g.bmView = null; return; }
       if (a === "view") { g.bmView = k; g.bmSaid = null; return; }
+      if (a === "fakelic") { if (p.role !== "forger") return; if ((g.p.cash || 0) < 300) { g.bmSaid = "A license is laminate and a state seal. Three hundred."; return; }
+        g.p.cash -= 300; const s = effStats(p), q = Math.round(clamp(25 + (s.hands || 0) * 6 + (s.brains || 0) * 3 + (Math.random() - 0.5) * 14, 10, 97)); g.lic568 = { st: "forged", q, pts: 0, by: (p.name || "").toUpperCase() };
+        g.bmSaid = (q >= 80 ? "Better than the state's. " : q >= 50 ? "It'll pass a flashlight. Don't let them run it twice. " : "Don't get pulled over. ") + "Quality " + q + "."; return; }
       if (a === "fakeid") { if (p.role !== "forger") return; if ((g.p.cash || 0) < 200) { g.bmSaid = "Paper and ink cost. Two hundred."; return; }          // layer 536
         g.p.cash -= 200; const s = effStats(p), q = 18 + (s.hands || 0) * 5 + (s.brains || 0) * 3 + (Math.random() - 0.5) * 14, I = newFakeId(q, (p.name || "YOUR FORGER").toUpperCase());
         g.bmSaid = (I.q >= 80 ? "Best work I've done. " : I.q >= 50 ? "It'll hold up. Mostly. " : "Don't show it to anybody who looks hard. ") + "You're " + I.nm.split(" ")[0][0] + I.nm.split(" ")[0].slice(1).toLowerCase() + " " + I.nm.split(" ")[1][0] + I.nm.split(" ")[1].slice(1).toLowerCase() + " now. (POCKETS)"; return; }
@@ -35665,7 +35784,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const opts = []; if (!carry) opts.push({ id: "idv:carry:" + n, label: "CARRY THIS ONE" });
       if (I.k === "fake") opts.push({ id: "idv:toss:" + n, label: "GET RID OF IT" });
       opts.push({ id: "idv:back:0", label: "BACK TO YOUR POCKETS" }, { id: "close", label: "DONE" });
-      return { title: I.k === "real" ? "YOUR ID" : "FAKE ID \u00b7 " + I.nm, face: I.k === "real" ? "assets/ui/ui_id_real.png" : "assets/ui/ui_id_fake.png", text: lines.join("\n"), opts }; }
+      g.idCard = { rey: I };                                     // the card itself, over the panel (layer 568)
+      return { title: I.k === "real" ? "YOUR ID" : "FAKE ID \u00b7 " + I.nm, face: null, text: lines.join("\n"), opts }; }
     G.idPick = (id) => { const [, a, n0] = id.split(":"), n = +n0, L = idsOf();
       if (a === "carry" && L[n]) { g.idUse = n; g.pickupFlash = { nm: "lift:YOU CARRY " + (L[n].k === "real" ? "YOUR OWN ID" : "THE ONE THAT SAYS " + L[n].nm), t: 1.8 }; g.idView = n; G.pickOpen("idcard"); return; }
       if (a === "toss" && L[n] && L[n].k === "fake") { L.splice(n, 1); if (g.idUse === n) g.idUse = 0; else if (g.idUse > n) g.idUse--; g.idView = null; g.pickupFlash = { nm: "lift:IT GOES DOWN A DRAIN", t: 1.6 }; setTimeout(() => G.pocketsWheel && G.pocketsWheel(), 40); return; }
@@ -36201,7 +36321,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.carCrewN = () => { try { return carCrew().length; } catch (e) { return 0; } };
     function crewFace(P) {
       if (P.crew) { const C = CREW.find((q) => q.id === P.crew); if (C && C.face) return "assets/crew/" + C.face + ".png"; }
-      const yt = P.yt || ""; return PD_ART[yt.replace(/^yt_/, "pt_")] || PD_ART[yt] || null;
+      const yt = P.yt || "", pt = yt.replace(/^yt_/, "pt_"); return PD_ART[pt] || (/^yt_/.test(yt) ? "assets/crew/" + pt + ".png" : null) || PD_ART[yt] || null;      /* his talking picture, not his sprite (layer 567: Eddie) */
     }
     function ccarDests() {
       const out = [], at = (b, dist) => { const dp = doorPoint(b), sd = b.door ? b.door.side : 2, o = [[0, -1], [1, 0], [0, 1], [-1, 0]][sd] || [0, 1];
@@ -36259,12 +36379,17 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           out.push({ label: "BAR · " + (b.name || placeName(b) || "A BAR").toUpperCase(), x: dp[0] + o[0] * 130, y: dp[1] + o[1] * 130, d: Math.hypot(dp[0] - v.x, dp[1] - v.y), merc: b.mercBar }); } }
       out.sort((a, b2) => (b2.merc ? 1 : 0) - (a.merc ? 1 : 0) || a.d - b2.d); return out.slice(0, 4); }
     function speedOf(P, k) { const base = P && P.role === "driver" ? CCAR.drv : CCAR.spd; return k === "slow" ? CCAR.slow : k === "fast" ? CCAR.fast : base; }
+    /* layer 568: a driver doesn't stop in the middle of the street on the doorstep -- he pulls in at the KERB ACROSS the
+       street from the place, the right way round for that side's traffic, and parks there. */
+    function curbAcross568(x, y) { const i = clamp(Math.round(x / PITCH), 0, N), j = clamp(Math.round(y / PITCH), 0, N), dx = x - SX(i), dy = y - SX(j);
+      if (Math.abs(dx) < Math.abs(dy)) { const s = -Math.sign(dx || 1), px = SX(i) + s * halfW(i) * 0.8; return [px, y, s < 0 ? Math.PI / 2 : -Math.PI / 2]; }
+      const s = -Math.sign(dy || 1), py = SX(j) + s * halfW(j) * 0.8; return [x, py, s > 0 ? 0 : Math.PI]; }
     function crewDrive(P, mode, dest) {
       const v = activeVeh(); if (!v || !P) return;
       const nm = first(P.name), A0 = g.auto && g.auto.who ? g.auto : null, sk = (A0 && A0.sk) || "normal";
       let A = null, line = "";
       const to = (x, y) => roadRoute(v.x, v.y, x, y).concat([[x, y]]);
-      if (mode === "to" && dest) { A = { pts: to(dest.x, dest.y), i: 0, sk, after: dest.after || null }; line = "TO " + dest.label.split(" · ")[0]; }
+      if (mode === "to" && dest) { const cb = curbAcross568(dest.x, dest.y); A = { pts: to(cb[0], cb[1]), i: 0, sk, after: dest.after || null, park568: cb[2] }; line = "TO " + dest.label.split(" · ")[0]; }
       else if (mode === "gas") { const G2 = gasNear(v); if (!G2) { g.pickupFlash = { nm: "lift:" + nm + " · NO PUMPS ANYWHERE", t: 2 }; return; } A = { pts: to(G2.x, G2.y), i: 0, sk, label: "THE GAS STATION", after: "gas" }; line = "GETTING GAS"; }
       else if (mode === "fix") { const R = g.repairB; if (!R || !R.door) { g.pickupFlash = { nm: "lift:" + nm + " · WHERE'S STAN'S?", t: 2 }; return; }
         const dp = doorPoint(R), sd = R.door.side, o = [[0, -1], [1, 0], [0, 1], [-1, 0]][sd] || [0, 1]; A = { pts: to(dp[0] + o[0] * 60, dp[1] + o[1] * 60), i: 0, sk, label: "STAN'S", after: "fix" }; line = "TO STAN'S"; }
@@ -37393,7 +37518,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         .concat(g.vestHave ? [{ label: g.vestOn ? "TAKE OFF THE KEVLAR" : "PUT ON THE KEVLAR", short: "KEVLAR", sub: g.vestOn ? "on: +50 health" : "+50 health", id: "wsel:vest" }] : []) });      // layer 548
     function aptSpotPanel(k) { const S = g.story && g.story.id === "dayout" ? g.story : null; if (S && S.step === 4 && !S.did[k]) { S.did[k] = 1; storyCheckpoint(); }
       if (k === "closet") return { title: "THE CLOSET · 1A", face: null, text: g.aptSaid || "Leroy left two shirts, a jacket and a pair of shoes that almost fit, beside what you walked out in. The closet is where you change. More to hang in it once you've got money.",
-        opts: [{ id: "aptx:wear:76", label: "THE CLOTHES YOU WALKED OUT IN (1969)" }, { id: "aptx:wear:leroy", label: "WHAT LEROY LEFT YOU" }, { id: "close", label: "SHUT IT" }] };
+        opts: [{ id: "close", label: "SHUT IT" }] };      /* the old outfits are gone -- the closet wheel has the ones we made (layer 568) */
       if (k === "phone") { if (g.aptSaid) return { title: "THE PHONE \u00b7 1A", face: "assets/crew/pt_crew_leroy_civ.png", text: g.aptSaid, opts: [{ id: "close", label: "HANG UP" }] };
         if (S && S.step === 4) return { title: "THE PHONE \u00b7 1A", face: "assets/crew/pt_crew_leroy_civ.png", text: "One number in the book, in Leroy's writing.",
           opts: [{ id: "aptx:call:leroy", label: "CALL LEROY'S SISTER'S PLACE" }, { id: "close", label: "HANG UP" }] };
@@ -37471,6 +37596,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         for (let q = 0; q < n; q++) { const t = n === 1 ? 0 : (q / (n - 1) - 0.5) * (long - 30); out.push({ k, x: cx + (alongX ? t : 0), y: cy + (alongX ? 0 : t), ang }); } }
       return out.filter((s) => Math.hypot(g.p.x - s.x, g.p.y - s.y) < maxD).sort((a, c) => Math.hypot(g.p.x - a.x, g.p.y - a.y) - Math.hypot(g.p.x - c.x, g.p.y - c.y));
     }
+    /* layer 567: sat at a table, the TABLE is over you (your legs go under it) and the chair stays under you. The props on
+       this floor within reach of your seat that are tables, desks, counters or bars are drawn again after you. */
+    function drawTableOver567() { const S = g.p.sit; if (!S || !g.inside || g.inside !== S.b || g.mode !== "foot") return; const pl = buildingPlans(g.inside)[g.floor]; if (!pl) return;
+      for (const p of pl.props || []) { if (!/table|desk|counter|bar_top|booth_t|dtable|_bar\b/.test(p.t || "") || /chair|stool|seat/.test(p.t || "")) continue;
+        const cx = clamp(S.x, p.x, p.x + p.w), cy = clamp(S.y, p.y, p.y + p.h); if (Math.hypot(S.x - cx, S.y - cy) > 46) continue;
+        if (p.turn || p.flip) { const im = imgs.current[p.t]; if (!im || !im.width) continue; const a = p.flip ? Math.PI : p.turn, q = Math.abs(Math.sin(a)) > 0.5, dw = q ? p.h : p.w, dh = q ? p.w : p.h;
+          ctx.save(); ctx.translate(p.x + p.w / 2, p.y + p.h / 2); ctx.rotate(a); ctx.drawImage(im, -dw / 2, -dh / 2, dw, dh); ctx.restore(); }
+        else propSprite(p.t, p.x, p.y, p.w, p.h); } }
     function sitAt(s) { if (!s) return false; g.p.sit = { x: s.x, y: s.y, ang: s.ang, k: s.k, b: g.inside, f: g.floor }; g.p.x = s.x; g.p.y = s.y; g.p.vx = 0; g.p.vy = 0; g.p.face = s.ang;
       g.pickupFlash = { nm: "lift:" + (s.k === "toilet" ? "YOU SIT. NOBODY WATCHING." : s.k === "bed" ? "YOU LIE DOWN" : "YOU SIT DOWN") + " \u00b7 MOVE TO GET UP", t: 1.6 }; return true; }
     G.sitFn = () => { if (g.p.sit || g.mode !== "foot") return false;
@@ -38373,7 +38506,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
     /* DAY OUT: EDDIE */
     function drawEddie() { const S = g.story; if (!S || S.id !== "dayout" || S.step !== 0 || S.met || g.inside || g.mode !== "foot") return; const x = g.car.x + 10, y = g.car.y + 52;
-      drawShadow(x, y + 2, 10, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 0.92, yt: "yt_eddie", bang: Math.atan2(g.p.y - y, g.p.x - x) });
+      drawShadow(x, y + 2, 10, 4, 0.3); drawYouth({ x, y, vx: 0, vy: 0, anim: 0, jit: 1, tall: 0.84, yt: "yt_eddie", bang: Math.atan2(g.p.y - y, g.p.x - x) });
       ctx.font = "700 8px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd36a"; ctx.fillText("EDDIE · THE CAB · E", x, y - 30); ctx.textAlign = "start"; }
     G.eddieFn = () => { const S = g.story; if (!S || S.id !== "dayout" || S.step !== 0 || S.met || g.mode !== "foot" || g.inside) return false;
       if (Math.hypot(g.p.x - g.car.x, g.p.y - g.car.y) > 160) return false; G.pickOpen("do_eddie"); return true; };
@@ -40342,7 +40475,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.jobBanner = "4:30 AM · PALM COURT"; g.jobNote = "You can't sleep. And somebody's honking outside."; }
     function firstOutLot() { const D = g.dealersB || dealers(); if (!D || !D.length) return null; const hb = g.aptHomeB || g.p;
       const L = D.filter((d) => d.b && !d.b.bozni && d.cars.some((c) => !c.sold)).sort((a, c) => Math.hypot(a.b.x - hb.x, a.b.y - hb.y) - Math.hypot(c.b.x - hb.x, c.b.y - hb.y))[0]; if (!L) return null;
-      const [X0, Y0, X1, Y1] = L.lot, cars = L.cars.filter((c) => !c.sold), car = cars[(cars.length / 2) | 0];
+      /* layer 568: the one you take is on the OUTSIDE row (away from the building), at an end -- so with the lot's cars solid
+         now you can actually drive it off */
+      const [X0, Y0, X1, Y1] = L.lot, cars = L.cars.filter((c) => !c.sold), bx = L.b.x + L.b.w / 2, by = L.b.y + L.b.h / 2, mx = (X0 + X1) / 2, my = (Y0 + Y1) / 2;
+      const car = cars.slice().sort((a, c) => (Math.hypot(c.x - bx, c.y - by) + Math.hypot(c.x - mx, c.y - my) * 0.6) - (Math.hypot(a.x - bx, a.y - by) + Math.hypot(a.x - mx, a.y - my) * 0.6))[0];
       const loop = [[X0 - 30, Y0 - 30], [X1 + 30, Y0 - 30], [X1 + 30, Y1 + 30], [X0 - 30, Y1 + 30]];
       return { nm: L.nm, lot: L.lot, car, cx: (X0 + X1) / 2, cy: (Y0 + Y1) / 2, w: [
         { nm: "THE NIGHT MAN", x: loop[0][0], y: loop[0][1], a: 0, fov: 0.75, range: 250, loop, li: 1, sp: 46, yt: "yt_pr_guard_3" },
@@ -40612,6 +40748,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const c = g.clock || 0; let to = T[2];
       if (to <= c) { to += 1440; }
       g.clock = to % 1440; if (to >= 1440) g.pday = (g.pday || 0) + 1;
+      g.heat = 0; g.wantedT = 0; for (const v of g.traffic || []) if (v.chasing) v.chasing = 0;      /* a night's sleep and nobody's looking for you (layer 567) */
       g.plastClock = g.clock; g.pfolk = null; g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
       g.p.hp = g.p.maxHp || g.p.hp; g.p.stamina = g.p.maxStamina || g.p.stamina;
       g.jobBanner = "YOU SLEPT"; g.jobNote = "Woke at " + clockText(g.clock) + ". Rested.";
@@ -40726,7 +40863,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const at = (u, v) => [cx + u, wy + sg * v];
         if (out.some((o) => !o.bird && !o.critter && Math.abs(o.x - cx) < 170 && Math.abs(o.y - (wy + sg * 40)) < 70)) continue;
         if (!free(cx, wy + sg * 40, 20)) continue;
-        const put = ([k, u, v, w, sol]) => { const [x, y] = at(u, v), td = td546(k, w, x, y), hh = td ? HL_ASP[td[0]] || 1 : { al2_mattress: 0.59 }[k] || HL_ASP[k] || 0.75, ww = td ? td[1] : w;
+        const put = ([k, u, v, w, sol]) => { const [x, y] = at(u, v), td = td546(k, w, x, y), hh = td ? HL_ASP[td[0]] || 1 : { al2_mattress: 0.67 }[k] || HL_ASP[k] || 0.75, ww = td ? td[1] : w;
           out.push({ t: k, x, y, w: ww, h: ww * hh, solid: sol ? 1 : 0, camp: 1 }); };
         for (const [pc, ...alts] of ALLEY_CAMP544.pieces) if (rnd() < pc) put(alts[Math.floor(rnd() * alts.length)]);
         const F = ALLEY_CAMP544.fire[Math.floor(rnd() * 2)], [fx, fy] = at(F[1], F[2]); put([F[0], F[1], F[2], F[3], 1]); out[out.length - 1].fire = 1;
@@ -40769,13 +40906,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (let k = 0, tries = 0; k < n && tries < 40; tries++) {
         const x = AL ? c.lx0 + 80 + rnd() * (c.lx1 - c.lx0 - 160) : c.lx0 + rnd() * (c.lx1 - c.lx0), y = AL ? AL.y + (rnd() < 0.5 ? 26 : AL.h - 26) : c.ly0 + rnd() * (c.ly1 - c.ly0);      // in the alley (layer 543)
         if (!free(x, y, 46)) continue; k++;
-        if (rnd() < 0.55) out.push({ t: rnd() < 0.5 ? "al_dumpster" : "al_dumpster_open", x, y, w: 64, h: 40, solid: 1 });
-        else { out.push({ t: "al_can", x: x - 14, y, w: 18, h: 22, solid: 1 }); out.push({ t: rnd() < 0.5 ? "al_can_open" : "al_can", x: x + 10, y: y + 2, w: 22, h: 24, solid: 1 }); }
+        if (rnd() < 0.55) { const op = rnd() < 0.5; out.push({ t: op ? "al_dumpster_open" : "al_dumpster", x, y, w: 64, h: op ? 62 : 48, solid: 1 }); }      // layer 570: Donny's top-down cans and dumpsters, drawn their own shape
+        else { out.push({ t: "al_can", x: x - 14, y, w: 21, h: 21, solid: 1 }); const op = rnd() < 0.5; out.push({ t: op ? "al_can_open" : "al_can", x: x + 10, y: y + 2, w: op ? 26 : 21, h: op ? 25 : 21, solid: 1 }); }
         out.push({ t: cpick(["al_bag_a", "al_bag_b", "al_bag_c"]), x: x + 36, y: y + 14, w: 16, h: 16 });
         if (rnd() < 0.35) out.push({ t: "al_pallets", x: x - 44, y: y + 6, w: 30, h: 22 });
         // layer 504: the alley's clutter, a tag on the wall, and somebody living back here
         const CL = ["al2_puddle_a", "al2_puddle_b", "al2_puddle_c", "al2_vent", "al2_mattress", "al2_crates", "al2_boxes", "al2_cans", "al2_bottles", "al2_cart", "al2_barrel", "al2_papers"];
-        const CLS = { al2_puddle_a: [70, 34], al2_puddle_b: [52, 26], al2_puddle_c: [40, 20], al2_vent: [40, 40], al2_mattress: [62, 40], al2_crates: [56, 36], al2_boxes: [52, 40],
+        const CLS = { al2_puddle_a: [70, 34], al2_puddle_b: [52, 26], al2_puddle_c: [40, 20], al2_vent: [40, 40], al2_mattress: [62, 42], al2_crates: [58, 35], al2_boxes: [52, 40],
           al2_cans: [50, 38], al2_bottles: [40, 30], al2_cart: [46, 40], al2_barrel: [26, 34], al2_papers: [44, 32] };
         const SOL = { al2_crates: 1, al2_cart: 1, al2_barrel: 1, al2_mattress: 0 };
         for (let m = 0, nn = 2 + Math.floor(rnd() * 3); m < nn; m++) { const t = CL[Math.floor(rnd() * CL.length)], ax = x + (rnd() - 0.5) * 160, ay = y + (rnd() - 0.5) * 110;
@@ -40855,7 +40992,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           for (let q = 0; q < 4; q++) { const life = (t * 0.4 + q * 0.25) % 1; ctx.fillStyle = `rgba(200,200,200,${(0.35 * (1 - life)).toFixed(2)})`; ctx.beginPath(); ctx.arc(cx + Math.sin(q * 3 + t) * 6, cy - 12 - life * 50, 6 + life * 10, 0, 6.3); ctx.fill(); }
           ctx.fillStyle = "#6a4a2a"; ctx.fillRect(cx + 40, cy - 30, 60, 24); ctx.fillStyle = "#e8e0c8"; ctx.fillRect(cx + 46, cy - 26, 12, 8); ctx.fillRect(cx + 70, cy - 24, 14, 8);
           [["yt_hire_driver_2", -40, 10], ["yt_hire_dealer_5", 30, 40], ["yt_hire_fence_2", -20, -50], ["yt_hire_lookout_4", 60, 0]].forEach(([yt, dx, dy]) => P(cx + dx, cy + dy, yt, Math.atan2(-dy, -dx))); }
-        if (sc === "dice") { const im = imgs.current.alp_dice2_a; if (im && im.width) ctx.drawImage(im, cx - 39, cy - 48, 78, 96); drawDice544({ x: cx, y: cy }); } } }
+        if (sc === "dice") { const im = imgs.current.alp_dice2_a; if (im && im.width) ctx.drawImage(im, cx - 29, cy - 36, 58, 72); drawDice544({ x: cx, y: cy }); } } }      // people-sized (layer 567: was 78 x 96)
     G.courtFn561 = () => { if (g.mode !== "foot" || g.inside) return false; for (const K of courtsNear561(400)) { const S = courtSpots561(K), sc = courtScene561(K), d = (p) => Math.hypot(g.p.x - p[0], g.p.y - p[1]);
         if (d(S.lady) < 55 && (g.clock || 0) / 60 >= 7 && (g.clock || 0) / 60 < 22) { g.court561 = { K, S }; g.courtSaid = null; G.pickOpen("court561"); return true; }
         if (sc === "wash" && d(S.washer) < 60) { g.court561 = { K, S, wash: 1 }; g.courtSaid = null; G.pickOpen("court561"); return true; }
@@ -40901,7 +41038,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (g.inside) return;
       drawDad559(view);
       const dt = 1 / 60;
-      for (const A of alleysInView(view)) for (const q of A) {
+      for (const A0 of alleysInView(view)) for (const q of (A0._flatFirst567 && A0._flatFirst567.n === A0.length ? A0._flatFirst567.L : (A0._flatFirst567 = { n: A0.length, L: A0.filter((o) => o.flat).concat(A0.filter((o) => !o.flat)) }).L)) {      /* the graffiti (flat) first, everything else over it (layer 567) */
         if (q.x < view.x0 - 60 || q.x > view.x1 + 60 || q.y < view.y0 - 60 || q.y > view.y1 + 60) continue;
         if (q.bird) {                                                            // pigeons: up and away when you come close
           const d = Math.hypot(g.p.x - q.x, g.p.y - q.y);
@@ -40919,7 +41056,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const td = !q.dv && td546(q.t, q.w, q.x, q.y), tim = td && imgs.current[td[0]];
         if (tim && tim.width) { const w2 = q.camp ? td[1] : Math.min(td[1], q.w * 1.2), h2 = w2 * tim.height / tim.width; ctx.drawImage(tim, q.x - w2 / 2, q.y - h2 / 2, w2, h2); continue; }      // layer 546: the top-down plate
         const im = imgs.current[q.dv ? "alp_dice2_" + q.dv : q.t] || imgs.current[q.t]; if (!im || !im.width) continue;
-        if (q.dv) { const sc = Math.min(q.w / im.width, q.h / im.height); ctx.drawImage(im, q.x - im.width * sc / 2, q.y - im.height * sc / 2, im.width * sc, im.height * sc); drawDice544(q); continue; }
+        if (q.dv) { const sc = Math.min(q.w / im.width, q.h / im.height) * 0.74; /* the dice crew at people size (layer 567) */ ctx.drawImage(im, q.x - im.width * sc / 2, q.y - im.height * sc / 2, im.width * sc, im.height * sc); drawDice544(q); continue; }
         if (q.critter) { if (!q.hx) { q.hx = q.x; q.hy = q.y; } q.x = q.hx + Math.sin(g.t * 0.9 + q.hy) * 30; q.y = q.hy + Math.cos(g.t * 0.7 + q.hx) * 10; }
         if (q.alpha) ctx.globalAlpha = q.alpha;
         const sc = Math.min(q.w / im.width, q.h / im.height); ctx.drawImage(im, q.x - im.width * sc / 2, q.y - im.height * sc / 2, im.width * sc, im.height * sc); if (q.alpha) ctx.globalAlpha = 1;
@@ -40953,7 +41090,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (v.gHold) { v.gHold.t -= dt; v.x = v.gHold.x; v.y = v.gHold.y; v.spd = 0;
         if (v.gHold.t <= 0) { const A = v.gHold.A;
           for (let k = A.length - 1; k >= 0; k--) { const q = A[k];
-            if (q.t === "al_dumpster_open") q.t = "al_dumpster"; else if (q.t === "al_can_open") q.t = "al_can"; else if (/^al_bag_/.test(q.t)) A.splice(k, 1); }
+            if (q.t === "al_dumpster_open") { q.t = "al_dumpster"; q.h = 48; } else if (q.t === "al_can_open") { q.t = "al_can"; q.w = q.h = 21; } else if (/^al_bag_/.test(q.t)) A.splice(k, 1); }
           A.emptied = g.day || 0; v.gHold = null; v.gCool = 6; }
         return; }
       if (v.gCool > 0) { v.gCool -= dt; return; }
@@ -43473,7 +43610,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        in the game. Flipping them here is one line; renaming the convention would mean
        touching every car. The rig looked reversed because of this. */
     const TRACTOR_FLIP = Math.PI;
-    const TRACTORS = ["tr_cab_blue", "tr_cab_red", "tr_cab_brown"];   // layer 474: the whole pool reskinned, trailers (hv_05-10) untouched
+    const TRACTORS = ["tr_cab_blue", "tr_cab_red", "tr_cab_brown"];      // layer 570: the red cab is back, redrawn top-down   // layer 474: the whole pool reskinned, trailers (hv_05-10) untouched
     const TRAILERS = ["hv_05", "hv_06", "hv_07", "hv_08", "hv_09", "hv_10"];
     const COACHES  = [{ k: "hv_11", len: 210, w: 62 }, { k: "hv_12", len: 210, w: 68 },
                       { k: "hv_13", len: 205, w: 63 }];
@@ -43877,6 +44014,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       else { v.y = SX(si) + dir * halfW(si) * PARK_LANE; v.x = along; v.ang = dir > 0 ? 0 : Math.PI; }
       // never on top of the player, and never blocking a junction mouth
       if (Math.hypot(v.x - cx, v.y - cy) < 220) return;
+      /* layer 567: never parked on a ROOF -- not where the street was cut for a campus or an alley block, not inside any
+         building's footprint (with a car's half-length of margin), not in the water */
+      { const ci = clamp(Math.floor(v.x / PITCH), 0, N - 1), cj = clamp(Math.floor(v.y / PITCH), 0, N - 1);
+        for (let a = ci - 1; a <= ci + 1; a++) for (let b2 = cj - 1; b2 <= cj + 1; b2++) { const c = getCell(clamp(a, 0, N - 1), clamp(b2, 0, N - 1));
+          for (const b of (c && c.blds) || []) if (v.x > b.x - 30 && v.x < b.x + b.w + 30 && v.y > b.y - 30 && v.y < b.y + b.h + 30) return; }
+        if (waterDepth(v.x, v.y) > 0) return; }
       g.traffic.push(v);
     }
 
@@ -44393,15 +44536,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           const ox = ax - v.x, oy = ay - v.y;
           const a2 = ox * fx + oy * fy;
           if (a2 < 2 || a2 > rad) return;
-          if (Math.abs(-ox * fy + oy * fx) > 34) return;
-          target = Math.min(target, clamp((a2 - 52) * 2.2, 0, v.cruise));
+          if (Math.abs(-ox * fy + oy * fx) > 40) return;               // a car's width and a bit (layer 568: was 34)
+          target = Math.min(target, clamp((a2 - 56) * 2.2, 0, v.cruise));
         };
         if (g.mode === "car") { const r0 = rel; const gpP = gap508(v, pc); const ox = pc.x - v.x, oy = pc.y - v.y, a2 = ox * fx + oy * fy;
           if (a2 > 2 && a2 < gpP + 120 && Math.abs(-ox * fy + oy * fx) <= 34) target = Math.min(target, clamp((a2 - gpP) * 2.2, 0, v.cruise)); void r0; }      // room behind your car (layer 508)
         else rel(g.p.x, g.p.y, 120);
         for (const p of g.peds) {
-          if (Math.abs(p.x - v.x) > 130 || Math.abs(p.y - v.y) > 130) continue;
-          rel(p.x, p.y, 108);
+          if (p.dead || Math.abs(p.x - v.x) > 260 || Math.abs(p.y - v.y) > 260) continue;
+          rel(p.x, p.y, 108 + v.spd * 0.45);                             // further ahead the faster he's going (layer 568)
         }
 
         v.brake = target < v.spd - 12 ? 1 : Math.max(0, v.brake - dt * 3);
@@ -44984,6 +45127,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const j0 = clamp(Math.floor(view.y0 / PITCH), 0, N), j1 = clamp(Math.ceil(view.y1 / PITCH), 0, N);
       for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
         if (vCut(i, j) && vCut(i, j - 1) && hCut(i, j) && hCut(i - 1, j)) continue;
+        if ((isFwyV(i) || isFwyH(j)) && (g.onFwy || Math.hypot((inVehicle() ? activeVeh() : g.p).x - SX(i), (inVehicle() ? activeVeh() : g.p).y - SX(j)) > 260)) continue;   /* under the expressway the lights are under the deck (layer 567) */
         for (const H of sigHeads(i, j)) {
           const st = sigState(i, j, H.axis), col = SIG_COL[st];
           ctx.save();
@@ -45025,21 +45169,24 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
            createRadialGradient throws on a non-finite number, and this runs before the sentinel
            that scrubs traffic gets its turn. Skip him; the sentinel will remove him. */
         if (!Number.isFinite(v.x) || !Number.isFinite(v.y) || !Number.isFinite(v.ang)) continue;
-        const fx = Math.cos(v.ang), fy = Math.sin(v.ang);
-        const gx = v.x + fx * 44, gy = v.y + fy * 44;
-        const gr = ctx.createRadialGradient(gx, gy, 5, gx, gy, 210);
-        gr.addColorStop(0, `rgba(255,238,196,${0.30 * g.night})`);
-        gr.addColorStop(1, "rgba(255,238,196,0)");
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(gx - fy * 18, gy + fx * 18);
-        ctx.lineTo(gx + fx * 215 - fy * 92, gy + fy * 215 + fx * 92);
-        ctx.lineTo(gx + fx * 215 + fy * 92, gy + fy * 215 - fx * 92);
-        ctx.lineTo(gx + fy * 18, gy - fx * 18);
-        ctx.closePath(); ctx.clip();
-        ctx.fillStyle = gr; ctx.fillRect(gx - 240, gy - 240, 480, 480);
-        ctx.restore();
+        beam569(v.x, v.y, v.ang, v.len || 100, v.w || 46, 215, 92, 0.30 * g.night, "255,238,196");
       }
+    }
+    /* LAYER 569 (Donny): a headlight starts AT the bumper, as wide as the car's nose, and opens out from there -- it
+       used to start inside the hood, a cone of light painted across the car's own front. */
+    function beam569(x, y, ang, L, Wd, reach, spread, a, rgb) {
+      const fx = Math.cos(ang), fy = Math.sin(ang), hw = Wd * 0.46;
+      const gx = x + fx * L * 0.5, gy = y + fy * L * 0.5;
+      const gr = ctx.createRadialGradient(gx, gy, 4, gx, gy, reach);
+      gr.addColorStop(0, `rgba(${rgb},${a})`); gr.addColorStop(1, `rgba(${rgb},0)`);
+      ctx.save(); ctx.beginPath();
+      ctx.moveTo(gx - fy * hw, gy + fx * hw);
+      ctx.lineTo(gx + fx * reach - fy * spread, gy + fy * reach + fx * spread);
+      ctx.lineTo(gx + fx * reach + fy * spread, gy + fy * reach - fx * spread);
+      ctx.lineTo(gx + fy * hw, gy - fx * hw);
+      ctx.closePath(); ctx.clip();
+      ctx.fillStyle = gr; ctx.fillRect(gx - reach - 30, gy - reach - 30, (reach + 30) * 2, (reach + 30) * 2);
+      ctx.restore();
     }
 
     /* ---------- drawing ---------- */
@@ -45191,9 +45338,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (c.zone === "water") continue;              // the river draws itself, in one pass
         // a manhole on the junction: the way down, visible from the street
         if (isManhole(i, j)) {
-          const mi = imgs.current.sw_00;
+          const mi = firstImg("mh_cover", "sv_manhole", "sw_00");     /* the manhole cover art (layer 567; the real cover, layer 571) */
           if (mi && mi.width) {
-            const mw = 34, mh = mw * (mi.height / mi.width);
+            const mw = 38, mh = mw * (mi.height / mi.width);
             ctx.drawImage(mi, SX(i) - mw / 2, SX(j) - mh / 2, mw, mh);
           }
         }
@@ -45433,9 +45580,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           ctx.fillRect(x + hx + 2, y + s, 18, 12);
         }
         // manhole
-        if (hash(i, j, 3) > 0.55) {
-          ctx.fillStyle = "rgba(0,0,0,0.42)";
-          ctx.beginPath(); ctx.arc(x + (hash(i, j, 4) - 0.5) * hx, y + (hash(i, j, 5) - 0.5) * hy, 13, 0, 6.3); ctx.fill();
+        if (hash(i, j, 3) > 0.55 && !isManhole(i, j)) {          // the street's other manholes: the same cover, shut, no steam (layer 571)
+          const mx = x + (hash(i, j, 4) - 0.5) * hx, my = y + (hash(i, j, 5) - 0.5) * hy, mc = imgs.current.mh_cover;
+          if (mc && mc.width) ctx.drawImage(mc, mx - 14, my - 14, 28, 28);
+          else { ctx.fillStyle = "rgba(0,0,0,0.42)"; ctx.beginPath(); ctx.arc(mx, my, 13, 0, 6.3); ctx.fill(); }
         }
       }
       flushVeg();
@@ -45653,7 +45801,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const heldW = armsOn && g.p.wpn && !g.p.holstered && !WPN_THROWN[g.p.wpn] ? g.p.wpn : null;
         const aimOn = !!(heldW && !MELEE_RX.test(heldW));
         if ((g.p.atk || 0) > (g.p.atkWas || 0) + 0.05) g.p.atkN = (g.p.atkN || 0) + 1; g.p.atkWas = g.p.atk || 0;
-        drawYouth({ hero: 1, legSet: !g.studentMode && REY_CODED[pkey] ? REY_LEGS548[REY_CODED[pkey][0]] : null, lying: !!(g.p.sit && g.p.sit.k === "bed"), arms: armsOn, aim: aimOn, held: heldW, x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1, tall: 1.0, yt: g.studentMode ? skey : pkey, bang: g.p.face != null ? g.p.face : g.board.ang, faceLock: heroLockAng(),
+        drawYouth({ hero: 1, legSet: !g.studentMode && REY_CODED[pkey] ? (armsOn && armsOn.torso === "ar_torso_rey_in569" ? "orange" : REY_LEGS548[REY_CODED[pkey][0]]) : null, lying: !!(g.p.sit && g.p.sit.k === "bed"), arms: armsOn, aim: aimOn, held: heldW, x: g.p.x, y: g.p.y, vx: g.p.vx, vy: g.p.vy, anim: g.p.anim, jit: 1, tall: 1.0, yt: g.studentMode ? skey : pkey, bang: g.p.face != null ? g.p.face : g.board.ang, faceLock: heroLockAng(),
                     swing: Math.max(g.p.atk || 0, g.p.punT || 0), swingDur: (g.p.punT || 0) > 0 ? (g.p.punDur || 0.18) : 0.26,
                     move: (g.p.punT || 0) > 0 ? (g.p.punMove || "jab") : armsOn && !heldW ? ((g.p.atkN || 0) % 2 ? "hook" : "jab") : "swing" });
         return;
@@ -45962,15 +46110,17 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function fire565Boom(x, y) {
       const L = g.traffic || []; let v = null, bd = 60;
       for (const q of L) { if (q.husk565) continue; const d = Math.hypot(q.x - x, q.y - y); if (d < bd) { bd = d; v = q; } }
+      const bike567 = !!(v && (v.bike || (v.m && v.m.len < 90)));
       if (v && (v.bike || (v.m && v.m.len < 90))) { v.m = MOTO_WRECK566[(Math.abs(Math.round(v.x)) >> 3) % 2]; v.skin = v.m; v.wreck = 1; v.wreckT = 240; v.trFree = 1; }   // a bike burns as a bike wreck (layer 566)
       if (v) Object.assign(v, { husk565: 1, burn565: F565.car, dead: 1, spd: 0, vx: 0, vy: 0, cruise: 0, brake: 0, parked: 1, onFire: 0, chasing: 0, sig: 0, dmg: Math.max(v.dmg || 0, 1) });
       else (g.gfire565 = g.gfire565 || []).push({ x, y, t: 0, life: 60, s: 64 });
       const D = (g.deb565 = g.deb565 || []), F = (g.flm565 = g.flm565 || []);
-      const nd = 5 + ((Math.random() * 4) | 0);
+      /* a bike throws at most two wheels and its engine (layer 567); a car its parts */
+      const BK567 = ["db_tire_a", "db_tire_b", "sy_motors_a"], nd = bike567 ? 2 + ((Math.random() * 2) | 0) : 5 + ((Math.random() * 4) | 0);
       for (let n = 0; n < nd; n++) { const a = Math.random() * 6.283, sp = 160 + Math.random() * 300;
         D.push({ x, y, z: 6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: 260 + Math.random() * 320, a: Math.random() * 6.3, va: (Math.random() - 0.5) * 14,
-          k: DEB565[(Math.random() * DEB565.length) | 0], sz: 26 + Math.random() * 16, burn: F565.deb[0] + Math.random() * (F565.deb[1] - F565.deb[0]), t: 0, land: 0 }); }
-      for (let n = 0; n < 14; n++) { const a = Math.random() * 6.283, sp = 120 + Math.random() * 380;
+          k: bike567 ? BK567[n === nd - 1 ? 2 : n] : DEB565[(Math.random() * DEB565.length) | 0], sz: bike567 ? 18 + Math.random() * 6 : 26 + Math.random() * 16, burn: F565.deb[0] + Math.random() * (F565.deb[1] - F565.deb[0]), t: 0, land: 0 }); }
+      for (let n = 0; n < (bike567 ? 6 : 14); n++) { const a = Math.random() * 6.283, sp = 120 + Math.random() * 380;
         F.push({ x, y, z: 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: 200 + Math.random() * 380, burn: F565.flm[0] + Math.random() * (F565.flm[1] - F565.flm[0]), t: 0, land: 0, s: 14 + Math.random() * 10 }); }
       while (D.length > F565.cap) D.shift(); while (F.length > F565.cap) F.shift();
     }
@@ -46026,6 +46176,114 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (const p of g.peds || []) if (p.burn565 > 0) flame565(p.x, p.y + 6, 26, 6 - p.burn565, p.burn565, p.x * 0.01);
       if (g.p.burn565 > 0 && g.mode === "foot") flame565(g.p.x, g.p.y + 6, 26, 1, g.p.burn565, 9);
     }
+    /* ---------- LAYER 568: THE TRAFFIC STOP ----------
+       Bump a car in front of a cop (and nobody's after you already) and he lights you up: a cruiser comes up behind you
+       and you have TEN SECONDS to pull over and stop. Stop and two officers walk up -- one to your window, one to the
+       other side -- and it's a conversation on the wheel: WHY DO YOU THINK I PULLED YOU OVER (one of three is right, or
+       I DON'T KNOW), LICENSE (yours is VALID / SUSPENDED / NONE / FORGED -- a forged one gets RUN against its quality),
+       then three quick answers against the clock. Every cop is one of five kinds and wants a different kind of answer.
+       Add it up: let off with a warning, or a TICKET; can't pay it and they TOW the car to the precinct lot, $ to get it
+       back. Drive off instead and he chases; lose him and that's that -- but do something else in front of him while
+       he's on you and it's real heat. */
+    const TS_PERS = [
+      { k: "book", nm: "BY THE BOOK", likes: "polite", hates: "money", hint: "Clipboard. Pressed shirt. He reads you your rights in his head." },
+      { k: "tired", nm: "END OF HIS SHIFT", likes: "short", hates: "confident", hint: "He looks like he's been on since yesterday." },
+      { k: "hot", nm: "HOTHEAD", likes: "respect", hates: "confident", hint: "Hand on his holster before he's out of the car." },
+      { k: "rookie", nm: "ROOKIE", likes: "confident", hates: "short", hint: "Brand new uniform. He keeps checking his notebook." },
+      { k: "crook", nm: "ON THE TAKE", likes: "money", hates: "polite", hint: "Gold watch on a cop's salary." }];
+    const TS_SAY = {
+      polite: ["Yes sir. Sorry, officer.", "No sir, I'll be more careful.", "Whatever you need, officer.", "I understand, sir. My fault."],
+      short: ["Yeah.", "No.", "Long day.", "Fair."],
+      respect: ["You got a job to do. I get it.", "I hear you. Won't happen again.", "You're right to stop me.", "Respect, officer."],
+      confident: ["I know these streets better than anybody.", "I'm a good driver. That was nothing.", "Come on, it was a tap.", "I've got somewhere to be, that's all."],
+      money: ["Maybe twenty says this was a misunderstanding?", "I could pay the fine right here. Cash.", "Buy you a coffee? Twenty bucks of coffee."] };
+    const TS_COP = ["You in a hurry tonight?", "Whose car is this?", "You been drinking?", "Where you headed?", "You know that was somebody's car, right?", "Anything in the car I should know about?"];
+    const TS_WHY = { bump: "I TAPPED THAT CAR", light: "I RAN THE LIGHT", speed: "I WAS SPEEDING" };
+    function lic568() { if (!g.lic568) g.lic568 = { st: g.prisonMode ? "suspended" : "valid", pts: 0 }; return g.lic568; }
+    G.lic568 = () => lic568();
+    G.tsInfraction568 = (pc, why, force) => {
+      if (g.detMode || g.studentMode || g.inside) return false;
+      const S = g.ts568; if (S) { if (S.st === "flee") { S.done = 1; return false; } return true; }          // in a chase already: this one is real heat
+      if (!force && ((g.heat || 0) > 0 || !copsWatching(pc.x, pc.y))) return false;
+      const ha = Math.cos(pc.ang), hb = Math.sin(pc.ang), sx = pc.x - ha * 420, sy = pc.y - hb * 420, n = (Math.random() * 12) | 0;
+      g.ts568 = { st: "pull", t: 10, why: why || "bump", car: { x: sx, y: sy, ang: pc.ang, m: { k: "cruiser", len: 108, w: 45.3 } }, trail: [[sx, sy], [pc.x, pc.y]], still: 0,
+        face: "assets/police/pt_cop_" + (n + 1) + ".png", pers: TS_PERS[n % TS_PERS.length], nm: ["OFFICER KOWALCZYK", "OFFICER BRANDT", "OFFICER OKONJO", "OFFICER REYES", "OFFICER McGRATH", "OFFICER TULLY", "OFFICER DUNNE", "OFFICER PACE", "OFFICER HALVORSEN", "OFFICER LUCCHESI", "OFFICER BAINES", "OFFICER FONTAINE"][n] };
+      g.pickupFlash = { nm: "lift:LIGHTS BEHIND YOU · PULL OVER AND STOP", t: 2.4 }; G.sfx && G.sfx("siren", 0.4); return true; };
+    function update568(dt) {
+      const S = g.ts568, pc = g.car;
+      if (pc && pc.impound568 && g.mode === "car") { g.mode = "foot"; g.p.x = pc.x + 60; g.p.y = pc.y; g.pickupFlash = { nm: "lift:IMPOUNDED · $" + pc.impound568 + " · E AT THE CAR TO PAY", t: 2.4 }; }
+      if (!S) return; const C = S.car; S.age = (S.age || 0) + dt;
+      if (S.st === "pull" || S.st === "flee") { const v = inVehicle() ? activeVeh() : g.p, L = S.trail, last = L[L.length - 1];
+        if (Math.hypot(v.x - last[0], v.y - last[1]) > 30) L.push([v.x, v.y]);
+        const sp = Math.max(240, Math.hypot(v.vx || 0, v.vy || 0) * (S.st === "flee" ? 1.08 : 1.15)) * dt;      // he drives the road you drove
+        let left = sp; while (left > 0 && L.length > 1) { const [tx, ty] = L[1], d = Math.hypot(tx - C.x, ty - C.y); if (Math.hypot(v.x - C.x, v.y - C.y) < 120) break;
+          if (d <= left) { C.x = tx; C.y = ty; L.shift(); left -= d; } else { C.ang = Math.atan2(ty - C.y, tx - C.x); C.x += Math.cos(C.ang) * left; C.y += Math.sin(C.ang) * left; left = 0; } }
+        const gap = Math.hypot(v.x - C.x, v.y - C.y), spd = inVehicle() ? Math.hypot(v.vx || 0, v.vy || 0) : 0;
+        if (S.st === "pull") { S.t -= dt; S.still = spd < 14 && inVehicle() ? S.still + dt : 0;
+          if (S.still > 0.8) { S.st = "stop"; S.t = 1.4; g.pickupFlash = { nm: "lift:STAY IN THE CAR", t: 1.6 }; }
+          else if (S.t <= 0 || !inVehicle()) { S.st = "flee"; S.t = 0; g.pickupFlash = { nm: "lift:HE'S COMING AFTER YOU", t: 1.8 }; } }
+        else { if (S.done) { g.ts568 = null; witnessed(v.x, v.y, 1, true); return; }                // did it again with him on you: heat
+          S.lostT = gap > 1100 ? (S.lostT || 0) + dt : 0; if (S.lostT > 6 || S.age > 90) { g.ts568 = null; g.pickupFlash = { nm: "lift:YOU LOST HIM", t: 1.8 }; return; } } }
+      else if (S.st === "stop") { const ha = Math.cos(pc.ang), hb = Math.sin(pc.ang);
+        { const tx = pc.x - ha * 150, ty = pc.y - hb * 150, d = Math.hypot(tx - C.x, ty - C.y);           // he pulls in behind you first
+          if (d > 6) { const st = Math.min(d, 200 * dt), L = S.trail; if (L.length > 1 && Math.hypot(L[1][0] - C.x, L[1][1] - C.y) < d) { const [nx, ny] = L[1]; const dd = Math.hypot(nx - C.x, ny - C.y); if (dd <= st) { C.x = nx; C.y = ny; L.shift(); } else { C.ang = Math.atan2(ny - C.y, nx - C.x); C.x += Math.cos(C.ang) * st; C.y += Math.sin(C.ang) * st; } }
+            else { C.ang = Math.atan2(ty - C.y, tx - C.x); C.x += Math.cos(C.ang) * st; C.y += Math.sin(C.ang) * st; } }
+          else { C.ang = pc.ang; S.t -= dt; } }
+        if (S.t <= 0 && !S.offs) { const lx = Math.sin(C.ang), ly = -Math.cos(C.ang);
+          S.offs = [{ x: C.x + lx * 34, y: C.y + ly * 34, tx: pc.x + Math.sin(pc.ang) * 44, ty: pc.y - Math.cos(pc.ang) * 44, anim: 0, vx: 0, vy: 0, jit: 1, rank: DUTY_PATROL, cop: 1, state: "walk" },
+                    { x: C.x - lx * 34, y: C.y - ly * 34, tx: pc.x - Math.sin(pc.ang) * 44 - ha * 10, ty: pc.y + Math.cos(pc.ang) * 44 - hb * 10, anim: 0, vx: 0, vy: 0, jit: 1, rank: DUTY_PATROL, cop: 1, state: "walk" }]; }
+        if (S.offs) { let there = true; for (const o of S.offs) { const dx = o.tx - o.x, dy = o.ty - o.y, d = Math.hypot(dx, dy); if (d > 3) { there = false; o.vx = dx / d * 60; o.vy = dy / d * 60; o.x += o.vx * dt; o.y += o.vy * dt; o.anim += dt * 6; } else { o.vx = o.vy = 0; o.state = "idle"; } }
+          if (there && !S.asked) { S.asked = 1; S.step = "why"; S.score = 0; S.round = 0; G.pickOpen("ts568"); } }
+        if (S.asked && g.pickOpen !== "ts568") G.pickOpen("ts568");      // he's at the window: you answer him
+        if (pc && Math.hypot(pc.vx || 0, pc.vy || 0) > 60 && !S.asked) { S.st = "flee"; g.pickupFlash = { nm: "lift:HE'S COMING AFTER YOU", t: 1.8 }; } }
+      else if (S.st === "timed") { if (g.pickOpen !== "ts568") G.pickOpen("ts568"); S.rt -= dt; if (S.rt <= 0) G.tsPick568("ts:t:timeout"); else if (Math.ceil(S.rt) !== S.rtShown) { S.rtShown = Math.ceil(S.rt); G.pickOpen("ts568"); } }
+      else if (S.st === "leave") { S.t -= dt; for (const o of S.offs || []) { const dx = C.x - o.x, dy = C.y - o.y, d = Math.hypot(dx, dy); if (d > 4) { o.vx = dx / d * 70; o.vy = dy / d * 70; o.x += o.vx * dt; o.y += o.vy * dt; o.anim += dt * 6; } else o.gone = 1; }
+        if ((S.offs || []).every((o) => o.gone)) { C.x += Math.cos(C.ang) * 260 * dt; C.y += Math.sin(C.ang) * 260 * dt; } if (S.t <= 0) g.ts568 = null; }
+    }
+    function tsEnd568(text, fine) { const S = g.ts568; if (!S) return; S.st = "leave"; S.t = 9; g.pickOpen = null; setHud((h) => ({ ...h, pick: null }));
+      if (fine) { const L = lic568(); L.pts = (L.pts || 0) + 1; if (L.st === "valid" && L.pts >= 3) L.st = "suspended";
+        if ((g.p.cash || 0) >= fine) { g.p.cash -= fine; g.driveTalk = { who: S.nm, text: text + " The ticket's $" + fine + ". You pay it on the spot.", t: 6 }; }
+        else { const fee = fine + 100, pb = precinctB(), dp = pb ? doorPoint(pb) : [g.car.x + 200, g.car.y]; g.mode = "foot"; g.p.x = g.car.x + Math.sin(g.car.ang) * 60; g.p.y = g.car.y - Math.cos(g.car.ang) * 60;
+          g.car.x = dp[0] + 160; g.car.y = dp[1] + 160; g.car.vx = g.car.vy = 0; g.car.impound568 = fee;
+          g.driveTalk = { who: S.nm, text: text + " $" + fine + " and you haven't got it. The car's getting towed -- precinct lot, $" + fee + " to get it out.", t: 8 }; } }
+      else g.driveTalk = { who: S.nm, text, t: 6 }; }
+    G.tsPanel568 = () => { const S = g.ts568; if (!S) return null; const P = S.pers, head = S.nm + " · " + P.nm;
+      if (S.step === "why") { const right = TS_WHY[S.why] || TS_WHY.bump, wrong = Object.values(TS_WHY).filter((q) => q !== right);
+        const o = [{ id: "ts:why:right", label: right }, { id: "ts:why:wrong", label: wrong[0] }, { id: "ts:why:wrong2", label: wrong[1] }].sort(() => Math.random() - 0.5);
+        S.whyOpts = S.whyOpts || o; return { stay: 1, title: head, face: S.face, wheel: 1, text: P.hint + "\n\n“Evening. You know why I pulled you over?”", opts: S.whyOpts.concat([{ id: "ts:why:dunno", label: "I DON'T KNOW" }]) }; }
+      if (S.step === "lic") { const L = lic568(), has = L.st !== "none";
+        return { stay: 1, title: head, face: S.face, wheel: 1, text: (S.whySaid || "") + "\n\n“License and registration.”", opts: has ? [{ id: "ts:lic:give", label: "HAND OVER YOUR LICENSE" + (L.st === "forged" ? " (THE FAKE)" : "") }, { id: "ts:lic:none", label: "“LEFT IT AT HOME”" }] : [{ id: "ts:lic:none", label: "“I DON'T HAVE ONE ON ME”" }] }; }
+      if (S.step === "talk") { const line = S.line || (S.line = TS_COP[(Math.random() * TS_COP.length) | 0]);
+        if (!S.opts3) { const st = ["polite", "short", "respect", "confident", "money"].sort(() => Math.random() - 0.5).slice(0, 3); if (Math.random() < 0.7 && !st.includes(P.likes)) st[0] = P.likes;
+          S.opts3 = st.sort(() => Math.random() - 0.5).map((s) => ({ id: "ts:t:" + s, label: TS_SAY[s][(Math.random() * TS_SAY[s].length) | 0] + (s === "money" ? " ($20)" : "") })); }
+        return { title: head + " · " + (S.round + 1) + " OF 3", face: S.face, wheel: 1, text: (S.said || "") + "\n\n“" + line + "”\n\n⏱ " + Math.max(0, Math.ceil(S.rt || 0)), opts: S.opts3 }; }
+      return null; };
+    G.tsPick568 = (id) => { const S = g.ts568; if (!S) return; const [, a, b] = id.split(":"), P = S.pers;
+      if (a === "why") { S.score += b === "right" ? 1 : b === "dunno" ? 0 : -1; S.whySaid = b === "right" ? "“At least you're honest.”" : b === "dunno" ? "“Let me help you out. You hit a car.”" : "“That too? Noted.”"; S.step = "lic"; G.pickOpen("ts568"); return; }
+      if (a === "lic") { const L = lic568();
+        if (b === "none") { S.score -= 2; S.said = "“No license. Wonderful.”"; }
+        else if (L.st === "valid") { S.score += 1; S.said = "He checks it with a flashlight. “Clean.”"; }
+        else if (L.st === "suspended") { S.score -= 2; S.said = "He runs it. “Suspended. You know that, right?”"; }
+        else if (L.st === "forged") { if (Math.random() * 100 < (L.q || 40)) { S.score += 1; S.said = "He runs it. It comes back clean."; }
+          else { tsEnd568("“This isn't you.” His hand goes to his gun.", 0); g.ts568 = null; witnessed(g.car.x, g.car.y, 1, true); L.st = "none"; g.pickupFlash = { nm: "lift:THE FAKE DIDN'T HOLD · THEY TOOK IT", t: 2.4 }; return; } }
+        S.step = "talk"; S.round = 0; S.st = "timed"; S.rt = 8; S.rtShown = 8; S.line = null; S.opts3 = null; G.pickOpen("ts568"); return; }
+      if (a === "t") { let d = b === "timeout" ? -1 : b === P.likes ? (b === "money" ? 2 : 1) : b === P.hates ? -1 : 0;
+        if (b === "money") { if ((g.p.cash || 0) >= 20) g.p.cash -= 20; else d = -1;
+          if (P.k === "book") { tsEnd568("“Did you just try to bribe me?”", 0); g.ts568 = null; witnessed(g.car.x, g.car.y, 1, true); return; } }
+        S.score += d; S.said = b === "timeout" ? "He waits. You say nothing. He writes something down." : d > 0 ? "He nods." : d < 0 ? "His jaw goes tight." : "He doesn't react.";
+        S.round++; if (S.round >= 3) { const sc = S.score; if (sc >= 2) tsEnd568("“Get out of here. Drive careful.” A warning.", 0); else tsEnd568("He tears off a ticket.", sc >= 0 ? 75 : 150); return; }
+        S.rt = 8; S.rtShown = 8; S.line = null; S.opts3 = null; G.pickOpen("ts568"); return; } };
+    G.tsPayImpound568 = () => { const c = g.car; if (!c || !c.impound568 || g.mode !== "foot" || Math.hypot(g.p.x - c.x, g.p.y - c.y) > 110) return false;
+      if ((g.p.cash || 0) < c.impound568) { g.pickupFlash = { nm: "lift:$" + c.impound568 + " TO GET IT OUT", t: 1.6 }; return true; }
+      g.p.cash -= c.impound568; c.impound568 = 0; g.pickupFlash = { nm: "lift:PAID · IT'S YOURS AGAIN", t: 1.6 }; return true; };
+    function draw568() { const S = g.ts568; if (!S || g.inside) return; const C = S.car, im = imgs.current.cruiser || imgs.current.pd_cruiser;
+      ctx.save(); ctx.translate(C.x, C.y); ctx.rotate(C.ang + Math.PI / 2); drawShadow(2, 5, 20, 44, 0.32);
+      if (im && im.width) ctx.drawImage(im, -C.m.w / 2, -C.m.len / 2, C.m.w, C.m.len); else { ctx.fillStyle = "#e8e8e8"; ctx.fillRect(-22, -54, 44, 108); }
+      const on = Math.sin((g.t || 0) * 10) > 0; ctx.fillStyle = on ? "rgba(70,110,255,0.95)" : "rgba(255,60,50,0.95)"; ctx.fillRect(-14, -6, 12, 6); ctx.fillStyle = on ? "rgba(255,60,50,0.95)" : "rgba(70,110,255,0.95)"; ctx.fillRect(2, -6, 12, 6);
+      ctx.restore(); ctx.fillStyle = (Math.sin((g.t || 0) * 10) > 0 ? "rgba(70,110,255," : "rgba(255,60,50,") + (0.12 + 0.1 * (g.night || 0)) + ")"; ctx.beginPath(); ctx.arc(C.x, C.y, 110, 0, 6.3); ctx.fill();
+      for (const o of S.offs || []) if (!o.gone) { try { drawCop(o); } catch (e) {} }
+      if (S.st === "pull") { const v = inVehicle() ? activeVeh() : g.p; ctx.font = "800 14px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd65a"; ctx.fillText("PULL OVER · " + Math.max(0, Math.ceil(S.t)), v.x, v.y - 70); ctx.textAlign = "start"; } }
+    G.ts568T = () => { const S = g.ts568; return S ? { st: S.st, t: +(S.t || 0).toFixed(1), step: S.step, score: S.score, pers: S.pers.k, car: [S.car.x | 0, S.car.y | 0], offs: (S.offs || []).length } : null; };   // test hook
     G.fire565T = () => ({ husks: (g.traffic || []).filter((v) => v.husk565).map((v) => [v.x | 0, v.y | 0, +v.burn565.toFixed(1)]), deb: (g.deb565 || []).map((o) => [o.k, o.land, o.x | 0, o.y | 0]), flm: (g.flm565 || []).length, bld: (g.bfire565 || []).length, pedsOnFire: (g.peds || []).filter((p) => p.burn565 > 0).length });   // test hook
     G.boom565T = (x, y) => carBoom(x, y);
     function carBoom(x, y) { (g.booms = g.booms || []).push({ x, y, t: 0 }); g.shake = Math.max(g.shake || 0, 16); sfxImpact && sfxImpact(1); fire565Boom(x, y); }
@@ -47084,6 +47342,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!im) return;                      // its art still on the way (layer 516: art loads on demand)
       const L = (c.skin && c.skin.len) || 108;
       const sc = L / im.height, w = im.width * sc;
+      c._L569 = L; c._W569 = w;
       ctx.save();
       ctx.translate(c.x, c.y); ctx.rotate(c.ang + Math.PI / 2);
       drawShadow(2, 6, w * 0.44, L * 0.42, 0.35);
@@ -47307,20 +47566,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       // headlights
       if (g.mode === "car") {
-        const c = g.car, fx = Math.cos(c.ang), fy = Math.sin(c.ang);
-        const gx = c.x + fx * 46, gy = c.y + fy * 46;
-        const gr = ctx.createRadialGradient(gx, gy, 6, gx, gy, 330), hlc = c.lightHex ? hexRgb(c.lightHex) : "255,240,200";
-        gr.addColorStop(0, `rgba(${hlc},${0.5 * n})`);
-        gr.addColorStop(1, `rgba(${hlc},0)`);
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(gx - fy * 26, gy + fx * 26);
-        ctx.lineTo(gx + fx * 340 - fy * 150, gy + fy * 340 + fx * 150);
-        ctx.lineTo(gx + fx * 340 + fy * 150, gy + fy * 340 - fx * 150);
-        ctx.lineTo(gx + fy * 26, gy - fx * 26);
-        ctx.closePath(); ctx.clip();
-        ctx.fillStyle = gr; ctx.fillRect(gx - 380, gy - 380, 760, 760);
-        ctx.restore();
+        const c = g.car, hlc = c.lightHex ? hexRgb(c.lightHex) : "255,240,200";
+        beam569(c.x, c.y, c.ang, c._L569 || 108, c._W569 || 48, 340, 150, 0.5 * n, hlc);
       }
       ctx.globalCompositeOperation = "source-over";
     }
@@ -47352,7 +47599,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.fillStyle = "rgba(10,11,14,0.82)"; ctx.fillRect(ox, oy, S, S);
       ctx.translate(ox + S / 2, oy + S / 2); ctx.scale(k, k); ctx.translate(-cx, -cy);
       ctx.strokeStyle = "rgba(217,164,65,0.35)"; ctx.lineCap = "square";
-      { const mmP = (mmPaths511 = mmPaths511 || (() => { const P = [new Path2D(), new Path2D()];       // [streets, avenues], built once (layer 511)
+      /* layer 567: the minimap IS the map now -- the same picture as the big map (mapBase: the streets, the water, every
+         building with its own roof), cut to the window round you, so whatever changes in the city changes here too. The
+         El and the airport spur are drawn over it. Street lines stay underneath as a fallback while it builds. */
+      const mb567 = mapBase(G.mapRoof564);
+      if (mb567 && mb567.width) { ctx.save(); ctx.globalAlpha = 0.9; ctx.drawImage(mb567, 0, 0, mb567.width, mb567.height, 0, 0, SX(N), SX(N)); ctx.restore();
+        ctx.strokeStyle = "rgba(220,90,80,0.7)"; ctx.lineWidth = 60; ctx.strokeRect(EL_X0, EL_Y0, EL_X1 - EL_X0, EL_Y1 - EL_Y0);
+        const SP = typeof spur === "function" ? spur() : null; if (SP) { ctx.beginPath(); SP.pts.forEach(([px, py], n) => n ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.stroke(); } }
+      else { const mmP = (mmPaths511 = mmPaths511 || (() => { const P = [new Path2D(), new Path2D()];       // [streets, avenues], built once (layer 511)
           for (let i = 0; i <= N; i++) for (let j = 0; j < N; j++) if (!vCut(i, j)) { const q = P[i % AVE_EVERY === 0 ? 1 : 0]; q.moveTo(SX(i), SX(j)); q.lineTo(SX(i), SX(j + 1)); }
           for (let j = 0; j <= N; j++) for (let i = 0; i < N; i++) if (!hCut(i, j)) { const q = P[j % AVE_EVERY === 0 ? 1 : 0]; q.moveTo(SX(i), SX(j)); q.lineTo(SX(i + 1), SX(j)); }
           return P; })());
@@ -47372,10 +47626,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const y0 = SX(tz.j0) - halfW(tz.j0), y1 = SX(tz.j1 + 1) + halfW(tz.j1 + 1);
         ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
       }
-      ctx.fillStyle = "rgba(120,150,190,0.75)";
-      for (const v of g.traffic) { ctx.beginPath(); ctx.arc(v.x, v.y, 34, 0, 6.3); ctx.fill(); }
-      ctx.fillStyle = "rgba(200,205,215,0.55)";
-      for (const p of g.peds) { ctx.beginPath(); ctx.arc(p.x, p.y, 22, 0, 6.3); ctx.fill(); }
+      /* layer 567: no dot for every car and every walker -- only the police, as small red-blue squares. */
+      for (const v of g.traffic) { if (!(v.cop || v.chasing || v.patrolCop || (v.m && /cruiser|pd_|police/.test(v.m.k || "")))) continue; ctx.fillStyle = Math.sin(g.t * 8) > 0 ? "rgba(90,130,255,0.95)" : "rgba(255,70,60,0.95)"; ctx.fillRect(v.x - 60, v.y - 60, 120, 120); }
       if (g.crime) {
         ctx.fillStyle = g.crime.result ? "rgba(120,220,140,0.9)" : `rgba(235,70,60,${0.55 + 0.45 * Math.sin(g.t * 7)})`;
         ctx.beginPath(); ctx.arc(g.crime.x, g.crime.y, 90, 0, 6.3); ctx.fill();
@@ -47450,17 +47702,27 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.setLineDash([]);
         ctx.restore();
       }
-      const pip = (wx, wy, r, fill, ring, dash) => {
+      /* layer 567: a SHAPE per kind of place, not a dot for everything -- square (gas), diamond (shops, the club), triangle
+         (a gang's garage), house (home), flag (a race), and you are a blinking star. */
+      const shapePath567 = (sx, sy, r, sh) => { ctx.beginPath();
+        if (sh === "square") ctx.rect(sx - r * 0.85, sy - r * 0.85, r * 1.7, r * 1.7);
+        else if (sh === "diamond") { ctx.moveTo(sx, sy - r * 1.15); ctx.lineTo(sx + r, sy); ctx.lineTo(sx, sy + r * 1.15); ctx.lineTo(sx - r, sy); ctx.closePath(); }
+        else if (sh === "tri") { ctx.moveTo(sx, sy - r * 1.1); ctx.lineTo(sx + r, sy + r * 0.8); ctx.lineTo(sx - r, sy + r * 0.8); ctx.closePath(); }
+        else if (sh === "house") { ctx.moveTo(sx, sy - r * 1.2); ctx.lineTo(sx + r, sy - r * 0.2); ctx.lineTo(sx + r * 0.8, sy - r * 0.2); ctx.lineTo(sx + r * 0.8, sy + r); ctx.lineTo(sx - r * 0.8, sy + r); ctx.lineTo(sx - r * 0.8, sy - r * 0.2); ctx.lineTo(sx - r, sy - r * 0.2); ctx.closePath(); }
+        else if (sh === "flag") { ctx.rect(sx - r * 0.8, sy - r * 1.2, r * 0.3, r * 2.4); ctx.moveTo(sx - r * 0.5, sy - r * 1.2); ctx.lineTo(sx + r, sy - r * 0.7); ctx.lineTo(sx - r * 0.5, sy - r * 0.2); ctx.closePath(); }
+        else if (sh === "star") { for (let q = 0; q < 10; q++) { const a = -Math.PI / 2 + q * Math.PI / 5, rr = q % 2 ? r * 0.45 : r; q ? ctx.lineTo(sx + Math.cos(a) * rr, sy + Math.sin(a) * rr) : ctx.moveTo(sx + Math.cos(a) * rr, sy + Math.sin(a) * rr); } ctx.closePath(); }
+        else ctx.arc(sx, sy, r, 0, 6.3); };
+      const pip = (wx, wy, r, fill, ring, dash, sh) => {
         const [sx, sy] = toMap(wx, wy);
         if (!inMap(sx, sy, r + 2)) return;
         ctx.save();
         ctx.beginPath(); ctx.rect(ox, oy, S, S); ctx.clip();
         ctx.fillStyle = fill;
-        ctx.beginPath(); ctx.arc(sx, sy, r, 0, 6.3); ctx.fill();
+        shapePath567(sx, sy, r, sh); ctx.fill();
         if (ring) {
-          ctx.strokeStyle = ring; ctx.lineWidth = 1.5;
+          ctx.strokeStyle = ring; ctx.lineWidth = 1.3;
           if (dash) ctx.setLineDash([3, 2.5]);
-          ctx.beginPath(); ctx.arc(sx, sy, r, 0, 6.3); ctx.stroke();
+          shapePath567(sx, sy, r, sh); ctx.stroke();
           ctx.setLineDash([]);
         }
         ctx.restore();
@@ -47468,21 +47730,21 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
       // gas stations first so the story landmarks sit on top where they overlap
       for (const gc of GAS_CELLS)
-        pip(SX(gc.i) + PITCH / 2, SX(gc.j) + PITCH / 2, 3.4, "#6cf06c", "rgba(255,255,255,0.9)");
+        pip(SX(gc.i) + PITCH / 2, SX(gc.j) + PITCH / 2, 3.2, "#6cf06c", "rgba(255,255,255,0.9)", false, "square");
       for (const sc of SHOP_CELLS)
-        pip(SX(sc.i) + PITCH / 2, SX(sc.j) + PITCH / 2, 3.4, "#5abedc", "rgba(255,255,255,0.9)");
+        pip(SX(sc.i) + PITCH / 2, SX(sc.j) + PITCH / 2, 3.4, "#5abedc", "rgba(255,255,255,0.9)", false, "diamond");
       // the Wolves' garage -- on record, but dim, since nobody's home yet
       pip(SX(WOLVES_CELL.i) + PITCH / 2, SX(WOLVES_CELL.j) + PITCH / 2, 3.6,
-        "rgba(190,118,64,0.75)", "rgba(210,140,80,0.9)", true);
+        "rgba(190,118,64,0.75)", "rgba(210,140,80,0.9)", true, "tri");
       // the Gilded Crown
       // Aim at the doorway, not the cell centre. Walking to a marker planted on the middle
       // of the block puts you against a blank wall with no obvious way in.
       const cb = clubOf();
       const cdp = cb ? doorPoint(cb) : null;
-      if (cdp) pip(cdp[0], cdp[1], 4.4, "#d46ff0", "#ffffff");
-      else pip(SX(CLUB_CELL.i) + PITCH / 2, SX(CLUB_CELL.j) + PITCH / 2, 4.4, "#d46ff0", "#ffffff");
+      if (cdp) pip(cdp[0], cdp[1], 4.4, "#d46ff0", "#ffffff", false, "diamond");
+      else pip(SX(CLUB_CELL.i) + PITCH / 2, SX(CLUB_CELL.j) + PITCH / 2, 4.4, "#d46ff0", "#ffffff", false, "diamond");
       // the den, pulsed so home always reads first
-      pip(denX, denY, 4.6 + 0.9 * Math.sin(g.t * 2.2), "#ff6fc0", "#ffffff");
+      pip(denX, denY, 4.6 + 0.6 * Math.sin(g.t * 2.2), "#ff6fc0", "#ffffff", false, "house");
       // an active race: the line you are heading for, and the rest of the course behind it
       if (g.race && g.race.state !== "done") {
         const R = g.race;
@@ -47497,12 +47759,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           pip(fin.x, fin.y, 4, "#e8d9b5", "#ffffff");
         } else {
           // not started: point at the start line and the organiser
-          pip(R.x, R.y, 4.4 + 0.9 * Math.sin(g.t * 3), "#6cf06c", "#ffffff");
+          pip(R.x, R.y, 4.4 + 0.9 * Math.sin(g.t * 3), "#6cf06c", "#ffffff", false, "flag");
         }
       }
       drawStoryRoute(toMap, ox, oy, S);                                       // the road to the story objective (layer 489)
       // the car, then the player on top
-      if (!inVehicle()) pip(g.car.x, g.car.y, 3.2, "#7fd0ff", "rgba(255,255,255,0.85)");
+      if (!inVehicle()) pip(g.car.x, g.car.y, 3.2, "#7fd0ff", "rgba(255,255,255,0.85)", false, "square");
       if (g.sit && g.sit.at) { pip(g.sit.at.x, g.sit.at.y, 4.5, "#ff5a4a", "#ffffff");                 // the sit-down (layer 519)
         const sdx = g.sit.at.x - cx, sdy = g.sit.at.y - cy; if (Math.hypot(sdx, sdy) > span * 0.48) { const an = Math.atan2(sdy, sdx);
           ctx.save(); ctx.translate(ox + S / 2 + Math.cos(an) * (S / 2 - 12), oy + S / 2 + Math.sin(an) * (S / 2 - 12)); ctx.rotate(an); ctx.fillStyle = "#ff5a4a";
@@ -47512,11 +47774,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          last, and clamped inside the frame if he somehow leaves it. */
       {
         const [px, py] = toMap(g.p.x, g.p.y);
-        const cxp = clamp(px, ox + 5, ox + S - 5), cyp = clamp(py, oy + 5, oy + S - 5);
-        ctx.fillStyle = g.roof ? "#8cf08c" : "#f2c24e";
-        ctx.beginPath(); ctx.arc(cxp, cyp, 3.8, 0, 6.3); ctx.fill();
-        ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.arc(cxp, cyp, 3.8, 0, 6.3); ctx.stroke();
+        const cxp = clamp(px, ox + 7, ox + S - 7), cyp = clamp(py, oy + 7, oy + S - 7), on = Math.floor(g.t * 3) % 2 === 0;     // YOU: a blinking star (layer 567)
+        ctx.fillStyle = "rgba(0,0,0,0.55)"; shapePath567(cxp + 1, cyp + 1, 7, "star"); ctx.fill();
+        ctx.fillStyle = on ? "#ffffff" : (g.roof ? "#8cf08c" : "#f2c24e"); shapePath567(cxp, cyp, 7, "star"); ctx.fill();
+        ctx.strokeStyle = on ? "#f2c24e" : "#ffffff"; ctx.lineWidth = 1.2; shapePath567(cxp, cyp, 7, "star"); ctx.stroke();
       }
 
       // compass arrow at the map edge when the den is out of the visible span entirely
@@ -47763,6 +48024,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!g.title) updateBlasts(dt);
       if (!g.title) updateCarDamage(dt);
       if (!g.title) update565(dt);
+      if (!g.title) update568(dt);                 // the traffic stop (layer 568)
       if (!g.title) updateBullets(dt);
       /* Drive it home and it gets fixed. The den is a garage with a lift in it and a crew who
          do nothing else -- charging for repairs somewhere else while that sat unused was the
@@ -48245,6 +48507,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         drawMentor();
       }
       if (g.inside && g.inside.kind === "club") drawDancers();
+      /* layer 567: the GROUND of every lot -- its parking, its drive -- goes down before anybody stands on it. It was drawn
+         with the building in the sorted list, so a lot or a drive north of a building painted over you while you stood on it. */
+      if (!g.inside) { for (const b of blds) if (!b.driveIn) drawParking(b, 1); g.parkDone567 = 1; }
       const drawList = [];
       // the building he is standing on sorts to the very back of the list, so no neighbour
       // can paint across the roof he is on
@@ -48317,9 +48582,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }
         else if (kind === 9) p.__draw();
       }
+      g.parkDone567 = 0;
       if (g.inside && g.insideT > 0.5) { drawHoopsOver(); drawBizExtras(); }
       if (!g.inside) { drawFireOver560(view); drawMom560(); drawCourts561(); }      // + Mom on her step, in front of the house (layer 560)      // the fire escapes hang over the alley (layer 560)
-      drawStory(); drawSetup(); drawEmp(); drawMimi(); drawNest2(); DRAW98.forEach((f) => f()); drawYardDoorIn(); drawTrophy(); drawCarry(); drawPick(); drawCalled(); drawLedger(); drawRcase(); drawDrum509(); drawAptDoors512(); drawAptConsole512(); drawFirstOut(); drawScrap2(); drawFriday(); drawAllin(); drawWash(); drawWashCrew(); drawParty(); drawMorning(); drawMaptable(); drawPabloHang(); drawBozFolk(); drawDreadCorner(); drawCornerMark(); drawCellParty(); drawEscort511(); drawParty511(); drawEddie(); drawJose(); drawSiteCones(); drawCover(); drawBombed(view); draw565Over(); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
+      drawStory(); drawSetup(); drawEmp(); drawMimi(); drawNest2(); DRAW98.forEach((f) => f()); drawYardDoorIn(); drawTrophy(); drawCarry(); drawPick(); drawCalled(); drawLedger(); drawRcase(); drawDrum509(); drawAptDoors512(); drawAptConsole512(); drawFirstOut(); drawScrap2(); drawFriday(); drawAllin(); drawWash(); drawWashCrew(); drawParty(); drawMorning(); drawMaptable(); drawPabloHang(); drawBozFolk(); drawDreadCorner(); drawCornerMark(); drawCellParty(); drawEscort511(); drawParty511(); drawEddie(); drawJose(); drawSiteCones(); drawCover(); drawBombed(view); drawTableOver567(); draw568(); draw565Over(); drawBooms(); drawCuffMarks();    // the backboards and rims over the heads of whoever's under them (layer 481)
       if (!g.inside) {
         // Roofs belong ABOVE the sorted building list, not before it -- drawn early, every
         // building painted straight over the roof and the man standing on it.
@@ -48423,6 +48689,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       drawDistros();
       drawChopPad();
       drawCrewChopPad();
+      if (!g.inside && !g.sewer) drawSteam571(view);      // steam off the manholes (layer 571)
       drawFly();
       drawSky();
       if (!g.inside) drawWeather();
@@ -48486,6 +48753,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (!g.inside) drawHeadlights();
         ctx.restore();
       }
+      flushBubbles567();                 // everything anyone's saying, over everything (layer 567)
       // vignette
       const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.32, W / 2, H / 2, Math.max(W, H) * 0.78);
       vg.addColorStop(0, "rgba(0,0,0,0)");
@@ -55593,6 +55861,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           right: 12, textAlign: "right", pointerEvents: "none", zIndex: 7, fontFamily: mono }}>
           <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "0.04em", color: hud.payFly ? "#9be37a" : "#f2c45a", textShadow: "0 2px 0 #000, 0 0 10px rgba(0,0,0,0.8)", transition: "color .3s" }}>${hud.money.toLocaleString()}</div>
           <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.22em", color: "#e8d9b5", textShadow: "0 2px 0 #000" }}>JUICE {hud.juiceNow ?? 0}</div>
+          {/* THE ZOOM, standing up, under the money (layer 567) -- up is closer */}
+          <div style={{ position: "relative", width: 30, height: 150, marginLeft: "auto", marginTop: 8, pointerEvents: "auto" }} onPointerDown={(e) => e.stopPropagation()}>
+            <div style={{ position: "absolute", right: 0, top: -2, fontSize: 7, letterSpacing: "0.16em", color: "#e8d9b5", opacity: 0.6, whiteSpace: "nowrap" }}>ZOOM</div>
+            <input type="range" min="0.45" max="3.4" step="0.05" value={zoomUI}
+              onChange={(e) => { const v = parseFloat(e.target.value); zoomRef.current = v; setZoomUI(v); }}
+              style={{ position: "absolute", width: 130, left: 15 - 65, top: 80 - 8, transform: "rotate(-90deg)", accentColor: "#d9a441", background: "transparent", touchAction: "none" }} />
+            <div style={{ position: "absolute", right: 0, bottom: -12, fontSize: 7, color: "#e8d9b5", opacity: 0.6 }}>{zoomUI.toFixed(1)}×</div>
+          </div>
           {hud.caseBar && <div style={{ marginTop: 6, fontSize: 9, fontWeight: 800, letterSpacing: "0.18em", color: hud.caseBar.fill >= 80 ? "#ff6a5a" : "#ffb09a", textShadow: "0 2px 0 #000" }}>
             THE RCASE {"\u00b7"} DRUMMOND {hud.caseBar.fill}%
             <div style={{ width: 130, height: 6, marginLeft: "auto", marginTop: 3, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,138,106,0.6)" }}><div style={{ width: hud.caseBar.fill + "%", height: "100%", background: hud.caseBar.fill >= 80 ? "#e8302a" : "#ff8a6a" }} /></div>
@@ -56305,12 +56581,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                 {im && <img src={im} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: "54%", aspectRatio: "1", objectFit: "cover", imageRendering: "pixelated", borderRadius: 6, marginBottom: 3 }} />}
                 <span style={{ display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{o.label}</span>
               </div>); })}
-            <div data-pickopt="1" data-info={cl ? cl.label : "LEAVE IT"} onClick={() => pick(cl)} onMouseEnter={() => setInfo(cl ? cl.label : "LEAVE IT")}
+            <div data-pickopt="1" data-info={P.stay ? "ANSWER HIM" : cl ? cl.label : "LEAVE IT"} onClick={() => { if (!P.stay) pick(cl); }} onMouseEnter={() => setInfo(P.stay ? "ANSWER HIM" : cl ? cl.label : "LEAVE IT")}
               style={{ position: "absolute", left: "50%", top: "50%", width: "27%", height: "27%", transform: "translate(-50%,-50%)", borderRadius: "50%", border: "1px solid rgba(217,164,65,0.65)",
                 background: "rgba(12,13,17,0.95)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 6, boxSizing: "border-box", cursor: "pointer", overflow: "hidden" }}>
               {P.face && <img key={P.face} src={P.face} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: "52%", height: "52%", objectFit: "contain", imageRendering: "pixelated" }} />}
               <div data-radialinfo="1" style={{ fontSize: 8, marginTop: 3, lineHeight: 1.3, color: "#e8c46a" }}>{padOn ? "point the stick \u00b7 A" : "pick a line"}</div>
-              <div style={{ fontSize: 7, marginTop: 3, opacity: 0.55 }}>{"B \u00b7 centre: " + (cl ? cl.label : "LEAVE IT")}</div>
+              <div style={{ fontSize: 7, marginTop: 3, opacity: 0.55 }}>{P.stay ? "pick an answer" : "B \u00b7 centre: " + (cl ? cl.label : "LEAVE IT")}</div>
             </div>
           </div>
         </div>); })()}
@@ -56843,7 +57119,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       <div style={{
         position: "absolute", right: 184, top: 10, width: 150, zIndex: 20,
         fontFamily: mono, color: "#e8d9b5", textAlign: "right",
-        display: hud.title ? "none" : "block", pointerEvents: "auto",
+        display: "none", pointerEvents: "auto",          /* moved under the money, standing up (layer 567) */
       }}>
         <div style={{ fontSize: 8, letterSpacing: "0.22em", opacity: 0.6, marginBottom: 3 }}>
           ZOOM {zoomUI.toFixed(2)}×
@@ -56866,7 +57142,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (V && g0.mode === "moto") V.cardK = k;
         const I = !onBicycle && G.carInfoFn ? G.carInfoFn(V) : null, M = carModel(k), tier = "$".repeat(M.tier || 1);
         const mm = g0.mm || { S: 150, y: 12 + MM_CARD_H + 4 }, S = mm.S, pw = Math.min(S, 132), ph = pw * 220 / 412, moto = g0.mode === "moto";
+        const L568 = G.lic568 && !g0.detMode && !g0.studentMode ? G.lic568() : null, LC = L568 ? { valid: ["VALID", "#7fd35a"], suspended: ["SUSPENDED", "#ff6a5a"], none: ["NO LICENSE", "#ff6a5a"], forged: ["Q " + (L568.q || 0), "#f2c45a"] }[L568.st] || ["?", "#aaa"] : null;
         return (<>
+          {/* THE LICENSE, left of the car card (layer 568): whose name, and what it'll do for you if you get pulled over */}
+          {L568 && <div style={{ position: "absolute", right: 12 + S + 6, top: 12, width: 104, height: MM_CARD_H, zIndex: 20, fontFamily: mono, color: "#1d1f24", pointerEvents: "none",
+            background: "linear-gradient(#2f4f7a 0 15px, #d9d3c2 15px)", border: "1px solid rgba(0,0,0,0.5)", boxSizing: "border-box", padding: "1px 5px", overflow: "hidden" }}>
+            <div style={{ fontSize: 7, letterSpacing: "0.16em", color: "#e8e2d0", fontWeight: 700 }}>KESTREL · DRIVER</div>
+            <div style={{ fontSize: 9, fontWeight: 800, marginTop: 4, whiteSpace: "nowrap", overflow: "hidden" }}>{L568.st === "forged" ? "(NOT YOU)" : g0.prisonMode ? "REY" : "DRIVER"}</div>
+            <div style={{ fontSize: 7, opacity: 0.7 }}>{L568.st === "forged" ? "BY " + (L568.by || "THE FORGER") : "POINTS " + (L568.pts || 0)}</div>
+            <div style={{ display: "inline-block", marginTop: 3, padding: "1px 4px", border: "2px solid " + LC[1], color: LC[1], fontSize: 9, fontWeight: 900, letterSpacing: "0.08em", transform: "rotate(-6deg)", background: "rgba(0,0,0,0.65)" }}>{LC[0]}</div>
+          </div>}
           <div style={{ position: "absolute", right: 12, top: 12, width: S, height: MM_CARD_H, zIndex: 20, fontFamily: mono, color: "#e8d9b5", pointerEvents: "none",
             background: "rgba(10,11,14,0.82)", border: "1px solid rgba(217,164,65,0.35)", boxSizing: "border-box", padding: "3px 6px", overflow: "hidden", textAlign: "center" }}>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, height: 24 }}>
