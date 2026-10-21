@@ -21239,7 +21239,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       /* Top-level objects are filled IN PLACE (code anywhere may hold g.p or g.car), and every reference to the loaded
          copy is pointed at the live one. */
       const isPlain = (v) => v && typeof v === "object" && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
+      /* LAYER 574: A BUILDING (or a city cell) IS NEVER FILLED IN PLACE. g.inside and friends point at live buildings; the
+         loaded value is already the right live building (a $b reference), so it is pointed at, not merged. Merging copied
+         the building you were in AT the checkpoint over the one you are in NOW -- retry the card game from the Hippy's
+         basement and the Hippy became a copy of Palm Court: no laundromat, no club, nobody to talk to. */
+      const cellSet = new Set(cells.values()), live = (v) => !!(v && typeof v === "object" && (v.__orig || cellSet.has(v)));
       for (const k of Object.keys(st)) { const nv = st[k], ov = g[k];
+        if (live(nv) || live(ov)) continue;
         if (isPlain(nv) && isPlain(ov)) { for (const q of Object.keys(ov)) if (!(q in nv) && typeof ov[q] !== "function") delete ov[q]; swap.set(nv, ov); }
         else if (Array.isArray(nv) && Array.isArray(ov)) swap.set(nv, ov); }
       const seen = new Set(), fixRef = (x) => { if (!x || typeof x !== "object" || seen.has(x)) return; seen.add(x);
@@ -21248,6 +21254,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         for (const q of Object.keys(x)) { const y = x[q]; if (swap.has(y)) x[q] = swap.get(y); else fixRef(y); } };
       for (const k of Object.keys(st)) fixRef(st[k]);
       for (const k of Object.keys(st)) { const nv = st[k], ov = g[k];
+        if (live(nv) || live(ov)) { g[k] = nv; continue; }
         if (ov && swap.get(nv) === ov && isPlain(nv)) Object.assign(ov, nv);
         else if (ov && swap.get(nv) === ov && Array.isArray(nv)) { ov.length = 0; for (const e of nv) ov.push(e); }
         else g[k] = nv; }
@@ -21256,7 +21263,25 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.mapOpen = false; g.mapSel = -1; g.statSel = -1; g.talkTo = null; g.lockerOpen = false; g.travelOpen = false; g.liftOpen = false; g.malcolmOpen = false;      // nothing on screen survives a load (layer 512d)
       g.raceTalk = false; g.truckOpen = null; g.idCard = null; g.leaderTalk = null; g.tableAsk = null; g.cab = null; g.cut = null; g.sleepFx = null; G.lockAsk = 0;
       if (o.zoom) { zoomRef.current = o.zoom; setZoomUI(o.zoom); }
+      try { repairBlds574(); } catch (e) {}
       return true; }
+    /* LAYER 574: saves made before the fix above can carry a building that was overwritten with another one -- it sits in
+       its own block's list with somebody else's address. Put any such building back the way the city made it, and if
+       that was the Happy Hippy, set the Hippy up again on the same lot. */
+    function repairBlds574() { let fixed = 0;
+      for (const c of cells.values()) for (const b of c.blds || []) { const O = b.__orig; if (!O) continue; const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+        if (cx >= c.x0 - 40 && cx <= c.x1 + 40 && cy >= c.y0 - 40 && cy <= c.y1 + 40) continue;
+        for (const k of Object.keys(b)) if (!(k in O)) delete b[k];
+        for (const k of Object.keys(O)) { const v = O[k]; if (typeof v === "string" && /^[[{]/.test(v)) { try { b[k] = JSON.parse(v); } catch (e) { b[k] = v; } } else b[k] = v; }
+        b.plans = null; b._plate = undefined; b._fix574 = 1; fixed++; }
+      if (!fixed || !g.bozInit || namedB((b) => b.happyHippy)) return;
+      const H = hideoutB(); if (!H) return; const hx = H.x + H.w / 2, hy = H.y + H.h / 2; let best = null, bs = 1e18;
+      for (const c of cells.values()) for (const b of c.blds || []) { if (!b.door || b.bozni || b.landmark || b.hideout || b.mercBar || b.dealer || b.homeOf || b.rowhouse || b.uterm || Math.min(b.w, b.h) < 150 || b.w * b.h < 180 * 140) continue;
+        const r = Math.max(b.w, b.h) / Math.min(b.w, b.h), sc = Math.hypot(b.x + b.w / 2 - hx, b.y + b.h / 2 - hy) + Math.abs(r - 1.7) * 900 + (b.door.side === 2 ? 0 : 2400) - (b._fix574 ? 1e9 : 0); if (sc < bs) { bs = sc; best = b; } }      // the lot it was on, first
+      if (!best) return; const side = best.door.side, ratio = 1.7;
+      if (best.w / best.h < ratio) { const nh = best.w / ratio; if (side === 2) best.y += best.h - nh; best.h = nh; } else { const nw = best.h * ratio; if (side === 1) best.x += best.w - nw; best.w = nw; }
+      Object.assign(best, { name: "THE HAPPY HIPPY", roofKey: "rf_happy_hippy", _plate: undefined, happyHippy: 1, floors: 2, entry: 1, plans: null, bozni: g.hippyOwned ? null : "laundry", biz: null });
+      if (g.hippyOwned) best.mine = 1; }
     function saveGame() {
       try {
         let snap = null; try { snap = JSON.stringify(collectSnap()); } catch (e) { snap = null; console.warn("exact save failed", e); }
@@ -37907,6 +37932,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        waits in the lot). High stakes any night after: the door man, $500 to sit. Lose the club hand or go broke: MISSION FAILED. */
     STORY.allin = { nm: "ALL IN", pay: 0 };
     const hippyB = () => namedB((b) => b.happyHippy);
+    G.hippyB574 = () => { const H = hippyB(); return H ? { x: H.x | 0, y: H.y | 0, w: H.w | 0, h: H.h | 0, name: H.name, inside: g.inside === H, insideNm: g.inside ? g.inside.name + "|" + (g.inside.happyHippy ? "HH" : "-") + "|" + g.inside.x + "," + g.inside.y : null, floor: g.floor, step: g.story && g.story.step } : null; };   // tests
+    G.hippyIn574 = (fl) => { const H = hippyB(); if (!H) return false; g.inside = H; g.floor = fl; g.insideT = 1; g.mode = "foot"; return true; };
+    G.storyFail574 = (w) => storyFail(w);
+    G.corrupt574 = () => { const H = hippyB(), P = g.aptHomeB || (aptC(), g.aptHomeB); if (!H || !P) return false; for (const k of Object.keys(H)) if (!(k in P)) delete H[k]; Object.assign(H, P); return true; };
+    G.snapRT574 = () => applySnap(JSON.parse(JSON.stringify(collectSnap())));
+    G.aliasDbg574 = () => { const L = new Set(), CS = new Set(cells.values()); for (const c of cells.values()) { if (c.blds) L.add(c.blds); } const out = []; const walk = (x, path, d) => { if (!x || typeof x !== "object" || d > 3) return; if (L.has(x)) out.push(path); if (CS.has(x)) out.push("CELL:" + path); if (Array.isArray(x)) { if (d < 3) x.slice(0, 50).forEach((y, n) => walk(y, path + "[" + n + "]", d + 1)); return; } if (x instanceof Map) { for (const [kk, vv] of x) walk(vv, path + "{" + kk + "}", d + 1); return; } for (const k of Object.keys(x)) { try { walk(x[k], path + "." + k, d + 1); } catch (e) {} } }; for (const k of Object.keys(g)) walk(g[k], k, 0); return out; };
+    G.cellB574 = (i, j, n) => { const c = getCell(i, j), b = c && c.blds && c.blds[n]; return b ? { name: b.name, hh: b.happyHippy, x: b.x | 0, y: b.y | 0, door: !!b.door, len: c.blds.length } : null; };
+    G.snapDbg574 = () => { const o = collectSnap(); const r = o.blds.filter((q) => JSON.stringify(q[3]).indexOf("HAPPY") >= 0); const H = hippyB(); const bi = bldIndex(); return { n: o.blds.length, hits: r.map((q) => [q[0], q[1], q[2], Object.keys(q[3])]), idx: H ? bi.get(H) : null, hasOrig: H ? !!H.__orig : null }; };
     function allinBegin() { aptStartHome(); storyStart("allin"); g.clock = 19 * 60; g.nightTarget = 1;
       g.driveTalk = { who: "KATYA (ON THE PHONE)", text: "“Victor plays tonight, the back room at the Hippy. Put on a suit -- a real one. I'll bring twenty thousand. You beat him three times, I do the rest.”", t: 10 };
       g.jobBanner = "7:00 PM · PALM COURT"; g.jobNote = "Katya called. Victor's game. Wear the suit."; }
