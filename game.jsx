@@ -11023,7 +11023,9 @@ function LoadingScreen({ mono }) {
 
 /* FOOTBALL MODE (layer 579): Raven Bowl, the mini football game, run in its own frame from the title screen. */
 const RB_TEAMS = [["Raven Hook Ravens", "#111111", "#e8c46a", "#b8343a"], ["Lakeshore Lancers", "#1f3a8a", "#c9ced6", "#ffffff"], ["Port Mercy Mariners", "#0f6b6b", "#e07b2a", "#111111"], ["Kestrel City Hawks", "#6a1e2e", "#e8c46a", "#9aa0a6"], ["Ironbridge Foundry", "#3a3f47", "#e0762a", "#f2f2f2"], ["Stockyard Bulls", "#7a2e1a", "#e8b84a", "#2d2d2d"], ["Harbor Heights Herons", "#2b5f8a", "#a8d8ea", "#f2f2f2"], ["Crown Falls Kings", "#4b1d6e", "#e8c46a", "#ffffff"], ["Mill River Millers", "#2f5d3a", "#d8c49a", "#5a3a1e"], ["Cinder Park Comets", "#c0392b", "#f39c12", "#222222"], ["Goldcoast Gulls", "#0b4f6c", "#f2c14e", "#ffffff"], ["Eastgate Engineers", "#334155", "#94a3b8", "#f59e0b"], ["Westfield Wolves", "#1c2526", "#b8c4c8", "#5a6b70"], ["Marrow Creek Marauders", "#5c1f1f", "#d9a441", "#1a1a1a"], ["Sable Point Sharks", "#0a2540", "#5eb8c4", "#c0c8d4"], ["Lantern Hill Lanterns", "#e26d1c", "#fff1c2", "#3a2a1a"], ["Tallow Bay Tugs", "#2e4a2e", "#c9b26b", "#f0ece0"], ["Grayhaven Granite", "#5b6670", "#e6e2d8", "#2a2f35"], ["Blackwater Bears", "#1a1a2e", "#b7a06a", "#ffffff"], ["Sunrise Valley Stars", "#ffb703", "#023047", "#fb8500"], ["Iron Gate Guards", "#7c0a02", "#cfd3d6", "#101010"], ["Rookery Falcons", "#3d2b56", "#f4a261", "#e9e4f0"], ["Redline Rockets", "#d62828", "#003049", "#fcbf49"], ["Salt Flat Scorpions", "#8a5a2b", "#f0d9a8", "#2b1d0e"], ["Fairmount Fire", "#9a031e", "#fb8b24", "#0f4c5c"], ["Drydock Dockers", "#14532d", "#facc15", "#ffffff"], ["Midway Mavericks", "#1d3557", "#e63946", "#f1faee"], ["Oakhollow Owls", "#4a4e69", "#c9ada7", "#22223b"], ["Copperhead Crew", "#b45309", "#78350f", "#fde68a"], ["Riverside Rangers", "#0e7490", "#a7f3d0", "#064e3b"], ["Southside Sentinels", "#312e81", "#a5b4fc", "#e0e7ff"], ["Northwood Nightjars", "#1e1b4b", "#7c3aed", "#ddd6fe"]];
-const RB_MARKUP = "<style>\n#rb{font:14px system-ui,sans-serif;color:#f1ead8;background:#0b0b10;padding:14px;user-select:none;box-sizing:border-box;min-height:100%}\n#rb #wrap{max-width:920px;margin:0 auto}\n#rb canvas{width:100%;height:auto;display:block;border:1px solid #222;background:#0d0d12;touch-action:none}\n#rb .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap}\n#rb .score{font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center}\n#rb .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}\n#rb .btns button{font-size:13px;padding:11px 4px}\n#rb .btns button.snap{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb button{background:#1d1d26;color:#f1ead8;border:1px solid #333;padding:12px 6px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit}\n#rb button:disabled{opacity:.3;cursor:default}\n#rb button.on{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb #hint{color:#9a9486;font-size:12px;margin-top:8px;line-height:1.6}\n#rb #log{background:#101018;border:1px solid #222;height:110px;overflow:auto;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55}\n#rb #over{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}\n#rb #over .card{background:#15151d;border:1px solid #333;padding:22px;max-width:440px;width:100%;text-align:center;max-height:92vh;overflow:auto}\n#rb #over h2{margin:0 0 8px;color:#e8c46a}\n</style>\n<div id=\"wrap\">\n  <div class=\"bar\"><div class=\"score\" id=\"score\"></div><div id=\"status\" style=\"color:#9a9486\"></div></div>\n  <canvas id=\"c\" width=\"920\" height=\"440\"></canvas>\n  <div class=\"btns\">\n    <button data-play=\"iz\" data-call=\"iz\">Inside Zone</button>\n    <button data-play=\"ob\" data-call=\"ob\">Outside Run</button>\n    <button data-play=\"sl\" data-call=\"sl\">Quick Slants</button>\n    <button data-play=\"hi\" data-call=\"hi\">Hitch &amp; Out</button>\n    <button data-play=\"cu\" data-call=\"cu\">Curls</button>\n    <button data-play=\"pc\" data-call=\"pc\">Post-Corner</button>\n    <button data-play=\"go\" data-call=\"go\">Go Routes</button>\n    <button data-call=\"snap\" id=\"snapBtn\" class=\"snap\">Snap</button>\n    <button data-call=\"kick\" id=\"kickBtn\">Kick</button>\n  </div>\n  <div id=\"hint\"></div>\n  <div id=\"log\"></div>\n</div>\n<div id=\"over\"><div class=\"card\" id=\"overc\"></div></div>\n";
+const RB_MARKUP = "<style>\n#rb{font:14px system-ui,sans-serif;color:#f1ead8;background:#0b0b10;padding:14px;user-select:none;box-sizing:border-box;min-height:100%}\n#rb #wrap{max-width:920px;margin:0 auto}\n#rb canvas{width:100%;height:auto;display:block;border:1px solid #222;background:#0d0d12;touch-action:none}\n#rb .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap}\n#rb .score{font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center}\n#rb .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}\n#rb .btns button{font-size:13px;padding:11px 4px}\n#rb .btns button.snap{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb button{background:#1d1d26;color:#f1ead8;border:1px solid #333;padding:12px 6px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit}\n#rb button:disabled{opacity:.3;cursor:default}\n#rb button.on{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb #hint{color:#9a9486;font-size:12px;margin-top:8px;line-height:1.6}\n#rb #log{background:#101018;border:1px solid #222;height:110px;overflow:auto;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55}\n#rb #over{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}\n#rb #over .card{background:#15151d;border:1px solid #333;padding:22px;max-width:660px;width:100%;text-align:center;max-height:92vh;overflow:auto}\n#rb #over h2{margin:0 0 8px;color:#e8c46a}\n</style>\n<div id=\"wrap\">\n  <div class=\"bar\"><div class=\"score\" id=\"score\"></div><div id=\"status\" style=\"color:#9a9486\"></div></div>\n  <canvas id=\"c\" width=\"920\" height=\"440\"></canvas>\n  <div class=\"btns\">\n    <button data-play=\"iz\" data-call=\"iz\">Inside Zone</button>\n    <button data-play=\"ob\" data-call=\"ob\">Outside Run</button>\n    <button data-play=\"sl\" data-call=\"sl\">Quick Slants</button>\n    <button data-play=\"hi\" data-call=\"hi\">Hitch &amp; Out</button>\n    <button data-play=\"cu\" data-call=\"cu\">Curls</button>\n    <button data-play=\"pc\" data-call=\"pc\">Post-Corner</button>\n    <button data-play=\"go\" data-call=\"go\">Go Routes</button>\n    <button data-call=\"snap\" id=\"snapBtn\" class=\"snap\">Snap</button>\n    <button data-call=\"kick\" id=\"kickBtn\">Kick</button>\n  </div>\n  <div id=\"hint\"></div>\n  <div id=\"log\"></div>\n</div>\n<div id=\"over\"><div class=\"card\" id=\"overc\"></div></div>\n";
+/* face pool (generated from assets/faces/manifest.json): files in assets/faces/ */
+const RB_FACES = {"older": ["A01.png", "A03.png", "A09.png", "A63.png", "A64.png", "B28.png", "C10.png", "C11.png", "C14.png", "C15.png", "C16.png", "C20.png", "C21.png", "C22.png", "C23.png", "C28.png", "C29.png", "C40.png", "S101.png", "S102.png", "S103.png", "S104.png", "S105.png", "S106.png", "S107.png", "S108.png", "S109.png", "S111.png", "S112.png", "S113.png", "S114.png", "S115.png", "S117.png", "S118.png", "S119.png", "S122.png", "S123.png", "S124.png", "S125.png", "S126.png", "S127.png", "S128.png", "S129.png", "S130.png", "S131.png", "S132.png", "S135.png", "S136.png", "S138.png", "S139.png", "S140.png", "S141.png", "S142.png", "S143.png", "S144.png", "S145.png", "S146.png", "S147.png", "S148.png", "S149.png", "S151.png", "S152.png", "S154.png", "S155.png", "S156.png", "S157.png", "S158.png", "S159.png", "S160.png", "S161.png", "S163.png", "S164.png", "S309.png"], "mid": ["A04.png", "A10.png", "B16.png", "B19.png", "C09.png", "C12.png", "C36.png", "C39.png", "S201.png", "S202.png", "S203.png", "S204.png", "S205.png", "S206.png", "S207.png", "S208.png", "S209.png", "S210.png", "S211.png", "S212.png", "S213.png", "S214.png", "S215.png", "S216.png", "S217.png", "S218.png", "S219.png", "S220.png", "S221.png", "S222.png", "S223.png", "S224.png", "S225.png", "S226.png", "S227.png", "S228.png", "S229.png", "S230.png", "S231.png", "S232.png", "S233.png", "S234.png", "S235.png", "S236.png", "S237.png", "S238.png", "S239.png", "S240.png", "S241.png", "S242.png", "S243.png", "S244.png", "S245.png", "S246.png", "S247.png", "S248.png", "S249.png", "S250.png", "S251.png", "S252.png", "S253.png", "S254.png", "S255.png", "S256.png", "S257.png", "S258.png", "S259.png", "S260.png", "S261.png", "S262.png", "S263.png", "S264.png"], "young": ["A05.png", "A06.png", "A07.png", "A08.png", "A11.png", "A12.png", "A13.png", "A14.png", "A15.png", "A16.png", "A17.png", "A18.png", "A19.png", "A20.png", "A21.png", "A22.png", "A23.png", "A24.png", "A25.png", "A26.png", "A27.png", "A28.png", "A29.png", "A30.png", "A31.png", "A32.png", "A33.png", "A34.png", "A35.png", "A36.png", "A37.png", "A38.png", "A39.png", "A40.png", "A41.png", "A42.png", "A43.png", "A44.png", "A45.png", "A46.png", "A47.png", "A48.png", "A49.png", "A50.png", "A51.png", "A52.png", "A53.png", "A54.png", "A55.png", "A56.png", "A57.png", "A58.png", "A59.png", "A60.png", "A61.png", "A62.png", "B01.png", "B02.png", "B03.png", "B04.png", "B05.png", "B06.png", "B07.png", "B09.png", "B10.png", "B11.png", "B12.png", "B13.png", "B14.png", "B15.png", "B17.png", "B18.png", "B20.png", "B21.png", "B22.png", "B23.png", "B24.png", "B25.png", "B27.png", "B29.png", "B30.png", "B31.png", "B32.png", "B33.png", "B34.png", "B35.png", "B37.png", "B38.png", "B39.png", "B41.png", "B42.png", "B43.png", "B44.png", "B45.png", "C01.png", "C02.png", "C03.png", "C04.png", "C05.png", "C07.png", "C08.png", "C13.png", "C17.png", "C18.png", "C19.png", "C24.png", "C25.png", "C26.png", "C27.png", "C30.png", "C31.png", "C33.png", "C34.png", "C35.png", "C37.png", "C38.png", "S301.png", "S302.png", "S303.png", "S304.png", "S305.png", "S306.png", "S307.png", "S308.png", "S310.png", "S311.png", "S312.png", "S314.png", "S315.png", "S316.png", "S317.png", "S318.png", "S319.png", "S320.png", "S321.png", "S323.png", "S324.png", "S325.png", "S327.png", "S328.png", "S330.png", "S331.png", "S332.png", "S334.png", "S335.png", "S337.png", "S338.png", "S339.png", "S340.png", "S342.png", "S343.png", "S344.png", "S345.png", "S346.png", "S347.png", "S349.png", "S350.png", "S351.png", "S352.png", "S353.png", "S354.png", "S355.png", "S356.png", "S357.png", "S358.png", "S359.png", "S360.png", "S361.png", "S362.png", "S363.png", "S364.png", "S365.png", "S366.png", "S367.png", "S368.png", "S369.png", "S370.png", "S371.png", "S372.png", "S373.png", "S374.png", "S375.png", "S376.png", "S377.png", "S378.png", "S379.png", "S380.png"]};
 /* Raven Bowl: a football mode inside Black Lion. Mounted into a root element; returns a cleanup. */
 function rbMount(root, onExit, TEAMS) {
   let alive = true;
@@ -11076,7 +11078,8 @@ function rbMount(root, onExit, TEAMS) {
 
   /* ---- the season, kept for the session (survives leaving and coming back to the mode) ---- */
   const S = (window.__rbStore = window.__rbStore || {});
-  let DYN = S.dyn || (S.dyn = { active: false, teams: [], rating: {}, rec: {}, round: 0, rounds: [], phase: "reg", semis: [], finals: [], label: "", year: 0, titles: 0, arm: 0, speed: 0, line: 0, news: [], pool: [], picks: [], pick: 0, drafted: [] });
+  let DYN = S.dyn || (S.dyn = { active: false, teams: [], rating: {}, rec: {}, round: 0, rounds: [], phase: "reg", semis: [], finals: [], label: "", year: 0, titles: 0, news: [], pool: [], picks: [], pick: 0, drafted: [], OC: null, DC: null, coachPool: [], fa: [], offseason: false, nextOpp: null, tab: "season", note: "" });
+  const CAP = 340;                       // the salary cap, in $M
   let ROSTERS = S.rosters = S.rosters || {};
 
   /* ---- sound: the theme loops; cheers and boos are clips; the whistle and the hit are made here ---- */
@@ -11130,9 +11133,121 @@ function rbMount(root, onExit, TEAMS) {
   const LAST = ["Vance", "Holt", "Mercer", "Dunn", "Pryce", "Kowal", "Stroud", "Abara", "Quill", "Brandt", "Rourke", "Tate", "Ostrow", "Bell", "Merino", "Sayer", "Greer", "Lund", "Fenn", "Okafor", "Pike", "Dalton", "Yates", "Crane", "Renner", "Hale", "Soto", "Marsh", "Keel", "Novak"];
   const pick = (a) => a[(Math.random() * a.length) | 0];
   let PID = S.pid || 1;
+  let CID = S.cid || 1;
+  /* 50 colleges and 16 high schools, named, each with a hidden programme rank (1 is the best). Kept for the whole game. */
+  const COLLEGE_NAMES = ["Ashford State", "Brightwater Tech", "Cedar Falls College", "Dunmore University", "Eastvale State", "Fairhaven College", "Glenmoor Tech", "Harrowgate State", "Ironwood College", "Juniper Hills", "Kingsport State", "Lakemont University", "Millbrook Tech", "Northcliff State", "Oakridge College", "Pinecrest State", "Quarry Hill Tech", "Redfield University", "Stonebrook College", "Timberlake State", "Upton Tech", "Valemont College", "Westbrook State", "Yarrow Tech", "Ashgrove College", "Briarwood State", "Coldharbor Tech", "Driftwood College", "Elmhurst Tech", "Foxhollow State", "Greystone College", "Highpoint State", "Inverness Tech", "Jasper Ridge College", "Kettering State", "Larkspur Tech", "Marlow College", "Newbridge State", "Orchard Park Tech", "Pemberton College", "Quillan State", "Rosehill Tech", "Sablecrest College", "Thornbury State", "Underhill Tech", "Vantage College", "Whitmore State", "Xanthos Tech", "Yellowpine College", "Zephyr State"];
+  const HS_NAMES = ["Riverside High", "Lincoln Prep", "Eastwood High", "Marsh Creek High", "Hollis Academy", "Crescent High", "Northfield Prep", "Bayview High", "Stonefield High", "Cobalt Academy", "Glenview High", "Summit Ridge High", "Westmark Prep", "Orchard High", "Harbor Point High", "Maple Grove High"];
+  if (!S.schools) {
+    const cr = Array.from({ length: 50 }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
+    const hr = Array.from({ length: 16 }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
+    S.schools = { colleges: COLLEGE_NAMES.map((n, i) => ({ name: n, rank: cr[i] })), highs: HS_NAMES.map((n, i) => ({ name: n, rank: hr[i] })) };
+  }
+  const COLLEGES = S.schools.colleges, HIGHS = S.schools.highs;
+  /* every player: speed and strength (everyone), plus the skills his position uses.
+     ovr is the weighted average of the skills his position counts. */
+  const ATTR_KEYS = ["spd", "str", "acc", "arm", "elu", "hands", "rte", "blk", "rush", "tkl", "cov", "kick"];
+  const POS_W = {
+    QB: { acc: 0.4, arm: 0.3, spd: 0.1, str: 0.2 }, RB: { elu: 0.3, spd: 0.3, str: 0.2, hands: 0.2 },
+    WR: { spd: 0.3, rte: 0.3, hands: 0.3, str: 0.1 }, TE: { blk: 0.3, str: 0.3, hands: 0.2, spd: 0.2 },
+    OL: { blk: 0.5, str: 0.3, spd: 0.2 }, DL: { rush: 0.4, str: 0.3, tkl: 0.2, spd: 0.1 },
+    LB: { tkl: 0.4, cov: 0.2, spd: 0.2, str: 0.2 }, CB: { cov: 0.5, spd: 0.3, tkl: 0.2 },
+    S: { cov: 0.4, tkl: 0.3, spd: 0.3 }, K: { kick: 1 },
+  };
+  const KEY = { QB: "acc", RB: "elu", WR: "rte", TE: "blk", OL: "blk", DL: "rush", LB: "tkl", CB: "cov", S: "cov", K: "kick" };
+  /* faces: each player is given one from the pool the first time he is shown, so faces are only used on screen and rarely repeat */
+  function pickFace(group) {
+    const used = S.faceUsed || (S.faceUsed = []);
+    const pool = RB_FACES[group] || RB_FACES.young;
+    let free = pool.filter((f) => !used.includes(f));
+    if (!free.length) free = Object.values(RB_FACES).flat().filter((f) => !used.includes(f));
+    if (!free.length) return pick(pool);            // the whole pool is in use: repeats start here
+    const f = pick(free); used.push(f); return f;
+  }
+  function faceOf(p, group) {
+    if (!p.face) p.face = pickFace(group || (p.age >= 31 ? "older" : p.age >= 26 ? "mid" : "young"));
+    return p.face;
+  }
+  const faceHTML = (file, px) => `<img src="assets/faces/${file}" width="${px || 48}" height="${px || 48}" alt="" style="image-rendering:pixelated;vertical-align:middle;border:1px solid #333;border-radius:4px;background:#1c2a3a">`;
   function makePlayer(pos, base, age) {
-    return { id: PID++, name: pick(FIRST) + " " + pick(LAST), pos, ovr: clamp(Math.round(base + gauss() * 6), 40, 96),
+    const a = {};
+    ATTR_KEYS.forEach((k) => {
+      let v;
+      if (k === "spd" || k === "str") v = base + gauss() * 8;
+      else v = (k in POS_W[pos] ? base + 6 : base - 22) + gauss() * 7;
+      a[k] = clamp(Math.round(v), 25, 99);
+    });
+    return { id: PID++, name: pick(FIRST) + " " + pick(LAST), pos, a, ovr: rateOvr(pos, a),
              age: age || 23 + ((Math.random() * 9) | 0), inj: 0 };
+  }
+  function rateOvr(pos, a) {
+    const w = POS_W[pos]; let num = 0, den = 0;
+    for (const k in w) { num += w[k] * a[k]; den += w[k]; }
+    return clamp(Math.round(num / den), 40, 96);
+  }
+  /* age a player: every skill moves the same amount */
+  function shift(p, d) {
+    for (const k in p.a) p.a[k] = clamp(p.a[k] + d, 25, 99);
+    p.ovr = rateOvr(p.pos, p.a);
+  }
+  /* a skill on a player in the game: his own, plus the coach's boost if he is on the Ravens' side */
+  const attr = (p, k) => (p && p.pa ? p.pa.a[k] : 60) + ((p && p.mods && p.mods[k]) || 0);
+  const boostSum = (c) => (c ? Object.values(c.boost).reduce((a, b) => a + b, 0) : 0);
+  const boostText = (c) => Object.entries(c.boost).map(([k, v]) => `+${v} ${k}`).join(", ");
+  const salary = (p) => Math.round(Math.max(0.5, (p.ovr - 50) * 0.28) * 10) / 10;
+  const payroll = () => (ROSTERS[RH[0]] || []).reduce((t, p) => t + salary(p), 0) + (DYN.OC ? DYN.OC.salary : 0) + (DYN.DC ? DYN.DC.salary : 0);
+  const shown = (p) => (p.scout != null ? p.scout : p.ovr);      // the draft board shows scouted ratings
+  /* a college with a hidden programme rank (1 is the best); the rank sets how good its prospects are */
+  function makeClass() {
+    const out = [];
+    for (const col of COLLEGES) {
+      const n = 3 + ((Math.random() * 3) | 0);
+      for (let i = 0; i < n; i++) {
+        const hs = pick(HIGHS);
+        const base = 50 + (50 - col.rank) / 50 * 12 + (17 - hs.rank) / 16 * 2;
+        const pr = makePlayer(pick(DRAFT_POS), base, 21 + ((Math.random() * 3) | 0));
+        pr.college = col.name; pr.collegeRank = col.rank; pr.hs = hs.name; pr.hsRank = hs.rank;
+        pr.scoutErr = Math.round(gauss() * 4);
+        out.push(pr);
+      }
+    }
+    // the Heisman: the best of the class, with a random stat bonus
+    const cands = out.slice().sort((a, b) => b.ovr - a.ovr).slice(0, 15).filter((p) => p.pos === "QB" || p.pos === "RB" || p.pos === "WR");
+    const h = cands[0] || out[0];
+    const key = pick(ATTR_KEYS.filter((k) => k !== "kick"));
+    h.heisman = true; h.bonus = { key, val: 6 + ((Math.random() * 4) | 0) };
+    h.a[key] = clamp(h.a[key] + h.bonus.val, 25, 99);
+    h.ovr = clamp(rateOvr(h.pos, h.a) + 2, 40, 96);
+    out.forEach((pr) => { pr.scout = clamp(pr.ovr + pr.scoutErr, 40, 96); });
+    return out;
+  }
+  /* the star rookie: Deon Porter, the Ravens' QB from the start */
+  function makeDeon() {
+    const pr = makePlayer("QB", 74, 22);
+    Object.assign(pr.a, { acc: 92, arm: 90, spd: 80, str: 78 });
+    pr.name = "Deon Porter"; pr.face = "deon.png"; (S.faceUsed = S.faceUsed || []).push("deon.png"); pr.rookie = true; pr.heisman = true; pr.bonus = { key: "arm", val: 7 };
+    pr.college = COLLEGES.find((c) => c.rank === 1).name; pr.hs = HIGHS.find((h) => h.rank === 1).name;
+    pr.ovr = rateOvr("QB", pr.a);
+    return pr;
+  }
+  function makeFA(n) {
+    return Array.from({ length: n }, () => makePlayer(pick(DRAFT_POS), rnd(56, 68), 26 + ((Math.random() * 7) | 0)));
+  }
+  /* a coach: four stats, and a boost on two or three skills the coach teaches */
+  function makeCoach(role) {
+    const st = { scheme: clamp(Math.round(rnd(45, 92)), 40, 95), develop: clamp(Math.round(rnd(45, 92)), 40, 95), motivate: clamp(Math.round(rnd(45, 92)), 40, 95), game: clamp(Math.round(rnd(45, 92)), 40, 95) };
+    const mean = (st.scheme + st.develop + st.motivate + st.game) / 4;
+    const keys = (role === "OC" ? ["acc", "arm", "rte", "hands", "elu", "blk", "spd"] : ["rush", "tkl", "cov", "spd", "str"]).sort(() => Math.random() - 0.5);
+    const boost = {};
+    keys.slice(0, 2 + ((Math.random() * 2) | 0)).forEach((k) => { boost[k] = clamp(Math.round((mean - 50) / 8 + rnd(0, 3)), 1, 9); });
+    return { id: CID++, role, name: pick(FIRST) + " " + pick(LAST), st, boost, face: pickFace(mean >= 70 ? "older" : "mid"), salary: Math.round((3 + mean / 12) * 10) / 10 };
+  }
+  const makeCoaches = (n) => Array.from({ length: n }, (_, i) => makeCoach(i % 2 === 0 ? "OC" : "DC"));
+  const offMods = () => (DYN.OC ? DYN.OC.boost : {});
+  const coachBonus = () => (boostSum(DYN.OC) + boostSum(DYN.DC)) * 0.25;
+  const playerLabel = (p, scouted) => `${p.pos} ${p.name}  ·  ${scouted ? shown(p) : p.ovr} ovr  ·  SPD ${p.a.spd}  STR ${p.a.str}  ${KEY[p.pos]} ${p.a[KEY[p.pos]]}`;
+  function ensureRoster(team) {
+    if (!ROSTERS[team[0]]) ROSTERS[team[0]] = makeRoster(team === RH ? rnd(64, 76) : rnd(58, 80));
+    return ROSTERS[team[0]];
   }
   function makeRoster(base) {
     const r = [];
@@ -11151,7 +11266,7 @@ function rbMount(root, onExit, TEAMS) {
     return num / den;
   }
   const topOvr = (team, pos) => { const p = starters(team)[pos][0]; return p ? p.ovr : 40; };
-  function refreshRatings() { DYN.teams.forEach((t) => { DYN.rating[t[0]] = teamOvr(t); }); }
+  function refreshRatings() { DYN.teams.forEach((t) => { DYN.rating[t[0]] = teamOvr(t) + (t === RH ? coachBonus() : 0); }); }
   function weeklyInjuries() {
     DYN.teams.forEach((t) => {
       (ROSTERS[t[0]] || []).forEach((p) => { if (p.inj > 0) p.inj--; });
@@ -11169,11 +11284,13 @@ function rbMount(root, onExit, TEAMS) {
   /* ---- the season: a 7-game round robin, then four playoff teams ---- */
   function dynStart() {
     S.rosters = {}; ROSTERS = S.rosters;
-    DYN = S.dyn = { active: true, teams: [], rating: {}, rec: {}, round: 0, rounds: [], phase: "reg", semis: [], finals: [], label: "", year: 0, titles: 0, arm: 0, speed: 0, line: 0, news: [], pool: [], picks: [], pick: 0, drafted: [] };
+    DYN = S.dyn = { active: true, teams: [], rating: {}, rec: {}, round: 0, rounds: [], phase: "reg", semis: [], finals: [], label: "", year: 0, titles: 0, news: [], pool: [], picks: [], pick: 0, drafted: [], OC: null, DC: null, coachPool: makeCoaches(12), fa: makeFA(30), offseason: false, nextOpp: null, tab: "season", note: "" };
+    ensureRoster(RH); ROSTERS[RH[0]].push(makeDeon());
     dynSeason();
   }
   function dynSeason() {
-    DYN.year++;
+    DYN.year++; DYN.offseason = false;
+    DYN.pool = makeClass();                 // the draft class for the offseason after this season
     const pool = TEAMS.filter((t) => t !== RH).sort(() => Math.random() - 0.5).slice(0, 7);
     DYN.teams = [RH, ...pool];
     DYN.teams.forEach((t) => { if (!ROSTERS[t[0]]) ROSTERS[t[0]] = makeRoster(t === RH ? rnd(64, 76) : rnd(58, 80)); });
@@ -11266,12 +11383,11 @@ function rbMount(root, onExit, TEAMS) {
       const r = ROSTERS[t[0]] || [];
       r.forEach((p) => {
         p.age++;
-        if (p.age < 26) p.ovr = Math.min(92, p.ovr + ((Math.random() * 3) | 0));
-        else if (p.age > 30) p.ovr = Math.max(40, p.ovr - ((Math.random() * 4) | 0));
+        if (p.age < 26) shift(p, (Math.random() * 3) | 0);
+        else if (p.age > 30) shift(p, -((Math.random() * 4) | 0));
       });
       ROSTERS[t[0]] = r.filter((p) => !(p.age >= 35 && p.ovr < 70) && p.age < 38);
     });
-    DYN.pool = Array.from({ length: 24 }, () => makePlayer(pick(DRAFT_POS), rnd(50, 70), 21 + ((Math.random() * 3) | 0)));
     const order = standings().slice().reverse();
     DYN.picks = []; for (let rd = 0; rd < 3; rd++) order.forEach((t) => DYN.picks.push(t));
     DYN.pick = 0; DYN.drafted = [];
@@ -11294,7 +11410,7 @@ function rbMount(root, onExit, TEAMS) {
     showDraft();
   }
   function showDraft() {
-    const best = DYN.pool.slice().sort((a, b) => b.ovr - a.ovr).slice(0, 8);
+    const best = DYN.pool.slice().sort((a, b) => shown(b) - shown(a)).slice(0, 8);
     const left = DYN.picks.length - DYN.pick;
     $("overc").innerHTML = `<h2 style="font-size:16px">Ravens on the clock</h2><p style="color:#9a9486;margin:4px 0 10px">Pick ${DYN.pick + 1} of ${DYN.picks.length} · ${left} left</p>
       <div id="dlist" style="text-align:left;font-size:13px"></div>`;
@@ -11302,7 +11418,7 @@ function rbMount(root, onExit, TEAMS) {
     best.forEach((p) => {
       const b = document.createElement("button");
       b.style.cssText = "display:block;width:100%;margin:4px 0;text-align:left;padding:8px 10px";
-      b.textContent = `${p.pos}  ${p.name}  ·  ${p.ovr} ovr  ·  age ${p.age}`;
+      b.innerHTML = faceHTML(faceOf(p), 36) + " " + playerLabel(p, true) + `  ·  ${p.college}  ·  age ${p.age}${p.heisman ? "  ·  HEISMAN" : ""}`;
       b.onclick = () => { take(p, RH); DYN.pick++; $("over").style.display = "flex"; draftNext(); };
       list.appendChild(b);
     });
@@ -11310,47 +11426,96 @@ function rbMount(root, onExit, TEAMS) {
   }
   function draftDone() {
     DYN.teams.forEach((t) => { ROSTERS[t[0]] = (ROSTERS[t[0]] || []).sort((a, b) => b.ovr - a.ovr).slice(0, 42); });
+    DYN.fa = makeFA(30); DYN.coachPool = makeCoaches(12);
+    DYN.offseason = true; DYN.tab = "season";
     const drafted = DYN.drafted.map((p) => `${p.pos} ${p.name} (${p.ovr})`).join(", ") || "none";
-    $("overc").innerHTML = `<h2>Draft done</h2><p style="color:#9a9486;font-size:13px">Drafted: ${drafted}</p>
-      <p style="color:#9a9486;margin-top:8px">Pick one upgrade for the Ravens.</p>
-      <button class="on" data-up="arm">Arm: a longer catch range, better throws</button>
-      <button class="on" data-up="speed">Speed: receivers and runners faster</button>
-      <button class="on" data-up="line">Line: harder to tackle, you break tackles more</button>`;
-    $("over").style.display = "flex";
-    $("overc").querySelectorAll("button[data-up]").forEach((b) => b.onclick = () => {
-      DYN[b.dataset.up]++; $("over").style.display = "none"; dynSeason();
-    });
+    showHub(`Draft done. Ravens drafted: ${drafted}.`);
   }
-  /* the hub: standings, news, the Ravens' injuries, and the button that plays your game */
-  function showHub(note) {
+  /* the hub: the season, the roster, the coaches and free agency */
+  function seasonTab() {
     const st = standings();
     const rows = st.map((t) => { const r = DYN.rec[t[0]]; return `<tr${t === RH ? ' style="color:#e8c46a"' : ""}><td>${t[0]}</td><td>${r.w}-${r.l}</td><td>${r.pf - r.pa >= 0 ? "+" : ""}${r.pf - r.pa}</td><td>${Math.round(DYN.rating[t[0]])}</td></tr>`; }).join("");
-    const pairs = stageGames();
-    const up = pairs.find((p) => p.includes(RH));
-    const opp = up ? (up[0] === RH ? up[1] : up[0]) : null;
     const news = DYN.news.length ? DYN.news.map((n) => `<div>${n}</div>`).join("") : "<div>No injuries.</div>";
-    $("overc").innerHTML = `<h2 style="font-size:16px">${stageLabel()}</h2><p style="color:#9a9486;margin:4px 0 6px">${note || ""}</p>
+    let action;
+    if (DYN.offseason) action = `<button class="on" data-act="start">Start season ${DYN.year + 1}</button>`;
+    else {
+      const up = stageGames().find((p) => p.includes(RH));
+      if (up) { DYN.nextOpp = up[0] === RH ? up[1] : up[0]; action = `<button class="on" data-act="play">Play the Ravens vs ${DYN.nextOpp[0]}</button>`; }
+      else action = `<button class="on" data-act="sim">Sim the round</button>`;
+    }
+    return `<h2 style="font-size:16px">${DYN.offseason ? "Offseason" : stageLabel()}</h2><p style="color:#9a9486;margin:4px 0 6px">${DYN.note || ""}</p>
       <div style="font-size:12px;color:#9a9486;text-align:left;margin-bottom:8px">${news}</div>
       <table style="width:100%;font-size:12px;border-collapse:collapse">${rows}</table>
-      <div style="margin-top:12px">${up ? `<button class="on" id="play">Play the Ravens vs ${opp[0]}</button>` : "<button class=\"on\" id=\"sim\">Sim the round</button>"}</div>
-      <button id="roster" style="margin-top:8px">Ravens roster</button>
-      <button id="menu" style="margin-top:8px">Back to menu</button>`;
-    $("over").style.display = "flex";
-    if (up) $("play").onclick = () => { $("over").style.display = "none"; DYN.label = stageLabel(); newGame(opp); };
-    else $("sim").onclick = () => { $("over").style.display = "none"; advanceStage(null); };
-    $("roster").onclick = () => showRoster(note);
-    $("menu").onclick = () => showMenu();
-    setCalls(false);
+      <div style="margin-top:12px">${action}</div>`;
   }
-  function showRoster(back) {
+  function rosterTab() {
     const order = Object.keys(NEED);
     const r = (ROSTERS[RH[0]] || []).slice().sort((a, b) => order.indexOf(a.pos) - order.indexOf(b.pos) || b.ovr - a.ovr);
-    const rows = r.map((p) => `<tr><td>${p.pos}</td><td>${p.name}</td><td>${p.ovr}</td><td>${p.age}</td><td style="color:${p.inj > 0 ? "#b8343a" : "#9a9486"}">${p.inj > 0 ? "out " + p.inj + "w" : ""}</td></tr>`).join("");
-    $("overc").innerHTML = `<h2 style="font-size:16px">Ravens roster</h2><p style="color:#9a9486;font-size:12px">Team rating ${Math.round(teamOvr(RH))}</p>
-      <div style="max-height:320px;overflow:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;text-align:left">${rows}</table></div>
-      <button id="back" style="margin-top:10px">Back</button>`;
+    const rows = r.map((p) => `<tr><td>${p.pos}</td><td>${faceHTML(faceOf(p))} ${p.name}${p.heisman ? " [Heisman]" : ""}${p.rookie ? " (R)" : ""}${p.college ? `<br><span style="color:#9a9486;font-size:11px">${p.college} · ${p.hs}</span>` : ""}</td><td>${p.ovr}</td><td>${p.a.spd}</td><td>${p.a.str}</td><td>${KEY[p.pos]} ${p.a[KEY[p.pos]]}</td><td>$${salary(p)}M</td><td>${p.age}</td><td style="color:${p.inj > 0 ? "#b8343a" : "#9a9486"}">${p.inj > 0 ? "out " + p.inj + "w" : ""}</td></tr>`).join("");
+    const deon = r.find((p) => p.name === "Deon Porter");
+    const card = deon ? `<div style="display:flex;align-items:center;gap:12px;margin:6px 0 10px;text-align:left">${faceHTML("deon.png", 96)}<div><b>Deon Porter</b><br><span style="font-size:12px;color:#9a9486">QB · rookie · Heisman</span><br><span style="font-size:12px;color:#9a9486">${deon.college} · ${deon.hs}</span></div></div>` : "";
+    return `<h2 style="font-size:16px">Ravens roster</h2><p style="color:#9a9486;font-size:12px">Team rating ${Math.round(teamOvr(RH) + coachBonus())} · Payroll $${payroll().toFixed(1)}M of $${CAP}M · ${r.length} players</p>${card}
+      <div style="max-height:340px;overflow:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;text-align:left"><tr style="color:#e8c46a"><th>Pos</th><th>Name</th><th>OVR</th><th>SPD</th><th>STR</th><th>Skill</th><th>Salary</th><th>Age</th><th></th></tr>${rows}</table></div>`;
+  }
+  function coachCard(c, label) {
+    if (!c) return `<div style="border:1px solid #333;padding:8px;margin:6px 0">${label}: <i>empty</i></div>`;
+    const s = c.st;
+    return `<div style="border:1px solid #333;padding:8px;margin:6px 0;text-align:left">${faceHTML(faceOf(c, c.st && (c.st.scheme + c.st.develop + c.st.motivate + c.st.game) / 4 >= 70 ? "older" : "mid"), 48)} <b>${label}: ${c.name}</b> · $${c.salary}M<br>
+      <span style="font-size:12px;color:#9a9486">Scheme ${s.scheme} · Develop ${s.develop} · Motivate ${s.motivate} · Game ${s.game}</span><br>
+      <span style="font-size:12px;color:#e8c46a">Boost: ${boostText(c)}</span></div>`;
+  }
+  function coachesTab() {
+    const pool = DYN.coachPool.slice().sort((a, b) => b.salary - a.salary).map((c) => `<div style="border:1px solid #222;padding:6px;margin:4px 0;text-align:left;font-size:12px">${faceHTML(faceOf(c, "mid"), 36)} ${c.role === "OC" ? "Offence" : "Defence"} · ${c.name} · $${c.salary}M
+      <button data-hire="${c.id}" style="float:right;padding:3px 8px;font-size:12px">Hire</button><br><span style="color:#9a9486">Scheme ${c.st.scheme} · Develop ${c.st.develop} · Motivate ${c.st.motivate} · Game ${c.st.game}</span><br><span style="color:#e8c46a">Boost: ${boostText(c)}</span></div>`).join("");
+    return `<h2 style="font-size:16px">Coaches</h2><p style="color:#9a9486;font-size:12px">Payroll $${payroll().toFixed(1)}M of $${CAP}M. The offensive coach boosts your offence. The defensive coach cuts the other side's touchdown chances.</p>
+      ${coachCard(DYN.OC, "Offensive coordinator")}${coachCard(DYN.DC, "Defensive coordinator")}
+      <h3 style="font-size:13px;color:#e8c46a;margin:12px 0 4px">Hire pool</h3><div style="max-height:260px;overflow:auto">${pool || "<i>none</i>"}</div>`;
+  }
+  function faTab() {
+    const rows = DYN.fa.slice().sort((a, b) => b.ovr - a.ovr).map((p) => `<tr><td>${p.pos}</td><td>${faceHTML(faceOf(p))} ${p.name}</td><td>${p.ovr}</td><td>${p.a.spd}</td><td>${p.a.str}</td><td>${KEY[p.pos]} ${p.a[KEY[p.pos]]}</td><td>$${salary(p)}M</td><td>${p.age}</td><td><button data-sign="${p.id}" style="padding:3px 8px;font-size:12px">Sign</button></td></tr>`).join("");
+    return `<h2 style="font-size:16px">Free agency</h2><p style="color:#9a9486;font-size:12px">Payroll $${payroll().toFixed(1)}M of $${CAP}M · ${(ROSTERS[RH[0]] || []).length}/45 players. A full roster releases the lowest-rated player to make room.</p>
+      <div style="max-height:340px;overflow:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;text-align:left">${rows || "<tr><td><i>none</i></td></tr>"}</table></div>`;
+  }
+  function hire(id) {
+    const c = DYN.coachPool.find((x) => x.id === id); if (!c) return;
+    const old = c.role === "OC" ? DYN.OC : DYN.DC;
+    if (payroll() - (old ? old.salary : 0) + c.salary > CAP) { DYN.note = "No cap room for that coach."; return renderHub(); }
+    if (old) DYN.coachPool.push(old);
+    DYN.coachPool = DYN.coachPool.filter((x) => x.id !== id);
+    if (c.role === "OC") DYN.OC = c; else DYN.DC = c;
+    DYN.note = `${c.name} is the new ${c.role === "OC" ? "offensive" : "defensive"} coordinator.`;
+    renderHub();
+  }
+  function signFA(id) {
+    const p = DYN.fa.find((x) => x.id === id); if (!p) return;
+    const roster = ROSTERS[RH[0]];
+    let freed = 0, release = null;
+    if (roster.length >= 45) { release = roster.slice().sort((a, b) => a.ovr - b.ovr)[0]; freed = salary(release); }
+    if (payroll() - freed + salary(p) > CAP) { DYN.note = "No cap room for that player."; return renderHub(); }
+    if (release) roster.splice(roster.indexOf(release), 1);
+    roster.push(p); DYN.fa = DYN.fa.filter((x) => x.id !== id);
+    DYN.note = `Signed ${p.name}.` + (release ? ` Released ${release.name}.` : "");
+    renderHub();
+  }
+  function renderHub() {
+    const tabs = [["season", "Season"], ["roster", "Roster"], ["coaches", "Coaches"], ["fa", "Free agency"]];
+    const body = DYN.tab === "roster" ? rosterTab() : DYN.tab === "coaches" ? coachesTab() : DYN.tab === "fa" ? faTab() : seasonTab();
+    $("overc").innerHTML = `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px;flex-wrap:wrap">${tabs.map(([k, n]) => `<button data-tab="${k}" class="${DYN.tab === k ? "on" : ""}" style="padding:7px 10px;font-size:12px">${n}</button>`).join("")}</div>
+      ${DYN.tab === "season" ? "" : `<p style="color:#e8c46a;font-size:12px;margin:0 0 6px;min-height:14px">${DYN.note || ""}</p>`}${body}
+      <button id="menu" style="margin-top:10px">Back to menu</button>`;
     $("over").style.display = "flex";
-    $("back").onclick = () => showHub(back);
+    setCalls(false);
+    $("overc").querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => { DYN.tab = b.dataset.tab; renderHub(); });
+    $("overc").querySelectorAll("[data-hire]").forEach((b) => b.onclick = () => hire(+b.dataset.hire));
+    $("overc").querySelectorAll("[data-sign]").forEach((b) => b.onclick = () => signFA(+b.dataset.sign));
+    const pb = $("overc").querySelector("[data-act=play]"); if (pb) pb.onclick = () => { $("over").style.display = "none"; DYN.label = stageLabel(); newGame(DYN.nextOpp); };
+    const sb = $("overc").querySelector("[data-act=sim]"); if (sb) sb.onclick = () => { $("over").style.display = "none"; advanceStage(null); };
+    const st = $("overc").querySelector("[data-act=start]"); if (st) st.onclick = () => { $("over").style.display = "none"; dynSeason(); };
+    $("menu").onclick = () => showMenu();
+  }
+  function showHub(note) {
+    if (note) DYN.note = note;
+    renderHub();
   }
   function showMenu() {
     const cont = DYN.active ? `<button class="on" id="cont2" style="margin-top:8px">Continue dynasty (season ${DYN.year}, ${DYN.titles} title${DYN.titles === 1 ? "" : "s"})</button>` : "";
@@ -11369,10 +11534,10 @@ function rbMount(root, onExit, TEAMS) {
   function newGame(oppIn) {
     let opp = oppIn;
     if (!opp) do { opp = pick(TEAMS); } while (opp === RH);
+    ensureRoster(RH); ensureRoster(opp);
     const dyn = !!oppIn;
     G = { away: opp, dyn, oppR: dyn ? (DYN.rating[opp[0]] || 70) : 70,
           skill: dyn ? { qb: topOvr(RH, "QB"), rb: topOvr(RH, "RB"), wr: topOvr(RH, "WR") } : { qb: 75, rb: 75, wr: 75 },
-          up: dyn ? { arm: DYN.arm, speed: DYN.speed, line: DYN.line } : { arm: 0, speed: 0, line: 0 },
           q: 1, clock: QUARTER, hs: 0, as: 0, ball: 25, down: 1, togo: 10, over: false, half: false, drives: 0 };
     fans = [];
     for (let i = 0; i < 420; i++) fans.push({ x: Math.random(), y: Math.random(), side: i % 2, c: Math.random() });
@@ -11411,7 +11576,7 @@ function rbMount(root, onExit, TEAMS) {
   function cpuDrive() {
     G.drives++;
     const r = Math.random();
-    const td = 0.22 + ((G.oppR || 70) - 70) * 0.004;
+    const td = clamp(0.22 + ((G.oppR || 70) - 70) * 0.004 - boostSum(DYN.DC) * 0.004, 0.05, 0.6);
     if (r < td) { G.as += 7; clip("boo"); say(`${G.away[0]} score a touchdown. ${G.hs}-${G.as}.`); }
     else if (r < 0.45) { G.as += 3; say(`${G.away[0]} kick a field goal. ${G.hs}-${G.as}.`); }
     else say(`${G.away[0]} punt. You take over.`);
@@ -11477,15 +11642,21 @@ function rbMount(root, onExit, TEAMS) {
     const pb = PLAYS[id] || PLAYS[PB_SEL] || PLAYS.sl;
     const isRun = !!pb.run, deep = !!pb.deep;
     const los = 10 + G.ball;
-    const mk = (role, x, y, side) => ({ role, x, y, vx: 0, vy: 0, side, anim: rnd(0, 6), stun: 0, juke: 0, ang: side === "h" ? 0 : Math.PI });
+    const O = starters(RH), D = starters(G.away);
+    const who = (T, pos, i) => (T[pos] && T[pos][i]) || makePlayer(pos, 48);
+    const mk = (role, x, y, side, pa) => ({ role, x, y, vx: 0, vy: 0, side, anim: rnd(0, 6), stun: 0, juke: 0, cool: 0, ang: side === "h" ? 0 : Math.PI, pa, mods: side === "h" ? offMods() : {} });
     const pl = [];
-    for (let i = 0; i < 5; i++) pl.push(mk("ol", los - 1, 26 + (i - 2) * 2.6, "h"));
-    pl.push(mk("qb", los - 4, 26, "h"));
-    pl.push(mk("rb", los - 6, pb.rbY || 26, "h"));
-    LANES.forEach((y) => pl.push(mk("wr", los - 1, y, "h")));
-    for (let i = 0; i < 4; i++) pl.push(mk("dl", los + 1.5, 21 + i * 3.5, "a"));
-    for (let i = 0; i < 3; i++) pl.push(mk("lb", los + 4.5, 18 + i * 8, "a"));
-    for (let i = 0; i < 4; i++) pl.push(mk("db", los + (deep ? 14 : 9), 10 + i * 11, "a"));
+    const OL = [0, 1, 2, 3, 4].map((i) => mk("ol", los - 1, 26 + (i - 2) * 2.6, "h", who(O, "OL", i)));
+    pl.push(...OL);
+    pl.push(mk("qb", los - 4, 26, "h", who(O, "QB", 0)));
+    pl.push(mk("rb", los - 6, pb.rbY || 26, "h", who(O, "RB", 0)));
+    LANES.forEach((y, i) => pl.push(mk("wr", los - 1, y, "h", who(O, "WR", i))));
+    const DL = [0, 1, 2, 3].map((i) => mk("dl", los + 1.5, 21 + i * 3.5, "a", who(D, "DL", i)));
+    DL.forEach((d, i) => { d.blocker = OL[i % 5]; });
+    pl.push(...DL);
+    for (let i = 0; i < 3; i++) pl.push(mk("lb", los + 4.5, 18 + i * 8, "a", who(D, "LB", i)));
+    const dbs = [who(D, "CB", 0), who(D, "CB", 1), who(D, "S", 0), who(D, "S", 1)];
+    dbs.forEach((pa, i) => pl.push(mk("db", los + (deep ? 14 : 9), 10 + i * 11, "a", pa)));
     pl.forEach((p) => { p.bodyN = (Math.random() * 12) | 0; p.helmN = (Math.random() * 8) | 0; p.skin = pick(SKINS); });
     const wrs = pl.filter((p) => p.role === "wr");
     wrs.forEach((w, i) => { w.path = routePath(pb.routes ? pb.routes[i] : "go", w.x, w.y); w.pi = 0; });
@@ -11505,6 +11676,8 @@ function rbMount(root, onExit, TEAMS) {
   function throwAt(lx, ly) {
     if (!canThrow()) return;
     const q = P.qb; P.thrown = true; aim.on = false;
+    const sg = 0.4 + (100 - attr(q, "acc")) / 110;      // yards of error
+    lx += gauss() * sg; ly += gauss() * sg;
     const d = Math.hypot(lx - q.x, ly - q.y);
     const dur = clamp(d / 24, 0.35, 1.3);
     P.flight = { fx: q.x, fy: q.y, lx, ly, t: 0, dur };
@@ -11530,11 +11703,10 @@ function rbMount(root, onExit, TEAMS) {
   }
   function ctrl() { return P.carrier || (P.kind !== "run" && !P.thrown ? P.qb : null); }
   /* the skill of the Ravens' players and the arm / speed / line upgrades */
-  const WR_SPEED = () => 5.6 + 0.03 * G.skill.wr + 0.25 * G.up.speed;
-  const CATCH_R = () => 2.0 + 0.008 * G.skill.wr + 0.3 * G.up.arm;
-  const PASS_BONUS = () => (G.skill.qb - 75) * 0.004 + 0.03 * G.up.arm;
-  const SPEED_MUL = (role) => (1 + 0.02 * G.up.speed) * (role === "rb" ? 0.9 + G.skill.rb / 500 : 1);
-  const TACKLE_R = () => 1.0 * (1 - 0.03 * G.up.line);
+  const RUN_SPEED = (p) => 5.2 + attr(p, "spd") * 0.03;
+  const DEF_SPEED = (p) => (5.2 + attr(p, "spd") * 0.03) * (p.role === "dl" ? 0.9 : p.role === "lb" ? 0.95 : 1);
+  const CATCH_R = (w) => 1.8 + attr(w, "hands") * 0.01;
+  const TACKLE_R = () => 1.0;
 
   function updateLive(dt) {
     P.t += dt;
@@ -11550,14 +11722,14 @@ function rbMount(root, onExit, TEAMS) {
       if (!tgt) { if (path.stop) { w.vx = 0; w.vy = 0; } return; }   // a straight route keeps its last speed
       const dx = tgt.x - w.x, dy = tgt.y - w.y, dd = Math.hypot(dx, dy);
       if (dd < 0.6) { w.pi++; return; }
-      const sp = WR_SPEED(); w.vx = dx / dd * sp; w.vy = dy / dd * sp;
+      const sp = RUN_SPEED(w); w.vx = dx / dd * sp; w.vy = dy / dd * sp;
     });
     P.pl.forEach((p) => { if (p.role === "ol") { p.vx = 0; p.vy = 0; } });
     const me = ctrl();
     if (me) {
       let [mx, my] = moveVector();
       const turbo = keys.ShiftLeft || keys.ShiftRight || pad.rt;
-      const sp = 7.4 * (turbo ? 1.3 : 1) * (me.juke > 0 ? 1.6 : 1) * SPEED_MUL(me.role);
+      const sp = RUN_SPEED(me) * (turbo ? 1.3 : 1) * (me.juke > 0 ? 1.6 : 1);
       me.vx = mx * sp; me.vy = my * sp;
       if (Math.hypot(mx, my) > 0.1) me.ang = Math.atan2(my, mx);
       me.juke = Math.max(0, me.juke - dt);
@@ -11566,11 +11738,16 @@ function rbMount(root, onExit, TEAMS) {
     const goal = P.carrier || (P.thrown && P.flight ? { x: P.flight.lx, y: P.flight.ly } : P.qb);
     P.pl.forEach((p) => {
       if (p.side !== "a") return;
-      p.stun = Math.max(0, p.stun - dt);
+      p.stun = Math.max(0, p.stun - dt); p.cool = Math.max(0, (p.cool || 0) - dt);
       if (p.stun > 0 || !goal) { p.vx *= 0.9; p.vy *= 0.9; return; }
       const dx = goal.x - p.x, dy = goal.y - p.y, d = Math.hypot(dx, dy) || 1;
-      const sp = p.role === "dl" ? 6.4 : p.role === "lb" ? 6.8 : 7.2;
+      const sp = DEF_SPEED(p);
       p.vx = dx / d * sp; p.vy = dy / d * sp; p.ang = Math.atan2(p.vy, p.vx);
+      // the OL in front of a rusher: the better the rusher against the blocker, the faster he gets through
+      if (p.role === "dl" && p.blocker && Math.hypot(p.x - p.blocker.x, p.y - p.blocker.y) < 1.8) {
+        const f = clamp(0.5 + (attr(p, "rush") - attr(p.blocker, "blk")) / 100, 0.12, 1);
+        p.vx *= f; p.vy *= f;
+      }
     });
     P.pl.forEach((p) => {
       if (p.role === "qb" && !P.carrier && p !== me) { p.vx = 0; p.vy = 0; }
@@ -11587,12 +11764,13 @@ function rbMount(root, onExit, TEAMS) {
       P.ballZ = Math.sin(k * Math.PI) * 7;
       if (k >= 1) {
         P.flight = null; P.ballZ = 0;
-        const near = P.pl.filter((p) => p.side === "a" && Math.hypot(p.x - f.lx, p.y - f.ly) < 1.6);
-        const reach = CATCH_R();
-        const catchers = P.wrs.filter((w) => Math.hypot(w.x - f.lx, w.y - f.ly) < reach);
-        const best = catchers.length ? Math.min(...catchers.map((w) => Math.hypot(w.x - f.lx, w.y - f.ly))) : 99;
-        const pCatch = clamp(0.9 - best * 0.12 - (near.length ? 0.35 : 0) + PASS_BONUS(), 0.05, 0.95);
-        if (near.length && Math.random() < 0.2) { endPlay(0, "Intercepted!", "int"); return; }
+        const cover = P.pl.filter((p) => p.side === "a" && p.role === "db" && Math.hypot(p.x - f.lx, p.y - f.ly) < 2.5);
+        const catchers = P.wrs.filter((w) => Math.hypot(w.x - f.lx, w.y - f.ly) < CATCH_R(w));
+        const best = catchers.length ? catchers.slice().sort((a, b) => Math.hypot(a.x - f.lx, a.y - f.ly) - Math.hypot(b.x - f.lx, b.y - f.ly))[0] : null;
+        const dist = best ? Math.hypot(best.x - f.lx, best.y - f.ly) : 99;
+        const covBest = cover.reduce((m, p) => Math.max(m, attr(p, "cov")), 0);
+        const pCatch = best ? clamp(0.65 + (attr(best, "hands") - 70) / 150 - dist * 0.1 - (cover.length ? (covBest - 60) / 150 : 0), 0.05, 0.95) : 0;
+        if (cover.length && Math.random() < 0.08 + (covBest - 60) / 500) { endPlay(0, "Intercepted!", "int"); return; }
         if (catchers.length && Math.random() < pCatch) {
           P.carrier = catchers.sort((a, b) => dangerAt(b) - dangerAt(a))[0]; say("Caught!");
           $("hint").textContent = HINT_RUN;
@@ -11600,13 +11778,21 @@ function rbMount(root, onExit, TEAMS) {
       }
     }
     if (P.thrown && !P.flight && !P.carrier) { endPlay(0, "Incomplete.", "inc"); return; }
+    if (!P.thrown && !P.carrier && P.qb) {
+      const rush = P.pl.find((p) => p.side === "a" && p.role === "dl" && Math.hypot(p.x - P.qb.x, p.y - P.qb.y) < 1.2);
+      if (rush) { endPlay(P.qb.x - P.los, "Sacked.", "ok"); return; }
+    }
     // tackles
     const c = P.carrier;
     if (c) {
       if (c.x >= 110) { endPlay(c.x - P.los, "TOUCHDOWN!", "td"); return; }
       if (c.y < -0.5 || c.y > 53.8) { endPlay(c.x - P.los, "Out of bounds.", "ok"); return; }
-      const hit = P.pl.find((p) => p.side === "a" && p.stun <= 0 && Math.hypot(p.x - c.x, p.y - c.y) < TACKLE_R());
-      if (hit) { endPlay(c.x - P.los, hit.role === "dl" ? "Sacked." : "Tackled.", "ok"); return; }
+      const hit = P.pl.find((p) => p.side === "a" && p.stun <= 0 && (p.cool || 0) <= 0 && Math.hypot(p.x - c.x, p.y - c.y) < TACKLE_R());
+      if (hit) {
+        const pT = clamp(0.5 + (attr(hit, "tkl") - attr(c, "elu")) / 160 + (attr(hit, "str") - attr(c, "str")) / 200, 0.08, 0.95);
+        if (Math.random() < pT) { endPlay(c.x - P.los, hit.role === "dl" ? "Sacked." : "Tackled.", "ok"); return; }
+        hit.cool = 0.8; hit.stun = 0.35; say("Broke the tackle!");
+      }
     }
     if (!P.thrown && P.t > 3.6 && P.kind !== "run" && !aim.on) {  // nobody threw: the QB goes to the most open receiver
       const open = P.wrs.slice().sort((a, b) => dangerAt(b) - dangerAt(a))[0];
@@ -11639,7 +11825,7 @@ function rbMount(root, onExit, TEAMS) {
     const me = ctrl(); if (!me || !P) return;
     me.juke = 0.35;
     const near = P.pl.find((p) => p.side === "a" && p.stun <= 0 && Math.hypot(p.x - me.x, p.y - me.y) < 2.4);
-    if (near && Math.random() < 0.5) { near.stun = 1.2; say("Juke! He's gone."); }
+    if (near && Math.random() < 0.25 + attr(me, "elu") / 200) { near.stun = 1.2; say("Juke! He's gone."); }
   }
   function stiffArm() {
     const me = ctrl(); if (!me || !P) return;
