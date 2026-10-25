@@ -11079,6 +11079,37 @@ function rbMount(root, onExit, TEAMS) {
   let DYN = S.dyn || (S.dyn = { active: false, teams: [], rating: {}, rec: {}, round: 0, rounds: [], phase: "reg", semis: [], finals: [], label: "", year: 0, titles: 0, arm: 0, speed: 0, line: 0, news: [], pool: [], picks: [], pick: 0, drafted: [] });
   let ROSTERS = S.rosters = S.rosters || {};
 
+  /* ---- sound: the theme loops; cheers and boos are clips; the whistle and the hit are made here ---- */
+  const mkClip = (src, vol, loop) => { try { const a = new Audio(src); a.volume = vol; a.loop = !!loop; a.preload = "auto"; return a; } catch (e) { return null; } };
+  const SFX = { theme: mkClip("assets/audio/fb_theme.mp3", 0.3, true), cheer: mkClip("assets/audio/fb_cheer.mp3", 0.8), boo: mkClip("assets/audio/fb_boo.mp3", 0.8) };
+  let AC = null;
+  function ctxSound() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } } return AC; }
+  function clip(name) {
+    if (S.muted || !SFX[name]) return;
+    try { SFX[name].currentTime = 0; SFX[name].play().catch(() => {}); } catch (e) {}
+  }
+  function whistle() {
+    if (S.muted) return; const c = ctxSound(); if (!c) return;
+    const t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+    o.type = "square"; o.frequency.setValueAtTime(2300, t); o.frequency.linearRampToValueAtTime(2700, t + 0.35);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.08, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + 0.42);
+  }
+  function thud() {
+    if (S.muted) return; const c = ctxSound(); if (!c) return;
+    const t = c.currentTime, n = c.createBuffer(1, c.sampleRate * 0.15, c.sampleRate), d = n.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+    const src = c.createBufferSource(), g = c.createGain(); src.buffer = n; g.gain.value = 0.6;
+    src.connect(g); g.connect(c.destination); src.start(t);
+  }
+  /* what a finished play sounds like */
+  function playSound(how, text) {
+    if (how === "td") { clip("cheer"); whistle(); }
+    else if (how === "int") { clip("boo"); whistle(); }
+    else if (/Sacked|Tackled/.test(text)) { thud(); whistle(); }
+    else whistle();
+  }
+
   /* ---- game state ---- */
   let G, fans = [], P = null, lastT = 0;
   const keys = {};
@@ -11323,7 +11354,7 @@ function rbMount(root, onExit, TEAMS) {
   }
   function showMenu() {
     const cont = DYN.active ? `<button class="on" id="cont2" style="margin-top:8px">Continue dynasty (season ${DYN.year}, ${DYN.titles} title${DYN.titles === 1 ? "" : "s"})</button>` : "";
-    $("overc").innerHTML = `<h2>Raven Bowl</h2><p style="color:#9a9486">Pick a mode.</p>
+    $("overc").innerHTML = `<h2>Raven Bowl</h2><p style="color:#9a9486">Pick a mode. M mutes the music.</p>
       <button class="on" id="exh">Exhibition</button>
       <button class="on" id="dyn" style="margin-top:8px">${DYN.active ? "New dynasty" : "Dynasty: win a championship"}</button>${cont}
       <button id="leave" style="margin-top:10px">Leave Raven Bowl</button>`;
@@ -11355,6 +11386,7 @@ function rbMount(root, onExit, TEAMS) {
 
   function tick(secs) { G.clock -= secs; if (G.clock <= 0) { G.clock = 0; endQuarter(); } }
   function endQuarter() {
+    whistle();
     if (G.q === 2) { G.half = true; halftime(); return; }
     if (G.q === 4) { finish(); return; }
     G.q++; G.clock = QUARTER; say(`End of quarter. Quarter ${G.q} begins.`);
@@ -11380,7 +11412,7 @@ function rbMount(root, onExit, TEAMS) {
     G.drives++;
     const r = Math.random();
     const td = 0.22 + ((G.oppR || 70) - 70) * 0.004;
-    if (r < td) { G.as += 7; say(`${G.away[0]} score a touchdown. ${G.hs}-${G.as}.`); }
+    if (r < td) { G.as += 7; clip("boo"); say(`${G.away[0]} score a touchdown. ${G.hs}-${G.as}.`); }
     else if (r < 0.45) { G.as += 3; say(`${G.away[0]} kick a field goal. ${G.hs}-${G.as}.`); }
     else say(`${G.away[0]} punt. You take over.`);
     tick(rnd(60, 90));
@@ -11569,8 +11601,9 @@ function rbMount(root, onExit, TEAMS) {
     P = null; aim.on = false;
     tick(secs);
     $("hint").textContent = "";
+    if (how !== "inc") playSound(how, text); else whistle();
     if (how === "int") { say(text); G.ball = 100 - G.ball; cpuDrive(); return update(); }
-    if (how === "inc") { say(text); G.down++; if (G.down > 4) { say("Turnover on downs."); G.ball = 100 - G.ball; cpuDrive(); return update(); } say(`Down ${G.down}, ${G.togo} to go.`); return update(); }
+    if (how === "inc") { say(text); G.down++; if (G.down > 4) { say("Turnover on downs."); clip("boo"); G.ball = 100 - G.ball; cpuDrive(); return update(); } say(`Down ${G.down}, ${G.togo} to go.`); return update(); }
     moveBall(Math.round(yards), text);
   }
   function moveBall(y, text) {
@@ -11579,7 +11612,7 @@ function rbMount(root, onExit, TEAMS) {
     if (G.ball <= 0) { G.ball = 20; say(`${text} Safety. ${G.hs}-${G.as}.`); }
     else if (y >= G.togo) { G.down = 1; G.togo = Math.min(10, 100 - G.ball); say(`${text} ${y} yards. First down.`); }
     else { G.down++; G.togo -= y; say(`${text} ${y} yards.${G.down <= 4 ? " Down " + G.down + ", " + G.togo + " to go." : ""}`); }
-    if (G.down > 4) { say("Turnover on downs."); G.ball = 100 - G.ball; cpuDrive(); return update(); }
+    if (G.down > 4) { say("Turnover on downs."); clip("boo"); G.ball = 100 - G.ball; cpuDrive(); return update(); }
     update();
   }
   function kick() {
@@ -11587,7 +11620,7 @@ function rbMount(root, onExit, TEAMS) {
     if (G.ball >= 60 && (G.down === 4 || G.ball >= 65)) {
       const pr = clamp(1.05 - (dist - 25) * 0.02, 0.1, 0.95);
       tick(8);
-      if (Math.random() < pr) { G.hs += 3; say(`Field goal, ${dist} yards. Good! ${G.hs}-${G.as}.`); }
+      if (Math.random() < pr) { G.hs += 3; clip("cheer"); say(`Field goal, ${dist} yards. Good! ${G.hs}-${G.as}.`); }
       else say(`Field goal, ${dist} yards. No good.`);
       cpuDrive(); return update();
     }
@@ -11758,6 +11791,7 @@ function rbMount(root, onExit, TEAMS) {
     if (e.code === "Escape") { if (onExit) onExit(); return; }
     if (!P) return;
     if (e.code === "Space") juke();
+    if (e.code === "KeyM") { S.muted = !S.muted; if (S.muted) { if (SFX.theme) SFX.theme.pause(); } else if (SFX.theme) SFX.theme.play().catch(() => {}); return; }
     if (e.code === "KeyE") stiffArm();
     if (e.code === "KeyQ") handoff();
     if (e.code === "KeyF" && canThrow() && !aim.on) { aim.on = true; aim.from = "hold"; aim.hold = 0; aim.power = 0; aim.dx = 0; aim.dy = 0; }
@@ -11803,10 +11837,12 @@ function rbMount(root, onExit, TEAMS) {
 
   S.dbg = { G: () => G, finish: () => finish() };   // for the browser tests: ends the live game now
   showMenu();
+  if (SFX.theme && !S.muted) SFX.theme.play().catch(() => {});
   requestAnimationFrame((t) => { lastT = t; requestAnimationFrame(frame); });
 
   return () => {
     alive = false;
+    if (SFX.theme) SFX.theme.pause();
     window.removeEventListener("keydown", onKeyDown, true);
     window.removeEventListener("keyup", onKeyUp, true);
     cv.removeEventListener("pointerdown", onDown);
