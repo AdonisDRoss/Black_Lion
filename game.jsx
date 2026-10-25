@@ -11023,7 +11023,7 @@ function LoadingScreen({ mono }) {
 
 /* FOOTBALL MODE (layer 579): Raven Bowl, the mini football game, run in its own frame from the title screen. */
 const RB_TEAMS = [["Raven Hook Ravens", "#111111", "#e8c46a", "#b8343a"], ["Lakeshore Lancers", "#1f3a8a", "#c9ced6", "#ffffff"], ["Port Mercy Mariners", "#0f6b6b", "#e07b2a", "#111111"], ["Kestrel City Hawks", "#6a1e2e", "#e8c46a", "#9aa0a6"], ["Ironbridge Foundry", "#3a3f47", "#e0762a", "#f2f2f2"], ["Stockyard Bulls", "#7a2e1a", "#e8b84a", "#2d2d2d"], ["Harbor Heights Herons", "#2b5f8a", "#a8d8ea", "#f2f2f2"], ["Crown Falls Kings", "#4b1d6e", "#e8c46a", "#ffffff"], ["Mill River Millers", "#2f5d3a", "#d8c49a", "#5a3a1e"], ["Cinder Park Comets", "#c0392b", "#f39c12", "#222222"], ["Goldcoast Gulls", "#0b4f6c", "#f2c14e", "#ffffff"], ["Eastgate Engineers", "#334155", "#94a3b8", "#f59e0b"], ["Westfield Wolves", "#1c2526", "#b8c4c8", "#5a6b70"], ["Marrow Creek Marauders", "#5c1f1f", "#d9a441", "#1a1a1a"], ["Sable Point Sharks", "#0a2540", "#5eb8c4", "#c0c8d4"], ["Lantern Hill Lanterns", "#e26d1c", "#fff1c2", "#3a2a1a"], ["Tallow Bay Tugs", "#2e4a2e", "#c9b26b", "#f0ece0"], ["Grayhaven Granite", "#5b6670", "#e6e2d8", "#2a2f35"], ["Blackwater Bears", "#1a1a2e", "#b7a06a", "#ffffff"], ["Sunrise Valley Stars", "#ffb703", "#023047", "#fb8500"], ["Iron Gate Guards", "#7c0a02", "#cfd3d6", "#101010"], ["Rookery Falcons", "#3d2b56", "#f4a261", "#e9e4f0"], ["Redline Rockets", "#d62828", "#003049", "#fcbf49"], ["Salt Flat Scorpions", "#8a5a2b", "#f0d9a8", "#2b1d0e"], ["Fairmount Fire", "#9a031e", "#fb8b24", "#0f4c5c"], ["Drydock Dockers", "#14532d", "#facc15", "#ffffff"], ["Midway Mavericks", "#1d3557", "#e63946", "#f1faee"], ["Oakhollow Owls", "#4a4e69", "#c9ada7", "#22223b"], ["Copperhead Crew", "#b45309", "#78350f", "#fde68a"], ["Riverside Rangers", "#0e7490", "#a7f3d0", "#064e3b"], ["Southside Sentinels", "#312e81", "#a5b4fc", "#e0e7ff"], ["Northwood Nightjars", "#1e1b4b", "#7c3aed", "#ddd6fe"]];
-const RB_MARKUP = "<style>\n#rb{font:14px system-ui,sans-serif;color:#f1ead8;background:#0b0b10;padding:14px;user-select:none;box-sizing:border-box;min-height:100%}\n#rb #wrap{max-width:920px;margin:0 auto}\n#rb canvas{width:100%;height:auto;display:block;border:1px solid #222;background:#0d0d12;touch-action:none}\n#rb .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap}\n#rb .score{font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center}\n#rb .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}\n#rb .btns button{font-size:13px;padding:11px 4px}\n#rb .btns button[data-play]{display:flex;flex-direction:column;align-items:center;padding:6px 4px 8px}\n#rb .btns button.snap{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb button{background:#1d1d26;color:#f1ead8;border:1px solid #333;padding:12px 6px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit}\n#rb button:disabled{opacity:.3;cursor:default}\n#rb button.on{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb #hint{color:#9a9486;font-size:12px;margin-top:8px;line-height:1.6}\n#rb #log{background:#101018;border:1px solid #222;height:110px;overflow:auto;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55}\n#rb #over{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}\n#rb #over .card{background:#15151d;border:1px solid #333;padding:22px;max-width:660px;width:100%;text-align:center;max-height:92vh;overflow:auto}\n#rb #over h2{margin:0 0 8px;color:#e8c46a}\n</style>\n<div id=\"wrap\">\n  <div class=\"bar\"><div class=\"score\" id=\"score\"></div><div id=\"status\" style=\"color:#9a9486\"></div></div>\n  <canvas id=\"c\" width=\"920\" height=\"440\"></canvas>\n  <div class=\"btns\">\n    <button data-play=\"iz\" data-call=\"iz\">Inside Zone</button>\n    <button data-play=\"ob\" data-call=\"ob\">Outside Run</button>\n    <button data-play=\"sl\" data-call=\"sl\">Quick Slants</button>\n    <button data-play=\"hi\" data-call=\"hi\">Hitch &amp; Out</button>\n    <button data-play=\"cu\" data-call=\"cu\">Curls</button>\n    <button data-play=\"pc\" data-call=\"pc\">Post-Corner</button>\n    <button data-play=\"go\" data-call=\"go\">Go Routes</button>\n    <button data-call=\"snap\" id=\"snapBtn\" class=\"snap\">Snap</button>\n    <button data-call=\"kick\" id=\"kickBtn\">Kick</button>\n  </div>\n  <div id=\"hint\"></div>\n  <div id=\"log\"></div>\n</div>\n<div id=\"over\"><div class=\"card\" id=\"overc\"></div></div>\n";
+const RB_MARKUP = "<style>\n#rb{font:14px system-ui,sans-serif;color:#f1ead8;background:#0b0b10;padding:14px;user-select:none;box-sizing:border-box;min-height:100%}\n#rb #wrap{max-width:920px;margin:0 auto}\n#rb canvas{width:100%;height:auto;display:block;border:1px solid #222;background:#0d0d12;touch-action:none}\n#rb .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap}\n#rb .score{font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center}\n#rb .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}\n#rb .btns button{font-size:13px;padding:11px 4px}\n#rb .btns button[data-play]{display:flex;flex-direction:column;align-items:center;padding:6px 4px 8px}\n#rb .btns button.snap{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb button{background:#1d1d26;color:#f1ead8;border:1px solid #333;padding:12px 6px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit}\n#rb button:disabled{opacity:.3;cursor:default}\n#rb button.on{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb #hint{color:#9a9486;font-size:12px;margin-top:8px;line-height:1.6}\n#rb #log{background:#101018;border:1px solid #222;height:110px;overflow:auto;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55}\n#rb #over{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}\n#rb #over .card{background:#15151d;border:1px solid #333;padding:22px;max-width:660px;width:100%;text-align:center;max-height:92vh;overflow:auto}\n#rb #over h2{margin:0 0 8px;color:#e8c46a}\n/* landscape phones: the field on the left, the plays in a column on the right, so everything fits without scrolling */\n@media (orientation: landscape) and (max-height: 620px) {\n#rb{padding:8px}\n#rb #wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:10px;align-items:start}\n#rb .bar{grid-column:1 / -1;margin:0 0 6px}\n#rb #wrap > canvas{grid-column:1;grid-row:2}\n#rb .btns{grid-column:2;grid-row:2;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:0}\n#rb .btns button{font-size:12px;padding:6px 3px}\n#rb .btns button[data-play] svg{width:60px;height:33px}\n#rb #hint{grid-column:1 / -1;font-size:11px;margin-top:4px}\n#rb #log{grid-column:1 / -1;height:64px;font-size:12px;margin-top:4px}\n}\n</style>\n<div id=\"wrap\">\n  <div class=\"bar\"><div class=\"score\" id=\"score\"></div><div id=\"status\" style=\"color:#9a9486\"></div></div>\n  <canvas id=\"c\" width=\"920\" height=\"440\"></canvas>\n  <div class=\"btns\">\n    <button data-play=\"iz\" data-call=\"iz\">Inside Zone</button>\n    <button data-play=\"ob\" data-call=\"ob\">Outside Run</button>\n    <button data-play=\"sl\" data-call=\"sl\">Quick Slants</button>\n    <button data-play=\"hi\" data-call=\"hi\">Hitch &amp; Out</button>\n    <button data-play=\"cu\" data-call=\"cu\">Curls</button>\n    <button data-play=\"pc\" data-call=\"pc\">Post-Corner</button>\n    <button data-play=\"go\" data-call=\"go\">Go Routes</button>\n    <button data-call=\"snap\" id=\"snapBtn\" class=\"snap\">Snap</button>\n    <button data-call=\"kick\" id=\"kickBtn\">Kick</button>\n  </div>\n  <div id=\"hint\"></div>\n  <div id=\"log\"></div>\n</div>\n<div id=\"over\"><div class=\"card\" id=\"overc\"></div></div>\n";
 /* face pool (generated from assets/faces/manifest.json): files in assets/faces/ */
 const RB_FACES = {"older": ["A01.png", "A03.png", "A09.png", "A63.png", "A64.png", "B28.png", "C10.png", "C11.png", "C14.png", "C15.png", "C16.png", "C20.png", "C21.png", "C22.png", "C23.png", "C28.png", "C29.png", "C40.png", "S101.png", "S102.png", "S103.png", "S104.png", "S105.png", "S106.png", "S107.png", "S108.png", "S109.png", "S111.png", "S112.png", "S113.png", "S114.png", "S115.png", "S117.png", "S118.png", "S119.png", "S122.png", "S123.png", "S124.png", "S125.png", "S126.png", "S127.png", "S128.png", "S129.png", "S130.png", "S131.png", "S132.png", "S135.png", "S136.png", "S138.png", "S139.png", "S140.png", "S141.png", "S142.png", "S143.png", "S144.png", "S145.png", "S146.png", "S147.png", "S148.png", "S149.png", "S151.png", "S152.png", "S154.png", "S155.png", "S156.png", "S157.png", "S158.png", "S159.png", "S160.png", "S161.png", "S163.png", "S164.png", "S309.png"], "mid": ["A04.png", "A10.png", "B16.png", "B19.png", "C09.png", "C12.png", "C36.png", "C39.png", "S201.png", "S202.png", "S203.png", "S204.png", "S205.png", "S206.png", "S207.png", "S208.png", "S209.png", "S210.png", "S211.png", "S212.png", "S213.png", "S214.png", "S215.png", "S216.png", "S217.png", "S218.png", "S219.png", "S220.png", "S221.png", "S222.png", "S223.png", "S224.png", "S225.png", "S226.png", "S227.png", "S228.png", "S229.png", "S230.png", "S231.png", "S232.png", "S233.png", "S234.png", "S235.png", "S236.png", "S237.png", "S238.png", "S239.png", "S240.png", "S241.png", "S242.png", "S243.png", "S244.png", "S245.png", "S246.png", "S247.png", "S248.png", "S249.png", "S250.png", "S251.png", "S252.png", "S253.png", "S254.png", "S255.png", "S256.png", "S257.png", "S258.png", "S259.png", "S260.png", "S261.png", "S262.png", "S263.png", "S264.png"], "young": ["A05.png", "A06.png", "A07.png", "A08.png", "A11.png", "A12.png", "A13.png", "A14.png", "A15.png", "A16.png", "A17.png", "A18.png", "A19.png", "A20.png", "A21.png", "A22.png", "A23.png", "A24.png", "A25.png", "A26.png", "A27.png", "A28.png", "A29.png", "A30.png", "A31.png", "A32.png", "A33.png", "A34.png", "A35.png", "A36.png", "A37.png", "A38.png", "A39.png", "A40.png", "A41.png", "A42.png", "A43.png", "A44.png", "A45.png", "A46.png", "A47.png", "A48.png", "A49.png", "A50.png", "A51.png", "A52.png", "A53.png", "A54.png", "A55.png", "A56.png", "A57.png", "A58.png", "A59.png", "A60.png", "A61.png", "A62.png", "B01.png", "B02.png", "B03.png", "B04.png", "B05.png", "B06.png", "B07.png", "B09.png", "B10.png", "B11.png", "B12.png", "B13.png", "B14.png", "B15.png", "B17.png", "B18.png", "B20.png", "B21.png", "B22.png", "B23.png", "B24.png", "B25.png", "B27.png", "B29.png", "B30.png", "B31.png", "B32.png", "B33.png", "B34.png", "B35.png", "B37.png", "B38.png", "B39.png", "B41.png", "B42.png", "B43.png", "B44.png", "B45.png", "C01.png", "C02.png", "C03.png", "C04.png", "C05.png", "C07.png", "C08.png", "C13.png", "C17.png", "C18.png", "C19.png", "C24.png", "C25.png", "C26.png", "C27.png", "C30.png", "C31.png", "C33.png", "C34.png", "C35.png", "C37.png", "C38.png", "S301.png", "S302.png", "S303.png", "S304.png", "S305.png", "S306.png", "S307.png", "S308.png", "S310.png", "S311.png", "S312.png", "S314.png", "S315.png", "S316.png", "S317.png", "S318.png", "S319.png", "S320.png", "S321.png", "S323.png", "S324.png", "S325.png", "S327.png", "S328.png", "S330.png", "S331.png", "S332.png", "S334.png", "S335.png", "S337.png", "S338.png", "S339.png", "S340.png", "S342.png", "S343.png", "S344.png", "S345.png", "S346.png", "S347.png", "S349.png", "S350.png", "S351.png", "S352.png", "S353.png", "S354.png", "S355.png", "S356.png", "S357.png", "S358.png", "S359.png", "S360.png", "S361.png", "S362.png", "S363.png", "S364.png", "S365.png", "S366.png", "S367.png", "S368.png", "S369.png", "S370.png", "S371.png", "S372.png", "S373.png", "S374.png", "S375.png", "S376.png", "S377.png", "S378.png", "S379.png", "S380.png"]};
 /* Raven Bowl: a football mode inside Black Lion. Mounted into a root element; returns a cleanup. */
@@ -11074,6 +11074,31 @@ function rbMount(root, onExit, TEAMS) {
       p[i] = C[0] * f; p[i + 1] = C[1] * f; p[i + 2] = C[2] * f;
     }
     x.putImageData(d, 0, 0); RC.set(key, c); return c;
+  }
+
+  /* the cheerleaders: the outfit (navy or grey) takes the team's colour, pompoms and skin stay */
+  function cheerSprite(src, prim) {
+    const key = "cheer|" + src + "|" + prim;
+    if (RC.has(key)) return RC.get(key);
+    const im = img(src); if (!ready(im)) return null;
+    const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight;
+    const x = c.getContext("2d"); x.drawImage(im, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height), p = d.data, P0 = rgb(prim);
+    for (let i = 0; i < p.length; i += 4) {
+      if (p[i + 3] < 8) continue;
+      const r = p[i], g = p[i + 1], b = p[i + 2];
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), L = (mx + mn) / 510;
+      let f = 0;
+      if (mx - mn < 18 && L > 0.2 && L < 0.9) f = clamp(L / 0.72, 0.3, 1.2);          // grey outfit
+      else if (b > r + 40 && b > g + 10) f = clamp(b / 255 / 0.5, 0.3, 1.2);          // navy outfit
+      if (!f) continue;
+      p[i] = P0[0] * f; p[i + 1] = P0[1] * f; p[i + 2] = P0[2] * f;
+    }
+    x.putImageData(d, 0, 0); RC.set(key, c); return c;
+  }
+  function cheerFig(src, prim, x, y, k) {
+    const c = cheerSprite(src, prim); if (!c) return;
+    const w = 30 * k, hh = w * c.height / c.width; ctx.drawImage(c, x - w / 2, y - hh / 2, w, hh);
   }
 
   /* ---- the season, kept for the session (survives leaving and coming back to the mode) ---- */
@@ -12024,6 +12049,11 @@ function rbMount(root, onExit, TEAMS) {
     sideFig(COACHES[0], HEADS[0], cx - 40, 84, RH, 0.95); sideFig(COACHES[1], HEADS[3], cx + 40, 84, RH, 0.95);
     sideFig(COACHES[2], HEADS[6], cx - 40, 338, G.away, 0.95); sideFig(COACHES[3], HEADS[9], cx + 40, 338, G.away, 0.95);
     sideFig(CAMS[0], HEADS[1], cx - 120, 80, RH, 0.7); sideFig(CAMS[1], HEADS[4], cx + 120, 80, RH, 0.7);
+    const bob = (i) => Math.sin(performance.now() / 260 + i * 1.7) * 2;
+    [-300, -200, 200, 300].forEach((dx, i) => {
+      cheerFig("assets/school/yt_cheer_sa_" + ((i % 8) + 1) + ".png", RH[1], cv.width / 2 + dx, 50 + bob(i), 0.9);
+      cheerFig("assets/school/yt_cheer_opp_" + ((i % 6) + 1) + ".png", G.away[1], cv.width / 2 + dx, 370 + bob(i + 4), 0.9);
+    });
     sideFig(CAMS[2], HEADS[7], cx - 120, 342, G.away, 0.7); sideFig(CAMS[3], HEADS[10], cx + 120, 342, G.away, 0.7);
     sideFig(REFS[0], HEADS[12], cx - 90, 196, null, 0.8); sideFig(REFS[1], HEADS[14], cx + 90, 236, null, 0.8);
     if (!P) {
@@ -12035,6 +12065,42 @@ function rbMount(root, onExit, TEAMS) {
     drawTalk();
     drawBall();
   }
+  /* the civilians: the crowd sprites from the civ folder, in rows through every stand */
+  const CIV_FANS = [];
+  for (let g = 1; g <= 8; g++) for (let n = 1; n <= 16; n++) CIV_FANS.push("assets/civ/yt_cv_p2_" + g + "_" + n + ".png");
+  let standCv = null, standKey = "", standDirty = false;
+  const fanReady = (src) => { const i = img(src); return ready(i) || (i.complete && i.naturalWidth === 0); };
+  function buildStands(W, H, key) {
+    standCv = document.createElement("canvas"); standCv.width = W; standCv.height = H; standKey = key;
+    const x = standCv.getContext("2d");
+    const tiers = (tx, ty, tw, th, vertical, c1) => {
+      for (let i = 0; i < 4; i++) {
+        x.fillStyle = i % 2 ? "#23232c" : c1; x.globalAlpha = i % 2 ? 1 : 0.5;
+        if (vertical) x.fillRect(tx, ty + i * (th / 4), tw, th / 4 - 2);
+        else x.fillRect(tx + i * (tw / 4), ty, tw / 4 - 2, th);
+      }
+      x.globalAlpha = 1;
+    };
+    tiers(0, 0, W, STAND_TOP, false, RH[1]);
+    tiers(0, STAND_BOT, W, H - STAND_BOT, false, G.away[1]);
+    tiers(0, 0, SIDE_L, H, true, RH[1]);
+    tiers(SIDE_R, 0, W - SIDE_R, H, true, G.away[1]);
+    let waiting = false;
+    const crowd = (x0, y0, x1, y1, cw, ch) => {
+      for (let yy = y0; yy + ch <= y1; yy += ch + 2) {
+        for (let xx = x0; xx + cw <= x1; xx += cw + 1) {
+          const src = CIV_FANS[(Math.random() * CIV_FANS.length) | 0];
+          if (!fanReady(src)) { waiting = true; continue; }
+          const i = img(src); if (ready(i)) x.drawImage(i, xx, yy, cw, ch);
+        }
+      }
+    };
+    crowd(0, 0, W, STAND_TOP, 16, 14);                 // north stand
+    crowd(0, STAND_BOT, W, H, 16, 14);                 // south stand
+    crowd(0, STAND_TOP, SIDE_L, STAND_BOT, 14, 14);    // west end
+    crowd(SIDE_R, STAND_TOP, W, STAND_BOT, 14, 14);    // east end
+    standDirty = waiting;
+  }
   /* the stadium: stands on every side with the crowd in them, light towers, a scoreboard, and the grass on the sidelines */
   const STAND_TOP = FY0 - 14, STAND_BOT = FY1 + 14, SIDE_L = 52, SIDE_R = 868;
   const GRASS_IMG = img("assets/tx_grass.webp");
@@ -12043,25 +12109,10 @@ function rbMount(root, onExit, TEAMS) {
     const W = cv.width, H = cv.height;
     ctx.fillStyle = "#0a0a10"; ctx.fillRect(0, 0, W, H);
     // the stands: four tiers, in the team colours with dark concrete between
-    const tiers = (x, y, w, h, vertical, c1) => {
-      for (let i = 0; i < 4; i++) {
-        ctx.fillStyle = i % 2 ? "#23232c" : c1; ctx.globalAlpha = i % 2 ? 1 : 0.5;
-        if (vertical) ctx.fillRect(x, y + i * (h / 4), w, h / 4 - 2);
-        else ctx.fillRect(x + i * (w / 4), y, w / 4 - 2, h);
-      }
-      ctx.globalAlpha = 1;
-    };
-    tiers(0, 0, W, STAND_TOP, false, RH[1]);
-    tiers(0, STAND_BOT, W, H - STAND_BOT, false, G.away[1]);
-    tiers(0, 0, SIDE_L, H, true, RH[1]);
-    tiers(SIDE_R, 0, W - SIDE_R, H, true, G.away[1]);
-    // the crowd, packed into the stands
-    for (let i = 0; i < fans.length; i++) {
-      const f = fans[i], top = f.side === 0;
-      const x = f.x * W, y = top ? f.y * STAND_TOP : STAND_BOT + f.y * (H - STAND_BOT);
-      ctx.fillStyle = f.c < 0.55 ? (top ? RH[1] : G.away[1]) : (top ? RH[2] : G.away[2]);
-      ctx.globalAlpha = 0.6; ctx.fillRect(x, y, 4, 4); ctx.globalAlpha = 1;
-    }
+    // the stands are drawn once per pairing of teams, then reused: the seats, and the civilians in them
+    const key = RH[0] + "|" + G.away[0] + "|" + W + "x" + H;
+    if (!standCv || standKey !== key || standDirty) buildStands(W, H, key);
+    ctx.drawImage(standCv, 0, 0);
     // light towers in the four corners
     [[14, 14], [W - 14, 14], [14, H - 14], [W - 14, H - 14]].forEach(([x, y]) => {
       ctx.fillStyle = "#3a3a44"; ctx.fillRect(x - 2, y, 4, y < H / 2 ? 30 : -30);
