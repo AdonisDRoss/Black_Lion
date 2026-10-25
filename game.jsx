@@ -11023,7 +11023,7 @@ function LoadingScreen({ mono }) {
 
 /* FOOTBALL MODE (layer 579): Raven Bowl, the mini football game, run in its own frame from the title screen. */
 const RB_TEAMS = [["Raven Hook Ravens", "#111111", "#e8c46a", "#b8343a"], ["Lakeshore Lancers", "#1f3a8a", "#c9ced6", "#ffffff"], ["Port Mercy Mariners", "#0f6b6b", "#e07b2a", "#111111"], ["Kestrel City Hawks", "#6a1e2e", "#e8c46a", "#9aa0a6"], ["Ironbridge Foundry", "#3a3f47", "#e0762a", "#f2f2f2"], ["Stockyard Bulls", "#7a2e1a", "#e8b84a", "#2d2d2d"], ["Harbor Heights Herons", "#2b5f8a", "#a8d8ea", "#f2f2f2"], ["Crown Falls Kings", "#4b1d6e", "#e8c46a", "#ffffff"], ["Mill River Millers", "#2f5d3a", "#d8c49a", "#5a3a1e"], ["Cinder Park Comets", "#c0392b", "#f39c12", "#222222"], ["Goldcoast Gulls", "#0b4f6c", "#f2c14e", "#ffffff"], ["Eastgate Engineers", "#334155", "#94a3b8", "#f59e0b"], ["Westfield Wolves", "#1c2526", "#b8c4c8", "#5a6b70"], ["Marrow Creek Marauders", "#5c1f1f", "#d9a441", "#1a1a1a"], ["Sable Point Sharks", "#0a2540", "#5eb8c4", "#c0c8d4"], ["Lantern Hill Lanterns", "#e26d1c", "#fff1c2", "#3a2a1a"], ["Tallow Bay Tugs", "#2e4a2e", "#c9b26b", "#f0ece0"], ["Grayhaven Granite", "#5b6670", "#e6e2d8", "#2a2f35"], ["Blackwater Bears", "#1a1a2e", "#b7a06a", "#ffffff"], ["Sunrise Valley Stars", "#ffb703", "#023047", "#fb8500"], ["Iron Gate Guards", "#7c0a02", "#cfd3d6", "#101010"], ["Rookery Falcons", "#3d2b56", "#f4a261", "#e9e4f0"], ["Redline Rockets", "#d62828", "#003049", "#fcbf49"], ["Salt Flat Scorpions", "#8a5a2b", "#f0d9a8", "#2b1d0e"], ["Fairmount Fire", "#9a031e", "#fb8b24", "#0f4c5c"], ["Drydock Dockers", "#14532d", "#facc15", "#ffffff"], ["Midway Mavericks", "#1d3557", "#e63946", "#f1faee"], ["Oakhollow Owls", "#4a4e69", "#c9ada7", "#22223b"], ["Copperhead Crew", "#b45309", "#78350f", "#fde68a"], ["Riverside Rangers", "#0e7490", "#a7f3d0", "#064e3b"], ["Southside Sentinels", "#312e81", "#a5b4fc", "#e0e7ff"], ["Northwood Nightjars", "#1e1b4b", "#7c3aed", "#ddd6fe"]];
-const RB_MARKUP = "<style>\n#rb{font:14px system-ui,sans-serif;color:#f1ead8;background:#0b0b10;padding:14px;user-select:none;box-sizing:border-box;min-height:100%}\n#rb #wrap{max-width:920px;margin:0 auto}\n#rb canvas{width:100%;height:auto;display:block;border:1px solid #222;background:#0d0d12;touch-action:none}\n#rb .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap}\n#rb .score{font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center}\n#rb .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}\n#rb .btns button{font-size:13px;padding:11px 4px}\n#rb .btns button.snap{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb button{background:#1d1d26;color:#f1ead8;border:1px solid #333;padding:12px 6px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit}\n#rb button:disabled{opacity:.3;cursor:default}\n#rb button.on{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb #hint{color:#9a9486;font-size:12px;margin-top:8px;line-height:1.6}\n#rb #log{background:#101018;border:1px solid #222;height:110px;overflow:auto;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55}\n#rb #over{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}\n#rb #over .card{background:#15151d;border:1px solid #333;padding:22px;max-width:660px;width:100%;text-align:center;max-height:92vh;overflow:auto}\n#rb #over h2{margin:0 0 8px;color:#e8c46a}\n</style>\n<div id=\"wrap\">\n  <div class=\"bar\"><div class=\"score\" id=\"score\"></div><div id=\"status\" style=\"color:#9a9486\"></div></div>\n  <canvas id=\"c\" width=\"920\" height=\"440\"></canvas>\n  <div class=\"btns\">\n    <button data-play=\"iz\" data-call=\"iz\">Inside Zone</button>\n    <button data-play=\"ob\" data-call=\"ob\">Outside Run</button>\n    <button data-play=\"sl\" data-call=\"sl\">Quick Slants</button>\n    <button data-play=\"hi\" data-call=\"hi\">Hitch &amp; Out</button>\n    <button data-play=\"cu\" data-call=\"cu\">Curls</button>\n    <button data-play=\"pc\" data-call=\"pc\">Post-Corner</button>\n    <button data-play=\"go\" data-call=\"go\">Go Routes</button>\n    <button data-call=\"snap\" id=\"snapBtn\" class=\"snap\">Snap</button>\n    <button data-call=\"kick\" id=\"kickBtn\">Kick</button>\n  </div>\n  <div id=\"hint\"></div>\n  <div id=\"log\"></div>\n</div>\n<div id=\"over\"><div class=\"card\" id=\"overc\"></div></div>\n";
+const RB_MARKUP = "<style>\n#rb{font:14px system-ui,sans-serif;color:#f1ead8;background:#0b0b10;padding:14px;user-select:none;box-sizing:border-box;min-height:100%}\n#rb #wrap{max-width:920px;margin:0 auto}\n#rb canvas{width:100%;height:auto;display:block;border:1px solid #222;background:#0d0d12;touch-action:none}\n#rb .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap}\n#rb .score{font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center}\n#rb .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}\n#rb .btns button{font-size:13px;padding:11px 4px}\n#rb .btns button[data-play]{display:flex;flex-direction:column;align-items:center;padding:6px 4px 8px}\n#rb .btns button.snap{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb button{background:#1d1d26;color:#f1ead8;border:1px solid #333;padding:12px 6px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit}\n#rb button:disabled{opacity:.3;cursor:default}\n#rb button.on{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb #hint{color:#9a9486;font-size:12px;margin-top:8px;line-height:1.6}\n#rb #log{background:#101018;border:1px solid #222;height:110px;overflow:auto;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55}\n#rb #over{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}\n#rb #over .card{background:#15151d;border:1px solid #333;padding:22px;max-width:660px;width:100%;text-align:center;max-height:92vh;overflow:auto}\n#rb #over h2{margin:0 0 8px;color:#e8c46a}\n</style>\n<div id=\"wrap\">\n  <div class=\"bar\"><div class=\"score\" id=\"score\"></div><div id=\"status\" style=\"color:#9a9486\"></div></div>\n  <canvas id=\"c\" width=\"920\" height=\"440\"></canvas>\n  <div class=\"btns\">\n    <button data-play=\"iz\" data-call=\"iz\">Inside Zone</button>\n    <button data-play=\"ob\" data-call=\"ob\">Outside Run</button>\n    <button data-play=\"sl\" data-call=\"sl\">Quick Slants</button>\n    <button data-play=\"hi\" data-call=\"hi\">Hitch &amp; Out</button>\n    <button data-play=\"cu\" data-call=\"cu\">Curls</button>\n    <button data-play=\"pc\" data-call=\"pc\">Post-Corner</button>\n    <button data-play=\"go\" data-call=\"go\">Go Routes</button>\n    <button data-call=\"snap\" id=\"snapBtn\" class=\"snap\">Snap</button>\n    <button data-call=\"kick\" id=\"kickBtn\">Kick</button>\n  </div>\n  <div id=\"hint\"></div>\n  <div id=\"log\"></div>\n</div>\n<div id=\"over\"><div class=\"card\" id=\"overc\"></div></div>\n";
 /* face pool (generated from assets/faces/manifest.json): files in assets/faces/ */
 const RB_FACES = {"older": ["A01.png", "A03.png", "A09.png", "A63.png", "A64.png", "B28.png", "C10.png", "C11.png", "C14.png", "C15.png", "C16.png", "C20.png", "C21.png", "C22.png", "C23.png", "C28.png", "C29.png", "C40.png", "S101.png", "S102.png", "S103.png", "S104.png", "S105.png", "S106.png", "S107.png", "S108.png", "S109.png", "S111.png", "S112.png", "S113.png", "S114.png", "S115.png", "S117.png", "S118.png", "S119.png", "S122.png", "S123.png", "S124.png", "S125.png", "S126.png", "S127.png", "S128.png", "S129.png", "S130.png", "S131.png", "S132.png", "S135.png", "S136.png", "S138.png", "S139.png", "S140.png", "S141.png", "S142.png", "S143.png", "S144.png", "S145.png", "S146.png", "S147.png", "S148.png", "S149.png", "S151.png", "S152.png", "S154.png", "S155.png", "S156.png", "S157.png", "S158.png", "S159.png", "S160.png", "S161.png", "S163.png", "S164.png", "S309.png"], "mid": ["A04.png", "A10.png", "B16.png", "B19.png", "C09.png", "C12.png", "C36.png", "C39.png", "S201.png", "S202.png", "S203.png", "S204.png", "S205.png", "S206.png", "S207.png", "S208.png", "S209.png", "S210.png", "S211.png", "S212.png", "S213.png", "S214.png", "S215.png", "S216.png", "S217.png", "S218.png", "S219.png", "S220.png", "S221.png", "S222.png", "S223.png", "S224.png", "S225.png", "S226.png", "S227.png", "S228.png", "S229.png", "S230.png", "S231.png", "S232.png", "S233.png", "S234.png", "S235.png", "S236.png", "S237.png", "S238.png", "S239.png", "S240.png", "S241.png", "S242.png", "S243.png", "S244.png", "S245.png", "S246.png", "S247.png", "S248.png", "S249.png", "S250.png", "S251.png", "S252.png", "S253.png", "S254.png", "S255.png", "S256.png", "S257.png", "S258.png", "S259.png", "S260.png", "S261.png", "S262.png", "S263.png", "S264.png"], "young": ["A05.png", "A06.png", "A07.png", "A08.png", "A11.png", "A12.png", "A13.png", "A14.png", "A15.png", "A16.png", "A17.png", "A18.png", "A19.png", "A20.png", "A21.png", "A22.png", "A23.png", "A24.png", "A25.png", "A26.png", "A27.png", "A28.png", "A29.png", "A30.png", "A31.png", "A32.png", "A33.png", "A34.png", "A35.png", "A36.png", "A37.png", "A38.png", "A39.png", "A40.png", "A41.png", "A42.png", "A43.png", "A44.png", "A45.png", "A46.png", "A47.png", "A48.png", "A49.png", "A50.png", "A51.png", "A52.png", "A53.png", "A54.png", "A55.png", "A56.png", "A57.png", "A58.png", "A59.png", "A60.png", "A61.png", "A62.png", "B01.png", "B02.png", "B03.png", "B04.png", "B05.png", "B06.png", "B07.png", "B09.png", "B10.png", "B11.png", "B12.png", "B13.png", "B14.png", "B15.png", "B17.png", "B18.png", "B20.png", "B21.png", "B22.png", "B23.png", "B24.png", "B25.png", "B27.png", "B29.png", "B30.png", "B31.png", "B32.png", "B33.png", "B34.png", "B35.png", "B37.png", "B38.png", "B39.png", "B41.png", "B42.png", "B43.png", "B44.png", "B45.png", "C01.png", "C02.png", "C03.png", "C04.png", "C05.png", "C07.png", "C08.png", "C13.png", "C17.png", "C18.png", "C19.png", "C24.png", "C25.png", "C26.png", "C27.png", "C30.png", "C31.png", "C33.png", "C34.png", "C35.png", "C37.png", "C38.png", "S301.png", "S302.png", "S303.png", "S304.png", "S305.png", "S306.png", "S307.png", "S308.png", "S310.png", "S311.png", "S312.png", "S314.png", "S315.png", "S316.png", "S317.png", "S318.png", "S319.png", "S320.png", "S321.png", "S323.png", "S324.png", "S325.png", "S327.png", "S328.png", "S330.png", "S331.png", "S332.png", "S334.png", "S335.png", "S337.png", "S338.png", "S339.png", "S340.png", "S342.png", "S343.png", "S344.png", "S345.png", "S346.png", "S347.png", "S349.png", "S350.png", "S351.png", "S352.png", "S353.png", "S354.png", "S355.png", "S356.png", "S357.png", "S358.png", "S359.png", "S360.png", "S361.png", "S362.png", "S363.png", "S364.png", "S365.png", "S366.png", "S367.png", "S368.png", "S369.png", "S370.png", "S371.png", "S372.png", "S373.png", "S374.png", "S375.png", "S376.png", "S377.png", "S378.png", "S379.png", "S380.png"]};
 /* Raven Bowl: a football mode inside Black Lion. Mounted into a root element; returns a cleanup. */
@@ -11167,7 +11167,7 @@ function rbMount(root, onExit, TEAMS) {
     if (!p.face) p.face = pickFace(group || (p.age >= 31 ? "older" : p.age >= 26 ? "mid" : "young"));
     return p.face;
   }
-  const faceHTML = (file, px) => `<img src="assets/faces/${file}" width="${px || 48}" height="${px || 48}" alt="" style="image-rendering:pixelated;vertical-align:middle;border:1px solid #333;border-radius:4px;background:#1c2a3a">`;
+  const faceHTML = (file, px) => `<img src="assets/faces/${file}" onerror="this.onerror=null;this.src='assets/${file}'" width="${px || 48}" height="${px || 48}" alt="" style="image-rendering:pixelated;vertical-align:middle;border:1px solid #333;border-radius:4px;background:#1c2a3a">`;
   function makePlayer(pos, base, age) {
     const a = {};
     ATTR_KEYS.forEach((k) => {
@@ -11541,7 +11541,7 @@ function rbMount(root, onExit, TEAMS) {
           q: 1, clock: QUARTER, hs: 0, as: 0, ball: 25, down: 1, togo: 10, over: false, half: false, drives: 0 };
     fans = [];
     for (let i = 0; i < 420; i++) fans.push({ x: Math.random(), y: Math.random(), side: i % 2, c: Math.random() });
-    P = null;
+    P = null; clockLeft = PLAY_CLOCK;
     $("log").innerHTML = "";
     say(`Kickoff. ${RH[0]} vs ${opp[0]}. Your ball at your 25.`);
     setCalls(true); update();
@@ -11607,9 +11607,38 @@ function rbMount(root, onExit, TEAMS) {
     const stop = ["slant", "hitch", "out", "curl"].includes(name);
     return { pts: R.map(([dx, dy]) => ({ x: sx + dx, y: clamp(sy + dy, 1, 52.3) })), stop };
   }
+  /* the play clock: ten seconds on each call. A (or Enter) hikes it sooner; at zero the ball is hiked anyway */
+  const PLAY_CLOCK = 10;
+  let clockLeft = PLAY_CLOCK, clockShown = -1;
+  const canCall = () => !!G && !P && !G.over && !G.half && $("over").style.display !== "flex";
+  const snapLabel = () => "Snap: " + PLAYS[PB_SEL].name + (canCall() ? "  ·  " + Math.ceil(clockLeft) + "s" : "");
+  function cyclePlay(dir) {
+    if (!canCall()) return;
+    const ids = Object.keys(PLAYS), i = ids.indexOf(PB_SEL);
+    selectPlay(ids[(i + dir + ids.length) % ids.length]);
+  }
+  /* a small picture of each play for its button: the receivers' routes, or the run */
+  function playPreview(id) {
+    const pb = PLAYS[id]; if (!pb) return "";
+    const X = (x) => (x + 6) * 2, Y = (y) => y / 52.3 * 44;     // yards from -6 to 34 across, the field's width down
+    let g = `<line x1="${X(0)}" y1="0" x2="${X(0)}" y2="44" stroke="#4da3ff" stroke-width="1.5"/>`;
+    if (pb.run) {
+      const ry = pb.rbY, pts = id === "ob" ? [[-6, ry], [2, ry], [12, 5]] : [[-6, ry], [12, ry]];
+      g += `<polyline fill="none" stroke="#e8c46a" stroke-width="2" points="${pts.map(([x, y]) => X(x) + "," + Y(y)).join(" ")}"/>`;
+      g += `<circle cx="${X(-6)}" cy="${Y(ry)}" r="2.5" fill="#f1ead8"/>`;
+    } else {
+      pb.routes.forEach((name, i) => {
+        const path = routePath(name, 0, LANES[i]);
+        const pts = [[0, LANES[i]], ...path.pts.map((q) => [q.x, q.y])];
+        g += `<polyline fill="none" stroke="#e8c46a" stroke-width="1.6" stroke-dasharray="2 2" points="${pts.map(([x, y]) => X(x) + "," + Y(y)).join(" ")}"/>`;
+        g += `<circle cx="${X(0)}" cy="${Y(LANES[i])}" r="2" fill="#f1ead8"/>`;
+      });
+    }
+    return `<svg viewBox="0 0 80 44" width="80" height="44" aria-hidden="true" style="display:block;margin:0 auto 4px;background:#1f4a2a;border-radius:3px">${g}</svg>`;
+  }
   function selectPlay(id) {
     if (!PLAYS[id]) return;
-    PB_SEL = id;
+    PB_SEL = id; clockLeft = PLAY_CLOCK;
     root.querySelectorAll("button[data-play]").forEach((b) => b.classList.toggle("on", b.dataset.play === id));
     if (!P) update();
   }
@@ -11632,12 +11661,54 @@ function rbMount(root, onExit, TEAMS) {
   }
   function hintPick() {
     const pb = PLAYS[PB_SEL];
-    return `${pb.name}: ${pb.desc}  ·  Snap (or Enter) to run it. Aim slows the game down so you can read the field.`;
+    return `${pb.name}: ${pb.desc}  ·  Snap, Enter or A to hike it. Pad: D-pad picks the play. You have ${PLAY_CLOCK} seconds on the play clock.`;
+  }
+
+  /* ---- trash talk: a short line in a bubble over a player, for a few seconds ---- */
+  const TALK = {
+    pre_off: ["Let's get it, boys.", "Nobody's touching me today.", "Watch this.", "Hey, big man, I'm open!"],
+    pre_def: ["Your QB's scared. I can smell it.", "Run it at me, I dare you.", "Ten yards and out, pal.", "Y'all ain't got nothing."],
+    snap_dl: ["I'm coming for you!", "Here I come, sweetheart!"],
+    block_off: ["Sit down, sweetheart.", "Not today, pal.", "Move along.", "Nice try."],
+    block_def: ["Get off me!", "You'll pay for that.", "Ow! Watch it!"],
+    td_off: ["Six! Who's got it now?", "Can't stop this, pal!", "Ravens on the board!"],
+    td_def: ["Lucky. That's all it was.", "Enjoy it, it's the last one.", "Ha! Next time."],
+    sack_def: ["Where you going, huh?", "Ain't nobody home!", "Sit down, QB."],
+    sack_qb: ["Ow! You big ox!"],
+    inc_wr: ["Throw it to me, rookie!", "Are you blind?!"],
+    int_db: ["Ball's mine, sweetheart.", "Thanks for the gift!"],
+    tackle_def: ["Go home, pal.", "Gotcha!", "Take a seat."],
+    big_def: ["Lucky shot.", "Ah, you got me that time."],
+  };
+  let BUBBLES = [], preTimer = 5;
+  /* a line over a player (live, or at a spot on the formation); side sets the bubble's edge */
+  function talk(who, text, at) {
+    const src = who || at; if (!src) return;
+    BUBBLES.push({ p: who || null, x: src.x, y: src.y, side: src.side || (who && who.side) || "h", text, t: 2.8 });
+    if (BUBBLES.length > 2) BUBBLES.shift();   // two lines at a time, so they do not sit on each other
+  }
+  function tickTalk(dt) { BUBBLES.forEach((b) => { b.t -= dt; }); BUBBLES = BUBBLES.filter((b) => b.t > 0); }
+  function preSnapTalk() {
+    const f = formationPreview(10 + G.ball), p = pick(f);
+    talk(null, pick(p.side === "h" ? TALK.pre_off : TALK.pre_def), { x: p.x, y: p.y, side: p.side });
+  }
+  /* the result of a play, from the players as they were when it ended */
+  function endTalk(last, text, how, yards) {
+    const defs = last.pl.filter((p) => p.side === "a");
+    const near = (list, at) => list.slice().sort((a, b) => Math.hypot(a.x - at.x, a.y - at.y) - Math.hypot(b.x - at.x, b.y - at.y))[0];
+    if (how === "td") { talk(last.carrier, pick(TALK.td_off)); talk(near(defs, last.carrier), pick(TALK.td_def)); return; }
+    if (how === "int") { talk(near(defs.filter((d) => d.role === "db"), last.qb) || near(defs, last.qb), pick(TALK.int_db)); return; }
+    if (text === "Sacked.") { talk(near(defs.filter((d) => d.role === "dl"), last.qb) || near(defs, last.qb), pick(TALK.sack_def)); talk(last.qb, pick(TALK.sack_qb)); return; }
+    if (text === "Incomplete.") { talk(last.wrs[0], pick(TALK.inc_wr)); return; }
+    const from = last.carrier || last.qb;
+    if (text === "Tackled.") talk(near(defs, from), pick(TALK.tackle_def));
+    else if (yards >= 15) talk(near(defs, from), pick(TALK.big_def));
   }
 
   /* ---- a live play ---- */
   function snap(id) {
     if (!G || G.over || G.half || P) return;
+    clockLeft = PLAY_CLOCK;
     if (id === "kick") return kick();
     const pb = PLAYS[id] || PLAYS[PB_SEL] || PLAYS.sl;
     const isRun = !!pb.run, deep = !!pb.deep;
@@ -11665,6 +11736,8 @@ function rbMount(root, onExit, TEAMS) {
     P = { kind, los, pl, t: 0, carrier: isRun ? rb : null, thrown: false, flight: null, done: false,
           qb, rb, wrs, ballX: 0, ballY: 0, ballZ: 0 };
     setCalls(false); $("hint").textContent = isRun ? HINT_RUN : HINT_PASS;
+    talk(qb, "Ready... set... HUT!");
+    if (Math.random() < 0.6) talk(pl.find((p) => p.role === "dl"), pick(TALK.snap_dl));
     say(`${pb.name}. ${isRun ? "Handoff to the back." : deep ? "Snap, drop back, deep routes." : "Snap, drop back, short routes."}`);
   }
   const canThrow = () => P && !P.thrown && !P.carrier && P.kind !== "run";
@@ -11738,13 +11811,14 @@ function rbMount(root, onExit, TEAMS) {
     const goal = P.carrier || (P.thrown && P.flight ? { x: P.flight.lx, y: P.flight.ly } : P.qb);
     P.pl.forEach((p) => {
       if (p.side !== "a") return;
-      p.stun = Math.max(0, p.stun - dt); p.cool = Math.max(0, (p.cool || 0) - dt);
+      p.stun = Math.max(0, p.stun - dt); p.cool = Math.max(0, (p.cool || 0) - dt); p.talkCD = Math.max(0, (p.talkCD || 0) - dt);
       if (p.stun > 0 || !goal) { p.vx *= 0.9; p.vy *= 0.9; return; }
       const dx = goal.x - p.x, dy = goal.y - p.y, d = Math.hypot(dx, dy) || 1;
       const sp = DEF_SPEED(p);
       p.vx = dx / d * sp; p.vy = dy / d * sp; p.ang = Math.atan2(p.vy, p.vx);
       // the OL in front of a rusher: the better the rusher against the blocker, the faster he gets through
       if (p.role === "dl" && p.blocker && Math.hypot(p.x - p.blocker.x, p.y - p.blocker.y) < 1.8) {
+        if (!p.talkCD) { p.talkCD = 4; talk(p.blocker, pick(TALK.block_off)); talk(p, pick(TALK.block_def)); }
         const f = clamp(0.5 + (attr(p, "rush") - attr(p.blocker, "blk")) / 100, 0.12, 1);
         p.vx *= f; p.vy *= f;
       }
@@ -11840,7 +11914,9 @@ function rbMount(root, onExit, TEAMS) {
     if (!P || P.done) return;
     P.done = true;
     const secs = how === "inc" ? 6 : rnd(14, 22);
+    const last = P;
     P = null; aim.on = false;
+    endTalk(last, text, how, yards);
     tick(secs);
     $("hint").textContent = "";
     if (how !== "inc") playSound(how, text); else whistle();
@@ -11878,7 +11954,7 @@ function rbMount(root, onExit, TEAMS) {
     $("score").innerHTML = `${lg(RH)}${RH[0]} <b style="margin:0 8px">${G.hs}</b> &middot; <b style="margin:0 8px">${G.as}</b> ${G.away[0]}${lg(G.away)}`;
     $("status").textContent = G.over ? "Final" : `${G.dyn ? DYN.label + "  ·  " : ""}Q${G.q}  ${left}:${sec}  ·  ${G.down} & ${G.togo}  ·  ${G.ball > 50 ? "opp " + (100 - G.ball) : "own " + G.ball}`;
     $("kickBtn").textContent = G.ball >= 60 ? "Kick (FG)" : "Punt";
-    if (!P) { setCalls(!G.over && !G.half && $("over").style.display !== "flex"); $("hint").textContent = hintPick(); $("snapBtn").textContent = "Snap: " + PLAYS[PB_SEL].name; }
+    if (!P) { setCalls(!G.over && !G.half && $("over").style.display !== "flex"); $("hint").textContent = hintPick(); $("snapBtn").textContent = snapLabel(); }
     draw();
   }
 
@@ -11892,7 +11968,11 @@ function rbMount(root, onExit, TEAMS) {
     const btn = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed);
     const A = btn(0), B = btn(1), X = btn(2), Y = btn(3);
     pad.rt = btn(7);
-    if (A && !pad.prevA) { if (P && canThrow()) { aim.on = true; aim.from = "hold"; aim.hold = 0; aim.power = 0; aim.dx = 0; aim.dy = 0; } }
+    const U = btn(12), D = btn(13), L = btn(14), R = btn(15);
+    if ((L && !pad.prevL) || (U && !pad.prevU)) cyclePlay(-1);
+    if ((R && !pad.prevR) || (D && !pad.prevD)) cyclePlay(1);
+    pad.prevL = L; pad.prevU = U; pad.prevR = R; pad.prevD = D;
+    if (A && !pad.prevA) { if (P && canThrow()) { aim.on = true; aim.from = "hold"; aim.hold = 0; aim.power = 0; aim.dx = 0; aim.dy = 0; } else if (canCall()) snap(PB_SEL); }
     if (!A && pad.prevA) release();
     if (B && !pad.prevB && P) stiffArm();
     if (X && !pad.prevX && P) juke();
@@ -11904,9 +11984,18 @@ function rbMount(root, onExit, TEAMS) {
   function frame(t) {
     if (!alive) return;
     const dt = Math.min(0.05, (t - lastT) / 1000 || 0.016); lastT = t;
+    tickTalk(dt);
     readPad();
     const slow = aim.on ? 0.3 : 1;     // aiming slows the play to about a third, so you can read it
     if (G && P && !G.over && !G.half) { updateLive(dt * slow); aimUpdate(dt); if (!P) update(); }
+    if (G && !P) {
+      if (canCall()) {
+        preTimer -= dt; if (preTimer <= 0) { preTimer = 4 + Math.random() * 4; preSnapTalk(); }
+        clockLeft -= dt;
+        if (clockLeft <= 0) snap(PB_SEL);
+        else if (Math.ceil(clockLeft) !== clockShown) { clockShown = Math.ceil(clockLeft); $("snapBtn").textContent = snapLabel(); }
+      } else clockLeft = PLAY_CLOCK;
+    }
     if (G) draw();
     requestAnimationFrame(frame);
   }
@@ -11915,13 +12004,7 @@ function rbMount(root, onExit, TEAMS) {
   const cv = $("c"), ctx = cv.getContext("2d");
   function draw() {
     if (!G) return;
-    ctx.fillStyle = "#1f4a2a"; ctx.fillRect(0, 0, cv.width, cv.height);
-    for (let i = 0; i < fans.length; i++) {
-      const f = fans[i], top = f.side === 0;
-      const x = 30 + f.x * 860, y = top ? 14 + f.y * 60 : 386 + f.y * 46;
-      ctx.fillStyle = f.c < 0.55 ? (top ? RH[1] : G.away[1]) : (top ? RH[2] : G.away[2]);
-      ctx.globalAlpha = 0.55; ctx.fillRect(x, y, 4, 4); ctx.globalAlpha = 1;
-    }
+    drawStadium();
     ctx.fillStyle = "#2f6b3a"; ctx.fillRect(60, FY0, 65, FY1 - FY0); ctx.fillRect(775, FY0, 65, FY1 - FY0);
     ctx.fillStyle = RH[1]; ctx.fillRect(60, FY0, 8, FY1 - FY0);
     ctx.fillStyle = G.away[1]; ctx.fillRect(832, FY0, 8, FY1 - FY0);
@@ -11949,7 +12032,69 @@ function rbMount(root, onExit, TEAMS) {
       [...P.pl].sort((a, b) => a.y - b.y).forEach((p) => drawPlayer(p, 1));
       if (P.thrown === false && P.kind !== "run" && P.qb) drawAim();
     }
+    drawTalk();
     drawBall();
+  }
+  /* the stadium: stands on every side with the crowd in them, light towers, a scoreboard, and the grass on the sidelines */
+  const STAND_TOP = FY0 - 14, STAND_BOT = FY1 + 14, SIDE_L = 52, SIDE_R = 868;
+  const GRASS_IMG = img("assets/tx_grass.webp");
+  let grassPat = null;
+  function drawStadium() {
+    const W = cv.width, H = cv.height;
+    ctx.fillStyle = "#0a0a10"; ctx.fillRect(0, 0, W, H);
+    // the stands: four tiers, in the team colours with dark concrete between
+    const tiers = (x, y, w, h, vertical, c1) => {
+      for (let i = 0; i < 4; i++) {
+        ctx.fillStyle = i % 2 ? "#23232c" : c1; ctx.globalAlpha = i % 2 ? 1 : 0.5;
+        if (vertical) ctx.fillRect(x, y + i * (h / 4), w, h / 4 - 2);
+        else ctx.fillRect(x + i * (w / 4), y, w / 4 - 2, h);
+      }
+      ctx.globalAlpha = 1;
+    };
+    tiers(0, 0, W, STAND_TOP, false, RH[1]);
+    tiers(0, STAND_BOT, W, H - STAND_BOT, false, G.away[1]);
+    tiers(0, 0, SIDE_L, H, true, RH[1]);
+    tiers(SIDE_R, 0, W - SIDE_R, H, true, G.away[1]);
+    // the crowd, packed into the stands
+    for (let i = 0; i < fans.length; i++) {
+      const f = fans[i], top = f.side === 0;
+      const x = f.x * W, y = top ? f.y * STAND_TOP : STAND_BOT + f.y * (H - STAND_BOT);
+      ctx.fillStyle = f.c < 0.55 ? (top ? RH[1] : G.away[1]) : (top ? RH[2] : G.away[2]);
+      ctx.globalAlpha = 0.6; ctx.fillRect(x, y, 4, 4); ctx.globalAlpha = 1;
+    }
+    // light towers in the four corners
+    [[14, 14], [W - 14, 14], [14, H - 14], [W - 14, H - 14]].forEach(([x, y]) => {
+      ctx.fillStyle = "#3a3a44"; ctx.fillRect(x - 2, y, 4, y < H / 2 ? 30 : -30);
+      ctx.fillStyle = "rgba(255,246,200,.85)"; ctx.fillRect(x - 9, y - 4, 18, 8);
+    });
+    // the scoreboard over the north stand
+    ctx.fillStyle = "#050508"; ctx.fillRect(W / 2 - 150, 6, 300, 46);
+    ctx.strokeStyle = "#e8c46a"; ctx.lineWidth = 1; ctx.strokeRect(W / 2 - 150, 6, 300, 46);
+    ctx.fillStyle = "#f1ead8"; ctx.textAlign = "center"; ctx.font = "700 14px system-ui";
+    ctx.fillText(`${RH[0]}  ${G.hs}  ·  ${G.as}  ${G.away[0]}`, W / 2, 26);
+    ctx.font = "11px system-ui"; ctx.fillStyle = "#9a9486";
+    ctx.fillText(`Q${G.q}  ${Math.floor(G.clock / 60)}:${String(Math.floor(G.clock % 60)).padStart(2, "0")}  ·  ${G.down} & ${G.togo}`, W / 2, 44);
+    ctx.textAlign = "left";
+    // the sidelines and the grass around the field, in the grass texture
+    if (!grassPat && ready(GRASS_IMG)) grassPat = ctx.createPattern(GRASS_IMG, "repeat");
+    ctx.fillStyle = grassPat || "#2a5e33";
+    ctx.fillRect(SIDE_L, STAND_TOP, SIDE_R - SIDE_L, STAND_BOT - STAND_TOP);
+  }
+  /* the trash talk: a bubble with a pointer, above the player (or the spot on the formation) */
+  function drawTalk() {
+    ctx.font = "600 12px system-ui";
+    BUBBLES.forEach((b) => {
+      const x = PX(b.p ? b.p.x : b.x), y = PY(b.p ? b.p.y : b.y) - 34;
+      const w = ctx.measureText(b.text).width + 14, h = 20;
+      const bx = clamp(x - w / 2, 4, cv.width - w - 4), by = y - h;
+      ctx.save(); ctx.globalAlpha = Math.min(1, b.t / 0.5);
+      ctx.fillStyle = "#f7f1e1"; ctx.strokeStyle = b.side === "a" ? "#b8343a" : "#e8c46a"; ctx.lineWidth = 2;
+      ctx.fillRect(bx, by, w, h); ctx.strokeRect(bx, by, w, h);
+      ctx.beginPath(); ctx.moveTo(x - 4, by + h); ctx.lineTo(x + 4, by + h); ctx.lineTo(x, by + h + 6); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#111"; ctx.textAlign = "center"; ctx.fillText(b.text, bx + w / 2, by + 14);
+      ctx.restore();
+    });
+    ctx.textAlign = "left";
   }
   /* aim line: the pull from the QB, the arc and the landing ring */
   function drawAim() {
@@ -12085,6 +12230,7 @@ function rbMount(root, onExit, TEAMS) {
     if (b.dataset.play) selectPlay(b.dataset.play);
   };
   root.addEventListener("click", onCall);
+  root.querySelectorAll("button[data-play]").forEach((b) => b.insertAdjacentHTML("afterbegin", playPreview(b.dataset.play)));
   selectPlay(PB_SEL);
 
   S.dbg = { G: () => G, finish: () => finish() };   // for the browser tests: ends the live game now
