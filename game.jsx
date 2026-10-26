@@ -11023,7 +11023,7 @@ function LoadingScreen({ mono }) {
 
 /* FOOTBALL MODE (layer 579): Raven Bowl, the mini football game, run in its own frame from the title screen. */
 const RB_TEAMS = [["Raven Hook Ravens", "#b8343a", "#111111", "#e8c46a"], ["Lakeshore Lancers", "#1f3a8a", "#c9ced6", "#ffffff"], ["Port Mercy Mariners", "#0f6b6b", "#e07b2a", "#111111"], ["Kestrel City Hawks", "#6a1e2e", "#e8c46a", "#9aa0a6"], ["Ironbridge Foundry", "#3a3f47", "#e0762a", "#f2f2f2"], ["Stockyard Bulls", "#7a2e1a", "#e8b84a", "#2d2d2d"], ["Harbor Heights Herons", "#2b5f8a", "#a8d8ea", "#f2f2f2"], ["Crown Falls Kings", "#4b1d6e", "#e8c46a", "#ffffff"], ["Mill River Millers", "#2f5d3a", "#d8c49a", "#5a3a1e"], ["Cinder Park Comets", "#c0392b", "#f39c12", "#222222"], ["Goldcoast Gulls", "#0b4f6c", "#f2c14e", "#ffffff"], ["Eastgate Engineers", "#334155", "#94a3b8", "#f59e0b"], ["Westfield Wolves", "#1c2526", "#b8c4c8", "#5a6b70"], ["Marrow Creek Marauders", "#5c1f1f", "#d9a441", "#1a1a1a"], ["Sable Point Sharks", "#0a2540", "#5eb8c4", "#c0c8d4"], ["Lantern Hill Lanterns", "#e26d1c", "#fff1c2", "#3a2a1a"], ["Tallow Bay Tugs", "#2e4a2e", "#c9b26b", "#f0ece0"], ["Grayhaven Granite", "#5b6670", "#e6e2d8", "#2a2f35"], ["Blackwater Bears", "#1a1a2e", "#b7a06a", "#ffffff"], ["Sunrise Valley Stars", "#ffb703", "#023047", "#fb8500"], ["Iron Gate Guards", "#7c0a02", "#cfd3d6", "#101010"], ["Rookery Falcons", "#3d2b56", "#f4a261", "#e9e4f0"], ["Redline Rockets", "#d62828", "#003049", "#fcbf49"], ["Salt Flat Scorpions", "#8a5a2b", "#f0d9a8", "#2b1d0e"], ["Fairmount Fire", "#9a031e", "#fb8b24", "#0f4c5c"], ["Drydock Dockers", "#14532d", "#facc15", "#ffffff"], ["Midway Mavericks", "#1d3557", "#e63946", "#f1faee"], ["Oakhollow Owls", "#4a4e69", "#c9ada7", "#22223b"], ["Copperhead Crew", "#b45309", "#78350f", "#fde68a"], ["Riverside Rangers", "#0e7490", "#a7f3d0", "#064e3b"], ["Southside Sentinels", "#312e81", "#a5b4fc", "#e0e7ff"], ["Northwood Nightjars", "#1e1b4b", "#7c3aed", "#ddd6fe"]];
-const RB_MARKUP = "<style>\n#rb{font:14px system-ui,sans-serif;color:#f1ead8;background:#0b0b10;padding:14px;user-select:none;box-sizing:border-box;min-height:100%}\n#rb #wrap{max-width:920px;margin:0 auto}\n#rb #wrap{position:relative;overflow:hidden}\n#rb #coach{position:absolute;right:10px;top:64px;width:210px;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:8px;font-size:12px;color:#f1ead8;transform:translateX(260px);transition:transform .35s ease;pointer-events:none;z-index:3;opacity:0}\n#rb #coach.show{opacity:1;transform:none}\n#rb #coach img{width:44px;height:44px;image-rendering:pixelated;border-radius:4px;background:#1c2a3a;float:left;margin-right:8px}\n#rb #intro{position:absolute;left:0;right:0;top:58px;margin:0 auto;width:min(540px,94%);background:#0f1320ee;border:2px solid #e8c46a;border-radius:10px;padding:12px;color:#f1ead8;font-size:13px;display:none;z-index:4;cursor:pointer}\n#rb #intro.on{display:block}\n#rb #rd{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none;width:min(680px,96%);background:#0f1320f2;border:2px solid #e8c46a;border-radius:10px;padding:10px;color:#f1ead8;text-align:center;z-index:5}\n#rb #rd.on{display:block}\n#rb #rdH{font:700 13px system-ui;letter-spacing:3px;color:#e8c46a;margin-bottom:6px}\n#rb #rdC{width:100%;height:auto;max-height:200px;display:block;background:#0b0e16;border-radius:6px}\n#rb #rdT{margin-top:8px;min-height:120px}\n#rb #rdHint{font-size:11px;color:#9a9486;margin-top:6px}\n#rb #scout{position:absolute;left:8px;top:64px;width:330px;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:6px;color:#f1ead8;font-size:11px;display:none;z-index:3}\n#rb #scout.show{display:block}\n#rb #scoutFaces{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px}\n#rb .sf{display:flex;flex-direction:column;align-items:center;text-align:center;font-size:10px;line-height:1.2;border:1px solid transparent;border-radius:4px;padding:2px}\n#rb .sf.hit{border-color:#ff6b6b;background:rgba(255,107,107,.15)}\n#rb #scoutC{width:100%;height:auto;display:block;border-radius:4px}\n#rb #scoutTxt{margin-top:6px;min-height:28px}\n#rb canvas{width:100%;height:auto;display:block;border:1px solid #222;background:#0d0d12;touch-action:none}\n#rb .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap}\n#rb .score{font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center}\n#rb .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}\n#rb .btns button{font-size:13px;padding:11px 4px}\n#rb .btns button[data-play]{display:flex;flex-direction:column;align-items:center;padding:6px 4px 8px}\n#rb .btns button.snap{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb button{background:#1d1d26;color:#f1ead8;border:1px solid #333;padding:12px 6px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit}\n#rb button:disabled{opacity:.3;cursor:default}\n#rb button.on{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb #hint{color:#9a9486;font-size:12px;margin-top:8px;line-height:1.6}\n#rb #log{background:#101018;border:1px solid #222;height:110px;overflow:auto;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55}\n#rb #over{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}\n#rb #over .card{background:#15151d;border:1px solid #333;padding:22px;max-width:660px;width:100%;text-align:center;max-height:92vh;overflow:auto}\n#rb #over h2{margin:0 0 8px;color:#e8c46a}\n/* landscape phones: the field on the left, the plays in a column on the right, so everything fits without scrolling */\n@media (orientation: landscape) and (max-height: 620px) {\n#rb{padding:8px}\n#rb #wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:10px;align-items:start}\n#rb .bar{grid-column:1 / -1;margin:0 0 6px}\n#rb #wrap > canvas{grid-column:1;grid-row:2}\n#rb .btns{grid-column:2;grid-row:2;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:0}\n#rb .btns button{font-size:12px;padding:6px 3px}\n#rb .btns button[data-play] svg{width:60px;height:33px}\n#rb #hint{grid-column:1 / -1;font-size:11px;margin-top:4px}\n#rb #log{grid-column:1 / -1;height:64px;font-size:12px;margin-top:4px}\n}\n</style>\n<div id=\"wrap\">\n  <div class=\"bar\"><div class=\"score\" id=\"score\"></div><div id=\"status\" style=\"color:#9a9486\"></div></div>\n  <canvas id=\"c\" width=\"920\" height=\"520\"></canvas>\n  <div class=\"btns\">\n    <button data-play=\"iz\" data-call=\"iz\">Inside Zone</button>\n    <button data-play=\"ob\" data-call=\"ob\">Outside Run</button>\n    <button data-play=\"sl\" data-call=\"sl\">Quick Slants</button>\n    <button data-play=\"hi\" data-call=\"hi\">Hitch &amp; Out</button>\n    <button data-play=\"cu\" data-call=\"cu\">Curls</button>\n    <button data-play=\"pc\" data-call=\"pc\">Post-Corner</button>\n    <button data-play=\"go\" data-call=\"go\">Go Routes</button>\n    <button data-play=\"qr\" data-call=\"qr\">QB Keeper</button>\n    <button data-play=\"pw\" data-call=\"pw\">Power</button>\n    <button data-play=\"cn\" data-call=\"cn\">Counter</button>\n    <button data-play=\"pa\" data-call=\"pa\">Play-Action Post</button>\n    <button id=\"burstBtn\" class=\"burst\" title=\"Hold to set up a move. Let go to burst (Z, or the left bumper)\">Burst (hold)</button>\n    <button data-call=\"snap\" id=\"snapBtn\" class=\"snap\">Snap</button>\n    <button data-call=\"kick\" id=\"kickBtn\">Kick</button>\n  </div>\n  <div id=\"hint\"></div>\n  <div id=\"coach\"></div>\n  <div id=\"intro\"></div>\n  <div id=\"rd\"><div id=\"rdH\"></div><canvas id=\"rdC\" width=\"640\" height=\"200\"></canvas><div id=\"rdT\"></div><div id=\"rdHint\"></div></div>\n<style>\n#rb #result{position:absolute;left:50%;top:36%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0;transition:opacity .25s;max-width:92%;z-index:5}\n#rb #result.show{opacity:1}\n#rb #resBig{font:900 46px Impact,'Arial Black',sans-serif;color:#e8c46a;letter-spacing:1px;text-shadow:0 3px 0 #000,0 0 14px rgba(0,0,0,.7);line-height:1}\n#rb #resPlay{font:700 18px system-ui;color:#f1ead8;text-shadow:0 2px 6px #000;margin-top:6px}\n#rb #resYd{font:700 15px system-ui;color:#e8c46a;text-shadow:0 2px 6px #000}\n#rb #resInj{font:700 15px system-ui;color:#ff6b6b;text-shadow:0 2px 6px #000}\n#rb #resSit{font:600 12px system-ui;color:#c9c2b0;margin-top:6px;text-shadow:0 2px 4px #000}\n</style>\n<style>\n#rb #over .room{position:absolute;inset:0;display:none;background:linear-gradient(rgba(10,10,16,.7),rgba(10,10,16,.92)),var(--room,none) center/cover no-repeat,#15151d}\n#rb #over .room.on{display:block}\n#rb #over .room.fade{animation:roomIn .8s ease}\n@keyframes roomIn{from{opacity:.15}to{opacity:1}}\n#rb #over .card{position:relative;z-index:1;background:rgba(21,21,29,.86)}\n#rb button.focus{outline:2px solid #e8c46a;outline-offset:2px}\n#rb #overc.textmenu button{display:block;margin:6px auto;width:100%;background:transparent;border:none;color:#f1ead8;font-size:20px;letter-spacing:2px;text-shadow:0 2px 6px #000;padding:8px}\n#rb #overc.textmenu button.on{color:#e8c46a;background:transparent}\n#rb .roomName{color:#9a9486;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}\n</style>\n<style>\n#rb #kickG{position:absolute;left:50%;bottom:12%;transform:translateX(-50%);display:none;background:rgba(10,10,16,.9);border:1px solid #e8c46a;border-radius:6px;padding:6px;z-index:6;text-align:center;pointer-events:none}\n#rb #kickG.show{display:block}\n#rb #kickT{font:700 12px system-ui;color:#e8c46a;margin-bottom:4px}\n#rb .flagCard{background:linear-gradient(#d12a2a,#7a0c0c);border:2px solid #ffd6d6;border-radius:10px;padding:14px 18px;color:#fff;text-align:center;max-width:360px;margin:0 auto}\n#rb .flagTop{font:900 36px system-ui;letter-spacing:6px}\n#rb .flagBub{background:#fff;color:#111;border-radius:12px;padding:8px 12px;margin:10px auto;font-size:14px;max-width:300px}\n</style>\n  <div id=\"kickG\"><div id=\"kickT\"></div><canvas id=\"kickC\" width=\"300\" height=\"170\"></canvas></div>\n  <div id=\"result\"><div id=\"resBig\"></div><div id=\"resPlay\"></div><div id=\"resYd\"></div><div id=\"resInj\"></div><div id=\"resSit\"></div></div>\n  <div id=\"scout\"><div id=\"scoutFaces\"></div><canvas id=\"scoutC\" width=\"314\" height=\"110\"></canvas><div id=\"scoutTxt\"></div></div>\n  <div id=\"log\"></div>\n</div>\n<div id=\"over\"><div class=\"room\"></div><div class=\"card\" id=\"overc\"></div></div>\n";
+const RB_MARKUP = "<style>\n#rb{font:14px system-ui,sans-serif;color:#f1ead8;background:#0b0b10;padding:14px;user-select:none;box-sizing:border-box;min-height:100%}\n#rb #wrap{max-width:920px;margin:0 auto}\n#rb #wrap{position:relative;overflow:hidden}\n#rb #coach{position:absolute;right:10px;top:64px;width:210px;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:8px;font-size:12px;color:#f1ead8;transform:translateX(260px);transition:transform .35s ease;pointer-events:none;z-index:3;opacity:0}\n#rb #coach.show{opacity:1;transform:none}\n#rb #coach img{width:44px;height:44px;image-rendering:pixelated;border-radius:4px;background:#1c2a3a;float:left;margin-right:8px}\n#rb #intro{position:absolute;left:0;right:0;top:58px;margin:0 auto;width:min(540px,94%);background:#0f1320ee;border:2px solid #e8c46a;border-radius:10px;padding:12px;color:#f1ead8;font-size:13px;display:none;z-index:4;cursor:pointer}\n#rb #intro.on{display:block}\n#rb #rd{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none;width:min(680px,96%);background:#0f1320f2;border:2px solid #e8c46a;border-radius:10px;padding:10px;color:#f1ead8;text-align:center;z-index:5}\n#rb #rd.on{display:block}\n#rb #rdH{font:700 13px system-ui;letter-spacing:3px;color:#e8c46a;margin-bottom:6px}\n#rb #rdC{width:100%;height:auto;max-height:200px;display:block;background:#0b0e16;border-radius:6px}\n#rb #rdT{margin-top:8px;min-height:120px}\n#rb #rdHint{font-size:11px;color:#9a9486;margin-top:6px}\n#rb #scout{position:absolute;left:8px;top:64px;width:330px;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:6px;color:#f1ead8;font-size:11px;display:none;z-index:3}\n#rb #scout.show{display:block}\n#rb #scoutFaces{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px}\n#rb .sf{display:flex;flex-direction:column;align-items:center;text-align:center;font-size:10px;line-height:1.2;border:1px solid transparent;border-radius:4px;padding:2px}\n#rb .sf.hit{border-color:#ff6b6b;background:rgba(255,107,107,.15)}\n#rb #scoutC{width:100%;height:auto;display:block;border-radius:4px}\n#rb #scoutTxt{margin-top:6px;min-height:28px}\n#rb canvas{width:100%;height:auto;display:block;border:1px solid #222;background:#0d0d12;touch-action:none}\n#rb .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap}\n#rb .score{font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center}\n#rb .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}\n#rb .btns button{font-size:13px;padding:11px 4px}\n#rb .btns button[data-play]{display:flex;flex-direction:column;align-items:center;padding:6px 4px 8px}\n#rb .btns button.snap{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb button{background:#1d1d26;color:#f1ead8;border:1px solid #333;padding:12px 6px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit}\n#rb button:disabled{opacity:.3;cursor:default}\n#rb button.on{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb #hint{color:#9a9486;font-size:12px;margin-top:8px;line-height:1.6}\n#rb #log{background:#101018;border:1px solid #222;height:110px;overflow:auto;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55}\n#rb #masc{position:absolute;bottom:14%;width:150px;z-index:4;pointer-events:none;transition:transform .45s ease-out}\n#rb #masc.left{left:0;transform:translateX(-170px)}\n#rb #masc.right{right:0;transform:translateX(170px)}\n#rb #masc.show{transform:translateX(0)}\n#rb #masc img{width:130px;display:block;margin:0 auto}\n#rb #mascTxt{background:#f1ead8;color:#111;border-radius:10px;padding:6px 8px;font:700 12px system-ui;margin-bottom:6px;max-width:170px;text-align:center}\n#rb #over{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}\n#rb #over .card{background:#15151d;border:1px solid #333;padding:22px;max-width:660px;width:100%;text-align:center;max-height:92vh;overflow:auto}\n#rb #over h2{margin:0 0 8px;color:#e8c46a}\n/* landscape phones: the field on the left, the plays in a column on the right, so everything fits without scrolling */\n@media (orientation: landscape) and (max-height: 620px) {\n#rb{padding:8px}\n#rb #wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:10px;align-items:start}\n#rb .bar{grid-column:1 / -1;margin:0 0 6px}\n#rb #wrap > canvas{grid-column:1;grid-row:2}\n#rb .btns{grid-column:2;grid-row:2;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:0}\n#rb .btns button{font-size:12px;padding:6px 3px}\n#rb .btns button[data-play] svg{width:60px;height:33px}\n#rb #hint{grid-column:1 / -1;font-size:11px;margin-top:4px}\n#rb #log{grid-column:1 / -1;height:64px;font-size:12px;margin-top:4px}\n}\n</style>\n<div id=\"wrap\">\n  <div class=\"bar\"><div class=\"score\" id=\"score\"></div><div id=\"status\" style=\"color:#9a9486\"></div></div>\n  <canvas id=\"c\" width=\"920\" height=\"520\"></canvas>\n  <div class=\"btns\">\n    <button data-play=\"iz\" data-call=\"iz\">Inside Zone</button>\n    <button data-play=\"ob\" data-call=\"ob\">Outside Run</button>\n    <button data-play=\"sl\" data-call=\"sl\">Quick Slants</button>\n    <button data-play=\"hi\" data-call=\"hi\">Hitch &amp; Out</button>\n    <button data-play=\"cu\" data-call=\"cu\">Curls</button>\n    <button data-play=\"pc\" data-call=\"pc\">Post-Corner</button>\n    <button data-play=\"go\" data-call=\"go\">Go Routes</button>\n    <button data-play=\"qr\" data-call=\"qr\">QB Keeper</button>\n    <button data-play=\"pw\" data-call=\"pw\">Power</button>\n    <button data-play=\"cn\" data-call=\"cn\">Counter</button>\n    <button data-play=\"pa\" data-call=\"pa\">Play-Action Post</button>\n    <button id=\"burstBtn\" class=\"burst\" title=\"Hold to set up a move. Let go to burst (Z, or the left bumper)\">Burst (hold)</button>\n    <button data-call=\"snap\" id=\"snapBtn\" class=\"snap\">Snap</button>\n    <button data-call=\"kick\" id=\"kickBtn\">Kick</button>\n  </div>\n  <div id=\"hint\"></div>\n  <div id=\"coach\"></div>\n  <div id=\"intro\"></div>\n  <div id=\"rd\"><div id=\"rdH\"></div><canvas id=\"rdC\" width=\"640\" height=\"200\"></canvas><div id=\"rdT\"></div><div id=\"rdHint\"></div></div>\n<style>\n#rb #result{position:absolute;left:50%;top:36%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0;transition:opacity .25s;max-width:92%;z-index:5}\n#rb #result.show{opacity:1}\n#rb #resBig{font:900 46px Impact,'Arial Black',sans-serif;color:#e8c46a;letter-spacing:1px;text-shadow:0 3px 0 #000,0 0 14px rgba(0,0,0,.7);line-height:1}\n#rb #resPlay{font:700 18px system-ui;color:#f1ead8;text-shadow:0 2px 6px #000;margin-top:6px}\n#rb #resYd{font:700 15px system-ui;color:#e8c46a;text-shadow:0 2px 6px #000}\n#rb #resInj{font:700 15px system-ui;color:#ff6b6b;text-shadow:0 2px 6px #000}\n#rb #resSit{font:600 12px system-ui;color:#c9c2b0;margin-top:6px;text-shadow:0 2px 4px #000}\n</style>\n<style>\n#rb #over .room{position:absolute;inset:0;display:none;background:linear-gradient(rgba(10,10,16,.7),rgba(10,10,16,.92)),var(--room,none) center/cover no-repeat,#15151d}\n#rb #over .room.on{display:block}\n#rb #over .room.fade{animation:roomIn .8s ease}\n@keyframes roomIn{from{opacity:.15}to{opacity:1}}\n#rb #over .card{position:relative;z-index:1;background:rgba(21,21,29,.86)}\n#rb button.focus{outline:2px solid #e8c46a;outline-offset:2px}\n#rb #overc.textmenu button{display:block;margin:6px auto;width:100%;background:transparent;border:none;color:#f1ead8;font-size:20px;letter-spacing:2px;text-shadow:0 2px 6px #000;padding:8px}\n#rb #overc.textmenu button.on{color:#e8c46a;background:transparent}\n#rb .roomName{color:#9a9486;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}\n</style>\n<style>\n#rb #kickG{position:absolute;left:50%;bottom:12%;transform:translateX(-50%);display:none;background:rgba(10,10,16,.9);border:1px solid #e8c46a;border-radius:6px;padding:6px;z-index:6;text-align:center;pointer-events:none}\n#rb #kickG.show{display:block}\n#rb #kickT{font:700 12px system-ui;color:#e8c46a;margin-bottom:4px}\n#rb .flagCard{background:linear-gradient(#d12a2a,#7a0c0c);border:2px solid #ffd6d6;border-radius:10px;padding:14px 18px;color:#fff;text-align:center;max-width:360px;margin:0 auto}\n#rb .flagTop{font:900 36px system-ui;letter-spacing:6px}\n#rb .flagBub{background:#fff;color:#111;border-radius:12px;padding:8px 12px;margin:10px auto;font-size:14px;max-width:300px}\n</style>\n  <div id=\"kickG\"><div id=\"kickT\"></div><canvas id=\"kickC\" width=\"300\" height=\"170\"></canvas></div>\n  <div id=\"result\"><div id=\"resBig\"></div><div id=\"resPlay\"></div><div id=\"resYd\"></div><div id=\"resInj\"></div><div id=\"resSit\"></div></div>\n  <div id=\"scout\"><div id=\"scoutFaces\"></div><canvas id=\"scoutC\" width=\"314\" height=\"110\"></canvas><div id=\"scoutTxt\"></div></div>\n  <div id=\"log\"></div>\n</div>\n<div id=\"masc\"><div id=\"mascTxt\"></div><img id=\"mascImg\" onerror=\"this.style.display='none'\"></div>\n<div id=\"over\"><div class=\"room\"></div><div class=\"card\" id=\"overc\"></div></div>\n";
 /* face pool (generated from assets/faces/manifest.json): files in assets/faces/ */
 const RB_FACES = {"older": ["A01.png", "A03.png", "A09.png", "A63.png", "A64.png", "B28.png", "C10.png", "C11.png", "C14.png", "C15.png", "C16.png", "C20.png", "C21.png", "C22.png", "C23.png", "C28.png", "C29.png", "C40.png", "S101.png", "S102.png", "S103.png", "S104.png", "S105.png", "S106.png", "S107.png", "S108.png", "S109.png", "S111.png", "S112.png", "S113.png", "S114.png", "S115.png", "S117.png", "S118.png", "S119.png", "S122.png", "S123.png", "S124.png", "S125.png", "S126.png", "S127.png", "S128.png", "S129.png", "S130.png", "S131.png", "S132.png", "S135.png", "S136.png", "S138.png", "S139.png", "S140.png", "S141.png", "S142.png", "S143.png", "S144.png", "S145.png", "S146.png", "S147.png", "S148.png", "S149.png", "S151.png", "S152.png", "S154.png", "S155.png", "S156.png", "S157.png", "S158.png", "S159.png", "S160.png", "S161.png", "S163.png", "S164.png", "S309.png"], "mid": ["A04.png", "A10.png", "B16.png", "B19.png", "C09.png", "C12.png", "C36.png", "C39.png", "S201.png", "S202.png", "S203.png", "S204.png", "S205.png", "S206.png", "S207.png", "S208.png", "S209.png", "S210.png", "S211.png", "S212.png", "S213.png", "S214.png", "S215.png", "S216.png", "S217.png", "S218.png", "S219.png", "S220.png", "S221.png", "S222.png", "S223.png", "S224.png", "S225.png", "S226.png", "S227.png", "S228.png", "S229.png", "S230.png", "S231.png", "S232.png", "S233.png", "S234.png", "S235.png", "S236.png", "S237.png", "S238.png", "S239.png", "S240.png", "S241.png", "S242.png", "S243.png", "S244.png", "S245.png", "S246.png", "S247.png", "S248.png", "S249.png", "S250.png", "S251.png", "S252.png", "S253.png", "S254.png", "S255.png", "S256.png", "S257.png", "S258.png", "S259.png", "S260.png", "S261.png", "S262.png", "S263.png", "S264.png"], "young": ["A05.png", "A06.png", "A07.png", "A08.png", "A11.png", "A12.png", "A13.png", "A14.png", "A15.png", "A16.png", "A17.png", "A18.png", "A19.png", "A20.png", "A21.png", "A22.png", "A23.png", "A24.png", "A25.png", "A26.png", "A27.png", "A28.png", "A29.png", "A30.png", "A31.png", "A32.png", "A33.png", "A34.png", "A35.png", "A36.png", "A37.png", "A38.png", "A39.png", "A40.png", "A41.png", "A42.png", "A43.png", "A44.png", "A45.png", "A46.png", "A47.png", "A48.png", "A49.png", "A50.png", "A51.png", "A52.png", "A53.png", "A54.png", "A55.png", "A56.png", "A57.png", "A58.png", "A59.png", "A60.png", "A61.png", "A62.png", "B01.png", "B02.png", "B03.png", "B04.png", "B05.png", "B06.png", "B07.png", "B09.png", "B10.png", "B11.png", "B12.png", "B13.png", "B14.png", "B15.png", "B17.png", "B18.png", "B20.png", "B21.png", "B22.png", "B23.png", "B24.png", "B25.png", "B27.png", "B29.png", "B30.png", "B31.png", "B32.png", "B33.png", "B34.png", "B35.png", "B37.png", "B38.png", "B39.png", "B41.png", "B42.png", "B43.png", "B44.png", "B45.png", "C01.png", "C02.png", "C03.png", "C04.png", "C05.png", "C07.png", "C08.png", "C13.png", "C17.png", "C18.png", "C19.png", "C24.png", "C25.png", "C26.png", "C27.png", "C30.png", "C31.png", "C33.png", "C34.png", "C35.png", "C37.png", "C38.png", "S301.png", "S302.png", "S303.png", "S304.png", "S305.png", "S306.png", "S307.png", "S308.png", "S310.png", "S311.png", "S312.png", "S314.png", "S315.png", "S316.png", "S317.png", "S318.png", "S319.png", "S320.png", "S321.png", "S323.png", "S324.png", "S325.png", "S327.png", "S328.png", "S330.png", "S331.png", "S332.png", "S334.png", "S335.png", "S337.png", "S338.png", "S339.png", "S340.png", "S342.png", "S343.png", "S344.png", "S345.png", "S346.png", "S347.png", "S349.png", "S350.png", "S351.png", "S352.png", "S353.png", "S354.png", "S355.png", "S356.png", "S357.png", "S358.png", "S359.png", "S360.png", "S361.png", "S362.png", "S363.png", "S364.png", "S365.png", "S366.png", "S367.png", "S368.png", "S369.png", "S370.png", "S371.png", "S372.png", "S373.png", "S374.png", "S375.png", "S376.png", "S377.png", "S378.png", "S379.png", "S380.png"]};
 /* Raven Bowl: a football mode inside Black Lion. Mounted into a root element; returns a cleanup. */
@@ -11783,7 +11783,7 @@ function rbMount(root, onExit, TEAMS) {
   }
   /* the other side's drive: resolved in one step so the game stays quick */
   /* the opponent's drive: a short series of plays, each one shown on the scout card with our defenders' faces, then the result */
-  function cpuDrive() {
+  function cpuDrive(start = 25) {
     G.two = false;
     G.drives++;
     const r = Math.random();
@@ -11791,8 +11791,8 @@ function rbMount(root, onExit, TEAMS) {
     const outcome = r < td ? "td" : r < 0.45 ? "fg" : "punt";
     tick(rnd(60, 90));
     if (G.over || G.half) return;
-    G.ball = 25; G.down = 1; G.togo = 10;
-    G.cpu = { outcome, plays: cpuSeries(outcome), i: 0, t: 0 };
+    G.ball = start; G.down = 1; G.togo = 10;
+    G.cpu = { outcome, plays: cpuSeries(outcome, start), i: 0, t: 0 };
     showCpuPlay();
   }
   /* A (or Enter) skips the talk: the opponent's plays, or the run-out */
@@ -11822,12 +11822,58 @@ function rbMount(root, onExit, TEAMS) {
   }
   function finishCpu() {
     const o = G.cpu.outcome; G.cpu = null;
-    if (o === "td") { G.as += 7; clip("boo"); say(`${G.away[0]} score a touchdown. ${G.hs}-${G.as}.`); }
+    if (o === "td") { G.as += 7; clip("boo"); popMascot(G.away, RH); say(`${G.away[0]} score a touchdown. ${G.hs}-${G.as}.`); }
     else if (o === "fg") { G.as += 3; say(`${G.away[0]} kick a field goal. ${G.hs}-${G.as}.`); }
     if (o !== "punt") { $("scout").classList.remove("show"); return kickoffReturn(); }
     else say(`${G.away[0]} punt. You take over.`);
     $("scout").classList.remove("show");
     update();
+  }
+  /* our kickoff: the same meter as the field goal, from our 35. Their return starts where the ball comes down. */
+  /* the mascot pop-out: the team's mascot slides in from its side of the screen and talks trash at the other team */
+  const TALK_TRASH = ["Sit down, {o}!", "That's all you got?", "Scoreboard, {o}!", "Cold out there for you, {o}.", "We don't lose at home!", "Somebody call a doctor for {o}!", "Nice try, {o}. Nice try."];
+  let mascT = 0;
+  function popMascot(team, opp) {
+    const el = $("masc"); if (!el || !team) return;
+    const idx = TEAMS.indexOf(team) + 1;
+    $("mascImg").src = `assets/mascots/mascot_${String(idx).padStart(2, "0")}.png`;
+    $("mascTxt").textContent = pick(TALK_TRASH).replace("{o}", opp[0]);
+    el.className = team === RH ? "left" : "right"; void el.offsetWidth; el.classList.add("show");
+    clearTimeout(mascT); mascT = setTimeout(() => el.classList.remove("show"), 2600);
+  }
+  function ourKickoff() {
+    G.ball = 35; G.down = 1; G.togo = 10;
+    say("Kickoff. Your kick.");
+    kickGame("ko", 65, (r) => {
+      const start = clamp(100 - (r.land - EZ) + Math.round(rnd(-2, 8)), 5, 60);
+      say(`${G.away[0]} take it at their ${start}.`);
+      cpuDrive(start); update();
+    });
+  }
+  /* the kick return, played live: the returner, our blockers in front of him, and their kick team running at him */
+  function startKickReturn(ret) {
+    const startYd = 3, los = EZ + startYd;
+    const mk = (role, x, y, side, pa) => ({ role, x, y, vx: 0, vy: 0, side, anim: rnd(0, 6), stun: 0, juke: 0, cool: 0, ang: side === "h" ? 0 : Math.PI, pa, mods: side === "h" ? offMods() : {} });
+    const O = starters(RH), D = starters(G.away);
+    const returner = mk("rb", los, 26.7, "h", ret);
+    const blockers = [...(O.WR || []), ...(O.TE || []), ...(O.RB || []), ...(O.CB || [])].filter((p) => p !== ret).slice(0, 4).map((p, i) => mk("ol", los + 5 + i * 3, 10 + i * 11, "h", p));
+    const kick = [...(D.DL || []), ...(D.LB || []), ...(D.CB || []), ...(D.S || [])].slice(0, 6);
+    const cov = kick.map((p, i) => mk("db", los + 9 + (i % 3) * 3, 5 + i * 9, "a", p));
+    blockers.forEach((b, i) => { b.target = cov[i % Math.max(1, cov.length)]; });
+    const pl = [returner, ...blockers, ...cov];
+    pl.forEach((p) => { p.bodyN = (Math.random() * 12) | 0; p.helmN = (Math.random() * 8) | 0; p.skin = pick(SKINS); });
+    P = { kind: "run", kr: true, ret, startYd, los, pl, t: 0, keeper: false, carrier: returner, thrown: false, flight: null, done: false, qb: returner, rb: returner, wrs: [], ballX: 0, ballY: 0, ballZ: 0 };
+    setCalls(false); $("hint").textContent = HINT_RUN;
+    say(`${ret.name} catches it at the ${startYd}. Run it!`);
+  }
+  /* the end of a kick return: a touchdown goes to the point after, a fumble goes to them, otherwise it is our ball where he stops */
+  function finishKickReturn(last, yards, text, how) {
+    const ret = last.ret, endYd = clamp(last.startYd + yards, 0, 100);
+    if (how === "td" || endYd >= 100) { G.hs += 6; clip("cheer"); say(`${ret.name} takes it back for a touchdown! ${G.hs}-${G.as}.`); tick(5); return askPat(); }
+    if (how === "fum") { say(`${text} They recover it at the ${100 - endYd}.`); cpuDrive(100 - endYd); return update(); }
+    G.ball = endYd; G.down = 1; G.togo = 10;
+    say(`${ret.name} runs it to the ${endYd <= 50 ? endYd : 100 - endYd}.`);
+    return update();
   }
   /* our kickoff return, after the opponent scores: the fastest starter takes it, or we take the touchback */
   function kickoffReturn() {
@@ -11840,11 +11886,11 @@ function rbMount(root, onExit, TEAMS) {
       <button class="on" id="kr1">Return it</button> <button id="kr2" style="margin-top:8px">Touchback (the 25)</button>`;
     $("over").style.display = "flex";
     const finish = (yds, msg) => { $("over").style.display = "none"; G.ball = clamp(yds, 1, 60); G.down = 1; G.togo = 10; say(msg); update(); };
-    $("kr1").onclick = () => { const yds = clamp(Math.round(rnd(16, 34) + (ra(ret, "spd") - 70) / 3), 5, 60); finish(yds, `${ret.name} returns it to the ${yds <= 50 ? yds : 100 - yds}.`); };
+    $("kr1").onclick = () => { $("over").style.display = "none"; startKickReturn(ret); };
     $("kr2").onclick = () => finish(25, "Touchback. Your ball at the 25.");
   }
   /* the plays of the series. Yards are measured from our goal line, the way the ball is. */
-  function cpuSeries(outcome) {
+  function cpuSeries(outcome, start = 25) {
     const O = starters(G.away), D = starters(RH);
     const mean = (arr, k) => avg((arr || []).map((p) => ra(p, k)));
     const rush = mean(D.DL, "rush"), block = mean(O.OL, "blk");
@@ -11852,7 +11898,7 @@ function rbMount(root, onExit, TEAMS) {
     const backs = [...(D.LB || []), ...(D.S || []), ...(D.CB || [])], line = D.DL || [];
     const nm = (p, fb) => (p ? p.name : fb);
     const plays = [];
-    let pos = 25;
+    let pos = start;
     const n = 5 + ((Math.random() * 4) | 0);
     for (let i = 0; i < n - 1; i++) {
       const pass = Math.random() < 0.55, lane = 14 + Math.random() * 26;
@@ -12267,13 +12313,15 @@ function rbMount(root, onExit, TEAMS) {
       P.ballZ = Math.sin(k * Math.PI) * 7;
       if (k >= 1) {
         P.flight = null; P.ballZ = 0;
-        const cover = P.pl.filter((p) => p.side === "a" && p.role === "db" && Math.hypot(p.x - f.lx, p.y - f.ly) < 2.5);
+        /* the defenders who contest the ball: the closer the defender, the more his coverage counts */
+        const contest = P.pl.filter((p) => p.side === "a" && p.role === "db").map((p) => ({ p, c: 1 - Math.hypot(p.x - f.lx, p.y - f.ly) / 3.5 })).filter((o) => o.c > 0);
+        const covScore = contest.reduce((m, o) => Math.max(m, (attr(o.p, "cov") - 60) * o.c), 0);
+        const cover = contest.filter((o) => o.c > 0.35).map((o) => o.p);
         const catchers = P.wrs.filter((w) => Math.hypot(w.x - f.lx, w.y - f.ly) < CATCH_R(w));
         const best = catchers.length ? catchers.slice().sort((a, b) => Math.hypot(a.x - f.lx, a.y - f.ly) - Math.hypot(b.x - f.lx, b.y - f.ly))[0] : null;
         const dist = best ? Math.hypot(best.x - f.lx, best.y - f.ly) : 99;
-        const covBest = cover.reduce((m, p) => Math.max(m, attr(p, "cov")), 0);
-        const pCatch = best ? clamp(0.65 + (attr(best, "hands") - 70) / 150 - dist * 0.1 - (cover.length ? (covBest - 60) / 150 : 0), 0.05, 0.95) : 0;
-        if (cover.length && Math.random() < 0.08 + (covBest - 60) / 500) { P.hitter = cover[0]; endPlay(0, "Intercepted!", "int"); return; }
+        const pCatch = best ? clamp(0.65 + (attr(best, "hands") - 70) / 150 - dist * 0.1 - covScore / 120, 0.05, 0.95) : 0;
+        if (cover.length && Math.random() < 0.06 + Math.max(0, covScore) / 250) { P.hitter = cover[0]; endPlay(0, "Intercepted!", "int"); return; }
         if (catchers.length && Math.random() < pCatch) {
           P.carrier = catchers.sort((a, b) => dangerAt(b) - dangerAt(a))[0]; say("Caught!");
           $("hint").textContent = HINT_RUN;
@@ -12430,6 +12478,8 @@ function rbMount(root, onExit, TEAMS) {
     tick(secs);
     $("hint").textContent = "";
     if (how !== "inc") playSound(how, text); else whistle();
+    if (how === "td" || (how === "ok" && yards >= 25 && !last.kr)) popMascot(RH, G.away);
+    if (last.kr) return finishKickReturn(last, yards, text, how);
     if (G.two && how !== "td") { G.two = false; say("The two-point try fails."); clip("boo"); cpuDrive(); return update(); }
     if (how === "int" || how === "fum") { say(text); G.ball = 100 - G.ball; cpuDrive(); return update(); }
     if (how === "inc") { say(text); G.down++; if (G.down > 4) { say("Turnover on downs."); clip("boo"); G.ball = 100 - G.ball; cpuDrive(); return update(); } say(`Down ${G.down}, ${G.togo} to go.`); return update(); }
@@ -12441,7 +12491,7 @@ function rbMount(root, onExit, TEAMS) {
   function moveBall(y, text) {
     G.ball += y;
     if (G.ball >= 100) {
-      if (G.two) { G.two = false; G.hs += 2; say(`${text} Two points! ${G.hs}-${G.as}.`); tick(5); say("Kickoff. They take over."); cpuDrive(); return update(); }
+      if (G.two) { G.two = false; G.hs += 2; say(`${text} Two points! ${G.hs}-${G.as}.`); tick(5); return ourKickoff(); }
       G.hs += 6; say(`${text} Touchdown! ${G.hs}-${G.as}.`); tick(5); return askPat();
     }
     if (G.ball <= 0) { G.ball = 20; say(`${text} Safety. ${G.hs}-${G.as}.`); }
@@ -12768,9 +12818,11 @@ function rbMount(root, onExit, TEAMS) {
     const from = EZ + K.from;
     /* the uprights stand on the back line of the end zone (about yard 129), spread about three yards either side of the middle */
     const POSTS = EZ + PLAY + EZ - 1;
-    const landX = K.kind === "punt" ? from + (r.dist || 40) : r.why === "short" ? from + K.dist * 0.72 : POSTS;
+    /* a kickoff comes down deep in their territory; a short one falls well short of the twenty */
+    const landX = K.kind === "punt" ? from + (r.dist || 40) : K.kind === "ko" ? (r.why === "short" ? from + K.dist * 0.7 : EZ + 66) : r.why === "short" ? from + K.dist * 0.72 : POSTS;
+    r.land = landX;
     const side = r.made ? 0 : r.why === "wide left" ? -7 : r.why === "wide right" ? 7 : 0;
-    KFX = { t: 0, dur: 1.7, from, to: landX, side, kind: K.kind, text: K.kind === "punt" ? `${r.dist} yards` : r.made ? "GOOD" : "NO GOOD", cb: () => done(r) };
+    KFX = { t: 0, dur: 1.7, from, to: landX, side, kind: K.kind, text: K.kind === "ko" ? "KICKOFF" : K.kind === "punt" ? `${r.dist} yards` : r.made ? "GOOD" : "NO GOOD", cb: () => done(r) };
     if (K.kind !== "punt") oneShot("ball", 0.8);
   }
   function drawKickFx(dt) {
@@ -12821,8 +12873,9 @@ function rbMount(root, onExit, TEAMS) {
     if (G.ball >= 60 && (G.down === 4 || G.ball >= 65)) {
       return kickGame("fg", dist, (r) => {
         tick(8);
-        if (r.made) { G.hs += 3; clip("cheer"); say(`Field goal, ${dist} yards. Good! ${G.hs}-${G.as}.`); }
+        if (r.made) { G.hs += 3; clip("cheer"); popMascot(RH, G.away); say(`Field goal, ${dist} yards. Good! ${G.hs}-${G.as}.`); }
         else say(`Field goal, ${dist} yards. ${r.why === "short" ? "Short" : r.why === "long" ? "Long" : r.why[0].toUpperCase() + r.why.slice(1)}. No good.`);
+        if (r.made) return ourKickoff();
         cpuDrive(); update();
       });
     }
@@ -12841,7 +12894,7 @@ function rbMount(root, onExit, TEAMS) {
       $("over").style.display = "none";
       kickGame("pat", 35, (r) => {
         if (r.made) { G.hs += 1; say(`Extra point is good. ${G.hs}-${G.as}.`); } else say(`Extra point is no good. ${G.hs}-${G.as}.`);
-        tick(5); say("Kickoff. They take over."); cpuDrive(); update();
+        tick(5); return ourKickoff();
       });
     };
     $("pat2").onclick = () => {
@@ -12926,7 +12979,7 @@ function rbMount(root, onExit, TEAMS) {
 
   /* ---- the run-out: the teams come out of the tunnels, the announcer sets it up, then the kickoff ---- */
   const TUNNEL_H = { x: 6, y: 237, w: 116, h: 46 }, TUNNEL_A = { x: 798, y: 237, w: 116, h: 46 };   // the tunnels: centred on each side, from the stands down to the field edge
-  const INTRO_LEN = 7.5;
+  const INTRO_LEN = 10;
   /* one announcer for every four teams, in the order of the teams list; the host team's group calls the game */
   const ANNOUNCERS = [["ann_01.png", "Vic Halloran"], ["ann_02.png", "Dee Marrow"], ["ann_03.png", "Hal Brink"], ["ann_04.png", "Rosa Vance"],
     ["ann_05.png", "Nico Pryor"], ["ann_06.png", "Ida Lowe"], ["ann_07.png", "Cal Denning"], ["ann_08.png", "Tess Arden"]];
@@ -12972,23 +13025,53 @@ function rbMount(root, onExit, TEAMS) {
       `${G.away[0]} this year: ${a.rec}.`,
       `The matchup: on paper it's ${fav} by ${gap} rating points.`,
     ].filter(Boolean);
-    const form = formationPreview(los), ann = annOf(RH);
-    G.intro = { t: 0, face: ann.file, lines, walkers: form.map((p) => {
+    const form = formationPreview(los), ann = annOf(RH), MID = EZ + 50;
+    /* the run-out: the away team comes out first, then ours; each walks to the fifty and lines up facing the other */
+    const walker = (p) => {
       const home = p.side === "h", tu = home ? TUNNEL_H : TUNNEL_A;
-      const sx = YX(tu.x + tu.w / 2), sy = YY(tu.y + tu.h / 2);
-      return { ...p, sx, sy, tx: p.x, ty: p.y, x: sx, y: sy, vx: 0, vy: 0, stun: 0, juke: 0 };
-    }) };
+      const sx = YX(tu.x + tu.w / 2), sy = YY(tu.y + tu.h / 2), idx = form.filter((q) => q.side === p.side).indexOf(p);
+      return { ...p, sx, sy, tx: MID + (home ? -2.5 : 2.5), ty: 8 + idx * 4.2, x: sx, y: sy, vx: 0, vy: 0, stun: 0, juke: 0, on: false, puffed: false,
+        start: home ? 5.2 : 1.2, end: home ? 9.0 : 5.0, ang: home ? 0 : Math.PI };
+    };
+    const tagOf = (team, t) => ({ team: team[0], star: t.star ? `${t.star.name} · ${t.star.pos} · ${t.star.ovr} OVR` : "" });
+    G.intro = { t: 0, face: ann.file, lines, puffs: [], walkers: form.map(walker), tags: { h: tagOf(RH, h), a: tagOf(G.away, a) } };
     $("intro").innerHTML = `<div style="display:flex;gap:10px;align-items:flex-start">${faceHTML(G.intro.face, 72)}<div><b style="color:#e8c46a">${ann.name}</b> on the call<br>${lines.map((l) => `<p style="margin:4px 0">${l}</p>`).join("")}</div></div><div style="color:#9a9486;font-size:11px;margin-top:6px">Tap to skip</div>`;
     $("intro").classList.add("on");
   }
   function updateIntro(dt) {
-    const I = G.intro; I.t += dt;
-    const k = clamp((I.t - 1) / 3.5, 0, 1), e = k * k * (3 - 2 * k), walking = I.t > 1 && k < 1;
+    const I = G.intro; I.t += dt; const t = I.t;
     I.walkers.forEach((p) => {
+      p.on = t >= p.start;
+      const dur = p.end - p.start, k = clamp((t - p.start) / dur, 0, 1), e = k * k * (3 - 2 * k);
       p.x = p.sx + (p.tx - p.sx) * e; p.y = p.sy + (p.ty - p.sy) * e;
-      p.vx = walking ? p.tx - p.sx : 0; p.vy = walking ? p.ty - p.sy : 0;
+      const walking = p.on && k < 1;
+      p.vx = walking ? (p.tx - p.sx) / dur : 0; p.vy = walking ? (p.ty - p.sy) / dur : 0;
+      if (walking) p.ang = Math.atan2(p.vy, p.vx);
       p.anim = (p.anim || 0) + (walking ? dt * 9 : 0);
+      if (p.on && !p.puffed) { p.puffed = true; for (let i = 0; i < 8; i++) intro_puff(I, p.sx, p.sy); }   // smoke as he comes out
+      if (walking && Math.random() < dt * 6) intro_puff(I, p.sx, p.sy);
     });
+    I.puffs.forEach((q) => { q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; });
+    I.puffs = I.puffs.filter((q) => q.t < q.life);
+  }
+  function intro_puff(I, x, y) {
+    I.puffs.push({ x: x + (Math.random() - 0.5) * 3, y: y + (Math.random() - 0.5) * 2, vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2 + 1, t: 0, life: 1.6 + Math.random() * 0.8, r: 2 + Math.random() * 2 });
+  }
+  /* the run-out on the field: smoke from the tunnels, the referee waiting at the fifty, and each team's star while it comes out */
+  function drawIntroFx() {
+    const I = G.intro, MID = EZ + 50;
+    I.puffs.forEach((q) => { ctx.fillStyle = `rgba(228,228,228,${(1 - q.t / q.life) * 0.5})`; ctx.beginPath(); ctx.arc(PX(q.x), PY(q.y), q.r + q.t * 9, 0, 6.3); ctx.fill(); });
+    const rf = img("assets/refs/ref_01.png");
+    if (ready(rf)) { const w = 22, h = w * rf.height / rf.width; ctx.drawImage(rf, PX(MID) - w / 2, PY(26.7) - h, w, h); }
+    const tag = (key, y, from, to) => {
+      if (I.t < from || I.t > to) return;
+      const tg = I.tags[key];
+      ctx.textAlign = "center"; ctx.lineWidth = 3; ctx.strokeStyle = "#000";
+      ctx.font = "700 12px system-ui"; ctx.strokeText(tg.team, PX(MID), PY(y)); ctx.fillStyle = "#e8c46a"; ctx.fillText(tg.team, PX(MID), PY(y));
+      if (tg.star) { ctx.font = "600 10px system-ui"; ctx.strokeText(tg.star, PX(MID), PY(y) + 14); ctx.fillStyle = "#f1ead8"; ctx.fillText(tg.star, PX(MID), PY(y) + 14); }
+    };
+    tag("a", 4, 1.2, 5.6);
+    tag("h", 49, 5.2, 9.6);
   }
   function endIntro() { G.intro = null; $("intro").classList.remove("on"); startRundown(); }
 
@@ -13292,7 +13375,7 @@ function rbMount(root, onExit, TEAMS) {
     });
     drawKicker();
     if (!P) {
-      if (G.intro) G.intro.walkers.slice().sort((a, b) => a.y - b.y).forEach((p) => drawPlayer(p, 0));
+      if (G.intro) { G.intro.walkers.filter((p) => p.on).sort((a, b) => a.y - b.y).forEach((p) => drawPlayer(p, 0)); drawIntroFx(); }
       else if (!G.over && !G.half) { const fl = formationPreview(los); fl.forEach((p) => drawPlayer(p, 0)); drawRoutePreview(los); drawFaces(fl, null); drawLeaders(fl); }
     } else {
       [...P.pl].sort((a, b) => a.y - b.y).forEach((p) => drawPlayer(p, 1));
@@ -13397,8 +13480,10 @@ function rbMount(root, onExit, TEAMS) {
     const at = (lx, ly) => [x + lx * cs - ly * sn, y + lx * sn + ly * cs];
     const [nx, ny] = at(-6.5, -2), [gx, gy] = at(6.5, -2);
     ctx.font = "700 5px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.strokeText(String(jersey(p)), nx, ny);
-    ctx.fillStyle = team[2] || "#fff"; ctx.fillText(String(jersey(p)), nx, ny);
+    /* the Ravens wear gold numbers, outlined in red; the other teams keep their own colours */
+    const ravens = team === RH;
+    ctx.lineWidth = ravens ? 1.8 : 1.5; ctx.strokeStyle = ravens ? team[1] : "rgba(0,0,0,.6)"; ctx.strokeText(String(jersey(p)), nx, ny);
+    ctx.fillStyle = ravens ? (team[3] || "#e8c46a") : (team[2] || "#fff"); ctx.fillText(String(jersey(p)), nx, ny);
     const L = logoOf(team); if (ready(L)) ctx.drawImage(L, gx - 3, gy - 3, 6, 6);
     if (live && P && P.carrier === p) { ctx.strokeStyle = "#e8c46a"; ctx.beginPath(); ctx.arc(x, y, 9, 0, 6.3); ctx.stroke(); }
     if (live && P && p.role === "wr" && !P.carrier && !P.thrown) { ctx.fillStyle = "rgba(232,196,106,.85)"; ctx.font = "700 10px system-ui"; ctx.fillText(String(P.wrs.indexOf(p) + 1), x - 3, y - 14); }
