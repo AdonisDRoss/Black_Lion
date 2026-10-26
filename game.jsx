@@ -11023,7 +11023,7 @@ function LoadingScreen({ mono }) {
 
 /* FOOTBALL MODE (layer 579): Raven Bowl, the mini football game, run in its own frame from the title screen. */
 const RB_TEAMS = [["Raven Hook Ravens", "#b8343a", "#111111", "#e8c46a"], ["Lakeshore Lancers", "#1f3a8a", "#c9ced6", "#ffffff"], ["Port Mercy Mariners", "#0f6b6b", "#e07b2a", "#111111"], ["Kestrel City Hawks", "#6a1e2e", "#e8c46a", "#9aa0a6"], ["Ironbridge Foundry", "#3a3f47", "#e0762a", "#f2f2f2"], ["Stockyard Bulls", "#7a2e1a", "#e8b84a", "#2d2d2d"], ["Harbor Heights Herons", "#2b5f8a", "#a8d8ea", "#f2f2f2"], ["Crown Falls Kings", "#4b1d6e", "#e8c46a", "#ffffff"], ["Mill River Millers", "#2f5d3a", "#d8c49a", "#5a3a1e"], ["Cinder Park Comets", "#c0392b", "#f39c12", "#222222"], ["Goldcoast Gulls", "#0b4f6c", "#f2c14e", "#ffffff"], ["Eastgate Engineers", "#334155", "#94a3b8", "#f59e0b"], ["Westfield Wolves", "#1c2526", "#b8c4c8", "#5a6b70"], ["Marrow Creek Marauders", "#5c1f1f", "#d9a441", "#1a1a1a"], ["Sable Point Sharks", "#0a2540", "#5eb8c4", "#c0c8d4"], ["Lantern Hill Lanterns", "#e26d1c", "#fff1c2", "#3a2a1a"], ["Tallow Bay Tugs", "#2e4a2e", "#c9b26b", "#f0ece0"], ["Grayhaven Granite", "#5b6670", "#e6e2d8", "#2a2f35"], ["Blackwater Bears", "#1a1a2e", "#b7a06a", "#ffffff"], ["Sunrise Valley Stars", "#ffb703", "#023047", "#fb8500"], ["Iron Gate Guards", "#7c0a02", "#cfd3d6", "#101010"], ["Rookery Falcons", "#3d2b56", "#f4a261", "#e9e4f0"], ["Redline Rockets", "#d62828", "#003049", "#fcbf49"], ["Salt Flat Scorpions", "#8a5a2b", "#f0d9a8", "#2b1d0e"], ["Fairmount Fire", "#9a031e", "#fb8b24", "#0f4c5c"], ["Drydock Dockers", "#14532d", "#facc15", "#ffffff"], ["Midway Mavericks", "#1d3557", "#e63946", "#f1faee"], ["Oakhollow Owls", "#4a4e69", "#c9ada7", "#22223b"], ["Copperhead Crew", "#b45309", "#78350f", "#fde68a"], ["Riverside Rangers", "#0e7490", "#a7f3d0", "#064e3b"], ["Southside Sentinels", "#312e81", "#a5b4fc", "#e0e7ff"], ["Northwood Nightjars", "#1e1b4b", "#7c3aed", "#ddd6fe"]];
-const RB_MARKUP = "<style>\n#rb{font:14px system-ui,sans-serif;color:#f1ead8;background:#0b0b10;padding:14px;user-select:none;box-sizing:border-box;min-height:100%}\n#rb #wrap{max-width:920px;margin:0 auto}\n#rb #wrap{position:relative;overflow:hidden}\n#rb #coach{position:absolute;right:10px;top:64px;width:210px;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:8px;font-size:12px;color:#f1ead8;transform:translateX(260px);transition:transform .35s ease;pointer-events:none;z-index:3;opacity:0}\n#rb #coach.show{opacity:1;transform:none}\n#rb #coach img{width:44px;height:44px;image-rendering:pixelated;border-radius:4px;background:#1c2a3a;float:left;margin-right:8px}\n#rb #intro{position:absolute;left:0;right:0;top:58px;margin:0 auto;width:min(540px,94%);background:#0f1320ee;border:2px solid #e8c46a;border-radius:10px;padding:12px;color:#f1ead8;font-size:13px;display:none;z-index:4;cursor:pointer}\n#rb #intro.on{display:block}\n#rb #rd{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none;width:min(680px,96%);background:#0f1320f2;border:2px solid #e8c46a;border-radius:10px;padding:10px;color:#f1ead8;text-align:center;z-index:5}\n#rb #rd.on{display:block}\n#rb #rdH{font:700 13px system-ui;letter-spacing:3px;color:#e8c46a;margin-bottom:6px}\n#rb #rdC{width:100%;height:auto;max-height:200px;display:block;background:#0b0e16;border-radius:6px}\n#rb #rdT{margin-top:8px;min-height:120px}\n#rb #rdHint{font-size:11px;color:#9a9486;margin-top:6px}\n#rb #scout{position:absolute;left:8px;top:64px;width:330px;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:6px;color:#f1ead8;font-size:11px;display:none;z-index:3}\n#rb #scout.show{display:block}\n#rb #scoutFaces{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px}\n#rb .sf{display:flex;flex-direction:column;align-items:center;text-align:center;font-size:10px;line-height:1.2;border:1px solid transparent;border-radius:4px;padding:2px}\n#rb .sf.hit{border-color:#ff6b6b;background:rgba(255,107,107,.15)}\n#rb #scoutC{width:100%;height:auto;display:block;border-radius:4px}\n#rb #scoutTxt{margin-top:6px;min-height:28px}\n#rb canvas{width:100%;height:auto;display:block;border:1px solid #222;background:#0d0d12;touch-action:none}\n#rb .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap}\n#rb .score{font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center}\n#rb .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}\n#rb .btns button{font-size:13px;padding:11px 4px}\n#rb .btns button[data-play]{display:flex;flex-direction:column;align-items:center;padding:6px 4px 8px}\n#rb .btns button.snap{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb button{background:#1d1d26;color:#f1ead8;border:1px solid #333;padding:12px 6px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit}\n#rb button:disabled{opacity:.3;cursor:default}\n#rb button.on{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb #hint{color:#9a9486;font-size:12px;margin-top:8px;line-height:1.6}\n#rb #log{background:#101018;border:1px solid #222;height:110px;overflow:auto;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55}\n#rb #masc{position:absolute;bottom:14%;width:150px;z-index:4;pointer-events:none;transition:transform .45s ease-out}\n#rb #masc.left{left:0;transform:translateX(-170px)}\n#rb #masc.right{right:0;transform:translateX(170px)}\n#rb #masc.show{transform:translateX(0)}\n#rb #masc img{width:130px;display:block;margin:0 auto}\n#rb #mascTxt{background:#f1ead8;color:#111;border-radius:10px;padding:6px 8px;font:700 12px system-ui;margin-bottom:6px;max-width:170px;text-align:center}\n#rb #windInd{position:absolute;top:10px;right:10px;z-index:3;display:none;align-items:center;gap:6px;background:rgba(10,10,16,.6);border:1px solid #333;border-radius:6px;padding:4px 8px;color:#f1ead8;font:700 12px system-ui;pointer-events:none}\n#rb #windArr{display:inline-block;font-size:16px;transition:transform .3s}\n#rb #over{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}\n#rb #over .card{background:#15151d;border:1px solid #333;padding:22px;max-width:660px;width:100%;text-align:center;max-height:92vh;overflow:auto}\n#rb #over h2{margin:0 0 8px;color:#e8c46a}\n/* landscape phones: the field on the left, the plays in a column on the right, so everything fits without scrolling */\n@media (orientation: landscape) and (max-height: 620px) {\n#rb{padding:8px}\n#rb #wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:10px;align-items:start}\n#rb .bar{grid-column:1 / -1;margin:0 0 6px}\n#rb #wrap > canvas{grid-column:1;grid-row:2}\n#rb .btns{grid-column:2;grid-row:2;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:0}\n#rb .btns button{font-size:12px;padding:6px 3px}\n#rb .btns button[data-play] svg{width:60px;height:33px}\n#rb #hint{grid-column:1 / -1;font-size:11px;margin-top:4px}\n#rb #log{grid-column:1 / -1;height:64px;font-size:12px;margin-top:4px}\n}\n</style>\n<div id=\"wrap\">\n  <div class=\"bar\"><div class=\"score\" id=\"score\"></div><div id=\"status\" style=\"color:#9a9486\"></div></div>\n  <canvas id=\"c\" width=\"920\" height=\"520\"></canvas>\n  <div class=\"btns\">\n    <button data-play=\"iz\" data-call=\"iz\">Inside Zone</button>\n    <button data-play=\"ob\" data-call=\"ob\">Outside Run</button>\n    <button data-play=\"sl\" data-call=\"sl\">Quick Slants</button>\n    <button data-play=\"hi\" data-call=\"hi\">Hitch &amp; Out</button>\n    <button data-play=\"cu\" data-call=\"cu\">Curls</button>\n    <button data-play=\"pc\" data-call=\"pc\">Post-Corner</button>\n    <button data-play=\"go\" data-call=\"go\">Go Routes</button>\n    <button data-play=\"qr\" data-call=\"qr\">QB Keeper</button>\n    <button data-play=\"pw\" data-call=\"pw\">Power</button>\n    <button data-play=\"cn\" data-call=\"cn\">Counter</button>\n    <button data-play=\"pa\" data-call=\"pa\">Play-Action Post</button>\n    <button id=\"burstBtn\" class=\"burst\" title=\"Hold to set up a move. Let go to burst (Z, or the left bumper)\">Burst (hold)</button>\n    <button data-call=\"snap\" id=\"snapBtn\" class=\"snap\">Snap</button>\n    <button data-call=\"kick\" id=\"kickBtn\">Kick</button>\n  </div>\n  <div id=\"hint\"></div>\n  <div id=\"coach\"></div>\n  <div id=\"intro\"></div>\n  <div id=\"rd\"><div id=\"rdH\"></div><canvas id=\"rdC\" width=\"640\" height=\"200\"></canvas><div id=\"rdT\"></div><div id=\"rdHint\"></div></div>\n<style>\n#rb #result{position:absolute;left:50%;top:36%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0;transition:opacity .25s;max-width:92%;z-index:5}\n#rb #result.show{opacity:1}\n#rb #resBig{font:900 46px Impact,'Arial Black',sans-serif;color:#e8c46a;letter-spacing:1px;text-shadow:0 3px 0 #000,0 0 14px rgba(0,0,0,.7);line-height:1}\n#rb #resPlay{font:700 18px system-ui;color:#f1ead8;text-shadow:0 2px 6px #000;margin-top:6px}\n#rb #resYd{font:700 15px system-ui;color:#e8c46a;text-shadow:0 2px 6px #000}\n#rb #resInj{font:700 15px system-ui;color:#ff6b6b;text-shadow:0 2px 6px #000}\n#rb #resSit{font:600 12px system-ui;color:#c9c2b0;margin-top:6px;text-shadow:0 2px 4px #000}\n</style>\n<style>\n#rb #over .room{position:absolute;inset:0;display:none;background:linear-gradient(rgba(10,10,16,.7),rgba(10,10,16,.92)),var(--room,none) center/cover no-repeat,#15151d}\n#rb #over .room.on{display:block}\n#rb #over .room.fade{animation:roomIn .8s ease}\n@keyframes roomIn{from{opacity:.15}to{opacity:1}}\n#rb #over .card{position:relative;z-index:1;background:rgba(21,21,29,.86)}\n#rb button.focus{outline:2px solid #e8c46a;outline-offset:2px}\n#rb #overc.textmenu button{display:block;margin:6px auto;width:100%;background:transparent;border:none;color:#f1ead8;font-size:20px;letter-spacing:2px;text-shadow:0 2px 6px #000;padding:8px}\n#rb #overc.textmenu button.on{color:#e8c46a;background:transparent}\n#rb .roomName{color:#9a9486;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}\n</style>\n<style>\n#rb #kickG{position:absolute;left:50%;bottom:12%;transform:translateX(-50%);display:none;background:rgba(10,10,16,.9);border:1px solid #e8c46a;border-radius:6px;padding:6px;z-index:6;text-align:center;pointer-events:none}\n#rb #kickG.show{display:block}\n#rb #kickT{font:700 12px system-ui;color:#e8c46a;margin-bottom:4px}\n#rb .flagCard{background:linear-gradient(#d12a2a,#7a0c0c);border:2px solid #ffd6d6;border-radius:10px;padding:14px 18px;color:#fff;text-align:center;max-width:360px;margin:0 auto}\n#rb .flagTop{font:900 36px system-ui;letter-spacing:6px}\n#rb .flagBub{background:#fff;color:#111;border-radius:12px;padding:8px 12px;margin:10px auto;font-size:14px;max-width:300px}\n</style>\n  <div id=\"kickG\"><div id=\"kickT\"></div><canvas id=\"kickC\" width=\"300\" height=\"170\"></canvas></div>\n  <div id=\"result\"><div id=\"resBig\"></div><div id=\"resPlay\"></div><div id=\"resYd\"></div><div id=\"resInj\"></div><div id=\"resSit\"></div></div>\n  <div id=\"scout\"><div id=\"scoutFaces\"></div><canvas id=\"scoutC\" width=\"314\" height=\"110\"></canvas><div id=\"scoutTxt\"></div></div>\n  <div id=\"log\"></div>\n</div>\n<div id=\"masc\"><div id=\"mascTxt\"></div><img id=\"mascImg\" onerror=\"this.style.display='none'\"></div>\n<div id=\"windInd\"><span id=\"windArr\">\u279c</span><span id=\"windTxt\"></span></div>\n<div id=\"over\"><div class=\"room\"></div><div class=\"card\" id=\"overc\"></div></div>\n";
+const RB_MARKUP = "<style>\n#rb{font:14px system-ui,sans-serif;color:#f1ead8;background:#0b0b10;padding:14px;user-select:none;box-sizing:border-box;min-height:100%}\n#rb #wrap{max-width:920px;margin:0 auto}\n#rb #wrap{position:relative;overflow:hidden}\n#rb #coach{position:relative;grid-column:1 / -1;width:auto;margin-top:8px;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:8px;font-size:12px;color:#f1ead8;opacity:0;transition:opacity .35s}\n#rb #coach:empty{display:none}\n#rb #coach.show{opacity:1;transform:none}\n#rb #coach img{width:44px;height:44px;image-rendering:pixelated;border-radius:4px;background:#1c2a3a;float:left;margin-right:8px}\n#rb #callout{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);display:none;width:min(520px,92%);background:#0f1320ee;border:2px solid #e8c46a;border-radius:10px;padding:8px;color:#f1ead8;font-size:13px;align-items:center;gap:10px;z-index:4;pointer-events:none}\n#rb #callout.show{display:flex}\n#rb #callout img{width:64px;height:64px;image-rendering:pixelated;border-radius:6px;background:#1c2a3a;flex:none}\n#rb #intro{position:absolute;left:0;right:0;top:58px;margin:0 auto;width:min(540px,94%);background:#0f1320ee;border:2px solid #e8c46a;border-radius:10px;padding:12px;color:#f1ead8;font-size:13px;display:none;z-index:4;cursor:pointer}\n#rb #intro.on{display:block}\n#rb #rd{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none;width:min(680px,96%);background:#0f1320f2;border:2px solid #e8c46a;border-radius:10px;padding:10px;color:#f1ead8;text-align:center;z-index:5}\n#rb #rd.on{display:block}\n#rb #rdH{font:700 13px system-ui;letter-spacing:3px;color:#e8c46a;margin-bottom:6px}\n#rb #rdC{width:100%;height:auto;max-height:200px;display:block;background:#0b0e16;border-radius:6px}\n#rb #rdT{margin-top:8px;min-height:120px}\n#rb #rdHint{font-size:11px;color:#9a9486;margin-top:6px}\n#rb #scout{position:absolute;left:8px;top:64px;width:330px;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:6px;color:#f1ead8;font-size:11px;display:none;z-index:3}\n#rb #scout.show{display:block}\n#rb #scoutFaces{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px}\n#rb .sf{display:flex;flex-direction:column;align-items:center;text-align:center;font-size:10px;line-height:1.2;border:1px solid transparent;border-radius:4px;padding:2px}\n#rb .sf.hit{border-color:#ff6b6b;background:rgba(255,107,107,.15)}\n#rb #scoutC{width:100%;height:auto;display:block;border-radius:4px}\n#rb #scoutTxt{margin-top:6px;min-height:28px}\n#rb canvas{width:100%;height:auto;display:block;border:1px solid #222;background:#0d0d12;touch-action:none}\n#rb .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap}\n#rb .score{font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center}\n#rb .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}\n#rb .btns button{font-size:13px;padding:11px 4px}\n#rb .btns button[data-play]{display:flex;flex-direction:column;align-items:center;padding:6px 4px 8px}\n#rb .btns button.snap{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb button{background:#1d1d26;color:#f1ead8;border:1px solid #333;padding:12px 6px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit}\n#rb button:disabled{opacity:.3;cursor:default}\n#rb button.on{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb #hint{color:#9a9486;font-size:12px;margin-top:8px;line-height:1.6}\n#rb #log{background:#101018;border:1px solid #222;height:110px;overflow:auto;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55}\n#rb #masc{position:absolute;bottom:14%;width:150px;z-index:4;pointer-events:none;transition:transform .45s ease-out}\n#rb #masc.left{left:0;transform:translateX(-170px)}\n#rb #masc.right{right:0;transform:translateX(170px)}\n#rb #masc.show{transform:translateX(0)}\n#rb #masc img{width:130px;display:block;margin:0 auto}\n#rb #mascTxt{background:#f1ead8;color:#111;border-radius:10px;padding:6px 8px;font:700 12px system-ui;margin-bottom:6px;max-width:170px;text-align:center}\n#rb #windInd{position:absolute;top:10px;right:10px;z-index:3;display:none;align-items:center;gap:6px;background:rgba(10,10,16,.6);border:1px solid #333;border-radius:6px;padding:4px 8px;color:#f1ead8;font:700 12px system-ui;pointer-events:none}\n#rb #windArr{display:inline-block;font-size:16px;transition:transform .3s}\n#rb #over{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}\n#rb #over .card{background:#15151d;border:1px solid #333;padding:22px;max-width:660px;width:100%;text-align:center;max-height:92vh;overflow:auto}\n#rb #over h2{margin:0 0 8px;color:#e8c46a}\n/* landscape phones: the field on the left, the plays in a column on the right, so everything fits without scrolling */\n@media (orientation: landscape) and (max-height: 620px) {\n#rb{padding:8px}\n#rb #wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:10px;align-items:start}\n#rb .bar{grid-column:1 / -1;margin:0 0 6px}\n#rb #wrap > canvas{grid-column:1;grid-row:2}\n#rb .btns{grid-column:2;grid-row:2;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:0}\n#rb .btns button{font-size:12px;padding:6px 3px}\n#rb .btns button[data-play] svg{width:60px;height:33px}\n#rb #hint{grid-column:1 / -1;font-size:11px;margin-top:4px}\n#rb #log{grid-column:1 / -1;height:64px;font-size:12px;margin-top:4px}\n}\n</style>\n<div id=\"wrap\">\n  <div class=\"bar\"><div class=\"score\" id=\"score\"></div><div id=\"status\" style=\"color:#9a9486\"></div></div>\n  <canvas id=\"c\" width=\"920\" height=\"520\"></canvas>\n  <div class=\"btns\">\n    <button data-play=\"iz\" data-call=\"iz\">Inside Zone</button>\n    <button data-play=\"ob\" data-call=\"ob\">Outside Run</button>\n    <button data-play=\"sl\" data-call=\"sl\">Quick Slants</button>\n    <button data-play=\"hi\" data-call=\"hi\">Hitch &amp; Out</button>\n    <button data-play=\"cu\" data-call=\"cu\">Curls</button>\n    <button data-play=\"pc\" data-call=\"pc\">Post-Corner</button>\n    <button data-play=\"go\" data-call=\"go\">Go Routes</button>\n    <button data-play=\"qr\" data-call=\"qr\">QB Keeper</button>\n    <button data-play=\"pw\" data-call=\"pw\">Power</button>\n    <button data-play=\"cn\" data-call=\"cn\">Counter</button>\n    <button data-play=\"pa\" data-call=\"pa\">Play-Action Post</button>\n    <button id=\"burstBtn\" class=\"burst\" title=\"Hold to set up a move. Let go to burst (Z, or the left bumper)\">Burst (hold)</button>\n    <button data-call=\"snap\" id=\"snapBtn\" class=\"snap\">Snap</button>\n    <button data-call=\"kick\" id=\"kickBtn\">Kick</button>\n  </div>\n  <div id=\"hint\"></div>\n  <div id=\"coach\"></div>\n  <div id=\"intro\"></div>\n  <div id=\"callout\"><img id=\"calloutFace\" alt=\"\" onerror=\"this.style.display='none'\"><div><b id=\"calloutName\"></b><div id=\"calloutPlay\" style=\"color:#e8c46a;font-size:12px;margin-top:2px\"></div><div id=\"calloutTxt\" style=\"margin-top:4px\"></div></div></div>\n  <div id=\"rd\"><div id=\"rdH\"></div><canvas id=\"rdC\" width=\"640\" height=\"200\"></canvas><div id=\"rdT\"></div><div id=\"rdHint\"></div></div>\n<style>\n#rb #result{position:absolute;left:50%;top:36%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0;transition:opacity .25s;max-width:92%;z-index:5}\n#rb #result.show{opacity:1}\n#rb #resBig{font:900 46px Impact,'Arial Black',sans-serif;color:#e8c46a;letter-spacing:1px;text-shadow:0 3px 0 #000,0 0 14px rgba(0,0,0,.7);line-height:1}\n#rb #resPlay{font:700 18px system-ui;color:#f1ead8;text-shadow:0 2px 6px #000;margin-top:6px}\n#rb #resYd{font:700 15px system-ui;color:#e8c46a;text-shadow:0 2px 6px #000}\n#rb #resInj{font:700 15px system-ui;color:#ff6b6b;text-shadow:0 2px 6px #000}\n#rb #resSit{font:600 12px system-ui;color:#c9c2b0;margin-top:6px;text-shadow:0 2px 4px #000}\n</style>\n<style>\n#rb #over .room{position:absolute;inset:0;display:none;background:linear-gradient(rgba(10,10,16,.7),rgba(10,10,16,.92)),var(--room,none) center/cover no-repeat,#15151d}\n#rb #over .room.on{display:block}\n#rb #over .room.fade{animation:roomIn .8s ease}\n@keyframes roomIn{from{opacity:.15}to{opacity:1}}\n#rb #over .card{position:relative;z-index:1;background:rgba(21,21,29,.86)}\n#rb button.focus{outline:2px solid #e8c46a;outline-offset:2px}\n#rb #overc.textmenu button{display:block;margin:6px auto;width:100%;background:transparent;border:none;color:#f1ead8;font-size:20px;letter-spacing:2px;text-shadow:0 2px 6px #000;padding:8px}\n#rb #overc.textmenu button.on{color:#e8c46a;background:transparent}\n#rb .roomName{color:#9a9486;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}\n</style>\n<style>\n#rb #kickG{position:absolute;left:50%;bottom:12%;transform:translateX(-50%);display:none;background:rgba(10,10,16,.9);border:1px solid #e8c46a;border-radius:6px;padding:6px;z-index:6;text-align:center;pointer-events:none}\n#rb #kickG.show{display:block}\n#rb #kickT{font:700 12px system-ui;color:#e8c46a;margin-bottom:4px}\n#rb .flagCard{background:linear-gradient(#d12a2a,#7a0c0c);border:2px solid #ffd6d6;border-radius:10px;padding:14px 18px;color:#fff;text-align:center;max-width:360px;margin:0 auto}\n#rb .flagTop{font:900 36px system-ui;letter-spacing:6px}\n#rb .flagBub{background:#fff;color:#111;border-radius:12px;padding:8px 12px;margin:10px auto;font-size:14px;max-width:300px}\n</style>\n  <div id=\"kickG\"><div id=\"kickT\"></div><canvas id=\"kickC\" width=\"300\" height=\"170\"></canvas></div>\n  <div id=\"result\"><div id=\"resBig\"></div><div id=\"resPlay\"></div><div id=\"resYd\"></div><div id=\"resInj\"></div><div id=\"resSit\"></div></div>\n  <div id=\"scout\"><div id=\"scoutFaces\"></div><canvas id=\"scoutC\" width=\"314\" height=\"110\"></canvas><div id=\"scoutTxt\"></div></div>\n  <div id=\"log\"></div>\n</div>\n<div id=\"masc\"><div id=\"mascTxt\"></div><img id=\"mascImg\" onerror=\"this.style.display='none'\"></div>\n<div id=\"windInd\"><span id=\"windArr\">\u279c</span><span id=\"windTxt\"></span></div>\n<div id=\"over\"><div class=\"room\"></div><div class=\"card\" id=\"overc\"></div></div>\n";
 /* face pool (generated from assets/faces/manifest.json): files in assets/faces/ */
 const RB_FACES = {"older": ["A01.png", "A03.png", "A09.png", "A63.png", "A64.png", "B28.png", "C10.png", "C11.png", "C14.png", "C15.png", "C16.png", "C20.png", "C21.png", "C22.png", "C23.png", "C28.png", "C29.png", "C40.png", "S101.png", "S102.png", "S103.png", "S104.png", "S105.png", "S106.png", "S107.png", "S108.png", "S109.png", "S111.png", "S112.png", "S113.png", "S114.png", "S115.png", "S117.png", "S118.png", "S119.png", "S122.png", "S123.png", "S124.png", "S125.png", "S126.png", "S127.png", "S128.png", "S129.png", "S130.png", "S131.png", "S132.png", "S135.png", "S136.png", "S138.png", "S139.png", "S140.png", "S141.png", "S142.png", "S143.png", "S144.png", "S145.png", "S146.png", "S147.png", "S148.png", "S149.png", "S151.png", "S152.png", "S154.png", "S155.png", "S156.png", "S157.png", "S158.png", "S159.png", "S160.png", "S161.png", "S163.png", "S164.png", "S309.png"], "mid": ["A04.png", "A10.png", "B16.png", "B19.png", "C09.png", "C12.png", "C36.png", "C39.png", "S201.png", "S202.png", "S203.png", "S204.png", "S205.png", "S206.png", "S207.png", "S208.png", "S209.png", "S210.png", "S211.png", "S212.png", "S213.png", "S214.png", "S215.png", "S216.png", "S217.png", "S218.png", "S219.png", "S220.png", "S221.png", "S222.png", "S223.png", "S224.png", "S225.png", "S226.png", "S227.png", "S228.png", "S229.png", "S230.png", "S231.png", "S232.png", "S233.png", "S234.png", "S235.png", "S236.png", "S237.png", "S238.png", "S239.png", "S240.png", "S241.png", "S242.png", "S243.png", "S244.png", "S245.png", "S246.png", "S247.png", "S248.png", "S249.png", "S250.png", "S251.png", "S252.png", "S253.png", "S254.png", "S255.png", "S256.png", "S257.png", "S258.png", "S259.png", "S260.png", "S261.png", "S262.png", "S263.png", "S264.png"], "young": ["A05.png", "A06.png", "A07.png", "A08.png", "A11.png", "A12.png", "A13.png", "A14.png", "A15.png", "A16.png", "A17.png", "A18.png", "A19.png", "A20.png", "A21.png", "A22.png", "A23.png", "A24.png", "A25.png", "A26.png", "A27.png", "A28.png", "A29.png", "A30.png", "A31.png", "A32.png", "A33.png", "A34.png", "A35.png", "A36.png", "A37.png", "A38.png", "A39.png", "A40.png", "A41.png", "A42.png", "A43.png", "A44.png", "A45.png", "A46.png", "A47.png", "A48.png", "A49.png", "A50.png", "A51.png", "A52.png", "A53.png", "A54.png", "A55.png", "A56.png", "A57.png", "A58.png", "A59.png", "A60.png", "A61.png", "A62.png", "B01.png", "B02.png", "B03.png", "B04.png", "B05.png", "B06.png", "B07.png", "B09.png", "B10.png", "B11.png", "B12.png", "B13.png", "B14.png", "B15.png", "B17.png", "B18.png", "B20.png", "B21.png", "B22.png", "B23.png", "B24.png", "B25.png", "B27.png", "B29.png", "B30.png", "B31.png", "B32.png", "B33.png", "B34.png", "B35.png", "B37.png", "B38.png", "B39.png", "B41.png", "B42.png", "B43.png", "B44.png", "B45.png", "C01.png", "C02.png", "C03.png", "C04.png", "C05.png", "C07.png", "C08.png", "C13.png", "C17.png", "C18.png", "C19.png", "C24.png", "C25.png", "C26.png", "C27.png", "C30.png", "C31.png", "C33.png", "C34.png", "C35.png", "C37.png", "C38.png", "S301.png", "S302.png", "S303.png", "S304.png", "S305.png", "S306.png", "S307.png", "S308.png", "S310.png", "S311.png", "S312.png", "S314.png", "S315.png", "S316.png", "S317.png", "S318.png", "S319.png", "S320.png", "S321.png", "S323.png", "S324.png", "S325.png", "S327.png", "S328.png", "S330.png", "S331.png", "S332.png", "S334.png", "S335.png", "S337.png", "S338.png", "S339.png", "S340.png", "S342.png", "S343.png", "S344.png", "S345.png", "S346.png", "S347.png", "S349.png", "S350.png", "S351.png", "S352.png", "S353.png", "S354.png", "S355.png", "S356.png", "S357.png", "S358.png", "S359.png", "S360.png", "S361.png", "S362.png", "S363.png", "S364.png", "S365.png", "S366.png", "S367.png", "S368.png", "S369.png", "S370.png", "S371.png", "S372.png", "S373.png", "S374.png", "S375.png", "S376.png", "S377.png", "S378.png", "S379.png", "S380.png"]};
 /* Raven Bowl: a football mode inside Black Lion. Mounted into a root element; returns a cleanup. */
@@ -11409,21 +11409,23 @@ function rbMount(root, onExit, TEAMS) {
     const hi = (Math.random() * 14 + 14) | 0, lo = Math.max(0, hi - ((Math.random() * 14) | 0) - 1);
     return aWins ? [a, b, hi, lo] : [b, a, hi, lo];
   }
+  const recOf = (t) => DYN.rec[t[0]] || (DYN.rec[t[0]] = { w: 0, l: 0, pf: 0, pa: 0 });
   function record(w, l, ws, ls) {
-    DYN.rec[w[0]].w++; DYN.rec[l[0]].l++;
-    DYN.rec[w[0]].pf += ws; DYN.rec[w[0]].pa += ls; DYN.rec[l[0]].pf += ls; DYN.rec[l[0]].pa += ws;
+    recOf(w).w++; recOf(l).l++;
+    recOf(w).pf += ws; recOf(w).pa += ls; recOf(l).pf += ls; recOf(l).pa += ws;
   }
   const standingsOf = (list) => list.slice().sort((a, b) => {
-    const ra = DYN.rec[a[0]], rb = DYN.rec[b[0]];
+    const ra = recOf(a), rb = recOf(b);
     return (rb.w - ra.w) || ((rb.pf - rb.pa) - (ra.pf - ra.pa));
   });
   const standings = () => standingsOf(DYN.teams);
-  /* the other three conferences play their seven weeks in the background */
-  function simOtherConfs() {
+  /* the other three conferences play this week's games alongside ours, so the standings move every week */
+  function simOtherWeek(w) {
     const mine = confIdx(RH);
     CONFS.forEach((c, ci) => {
       if (ci === mine) return;
-      makeSchedule(confTeams(ci)).forEach((rd) => rd.forEach((pr) => { const r = simGame(pr[0], pr[1]); record(r[0], r[1], r[2], r[3]); }));
+      const rd = makeSchedule(confTeams(ci))[w] || [];
+      rd.forEach((pr) => { const r = simGame(pr[0], pr[1]); record(r[0], r[1], r[2], r[3]); });
     });
   }
   /* the semifinals: in each conference the top four, 1 v 4 and 2 v 3 */
@@ -11444,9 +11446,9 @@ function rbMount(root, onExit, TEAMS) {
     const out = (text) => { weeklyInjuries(); return endSeason(false, text); };
     const my = CONFS[confIdx(RH)].name;
     if (DYN.phase === "reg") {
+      simOtherWeek(DYN.round);
       DYN.round++;
       if (DYN.round === DYN.rounds.length) {
-        simOtherConfs();
         DYN.games = playoffSeeds(); DYN.phase = "semi";
         if (!inStage()) return out("The Ravens miss the playoffs.");
       }
@@ -11806,7 +11808,7 @@ function rbMount(root, onExit, TEAMS) {
   }
   /* the hub rooms: each tab has a room behind it (assets/hub/<name>.png); the room fades in when you walk in */
   const ROOM_IMG = { season: "stadium", coaches: "office", fa: "office", roster: "locker", starters: "locker", press: "pressroom", train: "training" };
-  const ROOM_NAME = { season: "Game day", coaches: "Team office", fa: "Team office", roster: "Locker room", starters: "Starters", press: "Press room", train: "Training field" };
+  const ROOM_NAME = { standings: "League office", season: "Game day", coaches: "Team office", fa: "Team office", roster: "Locker room", starters: "Starters", press: "Press room", train: "Training field" };
   const weekKey = () => DYN.round + "-" + DYN.phase + "-" + DYN.rounds.length;
   const hideRoom = () => { const r = $("over").querySelector(".room"); if (r) r.classList.remove("on"); };
   function talkTo(kind) {
@@ -11847,10 +11849,37 @@ function rbMount(root, onExit, TEAMS) {
     DYN.note = "Explanation given.";
     renderHub();
   }
+  /* standings: each conference is two divisions of four; the Ravens' conference keeps its names */
+  const DIV_NAMES = ["Lakeshore", "Prairie"];
+  function standingsGroups(scope) {
+    if (scope === "league") return [{ name: "Whole league", teams: TEAMS }];
+    if (scope === "conf") return CONFS.map((c, ci) => ({ name: `${c.name} conference`, teams: confTeams(ci) }));
+    const out = [];
+    CONFS.forEach((c, ci) => {
+      [0, 1].forEach((half) => {
+        const name = ci === confIdx(RH) ? DIV_NAMES[half] : `${c.name} Division ${half + 1}`;
+        out.push({ name: `${name}${ci === confIdx(RH) ? ` (${c.name})` : ""}`, teams: confTeams(ci).slice(half * 4, half * 4 + 4) });
+      });
+    });
+    return out;
+  }
+  function standingsTab() {
+    const sc = DYN.stScope || "div";
+    const btn = (k, n) => `<button data-sc="${k}" class="${sc === k ? "on" : ""}" style="padding:6px 10px;font-size:12px">${n}</button>`;
+    const table = (g) => {
+      const rows = standingsOf(g.teams).map((t, i) => {
+        const r = recOf(t), d = r.pf - r.pa, mine = t === RH;
+        return `<tr${mine ? ' style="color:#e8c46a"' : ""}><td style="padding:2px 6px">${i + 1}</td><td>${t[0]}</td><td>${r.w}-${r.l}</td><td>${d >= 0 ? "+" : ""}${d}</td></tr>`;
+      }).join("");
+      return `<h3 style="margin:10px 0 4px;color:#e8c46a;font-size:13px;text-align:left">${g.name}</h3><table style="width:100%;font-size:12px;text-align:left;border-collapse:collapse">${rows}</table>`;
+    };
+    return `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:6px">${btn("div", "By division")}${btn("conf", "By conference")}${btn("league", "Whole league")}</div>
+      <div style="max-height:52vh;overflow:auto;padding-right:6px">${standingsGroups(sc).map(table).join("")}</div>`;
+  }
   function renderHub() {
     $("overc").classList.remove("textmenu");
-    const tabs = [["season", "Season"], ["roster", "Locker room"], ["starters", "Starters"], ["press", "Press room"], ["train", "Training"], ["coaches", "Coaches"], ["fa", "Free agency"]];
-    const body = DYN.scan && DYN.tab === "roster" ? scanCard() : DYN.tab === "roster" ? rosterTab() : DYN.tab === "starters" ? startersTab() : DYN.tab === "press" ? pressTab() : DYN.tab === "train" ? trainTab() : DYN.tab === "coaches" ? coachesTab() : DYN.tab === "fa" ? faTab() : seasonTab();
+    const tabs = [["season", "Season"], ["standings", "Standings"], ["roster", "Locker room"], ["starters", "Starters"], ["press", "Press room"], ["train", "Training"], ["coaches", "Coaches"], ["fa", "Free agency"]];
+    const body = DYN.tab === "standings" ? standingsTab() : DYN.scan && DYN.tab === "roster" ? scanCard() : DYN.tab === "roster" ? rosterTab() : DYN.tab === "starters" ? startersTab() : DYN.tab === "press" ? pressTab() : DYN.tab === "train" ? trainTab() : DYN.tab === "coaches" ? coachesTab() : DYN.tab === "fa" ? faTab() : seasonTab();
     $("overc").innerHTML = `<div class="roomName">${ROOM_NAME[DYN.tab] || ""}</div><div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px;flex-wrap:wrap">${tabs.map(([k, n]) => `<button data-tab="${k}" class="${DYN.tab === k ? "on" : ""}" style="padding:7px 10px;font-size:12px">${n}</button>`).join("")}</div>
       ${DYN.tab === "season" ? "" : `<p style="color:#e8c46a;font-size:12px;margin:0 0 6px;min-height:14px">${DYN.note || ""}</p>`}${body}
       <button id="menu" style="margin-top:10px">Back to menu</button>`;
@@ -11859,6 +11888,7 @@ function rbMount(root, onExit, TEAMS) {
     setRoom(ROOM_IMG[DYN.tab] || "office");
     $("overc").querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => { DYN.tab = b.dataset.tab; renderHub(); });
     $("overc").querySelectorAll("[data-scan]").forEach((b) => b.onclick = () => scanChoose(b.dataset.scan));
+    $("overc").querySelectorAll("[data-sc]").forEach((b) => b.onclick = () => { DYN.stScope = b.dataset.sc; renderHub(); });
     $("overc").querySelectorAll("[data-dp]").forEach((b) => b.onclick = () => depthSet(+b.dataset.i, b.dataset.dp));
     $("overc").querySelectorAll("[data-save]").forEach((b) => b.onclick = () => saveSlot(+b.dataset.save));
     $("overc").querySelectorAll("[data-load]").forEach((b) => b.onclick = () => loadSlot(+b.dataset.load));
@@ -12088,6 +12118,17 @@ function rbMount(root, onExit, TEAMS) {
     update();
   }
   /* our kickoff: from our 35, or sometimes the 50. Deep, or an onside kick that they can't return. */
+  /* the mascot pop-out: the team's mascot slides in from its side of the screen and talks trash at the other team */
+  const TALK_TRASH = ["Sit down, {o}!", "That's all you got?", "Scoreboard, {o}!", "Cold out there for you, {o}.", "We don't lose at home!", "Somebody call a doctor for {o}!", "Nice try, {o}. Nice try."];
+  let mascT = 0;
+  function popMascot(team, opp) {
+    const el = $("masc"); if (!el || !team) return;
+    const idx = TEAMS.indexOf(team) + 1;
+    $("mascImg").src = `assets/mascots/mascot_${String(idx).padStart(2, "0")}.png`;
+    $("mascTxt").textContent = pick(TALK_TRASH).replace("{o}", opp[0]);
+    el.className = team === RH ? "left" : "right"; void el.offsetWidth; el.classList.add("show");
+    clearTimeout(mascT); mascT = setTimeout(() => el.classList.remove("show"), 2600);
+  }
   function ourKickoff() {
     const spot = Math.random() < 0.7 ? 35 : 50;
     G.ball = spot; G.down = 1; G.togo = 10;
@@ -12402,6 +12443,16 @@ function rbMount(root, onExit, TEAMS) {
     $("windArr").style.transform = `rotate(${wd.dir > 0 ? 0 : 180}deg)`;
     $("windTxt").textContent = `${wd.mph} mph`;
   }
+  /* the coin art: looks in assets/fb first, then assets/coin, under the names heads/tails */
+  const COIN_SRC = {
+    h: ["assets/fb/coin_heads.png", "assets/coin/coin_heads.png", "assets/coin/heads.png", "assets/coin/coin_heads.webp"],
+    t: ["assets/fb/coin_tails.png", "assets/coin/coin_tails.png", "assets/coin/tails.png", "assets/coin/coin_tails.webp"],
+  };
+  function coinPic(side) {
+    let first = null;
+    for (const src of COIN_SRC[side]) { const im = img(src); if (im.complete && im.naturalWidth) return im; first = first || im; }
+    return first;
+  }
   function windLine() {
     const wd = G.windV; if (!wd) return "";
     return `The wind is ${wd.mph >= 20 ? "howling" : "blowing"} ${wd.dir > 0 ? "left to right" : "right to left"} at ${wd.mph} miles an hour, and that changes the kicks`;
@@ -12431,7 +12482,7 @@ function rbMount(root, onExit, TEAMS) {
   }
   function endTalk(last, text, how, yards) {
     const defs = last.pl.filter((p) => p.side === "a");
-    const near = (list, at) => list.slice().sort((a, b) => Math.hypot(a.x - at.x, a.y - at.y) - Math.hypot(b.x - at.x, b.y - at.y))[0];
+    const near = (list, at) => at && list.length ? list.slice().sort((a, b) => Math.hypot(a.x - at.x, a.y - at.y) - Math.hypot(b.x - at.x, b.y - at.y))[0] : null;
     if (how === "td") { talk(last.carrier, pick(TALK.td_off)); talk(near(defs, last.carrier), pick(TALK.td_def)); return; }
     if (how === "int") { talk(near(defs.filter((d) => d.role === "db"), last.qb) || near(defs, last.qb), pick(TALK.int_db)); return; }
     if (text === "Sacked.") { talk(near(defs.filter((d) => d.role === "dl"), last.qb) || near(defs, last.qb), pick(TALK.sack_def)); talk(last.qb, pick(TALK.sack_qb)); return; }
@@ -12784,7 +12835,7 @@ function rbMount(root, onExit, TEAMS) {
     const last = P;
     G.last = { run: last.kind === "run", yards, how };
     P = null; aim.on = false;
-    endTalk(last, text, how, yards);
+    try { endTalk(last, text, how, yards); } catch (e) { /* the talk is only colour: a missing player must never stop the score */ }
     tick(secs);
     $("hint").textContent = "";
     if (how !== "inc") playSound(how, text); else whistle();
@@ -12796,7 +12847,7 @@ function rbMount(root, onExit, TEAMS) {
     if (how === "inc") { say(text); G.down++; if (G.down > 4) { say("Turnover on downs."); clip("boo"); G.ball = 100 - G.ball; cpuDrive(); return update(); } say(`Down ${G.down}, ${G.togo} to go.`); return update(); }
     if (how !== "td" && Math.random() < 0.07) return flagPlay(last);
     const go = () => moveBall(Math.round(yards), text);
-    if (how === "td" || yards >= 20) { if (startReplay(last, go)) return; }
+    if (how === "td" || yards >= 20) { if (startReplay(last, go, { how, text, yards })) return; }
     go();
   }
   function moveBall(y, text) {
@@ -12840,8 +12891,30 @@ function rbMount(root, onExit, TEAMS) {
     rec.push({ t: P.t, f: P.pl.map((p) => [p.x, p.y, p.ang, p.anim]), bx: P.ballX, by: P.ballY, bz: P.ballZ, fl: !!P.flight, c: P.carrier ? P.pl.indexOf(P.carrier) : -1 });
     if (rec.length > 720) rec.shift();
   }
-  function startReplay(last, then) {
+  /* the replay call: the announcer names the play and says something about it, one line from the pool for that kind of play */
+  const RP_LINES = {
+    td_run: ["He's in! Nobody was going to catch that one.", "Right up the middle and into the end zone. That's a big run.", "The line opened a hole you could drive a truck through, and he took it all the way.", "Six points on the ground. The defense never saw it coming.", "He ran like the end zone owed him money.", "That's a touchdown on the ground, and the crowd is on its feet.", "Look at the blocking! That lineman pancaked two defenders on the way.", "Running back, touchdown, and the scoreboard says it all."],
+    td_pass: ["Right on the money! He found him in the end zone.", "The quarterback put it exactly where only his receiver could get it.", "Caught in stride, and nobody in the secondary could touch him.", "The corner had him on the replay, but the ball was already there.", "A perfect throw, a perfect catch, and six points on the board.", "That's the kind of pass they teach in quarterback school.", "The coverage was tight, and the throw was tighter.", "He beat his man, and the quarterback didn't blink."],
+    big_run: ["Wow, look at him go! That's a big gain on the ground.", "He broke two tackles and kept on running.", "The defense bit on the fake, and he was gone.", "Chains moving! That's a big one on the ground.", "Big yards in the open field, and the linebackers are still looking for him.", "Look at the speed! The safety never had a chance.", "He's got the afterburners tonight, folks.", "That's the kind of run the offense will talk about all week."],
+    big_pass: ["Deep ball, and he's behind the defense! Look at that throw.", "A long gain through the air, and the crowd roars.", "That's a perfect pass, and the receiver did the rest.", "They were in the wrong coverage, and the quarterback found the gap.", "The pass is in the air, and it's a big gain, folks!", "The corner is beaten, and the safety is too late.", "That's the big play the offense has been waiting for.", "The quarterback saw the matchup and took the shot. Good decision."],
+    kr: ["He's gone! Nobody touched him on the way back.", "A kick return to remember! The blockers did their jobs.", "Look at that wall of blockers! He runs right through it.", "The coverage team never got to him. Big return!", "He took it all the way back. That's a special play.", "Speed on the return, and the kick coverage is chasing shadows.", "He's taking it to the house!", "That's the return that changes the momentum."],
+  };
+  function callLine(last, info) {
+    const kind = last.kr ? "kr" : info.how === "td" ? (last.kind === "run" ? "td_run" : "td_pass") : (last.kind === "run" ? "big_run" : "big_pass");
+    return { kind, line: pick(RP_LINES[kind]) };
+  }
+  function showCall(last, info) {
+    const A = annOf(G.homeTeam || RH), c = callLine(last, info), box = $("callout");
+    if (!box) return;
+    $("calloutFace").src = `assets/faces/${A.file}`;
+    $("calloutName").textContent = `${A.name} on the call`;
+    $("calloutPlay").textContent = info.text.replace(/\s+$/, "");
+    $("calloutTxt").textContent = `"${c.line}"`;
+    box.classList.add("show");
+  }
+  function startReplay(last, then, info) {
     if (!last.rec || last.rec.length < 30) return false;
+    if (info) showCall(last, info);
     const NETS = ["net_wchi", "net_lake_sentinel", "net_gridiron_weekly", "net_night_line", "net_channel_9", "net_bay_journal", "net_capital_sports", "net_riverside_wire"];
     RP = { P: last, frames: last.rec, i: 0, t: 0, then, after: null, bug: "assets/networks/" + pick(NETS) + ".png" };
     P = last;
@@ -12880,7 +12953,7 @@ function rbMount(root, onExit, TEAMS) {
   }
   function endReplay() {
     const r = RP; if (!r) return;
-    RP = null; P = null; $("hint").textContent = "";
+    RP = null; P = null; $("hint").textContent = ""; $("callout").classList.remove("show");
     r.then();
     if (r.after) r.after();
   }
@@ -13522,7 +13595,7 @@ function rbMount(root, onExit, TEAMS) {
     if (R.phase === "flip") th = (1 - Math.pow(1 - clamp(R.t / 2.4, 0, 1), 3)) * fin;
     else if (R.phase === "result") th = fin;
     else bob = Math.sin(R.t * 3) * 3;
-    const c = Math.cos(th), face = img(c >= 0 ? "assets/fb/coin_heads.png" : "assets/fb/coin_tails.png"), cw = Math.max(0.06, Math.abs(c)) * size;
+    const c = Math.cos(th), face = coinPic(c >= 0 ? "h" : "t"), cw = Math.max(0.06, Math.abs(c)) * size;
     g.save(); g.translate(cx, cy + bob);
     g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(0, size / 2 + 6 - bob, cw * 0.45, 5, 0, 0, 6.3); g.fill();
     if (ready(face)) g.drawImage(face, -cw / 2, -size / 2, cw, size);
