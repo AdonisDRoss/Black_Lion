@@ -11023,7 +11023,7 @@ function LoadingScreen({ mono }) {
 
 /* FOOTBALL MODE (layer 579): Raven Bowl, the mini football game, run in its own frame from the title screen. */
 const RB_TEAMS = [["Raven Hook Ravens", "#111111", "#e8c46a", "#b8343a"], ["Lakeshore Lancers", "#1f3a8a", "#c9ced6", "#ffffff"], ["Port Mercy Mariners", "#0f6b6b", "#e07b2a", "#111111"], ["Kestrel City Hawks", "#6a1e2e", "#e8c46a", "#9aa0a6"], ["Ironbridge Foundry", "#3a3f47", "#e0762a", "#f2f2f2"], ["Stockyard Bulls", "#7a2e1a", "#e8b84a", "#2d2d2d"], ["Harbor Heights Herons", "#2b5f8a", "#a8d8ea", "#f2f2f2"], ["Crown Falls Kings", "#4b1d6e", "#e8c46a", "#ffffff"], ["Mill River Millers", "#2f5d3a", "#d8c49a", "#5a3a1e"], ["Cinder Park Comets", "#c0392b", "#f39c12", "#222222"], ["Goldcoast Gulls", "#0b4f6c", "#f2c14e", "#ffffff"], ["Eastgate Engineers", "#334155", "#94a3b8", "#f59e0b"], ["Westfield Wolves", "#1c2526", "#b8c4c8", "#5a6b70"], ["Marrow Creek Marauders", "#5c1f1f", "#d9a441", "#1a1a1a"], ["Sable Point Sharks", "#0a2540", "#5eb8c4", "#c0c8d4"], ["Lantern Hill Lanterns", "#e26d1c", "#fff1c2", "#3a2a1a"], ["Tallow Bay Tugs", "#2e4a2e", "#c9b26b", "#f0ece0"], ["Grayhaven Granite", "#5b6670", "#e6e2d8", "#2a2f35"], ["Blackwater Bears", "#1a1a2e", "#b7a06a", "#ffffff"], ["Sunrise Valley Stars", "#ffb703", "#023047", "#fb8500"], ["Iron Gate Guards", "#7c0a02", "#cfd3d6", "#101010"], ["Rookery Falcons", "#3d2b56", "#f4a261", "#e9e4f0"], ["Redline Rockets", "#d62828", "#003049", "#fcbf49"], ["Salt Flat Scorpions", "#8a5a2b", "#f0d9a8", "#2b1d0e"], ["Fairmount Fire", "#9a031e", "#fb8b24", "#0f4c5c"], ["Drydock Dockers", "#14532d", "#facc15", "#ffffff"], ["Midway Mavericks", "#1d3557", "#e63946", "#f1faee"], ["Oakhollow Owls", "#4a4e69", "#c9ada7", "#22223b"], ["Copperhead Crew", "#b45309", "#78350f", "#fde68a"], ["Riverside Rangers", "#0e7490", "#a7f3d0", "#064e3b"], ["Southside Sentinels", "#312e81", "#a5b4fc", "#e0e7ff"], ["Northwood Nightjars", "#1e1b4b", "#7c3aed", "#ddd6fe"]];
-const RB_MARKUP = "<style>\n#rb{font:14px system-ui,sans-serif;color:#f1ead8;background:#0b0b10;padding:14px;user-select:none;box-sizing:border-box;min-height:100%}\n#rb #wrap{max-width:920px;margin:0 auto}\n#rb #wrap{position:relative;overflow:hidden}\n#rb #coach{position:absolute;right:10px;top:64px;width:210px;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:8px;font-size:12px;color:#f1ead8;transform:translateX(260px);transition:transform .35s ease;pointer-events:none;z-index:3;opacity:0}\n#rb #coach.show{opacity:1;transform:none}\n#rb #coach img{width:44px;height:44px;image-rendering:pixelated;border-radius:4px;background:#1c2a3a;float:left;margin-right:8px}\n#rb #intro{position:absolute;left:0;right:0;top:58px;margin:0 auto;width:min(540px,94%);background:#0f1320ee;border:2px solid #e8c46a;border-radius:10px;padding:12px;color:#f1ead8;font-size:13px;display:none;z-index:4;cursor:pointer}\n#rb #intro.on{display:block}\n#rb #scout{position:absolute;left:8px;top:64px;width:330px;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:6px;color:#f1ead8;font-size:11px;display:none;z-index:3}\n#rb #scout.show{display:block}\n#rb #scoutFaces{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px}\n#rb .sf{display:flex;flex-direction:column;align-items:center;text-align:center;font-size:10px;line-height:1.2;border:1px solid transparent;border-radius:4px;padding:2px}\n#rb .sf.hit{border-color:#ff6b6b;background:rgba(255,107,107,.15)}\n#rb #scoutC{width:100%;height:auto;display:block;border-radius:4px}\n#rb #scoutTxt{margin-top:6px;min-height:28px}\n#rb canvas{width:100%;height:auto;display:block;border:1px solid #222;background:#0d0d12;touch-action:none}\n#rb .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap}\n#rb .score{font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center}\n#rb .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}\n#rb .btns button{font-size:13px;padding:11px 4px}\n#rb .btns button[data-play]{display:flex;flex-direction:column;align-items:center;padding:6px 4px 8px}\n#rb .btns button.snap{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb button{background:#1d1d26;color:#f1ead8;border:1px solid #333;padding:12px 6px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit}\n#rb button:disabled{opacity:.3;cursor:default}\n#rb button.on{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb #hint{color:#9a9486;font-size:12px;margin-top:8px;line-height:1.6}\n#rb #log{background:#101018;border:1px solid #222;height:110px;overflow:auto;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55}\n#rb #over{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}\n#rb #over .card{background:#15151d;border:1px solid #333;padding:22px;max-width:660px;width:100%;text-align:center;max-height:92vh;overflow:auto}\n#rb #over h2{margin:0 0 8px;color:#e8c46a}\n/* landscape phones: the field on the left, the plays in a column on the right, so everything fits without scrolling */\n@media (orientation: landscape) and (max-height: 620px) {\n#rb{padding:8px}\n#rb #wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:10px;align-items:start}\n#rb .bar{grid-column:1 / -1;margin:0 0 6px}\n#rb #wrap > canvas{grid-column:1;grid-row:2}\n#rb .btns{grid-column:2;grid-row:2;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:0}\n#rb .btns button{font-size:12px;padding:6px 3px}\n#rb .btns button[data-play] svg{width:60px;height:33px}\n#rb #hint{grid-column:1 / -1;font-size:11px;margin-top:4px}\n#rb #log{grid-column:1 / -1;height:64px;font-size:12px;margin-top:4px}\n}\n</style>\n<div id=\"wrap\">\n  <div class=\"bar\"><div class=\"score\" id=\"score\"></div><div id=\"status\" style=\"color:#9a9486\"></div></div>\n  <canvas id=\"c\" width=\"920\" height=\"520\"></canvas>\n  <div class=\"btns\">\n    <button data-play=\"iz\" data-call=\"iz\">Inside Zone</button>\n    <button data-play=\"ob\" data-call=\"ob\">Outside Run</button>\n    <button data-play=\"sl\" data-call=\"sl\">Quick Slants</button>\n    <button data-play=\"hi\" data-call=\"hi\">Hitch &amp; Out</button>\n    <button data-play=\"cu\" data-call=\"cu\">Curls</button>\n    <button data-play=\"pc\" data-call=\"pc\">Post-Corner</button>\n    <button data-play=\"go\" data-call=\"go\">Go Routes</button>\n    <button data-play=\"qr\" data-call=\"qr\">QB Keeper</button>\n    <button id=\"burstBtn\" class=\"burst\" title=\"Hold to set up a move. Let go to burst (Z, or the left bumper)\">Burst (hold)</button>\n    <button data-call=\"snap\" id=\"snapBtn\" class=\"snap\">Snap</button>\n    <button data-call=\"kick\" id=\"kickBtn\">Kick</button>\n  </div>\n  <div id=\"hint\"></div>\n  <div id=\"coach\"></div>\n  <div id=\"intro\"></div>\n<style>\n#rb #result{position:absolute;left:50%;top:36%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0;transition:opacity .25s;max-width:92%;z-index:5}\n#rb #result.show{opacity:1}\n#rb #resBig{font:900 46px Impact,'Arial Black',sans-serif;color:#e8c46a;letter-spacing:1px;text-shadow:0 3px 0 #000,0 0 14px rgba(0,0,0,.7);line-height:1}\n#rb #resPlay{font:700 18px system-ui;color:#f1ead8;text-shadow:0 2px 6px #000;margin-top:6px}\n#rb #resYd{font:700 15px system-ui;color:#e8c46a;text-shadow:0 2px 6px #000}\n#rb #resInj{font:700 15px system-ui;color:#ff6b6b;text-shadow:0 2px 6px #000}\n#rb #resSit{font:600 12px system-ui;color:#c9c2b0;margin-top:6px;text-shadow:0 2px 4px #000}\n</style>\n  <div id=\"result\"><div id=\"resBig\"></div><div id=\"resPlay\"></div><div id=\"resYd\"></div><div id=\"resInj\"></div><div id=\"resSit\"></div></div>\n  <div id=\"scout\"><div id=\"scoutFaces\"></div><canvas id=\"scoutC\" width=\"314\" height=\"110\"></canvas><div id=\"scoutTxt\"></div></div>\n  <div id=\"log\"></div>\n</div>\n<div id=\"over\"><div class=\"card\" id=\"overc\"></div></div>\n";
+const RB_MARKUP = "<style>\n#rb{font:14px system-ui,sans-serif;color:#f1ead8;background:#0b0b10;padding:14px;user-select:none;box-sizing:border-box;min-height:100%}\n#rb #wrap{max-width:920px;margin:0 auto}\n#rb #wrap{position:relative;overflow:hidden}\n#rb #coach{position:absolute;right:10px;top:64px;width:210px;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:8px;font-size:12px;color:#f1ead8;transform:translateX(260px);transition:transform .35s ease;pointer-events:none;z-index:3;opacity:0}\n#rb #coach.show{opacity:1;transform:none}\n#rb #coach img{width:44px;height:44px;image-rendering:pixelated;border-radius:4px;background:#1c2a3a;float:left;margin-right:8px}\n#rb #intro{position:absolute;left:0;right:0;top:58px;margin:0 auto;width:min(540px,94%);background:#0f1320ee;border:2px solid #e8c46a;border-radius:10px;padding:12px;color:#f1ead8;font-size:13px;display:none;z-index:4;cursor:pointer}\n#rb #intro.on{display:block}\n#rb #scout{position:absolute;left:8px;top:64px;width:330px;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:6px;color:#f1ead8;font-size:11px;display:none;z-index:3}\n#rb #scout.show{display:block}\n#rb #scoutFaces{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px}\n#rb .sf{display:flex;flex-direction:column;align-items:center;text-align:center;font-size:10px;line-height:1.2;border:1px solid transparent;border-radius:4px;padding:2px}\n#rb .sf.hit{border-color:#ff6b6b;background:rgba(255,107,107,.15)}\n#rb #scoutC{width:100%;height:auto;display:block;border-radius:4px}\n#rb #scoutTxt{margin-top:6px;min-height:28px}\n#rb canvas{width:100%;height:auto;display:block;border:1px solid #222;background:#0d0d12;touch-action:none}\n#rb .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap}\n#rb .score{font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center}\n#rb .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}\n#rb .btns button{font-size:13px;padding:11px 4px}\n#rb .btns button[data-play]{display:flex;flex-direction:column;align-items:center;padding:6px 4px 8px}\n#rb .btns button.snap{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb button{background:#1d1d26;color:#f1ead8;border:1px solid #333;padding:12px 6px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit}\n#rb button:disabled{opacity:.3;cursor:default}\n#rb button.on{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb #hint{color:#9a9486;font-size:12px;margin-top:8px;line-height:1.6}\n#rb #log{background:#101018;border:1px solid #222;height:110px;overflow:auto;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55}\n#rb #over{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}\n#rb #over .card{background:#15151d;border:1px solid #333;padding:22px;max-width:660px;width:100%;text-align:center;max-height:92vh;overflow:auto}\n#rb #over h2{margin:0 0 8px;color:#e8c46a}\n/* landscape phones: the field on the left, the plays in a column on the right, so everything fits without scrolling */\n@media (orientation: landscape) and (max-height: 620px) {\n#rb{padding:8px}\n#rb #wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:10px;align-items:start}\n#rb .bar{grid-column:1 / -1;margin:0 0 6px}\n#rb #wrap > canvas{grid-column:1;grid-row:2}\n#rb .btns{grid-column:2;grid-row:2;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:0}\n#rb .btns button{font-size:12px;padding:6px 3px}\n#rb .btns button[data-play] svg{width:60px;height:33px}\n#rb #hint{grid-column:1 / -1;font-size:11px;margin-top:4px}\n#rb #log{grid-column:1 / -1;height:64px;font-size:12px;margin-top:4px}\n}\n</style>\n<div id=\"wrap\">\n  <div class=\"bar\"><div class=\"score\" id=\"score\"></div><div id=\"status\" style=\"color:#9a9486\"></div></div>\n  <canvas id=\"c\" width=\"920\" height=\"520\"></canvas>\n  <div class=\"btns\">\n    <button data-play=\"iz\" data-call=\"iz\">Inside Zone</button>\n    <button data-play=\"ob\" data-call=\"ob\">Outside Run</button>\n    <button data-play=\"sl\" data-call=\"sl\">Quick Slants</button>\n    <button data-play=\"hi\" data-call=\"hi\">Hitch &amp; Out</button>\n    <button data-play=\"cu\" data-call=\"cu\">Curls</button>\n    <button data-play=\"pc\" data-call=\"pc\">Post-Corner</button>\n    <button data-play=\"go\" data-call=\"go\">Go Routes</button>\n    <button data-play=\"qr\" data-call=\"qr\">QB Keeper</button>\n    <button id=\"burstBtn\" class=\"burst\" title=\"Hold to set up a move. Let go to burst (Z, or the left bumper)\">Burst (hold)</button>\n    <button data-call=\"snap\" id=\"snapBtn\" class=\"snap\">Snap</button>\n    <button data-call=\"kick\" id=\"kickBtn\">Kick</button>\n  </div>\n  <div id=\"hint\"></div>\n  <div id=\"coach\"></div>\n  <div id=\"intro\"></div>\n<style>\n#rb #result{position:absolute;left:50%;top:36%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0;transition:opacity .25s;max-width:92%;z-index:5}\n#rb #result.show{opacity:1}\n#rb #resBig{font:900 46px Impact,'Arial Black',sans-serif;color:#e8c46a;letter-spacing:1px;text-shadow:0 3px 0 #000,0 0 14px rgba(0,0,0,.7);line-height:1}\n#rb #resPlay{font:700 18px system-ui;color:#f1ead8;text-shadow:0 2px 6px #000;margin-top:6px}\n#rb #resYd{font:700 15px system-ui;color:#e8c46a;text-shadow:0 2px 6px #000}\n#rb #resInj{font:700 15px system-ui;color:#ff6b6b;text-shadow:0 2px 6px #000}\n#rb #resSit{font:600 12px system-ui;color:#c9c2b0;margin-top:6px;text-shadow:0 2px 4px #000}\n</style>\n<style>\n#rb #over .room{position:absolute;inset:0;display:none;background:linear-gradient(rgba(10,10,16,.7),rgba(10,10,16,.92)),var(--room,none) center/cover no-repeat,#15151d}\n#rb #over .room.on{display:block}\n#rb #over .room.fade{animation:roomIn .8s ease}\n@keyframes roomIn{from{opacity:.15}to{opacity:1}}\n#rb #over .card{position:relative;z-index:1;background:rgba(21,21,29,.86)}\n#rb button.focus{outline:2px solid #e8c46a;outline-offset:2px}\n#rb #overc.textmenu button{display:block;margin:6px auto;width:100%;background:transparent;border:none;color:#f1ead8;font-size:20px;letter-spacing:2px;text-shadow:0 2px 6px #000;padding:8px}\n#rb #overc.textmenu button.on{color:#e8c46a;background:transparent}\n#rb .roomName{color:#9a9486;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}\n</style>\n  <div id=\"result\"><div id=\"resBig\"></div><div id=\"resPlay\"></div><div id=\"resYd\"></div><div id=\"resInj\"></div><div id=\"resSit\"></div></div>\n  <div id=\"scout\"><div id=\"scoutFaces\"></div><canvas id=\"scoutC\" width=\"314\" height=\"110\"></canvas><div id=\"scoutTxt\"></div></div>\n  <div id=\"log\"></div>\n</div>\n<div id=\"over\"><div class=\"room\"></div><div class=\"card\" id=\"overc\"></div></div>\n";
 /* face pool (generated from assets/faces/manifest.json): files in assets/faces/ */
 const RB_FACES = {"older": ["A01.png", "A03.png", "A09.png", "A63.png", "A64.png", "B28.png", "C10.png", "C11.png", "C14.png", "C15.png", "C16.png", "C20.png", "C21.png", "C22.png", "C23.png", "C28.png", "C29.png", "C40.png", "S101.png", "S102.png", "S103.png", "S104.png", "S105.png", "S106.png", "S107.png", "S108.png", "S109.png", "S111.png", "S112.png", "S113.png", "S114.png", "S115.png", "S117.png", "S118.png", "S119.png", "S122.png", "S123.png", "S124.png", "S125.png", "S126.png", "S127.png", "S128.png", "S129.png", "S130.png", "S131.png", "S132.png", "S135.png", "S136.png", "S138.png", "S139.png", "S140.png", "S141.png", "S142.png", "S143.png", "S144.png", "S145.png", "S146.png", "S147.png", "S148.png", "S149.png", "S151.png", "S152.png", "S154.png", "S155.png", "S156.png", "S157.png", "S158.png", "S159.png", "S160.png", "S161.png", "S163.png", "S164.png", "S309.png"], "mid": ["A04.png", "A10.png", "B16.png", "B19.png", "C09.png", "C12.png", "C36.png", "C39.png", "S201.png", "S202.png", "S203.png", "S204.png", "S205.png", "S206.png", "S207.png", "S208.png", "S209.png", "S210.png", "S211.png", "S212.png", "S213.png", "S214.png", "S215.png", "S216.png", "S217.png", "S218.png", "S219.png", "S220.png", "S221.png", "S222.png", "S223.png", "S224.png", "S225.png", "S226.png", "S227.png", "S228.png", "S229.png", "S230.png", "S231.png", "S232.png", "S233.png", "S234.png", "S235.png", "S236.png", "S237.png", "S238.png", "S239.png", "S240.png", "S241.png", "S242.png", "S243.png", "S244.png", "S245.png", "S246.png", "S247.png", "S248.png", "S249.png", "S250.png", "S251.png", "S252.png", "S253.png", "S254.png", "S255.png", "S256.png", "S257.png", "S258.png", "S259.png", "S260.png", "S261.png", "S262.png", "S263.png", "S264.png"], "young": ["A05.png", "A06.png", "A07.png", "A08.png", "A11.png", "A12.png", "A13.png", "A14.png", "A15.png", "A16.png", "A17.png", "A18.png", "A19.png", "A20.png", "A21.png", "A22.png", "A23.png", "A24.png", "A25.png", "A26.png", "A27.png", "A28.png", "A29.png", "A30.png", "A31.png", "A32.png", "A33.png", "A34.png", "A35.png", "A36.png", "A37.png", "A38.png", "A39.png", "A40.png", "A41.png", "A42.png", "A43.png", "A44.png", "A45.png", "A46.png", "A47.png", "A48.png", "A49.png", "A50.png", "A51.png", "A52.png", "A53.png", "A54.png", "A55.png", "A56.png", "A57.png", "A58.png", "A59.png", "A60.png", "A61.png", "A62.png", "B01.png", "B02.png", "B03.png", "B04.png", "B05.png", "B06.png", "B07.png", "B09.png", "B10.png", "B11.png", "B12.png", "B13.png", "B14.png", "B15.png", "B17.png", "B18.png", "B20.png", "B21.png", "B22.png", "B23.png", "B24.png", "B25.png", "B27.png", "B29.png", "B30.png", "B31.png", "B32.png", "B33.png", "B34.png", "B35.png", "B37.png", "B38.png", "B39.png", "B41.png", "B42.png", "B43.png", "B44.png", "B45.png", "C01.png", "C02.png", "C03.png", "C04.png", "C05.png", "C07.png", "C08.png", "C13.png", "C17.png", "C18.png", "C19.png", "C24.png", "C25.png", "C26.png", "C27.png", "C30.png", "C31.png", "C33.png", "C34.png", "C35.png", "C37.png", "C38.png", "S301.png", "S302.png", "S303.png", "S304.png", "S305.png", "S306.png", "S307.png", "S308.png", "S310.png", "S311.png", "S312.png", "S314.png", "S315.png", "S316.png", "S317.png", "S318.png", "S319.png", "S320.png", "S321.png", "S323.png", "S324.png", "S325.png", "S327.png", "S328.png", "S330.png", "S331.png", "S332.png", "S334.png", "S335.png", "S337.png", "S338.png", "S339.png", "S340.png", "S342.png", "S343.png", "S344.png", "S345.png", "S346.png", "S347.png", "S349.png", "S350.png", "S351.png", "S352.png", "S353.png", "S354.png", "S355.png", "S356.png", "S357.png", "S358.png", "S359.png", "S360.png", "S361.png", "S362.png", "S363.png", "S364.png", "S365.png", "S366.png", "S367.png", "S368.png", "S369.png", "S370.png", "S371.png", "S372.png", "S373.png", "S374.png", "S375.png", "S376.png", "S377.png", "S378.png", "S379.png", "S380.png"]};
 /* Raven Bowl: a football mode inside Black Lion. Mounted into a root element; returns a cleanup. */
@@ -11144,11 +11144,22 @@ function rbMount(root, onExit, TEAMS) {
     const src = c.createBufferSource(), g = c.createGain(); src.buffer = n; g.gain.value = 0.6;
     src.connect(g); g.connect(c.destination); src.start(t);
   }
+  /* the one-shot sounds: a random tackle, grunt or ball from each pool, one clip per sound */
+  const POOL = {
+    tackle: [1, 2, 3, 4, 5].map((i) => "assets/audio/clip_tackle_" + String(i).padStart(2, "0") + ".mp3"),
+    grunt: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => "assets/audio/clip_grunt_" + String(i).padStart(2, "0") + ".mp3"),
+    ball: ["assets/audio/ball_hit.mp3"],
+  };
+  function oneShot(kind, vol) {
+    if (S.muted) return;
+    const list = POOL[kind]; if (!list || !list.length) return;
+    try { const a = new Audio(list[(Math.random() * list.length) | 0]); a.volume = vol; a.play().catch(() => {}); } catch (e) {}
+  }
   /* what a finished play sounds like */
   function playSound(how, text) {
     if (how === "td") { clip("cheer"); whistle(); }
     else if (how === "int") { clip("boo"); whistle(); }
-    else if (/Sacked|Tackled/.test(text)) { thud(); whistle(); }
+    else if (/Sacked|Tackled/.test(text)) { oneShot("tackle", 0.9); if (/Sacked/.test(text)) oneShot("grunt", 0.6); whistle(); }
     else whistle();
   }
 
@@ -11366,7 +11377,7 @@ function rbMount(root, onExit, TEAMS) {
   }
   /* a game between two teams the user is not playing, by rating */
   function simGame(a, b) {
-    const pA = clamp(0.5 + (DYN.rating[a[0]] - DYN.rating[b[0]]) / 100, 0.12, 0.88);
+    const mo = (DYN.morale || 0) * 0.01, pA = clamp(0.5 + (DYN.rating[a[0]] - DYN.rating[b[0]]) / 100 + (a[0] === RH[0] ? mo : b[0] === RH[0] ? -mo : 0), 0.12, 0.88);
     const aWins = Math.random() < pA;
     const hi = (Math.random() * 14 + 14) | 0, lo = Math.max(0, hi - ((Math.random() * 14) | 0) - 1);
     return aWins ? [a, b, hi, lo] : [b, a, hi, lo];
@@ -11410,6 +11421,7 @@ function rbMount(root, onExit, TEAMS) {
   }
   /* the Ravens' live game ended: record it and go on */
   function dynGameOver() {
+    hideRoom();
     const hs = G.hs, as = G.as, won = hs > as;
     const res = won ? [RH, G.away, hs, as] : [G.away, RH, as, hs];
     G.over = true; setCalls(false);
@@ -11419,6 +11431,11 @@ function rbMount(root, onExit, TEAMS) {
       Object.values(starters(RH)).flat().forEach((p) => awardXP(p, -pen));
       DYN.news && DYN.news.push(`${DYN.lose} straight losses: the starters lose ${pen} XP each.`);
     }
+    if (DYN.pred === "win") {
+      if (won) { Object.values(starters(RH)).flat().forEach((p) => awardXP(p, 20)); DYN.morale = clamp((DYN.morale || 0) + 1, -5, 5); DYN.news && DYN.news.push("The promise came true. Starters +20 XP, morale up."); }
+      else { DYN.explain = true; DYN.news && DYN.news.push("You promised a win and lost. The press wants an explanation."); }
+    }
+    DYN.pred = null;
     $("overc").innerHTML = `<h2>${won ? "Ravens win" : "Ravens lose"}</h2><div style="font-size:20px;margin:10px 0">${RH[0]} ${hs} &middot; ${as} ${G.away[0]}</div>
       <p style="color:#9a9486">${stageLabel()}</p><button class="on" id="cont">Continue</button>`;
     $("over").style.display = "flex";
@@ -11467,7 +11484,14 @@ function rbMount(root, onExit, TEAMS) {
     if (DYN.pick >= DYN.picks.length || !DYN.pool.length) return draftDone();
     showDraft();
   }
+  /* one helper sets the room behind a screen and fades it in: assets/hub/<name>.png */
+  function setRoom(name) {
+    const room = $("over").querySelector(".room"); if (!room) return;
+    room.style.setProperty("--room", `url(assets/hub/${name}.png)`);
+    room.classList.add("on"); room.classList.remove("fade"); void room.offsetWidth; room.classList.add("fade");
+  }
   function showDraft() {
+    setRoom("draftroom");
     const best = DYN.pool.slice().sort((a, b) => shown(b) - shown(a)).slice(0, 8);
     const left = DYN.picks.length - DYN.pick;
     $("overc").innerHTML = `<h2 style="font-size:16px">Ravens on the clock</h2><p style="color:#9a9486;margin:4px 0 10px">Pick ${DYN.pick + 1} of ${DYN.picks.length} · ${left} left</p>
@@ -11561,7 +11585,7 @@ function rbMount(root, onExit, TEAMS) {
     const rows = r.map((p, i) => `<tr><td>${p.pos}</td><td>${faceHTML(faceOf(p), 48, p.name)} ${p.name}${p.heisman ? " [Heisman]" : ""}${p.rookie ? " (R)" : ""}${p.college ? `<br><span style="color:#9a9486;font-size:11px">${p.college} · ${p.hs}</span>` : ""}</td><td>${p.ovr}</td><td>${p.a.spd}</td><td>${p.a.str}</td><td>${KEY[p.pos]} ${p.a[KEY[p.pos]]}</td><td>${p.lvl || 0}</td><td style="color:${(p.xp || 0) < 0 ? "#b8343a" : "#9a9486"}">${p.xp || 0}/${thr((p.lvl || 0) + 1)}</td><td>$${salary(p)}M</td><td>${p.age}</td><td style="color:${p.inj > 0 ? "#b8343a" : "#9a9486"}">${p.inj > 0 ? "out " + p.inj + "w" : ""}</td><td>${p.pts > 0 ? `<select style="font-size:11px">${ATTR_KEYS.map((k) => `<option value="${k}">${k.toUpperCase()} ${p.a[k]}</option>`).join("")}</select> <button data-spend="${i}" style="font-size:11px;padding:2px 6px">+1 (${p.pts})</button>` : ""}</td></tr>`).join("");
     const deon = r.find((p) => p.name === "Deon Porter");
     const card = deon ? `<div style="display:flex;align-items:center;gap:12px;margin:6px 0 10px;text-align:left">${faceHTML("deon.png", 96)}<div><b>Deon Porter</b><br><span style="font-size:12px;color:#9a9486">QB · rookie · Heisman</span><br><span style="font-size:12px;color:#9a9486">${deon.college} · ${deon.hs}</span></div></div>` : "";
-    return `<h2 style="font-size:16px">Ravens roster</h2><p style="color:#9a9486;font-size:12px">Team rating ${Math.round(teamOvr(RH) + coachBonus())} · Payroll $${payroll().toFixed(1)}M of $${CAP}M · ${r.length} players</p>${card}
+    return `<h2 style="font-size:16px">Ravens roster</h2><p style="color:#9a9486;font-size:12px">Team rating ${Math.round(teamOvr(RH) + coachBonus())} · Payroll $${payroll().toFixed(1)}M of $${CAP}M · ${r.length} players</p>${talkBar()}${card}
       <div style="max-height:340px;overflow:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;text-align:left"><tr style="color:#e8c46a"><th>Pos</th><th>Name</th><th>OVR</th><th>SPD</th><th>STR</th><th>Skill</th><th>Lvl</th><th>XP</th><th>Salary</th><th>Age</th><th></th><th>Points</th></tr>${rows}</table></div>`;
   }
   function coachCard(c, label) {
@@ -11604,17 +11628,66 @@ function rbMount(root, onExit, TEAMS) {
     DYN.note = `Signed ${p.name}.` + (release ? ` Released ${release.name}.` : "");
     renderHub();
   }
+  /* the hub rooms: each tab has a room behind it (assets/hub/<name>.png); the room fades in when you walk in */
+  const ROOM_IMG = { season: "stadium", coaches: "office", fa: "office", roster: "locker", press: "pressroom", train: "training" };
+  const ROOM_NAME = { season: "Game day", coaches: "Team office", fa: "Team office", roster: "Locker room", press: "Press room", train: "Training field" };
+  const weekKey = () => DYN.round + "-" + DYN.phase + "-" + DYN.rounds.length;
+  const hideRoom = () => { const r = $("over").querySelector(".room"); if (r) r.classList.remove("on"); };
+  function talkTo(kind) {
+    if (DYN.talkKey === weekKey()) { DYN.note = "You already talked to the team this week."; return renderHub(); }
+    DYN.talkKey = weekKey();
+    DYN.morale = clamp((DYN.morale || 0) + (kind === "motivate" ? 1 : -1), -5, 5);
+    DYN.note = kind === "motivate" ? "You fire them up. Morale up." : "You chew them out. Morale down, but they listen.";
+    renderHub();
+  }
+  function talkBar() {
+    const used = DYN.talkKey === weekKey();
+    return `<div style="margin:6px 0 8px;font-size:12px;color:#9a9486">Morale ${DYN.morale || 0} (-5 to 5) · <button data-talk="motivate" ${used ? "disabled" : ""} style="font-size:12px;padding:4px 8px">Motivate the team</button> <button data-talk="chew" ${used ? "disabled" : ""} style="font-size:12px;padding:4px 8px">Chew them out</button></div>`;
+  }
+  function runDrills() {
+    if (DYN.trainKey === weekKey()) { DYN.note = "Drills are done this week."; return renderHub(); }
+    DYN.trainKey = weekKey();
+    Object.values(starters(RH)).flat().forEach((p) => awardXP(p, 15));
+    DYN.note = "Drills done. Every starter earns 15 XP.";
+    renderHub();
+  }
+  function trainTab() {
+    const used = DYN.trainKey === weekKey();
+    return `<h2 style="font-size:16px">Training field</h2><p style="color:#9a9486;font-size:12px">Drills take a week. Every starter earns 15 XP, which can level them up.</p>
+      <button class="on" data-drill="1" ${used ? "disabled" : ""}>${used ? "Drills done this week" : "Run the drills"}</button>`;
+  }
+  function pressTab() {
+    const pred = DYN.pred || "none";
+    const opts = [["win", "We're going to win"], ["fine", "One game at a time"], ["none", "No comment"]];
+    const explain = DYN.explain ? `<h3 style="font-size:13px;color:#b8343a;margin:12px 0 6px">You promised a win and lost. Explain it.</h3>
+      <button data-explain="own">Own it (morale -1)</button> <button data-explain="refs">Blame the refs (morale -2)</button> <button data-explain="bad">Bad luck and injuries (no change)</button>` : "";
+    return `<h2 style="font-size:16px">Press room</h2><p style="color:#9a9486;font-size:12px">Before the next game, what do you tell the reporters? A promised win that comes true pays a bonus. A promised win that fails has to be explained.</p>
+      <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">${opts.map(([k, n]) => `<button data-pred="${k}" class="${pred === k ? "on" : ""}">${n}</button>`).join("")}</div>${explain}`;
+  }
+  function explainPress(k) {
+    DYN.explain = false;
+    DYN.morale = clamp((DYN.morale || 0) + (k === "own" ? -1 : k === "refs" ? -2 : 0), -5, 5);
+    DYN.news && DYN.news.push(k === "own" ? "You owned the loss." : k === "refs" ? "You blamed the refs. The league is watching." : "You blamed the bounces and the injuries.");
+    DYN.note = "Explanation given.";
+    renderHub();
+  }
   function renderHub() {
-    const tabs = [["season", "Season"], ["roster", "Roster"], ["coaches", "Coaches"], ["fa", "Free agency"]];
-    const body = DYN.tab === "roster" ? rosterTab() : DYN.tab === "coaches" ? coachesTab() : DYN.tab === "fa" ? faTab() : seasonTab();
-    $("overc").innerHTML = `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px;flex-wrap:wrap">${tabs.map(([k, n]) => `<button data-tab="${k}" class="${DYN.tab === k ? "on" : ""}" style="padding:7px 10px;font-size:12px">${n}</button>`).join("")}</div>
+    $("overc").classList.remove("textmenu");
+    const tabs = [["season", "Season"], ["roster", "Locker room"], ["press", "Press room"], ["train", "Training"], ["coaches", "Coaches"], ["fa", "Free agency"]];
+    const body = DYN.tab === "roster" ? rosterTab() : DYN.tab === "press" ? pressTab() : DYN.tab === "train" ? trainTab() : DYN.tab === "coaches" ? coachesTab() : DYN.tab === "fa" ? faTab() : seasonTab();
+    $("overc").innerHTML = `<div class="roomName">${ROOM_NAME[DYN.tab] || ""}</div><div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px;flex-wrap:wrap">${tabs.map(([k, n]) => `<button data-tab="${k}" class="${DYN.tab === k ? "on" : ""}" style="padding:7px 10px;font-size:12px">${n}</button>`).join("")}</div>
       ${DYN.tab === "season" ? "" : `<p style="color:#e8c46a;font-size:12px;margin:0 0 6px;min-height:14px">${DYN.note || ""}</p>`}${body}
       <button id="menu" style="margin-top:10px">Back to menu</button>`;
     $("over").style.display = "flex";
     setCalls(false);
+    setRoom(ROOM_IMG[DYN.tab] || "office");
     $("overc").querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => { DYN.tab = b.dataset.tab; renderHub(); });
     $("overc").querySelectorAll("[data-hire]").forEach((b) => b.onclick = () => hire(+b.dataset.hire));
     $("overc").querySelectorAll("[data-sign]").forEach((b) => b.onclick = () => signFA(+b.dataset.sign));
+    $("overc").querySelectorAll("[data-pred]").forEach((b) => b.onclick = () => { DYN.pred = b.dataset.pred; DYN.note = "Press set for the next game."; renderHub(); });
+    $("overc").querySelectorAll("[data-explain]").forEach((b) => b.onclick = () => explainPress(b.dataset.explain));
+    $("overc").querySelectorAll("[data-talk]").forEach((b) => b.onclick = () => talkTo(b.dataset.talk));
+    $("overc").querySelectorAll("[data-drill]").forEach((b) => b.onclick = () => runDrills());
     $("overc").querySelectorAll("[data-spend]").forEach((b) => b.onclick = () => spendPoint(+b.dataset.spend, b.parentElement.querySelector("select").value));
     const pb = $("overc").querySelector("[data-act=play]"); if (pb) pb.onclick = () => { $("over").style.display = "none"; DYN.label = stageLabel(); newGame(DYN.nextOpp); };
     const sb = $("overc").querySelector("[data-act=sim]"); if (sb) sb.onclick = () => { $("over").style.display = "none"; advanceStage(null); };
@@ -11626,7 +11699,9 @@ function rbMount(root, onExit, TEAMS) {
     renderHub();
   }
   function showMenu() {
+    setRoom("citywide");
     const cont = DYN.active ? `<button class="on" id="cont2" style="margin-top:8px">Continue dynasty (season ${DYN.year}, ${DYN.titles} title${DYN.titles === 1 ? "" : "s"})</button>` : "";
+    $("overc").classList.add("textmenu");
     $("overc").innerHTML = `<h2>Raven Bowl</h2><p style="color:#9a9486">Pick a mode. M mutes the music.</p>
       <button class="on" id="exh">Exhibition</button>
       <button class="on" id="dyn" style="margin-top:8px">${DYN.active ? "New dynasty" : "Dynasty: win a championship"}</button>${cont}
@@ -11665,6 +11740,7 @@ function rbMount(root, onExit, TEAMS) {
     G.q++; G.clock = QUARTER; say(`End of quarter. Quarter ${G.q} begins.`);
   }
   function halftime() {
+    hideRoom();
     $("overc").innerHTML = `<h2>Halftime</h2><div style="font-size:20px;margin:10px 0">${RH[0]} ${G.hs} &middot; ${G.as} ${G.away[0]}</div>
       <p style="color:#9a9486">Second half starts with the kick. Your ball at your 25.</p><button class="on" id="go2">Second half</button>`;
     $("over").style.display = "flex";
@@ -11672,6 +11748,7 @@ function rbMount(root, onExit, TEAMS) {
     update();
   }
   function finish() {
+    hideRoom();
     if (G.dyn) return dynGameOver();
     G.over = true; setCalls(false);
     const win = G.hs > G.as ? "You win." : G.hs < G.as ? "You lose." : "Tie game.";
@@ -11695,9 +11772,22 @@ function rbMount(root, onExit, TEAMS) {
   }
   /* A (or Enter) skips the talk: the opponent's plays, or the run-out */
   /* A or Enter presses the big button on an open overlay (halftime's Second half, Final's New game) */
+  const ovOpen = () => $("over").style.display === "flex";
+  const ovButtons = () => [...$("overc").querySelectorAll("button")].filter((b) => !b.disabled && b.offsetParent !== null);
+  /* the D-pad (or arrow keys) walks the buttons of the open screen; A presses the one with the frame on it */
+  function ovMove(d) {
+    if (!ovOpen()) return;
+    const bs = ovButtons(); if (!bs.length) return;
+    let i = bs.findIndex((b) => b.classList.contains("focus"));
+    if (i < 0) i = Math.max(0, bs.findIndex((b) => b.classList.contains("on")));
+    else i = (i + d + bs.length) % bs.length;
+    bs.forEach((b, k) => b.classList.toggle("focus", k === i));
+    bs[i].scrollIntoView({ block: "nearest" });
+  }
   function overAct() {
-    if (!G || $("over").style.display !== "flex") return false;
-    const b = $("overc").querySelector("button.on"); if (!b) return false;
+    if (!ovOpen()) return false;
+    const b = ovButtons().find((x) => x.classList.contains("focus")) || $("overc").querySelector("button.on");
+    if (!b || b.disabled) return false;
     b.click(); return true;
   }
   function skipTalk() {
@@ -11931,7 +12021,7 @@ function rbMount(root, onExit, TEAMS) {
   function snap(id) {
     if (!G || G.over || G.half || G.intro || G.cpu || P) return;
     clockLeft = PLAY_CLOCK;
-    loopOff("match"); clip("drums");
+    loopOff("match"); clip("drums"); oneShot("ball", 0.7);
     if (id === "kick") return kick();
     const pb = PLAYS[id] || PLAYS[PB_SEL] || PLAYS.sl;
     const isRun = !!pb.run, deep = !!pb.deep;
@@ -11981,6 +12071,7 @@ function rbMount(root, onExit, TEAMS) {
   }
   /* the ball leaves the QB toward a point on the field (landing, in yards) */
   function throwAt(lx, ly) {
+    oneShot("ball", 0.7);
     if (!canThrow()) return;
     const q = P.qb; P.thrown = true; aim.on = false;
     const sg = 0.4 + (100 - attr(q, "acc")) / 110;      // yards of error
@@ -12112,7 +12203,7 @@ function rbMount(root, onExit, TEAMS) {
       if (hit) {
         const pT = clamp(0.5 + (attr(hit, "tkl") - attr(c, "elu")) / 160 + (attr(hit, "str") - attr(c, "str")) / 200, 0.08, 0.95);
         if (Math.random() < pT) { P.hitter = hit; endPlay(c.x - P.los, hit.role === "dl" ? "Sacked." : "Tackled.", "ok"); return; }
-        hit.cool = 0.8; hit.stun = 0.35; say("Broke the tackle!");
+        hit.cool = 0.8; hit.stun = 0.35; oneShot("grunt", 0.6); say("Broke the tackle!");
       }
     }
     if (!P.thrown && P.t > 3.6 && P.kind !== "run" && !aim.on) {  // nobody threw: the QB goes to the most open receiver
@@ -12199,7 +12290,7 @@ function rbMount(root, onExit, TEAMS) {
     let hurt = null;
     if (how === "ok" && (text === "Tackled." || text === "Sacked.") && Math.random() < 0.03) {   // a rare injury on the play
       const v = text === "Tackled." && last.carrier ? last.carrier : last.qb;
-      if (v && v.pa) { v.pa.inj = 1 + ((Math.random() * 5) | 0); hurt = v.pa; awardXP(v.pa, -20); say(`${v.pa.name} is hurt. Out ${v.pa.inj} week${v.pa.inj > 1 ? "s" : ""}.`); }
+      if (v && v.pa) { v.pa.inj = 1 + ((Math.random() * 5) | 0); hurt = v.pa; awardXP(v.pa, -20); oneShot("grunt", 0.9); say(`${v.pa.name} is hurt. Out ${v.pa.inj} week${v.pa.inj > 1 ? "s" : ""}.`); }
     }
     playXP(last, yards, text, how, last.hitter, pass);
     endPlayCore(yards, text, how);
@@ -12253,6 +12344,7 @@ function rbMount(root, onExit, TEAMS) {
     update();
   }
   function kick() {
+    oneShot("ball", 0.7);
     const dist = 100 - G.ball + 17;
     if (G.ball >= 60 && (G.down === 4 || G.ball >= 65)) {
       const pr = clamp(1.05 - (dist - 25) * 0.02, 0.1, 0.95);
@@ -12288,9 +12380,15 @@ function rbMount(root, onExit, TEAMS) {
     const A = btn(0), B = btn(1), X = btn(2), Y = btn(3);
     pad.rt = btn(7);
     const LB = btn(4); if (LB && !pad.prevLB) burstStart(); if (!LB && pad.prevLB) burstRelease(); pad.prevLB = LB;
+    const L3 = btn(10); if (L3 && !pad.prevL3) faceT0 = performance.now(); pad.prevL3 = L3;
     const U = btn(12), D = btn(13), L = btn(14), R = btn(15);
-    if ((L && !pad.prevL) || (U && !pad.prevU)) cyclePlay(-1);
-    if ((R && !pad.prevR) || (D && !pad.prevD)) cyclePlay(1);
+    if (ovOpen()) {
+      if ((L && !pad.prevL) || (U && !pad.prevU)) ovMove(-1);
+      if ((R && !pad.prevR) || (D && !pad.prevD)) ovMove(1);
+    } else {
+      if ((L && !pad.prevL) || (U && !pad.prevU)) cyclePlay(-1);
+      if ((R && !pad.prevR) || (D && !pad.prevD)) cyclePlay(1);
+    }
     pad.prevL = L; pad.prevU = U; pad.prevR = R; pad.prevD = D;
     if (A && !pad.prevA && (overAct() || skipTalk())) {} else if (A && !pad.prevA) { if (P && canThrow()) { aim.on = true; aim.from = "hold"; aim.hold = 0; aim.power = 0; aim.dx = 0; aim.dy = 0; } else if (canCall()) snap(PB_SEL); }
     if (!A && pad.prevA) release();
@@ -12511,21 +12609,22 @@ function rbMount(root, onExit, TEAMS) {
     // the sideline: coaches, refs and cameramen, with heads
     const cx = PX(los);
     const TOP = IN.y0 - 14, BOT = IN.y1 + 16;   // the track strips, between the stands and the field
-    sideFig(COACHES[0], HEADS[0], cx - 40, TOP, RH, 0.95); sideFig(COACHES[1], HEADS[3], cx + 40, TOP, RH, 0.95);
-    sideFig(COACHES[2], HEADS[6], cx - 40, BOT, G.away, 0.95); sideFig(COACHES[3], HEADS[9], cx + 40, BOT, G.away, 0.95);
-    sideFig(CAMS[0], HEADS[1], cx - 140, TOP, RH, 0.7); sideFig(CAMS[1], HEADS[4], cx + 140, TOP, RH, 0.7);
-    sideFig(CAMS[2], HEADS[7], cx - 140, BOT, G.away, 0.7); sideFig(CAMS[3], HEADS[10], cx + 140, BOT, G.away, 0.7);
-    sideFig(REFS[0], HEADS[12], cx - 90, FY0 + 14, null, 0.8); sideFig(REFS[1], HEADS[14], cx + 90, FY1 - 14, null, 0.8);
+    sideFig(COACHES[0], HEADS[0], cx - 40, TOP, RH, 0.8); sideFig(COACHES[1], HEADS[3], cx + 40, TOP, RH, 0.8);
+    sideFig(COACHES[2], HEADS[6], cx - 40, BOT, G.away, 0.8); sideFig(COACHES[3], HEADS[9], cx + 40, BOT, G.away, 0.8);
+    sideFig(CAMS[0], HEADS[1], cx - 140, TOP, RH, 0.6); sideFig(CAMS[1], HEADS[4], cx + 140, TOP, RH, 0.6);
+    sideFig(CAMS[2], HEADS[7], cx - 140, BOT, G.away, 0.6); sideFig(CAMS[3], HEADS[10], cx + 140, BOT, G.away, 0.6);
+    sideFig(REFS[0], HEADS[12], cx - 90, FY0 + 14, null, 0.6); sideFig(REFS[1], HEADS[14], cx + 90, FY1 - 14, null, 0.6);
     const bob = (i) => Math.sin(performance.now() / 260 + i * 1.7) * 2;
     [-300, -200, 200, 300].forEach((dx, i) => {
-      cheerFig("assets/school/yt_cheer_sa_" + ((i % 8) + 1) + ".png", RH[1], cv.width / 2 + dx, TOP + bob(i), 0.9);
-      cheerFig("assets/school/yt_cheer_opp_" + ((i % 6) + 1) + ".png", G.away[1], cv.width / 2 + dx, BOT + bob(i + 4), 0.9);
+      cheerFig("assets/school/yt_cheer_sa_" + ((i % 8) + 1) + ".png", RH[1], cv.width / 2 + dx, IN.y0 - 4 + bob(i) * 0.5, 0.55);
+      cheerFig("assets/school/yt_cheer_opp_" + ((i % 6) + 1) + ".png", G.away[1], cv.width / 2 + dx, IN.y1 + 4 + bob(i + 4) * 0.5, 0.55);
     });
     if (!P) {
       if (G.intro) G.intro.walkers.slice().sort((a, b) => a.y - b.y).forEach((p) => drawPlayer(p, 0));
-      else if (!G.over && !G.half) { formationPreview(los).forEach((p) => drawPlayer(p, 0)); drawRoutePreview(los); }
+      else if (!G.over && !G.half) { const fl = formationPreview(los); fl.forEach((p) => drawPlayer(p, 0)); drawRoutePreview(los); drawFaces(fl, null); }
     } else {
       [...P.pl].sort((a, b) => a.y - b.y).forEach((p) => drawPlayer(p, 1));
+      drawFaces(P.pl, P.carrier);
       if (P.thrown === false && P.kind !== "run" && P.qb) drawAim();
     }
     drawTalk();
@@ -12604,7 +12703,7 @@ function rbMount(root, onExit, TEAMS) {
     const heading = (p.ang || 0) + Math.PI / 2;
     const sw = Math.sin(p.anim || 0), moving = Math.hypot(p.vx || 0, p.vy || 0) > 0.3;
     ctx.save();
-    ctx.translate(x, y); ctx.rotate(heading);
+    ctx.translate(x, y); ctx.rotate(heading); ctx.scale(0.8, 0.8);
     const legS = moving ? sw * 3.5 : 0;
     ctx.fillStyle = "#8d939b";
     ctx.fillRect(-3.5 + legS * 0.4, 4, 2.6, 9);
@@ -12632,17 +12731,17 @@ function rbMount(root, onExit, TEAMS) {
     if (live && P && p.role === "wr" && !P.carrier && !P.thrown) { ctx.fillStyle = "rgba(232,196,106,.85)"; ctx.font = "700 10px system-ui"; ctx.fillText(String(P.wrs.indexOf(p) + 1), x - 3, y - 14); }
   }
   function formationPreview(los) {
-    const out = [];
-    for (let i = 0; i < 5; i++) out.push({ role: "ol", x: los - 1, y: 26 + (i - 2) * 4.2, side: "h", ang: 0, anim: 0, bodyN: i, helmN: i, skin: SKINS[i] });
-    out.push({ role: "qb", x: los - 4, y: 26, side: "h", ang: 0, anim: 0, bodyN: 6, helmN: 2, skin: SKINS[1] });
-    out.push({ role: "rb", x: los - 6, y: 26, side: "h", ang: 0, anim: 0, bodyN: 9, helmN: 5, skin: SKINS[2] });
-    out.push({ role: "wr", x: los - 1, y: 8, side: "h", ang: 0, anim: 0, bodyN: 3, helmN: 4, skin: SKINS[3] });
-    out.push({ role: "wr", x: los - 1, y: 44, side: "h", ang: 0, anim: 0, bodyN: 4, helmN: 1, skin: SKINS[0] });
-    out.push({ role: "wr", x: los - 1, y: 19, side: "h", ang: 0, anim: 0, bodyN: 10, helmN: 6, skin: SKINS[4] });
+    const out = [], O = starters(RH), D = starters(G.away);
+    for (let i = 0; i < 5; i++) out.push({ role: "ol", pa: (O.OL || [])[i], x: los - 1, y: 26 + (i - 2) * 4.2, side: "h", ang: 0, anim: 0, bodyN: i, helmN: i, skin: SKINS[i] });
+    out.push({ role: "qb", pa: (O.QB || [])[0], x: los - 4, y: 26, side: "h", ang: 0, anim: 0, bodyN: 6, helmN: 2, skin: SKINS[1] });
+    out.push({ role: "rb", pa: (O.RB || [])[0], x: los - 6, y: 26, side: "h", ang: 0, anim: 0, bodyN: 9, helmN: 5, skin: SKINS[2] });
+    out.push({ role: "wr", pa: (O.WR || [])[0], x: los - 1, y: 8, side: "h", ang: 0, anim: 0, bodyN: 3, helmN: 4, skin: SKINS[3] });
+    out.push({ role: "wr", pa: (O.WR || [])[1], x: los - 1, y: 44, side: "h", ang: 0, anim: 0, bodyN: 4, helmN: 1, skin: SKINS[0] });
+    out.push({ role: "wr", pa: (O.WR || [])[2], x: los - 1, y: 19, side: "h", ang: 0, anim: 0, bodyN: 10, helmN: 6, skin: SKINS[4] });
     const AL = defAlign(DEF_SEL || DEF_CALLS.box);
-    AL.dl.forEach((s, i) => out.push({ role: "dl", x: los + s.x, y: s.y, side: "a", ang: -Math.PI / 2, anim: 0, bodyN: i * 3, helmN: i + 2, skin: SKINS[i + 1] }));
-    AL.lb.forEach((s, i) => out.push({ role: "lb", x: los + s.x, y: s.y, side: "a", ang: -Math.PI / 2, anim: 0, bodyN: i * 4 + 1, helmN: i + 3, skin: SKINS[i] }));
-    AL.db.forEach((s, i) => out.push({ role: "db", x: los + s.x, y: s.y, side: "a", ang: -Math.PI / 2, anim: 0, bodyN: i * 2 + 5, helmN: i + 4, skin: SKINS[i + 2] }));
+    AL.dl.forEach((s, i) => out.push({ role: "dl", pa: (D.DL || [])[i], x: los + s.x, y: s.y, side: "a", ang: -Math.PI / 2, anim: 0, bodyN: i * 3, helmN: i + 2, skin: SKINS[i + 1] }));
+    AL.lb.forEach((s, i) => out.push({ role: "lb", pa: (D.LB || [])[i], x: los + s.x, y: s.y, side: "a", ang: -Math.PI / 2, anim: 0, bodyN: i * 4 + 1, helmN: i + 3, skin: SKINS[i] }));
+    AL.db.forEach((s, i) => out.push({ role: "db", pa: [(D.CB || [])[0], (D.CB || [])[1], (D.S || [])[0], (D.S || [])[1]][i], x: los + s.x, y: s.y, side: "a", ang: -Math.PI / 2, anim: 0, bodyN: i * 2 + 5, helmN: i + 4, skin: SKINS[i + 2] }));
     return out;
   }
   /* the ball: a sprite, with its shadow on the turf while it is in the air */
@@ -12681,7 +12780,7 @@ function rbMount(root, onExit, TEAMS) {
     const t = performance.now() / 400;
     fans.forEach((f) => {
       if (!ready(f.pic)) return;
-      const w = 22;
+      const w = 16;
       const dx = FCX - f.x, dy = FCY - f.y;
       ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(Math.atan2(-dx, dy));   // the figure's front points at the middle of the field
       ctx.drawImage(f.pic, -w / 2, -w / 2, w, w); ctx.restore();
@@ -12692,6 +12791,23 @@ function rbMount(root, onExit, TEAMS) {
         ctx.strokeStyle = f.team[2]; ctx.lineWidth = 1; ctx.strokeRect(f.x - 5.5, sy - 3.5, 11, 7);
       }
     });
+  }
+  /* faces: the man with the ball wears his face in a little circle; L3 (or T) shows everybody's for two seconds, then fades */
+  let faceT0 = -9;
+  function faceAlpha() { const t = (performance.now() - faceT0) / 1000; if (t < 0 || t > 2.5) return 0; return t < 1.8 ? 1 : (2.5 - t) / 0.7; }
+  function drawFaceBubble(pa, x, y, s, a) {
+    if (!pa || a <= 0) return;
+    const f = img("assets/faces/" + faceOf(pa)); if (!ready(f)) return;
+    ctx.save(); ctx.globalAlpha = a;
+    ctx.beginPath(); ctx.arc(x, y, s, 0, 6.3); ctx.fillStyle = "#15151d"; ctx.fill(); ctx.clip();
+    ctx.drawImage(f, x - s, y - s, s * 2, s * 2);
+    ctx.restore(); ctx.save(); ctx.globalAlpha = a;
+    ctx.beginPath(); ctx.arc(x, y, s, 0, 6.3); ctx.strokeStyle = "#e8c46a"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore();
+  }
+  function drawFaces(list, carrier) {
+    const a = faceAlpha();
+    list.forEach((p) => { if (p !== carrier) drawFaceBubble(p.pa, PX(p.x), PY(p.y) - 16, 7, a); });
+    if (carrier) drawFaceBubble(carrier.pa, PX(carrier.x), PY(carrier.y) - 18, 10, 1);
   }
   /* a sideline figure: the body, with a head from the civilian set on top */
   function sideFig(bodySrc, headSrc, x, y, team, k) {
@@ -12711,6 +12827,9 @@ function rbMount(root, onExit, TEAMS) {
     if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
     keys[e.code] = true;
     if (e.code === "KeyZ" && !e.repeat) burstStart();
+    if (e.code === "KeyT" && !e.repeat) faceT0 = performance.now();
+    if (ovOpen() && (e.code === "ArrowUp" || e.code === "ArrowLeft")) ovMove(-1);
+    if (ovOpen() && (e.code === "ArrowDown" || e.code === "ArrowRight")) ovMove(1);
     if (e.code === "Escape") { if (onExit) onExit(); return; }
     if (e.code === "Enter" && (overAct() || skipTalk())) return;
     if (!P) return;
