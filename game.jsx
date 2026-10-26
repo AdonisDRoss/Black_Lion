@@ -12621,10 +12621,11 @@ function rbMount(root, onExit, TEAMS) {
     });
     if (!P) {
       if (G.intro) G.intro.walkers.slice().sort((a, b) => a.y - b.y).forEach((p) => drawPlayer(p, 0));
-      else if (!G.over && !G.half) { const fl = formationPreview(los); fl.forEach((p) => drawPlayer(p, 0)); drawRoutePreview(los); drawFaces(fl, null); }
+      else if (!G.over && !G.half) { const fl = formationPreview(los); fl.forEach((p) => drawPlayer(p, 0)); drawRoutePreview(los); drawFaces(fl, null); drawLeaders(fl); }
     } else {
       [...P.pl].sort((a, b) => a.y - b.y).forEach((p) => drawPlayer(p, 1));
       drawFaces(P.pl, P.carrier);
+      drawLeaders(P.pl);
       if (P.thrown === false && P.kind !== "run" && P.qb) drawAim();
     }
     drawTalk();
@@ -12808,6 +12809,35 @@ function rbMount(root, onExit, TEAMS) {
     const a = faceAlpha();
     list.forEach((p) => { if (p !== carrier) drawFaceBubble(p.pa, PX(p.x), PY(p.y) - 16, 7, a); });
     if (carrier) drawFaceBubble(carrier.pa, PX(carrier.x), PY(carrier.y) - 18, 10, 1);
+  }
+  /* captains and stars: each team's two best starters are captains (a C by the face); the best starter is a star, and so is anyone at 85 or better */
+  function leaders() {
+    if (!G) return { stars: new Set(), caps: new Set() };
+    if (G._lead) return G._lead;
+    const pick = (team) => {
+      const all = Object.values(starters(team)).flat().sort((a, b) => b.ovr - a.ovr);
+      return { caps: all.slice(0, 2), stars: all.filter((p, i) => i === 0 || p.ovr >= 85) };
+    };
+    const h = pick(RH), a = pick(G.away);
+    G._lead = { stars: new Set([...h.stars, ...a.stars]), caps: new Set([...h.caps, ...a.caps]) };
+    return G._lead;
+  }
+  function drawStar(cx, cy, r) {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) { const rr = i % 2 ? r * 0.45 : r, an = -Math.PI / 2 + i * Math.PI / 5; ctx.lineTo(cx + Math.cos(an) * rr, cy + Math.sin(an) * rr); }
+    ctx.closePath(); ctx.fillStyle = "#e8c46a"; ctx.fill(); ctx.strokeStyle = "#111"; ctx.lineWidth = 1; ctx.stroke();
+  }
+  function drawLeaders(list) {
+    const L = leaders();
+    list.forEach((p) => {
+      if (!p.pa) return;
+      const x = PX(p.x), y = PY(p.y);
+      if (L.stars.has(p.pa)) drawStar(x, y - 36, 5);
+      if (L.caps.has(p.pa)) {
+        ctx.beginPath(); ctx.arc(x - 9, y - 20, 4.5, 0, 6.3); ctx.fillStyle = "#15151d"; ctx.fill(); ctx.strokeStyle = "#e8c46a"; ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = "#e8c46a"; ctx.font = "700 7px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("C", x - 9, y - 20);
+      }
+    });
   }
   /* a sideline figure: the body, with a head from the civilian set on top */
   function sideFig(bodySrc, headSrc, x, y, team, k) {
