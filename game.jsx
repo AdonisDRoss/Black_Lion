@@ -11036,7 +11036,7 @@ function rbMount(root, onExit, TEAMS) {
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const QUARTER = 120;
   const HINT_PASS = "PASS: pull back on the QB and let go to throw (or hold A / F and aim with the right stick / arrows; release to throw) · 1 / 2 / 3 quick-throw · Y / Q hand off";
-  const HINT_RUN = "RUN: drag or left stick / arrows · X / SPACE juke · B / E stiff arm · RT / SHIFT turbo · Y / Q hand off to the back before the snap";
+  const HINT_RUN = "RUN: drag or left stick / arrows · X / SPACE juke · C dive for extra yards · B / E stiff arm · RT / SHIFT turbo · Y / Q hand off to the back before the snap";
 
   /* ---- art ---- */
   const IMG = {};
@@ -12596,6 +12596,31 @@ function rbMount(root, onExit, TEAMS) {
     if (best) return { x: best.x + 1.5, y: best.y };
     return { x: p.zone.x + (ref.x - (P.los + 8)) * 0.12, y: p.zone.y + (ref.y - 26.7) * 0.35 };
   }
+  /* the defender's dive reaches this far, and the struggle when he gets a hold */
+  const DIVE_R = 2.8;
+  function startGrab(by, c) {
+    P.grab = { by, t: 0, flips: 0, last: 0, need: clamp(4 + Math.round((attr(by, "str") - attr(c, "str")) / 12), 3, 8), limit: 3 };
+    oneShot("grunt", 0.6); say(`${by.name} gets a hold of him!`);
+    $("hint").textContent = "HOLD ON! Wiggle left and right, or dive (C) for a few more yards";
+  }
+  /* the struggle: each change of direction on the stick is one wiggle; enough of them breaks free, too slow and he goes down */
+  function grabUpdate(dt, c) {
+    const g = P.grab; g.t += dt;
+    const mv = moveVector(), s = mv[0] > 0.5 ? 1 : mv[0] < -0.5 ? -1 : 0;
+    if (s) { if (g.last && s !== g.last) g.flips++; g.last = s; }
+    $("hint").textContent = `HOLD ON! Wiggle left and right: ${Math.min(g.flips, g.need)}/${g.need}`;
+    if (g.flips >= g.need) { g.by.cool = 0.8; g.by.stun = 1; P.grab = null; P.breaks = (P.breaks || 0) + 1; oneShot("grunt", 0.6); say("He breaks free!"); return false; }
+    if (g.t >= g.limit) { P.hitter = g.by; P.grab = null; endPlay(c.x - P.los, "Tackled.", "ok"); return true; }
+    return false;
+  }
+  /* the runner's dive: he throws himself forward for a few extra yards and the play ends there */
+  function runDive() {
+    if (!P || !P.carrier || P.thrown || P.kr) return;
+    const c = P.carrier, nx = Math.min(c.x + 2.6, EZ + PLAY);
+    c.x = nx; P.grab = null;
+    if (nx >= EZ + PLAY) return endPlay(nx - P.los, "TOUCHDOWN!", "td");
+    endPlay(nx - P.los, "Dives for the extra yards.", "ok");
+  }
   function updateLive(dt) {
     P.t += dt; P.boost = Math.max(0, (P.boost || 0) - dt);
     P.wrs.forEach((w) => {
@@ -12629,7 +12654,7 @@ function rbMount(root, onExit, TEAMS) {
     if (me) {
       let [mx, my] = aim.on ? [0, 0] : moveVector();   // while aiming, the QB stands still and the stick aims
       const turbo = keys.ShiftLeft || keys.ShiftRight || pad.rt;
-      const sp = RUN_SPEED(me) * (turbo ? 1.3 : 1) * (me.juke > 0 ? 1.6 : 1) * (P.setting ? 0.6 : 1) * (P.boost > 0 ? 1.3 : 1);
+      const sp = RUN_SPEED(me) * (turbo ? 1.3 : 1) * (me.juke > 0 ? 1.6 : 1) * (P.setting ? 0.6 : 1) * (P.boost > 0 ? 1.3 : 1) * (P.grab ? 0.2 : 1);
       me.vx = mx * sp; me.vy = my * sp;
       if (Math.hypot(mx, my) > 0.1) me.ang = Math.atan2(my, mx);
       me.juke = Math.max(0, me.juke - dt);
@@ -12642,7 +12667,8 @@ function rbMount(root, onExit, TEAMS) {
       if (p.stun > 0 || !goal) { p.vx *= 0.9; p.vy *= 0.9; return; }
       const g = zoneTarget(p) || goal;
       const dx = g.x - p.x, dy = g.y - p.y, d = Math.hypot(dx, dy) || 1;
-      const sp = DEF_SPEED(p);
+      if (!p.diving && P.carrier && !P.grab && (p.cool || 0) <= 0 && Math.hypot(P.carrier.x - p.x, P.carrier.y - p.y) < DIVE_R) p.diving = { t: 0 };
+      const sp = DEF_SPEED(p) * (p.diving ? 1.5 : 1);
       p.vx = dx / d * sp; p.vy = dy / d * sp; p.ang = Math.atan2(p.vy, p.vx);
       // the OL in front of a rusher: the better the rusher against the blocker, the faster he gets through
       if (p.role === "dl" && p.blocker && Math.hypot(p.x - p.blocker.x, p.y - p.blocker.y) < 1.8) {
@@ -12699,16 +12725,22 @@ function rbMount(root, onExit, TEAMS) {
     if (c) {
       if (c.x >= EZ + PLAY) { endPlay(c.x - P.los, "TOUCHDOWN!", "td"); return; }
       if (c.y < -0.5 || c.y > 53.8) { endPlay(c.x - P.los, "Out of bounds.", "ok"); return; }
-      const hit = P.pl.find((p) => p.side === "a" && p.stun <= 0 && (p.cool || 0) <= 0 && Math.hypot(p.x - c.x, p.y - c.y) < TACKLE_R());
-      if (hit) {
-        const elu = attr(c, "elu") * (P.keeper ? 0.6 : 1);
-        const pT = clamp(0.5 + (attr(hit, "tkl") - elu) / 160 + (attr(hit, "str") - attr(c, "str")) / 200 + (attr(hit, "spd") - attr(c, "spd")) / 220 - ((c.pa && c.pa.sta != null ? c.pa.sta : 100) - 60) / 300 + 0.12 * (P.breaks || 0), 0.08, 0.95);
-        if (Math.random() < pT) {
-          P.hitter = hit;
-          if (hit.role !== "dl" && Math.random() < fumP(c)) { endPlay(c.x - P.los, `Fumble! ${hit.name} rips it out. ${hit.name.split(" ")[0]} takes it.`, "fum"); return; }
-          endPlay(c.x - P.los, hit.role === "dl" ? "Sacked." : "Tackled.", "ok"); return;
+      // a diver that never reached him is down for two seconds
+      P.pl.forEach((d) => { if (d.side === "a" && d.diving && (d.diving.t += dt) > 0.9) { d.diving = null; d.stun = 2; say(`${d.name} dives and misses! He's down.`); } });
+      if (P.grab) { if (grabUpdate(dt, c)) return; }
+      else {
+        const hit = P.pl.find((p) => p.side === "a" && p.stun <= 0 && (p.cool || 0) <= 0 && Math.hypot(p.x - c.x, p.y - c.y) < TACKLE_R());
+        if (hit) {
+          const elu = attr(c, "elu") * (P.keeper ? 0.6 : 1);
+          const pT = clamp(0.5 + (attr(hit, "tkl") - elu) / 160 + (attr(hit, "str") - attr(c, "str")) / 200 + (attr(hit, "spd") - attr(c, "spd")) / 220 - ((c.pa && c.pa.sta != null ? c.pa.sta : 100) - 60) / 300 + 0.12 * (P.breaks || 0), 0.08, 0.95);
+          if (Math.random() < pT) {
+            P.hitter = hit; hit.diving = null;
+            if (hit.role !== "dl" && Math.random() < fumP(c)) { endPlay(c.x - P.los, `Fumble! ${hit.name} rips it out. ${hit.name.split(" ")[0]} takes it.`, "fum"); return; }
+            if (hit.role !== "dl" && Math.random() < 0.5) { startGrab(hit, c); return; }
+            endPlay(c.x - P.los, hit.role === "dl" ? "Sacked." : "Tackled.", "ok"); return;
+          }
+          P.breaks = (P.breaks || 0) + 1; hit.diving = null; hit.cool = 0.8; hit.stun = 0.35; oneShot("grunt", 0.6); say("Broke the tackle!");
         }
-        P.breaks = (P.breaks || 0) + 1; hit.cool = 0.8; hit.stun = 0.35; oneShot("grunt", 0.6); say("Broke the tackle!");
       }
     }
     if (!P.thrown && P.t > 3.6 && P.kind !== "run" && !aim.on) {  // nobody threw: the QB goes to the most open receiver
@@ -14085,6 +14117,7 @@ function rbMount(root, onExit, TEAMS) {
     if (e.code === "KeyM") { S.muted = !S.muted; if (S.muted) { if (SFX.theme) SFX.theme.pause(); } else if (SFX.theme) SFX.theme.play().catch(() => {}); return; }
     if (e.code === "KeyE") stiffArm();
     if (e.code === "KeyQ") handoff();
+    if (e.code === "KeyC" && P && P.carrier && !KG.on) { runDive(); return; }
     if (e.code === "KeyF" && canThrow() && !aim.on) { aim.on = true; aim.from = "hold"; aim.hold = 0; aim.power = 0; aim.dx = 0; aim.dy = 0; }
     if (e.code === "Digit1" || e.code === "Digit2" || e.code === "Digit3") quickThrow(P.wrs[+e.key - 1]);
   };
