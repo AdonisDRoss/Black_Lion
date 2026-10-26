@@ -11036,7 +11036,7 @@ function rbMount(root, onExit, TEAMS) {
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const QUARTER = 120;
   const HINT_PASS = "PASS: pull back on the QB and let go to throw (or hold A / F and aim with the right stick / arrows; release to throw) · 1 / 2 / 3 quick-throw · Y / Q hand off";
-  const HINT_RUN = "RUN: drag or left stick / arrows · X / SPACE juke · C dive for extra yards · B / E stiff arm · RT / SHIFT turbo · Y / Q hand off to the back before the snap";
+  const HINT_RUN = "RUN: drag or left stick / arrows · X / SPACE juke · C or R3 dive for extra yards · B / E stiff arm · RT / SHIFT turbo · Y / Q hand off to the back before the snap";
 
   /* ---- art ---- */
   const IMG = {};
@@ -12663,7 +12663,7 @@ function rbMount(root, onExit, TEAMS) {
     const goal = P.carrier || (P.thrown && P.flight ? { x: P.flight.lx, y: P.flight.ly } : P.qb);
     P.pl.forEach((p) => {
       if (p.side !== "a") return;
-      p.stun = Math.max(0, p.stun - dt); p.cool = Math.max(0, (p.cool || 0) - dt); p.talkCD = Math.max(0, (p.talkCD || 0) - dt);
+      p.stun = Math.max(0, p.stun - dt); p.cool = Math.max(0, (p.cool || 0) - dt); p.talkCD = Math.max(0, (p.talkCD || 0) - dt); p.fallen = Math.max(0, (p.fallen || 0) - dt);
       if (p.stun > 0 || !goal) { p.vx *= 0.9; p.vy *= 0.9; return; }
       const g = zoneTarget(p) || goal;
       const dx = g.x - p.x, dy = g.y - p.y, d = Math.hypot(dx, dy) || 1;
@@ -12726,7 +12726,7 @@ function rbMount(root, onExit, TEAMS) {
       if (c.x >= EZ + PLAY) { endPlay(c.x - P.los, "TOUCHDOWN!", "td"); return; }
       if (c.y < -0.5 || c.y > 53.8) { endPlay(c.x - P.los, "Out of bounds.", "ok"); return; }
       // a diver that never reached him is down for two seconds
-      P.pl.forEach((d) => { if (d.side === "a" && d.diving && (d.diving.t += dt) > 0.9) { d.diving = null; d.stun = 2; say(`${d.name} dives and misses! He's down.`); } });
+      P.pl.forEach((d) => { if (d.side === "a" && d.diving && (d.diving.t += dt) > 0.9) { d.diving = null; d.stun = 2; d.fallen = 2; say(`${d.name} dives and misses! He's down.`); } });
       if (P.grab) { if (grabUpdate(dt, c)) return; }
       else {
         const hit = P.pl.find((p) => p.side === "a" && p.stun <= 0 && (p.cool || 0) <= 0 && Math.hypot(p.x - c.x, p.y - c.y) < TACKLE_R());
@@ -13360,6 +13360,7 @@ function rbMount(root, onExit, TEAMS) {
     const LB = btn(4); if (LB && !pad.prevLB) burstStart(); if (!LB && pad.prevLB) burstRelease(); pad.prevLB = LB;
     const L3 = btn(10); if (L3 && !pad.prevL3) faceT0 = performance.now(); pad.prevL3 = L3;
     const U = btn(12), D = btn(13), L = btn(14), R = btn(15);
+    const R3 = btn(11); if (R3 && !pad.prevR3 && P && P.carrier && !KG.on) runDive(); pad.prevR3 = R3;
     if (KG.on) {
       if (L && !pad.prevL) kickNudge(-1);
       if (R && !pad.prevR) kickNudge(1);
@@ -13863,7 +13864,7 @@ function rbMount(root, onExit, TEAMS) {
       if (G.intro) { G.intro.walkers.filter((p) => p.on).sort((a, b) => a.y - b.y).forEach((p) => drawPlayer(p, 0)); drawIntroFx(); }
       else if (!G.over && !G.half && !KG.on && !KFX) { const fl = formationPreview(los); fl.forEach((p) => drawPlayer(p, 0)); drawRoutePreview(los); drawFaces(fl, null); drawLeaders(fl); }
     } else {
-      [...P.pl].sort((a, b) => a.y - b.y).forEach((p) => drawPlayer(p, 1));
+      [...P.pl].sort((a, b) => a.y - b.y).forEach((p) => { drawPlayer(p, 1); drawDiveMark(p); });
       drawFaces(P.pl, P.carrier);
       drawLeaders(P.pl);
       if (P.thrown === false && P.kind !== "run" && P.qb) drawAim();
@@ -13938,13 +13939,21 @@ function rbMount(root, onExit, TEAMS) {
     }
     return p.no;
   }
+  /* a marker above a defender who is diving or down */
+  function drawDiveMark(p) {
+    if (p.side !== "a" || !(p.diving || p.fallen > 0)) return;
+    ctx.save(); ctx.font = "700 10px system-ui"; ctx.textAlign = "center";
+    ctx.fillStyle = p.fallen > 0 ? "#ff6b6b" : "#ffd34d"; ctx.strokeStyle = "#000"; ctx.lineWidth = 3;
+    const label = p.fallen > 0 ? "DOWN" : "DIVE", x = PX(p.x), y = PY(p.y) - 22;
+    ctx.strokeText(label, x, y); ctx.fillText(label, x, y); ctx.restore();
+  }
   function drawPlayer(p, live) {
     const team = p.side === "h" ? RH : G.away;
     const x = PX(p.x), y = PY(p.y);
     const heading = (p.ang || 0) + Math.PI / 2;
     const sw = Math.sin(p.anim || 0), moving = Math.hypot(p.vx || 0, p.vy || 0) > 0.3;
     ctx.save();
-    ctx.translate(x, y); ctx.rotate(heading); ctx.scale(0.8, 0.8);
+    ctx.translate(x, y); ctx.rotate(heading); const k = p.fallen > 0 ? 0.5 : 0.8; ctx.scale(k, k);
     const legS = moving ? sw * 3.5 : 0;
     ctx.fillStyle = "#8d939b";
     ctx.fillRect(-3.5 + legS * 0.4, 4, 2.6, 9);
