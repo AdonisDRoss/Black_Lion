@@ -11493,7 +11493,7 @@ function rbMount(root, onExit, TEAMS) {
     const say1 = pick(lines), say2 = pick(lines), winCol = win[1], dull = "#6b6356";
     const cel = ["cel_01", "cel_02", "cel_03", "cel_04"].map((n) => `assets/fb/awards/${n}.png`);
     const walk = ["walk_01", "walk_02", "walk_03", "walk_04"].map((n) => `assets/fb/awards/${n}.png`);
-    $("overc").classList.remove("textmenu");
+    $("overc").classList.remove("textmenu", "champbg");
     $("overc").style.background = "";
     $("overc").innerHTML = `<canvas id="vicCv" width="640" height="360" style="width:100%;max-width:640px;display:block;margin:0 auto;cursor:pointer"></canvas>
       <button id="vicGo" class="on" style="display:none;margin-top:8px">Continue</button>`;
