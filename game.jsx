@@ -12255,6 +12255,8 @@ function rbMount(root, onExit, TEAMS) {
       if (p.role === "qb" && !P.carrier && P.thrown) { p.vx = 0; p.vy = 0; }
       p.x += p.vx * dt; p.y += p.vy * dt;
       p.x = clamp(p.x, 0.5, PLAY + 2 * EZ - 0.5); p.y = clamp(p.y, 0.2, 53.1);   // the boundary: nobody goes into the stands
+      // the QB line: on a pass the QB can drop back but can't run past the line of scrimmage (a keeper is a run and is exempt)
+      if (p.role === "qb" && !P.keeper && !P.carrier && !P.thrown && P.kind !== "run") p.x = Math.min(p.x, P.los - 0.5);
       if (Math.hypot(p.vx, p.vy) > 0.3) p.anim += dt * Math.hypot(p.vx, p.vy) * 0.9;
     });
     // the flight
@@ -12588,6 +12590,7 @@ function rbMount(root, onExit, TEAMS) {
       $("overc").innerHTML = `<h2 style="font-size:18px">Press conference</h2><p style="color:#9a9486;font-size:12px">Three reporters want a word. What you say goes in the papers.</p>${mediaBlock()}`;
       $("overc").querySelectorAll("[data-media]").forEach((b) => b.onclick = () => { const [i, j] = b.dataset.media.split(",").map(Number); mediaAnswer(i, j); show(); });
     };
+    setRoom("pressroom");                   // the press room fades in behind the questions
     $("over").style.display = "flex"; show();
   }
   function mediaBlock() {
@@ -12732,7 +12735,6 @@ function rbMount(root, onExit, TEAMS) {
   function kickGame(kind, dist, done) {
     const k = (starters(RH).K || [])[0];
     Object.assign(KG, { on: true, kind, dist, from: G.ball, phase: "power", t: 0, p: 0, lockP: 0, center: 0, wind: (Math.random() * 2 - 1) * 0.1, kick: k ? ra(k, "kick") : 60, done });
-    $("kickG").classList.add("show"); $("kickT").textContent = kind === "punt" ? "PUNT: press A when the gauge is where you want it" : "POWER: press A at the top of the gauge";
     setCalls(false);
   }
   function kickNudge(d) { if (KG.on && KG.phase === "aim") KG.center = clamp(KG.center + d * 0.08, -0.5, 0.5); }
@@ -12749,7 +12751,7 @@ function rbMount(root, onExit, TEAMS) {
   function kickResolve(offset) {
     const K = KG, kick = K.kick;
     const done = K.done;
-    K.on = false; $("kickG").classList.remove("show"); setCalls(!G.over && !G.half && !G.intro && !G.cpu);
+    K.on = false; setCalls(!G.over && !G.half && !G.intro && !G.cpu);
     if (K.kind === "punt") {
       const d = Math.round(25 + K.lockP * 45);
       return kickFx(K, { dist: d }, done);
@@ -12764,8 +12766,10 @@ function rbMount(root, onExit, TEAMS) {
   let KFX = null;
   function kickFx(K, r, done) {
     const from = EZ + K.from;
-    const landX = K.kind === "punt" ? from + (r.dist || 40) : r.made ? EZ + PLAY + 6 : r.why === "short" ? from + K.dist * 0.72 : EZ + PLAY + 6;
-    const side = r.why === "wide left" ? -14 : r.why === "wide right" ? 14 : 0;
+    /* the uprights stand on the back line of the end zone (about yard 129), spread about three yards either side of the middle */
+    const POSTS = EZ + PLAY + EZ - 1;
+    const landX = K.kind === "punt" ? from + (r.dist || 40) : r.why === "short" ? from + K.dist * 0.72 : POSTS;
+    const side = r.made ? 0 : r.why === "wide left" ? -7 : r.why === "wide right" ? 7 : 0;
     KFX = { t: 0, dur: 1.7, from, to: landX, side, kind: K.kind, text: K.kind === "punt" ? `${r.dist} yards` : r.made ? "GOOD" : "NO GOOD", cb: () => done(r) };
     if (K.kind !== "punt") oneShot("ball", 0.8);
   }
@@ -12776,7 +12780,7 @@ function rbMount(root, onExit, TEAMS) {
     const yd = lerp(F.from, F.to, k), y = 26.7 + F.side * k;
     ctx.save(); ctx.setTransform(cam.z, 0, 0, cam.z, cam.tx, cam.ty);
     ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(PX(yd), PY(y), 6, 3, 0, 0, 6.3); ctx.fill();
-    const bi = img(BALL); const lift = Math.sin(k * Math.PI) * (F.kind === "punt" ? 70 : 52);
+    const bi = img(BALL); const lift = Math.sin(k * Math.PI) * (F.kind === "punt" ? 70 : 52) + (F.kind === "punt" ? 0 : k * 22);   // a field goal reaches the crossbar at the posts
     if (ready(bi)) { const w = 13, hh = w * bi.height / bi.width; ctx.drawImage(bi, PX(yd) - w / 2, PY(y) - lift - hh / 2, w, hh); }
     if (k > 0.8) { ctx.font = "800 16px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = F.text === "NO GOOD" ? "#ff7a7a" : "#e8c46a"; ctx.fillText(F.text, PX(F.to), PY(26.7) - 70); }
     ctx.restore();
@@ -12786,23 +12790,30 @@ function rbMount(root, onExit, TEAMS) {
     if (!KG.on) return;
     KG.t += dt;
     if (KG.phase === "power") KG.p = tri(KG.t);
-    const c = $("kickC"), g = c.getContext("2d"), W = c.width, H = c.height;
-    g.clearRect(0, 0, W, H); g.fillStyle = "rgba(10,10,16,.85)"; g.fillRect(0, 0, W, H);
+
+  }
+  /* the kick meter, on the field above the kicker: no panel behind it. Power first, then the aim. */
+  function drawKickMeter() {
+    if (!G || !KG.on) return;
+    const cx = PX(EZ + G.ball - 6), by = PY(26.7) - 34, W = 130;
+    ctx.save(); ctx.setTransform(cam.z, 0, 0, cam.z, cam.tx, cam.ty);
+    ctx.textAlign = "center"; ctx.font = "700 11px system-ui";
+    const x0 = cx - W / 2;
     if (KG.phase === "power") {
       const ideal = clamp(0.42 + (KG.dist - 20) * 0.0065, 0.3, 0.95), tolP = 0.07 + KG.kick / 2000;
-      g.fillStyle = "#222"; g.fillRect(20, 60, W - 40, 26);
-      g.fillStyle = "rgba(47,160,80,.85)"; if (KG.kind !== "punt") g.fillRect(20 + (ideal - tolP) * (W - 40), 60, 2 * tolP * (W - 40), 26);
-      g.fillStyle = "#e8c46a"; g.fillRect(20 + KG.p * (W - 40) - 2, 52, 4, 42);
+      ctx.fillStyle = "rgba(15,15,22,.8)"; ctx.fillRect(x0, by, W, 8);
+      if (KG.kind !== "punt") { ctx.fillStyle = "rgba(47,160,80,.95)"; ctx.fillRect(x0 + (ideal - tolP) * W, by, 2 * tolP * W, 8); }
+      ctx.fillStyle = "#e8c46a"; ctx.fillRect(x0 + KG.p * W - 2, by - 4, 4, 16);
+      ctx.fillStyle = "#f1ead8"; ctx.fillText(KG.kind === "punt" ? "PUNT: press A on the gauge" : "POWER: press A at the top", cx, by - 8);
     } else {
-      const apexY = H - 14, topY = 26;
-      g.beginPath(); g.moveTo(W / 2, apexY); g.lineTo(W / 2 - 110, topY); g.lineTo(W / 2 + 110, topY); g.closePath();
-      g.strokeStyle = "rgba(241,234,216,.6)"; g.lineWidth = 1.5; g.stroke();
-      const tolA = 0.12 + KG.kick / 1500, tgt = -KG.wind;      // the green: the needle must land on the target
-      g.fillStyle = "rgba(47,160,80,.7)"; g.fillRect(W / 2 + (tgt - tolA) * 220 - 2, topY - 4, 2 * tolA * 220, 8);
+      const tolA = 0.12 + KG.kick / 1500, tgt = -KG.wind;
+      ctx.fillStyle = "rgba(15,15,22,.8)"; ctx.fillRect(x0, by, W, 8);
+      ctx.fillStyle = "rgba(47,160,80,.95)"; ctx.fillRect(cx + (tgt - tolA) * W, by, 2 * tolA * W, 8);
       const needle = KG.center + Math.sin(KG.t * 4.2) * 0.35;
-      g.strokeStyle = "#e8c46a"; g.lineWidth = 3; g.beginPath(); g.moveTo(W / 2, apexY); g.lineTo(W / 2 + needle * 220, topY); g.stroke();
-      g.fillStyle = "#f1ead8"; g.font = "600 11px system-ui"; g.textAlign = "center"; g.fillText("left / right to steer", W / 2, H - 2);
+      ctx.fillStyle = "#e8c46a"; ctx.fillRect(cx + needle * W - 2, by - 4, 4, 16);
+      ctx.fillStyle = "#f1ead8"; ctx.fillText("LEFT / RIGHT to steer, A to kick", cx, by - 8);
     }
+    ctx.restore();
   }
   function kick() {
     oneShot("ball", 0.7);
@@ -12908,7 +12919,7 @@ function rbMount(root, onExit, TEAMS) {
         else if (Math.ceil(clockLeft) !== clockShown) { clockShown = Math.ceil(clockLeft); $("snapBtn").textContent = snapLabel(); }
       } else clockLeft = PLAY_CLOCK;
     }
-    if (G) { updateCam(dt); draw(); weatherFx(); drawKickFx(dt); drawReplayFx(); }
+    if (G) { updateCam(dt); draw(); weatherFx(); drawKickFx(dt); drawKickMeter(); drawReplayFx(); }
     if (SA) { SA.t += dt; drawScout(SA.p, clamp(SA.t / SA.dur, 0, 1)); if (SA.t >= SA.dur) SA = null; }
     requestAnimationFrame(frame);
   }
@@ -13056,6 +13067,10 @@ function rbMount(root, onExit, TEAMS) {
     g.save(); g.translate(cx, cy + bob);
     g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(0, size / 2 + 6 - bob, cw * 0.45, 5, 0, 0, 6.3); g.fill();
     if (ready(face)) g.drawImage(face, -cw / 2, -size / 2, cw, size);
+    else {                                          // until the coin art loads, a plain gold coin with its name
+      g.beginPath(); g.ellipse(0, 0, cw / 2, size / 2, 0, 0, 6.3); g.fillStyle = "#d9a441"; g.fill(); g.lineWidth = 4; g.strokeStyle = "#6b4a14"; g.stroke();
+      g.fillStyle = "#3a2a0a"; g.font = "700 20px system-ui"; g.textAlign = "center"; g.fillText(c >= 0 ? "HEADS" : "TAILS", 0, 6);
+    }
     g.restore();
     g.textAlign = "center"; g.fillStyle = "#f1ead8"; g.font = "700 12px system-ui";
     if (R.phase === "pick" && R.caller === RH) g.fillText(`PICK: ${Math.max(0, Math.ceil(5 - R.t))}`, cx, cy + size / 2 + 26);
