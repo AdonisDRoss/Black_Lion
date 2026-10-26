@@ -11023,7 +11023,7 @@ function LoadingScreen({ mono }) {
 
 /* FOOTBALL MODE (layer 579): Raven Bowl, the mini football game, run in its own frame from the title screen. */
 const RB_TEAMS = [["Raven Hook Ravens", "#b8343a", "#111111", "#e8c46a"], ["Lakeshore Lancers", "#1f3a8a", "#c9ced6", "#ffffff"], ["Port Mercy Mariners", "#0f6b6b", "#e07b2a", "#111111"], ["Kestrel City Hawks", "#6a1e2e", "#e8c46a", "#9aa0a6"], ["Ironbridge Foundry", "#3a3f47", "#e0762a", "#f2f2f2"], ["Stockyard Bulls", "#7a2e1a", "#e8b84a", "#2d2d2d"], ["Harbor Heights Herons", "#2b5f8a", "#a8d8ea", "#f2f2f2"], ["Crown Falls Kings", "#4b1d6e", "#e8c46a", "#ffffff"], ["Mill River Millers", "#2f5d3a", "#d8c49a", "#5a3a1e"], ["Cinder Park Comets", "#c0392b", "#f39c12", "#222222"], ["Goldcoast Gulls", "#0b4f6c", "#f2c14e", "#ffffff"], ["Eastgate Engineers", "#334155", "#94a3b8", "#f59e0b"], ["Westfield Wolves", "#1c2526", "#b8c4c8", "#5a6b70"], ["Marrow Creek Marauders", "#5c1f1f", "#d9a441", "#1a1a1a"], ["Sable Point Sharks", "#0a2540", "#5eb8c4", "#c0c8d4"], ["Lantern Hill Lanterns", "#e26d1c", "#fff1c2", "#3a2a1a"], ["Tallow Bay Tugs", "#2e4a2e", "#c9b26b", "#f0ece0"], ["Grayhaven Granite", "#5b6670", "#e6e2d8", "#2a2f35"], ["Blackwater Bears", "#1a1a2e", "#b7a06a", "#ffffff"], ["Sunrise Valley Stars", "#ffb703", "#023047", "#fb8500"], ["Iron Gate Guards", "#7c0a02", "#cfd3d6", "#101010"], ["Rookery Falcons", "#3d2b56", "#f4a261", "#e9e4f0"], ["Redline Rockets", "#d62828", "#003049", "#fcbf49"], ["Salt Flat Scorpions", "#8a5a2b", "#f0d9a8", "#2b1d0e"], ["Fairmount Fire", "#9a031e", "#fb8b24", "#0f4c5c"], ["Drydock Dockers", "#14532d", "#facc15", "#ffffff"], ["Midway Mavericks", "#1d3557", "#e63946", "#f1faee"], ["Oakhollow Owls", "#4a4e69", "#c9ada7", "#22223b"], ["Copperhead Crew", "#b45309", "#78350f", "#fde68a"], ["Riverside Rangers", "#0e7490", "#a7f3d0", "#064e3b"], ["Southside Sentinels", "#312e81", "#a5b4fc", "#e0e7ff"], ["Northwood Nightjars", "#1e1b4b", "#7c3aed", "#ddd6fe"]];
-const RB_MARKUP = "<style>\n#rb{font:14px system-ui,sans-serif;color:#f1ead8;background:#0b0b10;padding:14px;user-select:none;box-sizing:border-box;min-height:100%}\n#rb #wrap{max-width:920px;margin:0 auto}\n#rb #wrap{position:relative;overflow:hidden}\n#rb #coach{position:relative;width:auto;margin-top:0;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:8px;font-size:12px;color:#f1ead8;opacity:0;transition:opacity .35s}\n#rb #coach:empty{display:none}\n#rb #coach.show{opacity:1;transform:none}\n#rb #coach img{width:44px;height:44px;image-rendering:pixelated;border-radius:4px;background:#1c2a3a;float:left;margin-right:8px}\n#rb #overc.champbg{position:relative;isolation:isolate;background:none}\n#rb #overc.champbg::before{content:\"\";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:linear-gradient(rgba(10,11,14,.45),rgba(10,11,14,.6)),url(assets/fb/awards/victory_bg.jpg) center/cover}\n#rb #overc.champbg > *{position:relative;z-index:1}\n#rb .bdStep{animation:bdIn .45s ease both}\n#rb .bdStep.out{animation:bdOut .4s ease both}\n@keyframes bdIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}\n@keyframes bdOut{from{opacity:1}to{opacity:0}}\n#rb .bdLogo img,#rb .bdSmall img{display:block;margin:0 auto;max-height:150px;max-width:100%}\n#rb .bdSmall img{max-height:64px}\n#rb .bdBadge{display:none;align-items:center;justify-content:center;width:150px;height:150px;margin:0 auto;border-radius:12px;color:#fff;font:700 14px system-ui;text-align:center;padding:8px;border:2px solid #e8c46a;box-sizing:border-box}\n#rb #callout{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);display:none;width:min(520px,92%);background:#0f1320ee;border:2px solid #e8c46a;border-radius:10px;padding:8px;color:#f1ead8;font-size:13px;align-items:center;gap:10px;z-index:4;pointer-events:none}\n#rb #callout.show{display:flex}\n#rb #callout img{width:64px;height:64px;image-rendering:pixelated;border-radius:6px;background:#1c2a3a;flex:none}\n#rb #intro{position:absolute;left:0;right:0;top:58px;margin:0 auto;width:min(540px,94%);background:#0f1320ee;border:2px solid #e8c46a;border-radius:10px;padding:12px;color:#f1ead8;font-size:13px;display:none;z-index:4;cursor:pointer}\n#rb #intro.on{display:block}\n#rb #rd{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none;width:min(680px,96%);background:#0f1320f2;border:2px solid #e8c46a;border-radius:10px;padding:10px;color:#f1ead8;text-align:center;z-index:5}\n#rb #rd.on{display:block}\n#rb #rdH{font:700 13px system-ui;letter-spacing:3px;color:#e8c46a;margin-bottom:6px}\n#rb #rdC{width:100%;height:auto;max-height:200px;display:block;background:#0b0e16;border-radius:6px}\n#rb #rdT{margin-top:8px;min-height:120px}\n#rb #rdHint{font-size:11px;color:#9a9486;margin-top:6px}\n#rb #scout{position:absolute;left:8px;top:64px;width:330px;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:6px;color:#f1ead8;font-size:11px;display:none;z-index:3}\n#rb #scout.show{display:block}\n#rb #scoutFaces{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px}\n#rb .sf{display:flex;flex-direction:column;align-items:center;text-align:center;font-size:10px;line-height:1.2;border:1px solid transparent;border-radius:4px;padding:2px}\n#rb .sf.hit{border-color:#ff6b6b;background:rgba(255,107,107,.15)}\n#rb #scoutC{width:100%;height:auto;display:block;border-radius:4px}\n#rb #scoutTxt{margin-top:6px;min-height:28px}\n#rb canvas{width:100%;height:auto;display:block;border:1px solid #222;background:#0d0d12;touch-action:none}\n#rb .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap}\n#rb .score{font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center}\n#rb .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}\n#rb .btns button{font-size:13px;padding:11px 4px}\n#rb .btns button[data-play]{display:flex;flex-direction:column;align-items:center;padding:6px 4px 8px}\n#rb .btns button.snap{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb button{background:#1d1d26;color:#f1ead8;border:1px solid #333;padding:12px 6px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit}\n#rb button:disabled{opacity:.3;cursor:default}\n#rb button.on{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb #hint{color:#9a9486;font-size:12px;margin-top:8px;line-height:1.6}\n#rb #log{background:#101018;border:1px solid #222;height:110px;overflow:auto;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55}\n#rb #masc{position:absolute;bottom:14%;width:150px;z-index:4;pointer-events:none;transition:transform .45s ease-out}\n#rb #masc.left{left:0;transform:translateX(-170px)}\n#rb #masc.right{right:0;transform:translateX(170px)}\n#rb #masc.show{transform:translateX(0)}\n#rb #masc img{width:130px;display:block;margin:0 auto}\n#rb #mascTxt{background:#f1ead8;color:#111;border-radius:10px;padding:6px 8px;font:700 12px system-ui;margin-bottom:6px;max-width:170px;text-align:center}\n#rb #windInd{position:relative;z-index:1;display:none;align-items:center;gap:6px;background:rgba(10,10,16,.6);border:1px solid #333;border-radius:6px;padding:4px 8px;color:#f1ead8;font:700 12px system-ui;pointer-events:none}\n#rb #windArr{display:inline-block;font-size:16px;transition:transform .3s}\n#rb #over{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}\n#rb #over .card{background:#15151d;border:1px solid #333;padding:22px;max-width:660px;width:100%;text-align:center;max-height:92vh;overflow:auto}\n#rb #over h2{margin:0 0 8px;color:#e8c46a}\n/* landscape phones: the field on the left, the plays in a column on the right, so everything fits without scrolling */\n@media (orientation: landscape) and (max-height: 620px), (min-width: 900px) {\n#rb{padding:8px}\n#rb #wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:10px;align-items:start}\n#rb .bar{grid-column:1 / -1;margin:0 0 6px}\n#rb #wrap > canvas{grid-column:1;grid-row:2}\n#rb #side{grid-column:2;grid-row:2;display:flex;flex-direction:column;gap:6px}\n#rb .btns{grid-template-columns:repeat(3,1fr);gap:5px;margin-top:0}\n#rb .btns button{font-size:12px;padding:6px 3px}\n#rb .btns button[data-play] svg{width:60px;height:33px}\n#rb #hint{grid-column:1 / -1;font-size:11px;margin-top:4px}\n#rb #log{grid-column:1 / -1;height:64px;font-size:12px;margin-top:4px}\n}\n</style>\n<div id=\"wrap\">\n  <div class=\"bar\"><img id=\"nfaBug\" src=\"assets/logos/nfa.png\" alt=\"NFA\" style=\"height:44px;width:auto;flex:none;margin-right:6px\" onerror=\"this.style.display='none'\"><div class=\"score\" id=\"score\"></div><div id=\"windInd\"><span id=\"windArr\">\u279c</span><span id=\"windTxt\"></span></div><div id=\"status\" style=\"color:#9a9486\"></div></div>\n  <canvas id=\"c\" width=\"920\" height=\"520\"></canvas>\n  <div id=\"side\"><div class=\"btns\">\n    <button data-play=\"iz\" data-call=\"iz\">Inside Zone</button>\n    <button data-play=\"ob\" data-call=\"ob\">Outside Run</button>\n    <button data-play=\"sl\" data-call=\"sl\">Quick Slants</button>\n    <button data-play=\"hi\" data-call=\"hi\">Hitch &amp; Out</button>\n    <button data-play=\"cu\" data-call=\"cu\">Curls</button>\n    <button data-play=\"pc\" data-call=\"pc\">Post-Corner</button>\n    <button data-play=\"go\" data-call=\"go\">Go Routes</button>\n    <button data-play=\"qr\" data-call=\"qr\">QB Keeper</button>\n    <button data-play=\"pw\" data-call=\"pw\">Power</button>\n    <button data-play=\"cn\" data-call=\"cn\">Counter</button>\n    <button data-play=\"pa\" data-call=\"pa\">Play-Action Post</button>\n    <button id=\"burstBtn\" class=\"burst\" title=\"Hold to set up a move. Let go to burst (Z, or the left bumper)\">Burst (hold)</button>\n    <button data-call=\"snap\" id=\"snapBtn\" class=\"snap\">Snap</button>\n    <button data-call=\"kick\" id=\"kickBtn\">Kick</button>\n  </div><div id=\"coach\"></div></div>\n  <div id=\"hint\"></div>\n  <div id=\"intro\"></div>\n  <div id=\"callout\"><img id=\"calloutFace\" alt=\"\" onerror=\"this.style.display='none'\"><div><b id=\"calloutName\"></b><div id=\"calloutPlay\" style=\"color:#e8c46a;font-size:12px;margin-top:2px\"></div><div id=\"calloutTxt\" style=\"margin-top:4px\"></div></div></div>\n  <div id=\"rd\"><div id=\"rdH\"></div><canvas id=\"rdC\" width=\"640\" height=\"200\"></canvas><div id=\"rdT\"></div><div id=\"rdHint\"></div></div>\n<style>\n#rb #result{position:absolute;left:50%;top:36%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0;transition:opacity .25s;max-width:92%;z-index:5}\n#rb #result.show{opacity:1}\n#rb #resBig{font:900 46px Impact,'Arial Black',sans-serif;color:#e8c46a;letter-spacing:1px;text-shadow:0 3px 0 #000,0 0 14px rgba(0,0,0,.7);line-height:1}\n#rb #resPlay{font:700 18px system-ui;color:#f1ead8;text-shadow:0 2px 6px #000;margin-top:6px}\n#rb #resYd{font:700 15px system-ui;color:#e8c46a;text-shadow:0 2px 6px #000}\n#rb #resInj{font:700 15px system-ui;color:#ff6b6b;text-shadow:0 2px 6px #000}\n#rb #resSit{font:600 12px system-ui;color:#c9c2b0;margin-top:6px;text-shadow:0 2px 4px #000}\n</style>\n<style>\n#rb #over .room{position:absolute;inset:0;display:none;background:linear-gradient(rgba(10,10,16,.7),rgba(10,10,16,.92)),var(--room,none) center/cover no-repeat,#15151d}\n#rb #over .room.on{display:block}\n#rb #over .room.fade{animation:roomIn .8s ease}\n@keyframes roomIn{from{opacity:.15}to{opacity:1}}\n#rb #over .card{position:relative;z-index:1;background:rgba(21,21,29,.86)}\n#rb button.focus{outline:2px solid #e8c46a;outline-offset:2px}\n#rb #overc.textmenu button{display:block;margin:6px auto;width:100%;background:transparent;border:none;color:#f1ead8;font-size:20px;letter-spacing:2px;text-shadow:0 2px 6px #000;padding:8px}\n#rb #overc.textmenu button.on{color:#e8c46a;background:transparent}\n#rb .roomName{color:#9a9486;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}\n</style>\n<style>\n#rb #kickG{position:absolute;left:50%;bottom:12%;transform:translateX(-50%);display:none;background:rgba(10,10,16,.9);border:1px solid #e8c46a;border-radius:6px;padding:6px;z-index:6;text-align:center;pointer-events:none}\n#rb #kickG.show{display:block}\n#rb #kickT{font:700 12px system-ui;color:#e8c46a;margin-bottom:4px}\n#rb .flagCard{background:linear-gradient(#d12a2a,#7a0c0c);border:2px solid #ffd6d6;border-radius:10px;padding:14px 18px;color:#fff;text-align:center;max-width:360px;margin:0 auto}\n#rb .flagTop{font:900 36px system-ui;letter-spacing:6px}\n#rb .flagBub{background:#fff;color:#111;border-radius:12px;padding:8px 12px;margin:10px auto;font-size:14px;max-width:300px}\n</style>\n  <div id=\"kickG\"><div id=\"kickT\"></div><canvas id=\"kickC\" width=\"300\" height=\"170\"></canvas></div>\n  <div id=\"result\"><div id=\"resBig\"></div><div id=\"resPlay\"></div><div id=\"resYd\"></div><div id=\"resInj\"></div><div id=\"resSit\"></div></div>\n  <div id=\"scout\"><div id=\"scoutFaces\"></div><canvas id=\"scoutC\" width=\"314\" height=\"110\"></canvas><div id=\"scoutTxt\"></div></div>\n  <div id=\"log\"></div>\n</div>\n<div id=\"masc\"><div id=\"mascTxt\"></div><img id=\"mascImg\" onerror=\"this.style.display='none'\"></div>\n<div id=\"over\"><div class=\"room\"></div><div class=\"card\" id=\"overc\"></div></div>\n";
+const RB_MARKUP = "<style>\n#rb{font:14px system-ui,sans-serif;color:#f1ead8;background:#0b0b10;padding:14px;user-select:none;box-sizing:border-box;min-height:100%}\n#rb #wrap{max-width:920px;margin:0 auto}\n#rb #wrap{position:relative;overflow:hidden}\n#rb #coach{position:relative;width:auto;margin-top:0;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:8px;font-size:12px;color:#f1ead8;opacity:0;transition:opacity .35s}\n#rb #coach:empty{display:none}\n#rb #coach.show{opacity:1;transform:none}\n#rb #coach img{width:44px;height:44px;image-rendering:pixelated;border-radius:4px;background:#1c2a3a;float:left;margin-right:8px}\n#rb #overc.champbg{position:relative;isolation:isolate;background:none}\n#rb #overc.champbg::before{content:\"\";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:linear-gradient(rgba(10,11,14,.45),rgba(10,11,14,.6)),url(assets/fb/awards/victory_bg.jpg) center/cover}\n#rb #overc.champbg > *{position:relative;z-index:1}\n#rb .bdStep{animation:bdIn .45s ease both}\n#rb .bdStep.out{animation:bdOut .4s ease both}\n@keyframes bdIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}\n@keyframes bdOut{from{opacity:1}to{opacity:0}}\n#rb .bdLogo img,#rb .bdSmall img{display:block;margin:0 auto;max-height:150px;max-width:100%}\n#rb .bdSmall img{max-height:64px}\n#rb .bdBadge{display:none;align-items:center;justify-content:center;width:150px;height:150px;margin:0 auto;border-radius:12px;color:#fff;font:700 14px system-ui;text-align:center;padding:8px;border:2px solid #e8c46a;box-sizing:border-box}\n#rb #callout{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);display:none;width:min(520px,92%);background:#0f1320ee;border:2px solid #e8c46a;border-radius:10px;padding:8px;color:#f1ead8;font-size:13px;align-items:center;gap:10px;z-index:4;pointer-events:none}\n#rb #callout.show{display:flex}\n#rb #callout img{width:64px;height:64px;image-rendering:pixelated;border-radius:6px;background:#1c2a3a;flex:none}\n#rb #intro{position:absolute;left:0;right:0;top:58px;margin:0 auto;width:min(540px,94%);background:#0f1320ee;border:2px solid #e8c46a;border-radius:10px;padding:12px;color:#f1ead8;font-size:13px;display:none;z-index:4;cursor:pointer}\n#rb #intro.on{display:block}\n#rb #rd{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none;width:min(680px,96%);background:#0f1320f2;border:2px solid #e8c46a;border-radius:10px;padding:10px;color:#f1ead8;text-align:center;z-index:5}\n#rb #rd.on{display:block}\n#rb #rdH{font:700 13px system-ui;letter-spacing:3px;color:#e8c46a;margin-bottom:6px}\n#rb #rdC{width:100%;height:auto;max-height:200px;display:block;background:#0b0e16;border-radius:6px}\n#rb #rdT{margin-top:8px;min-height:120px}\n#rb #rdHint{font-size:11px;color:#9a9486;margin-top:6px}\n#rb #scout{position:absolute;left:8px;top:64px;width:330px;background:#0f1320ee;border:2px solid #e8c46a;border-radius:8px;padding:6px;color:#f1ead8;font-size:11px;display:none;z-index:3}\n#rb #scout.show{display:block}\n#rb #scoutFaces{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px}\n#rb .sf{display:flex;flex-direction:column;align-items:center;text-align:center;font-size:10px;line-height:1.2;border:1px solid transparent;border-radius:4px;padding:2px}\n#rb .sf.hit{border-color:#ff6b6b;background:rgba(255,107,107,.15)}\n#rb #scoutC{width:100%;height:auto;display:block;border-radius:4px}\n#rb #scoutTxt{margin-top:6px;min-height:28px}\n#rb canvas{width:100%;height:auto;display:block;border:1px solid #222;background:#0d0d12;touch-action:none}\n#rb .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap}\n#rb .score{font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center}\n#rb .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}\n#rb .btns button{font-size:13px;padding:11px 4px}\n#rb .btns button[data-play]{display:flex;flex-direction:column;align-items:center;padding:6px 4px 8px}\n#rb .btns button.snap{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb button{background:#1d1d26;color:#f1ead8;border:1px solid #333;padding:12px 6px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit}\n#rb button:disabled{opacity:.3;cursor:default}\n#rb button.on{background:#e8c46a;color:#111;border-color:#e8c46a;font-weight:700}\n#rb #hint{color:#9a9486;font-size:12px;margin-top:8px;line-height:1.6}\n#rb #log{background:#101018;border:1px solid #222;height:110px;overflow:auto;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55}\n#rb #masc{position:absolute;bottom:14%;width:150px;z-index:4;pointer-events:none;transition:transform .45s ease-out}\n#rb #masc.left{left:0;transform:translateX(-170px)}\n#rb #masc.right{right:0;transform:translateX(170px)}\n#rb #masc.show{transform:translateX(0)}\n#rb #masc img{width:130px;display:block;margin:0 auto}\n#rb #mascTxt{background:#f1ead8;color:#111;border-radius:10px;padding:6px 8px;font:700 12px system-ui;margin-bottom:6px;max-width:170px;text-align:center}\n#rb #windInd{position:relative;z-index:1;display:none;align-items:center;gap:6px;background:rgba(10,10,16,.6);border:1px solid #333;border-radius:6px;padding:4px 8px;color:#f1ead8;font:700 12px system-ui;pointer-events:none}\n#rb #windArr{display:inline-block;font-size:16px;transition:transform .3s}\n#rb #over{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}\n#rb #over .card{background:#15151d;border:1px solid #333;padding:22px;max-width:660px;width:100%;text-align:center;max-height:92vh;overflow:auto}\n#rb #over h2{margin:0 0 8px;color:#e8c46a}\n/* landscape phones: the field on the left, the plays in a column on the right, so everything fits without scrolling */\n@media (orientation: landscape) and (max-height: 620px), (min-width: 900px) {\n#rb{padding:8px}\n#rb #wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:10px;align-items:start}\n#rb .bar{grid-column:1 / -1;margin:0 0 6px}\n#rb #wrap > canvas{grid-column:1;grid-row:2}\n#rb #side{grid-column:2;grid-row:2;display:flex;flex-direction:column;gap:6px}\n#rb .btns{grid-template-columns:repeat(3,1fr);gap:5px;margin-top:0}\n#rb .btns button{font-size:12px;padding:6px 3px}\n#rb .btns button[data-play] svg{width:60px;height:33px}\n#rb #hint{grid-column:1 / -1;font-size:11px;margin-top:4px}\n#rb #log{grid-column:1 / -1;height:64px;font-size:12px;margin-top:4px}\n}\n</style>\n<div id=\"wrap\">\n  <div class=\"bar\"><img id=\"nfaBug\" src=\"assets/logos/nfa.png\" alt=\"NFA\" style=\"height:44px;width:auto;flex:none;margin-right:6px\" onerror=\"this.style.display='none'\"><div class=\"score\" id=\"score\"></div><div id=\"windInd\"><span id=\"windArr\">\u279c</span><span id=\"windTxt\"></span></div><div id=\"status\" style=\"color:#9a9486\"></div></div>\n  <canvas id=\"c\" width=\"920\" height=\"520\"></canvas>\n  <div id=\"side\"><div class=\"btns\">\n    <button data-play=\"iz\" data-call=\"iz\">Inside Zone</button>\n    <button data-play=\"ob\" data-call=\"ob\">Outside Run</button>\n    <button data-play=\"sl\" data-call=\"sl\">Quick Slants</button>\n    <button data-play=\"hi\" data-call=\"hi\">Hitch &amp; Out</button>\n    <button data-play=\"cu\" data-call=\"cu\">Curls</button>\n    <button data-play=\"pc\" data-call=\"pc\">Post-Corner</button>\n    <button data-play=\"go\" data-call=\"go\">Go Routes</button>\n    <button data-play=\"qr\" data-call=\"qr\">QB Keeper</button>\n    <button data-play=\"pw\" data-call=\"pw\">Power</button>\n    <button data-play=\"cn\" data-call=\"cn\">Counter</button>\n    <button data-play=\"pa\" data-call=\"pa\">Play-Action Post</button>\n    <button id=\"burstBtn\" class=\"burst\" title=\"Hold to set up a move. Let go to burst (Z, or the left bumper)\">Burst (hold)</button>\n    <button data-call=\"snap\" id=\"snapBtn\" class=\"snap\">Snap</button>\n    <button data-call=\"kick\" id=\"kickBtn\">Kick</button>\n  </div><div id=\"coach\"></div></div>\n  <div id=\"preBtns\" style=\"display:none;gap:6px;margin-top:6px\"><button data-call=\"fake\" id=\"fakeBtn\" style=\"flex:1\">Fake start (X)</button><button data-call=\"aud\" id=\"audBtn\" style=\"flex:1\">Audible (G)</button></div>\n  <div id=\"hint\"></div>\n  <div id=\"intro\"></div>\n  <div id=\"callout\"><img id=\"calloutFace\" alt=\"\" onerror=\"this.style.display='none'\"><div><b id=\"calloutName\"></b><div id=\"calloutPlay\" style=\"color:#e8c46a;font-size:12px;margin-top:2px\"></div><div id=\"calloutTxt\" style=\"margin-top:4px\"></div></div></div>\n  <div id=\"rd\"><div id=\"rdH\"></div><canvas id=\"rdC\" width=\"640\" height=\"200\"></canvas><div id=\"rdT\"></div><div id=\"rdHint\"></div></div>\n<style>\n#rb #result{position:absolute;left:50%;top:36%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0;transition:opacity .25s;max-width:92%;z-index:5}\n#rb #result.show{opacity:1}\n#rb #resBig{font:900 46px Impact,'Arial Black',sans-serif;color:#e8c46a;letter-spacing:1px;text-shadow:0 3px 0 #000,0 0 14px rgba(0,0,0,.7);line-height:1}\n#rb #resPlay{font:700 18px system-ui;color:#f1ead8;text-shadow:0 2px 6px #000;margin-top:6px}\n#rb #resYd{font:700 15px system-ui;color:#e8c46a;text-shadow:0 2px 6px #000}\n#rb #resInj{font:700 15px system-ui;color:#ff6b6b;text-shadow:0 2px 6px #000}\n#rb #resSit{font:600 12px system-ui;color:#c9c2b0;margin-top:6px;text-shadow:0 2px 4px #000}\n</style>\n<style>\n#rb #over .room{position:absolute;inset:0;display:none;background:linear-gradient(rgba(10,10,16,.7),rgba(10,10,16,.92)),var(--room,none) center/cover no-repeat,#15151d}\n#rb #over .room.on{display:block}\n#rb #over .room.fade{animation:roomIn .8s ease}\n@keyframes roomIn{from{opacity:.15}to{opacity:1}}\n#rb #over .card{position:relative;z-index:1;background:rgba(21,21,29,.86)}\n#rb button.focus{outline:2px solid #e8c46a;outline-offset:2px}\n#rb #overc.textmenu button{display:block;margin:6px auto;width:100%;background:transparent;border:none;color:#f1ead8;font-size:20px;letter-spacing:2px;text-shadow:0 2px 6px #000;padding:8px}\n#rb #overc.textmenu button.on{color:#e8c46a;background:transparent}\n#rb .roomName{color:#9a9486;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}\n</style>\n<style>\n#rb #kickG{position:absolute;left:50%;bottom:12%;transform:translateX(-50%);display:none;background:rgba(10,10,16,.9);border:1px solid #e8c46a;border-radius:6px;padding:6px;z-index:6;text-align:center;pointer-events:none}\n#rb #kickG.show{display:block}\n#rb #kickT{font:700 12px system-ui;color:#e8c46a;margin-bottom:4px}\n#rb .flagCard{background:linear-gradient(#d12a2a,#7a0c0c);border:2px solid #ffd6d6;border-radius:10px;padding:14px 18px;color:#fff;text-align:center;max-width:360px;margin:0 auto}\n#rb .flagTop{font:900 36px system-ui;letter-spacing:6px}\n#rb .flagBub{background:#fff;color:#111;border-radius:12px;padding:8px 12px;margin:10px auto;font-size:14px;max-width:300px}\n</style>\n  <div id=\"kickG\"><div id=\"kickT\"></div><canvas id=\"kickC\" width=\"300\" height=\"170\"></canvas></div>\n  <div id=\"result\"><div id=\"resBig\"></div><div id=\"resPlay\"></div><div id=\"resYd\"></div><div id=\"resInj\"></div><div id=\"resSit\"></div></div>\n  <div id=\"scout\"><div id=\"scoutFaces\"></div><canvas id=\"scoutC\" width=\"314\" height=\"110\"></canvas><div id=\"scoutTxt\"></div></div>\n  <div id=\"log\"></div>\n</div>\n<div id=\"masc\"><div id=\"mascTxt\"></div><img id=\"mascImg\" onerror=\"this.style.display='none'\"></div>\n<div id=\"over\"><div class=\"room\"></div><div class=\"card\" id=\"overc\"></div></div>\n";
 /* face pool (generated from assets/faces/manifest.json): files in assets/faces/ */
 const RB_FACES = {"older": ["A01.png", "A03.png", "A09.png", "A63.png", "A64.png", "B28.png", "C10.png", "C11.png", "C14.png", "C15.png", "C16.png", "C20.png", "C21.png", "C22.png", "C23.png", "C28.png", "C29.png", "C40.png", "S101.png", "S102.png", "S103.png", "S104.png", "S105.png", "S106.png", "S107.png", "S108.png", "S109.png", "S111.png", "S112.png", "S113.png", "S114.png", "S115.png", "S117.png", "S118.png", "S119.png", "S122.png", "S123.png", "S124.png", "S125.png", "S126.png", "S127.png", "S128.png", "S129.png", "S130.png", "S131.png", "S132.png", "S135.png", "S136.png", "S138.png", "S139.png", "S140.png", "S141.png", "S142.png", "S143.png", "S144.png", "S145.png", "S146.png", "S147.png", "S148.png", "S149.png", "S151.png", "S152.png", "S154.png", "S155.png", "S156.png", "S157.png", "S158.png", "S159.png", "S160.png", "S161.png", "S163.png", "S164.png", "S309.png"], "mid": ["A04.png", "A10.png", "B16.png", "B19.png", "C09.png", "C12.png", "C36.png", "C39.png", "S201.png", "S202.png", "S203.png", "S204.png", "S205.png", "S206.png", "S207.png", "S208.png", "S209.png", "S210.png", "S211.png", "S212.png", "S213.png", "S214.png", "S215.png", "S216.png", "S217.png", "S218.png", "S219.png", "S220.png", "S221.png", "S222.png", "S223.png", "S224.png", "S225.png", "S226.png", "S227.png", "S228.png", "S229.png", "S230.png", "S231.png", "S232.png", "S233.png", "S234.png", "S235.png", "S236.png", "S237.png", "S238.png", "S239.png", "S240.png", "S241.png", "S242.png", "S243.png", "S244.png", "S245.png", "S246.png", "S247.png", "S248.png", "S249.png", "S250.png", "S251.png", "S252.png", "S253.png", "S254.png", "S255.png", "S256.png", "S257.png", "S258.png", "S259.png", "S260.png", "S261.png", "S262.png", "S263.png", "S264.png"], "young": ["A05.png", "A06.png", "A07.png", "A08.png", "A11.png", "A12.png", "A13.png", "A14.png", "A15.png", "A16.png", "A17.png", "A18.png", "A19.png", "A20.png", "A21.png", "A22.png", "A23.png", "A24.png", "A25.png", "A26.png", "A27.png", "A28.png", "A29.png", "A30.png", "A31.png", "A32.png", "A33.png", "A34.png", "A35.png", "A36.png", "A37.png", "A38.png", "A39.png", "A40.png", "A41.png", "A42.png", "A43.png", "A44.png", "A45.png", "A46.png", "A47.png", "A48.png", "A49.png", "A50.png", "A51.png", "A52.png", "A53.png", "A54.png", "A55.png", "A56.png", "A57.png", "A58.png", "A59.png", "A60.png", "A61.png", "A62.png", "B01.png", "B02.png", "B03.png", "B04.png", "B05.png", "B06.png", "B07.png", "B09.png", "B10.png", "B11.png", "B12.png", "B13.png", "B14.png", "B15.png", "B17.png", "B18.png", "B20.png", "B21.png", "B22.png", "B23.png", "B24.png", "B25.png", "B27.png", "B29.png", "B30.png", "B31.png", "B32.png", "B33.png", "B34.png", "B35.png", "B37.png", "B38.png", "B39.png", "B41.png", "B42.png", "B43.png", "B44.png", "B45.png", "C01.png", "C02.png", "C03.png", "C04.png", "C05.png", "C07.png", "C08.png", "C13.png", "C17.png", "C18.png", "C19.png", "C24.png", "C25.png", "C26.png", "C27.png", "C30.png", "C31.png", "C33.png", "C34.png", "C35.png", "C37.png", "C38.png", "S301.png", "S302.png", "S303.png", "S304.png", "S305.png", "S306.png", "S307.png", "S308.png", "S310.png", "S311.png", "S312.png", "S314.png", "S315.png", "S316.png", "S317.png", "S318.png", "S319.png", "S320.png", "S321.png", "S323.png", "S324.png", "S325.png", "S327.png", "S328.png", "S330.png", "S331.png", "S332.png", "S334.png", "S335.png", "S337.png", "S338.png", "S339.png", "S340.png", "S342.png", "S343.png", "S344.png", "S345.png", "S346.png", "S347.png", "S349.png", "S350.png", "S351.png", "S352.png", "S353.png", "S354.png", "S355.png", "S356.png", "S357.png", "S358.png", "S359.png", "S360.png", "S361.png", "S362.png", "S363.png", "S364.png", "S365.png", "S366.png", "S367.png", "S368.png", "S369.png", "S370.png", "S371.png", "S372.png", "S373.png", "S374.png", "S375.png", "S376.png", "S377.png", "S378.png", "S379.png", "S380.png"]};
 /* Raven Bowl: a football mode inside Black Lion. Mounted into a root element; returns a cleanup. */
@@ -11254,6 +11254,14 @@ function rbMount(root, onExit, TEAMS) {
   }
   /* a skill on a player in the game: his own, plus the coach's boost if he is on the Ravens' side */
   const attr = (p, k) => (p && p.pa ? p.pa.a[k] : 60) + ((p && p.mods && p.mods[k]) || 0);
+  /* personality: a trait, an aggression rating and a morale score for each player (made the first time they are needed) */
+  const TRAITS = { aggressive: { label: "Aggressive", aggr: 25 }, hothead: { label: "Hothead", aggr: 40 }, levelheaded: { label: "Levelheaded", aggr: -18 }, steady: { label: "Steady", aggr: -8 }, partyAnimal: { label: "Party animal", aggr: 6 } };
+  const TRAIT_KEYS = Object.keys(TRAITS);
+  const pers = (p) => { if (!p) return null; if (!p.per) { const t = pick(TRAIT_KEYS); p.per = { trait: t, aggr: Math.round(clamp(45 + TRAITS[t].aggr + gauss() * 10, 5, 99)), morale: 70 }; } return p.per; };
+  const moraleAdd = (p, d) => { const q = pers(p); if (q) q.morale = clamp(q.morale + d, 0, 100); };
+  /* how likely a player jumps early on a snap: aggression decides it, a fake start tempts the defence more */
+  const jumpP = (p, k) => { const q = pers(p.pa); return q ? clamp(((q.aggr - 70) / 400) * k, 0, 0.25) : 0; };
+  const coachRapport = () => { const c = DYN.OC || DYN.DC; if (!c) return 50; if (!c.rapport) c.rapport = 40 + ((Math.random() * 40) | 0); return c.rapport; };
   const boostSum = (c) => (c ? Object.values(c.boost).reduce((a, b) => a + b, 0) : 0);
   const boostText = (c) => Object.entries(c.boost).map(([k, v]) => `+${v} ${k}`).join(", ");
   const salary = (p) => Math.round(Math.max(0.5, (p.ovr - 50) * 0.28) * 10) / 10;
@@ -11283,11 +11291,11 @@ function rbMount(root, onExit, TEAMS) {
     out.forEach((pr) => { pr.scout = clamp(pr.ovr + pr.scoutErr, 40, 96); });
     return out;
   }
-  /* the star rookie: Deon Porter, the Ravens' QB from the start */
+  /* the star rookie: Deon King, the Ravens' QB from the start */
   function makeDeon() {
     const pr = makePlayer("QB", 74, 22);
     Object.assign(pr.a, { acc: 92, arm: 90, spd: 80, str: 78 });
-    pr.name = "Deon Porter"; pr.face = "deon.png"; (S.faceUsed = S.faceUsed || []).push("deon.png"); pr.rookie = true; pr.heisman = true; pr.bonus = { key: "arm", val: 7 };
+    pr.name = "Deon King"; pr.face = "deon.png"; (S.faceUsed = S.faceUsed || []).push("deon.png"); pr.rookie = true; pr.heisman = true; pr.bonus = { key: "arm", val: 7 };
     pr.college = COLLEGES.find((c) => c.rank === 1).name; pr.hs = HIGHS.find((h) => h.rank === 1).name;
     pr.ovr = rateOvr("QB", pr.a);
     return pr;
@@ -11437,13 +11445,57 @@ function rbMount(root, onExit, TEAMS) {
   }
   /* the games of this stage are played: the Ravens' game is the one the user played (or simulated) */
   /* the Ravens' trophies: a conference title or the NFA title, with the game they won for it */
+  /* the MVP of the game: the Ravens' player with the most points from his plays this game */
+  function mvpOf() {
+    if (!G || !G.mvp || !G.mvp.size) return null;
+    let best = null, bv = -1; G.mvp.forEach((v, pa) => { if (v > bv) { bv = v; best = pa; } });
+    return best ? { name: best.name, pos: best.pos, face: faceOf(best) } : null;
+  }
+  function mvpPlayer() {
+    if (!G || !G.mvp || !G.mvp.size) return null;
+    let best = null, bv = -1; G.mvp.forEach((v, pa) => { if (v > bv) { bv = v; best = pa; } });
+    return best;
+  }
+  /* the MVP's postgame interview: three questions, each one boosts one stat by 3. No stat can be boosted twice. */
+  const MVP_QS = [
+    { q: "The whole city wants to know. What made the difference out there?", a: [["spd", "Speed. I found another gear."], ["hands", "Soft hands on the big catch."], ["elu", "Juking the safety in the open."]] },
+    { q: "The coaches say you've come a long way. Where did that come from?", a: [["arm", "Long hours throwing in the cold."], ["rte", "Crisp routes all week."], ["str", "Lifting every morning."]] },
+    { q: "What are you working on for next season?", a: [["acc", "Putting the ball right where it belongs."], ["tkl", "Hitting harder on defense."], ["cov", "Reading the defense before the snap."]] }
+  ];
+  const STAT_LABEL = { spd: "Speed", str: "Strength", acc: "Accuracy", arm: "Arm", elu: "Elusiveness", hands: "Hands", rte: "Route running", blk: "Blocking", rush: "Rushing", tkl: "Tackling", cov: "Coverage", kick: "Kicking" };
+  function mvpInterview(pa, done) {
+    if (!pa) return done();
+    const used = [];
+    const finish = () => {
+      $("overc").innerHTML = `<h2 style="font-size:18px">Postgame interview</h2>
+        <p style="color:#e8c46a;margin:6px 0">${pa.name} is up. ${used.map((k) => `${STAT_LABEL[k]} +3`).join(", ")}.</p>
+        <button class="on" id="ivGo" style="margin-top:8px">Continue</button>`;
+      $("ivGo").onclick = () => { $("over").style.display = "none"; done(); };
+    };
+    const ask = (i) => {
+      if (i >= MVP_QS.length) return finish();
+      const Q = MVP_QS[i], opts = Q.a.filter(([k]) => !used.includes(k));
+      $("overc").innerHTML = `<h2 style="font-size:18px">Postgame interview (${i + 1} of ${MVP_QS.length})</h2>
+        <p style="color:#9a9486;font-size:12px;margin:0 0 4px">${pa.name}, MVP</p>
+        <p style="margin:8px 0 12px">${Q.q}</p>
+        ${opts.map(([k, t]) => `<button class="on" data-iv="${k}" style="display:block;width:100%;margin:6px 0;text-align:left">${t} <span style="color:#9a9486">(${STAT_LABEL[k]} +3)</span></button>`).join("")}`;
+      $("overc").querySelectorAll("[data-iv]").forEach((b) => b.onclick = () => {
+        const k = b.dataset.iv;
+        pa.a[k] = Math.min(99, (pa.a[k] || 0) + 3);
+        used.push(k);
+        ask(i + 1);
+      });
+    };
+    $("over").style.display = "flex";
+    ask(0);
+  }
   function logTrophy(userResult) {
     if (!userResult || userResult[0] !== RH) return;
     const ph = DYN.phase;
     if (ph !== "conf" && ph !== "natl" && ph !== "nfa") return;
     const name = ph === "nfa" ? "NFA Championship" : ph === "natl" ? "Conference Championship" : `${CONFS[confIdx(RH)].name} Championship`;
     DYN.trophies = DYN.trophies || [];
-    DYN.trophies.push({ year: DYN.year, name, stage: ph, trophy: ph === "nfa" ? "trophy_nfa.png" : "trophy_conf.png", score: `${userResult[2]}-${userResult[3]}`, vs: userResult[1][0], winT: userResult[0], oppT: userResult[1], wx: G && G.wx ? { w: G.wx.w, t: G.wx.t } : {} });
+    DYN.trophies.push({ year: DYN.year, name, stage: ph, trophy: ph === "nfa" ? "trophy_nfa.png" : "trophy_conf.png", score: `${userResult[2]}-${userResult[3]}`, vs: userResult[1][0], winT: userResult[0], oppT: userResult[1], wx: G && G.wx ? { w: G.wx.w, t: G.wx.t } : {}, mvp: mvpOf() });
   }
   /* the week breakdown: each division's logo, then the week's final scores, then each division's standings, one at a time */
   const divSlug = (n) => n.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
@@ -11515,6 +11567,7 @@ function rbMount(root, onExit, TEAMS) {
     }
     weeklyInjuries();
     const note = stageLabel();
+    checkMorale();
     if (week.length) weekBreakdown(week, () => showHub(note)); else showHub(note);
   }
   /* ---- the championship's end: the winners celebrate, the losers walk off, then the trophy, fireworks and the winner's name ---- */
@@ -11533,6 +11586,7 @@ function rbMount(root, onExit, TEAMS) {
     const stage = (opt && opt.stage) || DYN.phase, win = res[0], mine = win[0] === RH[0];
     const title = stage === "nfa" ? "NFA Championship" : stage === "natl" ? "Conference Championship" : `${CONFS[confIdx(RH)].name} Championship`;
     const sub = stage === "natl" && G && G.away ? `${CONFS[confIdx(RH)].name} vs ${CONFS[confIdx(G.away)].name}` : "";
+    const mvp = opt && "mvp" in opt ? opt.mvp : (mine ? mvpOf() : null);
     const trophy = stage === "nfa" ? "trophy_nfa.png" : "trophy_conf.png";
     const lines = mine ? ["Yes! I did it!", "I'm a champion!", "We did it, folks!", "Nobody believed in us!", "Put it in the record books!"]
       : ["We did it!", "We're the champions!", "Look at this, folks!", "Nobody gave us a chance!"];
@@ -11564,12 +11618,45 @@ function rbMount(root, onExit, TEAMS) {
       if (wx.w === "rain") { g.strokeStyle = "rgba(190,210,235,0.55)"; g.lineWidth = 1; flakes.forEach((f) => { f.y += 240 * dt; f.x -= 60 * dt; if (f.y > H) { f.y = -10; f.x = Math.random() * W; } g.beginPath(); g.moveTo(f.x, f.y); g.lineTo(f.x - 4, f.y + 9); g.stroke(); }); }
     };
     const WIN_X = [0.62 * W, 0.8 * W];
+    const champScene = mine && isChampStage(stage);
+    const plainAt = (src, x, bottom, h) => { const im = vicImg(src); if (!im || !im.complete || !im.naturalWidth) return; const w = h * im.naturalWidth / im.naturalHeight; g.drawImage(im, x - w / 2, bottom - h, w, h); };
     const tick = (now) => {
       if (stopped || !$("vicCv")) return;
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
       const t = (now - t0) / 1000 + skip;
       g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H); g.textAlign = "center";
-      if (t < 9) {
+      if (t < 9 && champScene) {
+        const bg = vicImg("assets/fb/awards/victory_aerial.jpg"); if (bg.complete && bg.naturalWidth) g.drawImage(bg, 0, 0, W, H);
+        // the two boss brothers watch from the top of the stands
+        plainAt("assets/fb/crowd/terry_king.png", 0.17 * W, 0.3 * H, 72);
+        plainAt("assets/fb/crowd/boss_brother_2.png", 0.25 * W, 0.3 * H, 72);
+        // the ref and the coach stand at the side
+        plainAt("assets/fb/ref_1_hands.png", 0.9 * W, GY, 120);
+        plainAt("assets/fb/coach_1_hands.png", 0.77 * W, GY, 112);
+        // the commissioner walks out to centre field with the trophy
+        const cmX = t < 2.6 ? (1.1 - 0.7 * (t / 2.6)) * W : 0.4 * W;
+        plainAt("assets/civ/yt_cv_exec.png", cmX, GY, 130);
+        // the commissioner's face: a face from the roster, shown in his head; it moves while he talks
+        const cf = vicImg("assets/faces/C40.png");
+        if (cf.complete && cf.naturalWidth) {
+          const talking = t > 3.4 && t < 6.0, r = 16, hx = cmX, hy = GY - 109 + (talking && Math.floor(t * 8) % 2 ? 1.5 : 0);
+          g.save(); g.beginPath(); g.arc(hx, hy, r, 0, 6.283); g.clip();
+          g.drawImage(cf, hx - r, hy - r, 2 * r, 2 * r * (talking && Math.floor(t * 8) % 2 ? 0.9 : 1));
+          g.restore();
+        }
+        const H1 = 0.58 * W, H2 = 0.68 * W;
+        // the trophy goes from the commissioner's hands to the captain's
+        const hp = clamp((t - 2.8) / 1.4, 0, 1), trX = (cmX + 14) + (H1 + 12 - (cmX + 14)) * hp, trY = GY - 98 - Math.sin(hp * Math.PI) * 22;
+        const trophyImg = vicImg("assets/fb/awards/" + trophy);
+        if (trophyImg.complete && trophyImg.naturalWidth) { const th = 60, tw = th * trophyImg.naturalWidth / trophyImg.naturalHeight; g.drawImage(trophyImg, trX - tw / 2, trY - th / 2, tw, th); }
+        // the losers walk off to the left
+        const walkOff = Math.max(0, t - 4.6) * 0.3 * W;
+        [[0.3 * W, 0], [0.22 * W, 1]].forEach(([x, k]) => figure(walk[(Math.floor(t * 5) + k) % 4], dull, x - walkOff));
+        // the winners celebrate
+        [H1, H2].forEach((x, k) => figure(cel[(Math.floor(t * 4) + k) % 4], winCol, x));
+        if (t > 3.4 && t < 6.0) bubble(cmX, GY - 150, "Congratulations, Ravens!");
+        if (t > 6.2 && t < 8.4) bubble(H1, GY - 150, say1);
+      } else if (t < 9) {
         const bg = vicImg("assets/fb/awards/victory_aerial.jpg"); if (bg.complete && bg.naturalWidth) g.drawImage(bg, 0, 0, W, H);
         WIN_X.forEach((x, k) => figure(cel[(Math.floor(t * 4) + k) % 4], winCol, x));
         if (t > 0.6 && t < 2.8) bubble(WIN_X[0], GY - 150, say1);
@@ -11592,6 +11679,16 @@ function rbMount(root, onExit, TEAMS) {
           g.fillStyle = "rgba(0,0,0,0.6)"; g.fillRect(0, H - 74, W, 74);
           g.font = "bold 20px sans-serif"; g.fillStyle = "#f1ead8"; g.fillText(win[0], W / 2, H - 42);
           g.font = "14px sans-serif"; g.fillStyle = "#e8c46a"; g.fillText(sub ? `${title} · ${sub}` : title, W / 2, H - 18);
+          if (mvp) {
+            const mf = vicImg("assets/faces/" + mvp.face), cx = 84, cy = 196, r = 34;
+            g.fillStyle = "rgba(0,0,0,0.6)"; g.beginPath(); g.roundRect(cx - r - 14, cy - r - 10, 236, 2 * r + 20, 10); g.fill();
+            g.save(); g.beginPath(); g.arc(cx, cy, r, 0, 6.283); g.clip(); g.fillStyle = "#15151d"; g.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+            if (mf.complete && mf.naturalWidth) g.drawImage(mf, cx - r, cy - r, 2 * r, 2 * r);
+            g.restore(); g.beginPath(); g.arc(cx, cy, r, 0, 6.283); g.strokeStyle = "#e8c46a"; g.lineWidth = 3; g.stroke();
+            g.textAlign = "left"; g.font = "bold 12px sans-serif"; g.fillStyle = "#e8c46a"; g.fillText("CHAMPIONSHIP MVP", cx + r + 12, cy - 10);
+            g.font = "bold 20px sans-serif"; g.fillStyle = "#f1ead8"; g.fillText(mvp.name, cx + r + 12, cy + 14);
+            g.font = "13px sans-serif"; g.fillStyle = "#9a9486"; g.fillText(mvp.pos, cx + r + 12, cy + 32); g.textAlign = "center";
+          }
         }
         if (t > 9 && mine && !played) { played = true; try { new Audio("assets/audio/fb_winner.mp3").play().catch(() => {}); } catch (e) { /* no sound */ } }
       }
@@ -11787,6 +11884,7 @@ function rbMount(root, onExit, TEAMS) {
       else pa.streak = 0;
     });
     const mine = ROSTERS[RH[0]] || [];
+    if (G) { G.mvp = G.mvp || new Map(); gain.forEach((n, pa) => { if (mine.includes(pa)) G.mvp.set(pa, (G.mvp.get(pa) || 0) + n); }); }
     gain.forEach((n, pa) => {
       if (!mine.includes(pa)) return awardXP(pa, Math.round(n));
       const onOff = last.pl.some((p) => p.pa === pa && p.side === "h");
@@ -11806,10 +11904,10 @@ function rbMount(root, onExit, TEAMS) {
     const order = Object.keys(NEED);
     const r = (ROSTERS[RH[0]] || []).slice().sort((a, b) => order.indexOf(a.pos) - order.indexOf(b.pos) || b.ovr - a.ovr);
     rosterList = r;
-    const rows = r.map((p, i) => `<tr><td>${p.pos}</td><td>${faceR(p, 48, p.name)} ${p.name}${p.heisman ? " [Heisman]" : ""}${p.rookie ? " (R)" : ""}${p.college ? `<br><span style="color:#9a9486;font-size:11px">${p.college} · ${p.hs}</span>` : ""}</td><td>${p.ovr}</td><td>${p.a.spd}</td><td>${p.a.str}</td><td>${p.a.hands}</td><td>${KEY[p.pos]} ${p.a[KEY[p.pos]]}</td><td>${p.lvl || 0}</td><td style="color:${(p.xp || 0) < 0 ? "#b8343a" : "#9a9486"}">${p.xp || 0}/${thr((p.lvl || 0) + 1)}</td><td>$${salary(p)}M</td><td>${p.age}</td><td style="color:${p.inj > 0 ? "#b8343a" : "#9a9486"}">${p.inj > 0 ? "out " + p.inj + "w" : ""}</td><td style="color:${(p.sta ?? 100) < 35 ? "#b8343a" : "#9a9486"}">${Math.round(p.sta ?? 100)}</td><td>${depthBtns(i, p)}</td><td>${p.pts > 0 ? `<select style="font-size:11px">${ATTR_KEYS.map((k) => `<option value="${k}">${k.toUpperCase()} ${p.a[k]}</option>`).join("")}</select> <button data-spend="${i}" style="font-size:11px;padding:2px 6px">+1 (${p.pts})</button>` : ""}</td></tr>`).join("");
-    const deon = r.find((p) => p.name === "Deon Porter");
-    const card = deon ? `<div style="display:flex;align-items:center;gap:12px;margin:6px 0 10px;text-align:left">${faceHTML("deon.png", 96)}<div><b>Deon Porter</b><br><span style="font-size:12px;color:#9a9486">QB · rookie · Heisman</span><br><span style="font-size:12px;color:#9a9486">${deon.college} · ${deon.hs}</span></div></div>` : "";
-    return `<h2 style="font-size:16px">Ravens roster</h2><p style="color:#9a9486;font-size:12px">Team rating ${Math.round(teamOvr(RH) + coachBonus())} · Payroll $${payroll().toFixed(1)}M of $${CAP}M · ${r.length} players</p>${talkBar()}${card}
+    const rows = r.map((p, i) => `<tr><td>${p.pos}</td><td>${faceR(p, 48, p.name)} ${p.name}${p.heisman ? " [Heisman]" : ""}${p.rookie ? " (R)" : ""}<br><span style="color:#9a9486;font-size:11px">${TRAITS[pers(p).trait].label} · aggression ${pers(p).aggr} · morale ${pers(p).morale}</span>${p.college ? `<br><span style="color:#9a9486;font-size:11px">${p.college} · ${p.hs}</span>` : ""}</td><td>${p.ovr}</td><td>${p.a.spd}</td><td>${p.a.str}</td><td>${p.a.hands}</td><td>${KEY[p.pos]} ${p.a[KEY[p.pos]]}</td><td>${p.lvl || 0}</td><td style="color:${(p.xp || 0) < 0 ? "#b8343a" : "#9a9486"}">${p.xp || 0}/${thr((p.lvl || 0) + 1)}</td><td>$${salary(p)}M</td><td>${p.age}</td><td style="color:${p.inj > 0 ? "#b8343a" : "#9a9486"}">${p.inj > 0 ? "out " + p.inj + "w" : ""}</td><td style="color:${(p.sta ?? 100) < 35 ? "#b8343a" : "#9a9486"}">${Math.round(p.sta ?? 100)}</td><td>${depthBtns(i, p)}</td><td>${p.pts > 0 ? `<select style="font-size:11px">${ATTR_KEYS.map((k) => `<option value="${k}">${k.toUpperCase()} ${p.a[k]}</option>`).join("")}</select> <button data-spend="${i}" style="font-size:11px;padding:2px 6px">+1 (${p.pts})</button>` : ""}</td></tr>`).join("");
+    const deon = r.find((p) => p.name === "Deon King");
+    const card = deon ? `<div style="display:flex;align-items:center;gap:12px;margin:6px 0 10px;text-align:left">${faceHTML("deon.png", 96)}<div><b>Deon King</b><br><span style="font-size:12px;color:#9a9486">QB · rookie · Heisman</span><br><span style="font-size:11px;color:#9a9486;font-style:italic">Younger cousin of the gang leader. His dad got a good job and moved the family to the nice side of town, and Deon went to private school. Head in the books, football every day, off the streets.</span><br><span style="font-size:12px;color:#9a9486">${deon.college} · ${deon.hs}</span></div></div>` : "";
+    return `<h2 style="font-size:16px">Ravens roster</h2><p style="color:#9a9486;font-size:12px">Team rating ${Math.round(teamOvr(RH) + coachBonus())} · Payroll $${payroll().toFixed(1)}M of $${CAP}M · ${r.length} players</p>${talkBar()}${card}${moodBlock()}
       <div style="max-height:340px;overflow:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;text-align:left"><tr style="color:#e8c46a"><th>Pos</th><th>Name</th><th>OVR</th><th>SPD</th><th>STR</th><th>HND</th><th>Skill</th><th>Lvl</th><th>XP</th><th>Salary</th><th>Age</th><th></th><th>Sta</th><th>Depth</th><th>Points</th></tr>${rows}</table></div>`;
   }
   function coachCard(c, label) {
@@ -11933,7 +12031,10 @@ function rbMount(root, onExit, TEAMS) {
     setCalls(false);
     setRoom(ROOM_IMG[DYN.tab] || "office");
     $("overc").querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => { DYN.tab = b.dataset.tab; renderHub(); });
-    $("overc").querySelectorAll("[data-replay]").forEach((b) => b.onclick = () => { const t = DYN.trophies[+b.dataset.replay]; champSeq([t.winT, t.oppT], () => { DYN.tab = "trophies"; showHub(); }, { stage: t.stage, wx: t.wx }); });
+    $("overc").querySelectorAll("[data-replay]").forEach((b) => b.onclick = () => { const t = DYN.trophies[+b.dataset.replay]; champSeq([t.winT, t.oppT], () => { DYN.tab = "trophies"; showHub(); }, { stage: t.stage, wx: t.wx, mvp: t.mvp }); });
+    $("overc").querySelectorAll("[data-sit]").forEach((b) => b.onclick = () => sitPlayer(rosterList[+b.dataset.sit]));
+    $("overc").querySelectorAll("[data-talkp]").forEach((b) => b.onclick = () => talkPlayer(rosterList[+b.dataset.talkp]));
+    $("overc").querySelectorAll("[data-trade]").forEach((b) => b.onclick = () => tradePlayer(rosterList[+b.dataset.trade]));
     $("overc").querySelectorAll("[data-scan]").forEach((b) => b.onclick = () => scanChoose(b.dataset.scan));
     $("overc").querySelectorAll("[data-sc]").forEach((b) => b.onclick = () => { DYN.stScope = b.dataset.sc; renderHub(); });
     $("overc").querySelectorAll("[data-dp]").forEach((b) => b.onclick = () => depthSet(+b.dataset.i, b.dataset.dp));
@@ -12034,7 +12135,7 @@ function rbMount(root, onExit, TEAMS) {
   function trophyTab() {
     const list = (DYN.trophies || []).slice().reverse();
     if (!list.length) return `<p style="color:#9a9486;font-size:13px">No trophies yet. Win a conference title or the NFA Championship and it shows up here.</p>`;
-    const rows = list.map((t, i) => `<tr><td style="padding:6px 4px">${t.year}</td><td><img src="assets/fb/awards/${t.trophy}" alt="" style="height:26px;vertical-align:middle;margin-right:6px">${t.name}</td><td>${RH[0]} ${t.score.replace("-", " · ")} ${teamLogoTag(t.vs)}${t.vs}</td><td>${t.winT ? `<button data-replay="${DYN.trophies.length - 1 - i}" style="padding:3px 8px;font-size:11px">Replay</button>` : ""}</td></tr>`).join("");
+    const rows = list.map((t, i) => `<tr><td style="padding:6px 4px">${t.year}</td><td><img src="assets/fb/awards/${t.trophy}" alt="" style="height:26px;vertical-align:middle;margin-right:6px">${t.name}</td><td>${RH[0]} ${t.score.replace("-", " · ")} ${teamLogoTag(t.vs)}${t.vs}${t.mvp ? ` <span style="color:#9a9486">· MVP ${t.mvp.name}</span>` : ""}</td><td>${t.winT ? `<button data-replay="${DYN.trophies.length - 1 - i}" style="padding:3px 8px;font-size:11px">Replay</button>` : ""}</td></tr>`).join("");
     return `<div style="max-height:52vh;overflow:auto;text-align:left"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="color:#e8c46a"><td>Year</td><td>Trophy</td><td>The game that won it</td><td></td></tr>${rows}</table></div>`;
   }
   function showHistory() {
@@ -12076,6 +12177,7 @@ function rbMount(root, onExit, TEAMS) {
 
   /* ---- a game: the user's live game in exhibition or dynasty ---- */
   function newGame(oppIn, ex) {
+    PRE = false; if ($("preBtns")) $("preBtns").style.display = "none";
     let opp = oppIn;
     if (!opp) do { opp = pick(TEAMS); } while (opp === RH);
     ensureRoster(RH); ensureRoster(opp);
@@ -12547,7 +12649,67 @@ function rbMount(root, onExit, TEAMS) {
   }
 
   /* ---- a live play ---- */
+  /* the line battle: a d20 for the lineman and a d20 for his man, each with blocking or rush plus strength. A big loss knocks him down, a small one pushes him back. */
+  function blockRoll(o, d) {
+    o.rolled = true;
+    const off = Math.ceil(Math.random() * 20) + (attr(o, "blk") + attr(o, "str")) / 20;
+    const def = Math.ceil(Math.random() * 20) + (attr(d, "rush") + attr(d, "str")) / 20;
+    d.beat = off < def;
+    if (off <= def - 6) { o.fallen = 1.2; oneShot("grunt", 0.5); say(`${o.pa.name} gets knocked on his back!`); }
+    else if (off < def) o.pushT = 0.8;
+  }
+  /* A sets the play (the defence lines up), then A hikes. In the set, X is a fake start and G (or Y) calls an audible. */
+  let PRE = false;
   function snap(id) {
+    if (!G || G.over || G.half || G.intro || G.cpu || P) return;
+    if (id === "kick") return hike(id);
+    if (!PRE) {
+      PRE = true; clockLeft = PLAY_CLOCK;
+      $("preBtns").style.display = "flex";
+      $("hint").textContent = "SET · A hike · X fake start · G or Y audible";
+      say(`${(PLAYS[PB_SEL] || {}).name || "The play"} is set. Hike it, fake it, or audible.`);
+      return;
+    }
+    PRE = false; $("preBtns").style.display = "none";
+    hike(PB_SEL);
+  }
+  function fakeStart() {
+    if (!PRE || P || !G) return;
+    const D = starters(G.away);
+    const list = [...(D.DL || []), ...(D.LB || []), ...(D.CB || []), ...(D.S || [])];
+    const hit = list.find((p) => Math.random() < jumpP({ pa: p }, 1.6));
+    if (hit) { PRE = false; $("preBtns").style.display = "none"; G.ball = Math.min(99, G.ball + 5); moraleAdd(hit, -3); clip("boo"); say(`${hit.name} jumps early on the fake! Offside on the defense. Five yards.`); update(); }
+    else say("The fake draws nobody. They hold their ground.");
+  }
+  function audible() { if (!PRE || P) return; cyclePlay(1); say(`Audible! We're going with ${(PLAYS[PB_SEL] || {}).name || "a new play"}.`); }
+  function falseStart(p) {
+    PRE = false; $("preBtns").style.display = "none";
+    moraleAdd(p.pa, -4); clip("boo"); G.ball = Math.max(1, G.ball - 5);
+    say(`False start on ${p.pa.name}. Five yards back.`); update();
+  }
+  function offsideOn(p) {
+    PRE = false; $("preBtns").style.display = "none";
+    moraleAdd(p.pa, -3); clip("boo"); G.ball = Math.min(99, G.ball + 5);
+    say(`Offside on ${p.pa.name}. Five yards for us.`); update();
+  }
+  /* the locker room: a player whose morale runs out asks for a trade; you can sit him, talk him down, or trade him */
+  function sitPlayer(p) { const q = pers(p); q.aggr = Math.max(5, q.aggr - 15); moraleAdd(p, -10); DYN.note = `${p.name} sits out a game. Aggression down, morale down.`; renderHub(); }
+  function talkPlayer(p) {
+    const q = pers(p);
+    if (q.talkWk === DYN.round) { DYN.note = `You already talked to ${p.name} this week.`; return renderHub(); }
+    q.talkWk = DYN.round; const gain = Math.round(coachRapport() / 12); moraleAdd(p, gain);
+    DYN.note = `You talk ${p.name} down. Morale up ${gain}.`; renderHub();
+  }
+  function tradePlayer(p) { ROSTERS[RH[0]] = (ROSTERS[RH[0]] || []).filter((x) => x !== p); DYN.news && DYN.news.push(`${p.name} is traded.`); DYN.note = `${p.name} is traded.`; renderHub(); }
+  function checkMorale() { (ROSTERS[RH[0]] || []).forEach((p) => { const q = pers(p); if (q.morale < 25 && !q.asked) { q.asked = true; DYN.news && DYN.news.push(`${p.name} is asking to be traded.`); } }); }
+  function moodBlock() {
+    const rows = (rosterList || []).map((p, i) => ({ p, i, q: pers(p) })).filter(({ q }) => q.morale < 40 || q.aggr >= 70 || q.asked);
+    const head = `<div style="font-size:12px;color:#9a9486;margin:6px 0">Coach rapport ${coachRapport()} · talking a player down raises morale by rapport / 12 (once a week)</div>`;
+    if (!rows.length) return `${head}<p style="font-size:12px;color:#9a9486">Nobody is unhappy.</p>`;
+    return head + rows.map(({ p, i, q }) => `<div style="font-size:12px;margin:4px 0"><b>${p.name}</b> · ${TRAITS[q.trait].label} · aggression ${q.aggr} · morale ${q.morale}${q.morale < 25 ? ' <span style="color:#ff6b6b">wants a trade</span>' : ""}<br>
+      <button data-sit="${i}" style="font-size:11px;padding:3px 6px">Sit him out</button> <button data-talkp="${i}" style="font-size:11px;padding:3px 6px">Talk him down</button> <button data-trade="${i}" style="font-size:11px;padding:3px 6px">Trade him</button></div>`).join("");
+  }
+  function hike(id) {
     if (!G || G.over || G.half || G.intro || G.cpu || P) return;
     clockLeft = PLAY_CLOCK;
     loopOff("match"); clip("drums"); oneShot("ball", 0.7);
@@ -12585,6 +12747,11 @@ function rbMount(root, onExit, TEAMS) {
     if (!isRun) [...LBs, ...DB].forEach((d) => { if (!d.cover && !d.rush) d.zone = { x: d.x, y: d.y }; });   // on a pass, the rest drop to a spot
     wrs.forEach((w, i) => { w.path = routePath(pb.routes ? pb.routes[i] : "go", w.x, w.y); w.pi = 0; });
     const qb = pl.find((p) => p.role === "qb"), rb = pl.find((p) => p.role === "rb");
+    /* the snap: an early jump by one of ours is a false start, by one of theirs is offside */
+    const fs = pl.find((p) => p.side === "h" && (p.role === "ol" || p.role === "wr") && Math.random() < jumpP(p, 0.25));
+    if (fs) return falseStart(fs);
+    const off = pl.find((p) => p.side === "a" && Math.random() < jumpP(p, 0.25));
+    if (off) return offsideOn(off);
     const kind = isRun ? "run" : deep ? "deep" : "short";
     P = { kind, los, pl, t: 0, keeper: !!pb.qb, carrier: isRun ? (pb.qb ? qb : rb) : null, thrown: false, flight: null, done: false,
           qb, rb, wrs, ballX: 0, ballY: 0, ballZ: 0 };
@@ -12695,8 +12862,11 @@ function rbMount(root, onExit, TEAMS) {
     P.pl.forEach((o) => {
       if (o.role !== "ol" && o.role !== "rb") return;
       if (o.role === "rb" && (P.carrier === o || !o.target)) return;
+      if (o.fallen > 0) { o.fallen = Math.max(0, o.fallen - dt); o.vx = 0; o.vy = 0; return; }
       const d = o.target;
       if (!d || d.stun > 0) { if (o.role === "ol") { o.vx = 0; o.vy = 0; } return; }
+      if (o.role === "ol" && !o.rolled && Math.hypot(o.x - d.x, o.y - d.y) < 2.4) blockRoll(o, d);
+      if (o.role === "ol" && o.pushT > 0) { o.pushT -= dt; const L = Math.hypot(o.x - d.x, o.y - d.y) || 1; o.vx = (o.x - d.x) / L * 2.2; o.vy = (o.y - d.y) / L * 2.2; return; }
       const run = P.kind === "run";
       const tx = run ? d.x + 1.2 : d.x + (P.qb.x - d.x) * 0.3, ty = d.y;
       const dx = tx - o.x, dy = ty - o.y, dd = Math.hypot(dx, dy);
@@ -12727,7 +12897,7 @@ function rbMount(root, onExit, TEAMS) {
       // the OL in front of a rusher: the better the rusher against the blocker, the faster he gets through
       if (p.role === "dl" && p.blocker && Math.hypot(p.x - p.blocker.x, p.y - p.blocker.y) < 1.8) {
         if (!p.talkCD) { p.talkCD = 4; talk(p.blocker, pick(TALK.block_off)); talk(p, pick(TALK.block_def)); }
-        const f = clamp(0.35 + (attr(p, "rush") - attr(p.blocker, "blk")) / 90, 0.05, 1);
+        const f = p.beat ? 1.15 : clamp(0.35 + (attr(p, "rush") - attr(p.blocker, "blk")) / 90, 0.05, 1);
         p.vx *= f; p.vy *= f;
       }
     });
@@ -13106,7 +13276,7 @@ function rbMount(root, onExit, TEAMS) {
     makeMedia(3); PRESS = true;
     const show = () => {
       const open = (DYN.media || []).filter((m) => m.ans == null);
-      if (!open.length) { PRESS = false; $("over").style.display = "none"; const stg = DYN.phase; const after = () => { advanceStage(res); autosave(); }; if (stg === "conf" || stg === "natl" || stg === "nfa") champSeq(res, after); else after(); return; }
+      if (!open.length) { PRESS = false; $("over").style.display = "none"; const stg = DYN.phase; const after = () => { advanceStage(res); autosave(); }; if (stg === "conf" || stg === "natl" || stg === "nfa") champSeq(res, () => mvpInterview(mvpPlayer(), after)); else after(); return; }
       $("overc").innerHTML = `<h2 style="font-size:18px">Press conference</h2><p style="color:#9a9486;font-size:12px">Three reporters want a word. What you say goes in the papers.</p>${mediaBlock()}`;
       $("overc").querySelectorAll("[data-media]").forEach((b) => b.onclick = () => { const [i, j] = b.dataset.media.split(",").map(Number); mediaAnswer(i, j); show(); });
     };
@@ -13429,8 +13599,8 @@ function rbMount(root, onExit, TEAMS) {
     if (G && G.rd) { rdPad(L, R, A); } else if (RP) { if (A && !pad.prevA) endReplay(); } else if (KG.on) { if (A && !pad.prevA) kickAct(); } else if (A && !pad.prevA && (overAct() || skipTalk())) {} else if (A && !pad.prevA) { if (P && canThrow()) { aim.on = true; aim.from = "hold"; aim.hold = 0; aim.power = 0; aim.dx = 0; aim.dy = 0; } else if (canCall()) snap(PB_SEL); }
     if (!A && pad.prevA) release();
     if (B && !pad.prevB && P) stiffArm();
-    if (X && !pad.prevX && P) juke();
-    if (Y && !pad.prevY && P) handoff();
+    if (X && !pad.prevX && P) juke(); else if (X && !pad.prevX && PRE) fakeStart();
+    if (Y && !pad.prevY && P) handoff(); else if (Y && !pad.prevY && PRE) audible();
     pad.prevA = A; pad.prevB = B; pad.prevX = X; pad.prevY = Y;
   }
 
@@ -14071,6 +14241,11 @@ function rbMount(root, onExit, TEAMS) {
   /* the crowd: civilians in the stands (never on the track or the field), most with a sign for one of the two teams */
   const CIV_FILES = ["yt_cv_barfly.png","yt_cv_busdriver.png","yt_cv_dockworker.png","yt_cv_exec.png","yt_cv_jogger.png","yt_cv_mailman.png","yt_cv_mechanic.png","yt_cv_p2_1_1.png","yt_cv_p2_1_10.png","yt_cv_p2_1_11.png","yt_cv_p2_1_12.png","yt_cv_p2_1_13.png","yt_cv_p2_1_14.png","yt_cv_p2_1_15.png","yt_cv_p2_1_16.png","yt_cv_p2_1_2.png","yt_cv_p2_1_3.png","yt_cv_p2_1_4.png","yt_cv_p2_1_5.png","yt_cv_p2_1_6.png","yt_cv_p2_1_7.png","yt_cv_p2_1_8.png","yt_cv_p2_1_9.png","yt_cv_p2_2_1.png","yt_cv_p2_2_10.png","yt_cv_p2_2_11.png","yt_cv_p2_2_12.png","yt_cv_p2_2_13.png","yt_cv_p2_2_14.png","yt_cv_p2_2_15.png","yt_cv_p2_2_16.png","yt_cv_p2_2_2.png","yt_cv_p2_2_3.png","yt_cv_p2_2_4.png","yt_cv_p2_2_5.png","yt_cv_p2_2_6.png","yt_cv_p2_2_7.png","yt_cv_p2_2_8.png","yt_cv_p2_2_9.png","yt_cv_p2_3_1.png","yt_cv_p2_3_10.png","yt_cv_p2_3_11.png","yt_cv_p2_3_12.png","yt_cv_p2_3_13.png","yt_cv_p2_3_14.png","yt_cv_p2_3_15.png","yt_cv_p2_3_16.png","yt_cv_p2_3_2.png","yt_cv_p2_3_3.png","yt_cv_p2_3_4.png","yt_cv_p2_3_5.png","yt_cv_p2_3_6.png","yt_cv_p2_3_7.png","yt_cv_p2_3_8.png","yt_cv_p2_3_9.png","yt_cv_p2_4_1.png","yt_cv_p2_4_10.png","yt_cv_p2_4_11.png","yt_cv_p2_4_12.png","yt_cv_p2_4_13.png","yt_cv_p2_4_14.png","yt_cv_p2_4_15.png","yt_cv_p2_4_16.png","yt_cv_p2_4_2.png","yt_cv_p2_4_3.png","yt_cv_p2_4_4.png","yt_cv_p2_4_5.png","yt_cv_p2_4_6.png","yt_cv_p2_4_7.png","yt_cv_p2_4_8.png","yt_cv_p2_4_9.png","yt_cv_p2_5_1.png","yt_cv_p2_5_10.png","yt_cv_p2_5_11.png","yt_cv_p2_5_12.png","yt_cv_p2_5_13.png","yt_cv_p2_5_14.png","yt_cv_p2_5_15.png","yt_cv_p2_5_16.png","yt_cv_p2_5_2.png","yt_cv_p2_5_3.png","yt_cv_p2_5_4.png","yt_cv_p2_5_5.png","yt_cv_p2_5_6.png","yt_cv_p2_5_7.png","yt_cv_p2_5_8.png","yt_cv_p2_5_9.png","yt_cv_p2_6_1.png","yt_cv_p2_6_10.png","yt_cv_p2_6_11.png","yt_cv_p2_6_12.png","yt_cv_p2_6_13.png","yt_cv_p2_6_14.png","yt_cv_p2_6_15.png","yt_cv_p2_6_16.png","yt_cv_p2_6_2.png","yt_cv_p2_6_3.png","yt_cv_p2_6_4.png","yt_cv_p2_6_5.png","yt_cv_p2_6_6.png","yt_cv_p2_6_7.png","yt_cv_p2_6_8.png","yt_cv_p2_6_9.png","yt_cv_p2_7_1.png","yt_cv_p2_7_10.png","yt_cv_p2_7_11.png","yt_cv_p2_7_12.png","yt_cv_p2_7_13.png","yt_cv_p2_7_14.png","yt_cv_p2_7_15.png","yt_cv_p2_7_16.png","yt_cv_p2_7_2.png","yt_cv_p2_7_3.png","yt_cv_p2_7_4.png","yt_cv_p2_7_5.png","yt_cv_p2_7_6.png","yt_cv_p2_7_7.png","yt_cv_p2_7_8.png","yt_cv_p2_7_9.png","yt_cv_p2_8_1.png","yt_cv_p2_8_10.png","yt_cv_p2_8_11.png","yt_cv_p2_8_12.png","yt_cv_p2_8_13.png","yt_cv_p2_8_14.png","yt_cv_p2_8_15.png","yt_cv_p2_8_16.png","yt_cv_p2_8_2.png","yt_cv_p2_8_3.png","yt_cv_p2_8_4.png","yt_cv_p2_8_5.png","yt_cv_p2_8_6.png","yt_cv_p2_8_7.png","yt_cv_p2_8_8.png","yt_cv_p2_8_9.png","yt_cv_priest.png","yt_cv_punk.png","yt_cv_retiree.png","yt_cv_salesman.png","yt_cv_varsity.png"];
   const CIV_IMGS = CIV_FILES.map((f) => img("assets/civ/" + f));
+  const GANG_CHANCE = 0.5;                                    // the share of home games where the King gang shows up
+  const GANG_IMG = img("assets/fb/crowd/terry_king.png");     // Terry King, the oldest uncle (sprite: 69x160)
+  const BOSS2_IMG = img("assets/fb/crowd/boss_brother_2.png"); // the second boss brother (sprite: 69x160)
+  const isChampStage = (ph) => ph === "conf" || ph === "natl" || ph === "nfa";
+  const GANG_SIGN = ["KING", "#15151d", "#e8c46a"];           // black sign with gold edge: the King gang's colours
   function standsSpot() {
     const W = cv.width, r = Math.random();
     if (r < 0.4) return { x: 10 + Math.random() * (W - 20), y: 6 + Math.random() * 40 };            // the top stand
@@ -14082,22 +14257,35 @@ function rbMount(root, onExit, TEAMS) {
     const inTunnel = (q) => [TUNNEL_H, TUNNEL_A].some((t) => q.x > t.x - 4 && q.x < t.x + t.w + 4 && q.y > t.y - 4 && q.y < t.y + t.h + 4);
     const hp = Math.max(1, DYN.rating[RH[0]] || teamOvr(RH)), ap = Math.max(1, DYN.rating[G.away[0]] || teamOvr(G.away));
     const nh = Math.round(180 * hp / (hp + ap));   // the stands split by team strength: the stronger side brings more fans
-    return Array.from({ length: 180 }, (_, i) => {
+    const list = Array.from({ length: 180 }, (_, i) => {
       let s = standsSpot(); while (inTunnel(s)) s = standsSpot();
       return { ...s, pic: CIV_IMGS[(Math.random() * CIV_IMGS.length) | 0], team: i < nh ? RH : G.away, bob: Math.random() * 6 };
     });
+    // the King gang: at some home games the uncles and their crew sit together at the top of the stands
+    const champGame = isChampStage(DYN.phase);
+    if ((G.homeTeam || RH) === RH && (champGame || Math.random() < GANG_CHANCE)) {
+      const cx = 170 + Math.random() * (cv.width - 340), n = 5;
+      for (let k = 0; k < n; k++) {
+        const x = cx + (k - (n - 1) / 2) * 22 + (Math.random() - 0.5) * 6;
+        // k 0 is Terry, the oldest uncle; in a championship game the second boss brother stands beside him
+        const boss = k === 0 ? GANG_IMG : k === 1 && champGame ? BOSS2_IMG : null;
+        const uncle = boss && ready(boss) ? boss : null;
+        list.push({ x, y: 14 + (k % 2) * 4, pic: uncle || CIV_IMGS[(Math.random() * CIV_IMGS.length) | 0], tall: !!uncle, gang: true, team: GANG_SIGN, bob: Math.random() * 6 });
+      }
+    }
+    return list;
   }
   const FCX = (IN.x0 + IN.x1) / 2, FCY = (IN.y0 + IN.y1) / 2;
   function drawFans() {
     const t = performance.now() / 400;
     fans.forEach((f) => {
       if (!ready(f.pic)) return;
-      const w = 16;
+      const w = 16, ih = f.tall ? w * f.pic.height / f.pic.width : w;
       const dx = FCX - f.x, dy = FCY - f.y;
-      ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(Math.atan2(-dx, dy));   // the figure's front points at the middle of the field
-      ctx.drawImage(f.pic, -w / 2, -w / 2, w, w); ctx.restore();
+      ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.tall ? 0 : Math.atan2(-dx, dy));   // the figure's front points at the middle of the field
+      ctx.drawImage(f.pic, -w / 2, -ih / 2, w, ih); ctx.restore();
       if (f.team) {
-        const sy = f.y - w / 2 - 10 - Math.sin(t + f.bob) * 1.5;   // a sign on a stick above the head
+        const sy = f.y - ih / 2 - 10 - Math.sin(t + f.bob) * 1.5;   // a sign on a stick above the head
         ctx.fillStyle = "#4a3a2a"; ctx.fillRect(f.x - 0.5, sy + 4, 1, 7);
         ctx.fillStyle = f.team[1]; ctx.fillRect(f.x - 6, sy - 4, 12, 8);
         ctx.strokeStyle = f.team[2]; ctx.lineWidth = 1; ctx.strokeRect(f.x - 5.5, sy - 3.5, 11, 7);
@@ -14176,6 +14364,8 @@ function rbMount(root, onExit, TEAMS) {
     if (e.code === "Enter" && (overAct() || skipTalk())) return;
     if (!P) return;
     if (e.code === "Space") juke();
+    if (PRE && !P && e.code === "KeyX") { fakeStart(); return; }
+    if (PRE && !P && e.code === "KeyG") { audible(); return; }
     if (e.code === "Enter" && !P) { snap(PB_SEL); return; }
     if (e.code === "KeyM") { S.muted = !S.muted; if (S.muted) { if (SFX.theme) SFX.theme.pause(); } else if (SFX.theme) SFX.theme.play().catch(() => {}); return; }
     if (e.code === "KeyE") stiffArm();
@@ -14222,7 +14412,7 @@ function rbMount(root, onExit, TEAMS) {
   const onCall = (e) => {
     const b = e.target.closest("button[data-call]"); if (!b || b.disabled) return;
     const c = b.dataset.call;
-    if (c === "snap") return snap(PB_SEL);
+    if (c === "snap") return snap(PB_SEL); if (c === "fake") return fakeStart(); if (c === "aud") return audible();
     if (c === "kick") return snap("kick");
     if (b.dataset.play) selectPlay(b.dataset.play);
   };
