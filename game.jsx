@@ -11435,7 +11435,17 @@ function rbMount(root, onExit, TEAMS) {
     return out;
   }
   /* the games of this stage are played: the Ravens' game is the one the user played (or simulated) */
+  /* the Ravens' trophies: a conference title or the NFA title, with the game they won for it */
+  function logTrophy(userResult) {
+    if (!userResult || userResult[0] !== RH) return;
+    const ph = DYN.phase;
+    if (ph !== "conf" && ph !== "nfa") return;
+    const name = ph === "nfa" ? "NFA Championship" : `${CONFS[confIdx(RH)].name} Championship`;
+    DYN.trophies = DYN.trophies || [];
+    DYN.trophies.push({ year: DYN.year, name, stage: ph, trophy: ph === "nfa" ? "trophy_nfa.png" : "trophy_conf.png", score: `${userResult[2]}-${userResult[3]}`, vs: userResult[1][0], winT: userResult[0], oppT: userResult[1], wx: G && G.wx ? { w: G.wx.w, t: G.wx.t } : {} });
+  }
   function advanceStage(userResult) {
+    logTrophy(userResult);
     const winners = [];
     stageGames().forEach((p) => {
       const res = p.includes(RH) && userResult ? userResult : simGame(p[0], p[1]);
@@ -11483,10 +11493,10 @@ function rbMount(root, onExit, TEAMS) {
     g.globalCompositeOperation = "destination-in"; g.drawImage(im, 0, 0);
     TINTS[k] = c; return c;
   }
-  function champSeq(res, done) {
-    const stage = DYN.phase, win = res[0], mine = win === RH;
+  function champSeq(res, done, opt) {
+    const stage = (opt && opt.stage) || DYN.phase, win = res[0], mine = win[0] === RH[0];
     const title = stage === "nfa" ? "NFA Championship" : stage === "natl" ? "Conference Championship" : `${CONFS[confIdx(RH)].name} Championship`;
-    const sub = stage === "natl" ? `${CONFS[confIdx(RH)].name} vs ${CONFS[confIdx(G.away)].name}` : "";
+    const sub = stage === "natl" && G && G.away ? `${CONFS[confIdx(RH)].name} vs ${CONFS[confIdx(G.away)].name}` : "";
     const trophy = stage === "nfa" ? "trophy_nfa.png" : "trophy_conf.png";
     const lines = mine ? ["Yes! I did it!", "I'm a champion!", "We did it, folks!", "Nobody believed in us!", "Put it in the record books!"]
       : ["We did it!", "We're the champions!", "Look at this, folks!", "Nobody gave us a chance!"];
@@ -11499,7 +11509,7 @@ function rbMount(root, onExit, TEAMS) {
       <button id="vicGo" class="on" style="display:none;margin-top:8px">Continue</button>`;
     $("over").style.display = "flex";
     const cv = $("vicCv"), g = cv.getContext("2d"), W = 640, H = 360, GY = 0.86 * H;
-    const wx = G.wx || {};
+    const wx = (opt && opt.wx) || (G && G.wx) || {};
     const t0 = performance.now(); let skip = 0, stopped = false, finished = false, played = false, nextBurst = 9.3, last = t0;
     const fx = [];
     const flakes = Array.from({ length: 70 }, () => ({ x: Math.random() * W, y: Math.random() * H, v: 25 + Math.random() * 35, d: Math.random() * 10 }));
@@ -11808,7 +11818,7 @@ function rbMount(root, onExit, TEAMS) {
   }
   /* the hub rooms: each tab has a room behind it (assets/hub/<name>.png); the room fades in when you walk in */
   const ROOM_IMG = { season: "stadium", coaches: "office", fa: "office", roster: "locker", starters: "locker", press: "pressroom", train: "training" };
-  const ROOM_NAME = { standings: "League office", season: "Game day", coaches: "Team office", fa: "Team office", roster: "Locker room", starters: "Starters", press: "Press room", train: "Training field" };
+  const ROOM_NAME = { trophies: "Trophy case", standings: "League office", season: "Game day", coaches: "Team office", fa: "Team office", roster: "Locker room", starters: "Starters", press: "Press room", train: "Training field" };
   const weekKey = () => DYN.round + "-" + DYN.phase + "-" + DYN.rounds.length;
   const hideRoom = () => { const r = $("over").querySelector(".room"); if (r) r.classList.remove("on"); };
   function talkTo(kind) {
@@ -11878,8 +11888,8 @@ function rbMount(root, onExit, TEAMS) {
   }
   function renderHub() {
     $("overc").classList.remove("textmenu");
-    const tabs = [["season", "Season"], ["standings", "Standings"], ["roster", "Locker room"], ["starters", "Starters"], ["press", "Press room"], ["train", "Training"], ["coaches", "Coaches"], ["fa", "Free agency"]];
-    const body = DYN.tab === "standings" ? standingsTab() : DYN.scan && DYN.tab === "roster" ? scanCard() : DYN.tab === "roster" ? rosterTab() : DYN.tab === "starters" ? startersTab() : DYN.tab === "press" ? pressTab() : DYN.tab === "train" ? trainTab() : DYN.tab === "coaches" ? coachesTab() : DYN.tab === "fa" ? faTab() : seasonTab();
+    const tabs = [["season", "Season"], ["standings", "Standings"], ["trophies", "Trophies"], ["roster", "Locker room"], ["starters", "Starters"], ["press", "Press room"], ["train", "Training"], ["coaches", "Coaches"], ["fa", "Free agency"]];
+    const body = DYN.tab === "trophies" ? trophyTab() : DYN.tab === "standings" ? standingsTab() : DYN.scan && DYN.tab === "roster" ? scanCard() : DYN.tab === "roster" ? rosterTab() : DYN.tab === "starters" ? startersTab() : DYN.tab === "press" ? pressTab() : DYN.tab === "train" ? trainTab() : DYN.tab === "coaches" ? coachesTab() : DYN.tab === "fa" ? faTab() : seasonTab();
     $("overc").innerHTML = `<div class="roomName">${ROOM_NAME[DYN.tab] || ""}</div><div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px;flex-wrap:wrap">${tabs.map(([k, n]) => `<button data-tab="${k}" class="${DYN.tab === k ? "on" : ""}" style="padding:7px 10px;font-size:12px">${n}</button>`).join("")}</div>
       ${DYN.tab === "season" ? "" : `<p style="color:#e8c46a;font-size:12px;margin:0 0 6px;min-height:14px">${DYN.note || ""}</p>`}${body}
       <button id="menu" style="margin-top:10px">Back to menu</button>`;
@@ -11887,6 +11897,7 @@ function rbMount(root, onExit, TEAMS) {
     setCalls(false);
     setRoom(ROOM_IMG[DYN.tab] || "office");
     $("overc").querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => { DYN.tab = b.dataset.tab; renderHub(); });
+    $("overc").querySelectorAll("[data-replay]").forEach((b) => b.onclick = () => { const t = DYN.trophies[+b.dataset.replay]; champSeq([t.winT, t.oppT], () => { DYN.tab = "trophies"; showHub(); }, { stage: t.stage, wx: t.wx }); });
     $("overc").querySelectorAll("[data-scan]").forEach((b) => b.onclick = () => scanChoose(b.dataset.scan));
     $("overc").querySelectorAll("[data-sc]").forEach((b) => b.onclick = () => { DYN.stScope = b.dataset.sc; renderHub(); });
     $("overc").querySelectorAll("[data-dp]").forEach((b) => b.onclick = () => depthSet(+b.dataset.i, b.dataset.dp));
@@ -11983,6 +11994,13 @@ function rbMount(root, onExit, TEAMS) {
     [1985, "Southside Sentinels", 34, "Ironbridge Foundry", 26, "Ironbridge Foundry", "Eastgate Engineers", "Southside Sentinels", "Lantern Hill Lanterns"],
     [1986, "Redline Rockets", 30, "Iron Gate Guards", 10, "Grayhaven Granite", "Iron Gate Guards", "Redline Rockets", "Rookery Falcons"],
   ];
+  /* the Trophies tab: every title the Ravens have won, with the game they won for it */
+  function trophyTab() {
+    const list = (DYN.trophies || []).slice().reverse();
+    if (!list.length) return `<p style="color:#9a9486;font-size:13px">No trophies yet. Win a conference title or the NFA Championship and it shows up here.</p>`;
+    const rows = list.map((t, i) => `<tr><td style="padding:6px 4px">${t.year}</td><td><img src="assets/fb/awards/${t.trophy}" alt="" style="height:26px;vertical-align:middle;margin-right:6px">${t.name}</td><td>${RH[0]} ${t.score.replace("-", " · ")} ${t.vs}</td><td>${t.winT ? `<button data-replay="${DYN.trophies.length - 1 - i}" style="padding:3px 8px;font-size:11px">Replay</button>` : ""}</td></tr>`).join("");
+    return `<div style="max-height:52vh;overflow:auto;text-align:left"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="color:#e8c46a"><td>Year</td><td>Trophy</td><td>The game that won it</td><td></td></tr>${rows}</table></div>`;
+  }
   function showHistory() {
     const titles = {};
     HISTORY.forEach((h) => { titles[h[1]] = (titles[h[1]] || 0) + 1; });
