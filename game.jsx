@@ -11447,11 +11447,10 @@ function rbMount(root, onExit, TEAMS) {
     DYN.pred = null;
     (ROSTERS[RH[0]] || []).forEach((p) => { p.sta = 100; });
     if (Math.random() < 0.35) makeScandal();
-    makeMedia();
     $("overc").innerHTML = `<h2>${won ? "Ravens win" : "Ravens lose"}</h2><div style="font-size:20px;margin:10px 0">${RH[0]} ${hs} &middot; ${as} ${G.away[0]}</div>
-      <p style="color:#9a9486">${stageLabel()}</p><button class="on" id="cont">Continue</button>`;
+      <p style="color:#9a9486">${stageLabel()}</p><button class="on" id="cont">Press conference</button>`;
     $("over").style.display = "flex";
-    $("cont").onclick = () => { $("over").style.display = "none"; advanceStage(res); autosave(); };
+    $("cont").onclick = () => postPress(res);
   }
   /* the end of the season: the result, then the offseason */
   function endSeason(champ, text) {
@@ -11599,11 +11598,11 @@ function rbMount(root, onExit, TEAMS) {
     const order = Object.keys(NEED);
     const r = (ROSTERS[RH[0]] || []).slice().sort((a, b) => order.indexOf(a.pos) - order.indexOf(b.pos) || b.ovr - a.ovr);
     rosterList = r;
-    const rows = r.map((p, i) => `<tr><td>${p.pos}</td><td>${faceHTML(faceOf(p), 48, p.name)} ${p.name}${p.heisman ? " [Heisman]" : ""}${p.rookie ? " (R)" : ""}${p.college ? `<br><span style="color:#9a9486;font-size:11px">${p.college} · ${p.hs}</span>` : ""}</td><td>${p.ovr}</td><td>${p.a.spd}</td><td>${p.a.str}</td><td>${KEY[p.pos]} ${p.a[KEY[p.pos]]}</td><td>${p.lvl || 0}</td><td style="color:${(p.xp || 0) < 0 ? "#b8343a" : "#9a9486"}">${p.xp || 0}/${thr((p.lvl || 0) + 1)}</td><td>$${salary(p)}M</td><td>${p.age}</td><td style="color:${p.inj > 0 ? "#b8343a" : "#9a9486"}">${p.inj > 0 ? "out " + p.inj + "w" : ""}</td><td style="color:${(p.sta ?? 100) < 35 ? "#b8343a" : "#9a9486"}">${Math.round(p.sta ?? 100)}</td><td>${depthBtns(i, p)}</td><td>${p.pts > 0 ? `<select style="font-size:11px">${ATTR_KEYS.map((k) => `<option value="${k}">${k.toUpperCase()} ${p.a[k]}</option>`).join("")}</select> <button data-spend="${i}" style="font-size:11px;padding:2px 6px">+1 (${p.pts})</button>` : ""}</td></tr>`).join("");
+    const rows = r.map((p, i) => `<tr><td>${p.pos}</td><td>${faceHTML(faceOf(p), 48, p.name)} ${p.name}${p.heisman ? " [Heisman]" : ""}${p.rookie ? " (R)" : ""}${p.college ? `<br><span style="color:#9a9486;font-size:11px">${p.college} · ${p.hs}</span>` : ""}</td><td>${p.ovr}</td><td>${p.a.spd}</td><td>${p.a.str}</td><td>${p.a.hands}</td><td>${KEY[p.pos]} ${p.a[KEY[p.pos]]}</td><td>${p.lvl || 0}</td><td style="color:${(p.xp || 0) < 0 ? "#b8343a" : "#9a9486"}">${p.xp || 0}/${thr((p.lvl || 0) + 1)}</td><td>$${salary(p)}M</td><td>${p.age}</td><td style="color:${p.inj > 0 ? "#b8343a" : "#9a9486"}">${p.inj > 0 ? "out " + p.inj + "w" : ""}</td><td style="color:${(p.sta ?? 100) < 35 ? "#b8343a" : "#9a9486"}">${Math.round(p.sta ?? 100)}</td><td>${depthBtns(i, p)}</td><td>${p.pts > 0 ? `<select style="font-size:11px">${ATTR_KEYS.map((k) => `<option value="${k}">${k.toUpperCase()} ${p.a[k]}</option>`).join("")}</select> <button data-spend="${i}" style="font-size:11px;padding:2px 6px">+1 (${p.pts})</button>` : ""}</td></tr>`).join("");
     const deon = r.find((p) => p.name === "Deon Porter");
     const card = deon ? `<div style="display:flex;align-items:center;gap:12px;margin:6px 0 10px;text-align:left">${faceHTML("deon.png", 96)}<div><b>Deon Porter</b><br><span style="font-size:12px;color:#9a9486">QB · rookie · Heisman</span><br><span style="font-size:12px;color:#9a9486">${deon.college} · ${deon.hs}</span></div></div>` : "";
     return `<h2 style="font-size:16px">Ravens roster</h2><p style="color:#9a9486;font-size:12px">Team rating ${Math.round(teamOvr(RH) + coachBonus())} · Payroll $${payroll().toFixed(1)}M of $${CAP}M · ${r.length} players</p>${talkBar()}${card}
-      <div style="max-height:340px;overflow:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;text-align:left"><tr style="color:#e8c46a"><th>Pos</th><th>Name</th><th>OVR</th><th>SPD</th><th>STR</th><th>Skill</th><th>Lvl</th><th>XP</th><th>Salary</th><th>Age</th><th></th><th>Sta</th><th>Depth</th><th>Points</th></tr>${rows}</table></div>`;
+      <div style="max-height:340px;overflow:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;text-align:left"><tr style="color:#e8c46a"><th>Pos</th><th>Name</th><th>OVR</th><th>SPD</th><th>STR</th><th>HND</th><th>Skill</th><th>Lvl</th><th>XP</th><th>Salary</th><th>Age</th><th></th><th>Sta</th><th>Depth</th><th>Points</th></tr>${rows}</table></div>`;
   }
   function coachCard(c, label) {
     if (!c) return `<div style="border:1px solid #333;padding:8px;margin:6px 0">${label}: <i>empty</i></div>`;
@@ -11646,8 +11645,8 @@ function rbMount(root, onExit, TEAMS) {
     renderHub();
   }
   /* the hub rooms: each tab has a room behind it (assets/hub/<name>.png); the room fades in when you walk in */
-  const ROOM_IMG = { season: "stadium", coaches: "office", fa: "office", roster: "locker", press: "pressroom", train: "training" };
-  const ROOM_NAME = { season: "Game day", coaches: "Team office", fa: "Team office", roster: "Locker room", press: "Press room", train: "Training field" };
+  const ROOM_IMG = { season: "stadium", coaches: "office", fa: "office", roster: "locker", starters: "locker", press: "pressroom", train: "training" };
+  const ROOM_NAME = { season: "Game day", coaches: "Team office", fa: "Team office", roster: "Locker room", starters: "Starters", press: "Press room", train: "Training field" };
   const weekKey = () => DYN.round + "-" + DYN.phase + "-" + DYN.rounds.length;
   const hideRoom = () => { const r = $("over").querySelector(".room"); if (r) r.classList.remove("on"); };
   function talkTo(kind) {
@@ -11690,8 +11689,8 @@ function rbMount(root, onExit, TEAMS) {
   }
   function renderHub() {
     $("overc").classList.remove("textmenu");
-    const tabs = [["season", "Season"], ["roster", "Locker room"], ["press", "Press room"], ["train", "Training"], ["coaches", "Coaches"], ["fa", "Free agency"]];
-    const body = DYN.scan && DYN.tab === "roster" ? scanCard() : DYN.tab === "roster" ? rosterTab() : DYN.tab === "press" ? pressTab() : DYN.tab === "train" ? trainTab() : DYN.tab === "coaches" ? coachesTab() : DYN.tab === "fa" ? faTab() : seasonTab();
+    const tabs = [["season", "Season"], ["roster", "Locker room"], ["starters", "Starters"], ["press", "Press room"], ["train", "Training"], ["coaches", "Coaches"], ["fa", "Free agency"]];
+    const body = DYN.scan && DYN.tab === "roster" ? scanCard() : DYN.tab === "roster" ? rosterTab() : DYN.tab === "starters" ? startersTab() : DYN.tab === "press" ? pressTab() : DYN.tab === "train" ? trainTab() : DYN.tab === "coaches" ? coachesTab() : DYN.tab === "fa" ? faTab() : seasonTab();
     $("overc").innerHTML = `<div class="roomName">${ROOM_NAME[DYN.tab] || ""}</div><div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px;flex-wrap:wrap">${tabs.map(([k, n]) => `<button data-tab="${k}" class="${DYN.tab === k ? "on" : ""}" style="padding:7px 10px;font-size:12px">${n}</button>`).join("")}</div>
       ${DYN.tab === "season" ? "" : `<p style="color:#e8c46a;font-size:12px;margin:0 0 6px;min-height:14px">${DYN.note || ""}</p>`}${body}
       <button id="menu" style="margin-top:10px">Back to menu</button>`;
@@ -11745,6 +11744,7 @@ function rbMount(root, onExit, TEAMS) {
           skill: dyn ? { qb: topOvr(RH, "QB"), rb: topOvr(RH, "RB"), wr: topOvr(RH, "WR") } : { qb: 75, rb: 75, wr: 75 },
           q: 1, clock: QUARTER, hs: 0, as: 0, ball: 25, down: 1, togo: 10, over: false, half: false, drives: 0 };
     G.wx = (dyn && DYN.phase === "reg" && DYN.wx ? DYN.wx[DYN.round] : null) || rollWx();
+    { const pr = dyn && DYN.phase === "reg" && DYN.rounds[DYN.round] ? DYN.rounds[DYN.round].find((x) => x.includes(RH)) : null; G.homeTeam = pr ? pr[0] : RH; }
     fans = makeFans();
     P = null; clockLeft = PLAY_CLOCK;
     $("log").innerHTML = "";
@@ -11824,9 +11824,24 @@ function rbMount(root, onExit, TEAMS) {
     const o = G.cpu.outcome; G.cpu = null;
     if (o === "td") { G.as += 7; clip("boo"); say(`${G.away[0]} score a touchdown. ${G.hs}-${G.as}.`); }
     else if (o === "fg") { G.as += 3; say(`${G.away[0]} kick a field goal. ${G.hs}-${G.as}.`); }
+    if (o !== "punt") { $("scout").classList.remove("show"); return kickoffReturn(); }
     else say(`${G.away[0]} punt. You take over.`);
     $("scout").classList.remove("show");
     update();
+  }
+  /* our kickoff return, after the opponent scores: the fastest starter takes it, or we take the touchback */
+  function kickoffReturn() {
+    if (G.over || G.half) return update();
+    const ret = Object.values(starters(RH)).flat().sort((a, b) => ra(b, "spd") - ra(a, "spd"))[0];
+    if (!ret) { G.ball = 25; G.down = 1; G.togo = 10; return update(); }
+    hideRoom();
+    $("overc").innerHTML = `<h2>Kickoff</h2><div style="display:flex;gap:12px;justify-content:center;align-items:center">${faceHTML(faceOf(ret), 72, ret.name)}<div style="text-align:left"><b>${ret.name}</b><br><span style="color:#9a9486">${ret.pos} · speed ${ret.a.spd}</span></div></div>
+      <p style="color:#f1ead8">${ret.name} takes it. Return it, or take the touchback?</p>
+      <button class="on" id="kr1">Return it</button> <button id="kr2" style="margin-top:8px">Touchback (the 25)</button>`;
+    $("over").style.display = "flex";
+    const finish = (yds, msg) => { $("over").style.display = "none"; G.ball = clamp(yds, 1, 60); G.down = 1; G.togo = 10; say(msg); update(); };
+    $("kr1").onclick = () => { const yds = clamp(Math.round(rnd(16, 34) + (ra(ret, "spd") - 70) / 3), 5, 60); finish(yds, `${ret.name} returns it to the ${yds <= 50 ? yds : 100 - yds}.`); };
+    $("kr2").onclick = () => finish(25, "Touchback. Your ball at the 25.");
   }
   /* the plays of the series. Yards are measured from our goal line, the way the ball is. */
   function cpuSeries(outcome) {
@@ -11881,13 +11896,15 @@ function rbMount(root, onExit, TEAMS) {
     if (p.tackler && !cast.includes(p.tackler)) cast[cast.length - 1] = p.tackler;
     $("scoutFaces").innerHTML = cast.map((d) => `<div class="sf${d === p.tackler ? " hit" : ""}">${faceHTML(faceOf(d), 40, d.name)}<span>${d.name}<br>${d.pos} ${d.ovr}</span></div>`).join("");
     $("scoutTxt").textContent = p.text;
-    drawScout(p);
+    SA = { p, t: 0, dur: 2.2 }; drawScout(p, 0);
   }
   /* the mini field: our goal is on the left; the play is drawn over it */
-  function drawScout(p) {
+  let SA = null;                              // the preview's run of the play: runs over about two seconds
+  function drawScout(p, k) {
     const c = $("scoutC"); if (!c) return; const g = c.getContext("2d");
+    k = k == null ? 1 : k;
     const W = c.width, H = c.height, X = (yd) => 14 + (yd / 100) * (W - 28), Y = (y) => 8 + (y / 53.3) * (H - 16);
-    g.fillStyle = "#2f6b3a"; g.fillRect(0, 0, W, H);
+    g.fillStyle = fieldCol(); g.fillRect(0, 0, W, H);
     g.fillStyle = RH[1]; g.fillRect(0, 0, 14, H); g.fillStyle = G.away[1]; g.fillRect(W - 14, 0, 14, H);
     g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 1;
     for (let yd = 10; yd < 100; yd += 10) { g.beginPath(); g.moveTo(X(yd), 0); g.lineTo(X(yd), H); g.stroke(); }
@@ -11899,8 +11916,36 @@ function rbMount(root, onExit, TEAMS) {
       g.strokeStyle = "#f1ead8"; g.lineWidth = 2; g.setLineDash([4, 3]);
       g.beginPath(); g.moveTo(X(p.los), Y(p.lane)); g.lineTo(X(p.end), Y(p.tgt)); g.stroke(); g.setLineDash([]);
     }
-    if (p.kind !== "kick") { g.fillStyle = p.tackler ? "#ff6b6b" : "#e8c46a"; g.beginPath(); g.arc(X(p.end), Y(p.kind === "pass" ? p.tgt : p.lane + 4), 4, 0, 6.3); g.fill(); }
-    else { g.fillStyle = "#f1ead8"; g.font = "700 11px system-ui"; g.textAlign = "center"; g.fillText("KICK", X(p.los), Y(26)); }
+    if (p.kind === "kick") { g.fillStyle = "#f1ead8"; g.font = "700 11px system-ui"; g.textAlign = "center"; g.fillText("KICK", X(p.los), Y(26)); return; }
+    const ring = (x, y, face, col, r) => {
+      g.save(); g.beginPath(); g.arc(x, y, r, 0, 6.3); g.clip(); g.fillStyle = "#111"; g.fill();
+      const im = face ? img(faceOf(face)) : null; if (ready(im)) g.drawImage(im, x - r, y - r, 2 * r, 2 * r);
+      g.restore(); g.beginPath(); g.arc(x, y, r, 0, 6.3); g.strokeStyle = col; g.lineWidth = 2; g.stroke();
+    };
+    const O = starters(G.away), D = starters(RH), ease = k * k * (3 - 2 * k);
+    // the offence: the QB drops back and the receiver runs his route, or the carrier runs his lane
+    if (p.kind === "pass") {
+      ring(X(p.los - 3), Y(26), (O.QB || [])[0], "#f1ead8", 8);
+      const rx = X(p.los) + (X(p.end) - X(p.los)) * ease, ry = Y(p.lane) + (Y(p.tgt) - Y(p.lane)) * ease;
+      ring(rx, ry, (O.WR || [])[0], "#f1ead8", 8);
+    } else {
+      const carrier = p.kind === "sack" ? (O.QB || [])[0] : ((O.RB || [])[0] || (O.QB || [])[0]);
+      const cx = X(p.los) + (X(p.end) - X(p.los)) * ease, cy = Y(p.lane) + (Y(p.lane + 4) - Y(p.lane)) * ease;
+      ring(cx, cy, carrier, "#e8c46a", 9);
+    }
+    // the defence: the cast moves to the spot where the play ends, the tackler gets there first
+    const cast = [...(D.DL || []), ...(D.LB || []), ...(D.CB || []), ...(D.S || [])].slice(0, 8);
+    if (p.tackler && !cast.includes(p.tackler)) cast[cast.length - 1] = p.tackler;
+    const at = { DL: 0, LB: 0, CB: 0, S: 0 }, spot = { DL: [1.5, [7, 19, 34, 46]], LB: [4, [5, 26, 47]], CB: [9, [3, 17, 36, 50]], S: [9, [3, 17, 36, 50]] };
+    const pt = { x: p.end, y: p.kind === "pass" ? p.tgt : p.lane + 4 };
+    cast.forEach((d) => {
+      const sp = spot[d.pos] || spot.CB, yd = sp[1][(at[d.pos] || 0) % sp[1].length]; at[d.pos] = (at[d.pos] || 0) + 1;
+      const sx = p.los + sp[0], sy = yd;
+      const t = d === p.tackler ? ease : ease * 0.5;
+      ring(X(sx + (pt.x - sx) * t), Y(sy + (pt.y - sy) * t), d, d === p.tackler ? "#ff6b6b" : "#4da3ff", 8);
+    });
+    g.strokeStyle = "rgba(255,255,255,.35)"; g.lineWidth = 1; g.setLineDash([2, 3]);
+    g.beginPath(); g.moveTo(X(p.los), Y(p.lane)); g.lineTo(X(p.end), Y(pt.y)); g.stroke(); g.setLineDash([]);
   }
 
   /* ---- the playbook: each play is a run or a set of receiver routes (the lanes are top, middle, bottom) ---- */
@@ -11950,7 +11995,7 @@ function rbMount(root, onExit, TEAMS) {
   /* the play clock: ten seconds on each call. A (or Enter) hikes it sooner; at zero the ball is hiked anyway */
   const PLAY_CLOCK = 10;
   let clockLeft = PLAY_CLOCK, clockShown = -1;
-  const canCall = () => !!G && !P && !G.over && !G.half && !G.intro && !G.rd && !G.cpu && !KG.on && $("over").style.display !== "flex";
+  const canCall = () => !!G && !P && !G.over && !G.half && !G.intro && !G.rd && !G.cpu && !KG.on && !KFX && $("over").style.display !== "flex";
   const snapLabel = () => "Snap: " + PLAYS[PB_SEL].name + (canCall() ? "  ·  " + Math.ceil(clockLeft) + "s" : "");
   function cyclePlay(dir) {
     if (!canCall()) return;
@@ -12078,7 +12123,8 @@ function rbMount(root, onExit, TEAMS) {
     OL.forEach((o, i) => { o.target = i < 4 ? DL[i] : LBs[0]; });
     pl.find((p) => p.role === "rb").target = (isRun && !pb.qb) ? null : LBs[1];
     const wrs = pl.filter((p) => p.role === "wr");
-    (call.cover || []).forEach((i) => { if (DB[i] && wrs[i]) DB[i].cover = wrs[i]; });   // the men on the call take a receiver each
+    const manIdx = isRun ? [] : (call.cover && call.cover.length ? call.cover : [0, 1]);   // on a pass the two corners take a receiver each
+    manIdx.forEach((i) => { if (DB[i] && wrs[i]) DB[i].cover = wrs[i]; });
     ((call.rush && call.rush.db) || []).forEach((i) => { if (DB[i]) DB[i].rush = true; });
     ((call.rush && call.rush.lb) || []).forEach((i) => { if (LBs[i]) LBs[i].rush = true; });
     if (!isRun) [...LBs, ...DB].forEach((d) => { if (!d.cover && !d.rush) d.zone = { x: d.x, y: d.y }; });   // on a pass, the rest drop to a spot
@@ -12093,6 +12139,8 @@ function rbMount(root, onExit, TEAMS) {
     say(`${pb.name}. ${pb.qb ? "The QB keeps it." : isRun ? "Handoff to the back." : deep ? "Snap, drop back, deep routes." : "Snap, drop back, short routes."}`);
   }
   const canThrow = () => P && !P.thrown && !P.carrier && P.kind !== "run";
+  /* the chance a carrier drops it when hit: hands decide it, and rain or snow make it slicker */
+  const fumP = (c) => clamp(0.02 + (78 - attr(c, "hands")) / 400, 0.005, 0.12) + (G.wx && G.wx.w === "snow" ? 0.02 : G.wx && G.wx.w === "rain" ? 0.01 : 0);
   function handoff() {
     if (!P || P.carrier || P.thrown || P.kind === "run") return;
     if (P.keeper) return;
@@ -12135,6 +12183,18 @@ function rbMount(root, onExit, TEAMS) {
   const CATCH_R = (w) => 1.8 + attr(w, "hands") * 0.01;
   const TACKLE_R = () => 1.0;
 
+  /* the defence's read on a pass. A man on a receiver stays on him. A zone man picks up any receiver who steps into his area,
+     and otherwise slides with the ball (the pendulum): the block shifts toward the ball's side of the field. */
+  function zoneTarget(p) {
+    if (P.thrown || P.carrier) return null;
+    if (p.cover) return { x: p.cover.x + 1.5, y: p.cover.y };
+    if (!p.zone) return null;
+    const ref = P.qb || { x: P.los, y: 26.7 };
+    let best = null, bd = 6;
+    P.wrs.forEach((w) => { const d = Math.hypot(w.x - p.x, w.y - p.y); if (d < bd) { bd = d; best = w; } });
+    if (best) return { x: best.x + 1.5, y: best.y };
+    return { x: p.zone.x + (ref.x - (P.los + 8)) * 0.12, y: p.zone.y + (ref.y - 26.7) * 0.35 };
+  }
   function updateLive(dt) {
     P.t += dt; P.boost = Math.max(0, (P.boost || 0) - dt);
     P.wrs.forEach((w) => {
@@ -12179,7 +12239,7 @@ function rbMount(root, onExit, TEAMS) {
       if (p.side !== "a") return;
       p.stun = Math.max(0, p.stun - dt); p.cool = Math.max(0, (p.cool || 0) - dt); p.talkCD = Math.max(0, (p.talkCD || 0) - dt);
       if (p.stun > 0 || !goal) { p.vx *= 0.9; p.vy *= 0.9; return; }
-      const g = (p.cover && !P.thrown && !P.carrier) ? { x: p.cover.x + 1.5, y: p.cover.y } : (p.zone && !P.thrown && !P.carrier) ? p.zone : goal;
+      const g = zoneTarget(p) || goal;
       const dx = g.x - p.x, dy = g.y - p.y, d = Math.hypot(dx, dy) || 1;
       const sp = DEF_SPEED(p);
       p.vx = dx / d * sp; p.vy = dy / d * sp; p.ang = Math.atan2(p.vy, p.vx);
@@ -12230,9 +12290,14 @@ function rbMount(root, onExit, TEAMS) {
       if (c.y < -0.5 || c.y > 53.8) { endPlay(c.x - P.los, "Out of bounds.", "ok"); return; }
       const hit = P.pl.find((p) => p.side === "a" && p.stun <= 0 && (p.cool || 0) <= 0 && Math.hypot(p.x - c.x, p.y - c.y) < TACKLE_R());
       if (hit) {
-        const pT = clamp(0.5 + (attr(hit, "tkl") - attr(c, "elu")) / 160 + (attr(hit, "str") - attr(c, "str")) / 200, 0.08, 0.95);
-        if (Math.random() < pT) { P.hitter = hit; endPlay(c.x - P.los, hit.role === "dl" ? "Sacked." : "Tackled.", "ok"); return; }
-        hit.cool = 0.8; hit.stun = 0.35; oneShot("grunt", 0.6); say("Broke the tackle!");
+        const elu = attr(c, "elu") * (P.keeper ? 0.6 : 1);
+        const pT = clamp(0.5 + (attr(hit, "tkl") - elu) / 160 + (attr(hit, "str") - attr(c, "str")) / 200 + 0.12 * (P.breaks || 0), 0.08, 0.95);
+        if (Math.random() < pT) {
+          P.hitter = hit;
+          if (hit.role !== "dl" && Math.random() < fumP(c)) { endPlay(c.x - P.los, `Fumble! ${hit.name} rips it out. ${hit.name.split(" ")[0]} takes it.`, "fum"); return; }
+          endPlay(c.x - P.los, hit.role === "dl" ? "Sacked." : "Tackled.", "ok"); return;
+        }
+        P.breaks = (P.breaks || 0) + 1; hit.cool = 0.8; hit.stun = 0.35; oneShot("grunt", 0.6); say("Broke the tackle!");
       }
     }
     if (!P.thrown && P.t > 3.6 && P.kind !== "run" && !aim.on) {  // nobody threw: the QB goes to the most open receiver
@@ -12335,7 +12400,7 @@ function rbMount(root, onExit, TEAMS) {
     const nm = (p) => (p && p.pa ? p.pa.name : "");
     const qb = last.qb, rb = last.carrier;
     const complete = pass && how === "ok" && text !== "Sacked.";
-    const big = how === "td" ? "TOUCHDOWN" : how === "int" ? "INTERCEPTED" : how === "inc" ? "PASS INCOMPLETE" : text === "Sacked." ? "SACKED" : complete ? "PASS COMPLETE" : "RUN";
+    const big = how === "td" ? "TOUCHDOWN" : how === "int" ? "INTERCEPTED" : how === "fum" ? "FUMBLE" : how === "inc" ? "PASS INCOMPLETE" : text === "Sacked." ? "SACKED" : complete ? "PASS COMPLETE" : "RUN";
     let line;
     if (how === "inc") line = `${nm(qb)} throws. Nobody catches it.`;
     else if (how === "int") line = `${nm(qb)} is picked off.`;
@@ -12364,7 +12429,7 @@ function rbMount(root, onExit, TEAMS) {
     $("hint").textContent = "";
     if (how !== "inc") playSound(how, text); else whistle();
     if (G.two && how !== "td") { G.two = false; say("The two-point try fails."); clip("boo"); cpuDrive(); return update(); }
-    if (how === "int") { say(text); G.ball = 100 - G.ball; cpuDrive(); return update(); }
+    if (how === "int" || how === "fum") { say(text); G.ball = 100 - G.ball; cpuDrive(); return update(); }
     if (how === "inc") { say(text); G.down++; if (G.down > 4) { say("Turnover on downs."); clip("boo"); G.ball = 100 - G.ball; cpuDrive(); return update(); } say(`Down ${G.down}, ${G.togo} to go.`); return update(); }
     if (how !== "td" && Math.random() < 0.07) return flagPlay(last);
     const go = () => moveBall(Math.round(yards), text);
@@ -12414,7 +12479,8 @@ function rbMount(root, onExit, TEAMS) {
   }
   function startReplay(last, then) {
     if (!last.rec || last.rec.length < 30) return false;
-    RP = { P: last, frames: last.rec, i: 0, t: 0, then, after: null };
+    const NETS = ["net_wchi", "net_lake_sentinel", "net_gridiron_weekly", "net_night_line", "net_channel_9", "net_bay_journal", "net_capital_sports", "net_riverside_wire"];
+    RP = { P: last, frames: last.rec, i: 0, t: 0, then, after: null, bug: "assets/networks/" + pick(NETS) + ".png" };
     P = last;
     $("result").classList.remove("show");
     $("hint").textContent = "INSTANT REPLAY · press A to skip";
@@ -12430,6 +12496,24 @@ function rbMount(root, onExit, TEAMS) {
     P2.flight = f.fl ? { fx: f.bx, fy: f.by, lx: f.bx, ly: f.by, t: 0, dur: 1 } : null;
     P2.carrier = f.c >= 0 ? P2.pl[f.c] : null;
     if (RP.i >= fr.length - 1 && T > fr[fr.length - 1].t) endReplay();
+  }
+  /* the replay look: an old video tape (scanlines, a tracking bar, a little snow) and a station bug in the corner */
+  function drawReplayFx() {
+    if (!RP) return;
+    const W = cv.width, H = cv.height, t = performance.now() / 1000;
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = "rgba(0,0,0,.2)";
+    for (let y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
+    const band = (t * 140) % (H + 40) - 20;
+    ctx.fillStyle = "rgba(255,255,255,.10)"; ctx.fillRect(0, band, W, 14);
+    ctx.fillStyle = "rgba(255,255,255,.06)"; ctx.fillRect(0, band + 16, W, 3);
+    ctx.fillStyle = "rgba(255,255,255,.35)";
+    for (let i = 0; i < 70; i++) ctx.fillRect(Math.random() * W, Math.random() * H, 1.5, 1);
+    ctx.fillStyle = "rgba(255,40,40,.85)"; ctx.font = "700 13px monospace"; ctx.textAlign = "left";
+    if (Math.floor(t * 2) % 2 === 0) { ctx.beginPath(); ctx.arc(22, 22, 5, 0, 6.3); ctx.fill(); }
+    ctx.fillText("REPLAY", 34, 27);
+    const bug = img(RP.bug); if (ready(bug)) { ctx.globalAlpha = 0.85; ctx.drawImage(bug, W - 78, 12, 64, 64); ctx.globalAlpha = 1; }
+    ctx.restore();
   }
   function endReplay() {
     const r = RP; if (!r) return;
@@ -12487,9 +12571,24 @@ function rbMount(root, onExit, TEAMS) {
     { q: "Rumors say the locker room is a mess. True?", a: [["Not true. We're a family.", 1, 1, 0], ["We fight, we make up. That's sports.", 0, 0, 0], ["No comment.", -1, -1, 0]] },
     { q: "Are the coaches getting the best out of this roster?", a: [["Our staff is elite.", 0, 1, 0], ["We have work to do.", 1, 0, 0], ["Ask the owner.", -1, -1, 0]] }
   ];
-  function makeMedia() {
-    const pool = MEDIA_Q.slice().sort(() => Math.random() - 0.5).slice(0, 2);
-    DYN.media = pool.map((m) => ({ rep: (Math.random() * REPORTERS.length) | 0, q: m.q, a: m.a, ans: null }));
+  const NET_FILES = ["net_wchi.png", "net_lake_sentinel.png", "net_gridiron_weekly.png", "net_night_line.png", "net_channel_9.png", "net_bay_journal.png", "net_capital_sports.png", "net_riverside_wire.png"];
+  /* n questions, each from a different reporter */
+  function makeMedia(n = 2) {
+    const pool = MEDIA_Q.slice().sort(() => Math.random() - 0.5).slice(0, n);
+    const reps = REPORTERS.map((_, i) => i).sort(() => Math.random() - 0.5);
+    DYN.media = pool.map((m, i) => ({ rep: reps[i], q: m.q, a: m.a, ans: null }));
+  }
+  /* after every game: three reporters, one question each, shown before the hub. Answers go to the papers. */
+  let PRESS = false;
+  function postPress(res) {
+    makeMedia(3); PRESS = true;
+    const show = () => {
+      const open = (DYN.media || []).filter((m) => m.ans == null);
+      if (!open.length) { PRESS = false; $("over").style.display = "none"; advanceStage(res); autosave(); return; }
+      $("overc").innerHTML = `<h2 style="font-size:18px">Press conference</h2><p style="color:#9a9486;font-size:12px">Three reporters want a word. What you say goes in the papers.</p>${mediaBlock()}`;
+      $("overc").querySelectorAll("[data-media]").forEach((b) => b.onclick = () => { const [i, j] = b.dataset.media.split(",").map(Number); mediaAnswer(i, j); show(); });
+    };
+    $("over").style.display = "flex"; show();
   }
   function mediaBlock() {
     const list = DYN.media || [];
@@ -12497,7 +12596,7 @@ function rbMount(root, onExit, TEAMS) {
     if (!open.length) return "";
     return open.map((m) => { const R = REPORTERS[m.rep]; return `<div style="display:flex;gap:10px;align-items:center;margin:8px 0;text-align:left;background:#15151d;border-radius:6px;padding:8px">
       <img src="assets/reporters/${R[2]}" style="width:64px;height:64px;object-fit:contain;background:#222;flex:none">
-      <div style="flex:1"><div style="font-size:11px;color:#9a9486">${R[1]} · ${R[0]}</div><div style="font-size:13px;color:#f1ead8;margin:3px 0 6px">${m.q}</div>
+      <div style="flex:1"><div style="font-size:11px;color:#9a9486;display:flex;gap:6px;align-items:center"><img src="assets/networks/${NET_FILES[m.rep]}" style="height:16px;max-width:76px;object-fit:contain" onerror="this.style.display='none'">${R[1]} · ${R[0]}</div><div style="font-size:13px;color:#f1ead8;margin:3px 0 6px">${m.q}</div>
       ${m.a.map((a, j) => `<button data-media="${list.indexOf(m)},${j}" style="font-size:11px;padding:5px 8px;margin:2px">${a[0]}</button>`).join("")}</div></div>`; }).join("");
   }
   function mediaAnswer(i, j) {
@@ -12508,7 +12607,7 @@ function rbMount(root, onExit, TEAMS) {
     DYN.news.push(`${REPORTERS[m.rep][0]}: "${a[0]}"`);
     DYN.note = "The reporter printed it.";
     if (a[3]) { const s = Object.values(starters(RH)).flat(); if (s.length) { const p = pick(s); awardXP(p, a[3]); DYN.note = `${p.name} hears about it.`; } }
-    renderHub();
+    if (!PRESS) renderHub();
   }
 
   /* ---- the schedule: two divisions of four. Each team plays its three division rivals and all four teams in the
@@ -12557,7 +12656,27 @@ function rbMount(root, onExit, TEAMS) {
     ctx.restore();
   }
   const WXPEN = { clear: 0, rain: 0.1, snow: 0.18 };
+  function fieldCol() {
+    const wx = (G && G.wx) || {}, away = !!G && !!G.homeTeam && G.homeTeam !== RH;
+    if (wx.w === "snow") return "#c9d6c6";
+    if (wx.t === "night" || wx.w === "rain") return away ? "#274d2c" : "#2a5a33";
+    return away ? "#3b5a3a" : "#2f6b3a";
+  }
   /* depth chart: start a player (he goes first at his position) or bench him */
+  /* the starters: who is on the field now, with stamina, and the bench behind them */
+  function startersTab() {
+    const S_ = starters(RH), L = leaders();
+    const card = (p) => `<div style="width:118px;text-align:center;background:#15151d;border-radius:6px;padding:6px">${faceHTML(faceOf(p), 56, p.name)}
+      <div style="font-size:12px;margin-top:3px"><b>${p.name}</b>${L.stars.has(p) ? " ★" : ""}${L.caps.has(p) ? " (C)" : ""}</div>
+      <div style="font-size:11px;color:#9a9486">${p.pos} · OVR ${p.ovr}</div>
+      <div style="font-size:11px;color:${(p.sta ?? 100) < 60 ? "#b8343a" : "#9a9486"}">Sta ${Math.round(p.sta ?? 100)}</div></div>`;
+    const block = (title, poss) => `<h3 style="font-size:13px;color:#e8c46a;margin:10px 0 6px;text-align:left">${title}</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">${poss.flatMap((pos) => (S_[pos] || []).map(card)).join("")}</div>`;
+    const benchN = (ROSTERS[RH[0]] || []).filter((p) => DYN.bench && DYN.bench.includes(p.name)).length;
+    return `<h2 style="font-size:16px;margin:0">Starters</h2>
+      <p style="color:#9a9486;font-size:12px;margin:4px 0 0">Tired players (stamina under 35) and benched players sit out, and the next player on the depth chart goes in.${benchN ? ` ${benchN} benched.` : ""}</p>
+      ${block("Offense", ["QB", "RB", "WR", "TE", "OL"])}${block("Defense", ["DL", "LB", "CB", "S"])}${block("Special teams", ["K"])}`;
+  }
   function depthBtns(i, p) {
     const on = DYN.bench && DYN.bench.includes(p.name);
     return `<button data-dp="start" data-i="${i}" style="font-size:11px;padding:2px 6px">Start</button> <button data-dp="${on ? "unbench" : "bench"}" data-i="${i}" style="font-size:11px;padding:2px 6px">${on ? "Unbench" : "Bench"}</button>`;
@@ -12612,7 +12731,7 @@ function rbMount(root, onExit, TEAMS) {
   const tri = (t) => Math.abs(((t * 0.9) % 2) - 1);      // 0 to 1 and back, about a second a sweep
   function kickGame(kind, dist, done) {
     const k = (starters(RH).K || [])[0];
-    Object.assign(KG, { on: true, kind, dist, phase: "power", t: 0, p: 0, lockP: 0, center: 0, wind: (Math.random() * 2 - 1) * 0.1, kick: k ? ra(k, "kick") : 60, done });
+    Object.assign(KG, { on: true, kind, dist, from: G.ball, phase: "power", t: 0, p: 0, lockP: 0, center: 0, wind: (Math.random() * 2 - 1) * 0.1, kick: k ? ra(k, "kick") : 60, done });
     $("kickG").classList.add("show"); $("kickT").textContent = kind === "punt" ? "PUNT: press A when the gauge is where you want it" : "POWER: press A at the top of the gauge";
     setCalls(false);
   }
@@ -12633,13 +12752,35 @@ function rbMount(root, onExit, TEAMS) {
     K.on = false; $("kickG").classList.remove("show"); setCalls(!G.over && !G.half && !G.intro && !G.cpu);
     if (K.kind === "punt") {
       const d = Math.round(25 + K.lockP * 45);
-      return done({ dist: d });
+      return kickFx(K, { dist: d }, done);
     }
     const ideal = clamp(0.42 + (K.dist - 20) * 0.0065, 0.3, 0.95);
     const tolP = 0.07 + kick / 2000, tolA = 0.12 + kick / 1500;
     const pe = K.lockP - ideal;
     const made = Math.abs(pe) <= tolP && Math.abs(offset) <= tolA;
-    done({ made, why: Math.abs(pe) > tolP ? (pe < 0 ? "short" : "long") : (offset < 0 ? "wide left" : "wide right") });
+    kickFx(K, { made, why: Math.abs(pe) > tolP ? (pe < 0 ? "short" : "long") : (offset < 0 ? "wide left" : "wide right") }, done);
+  }
+  /* the ball is kicked: an arc from the tee to the uprights (or down the field for a punt), then the result is called */
+  let KFX = null;
+  function kickFx(K, r, done) {
+    const from = EZ + K.from;
+    const landX = K.kind === "punt" ? from + (r.dist || 40) : r.made ? EZ + PLAY + 6 : r.why === "short" ? from + K.dist * 0.72 : EZ + PLAY + 6;
+    const side = r.why === "wide left" ? -14 : r.why === "wide right" ? 14 : 0;
+    KFX = { t: 0, dur: 1.7, from, to: landX, side, kind: K.kind, text: K.kind === "punt" ? `${r.dist} yards` : r.made ? "GOOD" : "NO GOOD", cb: () => done(r) };
+    if (K.kind !== "punt") oneShot("ball", 0.8);
+  }
+  function drawKickFx(dt) {
+    if (!KFX) return;
+    KFX.t += dt;
+    const k = clamp(KFX.t / KFX.dur, 0, 1), F = KFX;
+    const yd = lerp(F.from, F.to, k), y = 26.7 + F.side * k;
+    ctx.save(); ctx.setTransform(cam.z, 0, 0, cam.z, cam.tx, cam.ty);
+    ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(PX(yd), PY(y), 6, 3, 0, 0, 6.3); ctx.fill();
+    const bi = img(BALL); const lift = Math.sin(k * Math.PI) * (F.kind === "punt" ? 70 : 52);
+    if (ready(bi)) { const w = 13, hh = w * bi.height / bi.width; ctx.drawImage(bi, PX(yd) - w / 2, PY(y) - lift - hh / 2, w, hh); }
+    if (k > 0.8) { ctx.font = "800 16px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = F.text === "NO GOOD" ? "#ff7a7a" : "#e8c46a"; ctx.fillText(F.text, PX(F.to), PY(26.7) - 70); }
+    ctx.restore();
+    if (KFX.t >= KFX.dur) { KFX = null; F.cb(); }
   }
   function updateKick(dt) {
     if (!KG.on) return;
@@ -12735,7 +12876,7 @@ function rbMount(root, onExit, TEAMS) {
       if ((R && !pad.prevR) || (D && !pad.prevD)) cyclePlay(1);
     }
     pad.prevL = L; pad.prevU = U; pad.prevR = R; pad.prevD = D;
-    if (G && G.rd) { if (A && !pad.prevA) skipRd(); } else if (RP) { if (A && !pad.prevA) endReplay(); } else if (KG.on) { if (A && !pad.prevA) kickAct(); } else if (A && !pad.prevA && (overAct() || skipTalk())) {} else if (A && !pad.prevA) { if (P && canThrow()) { aim.on = true; aim.from = "hold"; aim.hold = 0; aim.power = 0; aim.dx = 0; aim.dy = 0; } else if (canCall()) snap(PB_SEL); }
+    if (G && G.rd) { rdPad(L, R, A); } else if (RP) { if (A && !pad.prevA) endReplay(); } else if (KG.on) { if (A && !pad.prevA) kickAct(); } else if (A && !pad.prevA && (overAct() || skipTalk())) {} else if (A && !pad.prevA) { if (P && canThrow()) { aim.on = true; aim.from = "hold"; aim.hold = 0; aim.power = 0; aim.dx = 0; aim.dy = 0; } else if (canCall()) snap(PB_SEL); }
     if (!A && pad.prevA) release();
     if (B && !pad.prevB && P) stiffArm();
     if (X && !pad.prevX && P) juke();
@@ -12767,7 +12908,8 @@ function rbMount(root, onExit, TEAMS) {
         else if (Math.ceil(clockLeft) !== clockShown) { clockShown = Math.ceil(clockLeft); $("snapBtn").textContent = snapLabel(); }
       } else clockLeft = PLAY_CLOCK;
     }
-    if (G) { updateCam(dt); draw(); weatherFx(); }
+    if (G) { updateCam(dt); draw(); weatherFx(); drawKickFx(dt); drawReplayFx(); }
+    if (SA) { SA.t += dt; drawScout(SA.p, clamp(SA.t / SA.dur, 0, 1)); if (SA.t >= SA.dur) SA = null; }
     requestAnimationFrame(frame);
   }
 
@@ -12855,14 +12997,77 @@ function rbMount(root, onExit, TEAMS) {
     x.globalCompositeOperation = "multiply"; x.fillStyle = team[1]; x.fillRect(0, 0, c.width, c.height);
     x.globalCompositeOperation = "destination-in"; x.drawImage(src, 0, 0);
     x.globalCompositeOperation = "source-over";
-    if (ready(logo)) { const s = c.width * 0.26, lx = slot === "L" ? c.width * 0.62 : c.width * 0.38; x.drawImage(logo, lx - s / 2, c.height * 0.4 - s / 2, s, s); }
+    if (ready(logo)) { const s = c.width * 0.26, lx = slot === "L" ? c.width * 0.378 : c.width * 0.64; x.drawImage(logo, lx - s / 2, c.height * 0.45 - s / 2, s, s); }
     HCACHE.set(key, c); return c;
   }
+  const capsOf = (team) => Object.values(starters(team)).flat().sort((a, b) => b.ovr - a.ovr).slice(0, 2);
   function startRundown() {
-    const winner = Math.random() < 0.5 ? RH : G.away;
-    G.rd = { s: 0, t: 0, winner, boom: [] };
+    const caller = Math.random() < 0.5 ? RH : G.away;
+    G.rd = { s: 0, t: 0, caller, flip: Math.random() < 0.5 ? "h" : "t", call: caller === RH ? null : (Math.random() < 0.5 ? "h" : "t"), sel: 0, locked: false, fast: false, phase: "pick", winner: null, dirty: true, boom: [] };
     setCalls(false); enterRd();
     $("rd").classList.add("on");
+  }
+  /* our pick: 0 is heads (left), 1 is tails (right) */
+  function coinChoose(sel) { const R = G && G.rd; if (!R || R.s !== 0 || R.phase !== "pick" || R.caller !== RH) return; R.sel = sel; R.locked = true; }
+  function coinPanel(R) {
+    const mine = R.caller === RH, caps = capsOf(R.caller), picking = R.phase === "pick" && mine;
+    const label = picking ? "Your call: heads or tails?" : R.call ? `${R.caller[0]} call ${R.call === "h" ? "heads" : "tails"}.` : `${R.caller[0]} call it.`;
+    const btn = (k, name, face) => {
+      const on = R.call ? R.call === (k === 0 ? "h" : "t") : (picking && R.sel === k);
+      return `<button data-coin="${k}" ${picking ? "" : "disabled"} style="width:124px;padding:6px 4px;margin:0 8px;background:#15151d;color:#f1ead8;border:2px solid ${on ? "#e8c46a" : "#2a2a36"};border-radius:8px;opacity:${on || picking ? 1 : 0.5}">${faceHTML(faceOf(face), 56, face.name)}<div style="font-size:12px;margin-top:4px"><b>${name}</b></div><div style="font-size:10px;color:#9a9486">${face.name}</div></button>`;
+    };
+    return `<div style="font-size:12px;color:#e8c46a;margin:0 8px 6px;text-align:${mine ? "left" : "right"}">${label}</div>
+      <div style="display:flex;justify-content:center;align-items:flex-start">${btn(0, "HEADS", caps[0])}${btn(1, "TAILS", caps[1])}</div>`;
+  }
+  function coinRefresh() {
+    const R = G && G.rd; if (!R || R.s !== 0) return;
+    const el = $("rdT"); el.innerHTML = coinPanel(R);
+    el.querySelectorAll("[data-coin]").forEach((b) => b.onclick = () => coinChoose(+b.dataset.coin));
+    $("rdHint").textContent = R.phase === "pick" && R.caller === RH ? "Left and right pick, A locks it in" : "";
+    R.dirty = false;
+  }
+  /* the coin stage: pick (five seconds if it is us), flip, then the result. Returns true when the stage is over. */
+  function coinUpdate(R, dt) {
+    R.t += dt * (R.fast ? 6 : 1);
+    if (R.phase === "pick") {
+      const limit = R.caller === RH ? 5 : 1.6;
+      if (R.locked || R.t >= limit) { if (!R.call) R.call = R.sel === 0 ? "h" : "t"; R.phase = "flip"; R.t = 0; R.dirty = true; }
+    } else if (R.phase === "flip") {
+      if (R.t >= 2.4) { R.phase = "result"; R.t = 0; R.winner = R.call === R.flip ? R.caller : (R.caller === RH ? G.away : RH); R.dirty = true; }
+    } else if (R.phase === "result" && R.t >= 2.2) return true;
+    if (R.dirty) coinRefresh();
+    return false;
+  }
+  function wrapText(g, s, maxW) {
+    const out = []; let line = "";
+    s.split(" ").forEach((w) => { const t = line ? line + " " + w : w; if (g.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t; });
+    if (line) out.push(line);
+    return out;
+  }
+  /* the coin, spinning and landing on the flip, and the referee with his speech bubble off to the side */
+  function drawCoinStage(g, W, H, R) {
+    const cx = W * 0.36, cy = H / 2, size = 128;
+    const fin = 6 * Math.PI + (R.flip === "t" ? Math.PI : 0);
+    let th = 0, bob = 0;
+    if (R.phase === "flip") th = (1 - Math.pow(1 - clamp(R.t / 2.4, 0, 1), 3)) * fin;
+    else if (R.phase === "result") th = fin;
+    else bob = Math.sin(R.t * 3) * 3;
+    const c = Math.cos(th), face = img(c >= 0 ? "assets/fb/coin_heads.png" : "assets/fb/coin_tails.png"), cw = Math.max(0.06, Math.abs(c)) * size;
+    g.save(); g.translate(cx, cy + bob);
+    g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(0, size / 2 + 6 - bob, cw * 0.45, 5, 0, 0, 6.3); g.fill();
+    if (ready(face)) g.drawImage(face, -cw / 2, -size / 2, cw, size);
+    g.restore();
+    g.textAlign = "center"; g.fillStyle = "#f1ead8"; g.font = "700 12px system-ui";
+    if (R.phase === "pick" && R.caller === RH) g.fillText(`PICK: ${Math.max(0, Math.ceil(5 - R.t))}`, cx, cy + size / 2 + 26);
+    const rf = img("assets/refs/ref_01.png"), rw = 104, rh = ready(rf) ? Math.min(170, rw * rf.height / rf.width) : 0, rx = W - rw - 14, ry = H - rh - 4;
+    if (ready(rf)) g.drawImage(rf, rx, ry, rw, rh);
+    const txt = R.phase === "pick" ? (R.caller === RH ? "Heads or tails, Raven Hook? You have five seconds." : `${G.away[0]} call it. ${R.call === "h" ? "Heads." : "Tails."}`)
+      : R.phase === "flip" ? "Here we go..." : `It's ${R.flip === "h" ? "heads" : "tails"}. ${R.winner[0]} win the toss.`;
+    g.font = "600 12px system-ui"; const lines = wrapText(g, txt, 180);
+    const bh = lines.length * 16 + 14, bx = rx - 206, by = 16;
+    g.fillStyle = "#f1ead8"; g.beginPath(); g.roundRect(bx, by, 196, bh, 10); g.fill();
+    g.beginPath(); g.moveTo(rx - 10, by + bh - 8); g.lineTo(rx + 8, by + bh + 14); g.lineTo(rx + 10, by + bh - 6); g.closePath(); g.fill();
+    g.fillStyle = "#111"; g.textAlign = "left"; lines.forEach((ln, i) => g.fillText(ln, bx + 10, by + 22 + i * 16));
   }
   function enterRd() {
     const R = G.rd; R.t = 0; R.boom = [];
@@ -12874,34 +13079,51 @@ function rbMount(root, onExit, TEAMS) {
     const titles = ["THE COIN TOSS", "THE FACE-OFF", "STARS", "KEY PLAYERS", "LET'S GO"];
     el.innerHTML = "";
     $("rdH").textContent = titles[R.s];
-    if (R.s === 0) el.innerHTML = `<div style="text-align:center;color:#f1ead8" id="rdCoinTxt">Heads or tails...</div>`;
+    if (R.s === 0) coinRefresh();
     if (R.s === 1) el.innerHTML = `<div style="text-align:center;color:#f1ead8">${RH[0]} vs ${G.away[0]}</div>`;
     if (R.s === 2) el.innerHTML = `<div style="display:flex;gap:14px;flex-wrap:wrap">${teamRow(RH, (t) => starOf(t).filter((p) => L.stars.has(p) || L.caps.has(p)).slice(0, 3).map((p) => card(p, L.caps.has(p) ? "CAPTAIN" : "STAR")).join(""))}${teamRow(G.away, (t) => starOf(t).filter((p) => L.stars.has(p) || L.caps.has(p)).slice(0, 3).map((p) => card(p, L.caps.has(p) ? "CAPTAIN" : "STAR")).join(""))}</div>`;
     if (R.s === 3) el.innerHTML = `<div style="display:flex;gap:14px;flex-wrap:wrap">${teamRow(RH, (t) => starOf(t).filter((p) => !L.stars.has(p) && !L.caps.has(p)).slice(0, 3).map((p) => card(p, "KEY")).join(""))}${teamRow(G.away, (t) => starOf(t).filter((p) => !L.stars.has(p) && !L.caps.has(p)).slice(0, 3).map((p) => card(p, "KEY")).join(""))}</div>`;
     if (R.s === 4) el.innerHTML = `<div style="text-align:center;color:#e8c46a;font-weight:700">${RH[0]} vs ${G.away[0]}</div>`;
     $("rdHint").textContent = "A or Enter skips";
   }
-  function skipRd() { if (G && G.rd) G.rd.t = RD_STAGES[G.rd.s]; }
+  function skipRd() { const R = G && G.rd; if (!R) return; if (R.s === 0) { R.locked = true; R.fast = true; return; } R.t = RD_STAGES[R.s]; }
   function finishRundown() {
+    const w = G.rd && G.rd.winner;
     G.rd = null; $("rd").classList.remove("on");
-    setCalls(true); say(`Kickoff. ${RH[0]} vs ${G.away[0]}. Your ball at your 25.`); update();
+    setCalls(true); say(`${w ? w[0] + " won the toss. " : ""}Kickoff. ${RH[0]} vs ${G.away[0]}. Your ball at your 25.`); update();
   }
   function updateRundown(dt) {
-    const R = G.rd; R.t += dt;
-    if (R.s === 0 && R.t > 1.8) $("rdCoinTxt").textContent = `${R.winner[0]} win the toss.`;
+    const R = G.rd;
+    if (R.s === 0) { if (coinUpdate(R, dt)) { R.s++; enterRd(); } return; }
+    R.t += dt;
     if (R.t >= RD_STAGES[R.s]) { R.s++; if (R.s >= RD_STAGES.length) return finishRundown(); enterRd(); }
+  }
+  /* the keys in the rundown: on our toss the stick picks and A locks; anywhere else A or Enter skips */
+  function rdKey(code) {
+    const R = G.rd;
+    if (R.s === 0 && R.phase === "pick" && R.caller === RH) {
+      if (code === "ArrowLeft") { R.sel = 0; R.dirty = true; return; }
+      if (code === "ArrowRight") { R.sel = 1; R.dirty = true; return; }
+      if (code === "Enter" || code === "KeyA") coinChoose(R.sel);
+      return;
+    }
+    if (code === "Enter" || code === "KeyA") skipRd();
+  }
+  function rdPad(L, Rb, A) {
+    const R = G.rd;
+    if (R.s === 0 && R.phase === "pick" && R.caller === RH) {
+      if (L && !pad.rdL) { R.sel = 0; R.dirty = true; }
+      if (Rb && !pad.rdR) { R.sel = 1; R.dirty = true; }
+      if (A && !pad.prevA) coinChoose(R.sel);
+    } else if (A && !pad.prevA) skipRd();
+    pad.rdL = L; pad.rdR = Rb;
   }
   function drawRundown() {
     const R = G && G.rd; if (!R) return;
     const c = $("rdC"), g = c.getContext("2d"), W = c.width, H = c.height, t = R.t;
     g.clearRect(0, 0, W, H); g.fillStyle = "#0b0e16"; g.fillRect(0, 0, W, H);
     const hl = helmetFor(RH, "L"), hr = helmetFor(G.away, "R"), HS = 170;
-    if (R.s === 0) {                               // the coin
-      const sx = Math.abs(Math.cos(t * 7)) * 0.9 + 0.1, spin = t < 2.2 ? 1 : 0;
-      g.save(); g.translate(W / 2, H / 2); g.scale(sx * (spin ? 1 : 1), 1);
-      g.beginPath(); g.arc(0, 0, 70, 0, 6.3); g.fillStyle = "#e8c46a"; g.fill(); g.lineWidth = 5; g.strokeStyle = "#8a6a20"; g.stroke();
-      g.restore();
-    }
+    if (R.s === 0) drawCoinStage(g, W, H, R);
     if (R.s === 1 || R.s === 4) {                  // the face-off and the collision
       const k = R.s === 1 ? clamp(t / 1.2, 0, 1) : clamp(t / 1.0, 0, 1), e = k * k * (3 - 2 * k);
       const lx = R.s === 1 ? lerp(-260, 20, e) : lerp(-260, 110, e);
@@ -13007,7 +13229,7 @@ function rbMount(root, onExit, TEAMS) {
     ctx.setTransform(cam.z, 0, 0, cam.z, cam.tx, cam.ty);
     drawStadium();
     ctx.save(); ctx.beginPath(); ctx.roundRect(IN.x0, IN.y0, IN.x1 - IN.x0, IN.y1 - IN.y0, 40); ctx.clip();
-    ctx.fillStyle = "#2f6b3a"; ctx.fillRect(IN.x0, IN.y0, IN.x1 - IN.x0, IN.y1 - IN.y0);
+    ctx.fillStyle = fieldCol(); ctx.fillRect(IN.x0, IN.y0, IN.x1 - IN.x0, IN.y1 - IN.y0);
     drawEndZone(IN.x0, RH, false); drawEndZone(IN.x1 - EZ * KX, G.away, true);
     ctx.restore();
     ctx.strokeStyle = "#e8e2d0"; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(IN.x0 - 1, IN.y0 - 1, IN.x1 - IN.x0 + 2, IN.y1 - IN.y0 + 2, 40); ctx.stroke();   // the boundary
@@ -13038,7 +13260,7 @@ function rbMount(root, onExit, TEAMS) {
     }
     const los = P ? P.los : EZ + G.ball;
     { const fd = clamp(los + G.togo, EZ, EZ + PLAY); ctx.fillStyle = "#e8c46a"; ctx.fillRect(PX(fd) - 2, FY0, 4, FY1 - FY0); }
-    const ML = logoOf(RH); if (ready(ML)) { ctx.save(); ctx.globalAlpha = 0.4; const mw = 96, mh = mw * ML.height / ML.width; ctx.drawImage(ML, PX(EZ + 50) - mw / 2, (FY0 + FY1) / 2 - mh / 2, mw, mh); ctx.restore(); }
+    const ML = logoOf(G.homeTeam || RH); if (ready(ML)) { ctx.save(); ctx.globalAlpha = 0.4; const mw = 96, mh = mw * ML.height / ML.width; ctx.drawImage(ML, PX(EZ + 50) - mw / 2, (FY0 + FY1) / 2 - mh / 2, mw, mh); ctx.restore(); }
     ctx.fillStyle = "#4da3ff"; ctx.fillRect(PX(los) - 1, FY0, 2, FY1 - FY0);
     // the sideline: coaches, refs and cameramen, with heads
     const cx = PX(los);
@@ -13053,6 +13275,7 @@ function rbMount(root, onExit, TEAMS) {
       cheerFig("assets/school/yt_cheer_sa_" + ((i % 8) + 1) + ".png", RH[1], cv.width / 2 + dx, IN.y0 - 4 + bob(i) * 0.5, 0.55);
       cheerFig("assets/school/yt_cheer_opp_" + ((i % 6) + 1) + ".png", G.away[1], cv.width / 2 + dx, IN.y1 + 4 + bob(i + 4) * 0.5, 0.55);
     });
+    drawKicker();
     if (!P) {
       if (G.intro) G.intro.walkers.slice().sort((a, b) => a.y - b.y).forEach((p) => drawPlayer(p, 0));
       else if (!G.over && !G.half) { const fl = formationPreview(los); fl.forEach((p) => drawPlayer(p, 0)); drawRoutePreview(los); drawFaces(fl, null); drawLeaders(fl); }
@@ -13180,6 +13403,12 @@ function rbMount(root, onExit, TEAMS) {
     return out;
   }
   /* the ball: a sprite, with its shadow on the turf while it is in the air */
+  /* the kicker: on a field goal, a punt or an extra point he stands behind the ball */
+  function drawKicker() {
+    if (!G || P || !(KG.on || KFX)) return;
+    const k = (starters(RH).K || [])[0]; if (!k) return;
+    drawPlayer({ role: "k", pa: k, x: EZ + G.ball - 6, y: 26.7, side: "h", ang: 0, anim: 0, bodyN: 5, helmN: 3, skin: SKINS[0] }, 0);
+  }
   function drawBall() {
     let bx, by, bz = 0;
     if (P && P.flight) { bx = PX(P.ballX); by = PY(P.ballY); bz = P.ballZ; }
@@ -13288,7 +13517,7 @@ function rbMount(root, onExit, TEAMS) {
     e.stopPropagation();
     if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
     keys[e.code] = true;
-    if (G && G.rd) { if (e.code === "Enter" || e.code === "KeyA") skipRd(); return; }
+    if (G && G.rd) { rdKey(e.code); return; }
     if (RP) { if (e.code === "Enter" || e.code === "KeyA") endReplay(); return; }
     if (KG.on) { if (e.code === "Enter" || e.code === "KeyA") kickAct(); if (e.code === "ArrowLeft") kickNudge(-1); if (e.code === "ArrowRight") kickNudge(1); return; }
     if (e.code === "KeyZ" && !e.repeat) burstStart();
