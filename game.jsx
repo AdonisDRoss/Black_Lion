@@ -2790,7 +2790,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 577 — projectors take turns (about a third on)";
+const BUILD_TAG = "LAYER 578 — fix: takeDismount export";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -15064,6 +15064,7 @@ const RUNNER_API = (function () {
     lockCam,
     overlay,
     augments,
+    takeDismount,
   };
 })();
 
