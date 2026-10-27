@@ -2794,7 +2794,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 637";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 643";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14856,6 +14856,11 @@ const RUNNER_API = (function () {
     ctx.translate(W / 2, H / 2); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y);
     if (!lobby) drawCar('car_' + CAR_FILES[car.sprite], car.x, car.y, car.z, car.heading || 0, car.lean || 0);   // LAYER 631: the bike, with its rider, in every mode
     if (walker.on) drawWalker(x, y);
+    else if (!lobby) {                                   // LAYER 638: on the bike, he is drawn sitting on it, turned the way it faces
+      const h = walker.heading; walker.heading = car.heading || 0;
+      drawWalker(car.x, car.y - car.z);
+      walker.heading = h;
+    }
     ctx.restore();
   }
   function insideFigure(canvas, x, y, cam) {
@@ -15020,19 +15025,27 @@ const RUNNER_API = (function () {
   function toggleLand() {
     if (car.mode === 'air') {
       if (Math.abs(car.speed) > 140) return say('SLOW DOWN TO LAND');
-      if (!landable(car.x, car.y)) return say('NO LANDING ON A BUILDING, WATER OR DECK');
+      if (!landable(car.x, car.y) && !onCanRoof(car.x, car.y)) return say('NO LANDING ON A BUILDING, WATER OR DECK');
       if (!spotClear(car.x, car.y, true, null)) return say('NO CLEAR SPOT. LAND IN A LOT OR ON GRASS, CLEAR OF PEOPLE');   // LAYER 630
       car.mode = 'down'; say('LANDING');
     } else if (car.mode === 'down') { car.mode = 'up'; say('LIFTING OFF'); }
     else if (car.mode === 'landed') { car.mode = 'up'; puff(car.x, car.y, car.sprite === BIKE_INDEX ? 'small' : 'medium'); say('LIFTING OFF'); }   // LAYER 622
     else if (car.mode === 'up') { car.mode = 'down'; say('LANDING'); }
   }
+  // LAYER 639: the bike comes down on a clear spot beside you, so you can always get to it from the ground
+  function callBike() {
+    const sp = clearSpot(walker.x + 60, walker.y, null) || { x: walker.x + 60, y: walker.y };
+    car.x = sp.x; car.y = sp.y; car.z = AIR_Z; car.mode = 'down'; car.speed = 0; car.lean = 0; car.heading = -Math.PI / 2;
+    say('YOUR BIKE IS COMING DOWN BESIDE YOU');
+  }
   function exitOrBoard() {
     if (walker.on) {
       // LAYER 635: reach is wider -- the bike is a small thing on a phone screen
       const dd = Math.hypot(walker.x - car.x, walker.y - car.y);
-      if (dd < 200) { walker.on = false; say('ON THE BIKE · L TO LIFT OFF · E TO GET OFF WHEN LANDED'); }
-      else say('THE BIKE IS ' + Math.round(dd) + ' AWAY. WALK UP TO IT, THEN E');
+      if (dd < 200 && car.mode !== 'landed') say('WAIT. THE BIKE IS STILL COMING DOWN');
+      else if (dd < 200) { walker.on = false; say('ON THE BIKE · L TO LIFT OFF · E TO GET OFF WHEN LANDED'); }
+      else if (car.mode === 'landed') callBike();      // LAYER 639: too far to get on -- the bike comes down to you
+      else say('THE BIKE IS IN THE AIR. L TO LAND IT');
       return;
     }
     if (car.mode !== 'landed') return say('LAND FIRST · L');
@@ -15048,7 +15061,7 @@ const RUNNER_API = (function () {
       if (car.mode === 'down') {
         car.z -= 110 * dt;
         if (car.z <= 0) { car.z = 0; car.mode = 'landed'; car.speed = 0; car.lean = 0; say('LANDED. E TO GET OUT'); }
-        else if (!landable(car.x, car.y) && car.z < 40) { car.mode = 'up'; say('NO LANDING HERE'); }
+        else if (!landable(car.x, car.y) && !onCanRoof(car.x, car.y) && car.z < 40) { car.mode = 'up'; say('NO LANDING HERE'); }
       } else {
         car.z += LIFT * dt;
         if (car.z >= AIR_Z) { car.z = AIR_Z; car.mode = 'air'; }
@@ -15110,7 +15123,11 @@ const RUNNER_API = (function () {
     cycleCooldown -= dt; msgT -= dt;
     if (pend.land) { pend.land = false; if (!walker.on) toggleLand(); else say('GET IN THE CAR FIRST'); }
     if (pend.exit) { pend.exit = false; exitOrBoard(); }
-    if (walker.on) updateWalker(dt, pad); else updateCar(dt, pad);
+    if (walker.on) {
+      updateWalker(dt, pad);
+      // LAYER 640: a bike called down to you still comes down while you walk; nothing steers it
+      if (car.mode === 'down' || car.mode === 'up') updateCar(dt, { rt: 0, lt: 0, x: 0 });
+    } else updateCar(dt, pad);
     const v = view();
     fliers.forEach((f) => updateFlier(f, dt, v.x0 + (v.x1 - v.x0) / 2, v.y0 + (v.y1 - v.y0) / 2));
   }
@@ -15249,8 +15266,9 @@ const RUNNER_API = (function () {
       if (p[i + 3] < 10) continue;
       const r = p[i], g = p[i + 1], b = p[i + 2], lum = 0.3 * r + 0.59 * g + 0.11 * b;
       if (r > 140 && g > 100 && r - b > 50 && g - b > 30) { p[i] = p[i + 1] = p[i + 2] = 255; continue; }   // gold trim: white
-      if (Math.max(r, g, b) - Math.min(r, g, b) > 30) { p[i] = p[i + 1] = p[i + 2] = 0; continue; }       // skin and other colour: black
-      if (lum < 45) { p[i] = p[i + 1] = p[i + 2] = 0; continue; }                                          // dark: black
+      // LAYER 641: the jacket and the body are shades of the suit colour, not black (black vanished on a dark street)
+      if (Math.max(r, g, b) - Math.min(r, g, b) > 30) { const k2 = Math.max(0.45, lum / 120); p[i] = Math.min(255, sr * k2); p[i + 1] = Math.min(255, sg * k2); p[i + 2] = Math.min(255, sb * k2); continue; }
+      if (lum < 45) { const k4 = Math.max(0.3, lum / 120); p[i] = Math.min(255, sr * k4); p[i + 1] = Math.min(255, sg * k4); p[i + 2] = Math.min(255, sb * k4); continue; }   // LAYER 642: dark is a deep shade of the suit, not black, so it reads on a dark street
       const k = lum / 120; p[i] = Math.min(255, sr * k); p[i + 1] = Math.min(255, sg * k); p[i + 2] = Math.min(255, sb * k);
     }
     c2.putImageData(d, 0, 0); sprCache[key] = cv; return cv;
@@ -15321,8 +15339,8 @@ const RUNNER_API = (function () {
     const hdg = walker.heading == null ? Math.PI / 2 : walker.heading;
     ctx.save(); ctx.translate(x, y); ctx.rotate(hdg - Math.PI / 2); ctx.translate(-x, -y);
     const bs = bodySprite();
-    const bw = 40 * bk, bh = bs ? bw * (bs.height / bs.width) : 32 * bk;
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 4, y + 6, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
+    const bw = 70 * bk, bh = bs ? bw * (bs.height / bs.width) : 56 * bk;   // LAYER 643: about the length of the bike, so he reads on a phone or a TV
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 6, y + 10, 16, 9, 0, 0, Math.PI * 2); ctx.fill();
     // LAYER 598 / 606: little boots on navy trousers. The legs come off the hip, and each leg is as wide as its part of the hip.
     const st = walker.on && walker.step ? Math.sin(walker.step) * 2.5 : 0;
     const hp = HIP_BY_BODY[RUNNER_LOOK.body] || HIP_BY_BODY.average;
@@ -15667,7 +15685,7 @@ const RUNNER_API = (function () {
   // and with no car or person on it. Nothing lands on top of anything.
   let lastTraffic = [], lastPeds = [];
   function spotClear(x, y, roadOK, self) {
-    if (!landable(x, y)) return false;
+    if (!landable(x, y) && !onCanRoof(x, y)) return false;
     if (!roadOK && onRoad(x, y)) return false;
     for (const tv of lastTraffic) if (tv && Math.hypot(tv.x - x, tv.y - y) < 80) return false;
     for (const p of lastPeds) if (p && Math.hypot(p.x - x, p.y - y) < 50) return false;
@@ -16047,6 +16065,7 @@ const RUNNER_API = (function () {
   }
   function keepOut(p) {
     if (!p || !Number.isFinite(p.x)) return;
+    if (!walker.on && !lobby) { p.x = car.x; p.y = car.y; p.vx = 0; p.vy = 0; return; }   // LAYER 638: on the bike, the body goes where the bike goes
     const r = canRect(), m = 24;                          // m: the walker's half width
     const onTop = p.x >= r.fx0 && p.x <= r.fx1 && p.y >= r.fy0 && p.y <= r.fy1;
     if (canRoof) {
@@ -16060,13 +16079,20 @@ const RUNNER_API = (function () {
     pushOut(p, r, m); p.vx = 0; p.vy = 0;
   }
   // the spawn is on the roof; the bike is parked in a stall in the lot's south row
+  // LAYER 638: you and the bike both start on the roof, side by side
   function canSpawn() {
     const r = canRect(); canRoof = true;
-    return [(r.fx0 + r.fx1) / 2, (r.fy0 + r.fy1) / 2];
+    return [(r.fx0 + r.fx1) / 2 + 70, (r.fy0 + r.fy1) / 2];
   }
   function canBike() {
     const r = canRect();
-    return [(r.lot[0] + r.fx0) / 2, (r.fy0 + r.fy1) / 2];   // LAYER 631: the open strip beside the tower
+    return [(r.fx0 + r.fx1) / 2 - 70, (r.fy0 + r.fy1) / 2];
+  }
+  // LAYER 638: the roof of the C.A.N. is a landing pad as well as a roof
+  function onCanRoof(x, y) {
+    if (!CAN_LOT_RECT) return false;
+    const r = canRect();
+    return x >= r.fx0 && x <= r.fx1 && y >= r.fy0 && y <= r.fy1;
   }
   function drawCanTower(c) {
     const R = CAN_LOT_RECT; if (!R) return;
@@ -16180,7 +16206,7 @@ const RUNNER_API = (function () {
   window.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
   return {
-    dbg: () => ({ walkerOn: walker.on, mode: car.mode, carX: Math.round(car.x), carY: Math.round(car.y), walkX: Math.round(walker.x), walkY: Math.round(walker.y), dZ, drones: drones.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y), flying: d.flying })), fliers: fliers.length, incidents: incidents.length, drawn: dStat, droneArt: !!img.drone, bikeArt: !!img['car_cars_43a7a337_1'], airtowArt: !!img.airtow }),
+    dbg: () => ({ look: { bodyK: RUNNER_LOOK.bodyK, body: RUNNER_LOOK.body, suit: RUNNER_LOOK.suit }, bodyArt: !!bodySprite(), bodyKeys: Object.keys(img).filter((k) => /^body_/.test(k)), walkerOn: walker.on, mode: car.mode, carX: Math.round(car.x), carY: Math.round(car.y), walkX: Math.round(walker.x), walkY: Math.round(walker.y), dZ, drones: drones.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y), flying: d.flying })), fliers: fliers.length, incidents: incidents.length, drawn: dStat, droneArt: !!img.drone, bikeArt: !!img['car_cars_43a7a337_1'], airtowArt: !!img.airtow }),
     isOn: () => RUN_ON,
     setArt: (a) => { ART = a || {}; },
     setCivs: (c) => { CIV = c || null; },
