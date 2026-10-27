@@ -2791,7 +2791,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 593 — 8-bit pant legs and shoes on the built runner, with a walk cycle; the C.A.N. lobby finds the tower on its block; the hover bike is parked on open street by the tower; no missions or police calls in Runner Mode; the built runner shows inside buildings and in the lobby; hoverboards drawn flat under the skater kids; rooftop assets show through the top floor of a building in Runner Mode; runner builder (head, build, colours, stats, name) then the C.A.N. lobby with the hover bike parked outside; hoverboard art under the skater kids in Runner Mode; random runner each Runner Mode start; litter under the player; skater kids on hoverboards in Runner Mode; hover bike; purple haze Runner Mode only; minimap zoom on ]; C.A.N. STUDIOS";
+const BUILD_TAG = "LAYER 607 — traffic turns never go into the oncoming lane (an overtake is dropped at the corner and none starts into a turn); LAYER 606 — legs as wide as the hip they come off, with a bit of hip under the jacket on every body; LAYER 605 — drawn arms: suit-coloured sleeves that start at the sleeve width and taper to a cuff, skin-tone hands; the Lion body is retired: four bodies (slim, athletic, heavy, and the new average); the top-cut heads are out; hands drop and the weapon sits in the right hand while holding one (setHeld); heads cover each neck hole; new heavy body (arms cut at the elbow, legs trimmed); heads centred on each body's neck hole; heads fitted per body (the heavy body head sits lower over the collar); afro bigger; the afro and bald heads run bigger to cover the brown face; cropped heads taken out; every head is 0.36 of the body width on every build; black trousers; the skateboard is gone from the skater kids (hoverboard under them); build bodies at the Lion's scale with arms cut at the elbow and skin-tone forearms and hands; little boots with a walk cycle; the Runner Mode song starts on the first tap if the phone blocked it; hoverboard drawn on top of the skater kids; one smoothed camera for every vehicle and on foot, leaning ahead as you go; the same controls for getting in and out of every vehicle; the Lion's jacket body under the runner head (suit colour, black, gold trim white); skin tone; the bike is in reach on the walk out; 8-bit pant legs and shoes on the built runner, with a walk cycle; the C.A.N. lobby finds the tower on its block; the hover bike is parked on open street by the tower; no missions or police calls in Runner Mode; the built runner shows inside buildings and in the lobby; hoverboards drawn flat under the skater kids; rooftop assets show through the top floor of a building in Runner Mode; runner builder (head, build, colours, stats, name) then the C.A.N. lobby with the hover bike parked outside; hoverboard art under the skater kids in Runner Mode; random runner each Runner Mode start; litter under the player; skater kids on hoverboards in Runner Mode; hover bike; purple haze Runner Mode only; minimap zoom on ]; C.A.N. STUDIOS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14642,19 +14642,34 @@ const RUNNER_API = (function () {
   HOLO_PORTRAITS.forEach((f) => load('holo_' + f, 'holo/' + f + '.png'));
   load('glow', 'holo/holo_8dd91f32_1.png');
   load('haze_ground', 'haze/ground_haze.png');
-  load('head_rider', 'heads/head_m_buzz.png');
+  load('head_rider', 'heads/female/head_cap_a.png');
   // LAYER 586: the random runner. Every head from the heads sheets is loaded; Runner Mode picks one (and a suit colour)
   // each time it starts (resetRunner). Male and female folders, as the heads pack ships them.
-  const RHEADS = [['male', 'mhead_short'], ['male', 'head_m_bald'], ['male', 'head_m_afro'], ['male', 'mhead_afro'],
-    ['male', 'mhead_buzz'], ['male', 'head_m_receding'], ['male', 'mhead_curly'], ['male', 'mhead_crewcut'],
-    ['male', 'mhead_receding'], ['male', 'head_m_short'], ['male', 'head_m_crewcut'], ['male', 'head_m_curly'],
-    ['male', 'head_m_mohawk'], ['male', 'mhead_bald'], ['male', 'mhead_mohawk'], ['male', 'head_m_buzz'],
-    ['female', 'head_bun'], ['female', 'head_curly'], ['female', 'head_swirl'], ['female', 'head_cap_b'], ['female', 'head_cap_a']];
+  // LAYER 599: the heads that crop or break are taken out (m/head_m_afro, _bald, _buzz, _crewcut, _curly, _mohawk,
+  // _receding, _short). The rest sit at one width on every body: 0.36 of the body's width.
+  // LAYER 600: two heads run a little bigger so they cover the Lion's brown face under them
+  const HEAD_SCALE = { mhead_afro: 1.42 };
+  // LAYER 601: how far the head sits down the body, as a share of the body's height. The heavy body's collar is
+  // wide and open, so its head sits lower to cover the neck hole.
+  const HEAD_DROP = { average: 0, slim: 0, athletic: 0.02, heavy: 0.14 };
+  // LAYER 602: the head is centred on each body's neck hole (share of the body's height), so it covers the hole
+  const HEAD_CY = { slim: 29.5 / 159, athletic: 37.4 / 159, heavy: 17.2 / 159, average: 28.7 / 159 };
+  // LAYER 603: head width for each body (share of body width). Slim needs a touch more to cover its hole.
+  const HEAD_WF = { slim: 0.40 };
+  const RHEADS = [['male', 'mhead_afro'], ['male', 'mhead_curly'], ['male', 'mhead_mohawk'],
+    ['female', 'head_bun'], ['female', 'head_cap_a'], ['female', 'head_cap_b'], ['female', 'head_curly'], ['female', 'head_swirl']];
   RHEADS.forEach(([sex, nm]) => load('rh_' + nm, 'heads/' + sex + '/' + nm + '.png'));
-  load('hoverboard', 'hover/hoverboard.png');                   // LAYER 587: the skater kids' hoverboard art
+  load('hoverboard', 'hover/hoverboard.png');
+  // LAYER 594: the Lion's jacket body (the game's own hero art), recoloured per look; heads go on top of it
+  const sprCache = {};
+  // LAYER 598: the build bodies, each on the Lion's 224 x 159 canvas (same scale), arms cut at the elbow.
+  // The forearm and hand are drawn in code from the elbow point (E) to the hand point (H), in the skin tone.
+  const BODY_FILES = { slim: 'body/body_slim.png', athletic: 'body/body_athletic.png', heavy: 'body/body_heavy.png', average: 'body/body_average.png' };
+  for (const k of Object.keys(BODY_FILES)) load('body_' + k, BODY_FILES[k]);
+  const BODY_ARMS = {"slim": {"L": {"E": [23.0, 121.5], "H": [19.2, 159.6]}, "R": {"E": [193.5, 121.5], "H": [197.3, 159.6]}, "W": 31}, "athletic": {"L": {"E": [26.0, 108.4], "H": [26.0, 151.8]}, "R": {"E": [198.0, 108.4], "H": [198.0, 151.8]}, "W": 22}, "heavy": {"L": {"E": [7.9, 81.3], "H": [-10.5, 106.2]}, "R": {"E": [216.1, 81.3], "H": [234.5, 106.2]}, "W": 22}, "average": {"L": {"E": [18.8, 86.6], "H": [-6.4, 117.5]}, "R": {"E": [204.9, 86.6], "H": [230.2, 117.5]}, "W": 15}};                   // LAYER 587: the skater kids' hoverboard art
   const RSUITS = ['#6ef0ff', '#ff5ad0', '#ffd23a', '#7dff6a', '#ff7a2a', '#b98cff'];
-  const RUNNER_LOOK = { head: 'head_m_buzz', suit: '#6ef0ff', body: 'average', bodyK: 1, name: 'RUNNER', stats: null, chosen: false };
-  const BODY_TYPES = { slim: 0.88, average: 1, athletic: 1.06, heavy: 1.18 };
+  const RUNNER_LOOK = { head: 'mhead_curly', suit: '#6ef0ff', body: 'average', bodyK: 1, name: 'RUNNER', stats: null, chosen: false, skin: null };
+  const BODY_TYPES = { slim: 1, average: 1, athletic: 1, heavy: 1 };
   function rollRunnerLook() {
     const h = RHEADS[(Math.random() * RHEADS.length) | 0];
     RUNNER_LOOK.head = h[1];
@@ -14678,7 +14693,11 @@ const RUNNER_API = (function () {
   const keys = {};
   // the Runner Mode theme: Grain Silo Ghosts, in assets/runner (plays while Runner Mode is on)
   const SONG_PATHS = ['assets/runner/Grain_Silo_Ghosts.mp3', 'assets/runner/6971a82b-Grain_Silo_Ghosts.mp3'];
-  let song = null, songTry = 0;
+  let song = null, songTry = 0, songArmed = false;
+  // LAYER 597: phones block audio that starts without a tap, so a refused play() is tried again on the next touch or key
+  function songGo() {
+    try { if (RUN_ON && song && song.paused) song.play().catch(() => {}); } catch (e) { /* no audio here */ }
+  }
   function startSong() {
     try {
       if (!song) {
@@ -14686,7 +14705,8 @@ const RUNNER_API = (function () {
         song.loop = true; song.volume = 0.6; song.preload = 'auto';
         song.onerror = () => { songTry++; if (songTry < SONG_PATHS.length) { song.src = SONG_PATHS[songTry]; song.load(); } };
       }
-      song.play().catch(() => {});
+      song.play().catch(() => { songGo(); });
+      if (!songArmed) { songArmed = true; ['pointerdown', 'touchend', 'keydown'].forEach((t) => window.addEventListener(t, songGo, { passive: true })); }
     } catch (e) { /* no audio here */ }
   }
   function stopSong() { try { if (song) song.pause(); } catch (e) { /* ignore */ } }
@@ -14704,7 +14724,9 @@ const RUNNER_API = (function () {
   const pend = { land: false, exit: false };
   // LAYER 589: the C.A.N. lobby. While the player is inside a building the runner's camera and overlay stand down;
   // the hover bike waits parked outside the door (lobbyBike), and leaving the lobby lands it there.
-  let lobby = false, lobbyBike = null;
+  let lobby = false, lobbyBike = null, camSmooth = null;
+  let held = null;                                          // LAYER 603: the weapon in hand (a key, or null)
+  const HAND_DOWN = 0.10;                                    // share of the body height the hands drop while holding
   let padPrev = { a: false, b: false };
   const say = (s, secs) => { msg = s; msgT = secs || 2.5; };
 
@@ -14736,7 +14758,7 @@ const RUNNER_API = (function () {
   // LAYER 592: the nearest open street spot to a point (no building, water or deck), searched outward
   function streetSpot(x, y) {
     if (landable(x, y)) return { x, y };
-    for (let r = 40; r <= 900; r += 30) for (let k = 0; k < 24; k++) {
+    for (let r = 40; r <= 160; r += 30) for (let k = 0; k < 24; k++) {
       const a = (k / 24) * Math.PI * 2, px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
       if (landable(px, py)) return { x: px, y: py };
     }
@@ -14867,7 +14889,7 @@ const RUNNER_API = (function () {
   const AIR_Z = 150, LIFT = 110;
 
   function resetRunner() {
-    placed = false; car.speed = 0; car.lean = 0; walker.on = false; fliers.length = 0;
+    placed = false; camSmooth = null; car.speed = 0; car.lean = 0; walker.on = false; fliers.length = 0;
     if (!RUNNER_LOOK.chosen) rollRunnerLook();          // built in the builder: kept; otherwise a random look
   }
   // the first frame in Runner Mode: the bike starts where the game camera is
@@ -14889,13 +14911,13 @@ const RUNNER_API = (function () {
   }
   function exitOrBoard() {
     if (walker.on) {
-      if (Math.hypot(walker.x - car.x, walker.y - car.y) < 120) { walker.on = false; say('BOARDED. L TO LIFT OFF'); }
-      else say('GET BACK TO THE CAR TO BOARD');
+      if (Math.hypot(walker.x - car.x, walker.y - car.y) < 120) { walker.on = false; say('IN · L TO LIFT OFF · E TO GET OUT WHEN LANDED'); }
+      else say('GET WITHIN REACH OF THE VEHICLE, THEN E');
       return;
     }
-    if (car.mode !== 'landed') return say('LAND FIRST');
+    if (car.mode !== 'landed') return say('LAND FIRST · L');
     walker.on = true; walker.x = car.x + 70; walker.y = car.y; walker.heading = 0;
-    say('ON FOOT. E NEAR THE CAR TO BOARD');
+    say('ON FOOT · E NEAR THE VEHICLE TO GET BACK IN');
   }
 
   function updateCar(dt, pad) {
@@ -15083,54 +15105,121 @@ const RUNNER_API = (function () {
     ctx.restore();
   }
 
-  function drawWalker(x, y) {
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 4, y + 6, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
-    const bk = RUNNER_LOOK.bodyK || 1;
-    // LAYER 593: short pant legs and shoes, 8-bit style. The stride is the walk cycle; standing, the feet sit together.
-    const st = walker.on && walker.step ? Math.sin(walker.step) * 3 : 0;
-    const lx = x - 5 * bk, rx = x + 1 * bk, ly0 = y + 10 * bk;
-    ctx.fillStyle = '#1d2a44';                                          // pant leg (navy)
-    ctx.fillRect(lx, ly0, 4 * bk, 6 * bk + st); ctx.fillRect(rx, ly0, 4 * bk, 6 * bk - st);
-    ctx.fillStyle = '#141414';                                          // shoe
-    ctx.fillRect(lx - 1 * bk, ly0 + 6 * bk + st, 6 * bk, 3 * bk); ctx.fillRect(rx - 1 * bk, ly0 + 6 * bk - st, 6 * bk, 3 * bk);
-    ctx.fillStyle = '#e9e4d8';                                          // white sole
-    ctx.fillRect(lx - 1 * bk, ly0 + 8.5 * bk + st, 6 * bk, 0.9 * bk); ctx.fillRect(rx - 1 * bk, ly0 + 8.5 * bk - st, 6 * bk, 0.9 * bk);
-    ctx.fillStyle = '#2a2d3a'; ctx.beginPath(); ctx.ellipse(x, y, 13 * bk, 16 * bk, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = RUNNER_LOOK.suit; ctx.lineWidth = 3; ctx.stroke();
-    const hd = img['rh_' + RUNNER_LOOK.head] || img.head_rider;
-    if (hd) { const hw = 30 * bk, hh = hd.height * (hw / hd.width); ctx.drawImage(hd, x - hw / 2, y - 16 - hh, hw, hh); }
-  }
-
-  // everything the runner adds, in world units on top of the game's frame
-  function drawOverlay() {
-    const v = view();
-    const r = cellRange(v);
-    beams.length = 0;
-    ctx.save();
-    ctx.translate(W / 2, H / 2); ctx.scale(camNow.z, camNow.z); ctx.translate(-camNow.x, -camNow.y);
-
-    drawRoofs(r);
-
-
-    // purple haze at street level, over the game's world and under the runner's cars
-    if (img.haze_ground) {
-      ctx.save(); ctx.globalAlpha = 0.45;
-      const pat = ctx.createPattern(img.haze_ground, 'repeat');
-      if (pat.setTransform) pat.setTransform(new DOMMatrix().translate(t * 6, t * 3).scale(1.6));
-      ctx.fillStyle = pat; ctx.fillRect(v.x0, v.y0, v.x1 - v.x0, v.y1 - v.y0);
-      ctx.restore();
+  // LAYER 594: the jacket takes the suit colour, the rest of the body goes black, the gold trim goes white
+  function bodySprite() {
+    const src = img['body_' + (RUNNER_LOOK.body || 'average')]; if (!src || !(src.naturalWidth || src.width)) return null;
+    const key = 'body|' + (RUNNER_LOOK.body || 'average') + '|' + RUNNER_LOOK.suit;
+    if (sprCache[key]) return sprCache[key];
+    const cv = document.createElement('canvas'); cv.width = src.naturalWidth || src.width; cv.height = src.naturalHeight || src.height;
+    const c2 = cv.getContext('2d'); c2.drawImage(src, 0, 0);
+    let d; try { d = c2.getImageData(0, 0, cv.width, cv.height); } catch (e) { return null; }
+    const p = d.data, hx = RUNNER_LOOK.suit, sr = parseInt(hx.slice(1, 3), 16), sg = parseInt(hx.slice(3, 5), 16), sb = parseInt(hx.slice(5, 7), 16);
+    for (let i = 0; i < p.length; i += 4) {
+      if (p[i + 3] < 10) continue;
+      const r = p[i], g = p[i + 1], b = p[i + 2], lum = 0.3 * r + 0.59 * g + 0.11 * b;
+      if (r > 140 && g > 100 && r - b > 50 && g - b > 30) { p[i] = p[i + 1] = p[i + 2] = 255; continue; }   // gold trim: white
+      if (Math.max(r, g, b) - Math.min(r, g, b) > 30) { p[i] = p[i + 1] = p[i + 2] = 0; continue; }       // skin and other colour: black
+      if (lum < 45) { p[i] = p[i + 1] = p[i + 2] = 0; continue; }                                          // dark: black
+      const k = lum / 120; p[i] = Math.min(255, sr * k); p[i + 1] = Math.min(255, sg * k); p[i + 2] = Math.min(255, sb * k);
     }
-
-    // shadows on the ground first, then the cars high ones last so they sit over the low ones
-    const list = fliers.map((f) => ({ x: f.x, y: f.y, z: f.z, heading: f.heading, sprite: f.sprite, lean: 0 }));
-    list.push({ x: car.x, y: car.y, z: car.z, heading: car.heading, sprite: 'car_' + CAR_FILES[car.sprite], lean: car.lean });
-    list.forEach((c) => drawShadow(c.x, c.y, c.heading, carMeta(c.sprite).len, c.z));
-    list.sort((a, b) => a.z - b.z).forEach((c) => drawCar(c.sprite, c.x, c.y, c.z, c.heading, c.lean));
-
-    if (walker.on) drawWalker(walker.x, walker.y);
-
-    beams.forEach((bb) => { if (Math.hypot(bb.x - camNow.x, bb.y - camNow.y) < 900) drawProjection(bb); });
+    c2.putImageData(d, 0, 0); sprCache[key] = cv; return cv;
+  }
+  // the head art, tinted by the skin tone (multiply), when one is chosen
+  function headSprite(name) {
+    const src = img['rh_' + name] || img.head_rider; if (!src || !src.width) return null;
+    if (!RUNNER_LOOK.skin) return src;
+    const key = 'head|' + name + '|' + RUNNER_LOOK.skin;
+    if (sprCache[key]) return sprCache[key];
+    const cv = document.createElement('canvas'); cv.width = src.width; cv.height = src.height;
+    const c2 = cv.getContext('2d'); c2.drawImage(src, 0, 0);
+    c2.globalCompositeOperation = 'multiply'; c2.fillStyle = RUNNER_LOOK.skin; c2.fillRect(0, 0, cv.width, cv.height);
+    c2.globalCompositeOperation = 'destination-in'; c2.drawImage(src, 0, 0);
+    sprCache[key] = cv; return cv;
+  }
+  // LAYER 605: the lower arm. The sleeve is the suit colour, shaded down, and starts at the width of the sleeve
+  // it comes off (w); it tapers to a cuff at the wrist. The hand is the skin tone.
+  function shadeHex(hex, k) {
+    const r = parseInt(hex.slice(1, 3), 16) * k, g = parseInt(hex.slice(3, 5), 16) * k, b = parseInt(hex.slice(5, 7), 16) * k;
+    return 'rgb(' + Math.min(255, r | 0) + ',' + Math.min(255, g | 0) + ',' + Math.min(255, b | 0) + ')';
+  }
+  function drawArm(ex, ey, hx, hy, w, sk, suit) {
+    const dx = hx - ex, dy = hy - ey, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, nx = -uy, ny = ux;
+    const wr = w * 0.68, wx = ex + ux * L * 0.78, wy = ey + uy * L * 0.78;
+    const sleeve = shadeHex(suit, 0.62), light = shadeHex(suit, 0.85);
+    ctx.lineJoin = 'round';
+    ctx.fillStyle = sleeve; ctx.beginPath();
+    ctx.moveTo(ex + nx * w / 2, ey + ny * w / 2); ctx.lineTo(wx + nx * wr / 2, wy + ny * wr / 2);
+    ctx.lineTo(wx - nx * wr / 2, wy - ny * wr / 2); ctx.lineTo(ex - nx * w / 2, ey - ny * w / 2); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = light; ctx.lineWidth = w * 0.12; ctx.beginPath();
+    ctx.moveTo(ex + nx * w * 0.28 + ux * w * 0.4, ey + ny * w * 0.28 + uy * w * 0.4);
+    ctx.lineTo(wx + nx * wr * 0.22, wy + ny * wr * 0.22); ctx.stroke();
+    ctx.strokeStyle = '#141418'; ctx.lineWidth = w * 0.14; ctx.beginPath();
+    ctx.moveTo(wx + nx * wr / 2, wy + ny * wr / 2); ctx.lineTo(wx - nx * wr / 2, wy - ny * wr / 2); ctx.stroke();
+    ctx.fillStyle = sk; ctx.beginPath(); ctx.ellipse(hx, hy, wr * 0.62, wr * 0.46, Math.atan2(uy, ux), 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(hx - ny * wr * 0.3 + ux * wr * 0.2, hy + nx * wr * 0.3 + uy * wr * 0.2, wr * 0.22, wr * 0.14, Math.atan2(uy, ux) + 0.6, 0, Math.PI * 2); ctx.fill();
+  }
+  // LAYER 603: the weapon in the right hand. Art loads as img['wpn_' + key]; until it does, a placeholder bar.
+  function drawHeld(hx, hy, ang, sc) {
+    const im = img['wpn_' + held];
+    ctx.save(); ctx.translate(hx, hy); ctx.rotate(ang);
+    if (im && im.width) {
+      const w = 16 * sc, h = w * (im.height / im.width);
+      ctx.drawImage(im, 0, -h / 2, w, h);
+    } else {
+      ctx.fillStyle = '#2b2f3a'; ctx.fillRect(0, -1.3 * sc, 14 * sc, 2.6 * sc);
+      ctx.fillStyle = '#6ef0ff'; ctx.fillRect(10 * sc, -0.5 * sc, 4 * sc, 1 * sc);
+    }
     ctx.restore();
+  }
+  // LAYER 606: where each body's legs come off. y is the row (of 159) where the jacket ends, w the hip width (of 224).
+  const HIP_BY_BODY = { slim: { y: 150, w: 80 }, athletic: { y: 146, w: 88 }, heavy: { y: 123, w: 85 }, average: { y: 123, w: 85 } };
+  function drawWalker(x, y) {
+    const bk = RUNNER_LOOK.bodyK || 1;
+    const bs = bodySprite();
+    const bw = 40 * bk, bh = bs ? bw * (bs.height / bs.width) : 32 * bk;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 4, y + 6, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
+    // LAYER 598 / 606: little boots on navy trousers. The legs come off the hip, and each leg is as wide as its part of the hip.
+    const st = walker.on && walker.step ? Math.sin(walker.step) * 2.5 : 0;
+    const hp = HIP_BY_BODY[RUNNER_LOOK.body] || HIP_BY_BODY.average;
+    const hipTop = y - bh / 2 + hp.y * (bh / 159), hipW = hp.w * (bw / 224), gap = 0.05 * hipW, legW = (hipW - gap) / 2;
+    const footBot = y + bh / 2 + 8 * bk, lx = x - hipW / 2, rx = x + gap / 2, tEnd = footBot - 4.1 * bk;
+    ctx.fillStyle = '#0c0c0e';                                   // trousers (black)
+    ctx.fillRect(lx, hipTop, legW, tEnd - hipTop + st); ctx.fillRect(rx, hipTop, legW, tEnd - hipTop - st);
+    ctx.fillStyle = '#17110c';                                   // boots
+    ctx.fillRect(lx - 0.6, tEnd + st, legW + 1.2, 3.4 * bk); ctx.fillRect(rx - 0.6, tEnd - st, legW + 1.2, 3.4 * bk);
+    ctx.fillStyle = '#5a4a3a';                                   // soles
+    ctx.fillRect(lx - 0.6, footBot - 0.7 * bk + st, legW + 1.2, 0.7 * bk); ctx.fillRect(rx - 0.6, footBot - 0.7 * bk - st, legW + 1.2, 0.7 * bk);
+    // LAYER 606: a bit of hip under the jacket, in the suit's shade, so the legs come off it
+    ctx.fillStyle = shadeHex(RUNNER_LOOK.suit, 0.5);
+    ctx.beginPath(); ctx.moveTo(lx, hipTop); ctx.lineTo(lx + hipW, hipTop);
+    ctx.lineTo(x + hipW / 2 - hipW * 0.04, y + bh / 2 + bk); ctx.lineTo(lx + hipW * 0.04, y + bh / 2 + bk); ctx.closePath(); ctx.fill();
+    // the body: the Lion's jacket in the suit colour, or the old disc if the art is not there yet
+    if (bs) ctx.drawImage(bs, x - bw / 2, y - bh / 2, bw, bh);
+    const arms = BODY_ARMS[RUNNER_LOOK.body];
+    // LAYER 603: holding a weapon, the hands come down (HAND_DOWN of the body height) and the weapon sits in the right hand
+    const holding = !!held, dropPx = holding ? HAND_DOWN * 159 : 0;
+    if (bs && arms) {
+      const sx = bw / 224, sy = bh / 159, sk = RUNNER_LOOK.skin || '#e0b48c';
+      ctx.strokeStyle = sk; ctx.fillStyle = sk; ctx.lineCap = 'round';
+      let rHand = null;
+      for (const side of ['L', 'R']) {
+        const a = arms[side];
+        const ex = x - bw / 2 + a.E[0] * sx, ey = y - bh / 2 + a.E[1] * sy;
+        const hx = x - bw / 2 + a.H[0] * sx, hy = y - bh / 2 + (a.H[1] + dropPx) * sy;
+        drawArm(ex, ey, hx, hy, arms.W * sx, sk, RUNNER_LOOK.suit);
+        if (side === 'R') rHand = { hx, hy, ang: Math.atan2(hy - ey, hx - ex) };
+      }
+      if (holding && rHand) drawHeld(rHand.hx, rHand.hy, rHand.ang, bw / 40);
+    }
+    else {
+      ctx.fillStyle = '#2a2d3a'; ctx.beginPath(); ctx.ellipse(x, y, bw / 2, bh / 2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = RUNNER_LOOK.suit; ctx.lineWidth = 3; ctx.stroke();
+    }
+    // the head sits on the body's top, over the Lion's own head
+    const hd = headSprite(RUNNER_LOOK.head);
+    if (hd) { const hk = HEAD_SCALE[RUNNER_LOOK.head] || 1, hw = (HEAD_WF[RUNNER_LOOK.body] || 0.36) * bw * hk, hh = hd.height * (hw / hd.width); const cyF = HEAD_CY[RUNNER_LOOK.body];
+      const hy = cyF != null ? y - bh / 2 + cyF * bh - hh / 2 : y - bh / 2 + 0.02 * bh - (hk - 1) * 0.06 * bh + (HEAD_DROP[RUNNER_LOOK.body] || 0) * bh;
+      ctx.drawImage(hd, x - hw / 2, hy, hw, hh); }
   }
 
   function drawHud() {
@@ -15170,7 +15259,15 @@ const RUNNER_API = (function () {
     }
     update(dt);
     const p = walker.on ? walker : car;
-    camNow = { x: p.x, y: p.y, z: clamp((Math.min(W, H) / 1400) * (zoomU || 1), 0.16, 3.2) };
+    // LAYER 595: one camera for every vehicle and for on foot. It leans ahead along the heading as you go faster,
+    // and eases toward the target so it keeps up without jerking. A jump of more than 600 units snaps.
+    const sp = walker.on ? 0 : Math.abs(car.speed), ahead = walker.on ? 0 : clamp(sp / 4, 0, 90);
+    const ang = walker.on ? walker.heading : car.heading;
+    const tx = p.x + Math.cos(ang) * ahead, ty = p.y + Math.sin(ang) * ahead;
+    if (!camSmooth || Math.hypot(tx - camSmooth.x, ty - camSmooth.y) > 600) camSmooth = { x: tx, y: ty };
+    const k = 1 - Math.exp(-dt * 9);
+    camSmooth.x += (tx - camSmooth.x) * k; camSmooth.y += (ty - camSmooth.y) * k;
+    camNow = { x: camSmooth.x, y: camSmooth.y, z: clamp((Math.min(W, H) / 1400) * (zoomU || 1), 0.16, 3.2) };
     cam.x = camNow.x; cam.y = camNow.y; cam.z = camNow.z;
   }
   // called by the game after its frame has been drawn: the runner's layer goes on top
@@ -15420,6 +15517,7 @@ const RUNNER_API = (function () {
       if (o.head) RUNNER_LOOK.head = o.head;
       if (o.suit) RUNNER_LOOK.suit = o.suit;
       if (o.name) RUNNER_LOOK.name = String(o.name).slice(0, 14);
+      if (o.skin !== undefined) RUNNER_LOOK.skin = o.skin;
       if (o.stats) RUNNER_LOOK.stats = Object.assign({}, o.stats);
       RUNNER_LOOK.chosen = true;
     },
@@ -15433,11 +15531,16 @@ const RUNNER_API = (function () {
       const b = lobbyBike || { x: sx, y: sy };
       const hb = CAR_FILES.indexOf('cars_43a7a337_1'); if (hb >= 0) car.sprite = hb;
       car.x = b.x; car.y = b.y; car.z = 0; car.mode = 'landed'; car.speed = 0; car.lean = 0;
-      walker.x = sx; walker.y = sy; walker.heading = 0; walker.on = true;
+      const dd = Math.hypot(sx - b.x, sy - b.y);
+      if (dd > 100) { walker.x = b.x + ((sx - b.x) / dd) * 90; walker.y = b.y + ((sy - b.y) / dd) * 90; }   // in reach of the bike to get on
+      else { walker.x = sx; walker.y = sy; }
+      walker.heading = 0; walker.on = true;
       placed = true; pend.exit = false; pend.land = false;
       say('YOUR BIKE IS OUT FRONT. E NEAR IT TO GET ON', 5);
     },
     inLobby: () => lobby,
+    setHeld: (k) => { held = k || null; },
+    getHeld: () => held,
     roofIn,
     insideFigure,
   };
@@ -15448,12 +15551,14 @@ const RUNNER_API = (function () {
 /* LAYER 589: the runner builder. Opens when Runner Mode starts: head, body, colours, stats, name; then START drops
    the player into the C.A.N. lobby with the hover bike parked outside. Stats: 20 points, each 1 to 10. */
 const RB_STATS = ['Speed', 'Strength', 'Stamina', 'Agility', 'Awareness', 'Stealth', 'Fighting', 'Charisma'];
+const RB_SKINS = ['#ffffff', '#f1d2b3', '#e0b48c', '#c58c5e', '#8d5a3a', '#5c3a24'];
 const RB_BODY = { slim: 'Slim', average: 'Average', athletic: 'Athletic', heavy: 'Heavy' };
 function RunnerBuilder({ onStart, onCancel }) {
   const [step, setStep] = useState(0);
   const [head, setHead] = useState(null);
   const [body, setBody] = useState('average');
   const [suit, setSuit] = useState(null);
+  const [skin, setSkin] = useState(null);
   const [stats, setStats] = useState(() => Object.fromEntries(RB_STATS.map((k) => [k, 1])));
   const [name, setName] = useState('RUNNER');
   const heads = RUNNER_API.heads();
@@ -15472,7 +15577,7 @@ function RunnerBuilder({ onStart, onCancel }) {
   const steps = ['HEAD', 'BODY', 'COLOURS', 'STATS', 'NAME'];
   const go = (n) => setStep(Math.max(0, Math.min(4, n)));
   const finish = () => {
-    RUNNER_API.setLook({ head: headKey || 'head_m_buzz', body, suit: suit || '#6ef0ff', name: (name || 'RUNNER').trim() || 'RUNNER',
+    RUNNER_API.setLook({ head: headKey || 'head_m_buzz', body, suit: suit || '#6ef0ff', skin: skin && skin !== '#ffffff' ? skin : null, name: (name || 'RUNNER').trim() || 'RUNNER',
       stats: Object.fromEntries(RB_STATS.map((k) => [k, stats[k]])) });
     onStart();
   };
@@ -15486,6 +15591,14 @@ function RunnerBuilder({ onStart, onCancel }) {
       </div>
 
       {step === 0 && (<div>
+        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Skin tone</div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          {RB_SKINS.map((c) => (
+            <div key={c} onClick={() => setSkin(c)}
+              style={{ width: 34, height: 34, background: c, cursor: 'pointer',
+                border: skin === c ? '3px solid #fff' : '2px solid rgba(0,0,0,0.5)' }} />
+          ))}
+        </div>
         <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick a head</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 8 }}>
           {heads.map(([sex, nm]) => {
@@ -23403,9 +23516,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (let k = 0; k < 2; k++) { const q = ((t * 0.9 + k * 0.5) % 1); ctx.globalAlpha = 1 - q; ctx.beginPath(); ctx.ellipse(x, y + 1, r + 3 + q * 10, (r + 3 + q * 10) * 0.7, 0, 0, 6.3); ctx.stroke(); } ctx.globalAlpha = 1; }
     // LAYER 586: the skater kids ride hoverboards in Runner Mode (RUNNER_API.hoverKid draws the pad over the kid)
     // LAYER 591: the board is drawn first, in the world transform, so the kid's own facing never tilts it
-    function youthHover(p) { if (p && /^yt_skater/.test(p.yt || "") && RUNNER_API.isOn()) RUNNER_API.hoverKid(ctx, p.x, p.y, p.tall || 1); }
-    function drawYouth(p, angOverride, backOff) { youthHover(p); const r = p && swimClip538(p.x, p.y, (p.tall || 1) * (p.hero ? 1.1 : 1)); if (!r) return drawYouth0(p, angOverride, backOff);
-      const out = drawYouth0(p, angOverride, backOff); swimRing538(p.x, p.y, r); return out; }
+    // LAYER 596: the hoverboard is drawn ON TOP of the kid, after the kid's own facing is undone, so it covers the skateboard
+    function youthHover(p, tr) { if (p && /^yt_skater/.test(p.yt || "") && RUNNER_API.isOn()) { ctx.setTransform(tr); RUNNER_API.hoverKid(ctx, p.x, p.y, p.tall || 1); } }
+    function drawYouth(p, angOverride, backOff) { const tr = ctx.getTransform(); const r = p && swimClip538(p.x, p.y, (p.tall || 1) * (p.hero ? 1.1 : 1));
+      if (!r) { const o0 = drawYouth0(p, angOverride, backOff); youthHover(p, tr); return o0; }
+      const out = drawYouth0(p, angOverride, backOff); swimRing538(p.x, p.y, r); youthHover(p, tr); return out; }
     G.ytSizeT = (yt, tall) => { const A0 = ARM_BY_YT[yt], AP = A0 && armsReady(A0) ? A0 : null; const im = AP ? imgs.current[AP.torso] : imgs.current[yt]; if (!im || !im.width) return null;
       const h = AP && AP.wid ? 30 * 0.82 * (tall || 1) * AP.wid * 0.8 / (im.width / im.height) : 30 * 0.82 * (tall || 1) * (AP ? AP.scale : (YT_SCALE[yt] || 1)), w = h * (im.width / im.height); return { w: +w.toFixed(1), h: +h.toFixed(1), arms: !!AP }; };   // test hook (layer 567)
     function drawYouth0(p, angOverride, backOff) {
@@ -23538,7 +23653,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.save();
       ctx.translate(p.x + Math.cos(p.bailAng || 0) * 16, p.y + Math.sin(p.bailAng || 0) * 16);
       ctx.rotate((p.bailAng || 0) + 1.2);
-      if (im && im.width) ctx.drawImage(im, -17, -7, 34, 14);
+      if (im && im.width && !(RUNNER_API.isOn() && /^yt_skater/.test(p.yt || ""))) ctx.drawImage(im, -17, -7, 34, 14);   // LAYER 598: no skateboard in Runner Mode, the hoverboard is under the kid
       ctx.restore();
       drawShadow(p.x, p.y + 3, 11, 5, 0.34);
       // flat on his back for the first half, getting up for the second
@@ -23567,7 +23682,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.save();
       ctx.translate(p.x + fdx, p.y + fdy);
       ctx.rotate(p.bang + (p.spin || 0));
-      if (im && im.width) ctx.drawImage(im, -17, -7, 34, 14);
+      if (im && im.width && !(RUNNER_API.isOn() && /^yt_skater/.test(p.yt || ""))) ctx.drawImage(im, -17, -7, 34, 14);   // LAYER 598: no skateboard in Runner Mode, the hoverboard is under the kid
       else { ctx.fillStyle = "#15161a"; ctx.fillRect(-17, -5, 34, 10); }
       ctx.restore();
       // and the kid on it: sideways across the deck, back over the tail, turning with the spin
@@ -44513,6 +44628,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function overtake508(v, blk, d, dt, fx, fy) { if (v.aggro == null) { v.aggro = Math.random() < 0.1 ? 1 : 0; if (v.aggro) v.cruise = (v.cruise || 150) * 1.25; }
       const lw = 2 * halfW(v.si) * LANE;
       if (!v.aggro || v.bus) { v.ov = Math.max(0, (v.ov || 0) - dt * 1.6); return; }
+      if (v.plan) { v.ovGo = 0; v.ov = Math.max(0, (v.ov || 0) - dt * 3); return; }   // LAYER 607: no passing into a turn
       if (!v.ovGo && blk && (blk.spd || 0) < (v.cruise || 150) * 0.8 && d > 340 && clearAhead508(v, fx, fy, 520, lw, blk)) { v.ovGo = 1; v.ovCar = blk; }
       if (v.ovGo) { const o = v.ovCar, past = !o || g.traffic.indexOf(o) < 0 || ((o.x - v.x) * fx + (o.y - v.y) * fy) < -((v.m && v.m.len) || 110) * 0.9;
         if (past || d < 200 || !clearAhead508(v, fx, fy, 240, lw, o)) v.ovGo = 0; }
@@ -48206,6 +48322,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function chooseTurn(v, dry) {
       if (!dry && v.plan) {
         Object.assign(v, v.plan); v.plan = null;
+        v.ov = 0; v.ovGo = 0; v.ovCar = null;   // LAYER 607: a turn never carries an overtake onto the new road's oncoming lane
         v.sigT = v.sig ? 1.4 : 0;           // keep blinking through the turn itself
         return;
       }
