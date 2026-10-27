@@ -2790,7 +2790,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 567 — RUNNER MODE (F9)";
+const BUILD_TAG = "LAYER 568 — RUNNER MODE (title screen)";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14471,7 +14471,7 @@ function FootballShell({ onExit }) {
   );
 }
 
-// Runner Mode (futurist city). Toggle with F9. The game calls RUNNER_API.frame(canvas) while it is on.
+// Runner Mode (futurist city). A title-screen mode like FOOTBALL MODE: RunnerShell turns it on and calls RUNNER_API.frame(canvas) each frame.
 const RUNNER_API = (function () {
   let RUN_ON = false;
   let cv = null, ctx = null, W = 960, H = 540;
@@ -14954,7 +14954,6 @@ const RUNNER_API = (function () {
   }
 
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'F9') { RUN_ON = !RUN_ON; if (RUN_ON) { car.x = 160; car.y = 160; car.heading = 0; car.speed = 0; car.lean = 0; resetRunner(); } setBtn(); return; }
     keys[e.key] = true;
     if (!RUN_ON) return;
     if ((e.key === 'c' || e.key === 'C') && cycleCooldown <= 0) { car.sprite = (car.sprite + 1) % CAR_FILES.length; cycleCooldown = 0.2; }
@@ -14964,32 +14963,61 @@ const RUNNER_API = (function () {
   window.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
   resetRunner();
-  // on-screen button, so Runner Mode can be started without a keyboard (F9 does the same)
-  let runBtn = null;
-  function setBtn() { if (runBtn) runBtn.textContent = RUN_ON ? 'RUNNER: ON (tap to stop)' : 'RUNNER MODE'; }
-  if (typeof document !== 'undefined' && document.body) {
-    runBtn = document.createElement('button');
-    runBtn.id = 'runnerBtn';
-    runBtn.style.cssText = 'position:fixed;top:8px;right:8px;z-index:99999;font:700 13px monospace;padding:8px 12px;background:#0e0d0c;color:#6ef0ff;border:2px solid #6ef0ff;border-radius:6px;cursor:pointer;';
-    runBtn.onclick = () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F9' }));
-    document.body.appendChild(runBtn);
-    setBtn();
-  }
   return {
-    isOn: () => RUN_ON,
+    setOn: (on) => {
+      RUN_ON = !!on;
+      if (RUN_ON) { car.x = 160; car.y = 160; car.heading = 0; car.speed = 0; car.lean = 0; resetRunner(); }
+    },
     frame: (canvas) => { cv = canvas; ctx = cv.getContext('2d'); W = cv.width; H = cv.height; step(performance.now()); },
   };
 })();
 
 
+/* RUNNER MODE (futurist city): its own mode from the title, like FOOTBALL MODE. BACK or Escape leaves it. */
+function RunnerShell({ onExit }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const cv = ref.current;
+    const fit = () => { cv.width = window.innerWidth; cv.height = window.innerHeight; };
+    fit();
+    window.addEventListener('resize', fit);
+    const esc = (e) => { if (e.key === 'Escape') onExit(); };
+    window.addEventListener('keydown', esc);
+    RUNNER_API.setOn(true);
+    let raf = 0;
+    const loop = () => {
+      raf = requestAnimationFrame(loop);
+      try { RUNNER_API.frame(cv); } catch (err) { console.error('runner', err); }
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      RUNNER_API.setOn(false);
+      window.removeEventListener('resize', fit);
+      window.removeEventListener('keydown', esc);
+    };
+  }, []);
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: '#0e0d0c' }}>
+      <canvas ref={ref} style={{ width: '100%', height: '100%', display: 'block' }} />
+      <div onClick={onExit}
+        style={{ position: 'absolute', top: 14, left: 14, padding: '8px 14px', border: '1px solid #6ef0ff',
+          background: 'rgba(10,11,14,0.72)', color: '#6ef0ff', fontSize: 11,
+          letterSpacing: '0.26em', cursor: 'pointer', userSelect: 'none' }}>BACK</div>
+    </div>
+  );
+}
+
 export default function IronLionLayer004() {
   // the missing-files list: its own state, so the HUD's per-frame refresh cannot close it
   const [missOpen, setMissOpen] = useState(false);
   const [fbOn, setFbOn] = useState(false);
+  const [rnOn, setRnOn] = useState(false);
   const canvasRef = useRef(null);
   const imgs = useRef({});
   const G = useRef(null);
   G.footballOpen = () => setFbOn(true);   // layer 579: FOOTBALL MODE from the title
+  G.runnerOpen = () => setRnOn(true);     // RUNNER MODE from the title
   const input = useRef({ x: 0, y: 0, run: false, brake: false, keys: {} });
   const [ready, setReady] = useState(false);
   // the loading screen stays up at least one full beat, so a fast load doesn't just flash it (layer 514)
@@ -51917,8 +51945,6 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function frameBody(now) {
       let dt = Math.min((now - last) / 1000, 0.05);
       last = now;
-      // Runner Mode (F9): the game's own loop hands the frame to the runner while it is on
-      if (RUNNER_API.isOn()) { RUNNER_API.frame(canvasRef.current); return; }
       // real elapsed time, kept aside: the meter has to drain in wall-clock seconds or a
       // 3-second charge would last 3 / TIMESCALE seconds and the cost would be meaningless
       const rdt = dt;
@@ -59761,6 +59787,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         </div>
       ) : null}
       {fbOn && <FootballShell onExit={() => setFbOn(false)} />}
+      {rnOn && <RunnerShell onExit={() => setRnOn(false)} />}
       {/* ---------- title ----------
           Drawn over the live attract-mode flyover, so the background is the actual city with
           its actual traffic and lights rather than a still. */}
@@ -59866,6 +59893,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               background: "rgba(10,11,14,0.72)", color: "#d6f0dc", fontSize: 11,
               letterSpacing: "0.26em", cursor: "pointer", userSelect: "none" }}>
             FOOTBALL MODE
+          </div>
+          {/* RUNNER MODE: the futurist hunt, from the title like FOOTBALL MODE. */}
+          <div
+            onClick={() => { if (G.runnerOpen) G.runnerOpen(); }}
+            style={{ marginTop: 12, padding: "11px 30px", border: "1px solid #6ef0ff",
+              background: "rgba(10,11,14,0.72)", color: "#d8fbff", fontSize: 11,
+              letterSpacing: "0.26em", cursor: "pointer", userSelect: "none" }}>
+            RUNNER MODE
           </div>
           <div style={{ position: "absolute", bottom: 16, textAlign: "center",
             fontSize: 8, letterSpacing: "0.18em", color: "rgba(232,217,181,0.35)", pointerEvents: "none" }}>
