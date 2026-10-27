@@ -2791,7 +2791,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 624";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 628";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -15192,9 +15192,17 @@ const RUNNER_API = (function () {
   }
 
   // LAYER 594: the jacket takes the suit colour, the rest of the body goes black, the gold trim goes white
+  // LAYER 625: the chosen body if its art is in; otherwise the first build that is. Before this, a missing
+  // body_average.png left the walker with no body at all, so the apparel showed as a plain disc.
+  function bodyKey() {
+    const ok = (k) => img[k] && (img[k].naturalWidth || img[k].width);
+    const want = 'body_' + (RUNNER_LOOK.body || 'average');
+    if (ok(want)) return want;
+    return ['body_athletic', 'body_slim', 'body_heavy', 'body_average'].find(ok) || null;
+  }
   function bodySprite() {
-    const src = img['body_' + (RUNNER_LOOK.body || 'average')]; if (!src || !(src.naturalWidth || src.width)) return null;
-    const key = 'body|' + (RUNNER_LOOK.body || 'average') + '|' + RUNNER_LOOK.suit;
+    const bk = bodyKey(); const src = bk && img[bk]; if (!src || !(src.naturalWidth || src.width)) return null;
+    const key = 'body|' + bk + '|' + RUNNER_LOOK.suit;
     if (sprCache[key]) return sprCache[key];
     const cv = document.createElement('canvas'); cv.width = src.naturalWidth || src.width; cv.height = src.naturalHeight || src.height;
     const c2 = cv.getContext('2d'); c2.drawImage(src, 0, 0);
@@ -15220,6 +15228,16 @@ const RUNNER_API = (function () {
     const c2 = cv.getContext('2d'); c2.drawImage(src, 0, 0);
     c2.globalCompositeOperation = 'multiply'; c2.fillStyle = RUNNER_LOOK.skin; c2.fillRect(0, 0, cv.width, cv.height);
     c2.globalCompositeOperation = 'destination-in'; c2.drawImage(src, 0, 0);
+    sprCache[key] = cv; return cv;
+  }
+  // LAYER 626: the back of the head: the head's own shape in hair colour, no face. Stands in until a back view is drawn.
+  function headBack(name) {
+    const src = img['rh_' + name] || img.head_rider; if (!src || !src.width) return null;
+    const key = 'back|' + name;
+    if (sprCache[key]) return sprCache[key];
+    const cv = document.createElement('canvas'); cv.width = src.width; cv.height = src.height;
+    const c2 = cv.getContext('2d'); c2.drawImage(src, 0, 0);
+    c2.globalCompositeOperation = 'source-atop'; c2.fillStyle = '#2a1d14'; c2.fillRect(0, 0, cv.width, cv.height);
     sprCache[key] = cv; return cv;
   }
   // LAYER 605: the lower arm. The sleeve is the suit colour, shaded down, and starts at the width of the sleeve
@@ -15261,9 +15279,10 @@ const RUNNER_API = (function () {
   const HIP_BY_BODY = { slim: { y: 150, w: 80 }, athletic: { y: 146, w: 88 }, heavy: { y: 123, w: 85 }, average: { y: 123, w: 85 } };
   function drawWalker(x, y) {
     const bk = RUNNER_LOOK.bodyK || 1;
-    // LAYER 613: face the way he walks. The art is front-on, so left and right are a mirror; up and down keep the last side.
-    if (Math.abs(Math.cos(walker.heading || 0)) > 0.2) walker.face = Math.cos(walker.heading) < 0 ? -1 : 1;
-    ctx.save(); ctx.translate(x, y); ctx.scale(walker.face || 1, 1); ctx.translate(-x, -y);
+    // LAYER 628: top-down. The whole figure turns to the way he walks; its front is the bottom edge of the art,
+    // so walking down is unturned, and every other way he faces is a turn of the whole figure.
+    const hdg = walker.heading == null ? Math.PI / 2 : walker.heading;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(hdg - Math.PI / 2); ctx.translate(-x, -y);
     const bs = bodySprite();
     const bw = 40 * bk, bh = bs ? bw * (bs.height / bs.width) : 32 * bk;
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 4, y + 6, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
@@ -15913,6 +15932,30 @@ const RUNNER_API = (function () {
      player sit on top of them. Called by the game's frame with its own context and view. */
   // LAYER 616: the C.A.N. tower as a big grey block with windows, the same width as the facade sign on its front.
   // Top-down, so height is shown by a cast shadow and a front wall with rows of windows, under the facade sign.
+  // LAYER 627: the C.A.N. tower's footprint is solid on foot: you walk round it, not over its roof
+  function canLotRect() {
+    if (CAN_LOT_RECT) return CAN_LOT_RECT;
+    const i = CAN_CELL.i, j = CAN_CELL.j;
+    const x0 = SX(i) + halfW(i), x1 = SX(i + 1) - halfW(i + 1), y0 = SX(j) + halfW(j), y1 = SX(j + 1) - halfW(j + 1);
+    return [x0 + SW, y0 + SW, x1 - SW, y1 - SW];
+  }
+  function canRect() {
+    const R = canLotRect(), [x0, y0, x1, y1] = R, LW = x1 - x0, LH = y1 - y0;
+    return { fx0: x0 + LW * 0.16, fx1: x1 - LW * 0.16, fy0: y0 + LH * 0.10, fy1: y1 - LH * 0.22, lot: R };
+  }
+  function keepOut(p) {
+    if (!p || !Number.isFinite(p.x)) return;
+    const r = canRect(), m = 24;                          // m: the walker's half width
+    if (!(p.x > r.fx0 - m && p.x < r.fx1 + m && p.y > r.fy0 - m && p.y < r.fy1 + m)) return;
+    const dl = p.x - (r.fx0 - m), dr = (r.fx1 + m) - p.x, dt = p.y - (r.fy0 - m), db = (r.fy1 + m) - p.y;
+    const mn = Math.min(dl, dr, dt, db);
+    if (mn === dl) p.x = r.fx0 - m; else if (mn === dr) p.x = r.fx1 + m; else if (mn === dt) p.y = r.fy0 - m; else p.y = r.fy1 + m;
+    p.vx = 0; p.vy = 0;
+  }
+  function canSpawn() {
+    const r = canRect();
+    return [(r.fx0 + r.fx1) / 2, r.fy1 + (r.lot[3] - r.fy1) * 0.5];   // the lot, in front of the tower
+  }
   function drawCanTower(c) {
     const R = CAN_LOT_RECT; if (!R) return;
     const [x0, y0, x1, y1] = R, LW = x1 - x0, LH = y1 - y0;
@@ -15932,6 +15975,9 @@ const RUNNER_API = (function () {
     if (fi && fi.width) { const sw = fw * 0.8, sh = sw * fi.height / fi.width; c.drawImage(fi, fx0 + (fw - sw) / 2, fy1 + 6, sw, Math.min(sh, wallH - 12)); }
     // the roof, seen from above
     c.fillStyle = '#7a8089'; c.fillRect(fx0, fy0, fw, fy1 - fy0);
+    // LAYER 627: the helipad on the roof, the roof art the tower was missing
+    const hp = ART.rn_helipad;
+    if (hp && hp.width) { const hs = Math.min(fw, fy1 - fy0) * 0.7, hh = hs * hp.height / hp.width; c.drawImage(hp, (fx0 + fx1) / 2 - hs / 2, (fy0 + fy1) / 2 - hh / 2, hs, hh); }
     c.strokeStyle = '#2d3138'; c.lineWidth = 6; c.strokeRect(fx0 + 3, fy0 + 3, fw - 6, fy1 - fy0 - 6);
     c.strokeStyle = 'rgba(40,44,50,0.6)'; c.lineWidth = 2; c.strokeRect(fx0 + 18, fy0 + 18, fw - 36, fy1 - fy0 - 36);
     c.restore();
@@ -16009,6 +16055,7 @@ const RUNNER_API = (function () {
     setCivs: (c) => { CIV = c || null; },
     setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); startSong(); } else { stopSong(); lobby = false; } },
     lockCam,
+    keepOut, canSpawn,
     overlay,
     augments,
     augmentAt,
@@ -16218,13 +16265,12 @@ export default function IronLionLayer004() {
       if (cc && cc.blds) b = cc.blds.find((x) => x.can) || null;
     }
     if (!b) {
-      // LAYER 618: no tower: start on foot in the middle of the C.A.N. lot, the hover bike parked beside him
+      // LAYER 618/625: no tower: start on foot in the middle of the C.A.N. lot, the hover bike parked beside him.
+      // The lot is taken from the grid when its block has not been built yet, so the spawn never depends on that.
       g.title = false;
-      if (CAN_LOT_RECT) {
-        const [x0, y0, x1, y1] = CAN_LOT_RECT, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-        g.inside = null; g.mode = 'foot'; g.p.x = cx; g.p.y = cy; g.p.vx = g.p.vy = 0; g.cam.x = cx; g.cam.y = cy;
-        RUNNER_API.placeInPlaza(cx, cy);
-      }
+      const [cx, cy] = RUNNER_API.canSpawn();
+      g.inside = null; g.mode = 'foot'; g.p.x = cx; g.p.y = cy; g.p.vx = g.p.vy = 0; g.cam.x = cx; g.cam.y = cy;
+      RUNNER_API.placeInPlaza(cx, cy);
       return;
     }
     const [dx, dy] = doorPoint(b);
@@ -53174,7 +53220,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
+      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.keepOut(g.p); RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
