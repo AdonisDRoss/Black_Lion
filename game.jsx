@@ -2791,7 +2791,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 583 — C.A.N. STUDIOS: twelve floors on CAN_CELL, sketch plans, carpet and ivory floors";
+const BUILD_TAG = "LAYER 585 — purple haze in Runner Mode only; minimap zoom on ], bigger blinking star; C.A.N. STUDIOS on CAN_CELL";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -10898,6 +10898,10 @@ function doorPoint(b) {
    State -- "THE FOUNDRY STATE" on every plate. Nothing in the game names a real state any more. */
 const STATE_NM = "KESTREL", STATE_MOTTO = "THE FOUNDRY STATE";
 const MM_CARD_H = 62;
+/* LAYER 584: the minimap zooms. "]" steps through these windows (wide city, district, block). Module scope, so the
+   key handler and drawMinimap both see the same zoom. */
+const MM_SPANS = [9800, 3600, 1500];
+const MM_ZOOM = { i: 0 };
 /* THE NAME ON THE FRONT (layer 517). It isn't only the Lion's game any more -- it's the city's. Change these three. */
 const GAME_TITLE = "RAVEN HOOK", GAME_KICKER = "1986", GAME_TAG = "THE LION \u00b7 THE COP \u00b7 THE CON \u00b7 THE KID";
 /* HOW HARD THE CARS YOU DRIVE ARE (layer 517). `tough` is a damage multiplier -- LOWER is tougher (1 = a civilian shell,
@@ -15142,7 +15146,7 @@ const RUNNER_API = (function () {
     ctx.translate(cssW / 2, cssH / 2); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y);
     const hw = cssW / (2 * cam.z) + 80, hh = cssH / (2 * cam.z) + 80;
     const x0 = cam.x - hw, x1 = cam.x + hw, y0 = cam.y - hh, y1 = cam.y + hh;
-    if (outdoors && !RUN_ON && img.haze_ground) {       // the purple mist at street level, out in the open city only
+    if (false && outdoors && !RUN_ON && img.haze_ground) {   // LAYER 584: the purple haze is Runner Mode only (drawn in the overlay)
       ctx.save(); ctx.globalAlpha = 0.35;
       const pat = ctx.createPattern(img.haze_ground, 'repeat');
       if (pat.setTransform) pat.setTransform(new DOMMatrix().translate(performance.now() * 0.006, performance.now() * 0.003).scale(1.6));
@@ -16827,6 +16831,7 @@ export default function IronLionLayer004() {
       if (k === "i" && G.pocketsWheel && G.current && G.current.prisonMode) G.pocketsWheel();
       if (k === "n") G.current.nightTarget = G.current.nightTarget > 0.5 ? 0 : 1;
       if (k === "h" && G.hydroFn) G.hydroFn();          // hydraulics, in a lowrider
+      if (k === "]") MM_ZOOM.i = (MM_ZOOM.i + 1) % MM_SPANS.length;                 // layer 584: the minimap's zoom
       if (k === "-" || k === "_") G.zoomStep && G.zoomStep(-0.15);
       if (k === "=" || k === "+") G.zoomStep && G.zoomStep(0.15);
     };
@@ -51956,7 +51961,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const carded = g.mode === "car" || g.mode === "moto" || !!(g.stu && g.stu.bike && g.stu.bike.on);
       const pad = 12, ox = W - S - pad, oy = carded ? pad + MM_CARD_H + 4 : pad + 46;
       g.mm = { x: ox, y: oy, S, carded };
-      const span = 9800;
+      const span = MM_SPANS[MM_ZOOM.i];
       const cx = inVehicle() ? activeVeh().x : g.p.x;
       const cy = inVehicle() ? activeVeh().y : g.p.y;
       const k = S / span;
@@ -52140,10 +52145,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          last, and clamped inside the frame if he somehow leaves it. */
       {
         const [px, py] = toMap(g.p.x, g.p.y);
-        const cxp = clamp(px, ox + 7, ox + S - 7), cyp = clamp(py, oy + 7, oy + S - 7), on = Math.floor(g.t * 3) % 2 === 0;     // YOU: a blinking star (layer 567)
-        ctx.fillStyle = "rgba(0,0,0,0.55)"; shapePath567(cxp + 1, cyp + 1, 7, "star"); ctx.fill();
-        ctx.fillStyle = on ? "#ffffff" : (g.roof ? "#8cf08c" : "#f2c24e"); shapePath567(cxp, cyp, 7, "star"); ctx.fill();
-        ctx.strokeStyle = on ? "#f2c24e" : "#ffffff"; ctx.lineWidth = 1.2; shapePath567(cxp, cyp, 7, "star"); ctx.stroke();
+        const SR = 11;   // layer 584: a bigger star, so it reads on a small map
+        const cxp = clamp(px, ox + SR, ox + S - SR), cyp = clamp(py, oy + SR, oy + S - SR), on = Math.floor(g.t * 3) % 2 === 0;     // YOU: a blinking star (layer 567)
+        ctx.fillStyle = "rgba(0,0,0,0.55)"; shapePath567(cxp + 1, cyp + 1, SR, "star"); ctx.fill();
+        ctx.fillStyle = on ? "#ffffff" : (g.roof ? "#8cf08c" : "#f2c24e"); shapePath567(cxp, cyp, SR, "star"); ctx.fill();
+        ctx.strokeStyle = on ? "#f2c24e" : "#ffffff"; ctx.lineWidth = 1.6; shapePath567(cxp, cyp, SR, "star"); ctx.stroke();
       }
 
       // compass arrow at the map edge when the den is out of the visible span entirely
