@@ -2794,7 +2794,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 630";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 634";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -6001,6 +6001,8 @@ const WX_KIT = {
    because weather nobody ever sees is not weather. Spells run minutes, not seconds -- a sky
    that changes every twenty seconds reads as a bug. */
 const WX_ODDS = [["clear", 0.50], ["light", 0.22], ["med", 0.17], ["storm", 0.11]];
+// LAYER 632: in Runner Mode the city is wet more often than not, and light rain is the usual
+const WX_ODDS_RUN = [["clear", 0.30], ["light", 0.30], ["med", 0.22], ["storm", 0.18]];
 const WX_SPELL = [110, 260];
 const rogueIds = () => Object.keys(ROGUE_JOB);
 const isJewelCell = (i, j) => JEWEL_CELLS.some((c) => c.i === i && c.j === j);
@@ -14615,25 +14617,37 @@ const RUNNER_API = (function () {
     }
     g.putImageData(d, 0, 0); return c;
   }
-  // LAYER 629: a magenta fringe from the keying is taken out (only the pure magenta, not the pinks of the car paint)
-  function unfringe(i) {
+  // LAYER 629/633: a magenta fringe from the keying is taken out. On a car, the magenta outline is
+  // turned to the dark outline colour, so the shape stays. The glow on the tow is left alone.
+  function unfringe(i, car) {
     try {
       const c = document.createElement('canvas'); c.width = i.naturalWidth || i.width; c.height = i.naturalHeight || i.height;
       const g = c.getContext('2d'); g.drawImage(i, 0, 0);
       const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
       for (let k = 0; k < p.length; k += 4) {
         const r = p[k], gg = p[k + 1], b = p[k + 2];
-        if (p[k + 3] > 0 && r > 180 && b > 150 && gg < 110 && Math.abs(r - b) < 90) p[k + 3] = 0;
+        if (p[k + 3] === 0) { p[k] = 0; p[k + 1] = 0; p[k + 2] = 0; continue; }
+        if (r > 180 && b > 150 && gg < 110 && Math.abs(r - b) < 90) { p[k + 3] = 0; continue; }
+        if (car && r > 110 && r - gg > 60 && b - gg > 30 && b >= gg) { p[k] = 34; p[k + 1] = 36; p[k + 2] = 44; }
       }
       g.putImageData(d, 0, 0); return c;
     } catch (e) { return i; }
+  }
+  // LAYER 634: the RGB of a see-through pixel is zeroed, so no colour can show through as a box on a phone
+  function clearRGB(c) {
+    try {
+      const g = c.getContext('2d'); const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+      for (let k = 0; k < p.length; k += 4) if (p[k + 3] === 0) { p[k] = 0; p[k + 1] = 0; p[k + 2] = 0; }
+      g.putImageData(d, 0, 0);
+    } catch (e) { }
+    return c;
   }
   function load(key, path, tintTo) {
     const i = new Image();
     i.onload = () => {
       const tt = tintTo && tintTo.lazy ? CAR_META[tintTo.lazy] : tintTo;
-      const base = unfringe(i);
-      img[key] = (tt && tt.dark) ? tint(base, tt.dark, tt.light) : base;
+      const base = unfringe(i, /^car_/.test(key));
+      img[key] = clearRGB((tt && tt.dark) ? tint(base, tt.dark, tt.light) : base);   // LAYER 634
     };
     i.src = (window.ASSET_DATA && window.ASSET_DATA[path]) || A(path);
   }
@@ -14832,7 +14846,7 @@ const RUNNER_API = (function () {
   function figureAt(canvas, x, y, cam, vx, vy) {
     if (!RUN_ON || !canvas || !cam || !Number.isFinite(x)) return;
     const now = performance.now(), dt = Math.min(0.05, (now - (figT || now)) / 1000); figT = now;
-    walker.x = x; walker.y = y; walker.on = true;
+    walker.x = x; walker.y = y;
     const sp = Math.hypot(vx || 0, vy || 0);
     if (sp > 5) { walker.heading = Math.atan2(vy, vx); walker.step = (walker.step || 0) + dt * 11; }
     ctx = canvas.getContext('2d');
@@ -14840,8 +14854,8 @@ const RUNNER_API = (function () {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.save();
     ctx.translate(W / 2, H / 2); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y);
-    if (car.mode === 'landed' && !lobby) bikeParked(car.x, car.y, car.heading || 0);
-    drawWalker(x, y);
+    if (!lobby) drawCar('car_' + CAR_FILES[car.sprite], car.x, car.y, car.z, car.heading || 0, car.lean || 0);   // LAYER 631: the bike, with its rider, in every mode
+    if (walker.on) drawWalker(x, y);
     ctx.restore();
   }
   function insideFigure(canvas, x, y, cam) {
@@ -16019,14 +16033,15 @@ const RUNNER_API = (function () {
   }
   function canRect() {
     const R = canLotRect(), [x0, y0, x1, y1] = R, LW = x1 - x0, LH = y1 - y0;
-    return { fx0: x0 + LW * 0.16, fx1: x1 - LW * 0.16, fy0: y0 + LH * 0.10, fy1: y1 - LH * 0.22, lot: R };
+    const fy1 = y1 - LH * 0.22;
+    return { fx0: x0 + LW * 0.16, fx1: x1 - LW * 0.16, fy0: y0 + LH * 0.10, fy1, gy1: fy1 + 150, lot: R };   // gy1: the front wall's foot (drawCanTower)
   }
   // LAYER 629: on the roof you walk freely; the edge is where you fall. Off the roof, the tower's ground is solid.
   let canRoof = false;
   function pushOut(p, r, m) {
-    const dl = p.x - (r.fx0 - m), dr = (r.fx1 + m) - p.x, dt = p.y - (r.fy0 - m), db = (r.fy1 + m) - p.y;
+    const dl = p.x - (r.fx0 - m), dr = (r.fx1 + m) - p.x, dt = p.y - (r.fy0 - m), db = (r.gy1 + m) - p.y;
     const mn = Math.min(dl, dr, dt, db);
-    if (mn === dl) p.x = r.fx0 - m; else if (mn === dr) p.x = r.fx1 + m; else if (mn === dt) p.y = r.fy0 - m; else p.y = r.fy1 + m;
+    if (mn === dl) p.x = r.fx0 - m; else if (mn === dr) p.x = r.fx1 + m; else if (mn === dt) p.y = r.fy0 - m; else p.y = r.gy1 + m;
   }
   function keepOut(p) {
     if (!p || !Number.isFinite(p.x)) return;
@@ -16039,7 +16054,7 @@ const RUNNER_API = (function () {
       pushOut(p, r, m);
       return;
     }
-    if (!(p.x > r.fx0 - m && p.x < r.fx1 + m && p.y > r.fy0 - m && p.y < r.fy1 + m)) return;
+    if (!(p.x > r.fx0 - m && p.x < r.fx1 + m && p.y > r.fy0 - m && p.y < r.gy1 + m)) return;
     pushOut(p, r, m); p.vx = 0; p.vy = 0;
   }
   // the spawn is on the roof; the bike is parked in a stall in the lot's south row
@@ -16048,9 +16063,8 @@ const RUNNER_API = (function () {
     return [(r.fx0 + r.fx1) / 2, (r.fy0 + r.fy1) / 2];
   }
   function canBike() {
-    const [x0, , x1, y1] = canRect().lot;
-    const k = Math.round(((x0 + x1) / 2 - x0 - 63) / 46);
-    return [x0 + 63 + k * 46, y1 - 80];
+    const r = canRect();
+    return [(r.lot[0] + r.fx0) / 2, (r.fy0 + r.fy1) / 2];   // LAYER 631: the open strip beside the tower
   }
   function drawCanTower(c) {
     const R = CAN_LOT_RECT; if (!R) return;
@@ -16093,6 +16107,25 @@ const RUNNER_API = (function () {
     c.stroke();
     drawCanTower(c);
     c.restore();
+  }
+  // LAYER 632: in a storm the litter blows. Paper, bags and cans skid across the view on the wind and wrap round at the edge.
+  const BLOW = { storm: { n: 70, spd: 340 }, med: { n: 22, spd: 150 } };
+  function windTrash(c, v, kind) {
+    const K = BLOW[kind]; if (!RUN_ON || !c || !v || !K) return;
+    ctx = c;
+    const t = performance.now() / 1000, Wd = v.x1 - v.x0, Hd = v.y1 - v.y0;
+    ctx.save();
+    for (let i = 0; i < K.n; i++) {
+      const hx = ((i * 9781) % 10000) / 10000, hy = ((i * 6151) % 10000) / 10000, sp = K.spd * (0.6 + ((i * 37) % 100) / 100 * 0.8);
+      const x = v.x0 + (((hx * Wd + t * sp) % Wd) + Wd) % Wd, y = v.y0 + hy * Hd + Math.sin(t * 2 + i) * 6;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(t * (2 + (i % 5)) + i);
+      const what = i % 3;
+      if (what === 0) { ctx.fillStyle = 'rgba(232,230,220,0.85)'; ctx.fillRect(-5, -3.5, 10, 7); }                       // paper
+      else if (what === 1) { ctx.fillStyle = 'rgba(210,225,235,0.6)'; ctx.beginPath(); ctx.ellipse(0, 0, 7, 5, 0, 0, Math.PI * 2); ctx.fill(); }   // bag
+      else { ctx.fillStyle = 'rgba(150,155,165,0.9)'; ctx.fillRect(-2.5, -4, 5, 8); }                                  // can
+      ctx.restore();
+    }
+    ctx.restore();
   }
   function groundTrash(c, v) {
     if (!RUN_ON || !c || !v) return;
@@ -16151,7 +16184,7 @@ const RUNNER_API = (function () {
     setCivs: (c) => { CIV = c || null; },
     setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); startSong(); } else { stopSong(); lobby = false; } },
     lockCam,
-    keepOut, canSpawn,
+    keepOut, canSpawn, windTrash,
     overlay,
     augments,
     augmentAt,
@@ -53860,7 +53893,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return;
       }
       drawGround(view);
-      if (RUNNER_API.isOn() && !g.inside) RUNNER_API.groundTrash(ctx, view);   // LAYER 586: litter under the traffic and the player
+      if (RUNNER_API.isOn() && !g.inside) { RUNNER_API.groundTrash(ctx, view); RUNNER_API.windTrash(ctx, view, g.wx && g.wx.k); }   // LAYER 586: litter under the traffic and the player; LAYER 632: it blows in a storm
       if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawDealers(view); drawStanLot(view); drawAptLot(view); bozHouseInit(); drawYard(view); drawHill(view); drawCrush(view); drawBozHouse(view); stepRhu(); drawRhu(view); drawWoods(view); drawDirtJumps(view); drawTrackRiders(view); drawAirport(view); drawStudentWorld(view); }
       if (!g.inside) drawMarkGround(view);
       if (!g.inside) drawCasings(view);
@@ -56948,7 +56981,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function rollWeather() {
       const r = Math.random();
       let acc = 0, k = "clear";
-      for (const [kind, p] of WX_ODDS) { acc += p; if (r < acc) { k = kind; break; } }
+      for (const [kind, p] of (RUNNER_API.isOn() ? WX_ODDS_RUN : WX_ODDS)) { acc += p; if (r < acc) { k = kind; break; } }
       g.wx = g.wx || {};
       g.wx.k = k;
       g.wx.t = WX_SPELL[0] + Math.random() * (WX_SPELL[1] - WX_SPELL[0]);
