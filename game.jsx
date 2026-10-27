@@ -2791,7 +2791,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 607 — traffic turns never go into the oncoming lane (an overtake is dropped at the corner and none starts into a turn); LAYER 606 — legs as wide as the hip they come off, with a bit of hip under the jacket on every body; LAYER 605 — drawn arms: suit-coloured sleeves that start at the sleeve width and taper to a cuff, skin-tone hands; the Lion body is retired: four bodies (slim, athletic, heavy, and the new average); the top-cut heads are out; hands drop and the weapon sits in the right hand while holding one (setHeld); heads cover each neck hole; new heavy body (arms cut at the elbow, legs trimmed); heads centred on each body's neck hole; heads fitted per body (the heavy body head sits lower over the collar); afro bigger; the afro and bald heads run bigger to cover the brown face; cropped heads taken out; every head is 0.36 of the body width on every build; black trousers; the skateboard is gone from the skater kids (hoverboard under them); build bodies at the Lion's scale with arms cut at the elbow and skin-tone forearms and hands; little boots with a walk cycle; the Runner Mode song starts on the first tap if the phone blocked it; hoverboard drawn on top of the skater kids; one smoothed camera for every vehicle and on foot, leaning ahead as you go; the same controls for getting in and out of every vehicle; the Lion's jacket body under the runner head (suit colour, black, gold trim white); skin tone; the bike is in reach on the walk out; 8-bit pant legs and shoes on the built runner, with a walk cycle; the C.A.N. lobby finds the tower on its block; the hover bike is parked on open street by the tower; no missions or police calls in Runner Mode; the built runner shows inside buildings and in the lobby; hoverboards drawn flat under the skater kids; rooftop assets show through the top floor of a building in Runner Mode; runner builder (head, build, colours, stats, name) then the C.A.N. lobby with the hover bike parked outside; hoverboard art under the skater kids in Runner Mode; random runner each Runner Mode start; litter under the player; skater kids on hoverboards in Runner Mode; hover bike; purple haze Runner Mode only; minimap zoom on ]; C.A.N. STUDIOS";
+const BUILD_TAG = "LAYER 610 — air tow art wired (flatbed, cab leads); LAYER 609 — airborne cars only: the drone warns in its own voice, shocks the car, auto-lands it at the nearest open spot; authorities land, an air tow lifts it, both leave off screen; flying traffic is drawn at its altitude (it was never drawn before); LAYER 608 — traffic drones: hover over junctions with STOP and GO holograms, a detection cone that checks civilians, gang members and drivers (warrant roll is a placeholder), flagged targets are stopped, a cruiser comes in, an air tow lifts a car and both drive off screen; LAYER 607 — traffic turns never go into the oncoming lane (an overtake is dropped at the corner and none starts into a turn); LAYER 606 — legs as wide as the hip they come off, with a bit of hip under the jacket on every body; LAYER 605 — drawn arms: suit-coloured sleeves that start at the sleeve width and taper to a cuff, skin-tone hands; the Lion body is retired: four bodies (slim, athletic, heavy, and the new average); the top-cut heads are out; hands drop and the weapon sits in the right hand while holding one (setHeld); heads cover each neck hole; new heavy body (arms cut at the elbow, legs trimmed); heads centred on each body's neck hole; heads fitted per body (the heavy body head sits lower over the collar); afro bigger; the afro and bald heads run bigger to cover the brown face; cropped heads taken out; every head is 0.36 of the body width on every build; black trousers; the skateboard is gone from the skater kids (hoverboard under them); build bodies at the Lion's scale with arms cut at the elbow and skin-tone forearms and hands; little boots with a walk cycle; the Runner Mode song starts on the first tap if the phone blocked it; hoverboard drawn on top of the skater kids; one smoothed camera for every vehicle and on foot, leaning ahead as you go; the same controls for getting in and out of every vehicle; the Lion's jacket body under the runner head (suit colour, black, gold trim white); skin tone; the bike is in reach on the walk out; 8-bit pant legs and shoes on the built runner, with a walk cycle; the C.A.N. lobby finds the tower on its block; the hover bike is parked on open street by the tower; no missions or police calls in Runner Mode; the built runner shows inside buildings and in the lobby; hoverboards drawn flat under the skater kids; rooftop assets show through the top floor of a building in Runner Mode; runner builder (head, build, colours, stats, name) then the C.A.N. lobby with the hover bike parked outside; hoverboard art under the skater kids in Runner Mode; random runner each Runner Mode start; litter under the player; skater kids on hoverboards in Runner Mode; hover bike; purple haze Runner Mode only; minimap zoom on ]; C.A.N. STUDIOS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14660,6 +14660,8 @@ const RUNNER_API = (function () {
     ['female', 'head_bun'], ['female', 'head_cap_a'], ['female', 'head_cap_b'], ['female', 'head_curly'], ['female', 'head_swirl']];
   RHEADS.forEach(([sex, nm]) => load('rh_' + nm, 'heads/' + sex + '/' + nm + '.png'));
   load('hoverboard', 'hover/hoverboard.png');
+  load('drone', 'drone/traffic_drone.png');        // LAYER 608: the traffic drone
+  load('airtow', 'drone/airtow.png');             // LAYER 610: the air tow (flatbed, cab to the left)
   // LAYER 594: the Lion's jacket body (the game's own hero art), recoloured per look; heads go on top of it
   const sprCache = {};
   // LAYER 598: the build bodies, each on the Lion's 224 x 159 canvas (same scale), arms cut at the elbow.
@@ -14862,6 +14864,7 @@ const RUNNER_API = (function () {
     f.x += dx / d * s; f.y += dy / d * s;
   }
   function updateFlier(f, dt, cx, cy) {
+    if (f.drHeld) return;                                   // LAYER 609: held by a traffic drone
     if (Math.hypot(f.x - cx, f.y - cy) > 4200) { Object.assign(f, newFlier(cx, cy)); return; }
     if (f.mode === 'fly') {
       steerTo(f, f.tx, f.ty, f.spd, dt);
@@ -15313,6 +15316,248 @@ const RUNNER_API = (function () {
     drawAugment(x, y - dT * 0.3, k);
     ctx.restore();
   }
+  // ---------- LAYER 609: traffic drones (hover cops) and the airborne cars ----------
+  // A drone hovers over a junction and sweeps its cone for AIRBORNE cars only (the flying traffic). A flagged car
+  // hears the warning, is shocked, and auto-lands at the nearest open spot. Authorities come in, an air tow
+  // hooks the car, and the car and the cruiser go off screen. Ground traffic and people are not scanned.
+  let ART = {};                                    // the game's own sprites (set by the game each frame)
+  const DRONE = { n: 2, cone: 160, scanT: 0.8, hoverMin: 4, hoverMax: 7, flySpeed: 170, cruiseSpeed: 420, haulSpeed: 300, landT: 0.6, fliers: 16 };
+  const WARN_LINES = ['*CRACKLE CRACK ZZZZZ*', 'PLEASE PULL OVER YOUR CAR', 'AND LAND IN THE NEAREST LOT.', 'AUTHORITIES ARE INBOUND.'];
+  const drones = [], incidents = [];
+  let lastD = 0;
+  const droneRand = (a, b) => a + Math.random() * (b - a);
+  // PLACEHOLDER: one in five airborne cars carries a warrant until the warrant check is wired (later)
+  function warrantRoll(f) { if (f.drWarrant == null) f.drWarrant = Math.random() < 0.2; return f.drWarrant; }
+  function junctionNear(cx, cy, minD, maxD) {
+    const a = Math.random() * Math.PI * 2, r = droneRand(minD, maxD);
+    const i = clamp(Math.round((cx + Math.cos(a) * r) / PITCH), 1, N - 1), j = clamp(Math.round((cy + Math.sin(a) * r) / PITCH), 1, N - 1);
+    return [SX(i), SX(j)];
+  }
+  function newDrone(cx, cy) {
+    const [x, y] = junctionNear(cx, cy, 700, 1300);
+    return { x, y, tx: x, ty: y, ang: 0, flying: false, hover: droneRand(DRONE.hoverMin, DRONE.hoverMax), ph: Math.random() * 6.28, side: 0, sideT: droneRand(5, 8), alert: 0, bub: null };
+  }
+  function drawSprite(im, x, y, ang, L, W, sc) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang + Math.PI / 2); ctx.scale(sc || 1, sc || 1);
+    ctx.drawImage(im, -W / 2, -L / 2, W, L); ctx.restore();
+  }
+  function drawShadowAt(x, y, rx, ry, a) {
+    ctx.save(); ctx.fillStyle = 'rgba(0,0,0,' + a + ')'; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  }
+  // the arms of the junction: STOP and GO projected down each pair, red for one pair and green for the other
+  function drawBeams(d, now) {
+    const arms = [[1, 0, d.side === 0 ? 'STOP' : 'GO'], [-1, 0, d.side === 0 ? 'STOP' : 'GO'], [0, 1, d.side === 0 ? 'GO' : 'STOP'], [0, -1, d.side === 0 ? 'GO' : 'STOP']];
+    for (const [ax, ay, word] of arms) {
+      const col = word === 'STOP' ? '255,70,70' : '90,255,140';
+      const L = 230, px = -ay, py = ax, w0 = 6, w1 = 64;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(' + col + ',0.16)';
+      ctx.beginPath();
+      ctx.moveTo(d.x + px * w0, d.y + py * w0); ctx.lineTo(d.x + ax * L + px * w1, d.y + ay * L + py * w1);
+      ctx.lineTo(d.x + ax * L - px * w1, d.y + ay * L - py * w1); ctx.lineTo(d.x - px * w0, d.y - py * w0); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(' + col + ',' + (0.75 + 0.2 * Math.sin(now / 180)) + ')';
+      ctx.font = 'bold 18px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(word, d.x + ax * (L - 36), d.y + ay * (L - 36));
+      ctx.restore();
+    }
+  }
+  // the voice bubble: a warning in the drone's own voice, over the drone while it speaks
+  function drawBubble(d) {
+    if (!d.bub || d.bub.t <= 0) return;
+    const lh = 17, fs = 14;
+    ctx.save(); ctx.font = 'bold ' + fs + 'px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tw = Math.max.apply(null, WARN_LINES.map((l) => ctx.measureText(l).width));
+    const bw = tw + 22, bh = WARN_LINES.length * lh + 14;
+    const bx = d.x - bw / 2, by = d.y - 120 - bh;
+    ctx.fillStyle = 'rgba(240,250,255,0.96)'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
+    ctx.fillRect(bx, by, bw, bh); ctx.strokeRect(bx, by, bw, bh);
+    ctx.beginPath(); ctx.moveTo(d.x - 7, by + bh); ctx.lineTo(d.x, d.y - 50); ctx.lineTo(d.x + 7, by + bh); ctx.closePath();
+    ctx.fillStyle = 'rgba(240,250,255,0.96)'; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#111';
+    WARN_LINES.forEach((l, i) => ctx.fillText(l, d.x, by + 7 + lh / 2 + i * lh));
+    ctx.restore();
+  }
+  function drawDrone(d, now) {
+    const lift = 3 + 3 * Math.sin(d.ph);
+    drawShadowAt(d.x + 2, d.y + 4 + lift, 24, 15, 0.3);
+    // the detection cone, on the ground under the drone: red while it is shocking a car
+    const col = d.alert > 0 ? '255,80,80' : '110,240,255';
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = 'rgba(' + col + ',0.07)'; ctx.strokeStyle = 'rgba(' + col + ',0.55)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(d.x, d.y, DRONE.cone, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const sw = (now / 900) % (Math.PI * 2);
+    ctx.strokeStyle = 'rgba(' + col + ',0.8)'; ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x + Math.cos(sw) * DRONE.cone, d.y + Math.sin(sw) * DRONE.cone); ctx.stroke();
+    ctx.restore();
+    if (!d.flying) drawBeams(d, now);
+    const im = img.drone; const W = 48, H = 48 * 436 / 500;
+    if (im && im.width) { ctx.save(); ctx.translate(d.x, d.y - lift); ctx.rotate(d.ang + Math.PI / 2); ctx.drawImage(im, -W / 2, -H / 2, W, H); ctx.restore(); }
+    drawBubble(d);
+  }
+  // the air tow: a flying flatbed that carries cars. Placeholder drawn in code until its art is in.
+  function drawAirTow(tw, now) {
+    const im = img.airtow;
+    ctx.save(); ctx.translate(tw.x, tw.y - 40);
+    if (im && im.width) { ctx.rotate(tw.ang + Math.PI); // the art's cab points left, so its nose is the -x side
+ const W = 110, H = W * im.height / im.width; ctx.drawImage(im, -W / 2, -H / 2, W, H); }
+    else {
+      ctx.rotate(tw.ang + Math.PI / 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-46, -20, 92, 46);
+      ctx.fillStyle = '#4a5260'; ctx.fillRect(-40, -22, 80, 40);            // the bed
+      ctx.fillStyle = '#2b2f38'; ctx.fillRect(-40, -22, 80, 4); ctx.fillRect(-40, 14, 80, 4);   // rails
+      ctx.fillStyle = '#d9a441'; ctx.fillRect(-18, -34, 36, 14);            // the cab, nose forward
+      ctx.fillStyle = '#6ef0ff'; ctx.fillRect(-12, -36, 24, 3);             // the light bar
+      ctx.fillStyle = 'rgba(110,240,255,' + (0.5 + 0.3 * Math.sin(now / 90)) + ')';
+      ctx.beginPath(); ctx.arc(-44, -26, 7, 0, Math.PI * 2); ctx.arc(44, -26, 7, 0, Math.PI * 2); ctx.arc(-44, 26, 7, 0, Math.PI * 2); ctx.arc(44, 26, 7, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  function drawLightning(x0, y0, x1, y1) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let pass = 0; pass < 2; pass++) {
+      ctx.strokeStyle = pass ? 'rgba(255,255,255,0.95)' : 'rgba(110,240,255,0.6)'; ctx.lineWidth = pass ? 1.2 : 4;
+      ctx.beginPath(); ctx.moveTo(x0, y0);
+      for (let k = 1; k <= 7; k++) { const u = k / 7, j = k < 7 ? 22 : 0; ctx.lineTo(x0 + (x1 - x0) * u + (Math.random() - 0.5) * j, y0 + (y1 - y0) * u + (Math.random() - 0.5) * j); }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function startIncident(d, f) {
+    f.drBusy = true; f.drHeld = true;                  // held: the flier's own AI stops steering
+    d.bub = { t: 5 }; d.alert = 6;
+    incidents.push({ d, f, stage: 'warn', t: 0, cr: null, tow: null, spot: null, outX: 0, outY: 0 });
+  }
+  function incidentTick(inc, dt, cam) {
+    const f = inc.f, d = inc.d;
+    inc.t += dt;
+    const ex = f.x - cam.x, ey = f.y - cam.y, el = Math.hypot(ex, ey) || 1; inc.outX = ex / el; inc.outY = ey / el;
+    if (inc.stage === 'warn') {                         // the voice bubble; the car is held in the air
+      if (inc.t >= 1.6) { inc.stage = 'shock'; inc.t = 0; }
+    } else if (inc.stage === 'shock') {                 // the shock: the car drops a little under it
+      f.z = Math.max(0, f.z - 40 * dt);
+      if (inc.t >= 0.9) { inc.stage = 'autoland'; inc.t = 0; inc.spot = streetSpot(f.x, f.y) || { x: f.x, y: f.y }; }
+    } else if (inc.stage === 'autoland') {              // auto-land at the nearest open spot
+      const dx = inc.spot.x - f.x, dy = inc.spot.y - f.y, L = Math.hypot(dx, dy);
+      if (L > 4) { const m = Math.min(L, 90 * dt); f.x += dx / L * m; f.y += dy / L * m; f.heading = Math.atan2(dy, dx); }
+      f.z = Math.max(0, f.z - 120 * dt);
+      if (f.z <= 0 && L <= 4) {
+        f.z = 0; inc.stage = 'call'; inc.t = 0;
+        const a = Math.random() * Math.PI * 2;          // the authorities come in from off screen
+        inc.cr = { x: f.x + Math.cos(a) * 700, y: f.y + Math.sin(a) * 700, ang: 0, z: 260, siren: Math.random() * 6 };
+      }
+    } else if (inc.stage === 'call') {
+      const cr = inc.cr, dx = f.x - cr.x, dy = f.y - cr.y, L = Math.hypot(dx, dy);
+      if (L > 1) { const st = Math.min(L, DRONE.cruiseSpeed * dt); cr.x += dx / L * st; cr.y += dy / L * st; cr.ang = Math.atan2(dy, dx); }
+      cr.z = Math.max(0, 260 * Math.min(1, L / 700));
+      if (L < 90) { inc.stage = 'land'; inc.t = 0; }
+    } else if (inc.stage === 'land') {
+      inc.cr.z = Math.max(0, inc.cr.z - 260 * dt / DRONE.landT);
+      if (inc.t >= DRONE.landT) { inc.cr.z = 0; inc.stage = 'tow'; inc.t = 0; inc.tow = { x: f.x + inc.outX * 420, y: f.y + inc.outY * 420, ang: 0 }; }
+    } else if (inc.stage === 'tow') {                   // the air tow comes in over the car and hooks it
+      const tw = inc.tow, dx = f.x - tw.x, dy = f.y - tw.y, L = Math.hypot(dx, dy);
+      if (L > 2) { const m = Math.min(L, 380 * dt); tw.x += dx / L * m; tw.y += dy / L * m; tw.ang = Math.atan2(dy, dx); }
+      if (inc.t >= 1.1 && L <= 2) { inc.stage = 'lift'; inc.t = 0; }
+    } else if (inc.stage === 'lift') {                  // the car is lifted off the street
+      f.z = 70 * Math.min(1, inc.t / 0.8);
+      inc.tow.x = f.x; inc.tow.y = f.y;
+      if (inc.t >= 0.8) { inc.stage = 'haul'; inc.t = 0; }
+    } else if (inc.stage === 'haul') {                  // everything leaves the screen the same way
+      const v = DRONE.haulSpeed * dt;
+      inc.cr.x += inc.outX * v; inc.cr.y += inc.outY * v;
+      inc.tow.x += inc.outX * v; inc.tow.y += inc.outY * v;
+      f.x = inc.tow.x; f.y = inc.tow.y;
+      if (Math.hypot(f.x - cam.x, f.y - cam.y) > 1600 || inc.t > 14) inc.done = true;
+    }
+    // the shock stays on the car and the drone while it lasts
+    if (inc.stage === 'shock') d.alert = 1;
+  }
+  function drawIncident(inc, now) {
+    const cr = inc.cr, cs = PD_CARS.cruiser, im = ART[cs.k];
+    if (cr && im && im.width) {
+      const sc = 1 + cr.z / 600;
+      drawShadowAt(cr.x, cr.y + 4, cs.w * 0.5 * sc, cs.len * 0.5 * sc, 0.32 * (cr.z > 0 ? 0.6 : 1));
+      drawSprite(im, cr.x, cr.y - cr.z, cr.ang, cs.len, cs.w, sc);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const on = Math.floor((now + cr.siren * 1000) / 140) % 2;
+      ctx.fillStyle = on ? 'rgba(255,60,60,0.95)' : 'rgba(60,140,255,0.95)';
+      ctx.beginPath(); ctx.arc(cr.x, cr.y - cr.z - 6, 5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
+    const f = inc.f;
+    if (inc.stage === 'shock' || inc.stage === 'autoland') {
+      drawLightning(inc.d.x, inc.d.y - 4, f.x, f.y - f.z - 6);
+      if (Math.random() < 0.5) drawLightning(inc.d.x, inc.d.y - 4, f.x, f.y - f.z - 6);
+    }
+    if (inc.tow) {
+      drawAirTow(inc.tow, now);
+      if (inc.stage === 'lift' || inc.stage === 'haul') {
+        ctx.save(); ctx.strokeStyle = 'rgba(200,210,220,0.85)'; ctx.lineWidth = 1.2; ctx.beginPath();
+        ctx.moveTo(inc.tow.x, inc.tow.y + 2); ctx.lineTo(f.x, f.y - f.z); ctx.stroke(); ctx.restore();
+      }
+    }
+  }
+  function droneFrame(cam, traffic, peds, now) {
+    const dt = Math.min(0.05, (now - (lastD || now)) / 1000); lastD = now;
+    while (drones.length < DRONE.n) drones.push(newDrone(cam.x, cam.y));
+    for (let n = drones.length - 1; n >= 0; n--) if (Math.hypot(drones[n].x - cam.x, drones[n].y - cam.y) > 2600) drones.splice(n, 1);
+    while (fliers.length < DRONE.fliers) fliers.push(newFlier(cam.x, cam.y));
+    for (const d of drones) {
+      d.ph += dt * 2.2; if (d.alert > 0) d.alert -= dt;
+      if (d.bub) { d.bub.t -= dt; if (d.bub.t <= 0) d.bub = null; }
+      if (d.flying) {                                  // fly to the next junction
+        const dx = d.tx - d.x, dy = d.ty - d.y, L = Math.hypot(dx, dy);
+        if (L < 8) { d.flying = false; d.x = d.tx; d.y = d.ty; d.hover = droneRand(DRONE.hoverMin, DRONE.hoverMax); }
+        else { const m = Math.min(L, DRONE.flySpeed * dt); d.x += dx / L * m; d.y += dy / L * m; d.ang = Math.atan2(dy, dx); }
+      } else {
+        d.hover -= dt;
+        if (d.hover <= 0) { const [nx, ny] = junctionNear(d.x, d.y, PITCH * 1.1, PITCH * 2.6); d.tx = nx; d.ty = ny; d.flying = true; }
+      }
+      d.sideT -= dt; if (d.sideT <= 0) { d.side ^= 1; d.sideT = droneRand(5, 8); }
+    }
+    // the scan: hovering drones, airborne cars only, one check each time a car sits in the cone
+    for (const d of drones) {
+      if (d.flying) continue;
+      for (const f of fliers) {
+        if (!f || f.drBusy) continue;
+        if (f.lab) { f.lab.t -= dt; }
+        if (f.scanCool > 0) f.scanCool -= dt;
+        const inCone = f.z >= 25 && Math.hypot(f.x - d.x, f.y - d.y) < DRONE.cone;
+        if (!inCone || f.scanCool > 0) { f.scanT = 0; continue; }
+        f.scanT = (f.scanT || 0) + dt;
+        if (f.scanT >= DRONE.scanT) {
+          f.scanT = 0;
+          if (warrantRoll(f)) { f.lab = { t: 1.6, txt: 'WARRANT', hit: true }; startIncident(d, f); }
+          else { f.lab = { t: 1.4, txt: 'CLEAR', hit: false }; f.scanCool = 6; }
+        }
+      }
+    }
+    // the stops, and the take-aways
+    for (let n = incidents.length - 1; n >= 0; n--) {
+      const inc = incidents[n];
+      incidentTick(inc, dt, cam);
+      if (inc.done) {
+        inc.f.drBusy = false; inc.d.alert = 0;
+        const k = fliers.indexOf(inc.f); if (k >= 0) fliers.splice(k, 1);
+        incidents.splice(n, 1);
+      }
+    }
+    ctx.save();
+    // the flying traffic, drawn with its altitude; a labelled car shows its check
+    for (const f of fliers) {
+      if (!f || !f.sprite) continue;
+      const len = carMeta(f.sprite).len;
+      drawShadow(f.x, f.y, f.heading, len, f.z);
+      drawCar(f.sprite, f.x, f.y, f.z, f.heading, 0);
+      if (f.lab && f.lab.t > 0) {
+        ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
+        ctx.fillStyle = f.lab.hit ? 'rgba(255,90,90,0.95)' : 'rgba(120,255,160,0.95)';
+        ctx.fillText(f.lab.txt, f.x, f.y - f.z - 34);
+      }
+    }
+    ctx.restore();
+    ctx.save(); ctx.textAlign = 'left';
+    for (const d of drones) drawDrone(d, now);
+    for (const inc of incidents) drawIncident(inc, now);
+    ctx.restore();
+  }
   function augments(canvas, traffic, peds, cam, outdoors) {
     if (!canvas || !cam || !Number.isFinite(cam.x) || !(cam.z > 0)) return;
     ctx = canvas.getContext('2d');
@@ -15335,6 +15580,7 @@ const RUNNER_API = (function () {
       drawKit(tv.x, tv.y, tv.ang, tv.m.len, tv.x);
     }
     if (RUN_ON && outdoors) trashTick(cam, traffic, performance.now());     // the litter moves here; it is drawn on the ground (groundTrash)
+    if (RUN_ON && outdoors && traffic && peds) droneFrame(cam, traffic, peds, performance.now());   // LAYER 608
     ctx.restore();
   }
 
@@ -15499,6 +15745,7 @@ const RUNNER_API = (function () {
 
   return {
     isOn: () => RUN_ON,
+    setArt: (a) => { ART = a || {}; },
     setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); startSong(); } else { stopSong(); lobby = false; } },
     lockCam,
     overlay,
@@ -52642,7 +52889,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; } frameBody(now); if (RUNNER_API.isOn() && !g.title && g.inside && g.mode === 'foot') RUNNER_API.insideFigure(canvasRef.current, g.p.x, g.p.y, g.cam); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
+      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; } frameBody(now); if (RUNNER_API.isOn() && !g.title && g.inside && g.mode === 'foot') RUNNER_API.insideFigure(canvasRef.current, g.p.x, g.p.y, g.cam); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
