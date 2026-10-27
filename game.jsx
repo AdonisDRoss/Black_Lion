@@ -2189,7 +2189,8 @@ for (let i = 1; i <= 51; i++) {
 const TEX = {};
 for (const k of ["tx_platform", "tx_track", "tx_terrazzo", "tx_deckplate",
                  "tx_lino", "tx_edgeline", "tx_el_station",
-                 "tx_gymfloor", "tx_gymmat", "tx_carpark", "tx_dancefloor", "tx_dg_floor", "tx_court_wood", "tx_cobbles"])
+                 "tx_gymfloor", "tx_gymmat", "tx_carpark", "tx_dancefloor", "tx_dg_floor", "tx_court_wood", "tx_cobbles",
+                 "tx_studio_carpet", "tx_ivory_tile", "tx_stage_black"])   // layer 583: C.A.N. STUDIOS floors
   TEX[k] = "assets/tex/" + k + ".png";
 /* THE ROSTER'S OWN FOLDER. These eleven keys were scattered across assets/youth/ and
    assets/sov/ -- Eclipse's two lived with the Sovereign art for no reason other than the
@@ -2790,7 +2791,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 578 — fix: takeDismount export";
+const BUILD_TAG = "LAYER 583 — C.A.N. STUDIOS: twelve floors on CAN_CELL, sketch plans, carpet and ivory floors";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -3781,6 +3782,14 @@ PD_ART.it_hippie_bag = "assets/items/it_hippie_bag.png";
 // layer 499: the Boznov backyard, the ivory deck, Damian's newspaper
 for (const k of ["yd_grill_red", "yd_grill_black", "yd_lounger_a", "yd_lounger_b", "yd_sidetable_a", "yd_sidetable_b", "yd_table_round", "yd_pool", "yd_umbrella", "yd_boombox", "yd_charcoal", "yd_cooler", "yd_flipflop_a", "yd_beachball", "yd_tongs", "yd_bbq_table"]) PD_ART[k] = "assets/yard/" + k + ".png";
 PD_ART.tx_ivory_deck = "assets/tex/tx_ivory_deck.png";
+// layer 583: C.A.N. STUDIOS art. Textures go with the floor tiles (TEX, below); sprites live in assets/runner/can/.
+PD_ART.can_facade = "assets/runner/can/facade_can_sign.png";
+PD_ART.can_rules = "assets/runner/can/rules_card.png";
+PD_ART.can_tunnel_doors = "assets/runner/can/tunnel_doors.png";
+PD_ART.can_suit_rail = "assets/runner/can/suit_rail.png";
+PD_ART.can_racks = "assets/runner/can/transmission_racks.png";
+PD_ART.can_catwalk = "assets/runner/can/catwalk_grate.png";
+PD_ART.rn_helipad = "assets/runner/roofs/helipad.png";
 PD_ART.ui_newspaper = "assets/ui/ui_newspaper.png";
 PD_ART.pr_cone = "assets/props/pr_cone.png";        // the race cones (layer 500)
 // layer 501: Donny's second yard sheet (kept for later; the lion medallion is the mansion court's centre) and the paper trophy
@@ -5458,6 +5467,75 @@ const FIS_CELL = { i: 11, j: 6 };
    in; it should have somewhere to come from. */
 const NEWS_CELL = { i: 10, j: 5 };
 const isNewsCell = (i, j) => i === NEWS_CELL.i && j === NEWS_CELL.j;
+/* C.A.N. STUDIOS (layer 583). Twelve floors, index 0 = B1, index 1 = the lobby (the street door). Plans and
+   the reasons for them: claude/runner-can-tower-floors.md and claude/runner-can-stage-layout.md. Each floor is a
+   12 x 8 sketch, north at the top, the street door on the south wall. The core (lift, freight, stairs) is
+   the three right-hand columns of the top two rows; those letters are left out of the legend, so they
+   fold into their neighbours and no room is drawn over the shafts. */
+const CAN_CELL = { i: 9, j: 6 };
+const isCanCell = (i, j) => i === CAN_CELL.i && j === CAN_CELL.j;
+const CAN_KINDS = ["can_dock", "can_lobby", "can_newsroom", "can_greenroom", "can_wardrobe", "can_control",
+                   "can_stage", "can_rig", "can_offices", "can_transmit", "can_exec", "can_penthouse"];
+const CAN_PLANS = [
+  { rows: ["KKKKKKEEFFSS", "KKKKKKEEFFSS", "CCCCCCCCCCCC", "HHHHHHTTPPPP", "HHHHHHTTPPPP", "QQQQQQQQPPPP", "QQQQQQQQPPPP", "QQQQQQQQPPPP"],
+    legend: { K: "can_dock", H: "can_pen", C: "corridor", T: "wc", P: "can_plant", Q: "can_store" } },
+  { rows: ["BYYYYYEEFFSS", "GYYYYYEEFFSS", "LLLLLLVVVVVV", "LLLLLLVVVVVV", "LLLLLLRRRRMM", "LLLLLLRRRRMM", "LLLLLLWWWWWW", "LLLLDDLLLLLL"],
+    legend: { B: "corridor", Y: "corridor", G: "can_security", L: "can_lobby", V: "can_lift", R: "reception", M: "can_merch", W: "can_tvwall", D: "can_lobby" } },
+  { rows: ["XXXXXXEEFFSS", "XXXXXXEEFFSS", "CCCCCCCCCCCC", "NNNNNNNNNNNN", "NNNNNNNNNNNN", "NNNNNNPPPPNN", "NNNNNNPPPPNN", "KKKKKKTTNNNN"],
+    legend: { X: "can_edit", C: "corridor", N: "bullpen", P: "can_tipline", K: "kitchen", T: "wc" } },
+  { rows: ["UUUUUUEEFFSS", "UUUUUUEEFFSS", "UUUUUUCCCCCC", "ZZZZZZCCCCCC", "ZZZZZZCCCCCC", "AAAAAACCTTTT", "AAAAAACCTTTT", "JJJJJJJJJJJJ"],
+    legend: { U: "can_greenroom", C: "corridor", Z: "can_lockers", A: "can_assistant", T: "wc", J: "corridor" } },
+  { rows: ["DDDDDDEEFFSS", "DDDDDDEEFFSS", "CCCCCCCCCCCC", "QQQQQQMMMMMM", "QQQQQQMMMMMM", "WWWWWWCCCCCC", "WWWWWWCCCCCC", "WWWWWWCCCCCC"],
+    legend: { D: "can_dressing", C: "corridor", Q: "can_wardrobe", M: "can_makeup", W: "can_wash" } },
+  { rows: ["RRRRRREEFFSS", "RRRRRREEFFSS", "GGGGGGCCCCCC", "OOOOOOCCCCCC", "OOOOOOCCCCCC", "OOOOOOTTKKKK", "OOOOOOTTKKKK", "CCCCCCCCCCCC"],
+    legend: { R: "can_control", G: "can_glass", C: "corridor", O: "office", T: "wc", K: "kitchen" } },
+  { rows: ["YYYYYYEEFFSS", "PPPPPPEEFFSS", "IIIIIIIIIIII", "IIIIDDDDDDII", "CCCCCCCCCCCC", "AAAAAAAAAAAA", "AAAAAAAAAAAA", "AAAAUUAAAAAA"],
+    legend: { Y: "can_tunnel", P: "can_platform", I: "can_stage", D: "can_newsdesk", C: "can_camera", A: "can_stands", U: "can_stands" } },
+  { rows: ["KKKKKKEEFFSS", "KKKKKKEEFFSS", "KKKKKKKKKKKK", "K..........K", "K..........K", "KKKKKKKKKKKK", "QQQQQQCCCCCC", "QQQQQQCCCCCC"],
+    legend: { K: "can_catwalk", ".": "can_void", Q: "can_store", C: "corridor" } },
+  { rows: ["OOOOOOEEFFSS", "OOOOOOEEFFSS", "CCCCCCCCCCCC", "XXXXXXOOOOOO", "XXXXXXOOOOOO", "CCCCCCCCCCCC", "TTOOOOOOKKKK", "TTOOOOOOKKKK"],
+    legend: { O: "office", X: "conf", C: "corridor", T: "wc", K: "kitchen" } },
+  { rows: ["RRRRRREEFFSS", "RRRRRREEFFSS", "CCCCCCCCCCCC", "RRRRRRMMMMMM", "RRRRRRMMMMMM", "RRRRRRCCCCCC", "GGGGGGCCCCCC", "GGGGGGCCCCCC"],
+    legend: { R: "can_rack", M: "can_monitors", C: "corridor", G: "can_gen" } },
+  { rows: ["XXXXXXEEFFSS", "XXXXXXEEFFSS", "CCCCCCCCCCCC", "BBBBBBBBXXXX", "BBBBBBBBXXXX", "BBBBBBBBXXXX", "LLLLLLCCCCCC", "LLLLLLCCCCCC"],
+    legend: { X: "can_exec", B: "can_boardroom", L: "can_lounge", C: "corridor" } },
+  { rows: ["VVVVVVEEFFSS", "VVVVVVEEFFSS", "CCCCCCCCCCCC", "ZZZZZZZZBBKK", "ZZZZZZZZBBKK", "ZZZZZZZZCCCC", "LLLLLLLLCCCC", "LLLLLLLLCCCC"],
+    legend: { V: "can_view", Z: "can_ceo", B: "wc", K: "kitchen", L: "can_lounge", C: "corridor" } },
+];
+/* The textures each C.A.N. room kind gets. The rest use the building's default floor. */
+const CAN_TEX = { can_stage: "tx_ivory_tile", can_lobby: "tx_marble", can_dock: "tx_carpark", can_pen: "tx_carpark",
+  can_newsroom: "tx_lino", can_offices: "tx_lino", can_transmit: "tx_lino", can_greenroom: "tx_studio_carpet",
+  can_control: "tx_studio_carpet", can_wardrobe: "tx_studio_carpet", can_exec: "tx_studio_carpet",
+  can_penthouse: "tx_studio_carpet", can_boardroom: "tx_studio_carpet", can_lounge: "tx_studio_carpet" };
+/* Lays one C.A.N. floor down by its sketch: each letter's run of cells becomes one room (a rectangle grown
+   right, then down). Returns the first corridor as the hub the doorways grow from. */
+function canSketch(put, rooms, f) {
+  const P = CAN_PLANS[f];
+  if (!P) return -1;
+  const rows = P.rows, seen = rows.map((r) => r.split("").map(() => false));
+  let hub = -1;
+  for (let y = 0; y < rows.length; y++) for (let x = 0; x < rows[y].length; x++) {
+    const ch = rows[y][x];
+    if (seen[y][x] || !P.legend[ch]) continue;
+    let x1 = x;
+    while (x1 + 1 < rows[y].length && rows[y][x1 + 1] === ch && !seen[y][x1 + 1]) x1++;
+    let y1 = y;
+    for (let yy = y + 1; yy < rows.length; yy++) {
+      let ok = true;
+      for (let xx = x; xx <= x1; xx++) if (rows[yy][xx] !== ch || seen[yy][xx]) { ok = false; break; }
+      if (!ok) break;
+      y1 = yy;
+    }
+    for (let yy = y; yy <= y1; yy++) for (let xx = x; xx <= x1; xx++) seen[yy][xx] = true;
+    const k = P.legend[ch];
+    const id = put(x, y, x1, y1, k);
+    if (id >= 0) {
+      if (CAN_TEX[k]) rooms[id].floorTex = CAN_TEX[k];
+      if (k === "corridor" && hub < 0) hub = id;
+    }
+  }
+  return hub;
+}
 const isFisCell = (i, j) => i === FIS_CELL.i && j === FIS_CELL.j;
 const isAsylumCell = (i, j) => i === ASYLUM_CELL.i && j === ASYLUM_CELL.j;
 const isHospitalCell = (i, j) => i === HOSPITAL_CELL.i && j === HOSPITAL_CELL.j;
@@ -6563,6 +6641,7 @@ const DOORW = 48;          // 2.2m. 34 was a doorway two people could not pass i
                             // mathematically impossible to walk through no matter how carefully aimed
 
 function floorKind(b, f) {
+  if (b.can) return CAN_KINDS[f] || "can_offices";                  // C.A.N. STUDIOS (layer 583): one kind per floor
   if (b.aptArt) return "aptart";                                    // Palm Court (layer 477): one open floor, the painted flats do the rest
   if (b.stuHome) return f === 0 ? "stuhome" : "stuupper";          // student mode: downstairs living + kitchen, upstairs the bedrooms
   if (b.school) return f === 0 ? "school_g" : f === 1 ? "school_c" : "office";     // the schools: ground + classrooms (layer 456)
@@ -6711,8 +6790,9 @@ function makeFloor(b, f, rnd) {
      yields about six. */
   const fine = kind === "motelfloor";
   const px = fine ? 2.4 * MU : dense ? 3.2 * MU : 3.7 * MU;
-  const GX = clamp(Math.round(b.w / px), 3, fine ? 20 : 14);
-  const GY = clamp(Math.round(b.h / px), 3, fine ? 20 : 14);
+  const CANK = /^can_/.test(kind);                                  // the C.A.N. sketches are 12 x 8, whatever the lot
+  const GX = CANK ? 12 : clamp(Math.round(b.w / px), 3, fine ? 20 : 14);
+  const GY = CANK ? 8 : clamp(Math.round(b.h / px), 3, fine ? 20 : 14);
   const cw = b.w / GX, ch = b.h / GY;
   const rid = new Int16Array(GX * GY).fill(-1);
   const rooms = [];
@@ -6899,6 +6979,10 @@ function makeFloor(b, f, rnd) {
   } else if (kind === "vt_parking" || kind === "vt_lobby" || kind === "vt_pool") {
     // one room each: a car park, a lobby and a pool deck are open floors, not a run of offices
     hub = put(0, 0, GX - 1, GY - 1, kind === "vt_parking" ? "carpark" : kind === "vt_lobby" ? "vt_lobby" : "pooldeck");
+  } else if (CANK) {
+    // C.A.N. STUDIOS: the floor is its sketch (CAN_PLANS), not a generated one
+    hub = canSketch(put, rooms, f);
+    if (hub < 0) hub = put(0, 0, GX - 1, GY - 1, "corridor");
   } else if (kind === "gymfloor") {
     /* One room. The furniture zones it and the ring is the middle -- walls between the bags and
        the iron would make it three small rooms, the same mistake the band venue made. */
@@ -10144,6 +10228,16 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     b.tone = 0.30; b.retail = false; b.port = true;
     b.roofCls = "one";                       // stop the generic picker overriding the shed
     b.roofKey = "po_warehouse";
+    out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+    return dryOut(out);
+  }
+  if (isCanCell(i, j) && !civicAt(i, j)) {
+    /* C.A.N. STUDIOS: twelve floors, the tallest building on this block. Floor 1 is the street door. */
+    const bw = Math.min(LW * 0.66, 24 * MU), bh = Math.min(LH * 0.56, 20 * MU);
+    const b = mkB(lx0 + (LW - bw) / 2, ly0 + (LH - bh) / 2, bw, bh, CAN_KINDS.length, "cantower", rnd, key);
+    b.tone = 0.5; b.name = "C.A.N. STUDIOS"; b.signKey = "sign_lightbox";
+    b.retail = false; b.eatery = false;
+    b.can = true; b.entry = 1;
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
     return dryOut(out);
   }
@@ -14981,11 +15075,16 @@ const RUNNER_API = (function () {
 
   // called by the game each frame, after the game has drawn the camera, before its React HUD
   // the game's own camera is locked to the hover bike here: the world is the game's, the runner moves through it
-  function lockCam(cam, Wg, Hg, zoomU) {
+  function lockCam(cam, Wg, Hg, zoomU, spawn, spawnMode) {
     W = Wg; H = Hg;
     const now = performance.now(), dt = Math.min(0.05, (now - (lastT || now)) / 1000);
     lastT = now; t += dt;
-    if (!placed) { car.x = cam.x; car.y = cam.y; place(); }
+    if (!placed) {
+      // spawn where the player is: on foot as the walker, otherwise on the bike at the vehicle's spot
+      const sp = spawn || cam;
+      if (spawnMode === 'foot') { walker.x = sp.x; walker.y = sp.y; place(); walker.on = true; }
+      else { car.x = sp.x; car.y = sp.y; place(); }
+    }
     update(dt);
     const p = walker.on ? walker : car;
     camNow = { x: p.x, y: p.y, z: clamp((Math.min(W, H) / 1400) * (zoomU || 1), 0.16, 3.2) };
@@ -15004,7 +15103,7 @@ const RUNNER_API = (function () {
   // Drawn over the game's frame in the game's own camera. Nothing is drawn inside buildings or on the title.
   const augOf = new WeakMap();
   function augmentFor(p) {
-    if (!augOf.has(p)) { const k = hash(p.x || 0, p.y || 0); augOf.set(p, k < 0.33 ? 0 : k < 0.66 ? 1 : 2); }
+    if (!augOf.has(p)) { const k = Math.random(); augOf.set(p, k < 0.33 ? 0 : k < 0.66 ? 1 : 2); }
     return augOf.get(p);
   }
   function drawAugment(x, y, kind) {
@@ -15013,7 +15112,7 @@ const RUNNER_API = (function () {
       const g = ctx.createRadialGradient(x, y, 1, x, y, 9);
       g.addColorStop(0, 'rgba(110,240,255,0.9)'); g.addColorStop(1, 'rgba(110,240,255,0)');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(120,245,255,0.95)'; ctx.fillRect(x - 6, y - 1.5, 12, 3);
+      ctx.fillStyle = 'rgba(120,245,255,0.95)'; ctx.fillRect(x - 7, y - 1.5, 14, 3);
       ctx.restore();
     } else if (kind === 2) {                                // a cyber eye: a ring with a bright pupil
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -15023,7 +15122,18 @@ const RUNNER_API = (function () {
       ctx.restore();
     }
   }
-  function augments(canvas, traffic, peds, cam) {
+  // called by the game right after it draws a civilian: the implant sits on the head, under the power lines
+  function augmentAt(c, o, x, y, scale) {
+    if (!o || !c) return;
+    const k = augmentFor(o);
+    if (!k) return;
+    ctx = c;
+    ctx.save();
+    const dT = 46 * (scale || 1.173);
+    drawAugment(x, y - dT * 0.3, k);
+    ctx.restore();
+  }
+  function augments(canvas, traffic, peds, cam, outdoors) {
     if (!canvas || !cam || !Number.isFinite(cam.x) || !(cam.z > 0)) return;
     ctx = canvas.getContext('2d');
     const cssW = canvas.clientWidth || canvas.width, dpr = canvas.width / cssW, cssH = canvas.height / dpr;
@@ -15032,16 +15142,132 @@ const RUNNER_API = (function () {
     ctx.translate(cssW / 2, cssH / 2); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y);
     const hw = cssW / (2 * cam.z) + 80, hh = cssH / (2 * cam.z) + 80;
     const x0 = cam.x - hw, x1 = cam.x + hw, y0 = cam.y - hh, y1 = cam.y + hh;
+    if (outdoors && !RUN_ON && img.haze_ground) {       // the purple mist at street level, out in the open city only
+      ctx.save(); ctx.globalAlpha = 0.35;
+      const pat = ctx.createPattern(img.haze_ground, 'repeat');
+      if (pat.setTransform) pat.setTransform(new DOMMatrix().translate(performance.now() * 0.006, performance.now() * 0.003).scale(1.6));
+      ctx.fillStyle = pat; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+      ctx.restore();
+    }
     if (traffic) for (const tv of traffic) {
       if (!tv || tv.bus || tv.husk565 || !tv.m || !(tv.m.len >= 90)) continue;
       if (tv.x < x0 || tv.x > x1 || tv.y < y0 || tv.y > y1) continue;
       drawKit(tv.x, tv.y, tv.ang, tv.m.len, tv.x);
     }
-    if (peds) for (const p of peds) {
-      if (!p || p.dead || !p.civ) continue;
+    if (RUN_ON && outdoors) {                              // runner mode, out in the street: litter and burning barrels
+      trashTick(cam, traffic, performance.now());
+      drawTrash(x0, y0, x1, y1);
+      for (const b of TRASH.barrels) if (b.x > x0 - 80 && b.x < x1 + 80 && b.y > y0 - 80 && b.y < y1 + 80) drawBarrel(b, trashClock);
+    }
+    ctx.restore();
+  }
+
+  /* ---- STREET TRASH AND BURNING BARRELS (runner mode, outdoors). Litter lies on the roads. A car, a bike or
+     the walker going over it blows it along and it spins; then it settles. Barrels burn in the road edges. ---- */
+  const TRASH = { pieces: [], barrels: [] };
+  const TRASH_KINDS = ['bag', 'can', 'paper', 'paper', 'cup', 'bag'];
+  // the litter is the alley set (al_bag_*, al_can) reused as-is; paper and cups are drawn here
+  const TRASH_IMG = {};
+  for (const k of ['al_bag_a', 'al_bag_b', 'al_bag_c', 'al_can']) { const im = new Image(); im.src = 'assets/alley/' + k + '.png'; TRASH_IMG[k] = im; }
+  const TRASH_BAGS = ['al_bag_a', 'al_bag_b', 'al_bag_c'];
+  let trashClock = 0, trashPrev = 0;
+  const TRASH_LAST = new WeakMap(), CAM_KEY = {};
+  function trashSpawn(cx, cy, n) {
+    for (let k = 0; k < n; k++) {
+      for (let tries = 0; tries < 12; tries++) {
+        const a = Math.random() * Math.PI * 2, d = 120 + Math.random() * 900;
+        const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d;
+        if (!onRoad(x, y)) continue;
+        TRASH.pieces.push({ x, y, vx: 0, vy: 0, rot: Math.random() * 6.28, vr: 0,
+          kind: TRASH_KINDS[(Math.random() * TRASH_KINDS.length) | 0], s: 0.8 + Math.random() * 0.6,
+          art: TRASH_BAGS[(Math.random() * TRASH_BAGS.length) | 0] });
+        break;
+      }
+    }
+  }
+  function speedOf(key, x, y, dt) {
+    const p = TRASH_LAST.get(key); TRASH_LAST.set(key, { x, y });
+    if (!p || !(dt > 0)) return { vx: 0, vy: 0, sp: 0 };
+    const vx = (x - p.x) / dt, vy = (y - p.y) / dt;
+    return { vx, vy, sp: Math.hypot(vx, vy) };
+  }
+  function trashTick(cam, traffic, now) {
+    const dt = Math.min(0.05, Math.max(0, (now - trashPrev) / 1000)); trashPrev = now; trashClock += dt;
+    const P = TRASH.pieces;
+    for (let i = P.length - 1; i >= 0; i--) if (Math.hypot(P[i].x - cam.x, P[i].y - cam.y) > 1500) P.splice(i, 1);
+    if (P.length < 240) trashSpawn(cam.x, cam.y, 8);
+    // the pushers: the player (the camera follows it) and every moving car in view
+    const pc = speedOf(CAM_KEY, cam.x, cam.y, dt);
+    const pushers = [{ x: cam.x, y: cam.y, vx: pc.vx, vy: pc.vy, sp: pc.sp, r: 34 }];
+    if (traffic) for (const tv of traffic) {
+      if (!tv || tv.dead || tv.parked || tv.husk565) continue;
+      if (Math.abs(tv.x - cam.x) > 1500 || Math.abs(tv.y - cam.y) > 1500) continue;
+      const s = speedOf(tv, tv.x, tv.y, dt);
+      if (s.sp < 25) continue;
+      pushers.push({ x: tv.x, y: tv.y, vx: s.vx, vy: s.vy, sp: s.sp, r: Math.max(26, ((tv.m && tv.m.len) || 80) * 0.5) });
+    }
+    const damp = Math.exp(-dt * 2.4);
+    for (const p of P) {
+      for (const q of pushers) {
+        if (q.sp < 20) continue;
+        const dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy);
+        if (d > q.r) continue;
+        const k = (1 - d / q.r) * Math.min(1, q.sp / 200);
+        p.vx += (q.vx * 0.9 + dx * 2.2) * k * dt * 3;
+        p.vy += (q.vy * 0.9 + dy * 2.2) * k * dt * 3;
+        p.vr += (Math.random() - 0.5) * 14 * k;
+      }
+      p.vx *= damp; p.vy *= damp; p.vr *= damp;
+      p.vx += Math.sin(trashClock * 0.7 + p.s * 9) * 2 * dt;     // a slow wind, so litter never sits perfectly still
+      p.vy += Math.cos(trashClock * 0.5 + p.x * 0.01) * 2 * dt;
+      const sp = Math.hypot(p.vx, p.vy); if (sp > 320) { p.vx *= 320 / sp; p.vy *= 320 / sp; }
+      p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+    }
+    // barrels: a few in view, on the road, never on top of each other
+    const B = TRASH.barrels;
+    for (let i = B.length - 1; i >= 0; i--) if (Math.hypot(B[i].x - cam.x, B[i].y - cam.y) > 1800) B.splice(i, 1);
+    for (let tries = 0; B.length < 6 && tries < 40; tries++) {
+      const a = Math.random() * 6.283, d = 350 + Math.random() * 1000;
+      const x = cam.x + Math.cos(a) * d, y = cam.y + Math.sin(a) * d;
+      if (!onRoad(x, y) || B.some((b) => Math.hypot(b.x - x, b.y - y) < 260)) continue;
+      B.push({ x, y, s: Math.random() });
+    }
+  }
+  function drawTrash(x0, y0, x1, y1) {
+    for (const p of TRASH.pieces) {
       if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) continue;
-      const kind = augmentFor(p);
-      if (kind) drawAugment(p.x, p.y - 17, kind);
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.scale(p.s, p.s);
+      if (p.kind === 'bag') {
+        const im = TRASH_IMG[p.art]; if (im && im.complete && im.naturalWidth) ctx.drawImage(im, -9, -7, 18, 14);
+      } else if (p.kind === 'can') {
+        const im = TRASH_IMG.al_can; if (im && im.complete && im.naturalWidth) ctx.drawImage(im, -7, -7, 14, 14);
+      } else if (p.kind === 'paper') {
+        ctx.fillStyle = '#ece6d2'; ctx.fillRect(-7, -5, 14, 10);
+        ctx.fillStyle = 'rgba(60,50,40,0.5)'; ctx.fillRect(-5, -2, 10, 1); ctx.fillRect(-5, 1, 8, 1);
+      } else {
+        ctx.fillStyle = '#e0523a'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, 6.283); ctx.fill();
+        ctx.fillStyle = '#f5efe0'; ctx.beginPath(); ctx.arc(0, 0, 2.4, 0, 6.283); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+  function drawBarrel(b, t) {
+    const x = b.x, y = b.y;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(x + 3, y + 9, 10, 4, 0, 0, 6.283); ctx.fill();
+    // the street trash can (al_can, reused from the alleys), with the fire put in it
+    const im = TRASH_IMG.al_can; if (im && im.complete && im.naturalWidth) ctx.drawImage(im, x - 12, y - 12, 24, 24);
+    ctx.globalCompositeOperation = 'lighter';
+    const f = 0.85 + 0.15 * Math.sin(t * 9 + b.s * 20) + 0.05 * Math.sin(t * 23 + b.s * 7);
+    const g = ctx.createRadialGradient(x, y - 14, 2, x, y - 14, 60 * f);
+    g.addColorStop(0, 'rgba(255,150,40,0.55)'); g.addColorStop(1, 'rgba(255,90,20,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y - 14, 60 * f, 0, 6.283); ctx.fill();
+    for (let k = 0; k < 3; k++) {
+      const ph = t * (7 + k * 2) + b.s * 10 + k;
+      const h = (14 + 6 * Math.sin(ph)) * (k === 1 ? 1.2 : 0.8), fx = x + (k - 1) * 4 + Math.sin(ph * 1.3) * 1.5;
+      ctx.fillStyle = k === 1 ? 'rgba(255,230,120,0.95)' : 'rgba(255,120,30,0.9)';
+      ctx.beginPath(); ctx.moveTo(fx - 4, y - 12); ctx.quadraticCurveTo(fx, y - 12 - h * 1.6, fx + 4, y - 12);
+      ctx.quadraticCurveTo(fx, y - 12 - h * 0.4, fx - 4, y - 12); ctx.fill();
     }
     ctx.restore();
   }
@@ -15064,6 +15290,7 @@ const RUNNER_API = (function () {
     lockCam,
     overlay,
     augments,
+    augmentAt,
     takeDismount,
   };
 })();
@@ -15384,6 +15611,8 @@ export default function IronLionLayer004() {
     function musicPlay(key) {
       const ctx = audio.current;
       if (!ctx || MUS.cur === key) return;
+      // Runner Mode plays its own song; the city's tracks stay off the speaker until it is turned off
+      if (key !== "title" && RUNNER_API.isOn()) return;
       if (ctx.state === "suspended" && ctx.resume) ctx.resume();
       const buf = MUS.buf[key];
       if (!buf) { musicLoad(key); return; }        // load on demand, switch when it arrives
@@ -15414,6 +15643,7 @@ export default function IronLionLayer004() {
     function musicUpdate({ title, zone, chase, indoors, paused, night }) {
       const ctx = audio.current;
       if (!ctx) return;
+      if (RUNNER_API.isOn() && !title) { if (MUS.gain) MUS.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.2); return; }
       let want = "drive";
       if (title) want = "title";
       else if (chase) want = "chase";
@@ -25819,7 +26049,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        which kills the prone read at the sides and is invisible head-on. 0.86 is the point
        where the stride still registers. */
     const CIV_SQUASH = 0.86;
-    function drawCivilian(o, x, y, vx, vy, t) { const r = swimClip538(x, y, 1); if (!r) return drawCivilian0(o, x, y, vx, vy, t); const out = drawCivilian0(o, x, y, vx, vy, t); swimRing538(x, y, r); return out; }   // layer 538
+    function drawCivilian(o, x, y, vx, vy, t) {
+      const res = drawCivilianBase(o, x, y, vx, vy, t);
+      if (res) RUNNER_API.augmentAt(ctx, o, x, y, o && o.scale);
+      return res;
+    }
+    function drawCivilianBase(o, x, y, vx, vy, t) { const r = swimClip538(x, y, 1); if (!r) return drawCivilian0(o, x, y, vx, vy, t); const out = drawCivilian0(o, x, y, vx, vy, t); swimRing538(x, y, r); return out; }   // layer 538
     function drawCivilian0(o, x, y, vx, vy, t) {
       if (!o || !o.canvas || o.canvas.width < 2) return false;
       const sp = Math.hypot(vx, vy);
@@ -52011,7 +52246,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { frameBody(now); if (RUNNER_API.isOn()) RUNNER_API.overlay(canvasRef.current); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam); } catch (err) {
+      try { frameBody(now); if (RUNNER_API.isOn()) RUNNER_API.overlay(canvasRef.current); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
@@ -52528,7 +52763,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
 
       // Runner Mode (overlay): the camera follows the hover bike, then the game draws its own world as usual
-      if (RUNNER_API.isOn()) RUNNER_API.lockCam(g.cam, W, H, zoomRef.current);
+      if (RUNNER_API.isOn()) RUNNER_API.lockCam(g.cam, W, H, zoomRef.current, g.mode === 'moto' ? g.moto : g.mode === 'car' ? g.car : g.p, g.mode);
       // render
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = "#101114";
@@ -56015,6 +56250,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     // a floor the lift and the stairs will not open
     function floorLocked(b, f) {
+      if (b && b.can && f >= 10 && !g.canKey) return true;             // C.A.N.: the executive and penthouse floors (layer 583)
       return !!(b && b.kind === "vance" && TOWER.floors[f] && TOWER.floors[f].lock && !g.vanceKey);
     }
     G.floorLockFn = (f) => {
