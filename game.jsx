@@ -2790,7 +2790,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 424 — REGISTERED";
+const BUILD_TAG = "LAYER 567 — RUNNER MODE (F9)";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14470,6 +14470,506 @@ function FootballShell({ onExit }) {
     </div>
   );
 }
+
+// Runner Mode (futurist city). Toggle with F9. The game calls RUNNER_API.frame(canvas) while it is on.
+const RUNNER_API = (function () {
+  let RUN_ON = false;
+  let cv = null, ctx = null, W = 960, H = 540;
+  const WORLD = { w: 3200, h: 2200 };
+  const BLOCK = 320, ROAD = 100;          // block pitch and road width
+  // per-vehicle draw data: length along the long axis (px), and which way the nose points in the art
+  // 0 = nose right, Math.PI = nose left, -Math.PI/2 = nose at top (portrait art)
+  const CAR_META_LIST = {};
+  const CAR_META = {
+    cars_b714ecba_1: { len: 100, nose: 0, dark: [70, 14, 40], light: [230, 60, 120], glow: '#ff3a8c' },    // Vortex sports
+    cars_87f02ce2_1: { len: 100, nose: Math.PI, dark: [40, 20, 60], light: [190, 120, 230], glow: '#d070ff' },  // Vortex pursuit (cockpit at left)
+    cars_39e0f112_1: { len: 100, nose: Math.PI, dark: [20, 60, 62], light: [120, 220, 215], glow: '#3affe0' },  // Halcyon sedan (guessed nose)
+    cars_4eb54de1_1: { len: 100, nose: Math.PI, dark: [20, 60, 62], light: [120, 220, 215], glow: '#3affe0' },  // Halcyon taxi (guessed nose)
+    cars_6093fd94_1: { len: 104, nose: Math.PI, dark: [70, 35, 10], light: [240, 150, 60], glow: '#ff8a2a' },  // Meridian cargo
+    cars_a9a16625_1: { len: 100, nose: -Math.PI / 2, dark: [70, 35, 10], light: [240, 150, 60], glow: '#ff8a2a' },  // Meridian news (portrait art)
+    cars_d049053c_1: { len: 102, nose: Math.PI, dark: [14, 52, 22], light: [90, 200, 110], glow: '#4dff7a' },  // Kestrel patrol
+    cars_f238fa36_1: { len: 102, nose: Math.PI, dark: [14, 52, 22], light: [90, 200, 110], glow: '#4dff7a' },  // Kestrel camera
+    cars_6775c1f3_1: { len: 104, nose: 0, dark: [40, 46, 30], light: [150, 160, 110], glow: '#b8ff3a' },    // Rook armoured (arrow points right)
+    cars_8e80b993_1: { len: 104, nose: 0, dark: [40, 46, 30], light: [150, 160, 110], glow: '#b8ff3a' },   // Rook transport (thrusters at left)
+    cars_43a7a337_1: { len: 62,  nose: 0, dark: [14, 30, 70], light: [90, 150, 240], glow: '#3a9bff', rider: true,
+      handling: { max: 470, accel: 340, brake: 420, turn: 3.6, drag: 0.30, lean: 0.22 } },  // hover bike with rider
+  };
+  const A = (p) => 'assets/runner/' + p;
+
+  const img = {};
+  function tint(i, dark, light) {
+    const c = document.createElement('canvas'); c.width = i.width; c.height = i.height;
+    const g = c.getContext('2d'); g.drawImage(i, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+    let lo = 1, hi = 0, n = 0; const L = new Float32Array(p.length / 4);
+    for (let k = 0; k < p.length; k += 4) {
+      const r = p[k], gg = p[k + 1], b = p[k + 2];
+      const l = (r + gg + b) / 765, sat = Math.max(r, gg, b) - Math.min(r, gg, b);
+      L[k / 4] = (sat < 30 && p[k + 3] > 0 && l >= 40 / 255) ? l : -1;
+      if (L[k / 4] >= 0) { lo = Math.min(lo, l); hi = Math.max(hi, l); n++; }
+    }
+    if (n) for (let k = 0; k < p.length; k += 4) {
+      const l = L[k / 4]; if (l < 0) continue;
+      const t = Math.max(0, Math.min(1, (l - lo) / Math.max(hi - lo, 0.001)));
+      p[k] = dark[0] + (light[0] - dark[0]) * t; p[k + 1] = dark[1] + (light[1] - dark[1]) * t; p[k + 2] = dark[2] + (light[2] - dark[2]) * t;
+    }
+    g.putImageData(d, 0, 0); return c;
+  }
+  function load(key, path, tintTo) {
+    const i = new Image();
+    i.onload = () => {
+      const tt = tintTo && tintTo.lazy ? CAR_META[tintTo.lazy] : tintTo;
+      img[key] = (tt && tt.dark) ? tint(i, tt.dark, tt.light) : i;
+    };
+    i.src = (window.ASSET_DATA && window.ASSET_DATA[path]) || A(path);
+  }
+  load('head_rider', 'heads/head_m_buzz.png');
+
+  const CAR_FILES = ['cars_b714ecba_1', 'cars_87f02ce2_1', 'cars_39e0f112_1', 'cars_4eb54de1_1',
+    'cars_6093fd94_1', 'cars_a9a16625_1', 'cars_d049053c_1', 'cars_f238fa36_1', 'cars_6775c1f3_1',
+    'cars_8e80b993_1', 'cars_43a7a337_1'];
+  const CAR_NAMES = ['Vortex sports', 'Vortex pursuit', 'Halcyon sedan', 'Halcyon taxi', 'Meridian cargo',
+    'Meridian news', 'Kestrel patrol', 'Kestrel camera', 'Rook armoured', 'Rook transport', 'Hover bike'];
+  CAR_FILES.forEach((f) => load('car_' + f, 'cars/' + f + '.png', { lazy: f }));
+
+  const ROOF_FILES = ['roofs_4da2db28_1', 'roofs_4da2db28_2', 'roofs_4da2db28_3', 'roofs_4da2db28_4',
+    'roofs_91c1b992_1', 'roofs_91c1b992_2', 'roofs_91c1b992_3', 'roofs_91c1b992_4', 'roofs_91c1b992_5',
+    'roofs_91c1b992_6', 'roofs_91c1b992_7', 'roofs_91c1b992_8', 'roofs_91c1b992_9', 'roofs_ab20a82f_1'];
+  ROOF_FILES.forEach((f) => load('roof_' + f, 'roofs/' + f + '.png'));
+
+  const HOLO_PORTRAITS = ['holo_c137924f_1', 'holo_e3ba96b7_1', 'holo_19be32b2_1', 'holo_c89d1ac1_1', 'holo_b09cb1ba_1', 'holo_3f8ae492_1'];
+  HOLO_PORTRAITS.forEach((f) => load('holo_' + f, 'holo/' + f + '.png'));
+  load('glow', 'holo/holo_8dd91f32_1.png');
+  load('haze_ground', 'haze/ground_haze.png');
+  load('haze_cloud', 'haze/cloud_haze.png');
+
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const ADS = ['DRINK HALCYON COLA', 'VORTEX: FASTER THAN YOU', 'KESTREL BANK: SAFE AS THE GRID', 'MERIDIAN MOVES YOU', 'RAVEN STUDIOS: WATCH LIVE', 'GET A NEW FACE: NOVA CLINIC'];
+
+  // city layout: blocks with buildings and roof decor, billboards on some roofs
+  const blocks = [];
+  for (let by = 0; by < WORLD.h / BLOCK; by++) for (let bx = 0; bx < WORLD.w / BLOCK; bx++) {
+    const x = bx * BLOCK + ROAD / 2, y = by * BLOCK + ROAD / 2, s = BLOCK - ROAD;
+    if (Math.random() < 0.12) continue;                       // some empty lots (parks)
+    blocks.push({ x, y, s, tone: Math.random() < 0.5 ? '#5a5e6a' : '#4c5060',
+      decor: [], billboard: null, ad: 0 });
+  }
+  let roofKeys = ROOF_FILES.map((f) => 'roof_' + f);
+  blocks.forEach((b) => {
+    const n = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const key = roofKeys[Math.floor(Math.random() * roofKeys.length)];
+      b.decor.push({ key, x: b.x + rnd(40, b.s - 40), y: b.y + rnd(40, b.s - 40), r: rnd(-0.2, 0.2) });
+    }
+    if (Math.random() < 0.3) {
+      b.billboard = { x: b.x + b.s / 2, y: b.y + b.s / 2 - 40, ad: Math.floor(Math.random() * ADS.length), t: rnd(0, 4) };
+    }
+  });
+
+  // billboard ads: a billboard never shares an ad with a billboard within 520 px
+  const allBoards = blocks.filter((b) => b.billboard).map((b) => b.billboard);
+  allBoards.forEach((bb, i) => {
+    const near = allBoards.slice(0, i).filter((o) => Math.hypot(o.x - bb.x, o.y - bb.y) < 520).map((o) => o.ad);
+    let pick = 0;
+    while (near.indexOf(pick) >= 0 && pick < ADS.length - 1) pick++;
+    bb.ad = pick;
+  });
+
+  // traffic: cars driving along roads
+  const traffic = Array.from({ length: 14 }, (_, i) => {
+    const horiz = Math.random() < 0.5;
+    const lane = Math.floor(Math.random() * (horiz ? WORLD.h / BLOCK : WORLD.w / BLOCK)) * BLOCK + ROAD / 2 + ROAD * 0.25;
+    return { horiz, lane, p: rnd(0, horiz ? WORLD.w : WORLD.h), dir: Math.random() < 0.5 ? 1 : -1,
+      sprite: 'car_' + CAR_FILES[i % CAR_FILES.length], speed: rnd(70, 140) };
+  });
+
+  const BIKE_INDEX = CAR_FILES.indexOf('cars_43a7a337_1');
+  const DEFAULT_HANDLING = { max: 380, accel: 260, brake: 300, turn: 2.6, drag: 0.35, lean: 0 };
+  const car = { x: 160, y: 160, heading: 0, speed: 0, sprite: BIKE_INDEX, lean: 0 };
+  function handlingOf(index) { return (CAR_META[CAR_FILES[index]] && CAR_META[CAR_FILES[index]].handling) || DEFAULT_HANDLING; }
+  const cloudsOffset = [];
+  for (let i = 0; i < 7; i++) cloudsOffset.push({ x: rnd(0, WORLD.w), y: rnd(0, WORLD.h), s: rnd(500, 900), v: rnd(6, 14) });
+
+  const keys = {};
+  let last = 0, t = 0, cycleCooldown = 0;
+
+  function readPad() {
+    const out = { x: 0, rt: 0, lt: 0 };
+    const list = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const g of list) {
+      if (!g) continue;
+      out.x = g.axes[0] || 0;
+      out.rt = g.buttons[7] ? g.buttons[7].value : 0;
+      out.lt = g.buttons[6] ? g.buttons[6].value : 0;
+      break;
+    }
+    return out;
+  }
+
+  function update(dt) {
+    t += dt;
+    const pad = readPad();
+    const hd = handlingOf(car.sprite);
+    const acc = ((keys.ArrowUp || keys.w || keys.W) || pad.rt > 0.1) ? hd.accel * Math.max(pad.rt, 1) : 0;
+    const brk = ((keys.ArrowDown || keys.s || keys.S) || pad.lt > 0.1) ? 1 : 0;
+    const steer = clamp((((keys.ArrowRight || keys.d || keys.D) ? 1 : 0) - ((keys.ArrowLeft || keys.a || keys.A) ? 1 : 0)) + (Math.abs(pad.x) > 0.15 ? pad.x : 0), -1, 1);
+    car.speed += acc * dt;
+    if (brk) car.speed -= hd.brake * dt;
+    car.speed *= (1 - hd.drag * dt);                          // hover drag
+    car.speed = clamp(car.speed, -hd.max * 0.35, hd.max);
+    const turn = steer * hd.turn * clamp(Math.abs(car.speed) / 200, 0, 1) * Math.sign(car.speed || 1);
+    // lean into the turn (bikes only): eases toward steer x speed
+    const leanTarget = steer * clamp(Math.abs(car.speed) / hd.max, 0, 1) * (hd.lean || 0) * Math.sign(car.speed || 1);
+    car.lean += (leanTarget - car.lean) * Math.min(1, 6 * dt);
+    car.heading += turn * dt;
+    car.x = clamp(car.x + Math.cos(car.heading) * car.speed * dt, 20, WORLD.w - 20);
+    car.y = clamp(car.y + Math.sin(car.heading) * car.speed * dt, 20, WORLD.h - 20);
+
+    traffic.forEach((c) => {
+      c.p += c.dir * c.speed * dt;
+      const L = c.horiz ? WORLD.w : WORLD.h;
+      if (c.p < 0) c.p += L; if (c.p > L) c.p -= L;
+    });
+    cloudsOffset.forEach((c) => { c.x += c.v * dt; if (c.x > WORLD.w + 600) c.x = -600; });
+    blocks.forEach((b) => { if (b.billboard) b.billboard.t += dt; });
+    cycleCooldown -= dt;
+    runnerUpdate(dt);
+  }
+
+  function carMeta(sprite) {
+    return CAR_META[sprite.replace(/^car_/, '')] || { len: 100, nose: 0 };
+  }
+  Object.keys(CAR_META).forEach((k) => { CAR_META_LIST[k] = CAR_META[k]; });
+
+  function drawGlow(x, y, heading, len, color) {
+    if (!color) return;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.translate(x, y); ctx.rotate(heading);
+    ctx.scale(1, 0.4);
+    const g = ctx.createRadialGradient(0, 0, 6, 0, 0, len * 0.85);
+    g.addColorStop(0, color + 'ee'); g.addColorStop(0.4, color + '88'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, len * 0.85, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawCarAt(sprite, x, y, heading, label, lean) {
+    const sp = img[sprite];
+    const m = carMeta(sprite);
+    lean = lean || 0;
+    drawGlow(x, y, heading, m.len, m.glow);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(heading + m.nose + lean * 0.12);
+    if (sp) {
+      // scale so the long axis of the art equals m.len, whatever the image's orientation
+      const k = m.len / Math.max(sp.width, sp.height);
+      const w = sp.width * k, h = sp.height * k;
+      ctx.drawImage(sp, -w / 2, -h / 2, w, h);
+      if (m.rider) {
+        // rider seated on the bike: sits out to the side of the lean, dark jacket shoulders, head facing forward
+        ctx.save(); ctx.translate(0, lean * 9);
+        ctx.fillStyle = '#e8d9b5';
+        ctx.beginPath(); ctx.ellipse(-5, 0, 8, 7, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5; ctx.stroke();
+        if (img.head_rider) {
+          const hw = 17, hh = img.head_rider.height * (hw / img.head_rider.width);
+          ctx.drawImage(img.head_rider, 2 - hw / 2, -hh / 2, hw, hh);
+        }
+        ctx.restore();
+      }
+    } else {
+      ctx.fillStyle = '#9aa'; ctx.fillRect(-m.len / 2, -20, m.len, 40);
+    }
+    ctx.restore();
+    if (label) { ctx.fillStyle = '#e8d9b5'; ctx.font = '11px monospace'; ctx.fillText(label, x - 30, y - 34); }
+  }
+
+  function drawShadow(x, y, heading, len) {
+    ctx.save(); ctx.translate(x + 10, y + 16); ctx.rotate(heading);
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath(); ctx.ellipse(0, 0, (len || 110) * 0.45, 22, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBubble(bx, by, text, portraitKey) {
+    const pw = 48;
+    const bw = 176, bh = 80, x = bx - bw / 2, y = by - bh - 24;
+    ctx.fillStyle = 'rgba(12,10,22,0.85)';
+    ctx.strokeStyle = '#6ef0ff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(x, y, bw, bh, 8); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx - 8, y + bh); ctx.lineTo(bx, y + bh + 14); ctx.lineTo(bx + 8, y + bh); ctx.fill();
+    const p = img[portraitKey];
+    if (p) ctx.drawImage(p, x + 8, y + 8, pw, pw * p.height / p.width);
+    ctx.fillStyle = '#6ef0ff'; ctx.font = 'bold 10px monospace';
+    ctx.fillText('ADS', x + 62, y + 20);
+    ctx.fillStyle = '#e8d9b5'; ctx.font = '10px monospace';
+    const words = text.split(' '); let line = '', ly = y + 36;
+    words.forEach((w) => { const test = line ? line + ' ' + w : w; if (ctx.measureText(test).width > 104) { ctx.fillText(line, x + 62, ly); line = w; ly += 13; } else line = test; });
+    ctx.fillText(line, x + 62, ly);
+  }
+
+  // a light cone from the billboard down onto the street, like a headlight beam, with the hologram at its far end
+  function drawProjection(bb) {
+    const cycle = Math.floor(bb.t / 6);
+    const idx = (bb.ad + cycle) % ADS.length;
+    const p = img['holo_' + HOLO_PORTRAITS[idx % HOLO_PORTRAITS.length]];
+    const flick = 0.85 + 0.15 * Math.sin(bb.t * 9) * Math.sin(bb.t * 2.3);
+    const top = bb.y + 34, reach = 300, endW = 104, startW = 176;   // the beam ends exactly as wide as the hologram
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createLinearGradient(0, top, 0, top + reach);
+    g.addColorStop(0, 'rgba(120,240,255,' + (0.42 * flick).toFixed(2) + ')');
+    g.addColorStop(0.6, 'rgba(120,200,255,0.14)');
+    g.addColorStop(1, 'rgba(120,200,255,0.02)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(bb.x - startW / 2, top); ctx.lineTo(bb.x + startW / 2, top);
+    ctx.lineTo(bb.x + endW / 2, top + reach); ctx.lineTo(bb.x - endW / 2, top + reach);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    // the hologram on the street at the end of the beam
+    const hy = top + reach * 0.62;
+    ctx.save();
+    ctx.globalAlpha = 0.9 * flick;
+    ctx.globalCompositeOperation = 'lighter';
+    if (p) { const pw = 96, ph = pw * p.height / p.width; ctx.drawImage(p, bb.x - pw / 2, hy - ph / 2, pw, ph); }
+    ctx.restore();
+    // ad line on the street, under the hologram
+    ctx.fillStyle = 'rgba(110,240,255,0.95)'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(ADS[idx], bb.x, hy + 62); ctx.textAlign = 'left';
+  }
+
+  function drawWorld() {
+    const camX = clamp(car.x - W / 2, 0, WORLD.w - W);
+    const camY = clamp(car.y - H / 2, 0, WORLD.h - H);
+    ctx.save();
+    ctx.translate(-camX, -camY);
+
+    // roads and ground
+    ctx.fillStyle = '#34363d'; ctx.fillRect(0, 0, WORLD.w, WORLD.h);
+    ctx.fillStyle = '#2b2d33';
+    for (let x = 0; x < WORLD.w; x += BLOCK) ctx.fillRect(x, 0, ROAD, WORLD.h);
+    for (let y = 0; y < WORLD.h; y += BLOCK) ctx.fillRect(0, y, WORLD.w, ROAD);
+
+    // buildings and roof decor
+    blocks.forEach((b) => {
+      ctx.fillStyle = b.tone; ctx.fillRect(b.x, b.y, b.s, b.s);
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.s, b.s);
+      b.decor.forEach((d) => {
+        const sp = img[d.key];
+        if (!sp) return;
+        const w = 90, h = sp.height * (w / sp.width);
+        ctx.save(); ctx.translate(d.x, d.y); ctx.rotate(d.r);
+        ctx.drawImage(sp, -w / 2, -h / 2, w, h); ctx.restore();
+      });
+      if (b.billboard) {
+        const bb = b.billboard;
+        const gl = img.glow;
+        if (gl) { ctx.globalAlpha = 0.85 + 0.15 * Math.sin(bb.t * 3); ctx.drawImage(gl, bb.x - 90, bb.y - 46, 180, 92); ctx.globalAlpha = 1; }
+      }
+    });
+
+    // ground haze: light purple tint across the street and roofs
+    if (img.haze_ground) {
+      ctx.save(); ctx.globalAlpha = 0.6;
+      const pat = ctx.createPattern(img.haze_ground, 'repeat');
+      if (pat.setTransform) pat.setTransform(new DOMMatrix().translate(t * 6, t * 3).scale(1.6));
+      ctx.fillStyle = pat; ctx.fillRect(0, 0, WORLD.w, WORLD.h);
+      ctx.restore();
+    }
+
+    drawRunnerGround();
+
+    // floating haze clouds (drawn under the cars, over the ground)
+    if (img.haze_cloud) {
+      cloudsOffset.forEach((c) => {
+        ctx.globalAlpha = 0.55;
+        ctx.drawImage(img.haze_cloud, c.x, c.y, c.s, c.s);
+      });
+      ctx.globalAlpha = 1;
+    }
+
+    drawRunnerAir();
+
+    // traffic
+    traffic.forEach((c) => {
+      const x = c.horiz ? c.p : c.lane, y = c.horiz ? c.lane : c.p;
+      const h = c.horiz ? (c.dir > 0 ? 0 : Math.PI) : (c.dir > 0 ? Math.PI / 2 : -Math.PI / 2);
+      drawShadow(x, y, h, carMeta(c.sprite).len);
+      drawCarAt(c.sprite, x, y, h, null);
+    });
+
+    // hover car (player): shadow, then the car above the haze
+    const pk = 'car_' + CAR_FILES[car.sprite];
+    drawShadow(car.x + Math.sin(car.heading) * car.lean * 8, car.y - Math.cos(car.heading) * car.lean * 8, car.heading, carMeta(pk).len);
+    drawCarAt(pk, car.x, car.y, car.heading, CAR_NAMES[car.sprite], car.lean);
+
+    // billboard ad bubbles (drawn above everything on the ground)
+    blocks.forEach((b) => {
+      if (!b.billboard) return;
+      const bb = b.billboard;
+      if (Math.hypot(bb.x - car.x, bb.y - car.y) > 520) return;   // only near the car, to keep it readable
+      drawProjection(bb);
+    });
+
+    ctx.restore();
+  }
+
+  function drawHud() {
+    drawRunnerHud();
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(12, 12, 360, 50);
+    ctx.fillStyle = '#e8d9b5'; ctx.font = '13px monospace';
+    ctx.fillText('CAR: ' + CAR_NAMES[car.sprite] + '   SPEED ' + Math.round(Math.abs(car.speed)), 22, 32);
+    ctx.fillText('stick / arrows / WASD drive   RT gas  LT brake   C car   R reset', 22, 52);
+  }
+
+
+  // ---------- Runner Mode (futurist skin): hunters on foot, drones with spotlights, heat, a night to survive ----------
+  const HUNTER_LIST = [
+    { name: 'Lockjaw', key: 'lockjaw', speed: 105 }, { name: 'Ruth', key: 'ruth', speed: 115 },
+    { name: 'Vince', key: 'vince', speed: 100 }, { name: 'Dana', key: 'dana', speed: 120 },
+    { name: 'Sully', key: 'sully', speed: 110 }, { name: 'Silk', key: 'silk', speed: 125 },
+    { name: 'Gus', key: 'gus', speed: 112 }, { name: 'Hollis', key: 'hollis', speed: 98 },
+  ];
+  HUNTER_LIST.forEach((h) => load('rh_' + h.key, 'hunters/v9_' + h.key + '.png'));
+  load('rh_hollis', 'hunters/v10b_hollis.png');
+  load('drone', 'roofs/roofs_a552f0e2_1.png');
+  const NIGHT = 90;                 // seconds on air before morning
+  const SIGHT_H = 300, SPOT_R = 150, CIV_R = 170;
+  const R = { mode: 'run', t: 0, heat: 0, pay: 0, msg: '', hunters: [], drones: [], civs: [] };
+
+  function resetRunner() {
+    R.mode = 'run'; R.t = 0; R.heat = 0; R.pay = 0; R.msg = '';
+    R.hunters = HUNTER_LIST.map((h, i) => ({ name: h.name, speed: h.speed, key: 'rh_' + h.key,
+      x: rnd(400, WORLD.w - 400), y: rnd(400, WORLD.h - 400), active: i < 2, state: 'patrol', pat: rnd(0, 6.28) }));
+    R.drones = [0, 1, 2].map((i) => ({ x: rnd(500, WORLD.w - 500), y: rnd(500, WORLD.h - 500),
+      heading: rnd(0, 6.28), spin: rnd(0.25, 0.45) * (i % 2 ? 1 : -1), active: i < 1, sees: false }));
+    R.civs = Array.from({ length: 18 }, () => ({ x: rnd(60, WORLD.w - 60), y: rnd(60, WORLD.h - 60),
+      vx: rnd(-25, 25), vy: rnd(-25, 25), alarm: 0, turned: false }));
+  }
+
+  function runnerUpdate(dt) {
+    if (R.mode !== 'run') return;
+    R.t += dt;
+    const speed = Math.abs(car.speed);
+    // drones sweep the streets; each one lights a spot of street under it
+    R.drones.forEach((d) => {
+      d.heading += d.spin * dt;
+      d.x = clamp(d.x + Math.cos(d.heading) * 90 * dt, 200, WORLD.w - 200);
+      d.y = clamp(d.y + Math.sin(d.heading) * 90 * dt, 200, WORLD.h - 200);
+      d.sees = d.active && Math.hypot(d.x - car.x, d.y - car.y) < SPOT_R;
+    });
+    const level = Math.floor(R.heat);
+    R.drones.forEach((d, i) => { d.active = i < Math.min(3, 1 + Math.floor(level / 2)); });
+    const hunterSeen = R.hunters.some((h) => h.active && Math.hypot(h.x - car.x, h.y - car.y) < SIGHT_H);
+    const seen = hunterSeen || R.drones.some((d) => d.sees);
+    R.heat = clamp(R.heat + (seen ? 0.45 : -0.25) * dt, 0, 5);
+    const n = Math.min(R.hunters.length, 2 + Math.floor(R.heat));
+    R.hunters.forEach((h, i) => { h.active = i < n; });
+
+    R.hunters.forEach((h) => {
+      if (!h.active) return;
+      const d = Math.hypot(car.x - h.x, car.y - h.y);
+      if (d < SIGHT_H) {
+        h.state = 'chase';
+        const ang = Math.atan2(car.y - h.y, car.x - h.x);
+        h.x += Math.cos(ang) * h.speed * dt; h.y += Math.sin(ang) * h.speed * dt;
+        // caught only if you're nearly stopped next to them; a fast bike goes past
+        if (d < 24 && speed < 220 && R.mode === 'run') { R.mode = 'caught'; R.msg = h.name + ' caught you'; }
+      } else {
+        h.state = 'patrol'; h.pat += dt * 0.6;
+        h.x = clamp(h.x + Math.cos(h.pat) * 40 * dt, 40, WORLD.w - 40);
+        h.y = clamp(h.y + Math.sin(h.pat) * 40 * dt, 40, WORLD.h - 40);
+      }
+    });
+
+    R.civs.forEach((c) => {
+      if (c.turned) return;
+      c.x = clamp(c.x + c.vx * dt, 40, WORLD.w - 40); c.y = clamp(c.y + c.vy * dt, 40, WORLD.h - 40);
+      if (Math.random() < 0.01) { c.vx = rnd(-25, 25); c.vy = rnd(-25, 25); }
+      if (c.alarm > 0) c.alarm -= dt;
+      if (Math.hypot(c.x - car.x, c.y - car.y) < CIV_R && Math.random() < (0.06 + R.heat * 0.03) * dt) {
+        c.alarm = 2.5; c.turned = true; R.heat = clamp(R.heat + 1, 0, 5);
+      }
+    });
+
+    if (R.t >= NIGHT && R.mode === 'run') { R.mode = 'morning'; R.pay += 10000; R.msg = 'Morning. You survived the night.'; }
+  }
+
+  function drawRunnerGround() {
+    R.civs.forEach((c) => {
+      ctx.fillStyle = c.turned ? '#7a2a2a' : '#c9c3d6';
+      ctx.beginPath(); ctx.arc(c.x, c.y, 6, 0, Math.PI * 2); ctx.fill();
+      if (c.alarm > 0) { ctx.fillStyle = '#ffd34d'; ctx.font = 'bold 14px monospace'; ctx.fillText('!', c.x - 3, c.y - 12); }
+    });
+    R.hunters.forEach((h) => {
+      if (!h.active) return;
+      const sp = img[h.key];
+      if (sp) { const w = 46, hh = sp.height * (w / sp.width); ctx.drawImage(sp, h.x - w / 2, h.y - hh / 2, w, hh); }
+      else { ctx.fillStyle = '#c0392b'; ctx.fillRect(h.x - 12, h.y - 12, 24, 24); }
+      ctx.fillStyle = '#ffe9b0'; ctx.font = '10px monospace'; ctx.fillText(h.name, h.x - 14, h.y - 28);
+    });
+  }
+
+  function drawRunnerAir() {
+    R.drones.forEach((d) => {
+      if (!d.active) return;
+      // spotlight on the street under the drone, like a beam
+      const col = d.sees ? 'rgba(255,70,90,' : 'rgba(255,230,140,';
+      const g = ctx.createRadialGradient(d.x, d.y, 10, d.x, d.y, SPOT_R);
+      g.addColorStop(0, col + '0.42)'); g.addColorStop(1, col + '0)');
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(d.x, d.y, SPOT_R, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      const dr = img.drone;
+      if (dr) { ctx.save(); ctx.translate(d.x, d.y); ctx.rotate(d.heading); const w = 64, h = dr.height * (w / dr.width); ctx.drawImage(dr, -w / 2, -h / 2, w, h); ctx.restore(); }
+    });
+  }
+
+  function drawRunnerHud() {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(12, 70, 360, 56);
+    ctx.fillStyle = '#e8d9b5'; ctx.font = '13px monospace';
+    ctx.fillText('HEAT ' + Math.floor(R.heat) + ' / 5', 22, 90);
+    ctx.fillStyle = '#333'; ctx.fillRect(22, 98, 260, 8);
+    ctx.fillStyle = '#ff5a7a'; ctx.fillRect(22, 98, 260 * (R.heat / 5), 8);
+    ctx.fillStyle = '#e8d9b5';
+    ctx.fillText('MORNING IN ' + Math.max(0, NIGHT - R.t).toFixed(0) + 's   PAY $' + R.pay.toLocaleString(), 22, 120);
+    if (R.mode !== 'run') {
+      ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(W / 2 - 220, H / 2 - 50, 440, 100);
+      ctx.fillStyle = '#6ef0ff'; ctx.font = 'bold 18px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(R.msg, W / 2, H / 2 - 8);
+      ctx.fillStyle = '#e8d9b5'; ctx.font = '13px monospace';
+      ctx.fillText('Press R to run again', W / 2, H / 2 + 26);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  function step(ts) {
+    const dt = Math.min(0.05, (ts - (last || ts)) / 1000);
+    last = ts;
+    update(dt);
+    ctx.fillStyle = '#0e0d0c'; ctx.fillRect(0, 0, W, H);
+    drawWorld();
+    drawHud();
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'F9') { RUN_ON = !RUN_ON; if (RUN_ON) { car.x = 160; car.y = 160; car.heading = 0; car.speed = 0; car.lean = 0; resetRunner(); } return; }
+    keys[e.key] = true;
+    if (!RUN_ON) return;
+    if ((e.key === 'c' || e.key === 'C') && cycleCooldown <= 0) { car.sprite = (car.sprite + 1) % CAR_FILES.length; cycleCooldown = 0.2; }
+    if (RUN_ON && (e.key === 'r' || e.key === 'R')) { car.x = 160; car.y = 160; car.heading = 0; car.speed = 0; car.lean = 0; resetRunner(); }
+    if (RUN_ON && e.key.startsWith('Arrow')) e.preventDefault();
+  });
+  window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+  resetRunner();
+  return {
+    isOn: () => RUN_ON,
+    frame: (canvas) => { cv = canvas; ctx = cv.getContext('2d'); W = cv.width; H = cv.height; step(performance.now()); },
+  };
+})();
+
 
 export default function IronLionLayer004() {
   // the missing-files list: its own state, so the HUD's per-frame refresh cannot close it
@@ -51406,6 +51906,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function frameBody(now) {
       let dt = Math.min((now - last) / 1000, 0.05);
       last = now;
+      // Runner Mode (F9): the game's own loop hands the frame to the runner while it is on
+      if (RUNNER_API.isOn()) { RUNNER_API.frame(canvasRef.current); return; }
       // real elapsed time, kept aside: the meter has to drain in wall-clock seconds or a
       // 3-second charge would last 3 / TIMESCALE seconds and the cost would be meaningless
       const rdt = dt;
