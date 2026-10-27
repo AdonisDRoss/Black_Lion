@@ -2791,7 +2791,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 618";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 624";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14658,6 +14658,7 @@ const RUNNER_API = (function () {
   load('hoverboard', 'hover/hoverboard.png');
   load('drone', 'drone/traffic_drone.png');        // LAYER 608: the traffic drone
   load('airtow', 'drone/airtow.png');             // LAYER 610: the air tow (flatbed, cab to the left)
+  for (let q = 0; q < 8; q++) load('puff_' + q, 'smoke/puff_' + q + '.png');   // LAYER 622: exhaust puffs, 0 and 4 small, 1 and 5 medium, 2 3 6 7 big
   // LAYER 594: the Lion's jacket body (the game's own hero art), recoloured per look; heads go on top of it
   const sprCache = {};
   // LAYER 598: the build bodies, each on the Lion's 224 x 159 canvas (same scale), arms cut at the elbow.
@@ -14726,6 +14727,8 @@ const RUNNER_API = (function () {
   let held = null;                                          // LAYER 603: the weapon in hand (a key, or null)
   const HAND_DOWN = 0.10;                                    // share of the body height the hands drop while holding
   let padPrev = { a: false, b: false };
+  let padL3Prev = false, logOpen = false;
+  const scanLog = [];                              // LAYER 619: the last scans, with the face, the result and the shock
   const say = (s, secs) => { msg = s; msgT = secs || 2.5; };
 
   // ---------- the city: the game's own cells, river and expressway (read only) ----------
@@ -14863,12 +14866,37 @@ const RUNNER_API = (function () {
   }
 
   // ---------- flying traffic: fly, land on open ground, rest, lift off ----------
+  // LAYER 621: hover traffic keeps to the streets. A flier works the junction grid: it flies road to road,
+  // lands in the lane beside a road and takes off from there. How many there are depends on the zone.
+  const DENS = { downtown: 1, uptown: 1, arden: 0.9, civic: 0.8, neon: 0.7, northend: 0.6, terminal: 0.6, stadium: 0.5,
+    chinatown: 0.5, industrial: 0.45, irish: 0.4, park: 0.3, skate: 0.3, town: 0.2, barrio: 0.2, hood: 0.15,
+    farm: 0.08, projects: 0.04, cemetery: 0.05, prison: 0.03, mountain: 0, water: 0, edge: 0 };
+  function jIdx(v) { return clamp(Math.round(v / PITCH), 1, N - 1); }
+  function densAt(x, y) { const z = zoneOf(jIdx(x), jIdx(y)); return DENS[z] != null ? DENS[z] : 0.35; }
+  const CAR_POOL = CAR_FILES.filter((f) => f !== 'cars_43a7a337_1').map((f) => 'car_' + f);   // the hover cars: the car art, no kit
   function newFlier(cx, cy) {
-    const f = { x: cx + rnd(-2600, 2600), y: cy + rnd(-2600, 2600), heading: 0, z: rnd(110, 180), cruise: rnd(110, 180),
-      mode: 'fly', tx: 0, ty: 0, wait: 0, spd: rnd(170, 260),
-      sprite: 'car_cars_43a7a337_1', head: RHEADS[Math.floor(Math.random() * RHEADS.length)][1] };   // LAYER 614: a hover bike, a different rider each
-    f.tx = cx + rnd(-2600, 2600); f.ty = cy + rnd(-2600, 2600);
+    // a junction near the camera, kept with a chance that follows the zone's density
+    let ci = jIdx(cx + rnd(-1400, 1400)), cj = jIdx(cy + rnd(-1400, 1400));
+    for (let k = 0; k < 8 && Math.random() > densAt(SX(ci), SX(cj)) + 0.05; k++) { ci = jIdx(cx + rnd(-1400, 1400)); cj = jIdx(cy + rnd(-1400, 1400)); }
+    const bike = Math.random() < 0.4;
+    const f = { x: SX(ci), y: SX(cj), heading: 0, z: rnd(110, 180), cruise: rnd(110, 180),
+      mode: 'fly', tx: SX(ci), ty: SX(cj), ci, cj, wait: 0, spd: rnd(170, 260),
+      sprite: bike ? 'car_cars_43a7a337_1' : CAR_POOL[Math.floor(Math.random() * CAR_POOL.length)],
+      head: bike ? RHEADS[Math.floor(Math.random() * RHEADS.length)][1] : null, riderRow: (Math.random() * 10) | 0 };
     return f;
+  }
+  // the next junction along a road from the one the flier is at (never off the grid)
+  function nextJunction(f) {
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([di, dj]) => f.ci + di >= 1 && f.cj + dj >= 1 && f.ci + di <= N - 1 && f.cj + dj <= N - 1);
+    const [di, dj] = dirs[Math.floor(Math.random() * dirs.length)];
+    f.ci += di; f.cj += dj; f.tx = SX(f.ci); f.ty = SX(f.cj);
+  }
+  // a parking spot in the lane beside the road it is leaving from
+  function laneSpot(f) {
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([di, dj]) => f.ci + di >= 1 && f.cj + dj >= 1 && f.ci + di <= N - 1 && f.cj + dj <= N - 1);
+    const [di, dj] = dirs[Math.floor(Math.random() * dirs.length)];
+    const mx = SX(f.ci) + di * PITCH / 2, my = SX(f.cj) + dj * PITCH / 2, side = (Math.random() < 0.5 ? 1 : -1) * 110;
+    return di !== 0 ? { x: mx, y: my + side } : { x: mx + side, y: my };
   }
   function pickSpot(cx, cy) {
     for (let k = 0; k < 40; k++) {
@@ -14884,25 +14912,56 @@ const RUNNER_API = (function () {
     const s = Math.min(d, spd * dt);
     f.x += dx / d * s; f.y += dy / d * s;
   }
+  // LAYER 622: exhaust puffs. A vehicle lets off a puff as it lifts off: a bike a small one, a car a medium one,
+  // the air tow the biggest. A puff fades in, swells, drifts up and fades out, see-through the whole time.
+  // Built as a general smoke so exhaust, dust and steam can use it later.
+  const PUFF = { list: [], base: { small: 30, medium: 62, big: 130 }, pick: { small: [0, 4], medium: [1, 5], big: [2, 3, 6, 7] },
+    life: { small: 1.3, medium: 1.9, big: 2.6 }, maxA: 0.55 };
+  function puff(x, y, size) {
+    if (PUFF.list.length > 60) PUFF.list.shift();
+    const k = PUFF.pick[size] || PUFF.pick.small;
+    PUFF.list.push({ x, y, t: 0, life: PUFF.life[size] || 1.3, S: PUFF.base[size] || 30, key: 'puff_' + k[Math.floor(Math.random() * k.length)] });
+  }
+  function drawPuffs(dt) {
+    for (let n = PUFF.list.length - 1; n >= 0; n--) {
+      const p = PUFF.list[n]; p.t += dt;
+      const u = p.t / p.life;
+      if (u >= 1) { PUFF.list.splice(n, 1); continue; }
+      const grow = 0.5 + 0.7 * (1 - Math.pow(1 - u, 2));           // swells as it goes
+      const a = PUFF.maxA * Math.pow(Math.sin(Math.PI * u), 1.2);  // fades in, then out
+      const S = p.S * grow, y = p.y - 14 * u;                      // drifts up a little
+      ctx.save(); ctx.globalAlpha = a;
+      const im = img[p.key];
+      if (im && im.width) { const H = S * im.height / im.width; ctx.drawImage(im, p.x - S / 2, y - H / 2, S, H); }
+      else { ctx.fillStyle = '#e9edf1'; ctx.beginPath(); ctx.arc(p.x, y, S * 0.42, 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
+    }
+  }
   function updateFlier(f, dt, cx, cy) {
     if (f.drHeld) return;                                   // LAYER 609: held by a traffic drone
     if (Math.hypot(f.x - cx, f.y - cy) > 4200) { Object.assign(f, newFlier(cx, cy)); return; }
     if (f.mode === 'fly') {
-      steerTo(f, f.tx, f.ty, f.spd, dt);
-      if (Math.hypot(f.tx - f.x, f.ty - f.y) < 60) {
-        const s = Math.random() < 0.35 ? pickSpot(f.x, f.y) : null;
-        if (s) { f.tx = s.x; f.ty = s.y; f.mode = 'desc'; }
-        else { f.tx = f.x + rnd(-1500, 1500); f.ty = f.y + rnd(-1500, 1500); }
+      // LAYER 620: a bike inside a hovering drone's cone slows right down, so the scan has time to read it
+      const held = drones.some((d) => !d.flying && Math.hypot(f.x - d.x, f.y - d.y) < DRONE.cone * 1.4);
+      steerTo(f, f.tx, f.ty, f.spd * (held ? 0.25 : 1), dt);
+      if (Math.hypot(f.tx - f.x, f.ty - f.y) < 10) {
+        f.ci = jIdx(f.tx); f.cj = jIdx(f.ty);               // LAYER 621: arrived at a junction, on the line
+        const hov = drones.filter((d) => !d.flying);
+        if (hov.length && Math.random() < 0.3) {            // LAYER 620: some go to a junction a drone is holding
+          const dr = hov[Math.floor(Math.random() * hov.length)]; f.ci = jIdx(dr.x); f.cj = jIdx(dr.y); f.tx = SX(f.ci); f.ty = SX(f.cj);
+        } else if (Math.random() < 0.12 * (0.3 + densAt(SX(f.ci), SX(f.cj)))) {
+          const p = laneSpot(f); f.tx = p.x; f.ty = p.y; f.mode = 'desc';   // LAYER 621: park in the lane
+        } else nextJunction(f);
       }
     } else if (f.mode === 'desc') {
       steerTo(f, f.tx, f.ty, 60, dt);
       f.z -= 80 * dt;
       if (f.z <= 0) { f.z = 0; f.mode = 'rest'; f.wait = rnd(5, 12); }
     } else if (f.mode === 'rest') {
-      f.wait -= dt; if (f.wait <= 0) f.mode = 'asc';
+      f.wait -= dt; if (f.wait <= 0) { f.mode = 'asc'; puff(f.x, f.y, f.sprite === 'car_cars_43a7a337_1' ? 'small' : 'medium'); }   // LAYER 622
     } else if (f.mode === 'asc') {
       f.z += 80 * dt;
-      if (f.z >= f.cruise) { f.z = f.cruise; f.mode = 'fly'; f.tx = f.x + rnd(-1500, 1500); f.ty = f.y + rnd(-1500, 1500); }
+      if (f.z >= f.cruise) { f.z = f.cruise; f.mode = 'fly'; f.ci = jIdx(f.x); f.cj = jIdx(f.y); nextJunction(f); }
     }
   }
   const fliers = [];
@@ -14930,7 +14989,7 @@ const RUNNER_API = (function () {
       if (!landable(car.x, car.y)) return say('NO LANDING ON A BUILDING, WATER OR DECK');
       car.mode = 'down'; say('LANDING');
     } else if (car.mode === 'down') { car.mode = 'up'; say('LIFTING OFF'); }
-    else if (car.mode === 'landed') { car.mode = 'up'; say('LIFTING OFF'); }
+    else if (car.mode === 'landed') { car.mode = 'up'; puff(car.x, car.y, car.sprite === BIKE_INDEX ? 'small' : 'medium'); say('LIFTING OFF'); }   // LAYER 622
     else if (car.mode === 'up') { car.mode = 'down'; say('LANDING'); }
   }
   function exitOrBoard() {
@@ -14989,7 +15048,7 @@ const RUNNER_API = (function () {
 
   // ---------- input ----------
   function readPad() {
-    const out = { x: 0, y: 0, rt: 0, lt: 0, a: false, b: false };
+    const out = { x: 0, y: 0, rt: 0, lt: 0, a: false, b: false, l3: false };
     const list = navigator.getGamepads ? navigator.getGamepads() : [];
     for (const g of list) {
       if (!g) continue;
@@ -14998,6 +15057,7 @@ const RUNNER_API = (function () {
       out.lt = g.buttons[6] ? g.buttons[6].value : 0;
       out.a = !!(g.buttons[0] && g.buttons[0].pressed);
       out.b = !!(g.buttons[1] && g.buttons[1].pressed);
+      out.l3 = !!(g.buttons[10] && g.buttons[10].pressed);
       break;
     }
     return out;
@@ -15008,6 +15068,8 @@ const RUNNER_API = (function () {
     if (pad.a && !padPrev.a) pend.land = true;
     if (pad.b && !padPrev.b) pend.exit = true;
     padPrev = { a: pad.a, b: pad.b };
+    if (pad.l3 && !padL3Prev) logOpen = !logOpen;      // LAYER 619: L3 opens and closes the scan log
+    padL3Prev = pad.l3;
     cycleCooldown -= dt; msgT -= dt;
     if (pend.land) { pend.land = false; if (!walker.on) toggleLand(); else say('GET IN THE CAR FIRST'); }
     if (pend.exit) { pend.exit = false; exitOrBoard(); }
@@ -15308,12 +15370,50 @@ const RUNNER_API = (function () {
     ctx.globalAlpha = 0.3; ctx.fillStyle = pat; ctx.fillRect(0, 0, W, H);
     ctx.restore();
   }
+  function logScan(head, hit) {
+    scanLog.unshift({ head, hit, t: performance.now() });
+    if (scanLog.length > 8) scanLog.length = 8;
+  }
+  // the shock collar: a cyan ring with two contact prongs and a red light
+  function drawShockIcon(x, y, s) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    ctx.strokeStyle = '#6ef0ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(0, 0, 14, 9, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#6ef0ff'; ctx.fillRect(-9, 6, 3, 6); ctx.fillRect(6, 6, 3, 6);
+    ctx.fillStyle = '#ff4d4d'; ctx.beginPath(); ctx.arc(0, -1, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  function drawScanLog() {
+    if (!RUN_ON) return;
+    const x0 = W - 300, y0 = 12;
+    ctx.save();
+    if (!logOpen) {
+      ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x0, y0, 288, 24);
+      ctx.fillStyle = '#e8d9b5'; ctx.font = '12px monospace'; ctx.fillText('SCAN LOG (L3)', x0 + 10, y0 + 16);
+      ctx.restore(); return;
+    }
+    const h = 48 + Math.max(1, scanLog.length) * 40;
+    ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(x0, y0, 288, h);
+    ctx.fillStyle = '#e8d9b5'; ctx.font = 'bold 13px monospace'; ctx.fillText('SCAN LOG (L3 TO CLOSE)', x0 + 10, y0 + 20);
+    if (!scanLog.length) { ctx.font = '12px monospace'; ctx.fillText('NOTHING SCANNED YET', x0 + 10, y0 + 50); }
+    scanLog.forEach((e, i) => {
+      const ry = y0 + 36 + i * 40;
+      const hs = headSprite(e.head);
+      if (hs && hs.width) { const hw = 32, hh = hs.height * (hw / hs.width); ctx.drawImage(hs, x0 + 8, ry, hw, hh); }
+      ctx.font = 'bold 12px monospace';
+      ctx.fillStyle = e.hit ? '#ff8a8a' : '#9fffc0';
+      ctx.fillText(e.hit ? 'WARRANT' : 'CLEAR', x0 + 52, ry + 14);
+      if (e.hit) { drawShockIcon(x0 + 196, ry + 12, 1.1); ctx.fillStyle = '#6ef0ff'; ctx.font = '11px monospace'; ctx.fillText('SHOCKED', x0 + 220, ry + 16); }
+      ctx.fillStyle = '#9a9486'; ctx.font = '11px monospace'; ctx.fillText('AIR CAR', x0 + 52, ry + 30);
+    });
+    ctx.restore();
+  }
   function overlay(canvas) {
     ctx = canvas.getContext('2d');
     const dpr = canvas.width / W;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawOverlay();
     drawHud();
+    drawScanLog();
   }
 
   // always on (every mode): a drawn augment on some civilians, and the alt-fuel kit on ground traffic.
@@ -15355,7 +15455,10 @@ const RUNNER_API = (function () {
   // hears the warning, is shocked, and auto-lands at the nearest open spot. Authorities come in, an air tow
   // hooks the car, and the car and the cruiser go off screen. Ground traffic and people are not scanned.
   let ART = {};                                    // the game's own sprites (set by the game each frame)
-  const DRONE = { n: 2, cone: 160, scanT: 0.8, hoverMin: 4, hoverMax: 7, flySpeed: 170, cruiseSpeed: 420, haulSpeed: 300, landT: 0.6, fliers: 16 };
+  let CIV = null;                                  // LAYER 624: the game's crowd: { pick(), draw(o, x, y, vx, vy, t) }
+  let dZ = 1;                                      // LAYER 620: the camera zoom this frame; text and boxes are sized in screen pixels through it
+  let dStat = { fl: 0, dr: 0 };                    // LAYER 620: what was drawn this frame (read back by RUNNER_API.dbg for checks)
+  const DRONE = { n: 2, cone: 160, scanT: 0.8, hoverMin: 7, hoverMax: 11, flySpeed: 420, cruiseSpeed: 420, haulSpeed: 300, landT: 0.6, fliers: 24 };   // LAYER 620: hover longer, fly quicker, so a scan can finish
   const WARN_LINES = ['*CRACKLE CRACK ZZZZZ*', 'PLEASE PULL OVER YOUR CAR', 'AND LAND IN THE NEAREST LOT.', 'AUTHORITIES ARE INBOUND.'];
   const drones = [], incidents = [];
   let lastD = 0;
@@ -15367,8 +15470,29 @@ const RUNNER_API = (function () {
     const i = clamp(Math.round((cx + Math.cos(a) * r) / PITCH), 1, N - 1), j = clamp(Math.round((cy + Math.sin(a) * r) / PITCH), 1, N - 1);
     return [SX(i), SX(j)];
   }
+  // LAYER 620: the junctions nearest the car, closest first. The drones work the intersections by the player,
+  // not ones 700 to 1300 units away where a phone camera never reaches.
+  function nearJunctions(cx, cy, n) {
+    const i0 = clamp(Math.round(cx / PITCH), 1, N - 1), j0 = clamp(Math.round(cy / PITCH), 1, N - 1);
+    const c = [];
+    for (let di = -2; di <= 2; di++) for (let dj = -2; dj <= 2; dj++) {
+      const i = i0 + di, j = j0 + dj;
+      if (i < 1 || j < 1 || i > N - 1 || j > N - 1) continue;
+      c.push({ x: SX(i), y: SX(j), d: Math.hypot(SX(i) - cx, SX(j) - cy) });
+    }
+    c.sort((a, b) => a.d - b.d);
+    const pool = c.slice(0, Math.max(1, n));
+    const p = pool[Math.floor(Math.random() * pool.length)];
+    return [p.x, p.y];
+  }
+  // LAYER 620: two drones never share an intersection
+  function freeJunction(cx, cy, self) {
+    let p = nearJunctions(cx, cy, 4);
+    for (let k = 0; k < 6 && drones.some((o) => o !== self && (Math.hypot(o.tx - p[0], o.ty - p[1]) < 50 || Math.hypot(o.x - p[0], o.y - p[1]) < 50)); k++) p = nearJunctions(cx, cy, 4);
+    return p;
+  }
   function newDrone(cx, cy) {
-    const [x, y] = junctionNear(cx, cy, 700, 1300);
+    const [x, y] = freeJunction(cx, cy, null);
     return { x, y, tx: x, ty: y, ang: 0, flying: false, hover: droneRand(DRONE.hoverMin, DRONE.hoverMax), ph: Math.random() * 6.28, side: 0, sideT: droneRand(5, 8), alert: 0, bub: null };
   }
   function drawSprite(im, x, y, ang, L, W, sc) {
@@ -15390,7 +15514,7 @@ const RUNNER_API = (function () {
       ctx.moveTo(d.x + px * w0, d.y + py * w0); ctx.lineTo(d.x + ax * L + px * w1, d.y + ay * L + py * w1);
       ctx.lineTo(d.x + ax * L - px * w1, d.y + ay * L - py * w1); ctx.lineTo(d.x - px * w0, d.y - py * w0); ctx.closePath(); ctx.fill();
       ctx.fillStyle = 'rgba(' + col + ',' + (0.75 + 0.2 * Math.sin(now / 180)) + ')';
-      ctx.font = 'bold 18px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = 'bold ' + Math.round(20 / dZ) + 'px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(word, d.x + ax * (L - 36), d.y + ay * (L - 36));
       ctx.restore();
     }
@@ -15398,17 +15522,32 @@ const RUNNER_API = (function () {
   // the voice bubble: a warning in the drone's own voice, over the drone while it speaks
   function drawBubble(d) {
     if (!d.bub || d.bub.t <= 0) return;
-    const lh = 17, fs = 14;
+    const S = 1 / dZ, lh = 17 * S, fs = 14 * S;
     ctx.save(); ctx.font = 'bold ' + fs + 'px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const tw = Math.max.apply(null, WARN_LINES.map((l) => ctx.measureText(l).width));
-    const bw = tw + 22, bh = WARN_LINES.length * lh + 14;
-    const bx = d.x - bw / 2, by = d.y - 120 - bh;
-    ctx.fillStyle = 'rgba(240,250,255,0.96)'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
+    const bw = tw + 22 * S, bh = WARN_LINES.length * lh + 14 * S;
+    const bx = d.x - bw / 2, by = d.y - 120 * S - bh;
+    ctx.fillStyle = 'rgba(240,250,255,0.96)'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2 * S;
     ctx.fillRect(bx, by, bw, bh); ctx.strokeRect(bx, by, bw, bh);
-    ctx.beginPath(); ctx.moveTo(d.x - 7, by + bh); ctx.lineTo(d.x, d.y - 50); ctx.lineTo(d.x + 7, by + bh); ctx.closePath();
+    ctx.beginPath(); ctx.moveTo(d.x - 7 * S, by + bh); ctx.lineTo(d.x, d.y - 50 * S); ctx.lineTo(d.x + 7 * S, by + bh); ctx.closePath();
     ctx.fillStyle = 'rgba(240,250,255,0.96)'; ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#111';
-    WARN_LINES.forEach((l, i) => ctx.fillText(l, d.x, by + 7 + lh / 2 + i * lh));
+    WARN_LINES.forEach((l, i) => ctx.fillText(l, d.x, by + 7 * S + lh / 2 + i * lh));
+    ctx.restore();
+  }
+  // LAYER 620: the quadcopter drawn in code, so it is on the street even before its art is in assets/runner/drone/
+  function drawDroneFallback(d, lift) {
+    const r = 30;
+    ctx.save(); ctx.translate(d.x, d.y - lift); ctx.rotate(d.ang + Math.PI / 2);
+    ctx.strokeStyle = '#0b0d12'; ctx.lineWidth = 2;
+    for (const [ax, ay] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      ctx.beginPath(); ctx.arc(ax * r * 0.8, ay * r * 0.8, r * 0.42, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(180,220,255,0.4)'; ctx.fill(); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.ellipse(0, 0, r * 0.7, r * 0.55, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#2a2f3a'; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = d.alert > 0 ? '#ff4d4d' : '#6ef0ff';
+    ctx.beginPath(); ctx.arc(0, r * 0.35, r * 0.16, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
   function drawDrone(d, now) {
@@ -15423,8 +15562,9 @@ const RUNNER_API = (function () {
     ctx.strokeStyle = 'rgba(' + col + ',0.8)'; ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x + Math.cos(sw) * DRONE.cone, d.y + Math.sin(sw) * DRONE.cone); ctx.stroke();
     ctx.restore();
     if (!d.flying) drawBeams(d, now);
-    const im = img.drone; const W = 48, H = 48 * 436 / 500;
+    const im = img.drone; const W = 60, H = 60 * 436 / 500;
     if (im && im.width) { ctx.save(); ctx.translate(d.x, d.y - lift); ctx.rotate(d.ang + Math.PI / 2); ctx.drawImage(im, -W / 2, -H / 2, W, H); ctx.restore(); }
+    else drawDroneFallback(d, lift);
     drawBubble(d);
   }
   // the air tow: a flying flatbed that carries cars. Placeholder drawn in code until its art is in.
@@ -15489,7 +15629,7 @@ const RUNNER_API = (function () {
     } else if (inc.stage === 'tow') {                   // the air tow comes in over the car and hooks it
       const tw = inc.tow, dx = f.x - tw.x, dy = f.y - tw.y, L = Math.hypot(dx, dy);
       if (L > 2) { const m = Math.min(L, 380 * dt); tw.x += dx / L * m; tw.y += dy / L * m; tw.ang = Math.atan2(dy, dx); }
-      if (inc.t >= 1.1 && L <= 2) { inc.stage = 'lift'; inc.t = 0; }
+      if (inc.t >= 1.1 && L <= 2) { inc.stage = 'lift'; inc.t = 0; puff(inc.tow.x, inc.tow.y, 'big'); }   // LAYER 622
     } else if (inc.stage === 'lift') {                  // the car is lifted off the street
       f.z = 70 * Math.min(1, inc.t / 0.8);
       inc.tow.x = f.x; inc.tow.y = f.y;
@@ -15530,9 +15670,16 @@ const RUNNER_API = (function () {
   }
   function droneFrame(cam, traffic, peds, now) {
     const dt = Math.min(0.05, (now - (lastD || now)) / 1000); lastD = now;
+    dZ = cam.z > 0 ? cam.z : 1; dStat = { fl: 0, dr: 0 };
     while (drones.length < DRONE.n) drones.push(newDrone(cam.x, cam.y));
     for (let n = drones.length - 1; n >= 0; n--) if (Math.hypot(drones[n].x - cam.x, drones[n].y - cam.y) > 2600) drones.splice(n, 1);
-    while (fliers.length < DRONE.fliers) fliers.push(newFlier(cam.x, cam.y));
+    // LAYER 621: busy downtown and uptown, a handful in the poor quarters
+    const want = Math.max(2, Math.round(DRONE.fliers * densAt(cam.x, cam.y)));
+    while (fliers.length < want) fliers.push(newFlier(cam.x, cam.y));
+    while (fliers.length > want + 3) {
+      let far = 0; for (let q = 1; q < fliers.length; q++) if (Math.hypot(fliers[q].x - cam.x, fliers[q].y - cam.y) > Math.hypot(fliers[far].x - cam.x, fliers[far].y - cam.y)) far = q;
+      fliers.splice(far, 1);
+    }
     for (const d of drones) {
       d.ph += dt * 2.2; if (d.alert > 0) d.alert -= dt;
       if (d.bub) { d.bub.t -= dt; if (d.bub.t <= 0) d.bub = null; }
@@ -15542,7 +15689,7 @@ const RUNNER_API = (function () {
         else { const m = Math.min(L, DRONE.flySpeed * dt); d.x += dx / L * m; d.y += dy / L * m; d.ang = Math.atan2(dy, dx); }
       } else {
         d.hover -= dt;
-        if (d.hover <= 0) { const [nx, ny] = junctionNear(d.x, d.y, PITCH * 1.1, PITCH * 2.6); d.tx = nx; d.ty = ny; d.flying = true; }
+        if (d.hover <= 0) { let [nx, ny] = freeJunction(d.x, d.y, d); if (Math.hypot(nx - d.x, ny - d.y) < 50) [nx, ny] = freeJunction(d.x, d.y, d); d.tx = nx; d.ty = ny; d.flying = true; }
       }
       d.sideT -= dt; if (d.sideT <= 0) { d.side ^= 1; d.sideT = droneRand(5, 8); }
     }
@@ -15558,7 +15705,9 @@ const RUNNER_API = (function () {
         f.scanT = (f.scanT || 0) + dt;
         if (f.scanT >= DRONE.scanT) {
           f.scanT = 0;
-          if (warrantRoll(f)) { f.lab = { t: 1.6, txt: 'WARRANT', hit: true }; startIncident(d, f); }
+          const hit = warrantRoll(f);
+          logScan(RHEADS[Math.floor(Math.random() * RHEADS.length)][1], hit);
+          if (hit) { f.lab = { t: 1.6, txt: 'WARRANT', hit: true }; startIncident(d, f); }
           else { f.lab = { t: 1.4, txt: 'CLEAR', hit: false }; f.scanCool = 6; }
         }
       }
@@ -15574,35 +15723,53 @@ const RUNNER_API = (function () {
       }
     }
     // LAYER 614: a witness says so above their head
-    ctx.save(); ctx.textAlign = 'center'; ctx.font = 'bold 12px monospace';
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = 'bold ' + Math.round(13 / dZ) + 'px monospace';
     for (const p of peds) {
       if (!p || !(p.witT > 0)) continue;
       p.witT -= dt;
-      const tw = ctx.measureText('WITNESS').width + 12;
-      ctx.fillStyle = 'rgba(255,245,200,0.95)'; ctx.fillRect(p.x - tw / 2, p.y - 66, tw, 16);
-      ctx.fillStyle = '#111'; ctx.fillText('WITNESS', p.x, p.y - 54);
+      const tw = ctx.measureText('WITNESS').width + 12 / dZ;
+      ctx.fillStyle = 'rgba(255,245,200,0.95)'; ctx.fillRect(p.x - tw / 2, p.y - 66 / dZ, tw, 16 / dZ);
+      ctx.fillStyle = '#111'; ctx.fillText('WITNESS', p.x, p.y - 54 / dZ);
     }
     ctx.restore();
     ctx.save();
+    drawPuffs(dt);                                       // LAYER 622: smoke sits on the street, under the flying traffic
     // the flying traffic, drawn with its altitude; a labelled car shows its check
     for (const f of fliers) {
       if (!f || !f.sprite) continue;
-      const len = carMeta(f.sprite).len;
+      dStat.fl++;
+      const sc = 1 + 0.25 * clamp(f.z / 170, 0, 1);      // LAYER 621: landed = regular car size; up high, a tad bigger
+      const len = carMeta(f.sprite).len * sc;
       drawShadow(f.x, f.y, f.heading, len, f.z);
       drawGlow(f.x, f.y - f.z, f.heading, len, carMeta(f.sprite).glow);
       ctx.save(); ctx.translate(f.x, f.y - f.z); ctx.rotate(f.heading + carMeta(f.sprite).nose);
       { const sp = img[f.sprite]; if (sp) { const k = len / Math.max(sp.width, sp.height); ctx.drawImage(sp, -sp.width * k / 2, -sp.height * k / 2, sp.width * k, sp.height * k); } }
+      // LAYER 624: a bike's rider is a civilian from the crowd's own top-down sheet, picked once per bike and turned
+      // to face the way the bike goes. Until the crowd is ready the motorcycle gangs' rider sheet stands in.
+      const rsheet = ART.gang_wolves_ride;
+      const bikeF = f.sprite === 'car_cars_43a7a337_1';
+      const useCiv = bikeF && CIV && CIV.pick && CIV.draw;
+      if (!useCiv && bikeF && rsheet && rsheet.width) {
+        const d = len * 0.5, fr = (f.spd || 0) > 8 ? 1 : 0;
+        ctx.save(); ctx.translate(0, len * 0.07); ctx.rotate(Math.PI);
+        ctx.drawImage(rsheet, fr * 46, (f.riderRow || 0) * 46, 46, 46, -d / 2, -d / 2, d, d);
+        ctx.restore();
+      }
       ctx.restore();
-      { const hs = headSprite(f.head); if (hs) { const hw = 17, hh = hs.height * (hw / hs.width); const hx = f.x + Math.cos(f.heading) * 2, hy = f.y - f.z + Math.sin(f.heading) * 2; ctx.drawImage(hs, hx - hw / 2, hy - hh / 2, hw, hh); } }
+      if (useCiv) {
+        if (!f.civ) f.civ = CIV.pick();
+        if (f.civ) CIV.draw(f.civ, f.x, f.y - f.z, Math.cos(f.heading) * (f.spd || 0), Math.sin(f.heading) * (f.spd || 0), 0);
+      }
+      { const hs = f.head && !rsheet && !useCiv ? headSprite(f.head) : null; if (hs) { const hw = 17 * sc, hh = hs.height * (hw / hs.width); const hx = f.x + Math.cos(f.heading) * 2, hy = f.y - f.z + Math.sin(f.heading) * 2; ctx.drawImage(hs, hx - hw / 2, hy - hh / 2, hw, hh); } }
       if (f.lab && f.lab.t > 0) {
-        ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
+        ctx.font = 'bold ' + Math.round(14 / dZ) + 'px monospace'; ctx.textAlign = 'center';
         ctx.fillStyle = f.lab.hit ? 'rgba(255,90,90,0.95)' : 'rgba(120,255,160,0.95)';
-        ctx.fillText(f.lab.txt, f.x, f.y - f.z - 34);
+        ctx.fillText(f.lab.txt, f.x, f.y - f.z - 34 / dZ);
       }
     }
     ctx.restore();
     ctx.save(); ctx.textAlign = 'left';
-    for (const d of drones) drawDrone(d, now);
+    for (const d of drones) { dStat.dr++; drawDrone(d, now); }
     for (const inc of incidents) drawIncident(inc, now);
     ctx.restore();
   }
@@ -15836,8 +16003,10 @@ const RUNNER_API = (function () {
   window.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
   return {
+    dbg: () => ({ dZ, drones: drones.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y), flying: d.flying })), fliers: fliers.length, incidents: incidents.length, drawn: dStat, droneArt: !!img.drone, bikeArt: !!img['car_cars_43a7a337_1'], airtowArt: !!img.airtow }),
     isOn: () => RUN_ON,
     setArt: (a) => { ART = a || {}; },
+    setCivs: (c) => { CIV = c || null; },
     setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); startSong(); } else { stopSong(); lobby = false; } },
     lockCam,
     overlay,
@@ -17538,7 +17707,7 @@ export default function IronLionLayer004() {
       if (rel(6)) K["s"] = false;
       if (press(8) && G.bookFn) G.bookFn();
       if (press(9)) setMapOpen(true);
-      if (press(10)) { const g1 = G.current; if (g1) { g1.objMin = !g1.objMin; g1.occShow537 = 2.6; setHud((h) => ({ ...h, objMin: g1.objMin })); } }      // + who's in the cars (layer 537)   // L3: HIDE / SHOW the objectives (layer 536; run is RT)
+      if (press(10) && !RUNNER_API.isOn()) { const g1 = G.current; if (g1) { g1.objMin = !g1.objMin; g1.occShow537 = 2.6; setHud((h) => ({ ...h, objMin: g1.objMin })); } }      // + who's in the cars (layer 537)   // L3: HIDE / SHOW the objectives (layer 536; run is RT)
       if (!sprint && !B(7) && was.sprintOn) input.current.run = false; was.sprintOn = !!sprint;
       if (press(11)) G.cursorLockToggle && G.cursorLockToggle();   // R3: lock / free the browser's cursor (layer 518; HOOK is on the wheel)
       if (press(12) && g) g.nightTarget = g.nightTarget > 0.5 ? 0 : 1;
@@ -53005,7 +53174,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
+      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
