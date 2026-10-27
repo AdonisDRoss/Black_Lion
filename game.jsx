@@ -2791,7 +2791,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 592 — the C.A.N. lobby finds the tower on its block; the hover bike is parked on open street by the tower; no missions or police calls in Runner Mode; the built runner shows inside buildings and in the lobby; hoverboards drawn flat under the skater kids; rooftop assets show through the top floor of a building in Runner Mode; runner builder (head, build, colours, stats, name) then the C.A.N. lobby with the hover bike parked outside; hoverboard art under the skater kids in Runner Mode; random runner each Runner Mode start; litter under the player; skater kids on hoverboards in Runner Mode; hover bike; purple haze Runner Mode only; minimap zoom on ]; C.A.N. STUDIOS";
+const BUILD_TAG = "LAYER 593 — 8-bit pant legs and shoes on the built runner, with a walk cycle; the C.A.N. lobby finds the tower on its block; the hover bike is parked on open street by the tower; no missions or police calls in Runner Mode; the built runner shows inside buildings and in the lobby; hoverboards drawn flat under the skater kids; rooftop assets show through the top floor of a building in Runner Mode; runner builder (head, build, colours, stats, name) then the C.A.N. lobby with the hover bike parked outside; hoverboard art under the skater kids in Runner Mode; random runner each Runner Mode start; litter under the player; skater kids on hoverboards in Runner Mode; hover bike; purple haze Runner Mode only; minimap zoom on ]; C.A.N. STUDIOS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14933,6 +14933,7 @@ const RUNNER_API = (function () {
     const sy = clamp(((keys.ArrowDown || keys.s || keys.S) ? 1 : 0) - ((keys.ArrowUp || keys.w || keys.W) ? 1 : 0) + (Math.abs(pad.y) > 0.15 ? pad.y : 0), -1, 1);
     const m = Math.hypot(sx, sy);
     if (m > 0.05) {
+      walker.step = (walker.step || 0) + dt * 11;     // LAYER 593: the legs swing while he walks
       walker.x += sx / m * 150 * Math.min(1, m) * dt;
       walker.y += sy / m * 150 * Math.min(1, m) * dt;
       walker.heading = Math.atan2(sy, sx);
@@ -15084,7 +15085,17 @@ const RUNNER_API = (function () {
 
   function drawWalker(x, y) {
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 4, y + 6, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
-    const bk = RUNNER_LOOK.bodyK || 1; ctx.fillStyle = '#2a2d3a'; ctx.beginPath(); ctx.ellipse(x, y, 13 * bk, 16 * bk, 0, 0, Math.PI * 2); ctx.fill();
+    const bk = RUNNER_LOOK.bodyK || 1;
+    // LAYER 593: short pant legs and shoes, 8-bit style. The stride is the walk cycle; standing, the feet sit together.
+    const st = walker.on && walker.step ? Math.sin(walker.step) * 3 : 0;
+    const lx = x - 5 * bk, rx = x + 1 * bk, ly0 = y + 10 * bk;
+    ctx.fillStyle = '#1d2a44';                                          // pant leg (navy)
+    ctx.fillRect(lx, ly0, 4 * bk, 6 * bk + st); ctx.fillRect(rx, ly0, 4 * bk, 6 * bk - st);
+    ctx.fillStyle = '#141414';                                          // shoe
+    ctx.fillRect(lx - 1 * bk, ly0 + 6 * bk + st, 6 * bk, 3 * bk); ctx.fillRect(rx - 1 * bk, ly0 + 6 * bk - st, 6 * bk, 3 * bk);
+    ctx.fillStyle = '#e9e4d8';                                          // white sole
+    ctx.fillRect(lx - 1 * bk, ly0 + 8.5 * bk + st, 6 * bk, 0.9 * bk); ctx.fillRect(rx - 1 * bk, ly0 + 8.5 * bk - st, 6 * bk, 0.9 * bk);
+    ctx.fillStyle = '#2a2d3a'; ctx.beginPath(); ctx.ellipse(x, y, 13 * bk, 16 * bk, 0, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = RUNNER_LOOK.suit; ctx.lineWidth = 3; ctx.stroke();
     const hd = img['rh_' + RUNNER_LOOK.head] || img.head_rider;
     if (hd) { const hw = 30 * bk, hh = hd.height * (hw / hd.width); ctx.drawImage(hd, x - hw / 2, y - 16 - hh, hw, hh); }
