@@ -2790,7 +2790,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 570 — RUNNER MODE (overlay on the game world)";
+const BUILD_TAG = "LAYER 572 — RUNNER MODE (alt-fuel kit on ground traffic)";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14539,11 +14539,17 @@ const RUNNER_API = (function () {
     'roofs_91c1b992_1', 'roofs_91c1b992_2', 'roofs_91c1b992_3', 'roofs_91c1b992_4', 'roofs_91c1b992_5',
     'roofs_91c1b992_6', 'roofs_91c1b992_7', 'roofs_91c1b992_8', 'roofs_91c1b992_9', 'roofs_ab20a82f_1'];
   ROOF_FILES.forEach((f) => load('roof_' + f, 'roofs/' + f + '.png'));
+  const ROOF_KEYS = ROOF_FILES.map((f) => 'roof_' + f).concat(['roof_hex_a', 'roof_hex_b']);
   const HOLO_PORTRAITS = ['holo_c137924f_1', 'holo_e3ba96b7_1', 'holo_19be32b2_1', 'holo_c89d1ac1_1', 'holo_b09cb1ba_1', 'holo_3f8ae492_1'];
   HOLO_PORTRAITS.forEach((f) => load('holo_' + f, 'holo/' + f + '.png'));
   load('glow', 'holo/holo_8dd91f32_1.png');
   load('haze_ground', 'haze/ground_haze.png');
   load('head_rider', 'heads/head_m_buzz.png');
+  load('att_pod', 'attach/att_pod_twin.png');       // alternative-fuel kit (art)
+  load('att_canister', 'attach/att_canister.png');
+  load('att_intake', 'attach/att_intake.png');
+  load('roof_hex_a', 'roofs/roof_hex_a.png');      // hex fuel-cell roof panels
+  load('roof_hex_b', 'roofs/roof_hex_b.png');
 
   const rnd = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -14613,7 +14619,7 @@ const RUNNER_API = (function () {
       c.blds.forEach((b) => {
         const k = hash(b.x, b.y);
         if (b.w > 300 && b.h > 300 && ROOF_FILES.length) {
-          const rk = img['roof_' + ROOF_FILES[Math.floor(k * 97) % ROOF_FILES.length]];
+          const rk = img[ROOF_KEYS[Math.floor(k * 97) % ROOF_KEYS.length]];
           if (rk) {
             const w = Math.min(b.w * 0.25, 90), h = rk.height * (w / rk.width);
             ctx.drawImage(rk, b.x + b.w / 2 - w / 2, b.y + b.h / 2 - h / 2, w, h);
@@ -14800,29 +14806,44 @@ const RUNNER_API = (function () {
       const k = m.len / Math.max(sp.width, sp.height);
       const w = sp.width * k, h = sp.height * k;
       ctx.drawImage(sp, -w / 2, -h / 2, w, h);
-      // alternative-fuel kit: ion vents at the tail, pulsing. Art space: forward is (cos nose, -sin nose)
-      const fx = Math.cos(m.nose), fy = -Math.sin(m.nose), sx = -fy, sy = fx;
-      const tx = -fx * m.len * 0.47, ty = -fy * m.len * 0.47;
-      const pulse = 0.7 + 0.3 * Math.sin(t * 7 + x * 0.01);
-      const vents = m.rider ? [0] : [-1, 1];
-      vents.forEach((s) => {
-        const vx = tx + sx * s * m.len * 0.12, vy = ty + sy * s * m.len * 0.12;
-        ctx.save(); ctx.globalCompositeOperation = 'lighter';
-        const g = ctx.createRadialGradient(vx, vy, 1, vx, vy, 13);
-        g.addColorStop(0, m.glow); g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.globalAlpha = 0.9 * pulse; ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(vx, vy, 13, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-      });
+      ctx.restore();
       if (m.rider) {
-        ctx.save(); ctx.translate(0, lean * 9);
+        // rider: sits on the bike's centre line; the head is drawn upright below, so he faces the viewer
+        ctx.save(); ctx.translate(-5, 0);
         ctx.fillStyle = '#e8d9b5';
-        ctx.beginPath(); ctx.ellipse(-5, 0, 8, 7, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(0, 0, 8, 7, 0, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5; ctx.stroke();
-        if (img.head_rider) { const hw = 17, hh = img.head_rider.height * (hw / img.head_rider.width); ctx.drawImage(img.head_rider, 2 - hw / 2, -hh / 2, hw, hh); }
         ctx.restore();
       }
     } else { ctx.fillStyle = '#9aa'; ctx.fillRect(-m.len / 2, -20, m.len, 40); }
+    ctx.restore();
+    if (m.rider && img.head_rider) {
+      const hw = 17, hh = img.head_rider.height * (hw / img.head_rider.width);
+      const hx = x + Math.cos(heading) * 2, hy = y - z + Math.sin(heading) * 2;
+      ctx.drawImage(img.head_rider, hx - hw / 2, hy - hh / 2, hw, hh);
+    }
+  }
+  // the alt-fuel kit on a ground car: twin ion pods at the tail, a fuel-cell canister on the flank, a plasma grille at the nose
+  function drawKit(x, y, fwd, L, seed) {
+    const pulse = 0.85 + 0.15 * Math.sin(t * 7 + seed * 0.01);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(fwd);        // +x is forward from here on
+    if (img.att_pod) {
+      const pw = L * 0.3, ph = pw * img.att_pod.height / img.att_pod.width;
+      ctx.globalAlpha = pulse;
+      ctx.drawImage(img.att_pod, -L * 0.5 - pw * 0.5, -ph / 2, pw, ph);
+    }
+    if (img.att_canister) {
+      const cw = L * 0.3, ch = cw * img.att_canister.height / img.att_canister.width;
+      ctx.globalAlpha = 1;
+      ctx.drawImage(img.att_canister, -cw / 2 - L * 0.04, L * 0.2 - ch / 2, cw, ch);
+    }
+    if (img.att_intake) {
+      ctx.save(); ctx.translate(L * 0.46, 0); ctx.rotate(Math.PI / 2);
+      const gw = L * 0.34, gh = gw * img.att_intake.height / img.att_intake.width;
+      ctx.globalAlpha = pulse;
+      ctx.drawImage(img.att_intake, -gw / 2, -gh / 2, gw, gh);
+      ctx.restore();
+    }
     ctx.restore();
   }
   function drawShadow(x, y, heading, len, z) {
@@ -14868,7 +14889,7 @@ const RUNNER_API = (function () {
   }
 
   // everything the runner adds, in world units on top of the game's frame
-  function drawOverlay() {
+  function drawOverlay(traffic) {
     const v = view();
     const r = cellRange(v);
     beams.length = 0;
@@ -14876,6 +14897,13 @@ const RUNNER_API = (function () {
     ctx.translate(W / 2, H / 2); ctx.scale(camNow.z, camNow.z); ctx.translate(-camNow.x, -camNow.y);
 
     drawRoofs(r);
+
+    // the alt-fuel kit on the game's ground traffic (cars only: no buses, choppers, wrecks or parked husks)
+    if (traffic) for (const tv of traffic) {
+      if (!tv || tv.bus || tv.husk565 || !tv.m || !(tv.m.len >= 90)) continue;
+      if (tv.x < v.x0 - 200 || tv.x > v.x1 + 200 || tv.y < v.y0 - 200 || tv.y > v.y1 + 200) continue;
+      drawKit(tv.x, tv.y, tv.ang, tv.m.len, tv.x);
+    }
 
     // purple haze at street level, over the game's world and under the runner's cars
     if (img.haze_ground) {
@@ -14929,11 +14957,11 @@ const RUNNER_API = (function () {
     cam.x = camNow.x; cam.y = camNow.y; cam.z = camNow.z;
   }
   // called by the game after its frame has been drawn: the runner's layer goes on top
-  function overlay(canvas) {
+  function overlay(canvas, traffic) {
     ctx = canvas.getContext('2d');
     const dpr = canvas.width / W;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawOverlay();
+    drawOverlay(traffic);
     drawHud();
   }
 
@@ -51899,7 +51927,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { frameBody(now); if (RUNNER_API.isOn()) RUNNER_API.overlay(canvasRef.current); } catch (err) {
+      try { frameBody(now); if (RUNNER_API.isOn()) RUNNER_API.overlay(canvasRef.current, g.traffic); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
