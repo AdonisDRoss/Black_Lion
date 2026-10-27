@@ -2791,7 +2791,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 589 — runner builder (head, build, colours, stats, name) then the C.A.N. lobby with the hover bike parked outside; hoverboard art under the skater kids in Runner Mode; random runner each Runner Mode start; litter under the player; skater kids on hoverboards in Runner Mode; hover bike; purple haze Runner Mode only; minimap zoom on ]; C.A.N. STUDIOS";
+const BUILD_TAG = "LAYER 592 — the C.A.N. lobby finds the tower on its block; the hover bike is parked on open street by the tower; no missions or police calls in Runner Mode; the built runner shows inside buildings and in the lobby; hoverboards drawn flat under the skater kids; rooftop assets show through the top floor of a building in Runner Mode; runner builder (head, build, colours, stats, name) then the C.A.N. lobby with the hover bike parked outside; hoverboard art under the skater kids in Runner Mode; random runner each Runner Mode start; litter under the player; skater kids on hoverboards in Runner Mode; hover bike; purple haze Runner Mode only; minimap zoom on ]; C.A.N. STUDIOS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14733,6 +14733,15 @@ const RUNNER_API = (function () {
     if (onDeckSpan(x, y) || inRampGap(x, y)) return false;
     return !inBuilding(x, y);
   }
+  // LAYER 592: the nearest open street spot to a point (no building, water or deck), searched outward
+  function streetSpot(x, y) {
+    if (landable(x, y)) return { x, y };
+    for (let r = 40; r <= 900; r += 30) for (let k = 0; k < 24; k++) {
+      const a = (k / 24) * Math.PI * 2, px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+      if (landable(px, py)) return { x: px, y: py };
+    }
+    return { x, y };
+  }
   const boardOf = new WeakMap();
   const HOUSEY = /house|den|walkup|garage|warehouse|home|trailer|flat|apt|shack/;   // residential or back-lot: no projector
   function boardFor(b) {
@@ -14757,6 +14766,38 @@ const RUNNER_API = (function () {
 
   // roof decor on the game's buildings (small: fans and antennas, not whole rooftops); collects billboards
   const beams = [];
+  // one building's rooftop asset, drawn at its centre (the same rule as drawRoofs)
+  function roofOne(b) {
+    if (!(b.w > 300 && b.h > 300) || !ROOF_FILES.length) return;
+    const k = hash(b.x, b.y);
+    const rk = img[ROOF_KEYS[Math.floor(k * 97) % ROOF_KEYS.length]];
+    if (!rk) return;
+    const w = Math.min(b.w * 0.25, 90), h = rk.height * (w / rk.width);
+    ctx.drawImage(rk, b.x + b.w / 2 - w / 2, b.y + b.h / 2 - h / 2, w, h);
+  }
+  // LAYER 590: standing on the TOP floor of a building, its rooftop asset shows through the ceiling
+  // LAYER 591: on foot inside a building, the built runner is drawn over the game's sprite
+  function insideFigure(canvas, x, y, cam) {
+    if (!RUN_ON || !canvas || !cam || !Number.isFinite(x)) return;
+    ctx = canvas.getContext('2d');
+    const dpr = canvas.width / W;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.save();
+    ctx.translate(W / 2, H / 2); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y);
+    drawWalker(x, y);
+    ctx.restore();
+  }
+  function roofIn(canvas, b, cam) {
+    if (!RUN_ON || !b || !cam || !canvas) return;
+    ctx = canvas.getContext('2d');
+    const dpr = canvas.width / W;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.save();
+    ctx.translate(W / 2, H / 2); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y);
+    roofOne(b);
+    ctx.restore();
+  }
+
   function drawRoofs(r) {
     for (let i = r.i0; i <= r.i1; i++) for (let j = r.j0; j <= r.j1; j++) {
       const c = cellAt(i, j);
@@ -15043,10 +15084,10 @@ const RUNNER_API = (function () {
 
   function drawWalker(x, y) {
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 4, y + 6, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
-    const bk = RUNNER_LOOK.bodyK || 1; ctx.fillStyle = '#2a2d3a'; ctx.beginPath(); ctx.ellipse(x, y, 8 * bk, 10 * bk, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = RUNNER_LOOK.suit; ctx.lineWidth = 2; ctx.stroke();
+    const bk = RUNNER_LOOK.bodyK || 1; ctx.fillStyle = '#2a2d3a'; ctx.beginPath(); ctx.ellipse(x, y, 13 * bk, 16 * bk, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = RUNNER_LOOK.suit; ctx.lineWidth = 3; ctx.stroke();
     const hd = img['rh_' + RUNNER_LOOK.head] || img.head_rider;
-    if (hd) { const hw = 20, hh = hd.height * (hw / hd.width); ctx.drawImage(hd, x - hw / 2, y - 12 - hh, hw, hh); }
+    if (hd) { const hw = 30 * bk, hh = hd.height * (hw / hd.width); ctx.drawImage(hd, x - hw / 2, y - 16 - hh, hw, hh); }
   }
 
   // everything the runner adds, in world units on top of the game's frame
@@ -15372,7 +15413,9 @@ const RUNNER_API = (function () {
       RUNNER_LOOK.chosen = true;
     },
     getLook: () => Object.assign({}, RUNNER_LOOK),
-    enterLobby: (bx, by) => { lobby = true; lobbyBike = { x: bx, y: by }; walker.on = false; pend.exit = false; pend.land = false; },
+    enterLobby: (bx, by) => {
+      lobby = true; lobbyBike = streetSpot(bx, by); walker.on = false; pend.exit = false; pend.land = false;
+    },
     leaveLobby: (sx, sy) => {
       if (!lobby) return;
       lobby = false;
@@ -15384,6 +15427,8 @@ const RUNNER_API = (function () {
       say('YOUR BIKE IS OUT FRONT. E NEAR IT TO GET ON', 5);
     },
     inLobby: () => lobby,
+    roofIn,
+    insideFigure,
   };
 })();
 
@@ -15526,9 +15571,12 @@ export default function IronLionLayer004() {
   // LAYER 589: after the builder, the player walks into the C.A.N. lobby on floor 1; the hover bike is parked at the door
   G.runnerEnterCan = () => {
     const g = G.current; if (!g) return;
-    const cc = getCell(CAN_CELL.i, CAN_CELL.j);
-    const b = cc && cc.blds ? cc.blds.find((x) => x.can) : null;
-    if (!b) return;
+    let b = null;
+    for (let di = -1; di <= 1 && !b; di++) for (let dj = -1; dj <= 1 && !b; dj++) {
+      const cc = getCell(CAN_CELL.i + di, CAN_CELL.j + dj);
+      if (cc && cc.blds) b = cc.blds.find((x) => x.can) || null;
+    }
+    if (!b) { g.title = false; return; }
     const [dx, dy] = doorPoint(b);
     const ds = b.door ? b.door.side : 2, dp = b.door ? b.door.pos : 0.5;
     const [ix, iy] = ds === 0 ? [b.x + b.w * dp, b.y + 34] : ds === 3 ? [b.x + 34, b.y + b.h * dp]
@@ -23343,9 +23391,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function swimRing538(x, y, r) { ctx.restore(); const t = g.t || 0; ctx.strokeStyle = "rgba(220,235,245,0.55)"; ctx.lineWidth = 1.5;
       for (let k = 0; k < 2; k++) { const q = ((t * 0.9 + k * 0.5) % 1); ctx.globalAlpha = 1 - q; ctx.beginPath(); ctx.ellipse(x, y + 1, r + 3 + q * 10, (r + 3 + q * 10) * 0.7, 0, 0, 6.3); ctx.stroke(); } ctx.globalAlpha = 1; }
     // LAYER 586: the skater kids ride hoverboards in Runner Mode (RUNNER_API.hoverKid draws the pad over the kid)
-    function youthHover(p, out) { if (out && p && /^yt_skater/.test(p.yt || "") && RUNNER_API.isOn()) RUNNER_API.hoverKid(ctx, p.x, p.y, p.tall || 1); return out; }
-    function drawYouth(p, angOverride, backOff) { const r = p && swimClip538(p.x, p.y, (p.tall || 1) * (p.hero ? 1.1 : 1)); if (!r) return youthHover(p, drawYouth0(p, angOverride, backOff));
-      const out = drawYouth0(p, angOverride, backOff); swimRing538(p.x, p.y, r); return youthHover(p, out); }
+    // LAYER 591: the board is drawn first, in the world transform, so the kid's own facing never tilts it
+    function youthHover(p) { if (p && /^yt_skater/.test(p.yt || "") && RUNNER_API.isOn()) RUNNER_API.hoverKid(ctx, p.x, p.y, p.tall || 1); }
+    function drawYouth(p, angOverride, backOff) { youthHover(p); const r = p && swimClip538(p.x, p.y, (p.tall || 1) * (p.hero ? 1.1 : 1)); if (!r) return drawYouth0(p, angOverride, backOff);
+      const out = drawYouth0(p, angOverride, backOff); swimRing538(p.x, p.y, r); return out; }
     G.ytSizeT = (yt, tall) => { const A0 = ARM_BY_YT[yt], AP = A0 && armsReady(A0) ? A0 : null; const im = AP ? imgs.current[AP.torso] : imgs.current[yt]; if (!im || !im.width) return null;
       const h = AP && AP.wid ? 30 * 0.82 * (tall || 1) * AP.wid * 0.8 / (im.width / im.height) : 30 * 0.82 * (tall || 1) * (AP ? AP.scale : (YT_SCALE[yt] || 1)), w = h * (im.width / im.height); return { w: +w.toFixed(1), h: +h.toFixed(1), arms: !!AP }; };   // test hook (layer 567)
     function drawYouth0(p, angOverride, backOff) {
@@ -52465,7 +52514,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { frameBody(now); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
+      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; } frameBody(now); if (RUNNER_API.isOn() && !g.title && g.inside && g.mode === 'foot') RUNNER_API.insideFigure(canvasRef.current, g.p.x, g.p.y, g.cam); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
@@ -52719,7 +52768,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       resolveTrafficOverlap();
       updateItems(dt, g.cam.x, g.cam.y);
-      updatePolice(dt);
+      if (!RUNNER_API.isOn()) updatePolice(dt);
       stepCopChase(dt); solidCars(); trafficSeparate(); stepBizEcon(dt); stepCover(dt); stepArtFolk(dt); stepBank(dt); unionTerm(); airport();      // the police chase you; parked cars, blocks and cruisers are solid (layer 483)
       updateDetectives(dt);
       updateWeather(dt);
@@ -59438,7 +59487,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     /* One job live at boot, rogue and site both random, so it is testable the moment the page
        loads rather than after a wait nobody wants to sit through. */
-    if (!g.job) { try { callJob(); } catch (e) { /* never let this stop the game starting */ } }
+    if (!g.job && !RUNNER_API.isOn()) { try { callJob(); } catch (e) { /* never let this stop the game starting */ } }
     // safely() is the same wrapper Kenny's blow and punch use: it reports a throw instead of
     // swallowing it, which is what you want the first time a new ability misbehaves.
     G.wireFn = () => { if (g.who === "eclipse") safely("wire", wireStrike); };
