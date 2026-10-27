@@ -14954,7 +14954,7 @@ const RUNNER_API = (function () {
   }
 
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'F9') { RUN_ON = !RUN_ON; if (RUN_ON) { car.x = 160; car.y = 160; car.heading = 0; car.speed = 0; car.lean = 0; resetRunner(); } return; }
+    if (e.key === 'F9') { RUN_ON = !RUN_ON; if (RUN_ON) { car.x = 160; car.y = 160; car.heading = 0; car.speed = 0; car.lean = 0; resetRunner(); } setBtn(); return; }
     keys[e.key] = true;
     if (!RUN_ON) return;
     if ((e.key === 'c' || e.key === 'C') && cycleCooldown <= 0) { car.sprite = (car.sprite + 1) % CAR_FILES.length; cycleCooldown = 0.2; }
@@ -14964,6 +14964,17 @@ const RUNNER_API = (function () {
   window.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
   resetRunner();
+  // on-screen button, so Runner Mode can be started without a keyboard (F9 does the same)
+  let runBtn = null;
+  function setBtn() { if (runBtn) runBtn.textContent = RUN_ON ? 'RUNNER: ON (tap to stop)' : 'RUNNER MODE'; }
+  if (typeof document !== 'undefined' && document.body) {
+    runBtn = document.createElement('button');
+    runBtn.id = 'runnerBtn';
+    runBtn.style.cssText = 'position:fixed;top:8px;right:8px;z-index:99999;font:700 13px monospace;padding:8px 12px;background:#0e0d0c;color:#6ef0ff;border:2px solid #6ef0ff;border-radius:6px;cursor:pointer;';
+    runBtn.onclick = () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F9' }));
+    document.body.appendChild(runBtn);
+    setBtn();
+  }
   return {
     isOn: () => RUN_ON,
     frame: (canvas) => { cv = canvas; ctx = cv.getContext('2d'); W = cv.width; H = cv.height; step(performance.now()); },
