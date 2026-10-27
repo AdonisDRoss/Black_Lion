@@ -2790,7 +2790,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 572 — RUNNER MODE (alt-fuel kit on ground traffic)";
+const BUILD_TAG = "LAYER 577 — projectors take turns (about a third on)";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14550,6 +14550,8 @@ const RUNNER_API = (function () {
   load('att_intake', 'attach/att_intake.png');
   load('roof_hex_a', 'roofs/roof_hex_a.png');      // hex fuel-cell roof panels
   load('roof_hex_b', 'roofs/roof_hex_b.png');
+  load('proj_box', 'projectors/proj_box.png');      // roof projectors (art)
+  load('proj_round', 'projectors/proj_round.png');
 
   const rnd = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -14559,6 +14561,30 @@ const RUNNER_API = (function () {
   function handlingOf(index) { return (CAR_META[CAR_FILES[index]] && CAR_META[CAR_FILES[index]].handling) || DEFAULT_HANDLING; }
 
   const keys = {};
+  // the Runner Mode theme: Grain Silo Ghosts, in assets/runner (plays while Runner Mode is on)
+  const SONG_PATHS = ['assets/runner/Grain_Silo_Ghosts.mp3', 'assets/runner/6971a82b-Grain_Silo_Ghosts.mp3'];
+  let song = null, songTry = 0;
+  function startSong() {
+    try {
+      if (!song) {
+        song = new Audio(SONG_PATHS[0]);
+        song.loop = true; song.volume = 0.6; song.preload = 'auto';
+        song.onerror = () => { songTry++; if (songTry < SONG_PATHS.length) { song.src = SONG_PATHS[songTry]; song.load(); } };
+      }
+      song.play().catch(() => {});
+    } catch (e) { /* no audio here */ }
+  }
+  function stopSong() { try { if (song) song.pause(); } catch (e) { /* ignore */ } }
+  // the game's own stop button: G (keyboard) or Y (controller) gets off the bike, outside Runner Mode
+  let dismountWanted = false, padYPrev = false;
+  function takeDismount() {
+    const list = navigator.getGamepads ? navigator.getGamepads() : [];
+    let y = false;
+    for (const gp of list) { if (gp && gp.buttons[3]) { y = !!gp.buttons[3].pressed; break; } }
+    const press = y && !padYPrev; padYPrev = y;
+    const out = dismountWanted || press; dismountWanted = false;
+    return out;
+  }
   let cycleCooldown = 0, msg = '', msgT = 0;
   const pend = { land: false, exit: false };
   let padPrev = { a: false, b: false };
@@ -14590,11 +14616,12 @@ const RUNNER_API = (function () {
     return !inBuilding(x, y);
   }
   const boardOf = new WeakMap();
+  const HOUSEY = /house|den|walkup|garage|warehouse|home|trailer|flat|apt|shack/;   // residential or back-lot: no projector
   function boardFor(b) {
     if (boardOf.has(b)) return boardOf.get(b);
     let bb = null;
-    if (b.w * b.h > 26000 && hash(b.x, b.y) < 0.35) {
-      bb = { x: b.x + b.w / 2, y: b.y + b.h / 2 - 30, ad: Math.floor(hash(b.y, b.x) * ADS.length), t: hash(b.x, b.y) * 4 };
+    if (b.w * b.h > 26000 && !HOUSEY.test(b.kind || '') && hash(b.x, b.y) < 0.5) {
+      bb = { x: b.x + b.w / 2, y: b.y + 20, ad: Math.floor(hash(b.y, b.x) * ADS.length), t: hash(b.x, b.y) * 4, pj: hash(b.y, b.x) < 0.5 ? 'proj_box' : 'proj_round' };
     }
     boardOf.set(b, bb);
     return bb;
@@ -14854,30 +14881,44 @@ const RUNNER_API = (function () {
     ctx.restore();
   }
 
-  // a light cone from the billboard down onto the street, with the hologram at its far end (world units)
+  // a projector on the roof: the beam starts narrow at its lens and widens to exactly the width of the hologram at the far end
   function drawProjection(bb) {
     const cycle = Math.floor(bb.t / 6);
     const idx = (bb.ad + cycle) % ADS.length;
     const p = img['holo_' + HOLO_PORTRAITS[idx % HOLO_PORTRAITS.length]];
     const flick = 0.85 + 0.15 * Math.sin(bb.t * 9) * Math.sin(bb.t * 2.3);
-    const top = bb.y + 34, reach = 300, endW = 104, startW = 176;
+    const px = bb.x, py = bb.y;                       // the projector's centre
+    const reach = 260, startW = 10, pw = 96, ph = p ? pw * p.height / p.width : pw;
+    const pjImg = img[bb.pj || 'proj_box'];
+    const pjW = 40, pjH = pjImg ? pjW * pjImg.height / pjImg.width : 22;
+    if (pjImg) ctx.drawImage(pjImg, px - pjW / 2, py - pjH / 2, pjW, pjH);   // the projector, seen from above
+    const lensY = py + pjH / 2 - 4, endY = lensY + reach;   // the beam leaves the lens at the bottom edge of the unit
+    // not every projector is on at once: each one has its own slot in a 15-second cycle and is on for 5 of them,
+    // so about a third of the street's holograms are up at any time (enough to be annoying, not a wall of ads)
+    const on = ((t + bb.t * 3.75) % 15) < 5;
+    if (!on) return;
+    // the beam: narrow at the lens, exactly the picture's width at the far end
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    const g = ctx.createLinearGradient(0, top, 0, top + reach);
-    g.addColorStop(0, 'rgba(120,240,255,' + (0.42 * flick).toFixed(2) + ')');
-    g.addColorStop(0.6, 'rgba(120,200,255,0.14)');
-    g.addColorStop(1, 'rgba(120,200,255,0.02)');
+    const g = ctx.createLinearGradient(0, lensY, 0, endY);
+    g.addColorStop(0, 'rgba(120,240,255,' + (0.45 * flick).toFixed(2) + ')');
+    g.addColorStop(0.7, 'rgba(120,200,255,0.16)');
+    g.addColorStop(1, 'rgba(120,200,255,0.04)');
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.moveTo(bb.x - startW / 2, top); ctx.lineTo(bb.x + startW / 2, top);
-    ctx.lineTo(bb.x + endW / 2, top + reach); ctx.lineTo(bb.x - endW / 2, top + reach);
+    ctx.moveTo(px - startW / 2, lensY); ctx.lineTo(px + startW / 2, lensY);
+    ctx.lineTo(px + pw / 2, endY); ctx.lineTo(px - pw / 2, endY);
     ctx.closePath(); ctx.fill();
-    const hy = top + reach * 0.62;
-    ctx.globalAlpha = 0.9 * flick;
-    if (p) { const pw = 96, ph = pw * p.height / p.width; ctx.drawImage(p, bb.x - pw / 2, hy - ph / 2, pw, ph); }
-    ctx.globalAlpha = 1;
+    ctx.restore();
+    // the hologram, filling the far end of the beam
+    const hy = endY - ph / 2;
+    ctx.save();
+    ctx.globalAlpha = 0.9 * flick; ctx.globalCompositeOperation = 'lighter';
+    if (p) ctx.drawImage(p, px - pw / 2, hy, pw, ph);
+    ctx.restore();
+    ctx.save();
     ctx.fillStyle = 'rgba(110,240,255,0.95)'; ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
-    ctx.fillText(ADS[idx], bb.x, hy + 62);
+    ctx.fillText(ADS[idx], px, endY + 22);
     ctx.restore();
   }
 
@@ -14889,7 +14930,7 @@ const RUNNER_API = (function () {
   }
 
   // everything the runner adds, in world units on top of the game's frame
-  function drawOverlay(traffic) {
+  function drawOverlay() {
     const v = view();
     const r = cellRange(v);
     beams.length = 0;
@@ -14898,12 +14939,6 @@ const RUNNER_API = (function () {
 
     drawRoofs(r);
 
-    // the alt-fuel kit on the game's ground traffic (cars only: no buses, choppers, wrecks or parked husks)
-    if (traffic) for (const tv of traffic) {
-      if (!tv || tv.bus || tv.husk565 || !tv.m || !(tv.m.len >= 90)) continue;
-      if (tv.x < v.x0 - 200 || tv.x > v.x1 + 200 || tv.y < v.y0 - 200 || tv.y > v.y1 + 200) continue;
-      drawKit(tv.x, tv.y, tv.ang, tv.m.len, tv.x);
-    }
 
     // purple haze at street level, over the game's world and under the runner's cars
     if (img.haze_ground) {
@@ -14946,27 +14981,74 @@ const RUNNER_API = (function () {
 
   // called by the game each frame, after the game has drawn the camera, before its React HUD
   // the game's own camera is locked to the hover bike here: the world is the game's, the runner moves through it
-  function lockCam(cam, Wg, Hg) {
+  function lockCam(cam, Wg, Hg, zoomU) {
     W = Wg; H = Hg;
     const now = performance.now(), dt = Math.min(0.05, (now - (lastT || now)) / 1000);
     lastT = now; t += dt;
     if (!placed) { car.x = cam.x; car.y = cam.y; place(); }
     update(dt);
     const p = walker.on ? walker : car;
-    camNow = { x: p.x, y: p.y, z: clamp(Math.min(W, H) / 1400, 0.16, 3.2) };
+    camNow = { x: p.x, y: p.y, z: clamp((Math.min(W, H) / 1400) * (zoomU || 1), 0.16, 3.2) };
     cam.x = camNow.x; cam.y = camNow.y; cam.z = camNow.z;
   }
   // called by the game after its frame has been drawn: the runner's layer goes on top
-  function overlay(canvas, traffic) {
+  function overlay(canvas) {
     ctx = canvas.getContext('2d');
     const dpr = canvas.width / W;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawOverlay(traffic);
+    drawOverlay();
     drawHud();
+  }
+
+  // always on (every mode): a drawn augment on some civilians, and the alt-fuel kit on ground traffic.
+  // Drawn over the game's frame in the game's own camera. Nothing is drawn inside buildings or on the title.
+  const augOf = new WeakMap();
+  function augmentFor(p) {
+    if (!augOf.has(p)) { const k = hash(p.x || 0, p.y || 0); augOf.set(p, k < 0.33 ? 0 : k < 0.66 ? 1 : 2); }
+    return augOf.get(p);
+  }
+  function drawAugment(x, y, kind) {
+    if (kind === 1) {                                       // a cyan visor across the eyes
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(x, y, 1, x, y, 9);
+      g.addColorStop(0, 'rgba(110,240,255,0.9)'); g.addColorStop(1, 'rgba(110,240,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(120,245,255,0.95)'; ctx.fillRect(x - 6, y - 1.5, 12, 3);
+      ctx.restore();
+    } else if (kind === 2) {                                // a cyber eye: a ring with a bright pupil
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = 'rgba(255,90,200,0.95)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(x + 3, y, 3.2, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,220,250,0.95)'; ctx.beginPath(); ctx.arc(x + 3, y, 1.1, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+  }
+  function augments(canvas, traffic, peds, cam) {
+    if (!canvas || !cam || !Number.isFinite(cam.x) || !(cam.z > 0)) return;
+    ctx = canvas.getContext('2d');
+    const cssW = canvas.clientWidth || canvas.width, dpr = canvas.width / cssW, cssH = canvas.height / dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.save();
+    ctx.translate(cssW / 2, cssH / 2); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y);
+    const hw = cssW / (2 * cam.z) + 80, hh = cssH / (2 * cam.z) + 80;
+    const x0 = cam.x - hw, x1 = cam.x + hw, y0 = cam.y - hh, y1 = cam.y + hh;
+    if (traffic) for (const tv of traffic) {
+      if (!tv || tv.bus || tv.husk565 || !tv.m || !(tv.m.len >= 90)) continue;
+      if (tv.x < x0 || tv.x > x1 || tv.y < y0 || tv.y > y1) continue;
+      drawKit(tv.x, tv.y, tv.ang, tv.m.len, tv.x);
+    }
+    if (peds) for (const p of peds) {
+      if (!p || p.dead || !p.civ) continue;
+      if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) continue;
+      const kind = augmentFor(p);
+      if (kind) drawAugment(p.x, p.y - 17, kind);
+    }
+    ctx.restore();
   }
 
   window.addEventListener('keydown', (e) => {
     keys[e.key] = true;
+    if ((e.key === 'g' || e.key === 'G') && !RUN_ON) dismountWanted = true;
     if (!RUN_ON) return;
     if ((e.key === 'c' || e.key === 'C') && cycleCooldown <= 0) { car.sprite = (car.sprite + 1) % CAR_FILES.length; cycleCooldown = 0.2; }
     if (e.key === 'l' || e.key === 'L') pend.land = true;
@@ -14978,9 +15060,10 @@ const RUNNER_API = (function () {
 
   return {
     isOn: () => RUN_ON,
-    setOn: (on) => { RUN_ON = !!on; if (RUN_ON) resetRunner(); },
+    setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); startSong(); } else stopSong(); },
     lockCam,
     overlay,
+    augments,
   };
 })();
 
@@ -51927,7 +52010,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { frameBody(now); if (RUNNER_API.isOn()) RUNNER_API.overlay(canvasRef.current, g.traffic); } catch (err) {
+      try { frameBody(now); if (RUNNER_API.isOn()) RUNNER_API.overlay(canvasRef.current); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
@@ -52076,6 +52159,32 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       /* Drive it home and it gets fixed. The den is a garage with a lift in it and a crew who
          do nothing else -- charging for repairs somewhere else while that sat unused was the
          wrong way round. Slow enough to feel like work, not a button. */
+      /* GET OFF THE BIKE (G, or Y on a controller): it is parked where it stands and you step off beside it.
+         The stash menu stays on its own button. */
+      if (RUNNER_API.takeDismount() && g.mode === "moto" && !g.title && !RUNNER_API.isOn()) {
+        const bk = g.moto, sd = (bk.ang || 0) + Math.PI / 2;
+        g.traffic.push({ x: bk.x, y: bk.y, ang: bk.ang || 0,
+          m: { k: g.moto.model || "moto", len: 62, w: 26 }, spd: 0, cruise: 0, brake: 1,
+          dead: 1, parked: 1, named: 1, trFree: 1 });
+        g.mode = "foot"; g.p.x = bk.x + Math.cos(sd) * 36; g.p.y = bk.y + Math.sin(sd) * 36;
+        g.p.vx = 0; g.p.vy = 0;
+        g.pickupFlash = { nm: "bike_parked", t: 1.6 };
+      }
+      /* DEN ON FOOT: the moment you walk into the den with the bike, the bike is parked on the street at the door
+         and you start on foot. It is a parked bike now, so E on it gets you back on (the same as any parked bike).
+         The repair-in-the-den below only happens while you ride in, so this trades that for not getting stuck. */
+      {
+        const denNow = g.inside && g.inside.kind === "den" ? g.inside : null;
+        if (denNow && denNow !== g._denLast && g.mode === "moto" && !g.title && !RUNNER_API.isOn()) {
+          const dp = doorPoint(denNow), cx = denNow.x + denNow.w / 2, cy = denNow.y + denNow.h / 2;
+          g.traffic.push({ x: dp[0], y: dp[1], ang: Math.atan2(dp[1] - cy, dp[0] - cx),
+            m: { k: g.moto.model || "moto", len: 62, w: 26 }, spd: 0, cruise: 0, brake: 1,
+            dead: 1, parked: 1, named: 1, trFree: 1 });
+          g.mode = "foot"; g.p.vx = 0; g.p.vy = 0;
+          g.pickupFlash = { nm: "bike_out", t: 2.0 };
+        }
+        g._denLast = denNow;
+      }
       if (!g.title && g.inside && g.inside.kind === "den" && inVehicle()) {
         const v = activeVeh();
         if (v) {
@@ -52418,7 +52527,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
 
       // Runner Mode (overlay): the camera follows the hover bike, then the game draws its own world as usual
-      if (RUNNER_API.isOn()) RUNNER_API.lockCam(g.cam, W, H);
+      if (RUNNER_API.isOn()) RUNNER_API.lockCam(g.cam, W, H, zoomRef.current);
       // render
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = "#101114";
