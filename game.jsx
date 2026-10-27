@@ -2791,7 +2791,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 617";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 618";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14797,6 +14797,31 @@ const RUNNER_API = (function () {
   }
   // LAYER 590: standing on the TOP floor of a building, its rooftop asset shows through the ceiling
   // LAYER 591: on foot inside a building, the built runner is drawn over the game's sprite
+  // LAYER 618: on foot the built runner is drawn over the game's own man, everywhere, and he walks and faces where he moves.
+  // A parked hover bike waits beside him on foot (drawn here, since the game does not know where the runner parked it).
+  let figT = 0;
+  function bikeParked(x, y, heading) {
+    const sp = img[car.sprite]; if (!sp || !sp.width) return;
+    const m = carMeta(car.sprite);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(heading + m.nose);
+    const k = m.len / Math.max(sp.width, sp.height); ctx.drawImage(sp, -sp.width * k / 2, -sp.height * k / 2, sp.width * k, sp.height * k);
+    ctx.restore();
+  }
+  function figureAt(canvas, x, y, cam, vx, vy) {
+    if (!RUN_ON || !canvas || !cam || !Number.isFinite(x)) return;
+    const now = performance.now(), dt = Math.min(0.05, (now - (figT || now)) / 1000); figT = now;
+    walker.x = x; walker.y = y; walker.on = true;
+    const sp = Math.hypot(vx || 0, vy || 0);
+    if (sp > 5) { walker.heading = Math.atan2(vy, vx); walker.step = (walker.step || 0) + dt * 11; }
+    ctx = canvas.getContext('2d');
+    const dpr = canvas.width / W;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.save();
+    ctx.translate(W / 2, H / 2); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y);
+    if (car.mode === 'landed' && !lobby) bikeParked(car.x, car.y, car.heading || 0);
+    drawWalker(x, y);
+    ctx.restore();
+  }
   function insideFigure(canvas, x, y, cam) {
     if (!RUN_ON || !canvas || !cam || !Number.isFinite(x)) return;
     ctx = canvas.getContext('2d');
@@ -15857,6 +15882,15 @@ const RUNNER_API = (function () {
     getHeld: () => held,
     roofIn,
     insideFigure,
+    figureAt,
+    // LAYER 618: no C.A.N. tower, so the start is on foot in the plaza, with the hover bike parked beside him
+    placeInPlaza: (x, y) => {
+      lobby = false; placed = true; pend.exit = false; pend.land = false;
+      const hb = CAR_FILES.indexOf('cars_43a7a337_1'); if (hb >= 0) car.sprite = hb;
+      car.x = x + 150; car.y = y; car.z = 0; car.mode = 'landed'; car.speed = 0; car.lean = 0; car.heading = 0;
+      walker.x = x; walker.y = y; walker.heading = 0; walker.on = true;
+      say('YOUR BIKE IS PARKED ON THE LOT. E NEAR IT TO GET ON', 5);
+    },
   };
 })();
 
@@ -16014,7 +16048,16 @@ export default function IronLionLayer004() {
       const cc = getCell(CAN_CELL.i + di, CAN_CELL.j + dj);
       if (cc && cc.blds) b = cc.blds.find((x) => x.can) || null;
     }
-    if (!b) { g.title = false; return; }
+    if (!b) {
+      // LAYER 618: no tower: start on foot in the middle of the C.A.N. lot, the hover bike parked beside him
+      g.title = false;
+      if (CAN_LOT_RECT) {
+        const [x0, y0, x1, y1] = CAN_LOT_RECT, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+        g.inside = null; g.mode = 'foot'; g.p.x = cx; g.p.y = cy; g.p.vx = g.p.vy = 0; g.cam.x = cx; g.cam.y = cy;
+        RUNNER_API.placeInPlaza(cx, cy);
+      }
+      return;
+    }
     const [dx, dy] = doorPoint(b);
     const ds = b.door ? b.door.side : 2, dp = b.door ? b.door.pos : 0.5;
     const [ix, iy] = ds === 0 ? [b.x + b.w * dp, b.y + 34] : ds === 3 ? [b.x + 34, b.y + b.h * dp]
@@ -52962,7 +53005,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title && g.inside && g.mode === 'foot') RUNNER_API.insideFigure(canvasRef.current, g.p.x, g.p.y, g.cam); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
+      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
