@@ -2794,7 +2794,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 634";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 637";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -15029,8 +15029,10 @@ const RUNNER_API = (function () {
   }
   function exitOrBoard() {
     if (walker.on) {
-      if (Math.hypot(walker.x - car.x, walker.y - car.y) < 120) { walker.on = false; say('IN · L TO LIFT OFF · E TO GET OUT WHEN LANDED'); }
-      else say('GET WITHIN REACH OF THE VEHICLE, THEN E');
+      // LAYER 635: reach is wider -- the bike is a small thing on a phone screen
+      const dd = Math.hypot(walker.x - car.x, walker.y - car.y);
+      if (dd < 200) { walker.on = false; say('ON THE BIKE · L TO LIFT OFF · E TO GET OFF WHEN LANDED'); }
+      else say('THE BIKE IS ' + Math.round(dd) + ' AWAY. WALK UP TO IT, THEN E');
       return;
     }
     if (car.mode !== 'landed') return say('LAND FIRST · L');
@@ -16178,7 +16180,7 @@ const RUNNER_API = (function () {
   window.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
   return {
-    dbg: () => ({ dZ, drones: drones.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y), flying: d.flying })), fliers: fliers.length, incidents: incidents.length, drawn: dStat, droneArt: !!img.drone, bikeArt: !!img['car_cars_43a7a337_1'], airtowArt: !!img.airtow }),
+    dbg: () => ({ walkerOn: walker.on, mode: car.mode, carX: Math.round(car.x), carY: Math.round(car.y), walkX: Math.round(walker.x), walkY: Math.round(walker.y), dZ, drones: drones.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y), flying: d.flying })), fliers: fliers.length, incidents: incidents.length, drawn: dStat, droneArt: !!img.drone, bikeArt: !!img['car_cars_43a7a337_1'], airtowArt: !!img.airtow }),
     isOn: () => RUN_ON,
     setArt: (a) => { ART = a || {}; },
     setCivs: (c) => { CIV = c || null; },
@@ -51174,6 +51176,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       try { drawHeroBody(); } finally { ctx.restore(); }
     }
     function drawHero() {
+      if (RUNNER_API.isOn() && !g.inside) return;          // LAYER 636: outdoors in Runner Mode, the runner's own figure stands in for the lion hero
       if (g.onBus && !g.busDrawing) return;                // drawn in his seat, over the bus (layer 533c)
       const a = g.air;
       if (!a || a.h <= 0.02) {
