@@ -2791,7 +2791,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 610 — air tow art wired (flatbed, cab leads); LAYER 609 — airborne cars only: the drone warns in its own voice, shocks the car, auto-lands it at the nearest open spot; authorities land, an air tow lifts it, both leave off screen; flying traffic is drawn at its altitude (it was never drawn before); LAYER 608 — traffic drones: hover over junctions with STOP and GO holograms, a detection cone that checks civilians, gang members and drivers (warrant roll is a placeholder), flagged targets are stopped, a cruiser comes in, an air tow lifts a car and both drive off screen; LAYER 607 — traffic turns never go into the oncoming lane (an overtake is dropped at the corner and none starts into a turn); LAYER 606 — legs as wide as the hip they come off, with a bit of hip under the jacket on every body; LAYER 605 — drawn arms: suit-coloured sleeves that start at the sleeve width and taper to a cuff, skin-tone hands; the Lion body is retired: four bodies (slim, athletic, heavy, and the new average); the top-cut heads are out; hands drop and the weapon sits in the right hand while holding one (setHeld); heads cover each neck hole; new heavy body (arms cut at the elbow, legs trimmed); heads centred on each body's neck hole; heads fitted per body (the heavy body head sits lower over the collar); afro bigger; the afro and bald heads run bigger to cover the brown face; cropped heads taken out; every head is 0.36 of the body width on every build; black trousers; the skateboard is gone from the skater kids (hoverboard under them); build bodies at the Lion's scale with arms cut at the elbow and skin-tone forearms and hands; little boots with a walk cycle; the Runner Mode song starts on the first tap if the phone blocked it; hoverboard drawn on top of the skater kids; one smoothed camera for every vehicle and on foot, leaning ahead as you go; the same controls for getting in and out of every vehicle; the Lion's jacket body under the runner head (suit colour, black, gold trim white); skin tone; the bike is in reach on the walk out; 8-bit pant legs and shoes on the built runner, with a walk cycle; the C.A.N. lobby finds the tower on its block; the hover bike is parked on open street by the tower; no missions or police calls in Runner Mode; the built runner shows inside buildings and in the lobby; hoverboards drawn flat under the skater kids; rooftop assets show through the top floor of a building in Runner Mode; runner builder (head, build, colours, stats, name) then the C.A.N. lobby with the hover bike parked outside; hoverboard art under the skater kids in Runner Mode; random runner each Runner Mode start; litter under the player; skater kids on hoverboards in Runner Mode; hover bike; purple haze Runner Mode only; minimap zoom on ]; C.A.N. STUDIOS";
+const BUILD_TAG = "LAYER 617";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -5474,6 +5474,7 @@ const isNewsCell = (i, j) => i === NEWS_CELL.i && j === NEWS_CELL.j;
    fold into their neighbours and no room is drawn over the shafts. */
 const CAN_CELL = { i: 9, j: 6 };
 const isCanCell = (i, j) => i === CAN_CELL.i && j === CAN_CELL.j;
+let CAN_LOT_RECT = null;                       // LAYER 614: the block the C.A.N. lot covers, set when the block is built
 const CAN_KINDS = ["can_dock", "can_lobby", "can_newsroom", "can_greenroom", "can_wardrobe", "can_control",
                    "can_stage", "can_rig", "can_offices", "can_transmit", "can_exec", "can_penthouse"];
 const CAN_PLANS = [
@@ -10232,13 +10233,8 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     return dryOut(out);
   }
   if (isCanCell(i, j) && !civicAt(i, j)) {
-    /* C.A.N. STUDIOS: twelve floors, the tallest building on this block. Floor 1 is the street door. */
-    const bw = Math.min(LW * 0.66, 24 * MU), bh = Math.min(LH * 0.56, 20 * MU);
-    const b = mkB(lx0 + (LW - bw) / 2, ly0 + (LH - bh) / 2, bw, bh, CAN_KINDS.length, "cantower", rnd, key);
-    b.tone = 0.5; b.name = "C.A.N. STUDIOS"; b.signKey = "sign_lightbox";
-    b.retail = false; b.eatery = false;
-    b.can = true; b.entry = 1;
-    out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+    /* LAYER 614: the C.A.N. tower is down. The block is a big parking lot, painted in the runner's ground pass. */
+    CAN_LOT_RECT = [lx0, ly0, lx1, ly1];
     return dryOut(out);
   }
   if (isNewsCell(i, j) && !civicAt(i, j)) {
@@ -14845,7 +14841,7 @@ const RUNNER_API = (function () {
   function newFlier(cx, cy) {
     const f = { x: cx + rnd(-2600, 2600), y: cy + rnd(-2600, 2600), heading: 0, z: rnd(110, 180), cruise: rnd(110, 180),
       mode: 'fly', tx: 0, ty: 0, wait: 0, spd: rnd(170, 260),
-      sprite: 'car_' + CAR_FILES[Math.floor(Math.random() * (CAR_FILES.length - 1))] };   // never the bike
+      sprite: 'car_cars_43a7a337_1', head: RHEADS[Math.floor(Math.random() * RHEADS.length)][1] };   // LAYER 614: a hover bike, a different rider each
     f.tx = cx + rnd(-2600, 2600); f.ty = cy + rnd(-2600, 2600);
     return f;
   }
@@ -15178,6 +15174,9 @@ const RUNNER_API = (function () {
   const HIP_BY_BODY = { slim: { y: 150, w: 80 }, athletic: { y: 146, w: 88 }, heavy: { y: 123, w: 85 }, average: { y: 123, w: 85 } };
   function drawWalker(x, y) {
     const bk = RUNNER_LOOK.bodyK || 1;
+    // LAYER 613: face the way he walks. The art is front-on, so left and right are a mirror; up and down keep the last side.
+    if (Math.abs(Math.cos(walker.heading || 0)) > 0.2) walker.face = Math.cos(walker.heading) < 0 ? -1 : 1;
+    ctx.save(); ctx.translate(x, y); ctx.scale(walker.face || 1, 1); ctx.translate(-x, -y);
     const bs = bodySprite();
     const bw = 40 * bk, bh = bs ? bw * (bs.height / bs.width) : 32 * bk;
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 4, y + 6, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
@@ -15223,6 +15222,7 @@ const RUNNER_API = (function () {
     if (hd) { const hk = HEAD_SCALE[RUNNER_LOOK.head] || 1, hw = (HEAD_WF[RUNNER_LOOK.body] || 0.36) * bw * hk, hh = hd.height * (hw / hd.width); const cyF = HEAD_CY[RUNNER_LOOK.body];
       const hy = cyF != null ? y - bh / 2 + cyF * bh - hh / 2 : y - bh / 2 + 0.02 * bh - (hk - 1) * 0.06 * bh + (HEAD_DROP[RUNNER_LOOK.body] || 0) * bh;
       ctx.drawImage(hd, x - hw / 2, hy, hw, hh); }
+    ctx.restore();
   }
 
   function drawHud() {
@@ -15261,19 +15261,28 @@ const RUNNER_API = (function () {
       }
     }
     update(dt);
-    const p = walker.on ? walker : car;
-    // LAYER 595: one camera for every vehicle and for on foot. It leans ahead along the heading as you go faster,
-    // and eases toward the target so it keeps up without jerking. A jump of more than 600 units snaps.
-    const sp = walker.on ? 0 : Math.abs(car.speed), ahead = walker.on ? 0 : clamp(sp / 4, 0, 90);
-    const ang = walker.on ? walker.heading : car.heading;
-    const tx = p.x + Math.cos(ang) * ahead, ty = p.y + Math.sin(ang) * ahead;
+    // LAYER 615: the camera centres on the thing the game actually draws (the game's own bike, car or man, passed in
+    // as `spawn`), not on the runner's shadow copy of it, and there is no look-ahead, so the player stays in the middle.
+    const drawn = spawn && Number.isFinite(spawn.x) ? spawn : (walker.on ? walker : car);
+    const tx = drawn.x, ty = drawn.y;
     if (!camSmooth || Math.hypot(tx - camSmooth.x, ty - camSmooth.y) > 600) camSmooth = { x: tx, y: ty };
-    const k = 1 - Math.exp(-dt * 9);
+    const k = 1 - Math.exp(-dt * 16);
     camSmooth.x += (tx - camSmooth.x) * k; camSmooth.y += (ty - camSmooth.y) * k;
     camNow = { x: camSmooth.x, y: camSmooth.y, z: clamp((Math.min(W, H) / 1400) * (zoomU || 1), 0.16, 3.2) };
     cam.x = camNow.x; cam.y = camNow.y; cam.z = camNow.z;
   }
   // called by the game after its frame has been drawn: the runner's layer goes on top
+  // LAYER 611: drawOverlay was called but never defined (FRAME ERROR x160). It draws the purple street haze in Runner Mode.
+  function drawOverlay() {
+    const hz = img.haze_ground;
+    if (!hz || !hz.width) return;
+    const pat = ctx.createPattern(hz, 'repeat');
+    if (!pat) return;
+    ctx.save();
+    if (pat.setTransform) pat.setTransform(new DOMMatrix().translate(t * 18, t * 9).scale(1.6));
+    ctx.globalAlpha = 0.3; ctx.fillStyle = pat; ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
   function overlay(canvas) {
     ctx = canvas.getContext('2d');
     const dpr = canvas.width / W;
@@ -15539,13 +15548,27 @@ const RUNNER_API = (function () {
         incidents.splice(n, 1);
       }
     }
+    // LAYER 614: a witness says so above their head
+    ctx.save(); ctx.textAlign = 'center'; ctx.font = 'bold 12px monospace';
+    for (const p of peds) {
+      if (!p || !(p.witT > 0)) continue;
+      p.witT -= dt;
+      const tw = ctx.measureText('WITNESS').width + 12;
+      ctx.fillStyle = 'rgba(255,245,200,0.95)'; ctx.fillRect(p.x - tw / 2, p.y - 66, tw, 16);
+      ctx.fillStyle = '#111'; ctx.fillText('WITNESS', p.x, p.y - 54);
+    }
+    ctx.restore();
     ctx.save();
     // the flying traffic, drawn with its altitude; a labelled car shows its check
     for (const f of fliers) {
       if (!f || !f.sprite) continue;
       const len = carMeta(f.sprite).len;
       drawShadow(f.x, f.y, f.heading, len, f.z);
-      drawCar(f.sprite, f.x, f.y, f.z, f.heading, 0);
+      drawGlow(f.x, f.y - f.z, f.heading, len, carMeta(f.sprite).glow);
+      ctx.save(); ctx.translate(f.x, f.y - f.z); ctx.rotate(f.heading + carMeta(f.sprite).nose);
+      { const sp = img[f.sprite]; if (sp) { const k = len / Math.max(sp.width, sp.height); ctx.drawImage(sp, -sp.width * k / 2, -sp.height * k / 2, sp.width * k, sp.height * k); } }
+      ctx.restore();
+      { const hs = headSprite(f.head); if (hs) { const hw = 17, hh = hs.height * (hw / hs.width); const hx = f.x + Math.cos(f.heading) * 2, hy = f.y - f.z + Math.sin(f.heading) * 2; ctx.drawImage(hs, hx - hw / 2, hy - hh / 2, hw, hh); } }
       if (f.lab && f.lab.t > 0) {
         ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
         ctx.fillStyle = f.lab.hit ? 'rgba(255,90,90,0.95)' : 'rgba(120,255,160,0.95)';
@@ -15696,9 +15719,51 @@ const RUNNER_API = (function () {
 
   /* LAYER 586: the litter and the burning cans are drawn on the GROUND, right after the road, so the traffic and the
      player sit on top of them. Called by the game's frame with its own context and view. */
+  // LAYER 616: the C.A.N. tower as a big grey block with windows, the same width as the facade sign on its front.
+  // Top-down, so height is shown by a cast shadow and a front wall with rows of windows, under the facade sign.
+  function drawCanTower(c) {
+    const R = CAN_LOT_RECT; if (!R) return;
+    const [x0, y0, x1, y1] = R, LW = x1 - x0, LH = y1 - y0;
+    const fx0 = x0 + LW * 0.16, fx1 = x1 - LW * 0.16, fy0 = y0 + LH * 0.10, fy1 = y1 - LH * 0.22;
+    const fw = fx1 - fx0, wallH = 150;
+    c.save();
+    c.fillStyle = 'rgba(0,0,0,0.38)'; c.fillRect(fx0 + 70, fy0 + 70, fw, fy1 - fy0 + wallH * 0.6);           // cast shadow
+    // the front wall, facing the viewer: the height of the tower
+    c.fillStyle = '#5b6068'; c.fillRect(fx0, fy1, fw, wallH);
+    c.fillStyle = '#20303f';
+    for (let wy = fy1 + 40; wy < fy1 + wallH - 18; wy += 26) for (let wx = fx0 + 14; wx < fx1 - 14; wx += 24) c.fillRect(wx, wy, 14, 12);
+    c.fillStyle = 'rgba(233,196,106,0.85)';
+    for (let k = 0; k < 6; k++) c.fillRect(fx0 + 14 + ((k * 37) % (fw - 40)), fy1 + 66 + (k % 3) * 26, 12, 10);
+    c.strokeStyle = 'rgba(20,20,24,0.6)'; c.lineWidth = 3; c.strokeRect(fx0, fy1, fw, wallH);
+    // the facade sign on the front wall, the same width as the wall
+    const fi = ART.can_facade;
+    if (fi && fi.width) { const sw = fw * 0.8, sh = sw * fi.height / fi.width; c.drawImage(fi, fx0 + (fw - sw) / 2, fy1 + 6, sw, Math.min(sh, wallH - 12)); }
+    // the roof, seen from above
+    c.fillStyle = '#7a8089'; c.fillRect(fx0, fy0, fw, fy1 - fy0);
+    c.strokeStyle = '#2d3138'; c.lineWidth = 6; c.strokeRect(fx0 + 3, fy0 + 3, fw - 6, fy1 - fy0 - 6);
+    c.strokeStyle = 'rgba(40,44,50,0.6)'; c.lineWidth = 2; c.strokeRect(fx0 + 18, fy0 + 18, fw - 36, fy1 - fy0 - 36);
+    c.restore();
+  }
+  // LAYER 614: the C.A.N. block as a big parking lot (asphalt, kerb, two rows of nose-in stalls)
+  function drawCanLot(c) {
+    const R = CAN_LOT_RECT; if (!R) return;
+    const [x0, y0, x1, y1] = R;
+    c.save();
+    c.fillStyle = '#2b2c30'; c.fillRect(x0, y0, x1 - x0, y1 - y0);
+    c.strokeStyle = 'rgba(200,200,190,0.8)'; c.lineWidth = 6; c.strokeRect(x0 + 3, y0 + 3, x1 - x0 - 6, y1 - y0 - 6);
+    c.strokeStyle = 'rgba(235,235,225,0.75)'; c.lineWidth = 3; c.beginPath();
+    for (let x = x0 + 40; x < x1 - 20; x += 46) {
+      c.moveTo(x, y0 + 30); c.lineTo(x, y0 + 130);
+      c.moveTo(x, y1 - 30); c.lineTo(x, y1 - 130);
+    }
+    c.stroke();
+    drawCanTower(c);
+    c.restore();
+  }
   function groundTrash(c, v) {
     if (!RUN_ON || !c || !v) return;
     ctx = c;
+    drawCanLot(c);
     ctx.save();
     drawTrash(v.x0, v.y0, v.x1, v.y1);
     for (const b of TRASH.barrels) if (b.x > v.x0 - 80 && b.x < v.x1 + 80 && b.y > v.y0 - 80 && b.y < v.y1 + 80) drawBarrel(b, trashClock);
@@ -15713,8 +15778,10 @@ const RUNNER_API = (function () {
     const py = y + 13 * s + bob, rx = 15 * s, ry = 3.6 * s;
     const hb = img.hoverboard;                                   // the hoverboard art (hover/hoverboard.png), when it is there
     if (hb && hb.width) {
-      const w = 40 * s, h = w * (hb.height / hb.width);
-      ctx.save(); ctx.drawImage(hb, x - w / 2, py - h / 2, w, h); ctx.restore();
+      // LAYER 617: the board runs up and down under the kid (the art is drawn long-side across, so it is turned a quarter)
+      const L = 44 * s, w = L, h = L * (hb.height / hb.width);
+      ctx.save(); ctx.translate(x, py); ctx.rotate(Math.PI / 2);
+      ctx.drawImage(hb, -w / 2, -h / 2, w, h); ctx.restore();
       return;
     }
     ctx.save();
@@ -29120,6 +29187,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           }
         }
       }
+      // LAYER 612: the C.A.N. facade sign (the vertical neon) on the front of the tower, above the street door
+      if (b.can && imgs.current.can_facade && imgs.current.can_facade.width) {
+        const fi = imgs.current.can_facade, fw = 58, fh = fw * (fi.height / fi.width);
+        ctx.drawImage(fi, dp[0] - fw / 2, dp[1] - fh - 14, fw, fh);
+      }
       if (b.retail) {
         const SIGN_KEYS = ["sign_hanging", "sign_lightbox", "sign_arrow", "sign_marquee",
           "sign_wood", "sign_barberpole", "sign_pawnshop", "sign_open_circle"];
@@ -36106,7 +36178,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     /* One entry point for everything the player can be caught doing. `always` is for things
        loud enough that being seen is beside the point -- a gunshot carries. */
     function witnessed(x, y, level, always) {
-      if (g.detMode) return;            // he IS the police
+      if (g.detMode) return;
+      if (RUNNER_API.isOn() && !g.title) { for (const p of g.peds || []) if (Math.hypot(p.x - x, p.y - y) < 320) p.witT = 2.5; return; }   // LAYER 614: no police in Runner Mode; the witnesses say so            // he IS the police
       if (g.jamUntil > (g.pday || 0) * 1440 + (g.clock || 0) && Math.random() < 0.6) return;     // the hacker: cameras dark, calls slow (layer 501)
       if (g.inside && !always) return;
       if (!always && !copsWatching(x, y)) { radioCall537(x, y, level); return; }        // unseen: maybe somebody calls it in (layer 537)
@@ -52889,7 +52962,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; } frameBody(now); if (RUNNER_API.isOn() && !g.title && g.inside && g.mode === 'foot') RUNNER_API.insideFigure(canvasRef.current, g.p.x, g.p.y, g.cam); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
+      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title && g.inside && g.mode === 'foot') RUNNER_API.insideFigure(canvasRef.current, g.p.x, g.p.y, g.cam); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
