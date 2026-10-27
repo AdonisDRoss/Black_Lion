@@ -2790,7 +2790,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 568 — RUNNER MODE (title screen)";
+const BUILD_TAG = "LAYER 570 — RUNNER MODE (overlay on the game world)";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14471,27 +14471,30 @@ function FootballShell({ onExit }) {
   );
 }
 
-// Runner Mode (futurist city). A title-screen mode like FOOTBALL MODE: RunnerShell turns it on and calls RUNNER_API.frame(canvas) each frame.
+// Runner Mode (futurist city): an overlay on the real Raven Hook world. The game draws its own streets,
+// traffic, pedestrians and buildings; this layer adds the runner's assets on top: flying traffic that lands
+// on open ground, the hover bike with its alternative-fuel vents, roof decor, haze and ad beams.
+// Fly over anything. Land only on open ground: no buildings, water, expressway deck or ramps.
+// No collision yet, and the hunt is paused for this test.
 const RUNNER_API = (function () {
   let RUN_ON = false;
-  let cv = null, ctx = null, W = 960, H = 540;
-  const WORLD = { w: 3200, h: 2200 };
-  const BLOCK = 320, ROAD = 100;          // block pitch and road width
-  // per-vehicle draw data: length along the long axis (px), and which way the nose points in the art
+  let ctx = null, W = 960, H = 540;
+  let placed = false, lastT = 0, t = 0;
+  let camNow = { x: 0, y: 0, z: 0.5 };
+  // per-vehicle draw data: length along the long axis (world units), and which way the nose points in the art
   // 0 = nose right, Math.PI = nose left, -Math.PI/2 = nose at top (portrait art)
-  const CAR_META_LIST = {};
   const CAR_META = {
     cars_b714ecba_1: { len: 100, nose: 0, dark: [70, 14, 40], light: [230, 60, 120], glow: '#ff3a8c' },    // Vortex sports
-    cars_87f02ce2_1: { len: 100, nose: Math.PI, dark: [40, 20, 60], light: [190, 120, 230], glow: '#d070ff' },  // Vortex pursuit (cockpit at left)
+    cars_87f02ce2_1: { len: 100, nose: Math.PI, dark: [40, 20, 60], light: [190, 120, 230], glow: '#d070ff' },  // Vortex pursuit
     cars_39e0f112_1: { len: 100, nose: Math.PI, dark: [20, 60, 62], light: [120, 220, 215], glow: '#3affe0' },  // Halcyon sedan (guessed nose)
     cars_4eb54de1_1: { len: 100, nose: Math.PI, dark: [20, 60, 62], light: [120, 220, 215], glow: '#3affe0' },  // Halcyon taxi (guessed nose)
     cars_6093fd94_1: { len: 104, nose: Math.PI, dark: [70, 35, 10], light: [240, 150, 60], glow: '#ff8a2a' },  // Meridian cargo
-    cars_a9a16625_1: { len: 100, nose: -Math.PI / 2, dark: [70, 35, 10], light: [240, 150, 60], glow: '#ff8a2a' },  // Meridian news (portrait art)
+    cars_a9a16625_1: { len: 100, nose: -Math.PI / 2, dark: [70, 35, 10], light: [240, 150, 60], glow: '#ff8a2a' },  // Meridian news
     cars_d049053c_1: { len: 102, nose: Math.PI, dark: [14, 52, 22], light: [90, 200, 110], glow: '#4dff7a' },  // Kestrel patrol
     cars_f238fa36_1: { len: 102, nose: Math.PI, dark: [14, 52, 22], light: [90, 200, 110], glow: '#4dff7a' },  // Kestrel camera
-    cars_6775c1f3_1: { len: 104, nose: 0, dark: [40, 46, 30], light: [150, 160, 110], glow: '#b8ff3a' },    // Rook armoured (arrow points right)
-    cars_8e80b993_1: { len: 104, nose: 0, dark: [40, 46, 30], light: [150, 160, 110], glow: '#b8ff3a' },   // Rook transport (thrusters at left)
-    cars_43a7a337_1: { len: 62,  nose: 0, dark: [14, 30, 70], light: [90, 150, 240], glow: '#3a9bff', rider: true,
+    cars_6775c1f3_1: { len: 104, nose: 0, dark: [40, 46, 30], light: [150, 160, 110], glow: '#b8ff3a' },    // Rook armoured
+    cars_8e80b993_1: { len: 104, nose: 0, dark: [40, 46, 30], light: [150, 160, 110], glow: '#b8ff3a' },    // Rook transport
+    cars_43a7a337_1: { len: 62, nose: 0, dark: [14, 30, 70], light: [90, 150, 240], glow: '#3a9bff', rider: true,
       handling: { max: 470, accel: 340, brake: 420, turn: 3.6, drag: 0.30, lean: 0.22 } },  // hover bike with rider
   };
   const A = (p) => 'assets/runner/' + p;
@@ -14523,199 +14526,320 @@ const RUNNER_API = (function () {
     };
     i.src = (window.ASSET_DATA && window.ASSET_DATA[path]) || A(path);
   }
-  load('head_rider', 'heads/head_m_buzz.png');
 
   const CAR_FILES = ['cars_b714ecba_1', 'cars_87f02ce2_1', 'cars_39e0f112_1', 'cars_4eb54de1_1',
     'cars_6093fd94_1', 'cars_a9a16625_1', 'cars_d049053c_1', 'cars_f238fa36_1', 'cars_6775c1f3_1',
     'cars_8e80b993_1', 'cars_43a7a337_1'];
   const CAR_NAMES = ['Vortex sports', 'Vortex pursuit', 'Halcyon sedan', 'Halcyon taxi', 'Meridian cargo',
     'Meridian news', 'Kestrel patrol', 'Kestrel camera', 'Rook armoured', 'Rook transport', 'Hover bike'];
+  const BIKE_INDEX = CAR_FILES.indexOf('cars_43a7a337_1');
   CAR_FILES.forEach((f) => load('car_' + f, 'cars/' + f + '.png', { lazy: f }));
 
   const ROOF_FILES = ['roofs_4da2db28_1', 'roofs_4da2db28_2', 'roofs_4da2db28_3', 'roofs_4da2db28_4',
     'roofs_91c1b992_1', 'roofs_91c1b992_2', 'roofs_91c1b992_3', 'roofs_91c1b992_4', 'roofs_91c1b992_5',
     'roofs_91c1b992_6', 'roofs_91c1b992_7', 'roofs_91c1b992_8', 'roofs_91c1b992_9', 'roofs_ab20a82f_1'];
   ROOF_FILES.forEach((f) => load('roof_' + f, 'roofs/' + f + '.png'));
-
   const HOLO_PORTRAITS = ['holo_c137924f_1', 'holo_e3ba96b7_1', 'holo_19be32b2_1', 'holo_c89d1ac1_1', 'holo_b09cb1ba_1', 'holo_3f8ae492_1'];
   HOLO_PORTRAITS.forEach((f) => load('holo_' + f, 'holo/' + f + '.png'));
   load('glow', 'holo/holo_8dd91f32_1.png');
   load('haze_ground', 'haze/ground_haze.png');
-  load('haze_cloud', 'haze/cloud_haze.png');
+  load('head_rider', 'heads/head_m_buzz.png');
 
   const rnd = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const hash = (x, y) => { const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); };
   const ADS = ['DRINK HALCYON COLA', 'VORTEX: FASTER THAN YOU', 'KESTREL BANK: SAFE AS THE GRID', 'MERIDIAN MOVES YOU', 'RAVEN STUDIOS: WATCH LIVE', 'GET A NEW FACE: NOVA CLINIC'];
-
-  // city layout: blocks with buildings and roof decor, billboards on some roofs
-  const blocks = [];
-  for (let by = 0; by < WORLD.h / BLOCK; by++) for (let bx = 0; bx < WORLD.w / BLOCK; bx++) {
-    const x = bx * BLOCK + ROAD / 2, y = by * BLOCK + ROAD / 2, s = BLOCK - ROAD;
-    if (Math.random() < 0.12) continue;                       // some empty lots (parks)
-    blocks.push({ x, y, s, tone: Math.random() < 0.5 ? '#5a5e6a' : '#4c5060',
-      decor: [], billboard: null, ad: 0 });
-  }
-  let roofKeys = ROOF_FILES.map((f) => 'roof_' + f);
-  blocks.forEach((b) => {
-    const n = 1 + Math.floor(Math.random() * 3);
-    for (let i = 0; i < n; i++) {
-      const key = roofKeys[Math.floor(Math.random() * roofKeys.length)];
-      b.decor.push({ key, x: b.x + rnd(40, b.s - 40), y: b.y + rnd(40, b.s - 40), r: rnd(-0.2, 0.2) });
-    }
-    if (Math.random() < 0.3) {
-      b.billboard = { x: b.x + b.s / 2, y: b.y + b.s / 2 - 40, ad: Math.floor(Math.random() * ADS.length), t: rnd(0, 4) };
-    }
-  });
-
-  // billboard ads: a billboard never shares an ad with a billboard within 520 px
-  const allBoards = blocks.filter((b) => b.billboard).map((b) => b.billboard);
-  allBoards.forEach((bb, i) => {
-    const near = allBoards.slice(0, i).filter((o) => Math.hypot(o.x - bb.x, o.y - bb.y) < 520).map((o) => o.ad);
-    let pick = 0;
-    while (near.indexOf(pick) >= 0 && pick < ADS.length - 1) pick++;
-    bb.ad = pick;
-  });
-
-  // traffic: cars driving along roads
-  const traffic = Array.from({ length: 14 }, (_, i) => {
-    const horiz = Math.random() < 0.5;
-    const lane = Math.floor(Math.random() * (horiz ? WORLD.h / BLOCK : WORLD.w / BLOCK)) * BLOCK + ROAD / 2 + ROAD * 0.25;
-    return { horiz, lane, p: rnd(0, horiz ? WORLD.w : WORLD.h), dir: Math.random() < 0.5 ? 1 : -1,
-      sprite: 'car_' + CAR_FILES[i % CAR_FILES.length], speed: rnd(70, 140) };
-  });
-
-  const BIKE_INDEX = CAR_FILES.indexOf('cars_43a7a337_1');
   const DEFAULT_HANDLING = { max: 380, accel: 260, brake: 300, turn: 2.6, drag: 0.35, lean: 0 };
-  const car = { x: 160, y: 160, heading: 0, speed: 0, sprite: BIKE_INDEX, lean: 0 };
   function handlingOf(index) { return (CAR_META[CAR_FILES[index]] && CAR_META[CAR_FILES[index]].handling) || DEFAULT_HANDLING; }
-  const cloudsOffset = [];
-  for (let i = 0; i < 7; i++) cloudsOffset.push({ x: rnd(0, WORLD.w), y: rnd(0, WORLD.h), s: rnd(500, 900), v: rnd(6, 14) });
 
   const keys = {};
-  let last = 0, t = 0, cycleCooldown = 0;
+  let cycleCooldown = 0, msg = '', msgT = 0;
+  const pend = { land: false, exit: false };
+  let padPrev = { a: false, b: false };
+  const say = (s, secs) => { msg = s; msgT = secs || 2.5; };
 
+  // ---------- the city: the game's own cells, river and expressway (read only) ----------
+  const cellCache = new Map();
+  function cellAt(i, j) {
+    if (i < 0 || j < 0 || i >= N || j >= N) return null;
+    const k = i * 1000 + j;
+    if (cellCache.has(k)) return cellCache.get(k);
+    let c = null;
+    try { c = getCell(i, j); } catch (e) { c = null; }
+    cellCache.set(k, c);
+    return c;
+  }
+  function cellOf(x, y) { return cellAt(Math.floor(x / PITCH), Math.floor(y / PITCH)); }
+  function inBuilding(x, y) {
+    const c = cellOf(x, y);
+    if (!c) return false;
+    if (c.blds) for (const b of c.blds) if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return true;
+    if (c.walls) for (const w of c.walls) if (x >= w.x && x <= w.x + w.w && y >= w.y && y <= w.y + w.h) return true;
+    return false;
+  }
+  // open ground only: no building, no water, no expressway deck, no ramp
+  function landable(x, y) {
+    if (waterDepth(x, y) > 0.05) return false;
+    if (onDeckSpan(x, y) || inRampGap(x, y)) return false;
+    return !inBuilding(x, y);
+  }
+  const boardOf = new WeakMap();
+  function boardFor(b) {
+    if (boardOf.has(b)) return boardOf.get(b);
+    let bb = null;
+    if (b.w * b.h > 26000 && hash(b.x, b.y) < 0.35) {
+      bb = { x: b.x + b.w / 2, y: b.y + b.h / 2 - 30, ad: Math.floor(hash(b.y, b.x) * ADS.length), t: hash(b.x, b.y) * 4 };
+    }
+    boardOf.set(b, bb);
+    return bb;
+  }
+
+  // ---------- the view: the game's camera, locked to the runner ----------
+  function view() {
+    const hw = W / (2 * camNow.z), hh = H / (2 * camNow.z);
+    return { x0: camNow.x - hw, x1: camNow.x + hw, y0: camNow.y - hh, y1: camNow.y + hh };
+  }
+  function cellRange(v) {
+    return { i0: clamp(Math.floor(v.x0 / PITCH), 0, N - 1), i1: clamp(Math.floor(v.x1 / PITCH), 0, N - 1),
+      j0: clamp(Math.floor(v.y0 / PITCH), 0, N - 1), j1: clamp(Math.floor(v.y1 / PITCH), 0, N - 1) };
+  }
+
+  // roof decor on the game's buildings (small: fans and antennas, not whole rooftops); collects billboards
+  const beams = [];
+  function drawRoofs(r) {
+    for (let i = r.i0; i <= r.i1; i++) for (let j = r.j0; j <= r.j1; j++) {
+      const c = cellAt(i, j);
+      if (!c || !c.blds) continue;
+      c.blds.forEach((b) => {
+        const k = hash(b.x, b.y);
+        if (b.w > 300 && b.h > 300 && ROOF_FILES.length) {
+          const rk = img['roof_' + ROOF_FILES[Math.floor(k * 97) % ROOF_FILES.length]];
+          if (rk) {
+            const w = Math.min(b.w * 0.25, 90), h = rk.height * (w / rk.width);
+            ctx.drawImage(rk, b.x + b.w / 2 - w / 2, b.y + b.h / 2 - h / 2, w, h);
+          }
+        }
+        const bb = boardFor(b);
+        if (bb) beams.push(bb);
+      });
+    }
+  }
+
+  // ---------- flying traffic: fly, land on open ground, rest, lift off ----------
+  function newFlier(cx, cy) {
+    const f = { x: cx + rnd(-2600, 2600), y: cy + rnd(-2600, 2600), heading: 0, z: rnd(110, 180), cruise: rnd(110, 180),
+      mode: 'fly', tx: 0, ty: 0, wait: 0, spd: rnd(170, 260),
+      sprite: 'car_' + CAR_FILES[Math.floor(Math.random() * (CAR_FILES.length - 1))] };   // never the bike
+    f.tx = cx + rnd(-2600, 2600); f.ty = cy + rnd(-2600, 2600);
+    return f;
+  }
+  function pickSpot(cx, cy) {
+    for (let k = 0; k < 40; k++) {
+      const x = cx + rnd(-2600, 2600), y = cy + rnd(-2600, 2600);
+      if (x < 40 || y < 40 || x > SX(N) - 40 || y > SX(N) - 40) continue;
+      if (landable(x, y)) return { x, y };
+    }
+    return null;
+  }
+  function steerTo(f, tx, ty, spd, dt) {
+    const dx = tx - f.x, dy = ty - f.y, d = Math.hypot(dx, dy) || 1;
+    f.heading = Math.atan2(dy, dx);
+    const s = Math.min(d, spd * dt);
+    f.x += dx / d * s; f.y += dy / d * s;
+  }
+  function updateFlier(f, dt, cx, cy) {
+    if (Math.hypot(f.x - cx, f.y - cy) > 4200) { Object.assign(f, newFlier(cx, cy)); return; }
+    if (f.mode === 'fly') {
+      steerTo(f, f.tx, f.ty, f.spd, dt);
+      if (Math.hypot(f.tx - f.x, f.ty - f.y) < 60) {
+        const s = Math.random() < 0.35 ? pickSpot(f.x, f.y) : null;
+        if (s) { f.tx = s.x; f.ty = s.y; f.mode = 'desc'; }
+        else { f.tx = f.x + rnd(-1500, 1500); f.ty = f.y + rnd(-1500, 1500); }
+      }
+    } else if (f.mode === 'desc') {
+      steerTo(f, f.tx, f.ty, 60, dt);
+      f.z -= 80 * dt;
+      if (f.z <= 0) { f.z = 0; f.mode = 'rest'; f.wait = rnd(5, 12); }
+    } else if (f.mode === 'rest') {
+      f.wait -= dt; if (f.wait <= 0) f.mode = 'asc';
+    } else if (f.mode === 'asc') {
+      f.z += 80 * dt;
+      if (f.z >= f.cruise) { f.z = f.cruise; f.mode = 'fly'; f.tx = f.x + rnd(-1500, 1500); f.ty = f.y + rnd(-1500, 1500); }
+    }
+  }
+  const fliers = [];
+
+  // ---------- the player: hover, land, get out ----------
+  const car = { x: 0, y: 0, heading: 0, speed: 0, sprite: BIKE_INDEX, lean: 0, z: 150, mode: 'air' };
+  const walker = { x: 0, y: 0, heading: 0, on: false };
+  const AIR_Z = 150, LIFT = 110;
+
+  function resetRunner() {
+    placed = false; car.speed = 0; car.lean = 0; walker.on = false; fliers.length = 0;
+  }
+  // the first frame in Runner Mode: the bike starts where the game camera is
+  function place() {
+    placed = true;
+    car.z = AIR_Z; car.mode = 'air'; car.speed = 0; car.lean = 0; walker.on = false;
+    fliers.length = 0; for (let k = 0; k < 16; k++) fliers.push(newFlier(car.x, car.y));
+    say('FUTURE CITY · L TO LAND · E TO GET OUT', 4);
+  }
+
+  function toggleLand() {
+    if (car.mode === 'air') {
+      if (Math.abs(car.speed) > 140) return say('SLOW DOWN TO LAND');
+      if (!landable(car.x, car.y)) return say('NO LANDING ON A BUILDING, WATER OR DECK');
+      car.mode = 'down'; say('LANDING');
+    } else if (car.mode === 'down') { car.mode = 'up'; say('LIFTING OFF'); }
+    else if (car.mode === 'landed') { car.mode = 'up'; say('LIFTING OFF'); }
+    else if (car.mode === 'up') { car.mode = 'down'; say('LANDING'); }
+  }
+  function exitOrBoard() {
+    if (walker.on) {
+      if (Math.hypot(walker.x - car.x, walker.y - car.y) < 120) { walker.on = false; say('BOARDED. L TO LIFT OFF'); }
+      else say('GET BACK TO THE CAR TO BOARD');
+      return;
+    }
+    if (car.mode !== 'landed') return say('LAND FIRST');
+    walker.on = true; walker.x = car.x + 70; walker.y = car.y; walker.heading = 0;
+    say('ON FOOT. E NEAR THE CAR TO BOARD');
+  }
+
+  function updateCar(dt, pad) {
+    const hd = handlingOf(car.sprite);
+    if (car.mode === 'down' || car.mode === 'up') {
+      car.speed *= Math.max(0, 1 - 2 * dt);
+      car.x += Math.cos(car.heading) * car.speed * dt; car.y += Math.sin(car.heading) * car.speed * dt;
+      if (car.mode === 'down') {
+        car.z -= 110 * dt;
+        if (car.z <= 0) { car.z = 0; car.mode = 'landed'; car.speed = 0; car.lean = 0; say('LANDED. E TO GET OUT'); }
+        else if (!landable(car.x, car.y) && car.z < 40) { car.mode = 'up'; say('NO LANDING HERE'); }
+      } else {
+        car.z += LIFT * dt;
+        if (car.z >= AIR_Z) { car.z = AIR_Z; car.mode = 'air'; }
+      }
+      return;
+    }
+    if (car.mode === 'landed') { car.speed = 0; car.lean = 0; return; }
+    const acc = ((keys.ArrowUp || keys.w || keys.W) || pad.rt > 0.1) ? hd.accel * Math.max(pad.rt, 1) : 0;
+    const brk = ((keys.ArrowDown || keys.s || keys.S) || pad.lt > 0.1) ? 1 : 0;
+    const steer = clamp((((keys.ArrowRight || keys.d || keys.D) ? 1 : 0) - ((keys.ArrowLeft || keys.a || keys.A) ? 1 : 0)) + (Math.abs(pad.x) > 0.15 ? pad.x : 0), -1, 1);
+    car.speed += acc * dt;
+    if (brk) car.speed -= hd.brake * dt;
+    car.speed *= (1 - hd.drag * dt);
+    car.speed = clamp(car.speed, -hd.max * 0.35, hd.max);
+    const turn = steer * hd.turn * clamp(Math.abs(car.speed) / 200, 0, 1) * Math.sign(car.speed || 1);
+    const leanTarget = steer * clamp(Math.abs(car.speed) / hd.max, 0, 1) * (hd.lean || 0) * Math.sign(car.speed || 1);
+    car.lean += (leanTarget - car.lean) * Math.min(1, 6 * dt);
+    car.heading += turn * dt;
+    car.x = clamp(car.x + Math.cos(car.heading) * car.speed * dt, 40, SX(N) - 40);
+    car.y = clamp(car.y + Math.sin(car.heading) * car.speed * dt, 40, SX(N) - 40);
+  }
+  function updateWalker(dt, pad) {
+    const sx = clamp(((keys.ArrowRight || keys.d || keys.D) ? 1 : 0) - ((keys.ArrowLeft || keys.a || keys.A) ? 1 : 0) + (Math.abs(pad.x) > 0.15 ? pad.x : 0), -1, 1);
+    const sy = clamp(((keys.ArrowDown || keys.s || keys.S) ? 1 : 0) - ((keys.ArrowUp || keys.w || keys.W) ? 1 : 0) + (Math.abs(pad.y) > 0.15 ? pad.y : 0), -1, 1);
+    const m = Math.hypot(sx, sy);
+    if (m > 0.05) {
+      walker.x += sx / m * 150 * Math.min(1, m) * dt;
+      walker.y += sy / m * 150 * Math.min(1, m) * dt;
+      walker.heading = Math.atan2(sy, sx);
+    }
+    walker.x = clamp(walker.x, 40, SX(N) - 40); walker.y = clamp(walker.y, 40, SX(N) - 40);
+  }
+
+  // ---------- input ----------
   function readPad() {
-    const out = { x: 0, rt: 0, lt: 0 };
+    const out = { x: 0, y: 0, rt: 0, lt: 0, a: false, b: false };
     const list = navigator.getGamepads ? navigator.getGamepads() : [];
     for (const g of list) {
       if (!g) continue;
-      out.x = g.axes[0] || 0;
+      out.x = g.axes[0] || 0; out.y = g.axes[1] || 0;
       out.rt = g.buttons[7] ? g.buttons[7].value : 0;
       out.lt = g.buttons[6] ? g.buttons[6].value : 0;
+      out.a = !!(g.buttons[0] && g.buttons[0].pressed);
+      out.b = !!(g.buttons[1] && g.buttons[1].pressed);
       break;
     }
     return out;
   }
 
   function update(dt) {
-    t += dt;
     const pad = readPad();
-    const hd = handlingOf(car.sprite);
-    const acc = ((keys.ArrowUp || keys.w || keys.W) || pad.rt > 0.1) ? hd.accel * Math.max(pad.rt, 1) : 0;
-    const brk = ((keys.ArrowDown || keys.s || keys.S) || pad.lt > 0.1) ? 1 : 0;
-    const steer = clamp((((keys.ArrowRight || keys.d || keys.D) ? 1 : 0) - ((keys.ArrowLeft || keys.a || keys.A) ? 1 : 0)) + (Math.abs(pad.x) > 0.15 ? pad.x : 0), -1, 1);
-    car.speed += acc * dt;
-    if (brk) car.speed -= hd.brake * dt;
-    car.speed *= (1 - hd.drag * dt);                          // hover drag
-    car.speed = clamp(car.speed, -hd.max * 0.35, hd.max);
-    const turn = steer * hd.turn * clamp(Math.abs(car.speed) / 200, 0, 1) * Math.sign(car.speed || 1);
-    // lean into the turn (bikes only): eases toward steer x speed
-    const leanTarget = steer * clamp(Math.abs(car.speed) / hd.max, 0, 1) * (hd.lean || 0) * Math.sign(car.speed || 1);
-    car.lean += (leanTarget - car.lean) * Math.min(1, 6 * dt);
-    car.heading += turn * dt;
-    car.x = clamp(car.x + Math.cos(car.heading) * car.speed * dt, 20, WORLD.w - 20);
-    car.y = clamp(car.y + Math.sin(car.heading) * car.speed * dt, 20, WORLD.h - 20);
-
-    traffic.forEach((c) => {
-      c.p += c.dir * c.speed * dt;
-      const L = c.horiz ? WORLD.w : WORLD.h;
-      if (c.p < 0) c.p += L; if (c.p > L) c.p -= L;
-    });
-    cloudsOffset.forEach((c) => { c.x += c.v * dt; if (c.x > WORLD.w + 600) c.x = -600; });
-    blocks.forEach((b) => { if (b.billboard) b.billboard.t += dt; });
-    cycleCooldown -= dt;
-    runnerUpdate(dt);
+    if (pad.a && !padPrev.a) pend.land = true;
+    if (pad.b && !padPrev.b) pend.exit = true;
+    padPrev = { a: pad.a, b: pad.b };
+    cycleCooldown -= dt; msgT -= dt;
+    if (pend.land) { pend.land = false; if (!walker.on) toggleLand(); else say('GET IN THE CAR FIRST'); }
+    if (pend.exit) { pend.exit = false; exitOrBoard(); }
+    if (walker.on) updateWalker(dt, pad); else updateCar(dt, pad);
+    const v = view();
+    fliers.forEach((f) => updateFlier(f, dt, v.x0 + (v.x1 - v.x0) / 2, v.y0 + (v.y1 - v.y0) / 2));
   }
 
-  function carMeta(sprite) {
-    return CAR_META[sprite.replace(/^car_/, '')] || { len: 100, nose: 0 };
-  }
-  Object.keys(CAR_META).forEach((k) => { CAR_META_LIST[k] = CAR_META[k]; });
+  // ---------- drawing ----------
+  function carMeta(sprite) { return CAR_META[sprite.replace(/^car_/, '')] || { len: 100, nose: 0 }; }
 
   function drawGlow(x, y, heading, len, color) {
     if (!color) return;
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    ctx.translate(x, y); ctx.rotate(heading);
-    ctx.scale(1, 0.4);
+    ctx.translate(x, y); ctx.rotate(heading); ctx.scale(1, 0.4);
     const g = ctx.createRadialGradient(0, 0, 6, 0, 0, len * 0.85);
     g.addColorStop(0, color + 'ee'); g.addColorStop(0.4, color + '88'); g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, len * 0.85, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
-
-  function drawCarAt(sprite, x, y, heading, label, lean) {
-    const sp = img[sprite];
-    const m = carMeta(sprite);
+  // a vehicle at ground point (x, y), lifted z units up the screen; its glow stays on the ground
+  function drawCar(sprite, x, y, z, heading, lean) {
+    const sp = img[sprite], m = carMeta(sprite);
     lean = lean || 0;
     drawGlow(x, y, heading, m.len, m.glow);
     ctx.save();
-    ctx.translate(x, y);
+    ctx.translate(x, y - z);
     ctx.rotate(heading + m.nose + lean * 0.12);
     if (sp) {
-      // scale so the long axis of the art equals m.len, whatever the image's orientation
       const k = m.len / Math.max(sp.width, sp.height);
       const w = sp.width * k, h = sp.height * k;
       ctx.drawImage(sp, -w / 2, -h / 2, w, h);
+      // alternative-fuel kit: ion vents at the tail, pulsing. Art space: forward is (cos nose, -sin nose)
+      const fx = Math.cos(m.nose), fy = -Math.sin(m.nose), sx = -fy, sy = fx;
+      const tx = -fx * m.len * 0.47, ty = -fy * m.len * 0.47;
+      const pulse = 0.7 + 0.3 * Math.sin(t * 7 + x * 0.01);
+      const vents = m.rider ? [0] : [-1, 1];
+      vents.forEach((s) => {
+        const vx = tx + sx * s * m.len * 0.12, vy = ty + sy * s * m.len * 0.12;
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        const g = ctx.createRadialGradient(vx, vy, 1, vx, vy, 13);
+        g.addColorStop(0, m.glow); g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.globalAlpha = 0.9 * pulse; ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(vx, vy, 13, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      });
       if (m.rider) {
-        // rider seated on the bike: sits out to the side of the lean, dark jacket shoulders, head facing forward
         ctx.save(); ctx.translate(0, lean * 9);
         ctx.fillStyle = '#e8d9b5';
         ctx.beginPath(); ctx.ellipse(-5, 0, 8, 7, 0, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5; ctx.stroke();
-        if (img.head_rider) {
-          const hw = 17, hh = img.head_rider.height * (hw / img.head_rider.width);
-          ctx.drawImage(img.head_rider, 2 - hw / 2, -hh / 2, hw, hh);
-        }
+        if (img.head_rider) { const hw = 17, hh = img.head_rider.height * (hw / img.head_rider.width); ctx.drawImage(img.head_rider, 2 - hw / 2, -hh / 2, hw, hh); }
         ctx.restore();
       }
-    } else {
-      ctx.fillStyle = '#9aa'; ctx.fillRect(-m.len / 2, -20, m.len, 40);
-    }
+    } else { ctx.fillStyle = '#9aa'; ctx.fillRect(-m.len / 2, -20, m.len, 40); }
     ctx.restore();
-    if (label) { ctx.fillStyle = '#e8d9b5'; ctx.font = '11px monospace'; ctx.fillText(label, x - 30, y - 34); }
   }
-
-  function drawShadow(x, y, heading, len) {
-    ctx.save(); ctx.translate(x + 10, y + 16); ctx.rotate(heading);
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
-    ctx.beginPath(); ctx.ellipse(0, 0, (len || 110) * 0.45, 22, 0, 0, Math.PI * 2); ctx.fill();
+  function drawShadow(x, y, heading, len, z) {
+    const f = 1 / (1 + z / 120), a = 0.3 / (1 + z / 150);
+    ctx.save(); ctx.translate(x + 6 * f, y + 8 * f); ctx.rotate(heading);
+    ctx.fillStyle = 'rgba(0,0,0,' + a.toFixed(3) + ')';
+    ctx.beginPath(); ctx.ellipse(0, 0, (len || 100) * 0.45 * f, 22 * f, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
 
-  function drawBubble(bx, by, text, portraitKey) {
-    const pw = 48;
-    const bw = 176, bh = 80, x = bx - bw / 2, y = by - bh - 24;
-    ctx.fillStyle = 'rgba(12,10,22,0.85)';
-    ctx.strokeStyle = '#6ef0ff'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(x, y, bw, bh, 8); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(bx - 8, y + bh); ctx.lineTo(bx, y + bh + 14); ctx.lineTo(bx + 8, y + bh); ctx.fill();
-    const p = img[portraitKey];
-    if (p) ctx.drawImage(p, x + 8, y + 8, pw, pw * p.height / p.width);
-    ctx.fillStyle = '#6ef0ff'; ctx.font = 'bold 10px monospace';
-    ctx.fillText('ADS', x + 62, y + 20);
-    ctx.fillStyle = '#e8d9b5'; ctx.font = '10px monospace';
-    const words = text.split(' '); let line = '', ly = y + 36;
-    words.forEach((w) => { const test = line ? line + ' ' + w : w; if (ctx.measureText(test).width > 104) { ctx.fillText(line, x + 62, ly); line = w; ly += 13; } else line = test; });
-    ctx.fillText(line, x + 62, ly);
-  }
-
-  // a light cone from the billboard down onto the street, like a headlight beam, with the hologram at its far end
+  // a light cone from the billboard down onto the street, with the hologram at its far end (world units)
   function drawProjection(bb) {
     const cycle = Math.floor(bb.t / 6);
     const idx = (bb.ad + cycle) % ADS.length;
     const p = img['holo_' + HOLO_PORTRAITS[idx % HOLO_PORTRAITS.length]];
     const flick = 0.85 + 0.15 * Math.sin(bb.t * 9) * Math.sin(bb.t * 2.3);
-    const top = bb.y + 34, reach = 300, endW = 104, startW = 176;   // the beam ends exactly as wide as the hologram
+    const top = bb.y + 34, reach = 300, endW = 104, startW = 176;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createLinearGradient(0, top, 0, top + reach);
@@ -14727,229 +14851,89 @@ const RUNNER_API = (function () {
     ctx.moveTo(bb.x - startW / 2, top); ctx.lineTo(bb.x + startW / 2, top);
     ctx.lineTo(bb.x + endW / 2, top + reach); ctx.lineTo(bb.x - endW / 2, top + reach);
     ctx.closePath(); ctx.fill();
-    ctx.restore();
-    // the hologram on the street at the end of the beam
     const hy = top + reach * 0.62;
-    ctx.save();
     ctx.globalAlpha = 0.9 * flick;
-    ctx.globalCompositeOperation = 'lighter';
     if (p) { const pw = 96, ph = pw * p.height / p.width; ctx.drawImage(p, bb.x - pw / 2, hy - ph / 2, pw, ph); }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(110,240,255,0.95)'; ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(ADS[idx], bb.x, hy + 62);
     ctx.restore();
-    // ad line on the street, under the hologram
-    ctx.fillStyle = 'rgba(110,240,255,0.95)'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
-    ctx.fillText(ADS[idx], bb.x, hy + 62); ctx.textAlign = 'left';
   }
 
-  function drawWorld() {
-    const camX = clamp(car.x - W / 2, 0, WORLD.w - W);
-    const camY = clamp(car.y - H / 2, 0, WORLD.h - H);
+  function drawWalker(x, y) {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 4, y + 6, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2a2d3a'; ctx.beginPath(); ctx.ellipse(x, y, 8, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#6ef0ff'; ctx.lineWidth = 2; ctx.stroke();
+    if (img.head_rider) { const hw = 20, hh = img.head_rider.height * (hw / img.head_rider.width); ctx.drawImage(img.head_rider, x - hw / 2, y - 12 - hh, hw, hh); }
+  }
+
+  // everything the runner adds, in world units on top of the game's frame
+  function drawOverlay() {
+    const v = view();
+    const r = cellRange(v);
+    beams.length = 0;
     ctx.save();
-    ctx.translate(-camX, -camY);
+    ctx.translate(W / 2, H / 2); ctx.scale(camNow.z, camNow.z); ctx.translate(-camNow.x, -camNow.y);
 
-    // roads and ground
-    ctx.fillStyle = '#34363d'; ctx.fillRect(0, 0, WORLD.w, WORLD.h);
-    ctx.fillStyle = '#2b2d33';
-    for (let x = 0; x < WORLD.w; x += BLOCK) ctx.fillRect(x, 0, ROAD, WORLD.h);
-    for (let y = 0; y < WORLD.h; y += BLOCK) ctx.fillRect(0, y, WORLD.w, ROAD);
+    drawRoofs(r);
 
-    // buildings and roof decor
-    blocks.forEach((b) => {
-      ctx.fillStyle = b.tone; ctx.fillRect(b.x, b.y, b.s, b.s);
-      ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.s, b.s);
-      b.decor.forEach((d) => {
-        const sp = img[d.key];
-        if (!sp) return;
-        const w = 90, h = sp.height * (w / sp.width);
-        ctx.save(); ctx.translate(d.x, d.y); ctx.rotate(d.r);
-        ctx.drawImage(sp, -w / 2, -h / 2, w, h); ctx.restore();
-      });
-      if (b.billboard) {
-        const bb = b.billboard;
-        const gl = img.glow;
-        if (gl) { ctx.globalAlpha = 0.85 + 0.15 * Math.sin(bb.t * 3); ctx.drawImage(gl, bb.x - 90, bb.y - 46, 180, 92); ctx.globalAlpha = 1; }
-      }
-    });
-
-    // ground haze: light purple tint across the street and roofs
+    // purple haze at street level, over the game's world and under the runner's cars
     if (img.haze_ground) {
-      ctx.save(); ctx.globalAlpha = 0.6;
+      ctx.save(); ctx.globalAlpha = 0.45;
       const pat = ctx.createPattern(img.haze_ground, 'repeat');
       if (pat.setTransform) pat.setTransform(new DOMMatrix().translate(t * 6, t * 3).scale(1.6));
-      ctx.fillStyle = pat; ctx.fillRect(0, 0, WORLD.w, WORLD.h);
+      ctx.fillStyle = pat; ctx.fillRect(v.x0, v.y0, v.x1 - v.x0, v.y1 - v.y0);
       ctx.restore();
     }
 
-    drawRunnerGround();
+    // shadows on the ground first, then the cars high ones last so they sit over the low ones
+    const list = fliers.map((f) => ({ x: f.x, y: f.y, z: f.z, heading: f.heading, sprite: f.sprite, lean: 0 }));
+    list.push({ x: car.x, y: car.y, z: car.z, heading: car.heading, sprite: 'car_' + CAR_FILES[car.sprite], lean: car.lean });
+    list.forEach((c) => drawShadow(c.x, c.y, c.heading, carMeta(c.sprite).len, c.z));
+    list.sort((a, b) => a.z - b.z).forEach((c) => drawCar(c.sprite, c.x, c.y, c.z, c.heading, c.lean));
 
-    // floating haze clouds (drawn under the cars, over the ground)
-    if (img.haze_cloud) {
-      cloudsOffset.forEach((c) => {
-        ctx.globalAlpha = 0.55;
-        ctx.drawImage(img.haze_cloud, c.x, c.y, c.s, c.s);
-      });
-      ctx.globalAlpha = 1;
-    }
+    if (walker.on) drawWalker(walker.x, walker.y);
 
-    drawRunnerAir();
-
-    // traffic
-    traffic.forEach((c) => {
-      const x = c.horiz ? c.p : c.lane, y = c.horiz ? c.lane : c.p;
-      const h = c.horiz ? (c.dir > 0 ? 0 : Math.PI) : (c.dir > 0 ? Math.PI / 2 : -Math.PI / 2);
-      drawShadow(x, y, h, carMeta(c.sprite).len);
-      drawCarAt(c.sprite, x, y, h, null);
-    });
-
-    // hover car (player): shadow, then the car above the haze
-    const pk = 'car_' + CAR_FILES[car.sprite];
-    drawShadow(car.x + Math.sin(car.heading) * car.lean * 8, car.y - Math.cos(car.heading) * car.lean * 8, car.heading, carMeta(pk).len);
-    drawCarAt(pk, car.x, car.y, car.heading, CAR_NAMES[car.sprite], car.lean);
-
-    // billboard ad bubbles (drawn above everything on the ground)
-    blocks.forEach((b) => {
-      if (!b.billboard) return;
-      const bb = b.billboard;
-      if (Math.hypot(bb.x - car.x, bb.y - car.y) > 520) return;   // only near the car, to keep it readable
-      drawProjection(bb);
-    });
-
+    beams.forEach((bb) => { if (Math.hypot(bb.x - camNow.x, bb.y - camNow.y) < 900) drawProjection(bb); });
     ctx.restore();
   }
 
   function drawHud() {
-    drawRunnerHud();
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(12, 12, 360, 50);
+    const state = walker.on ? 'ON FOOT' : ({ air: 'FLYING', down: 'LANDING', landed: 'LANDED', up: 'LIFTING OFF' })[car.mode];
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(12, 12, 400, 84);
     ctx.fillStyle = '#e8d9b5'; ctx.font = '13px monospace';
-    ctx.fillText('CAR: ' + CAR_NAMES[car.sprite] + '   SPEED ' + Math.round(Math.abs(car.speed)), 22, 32);
-    ctx.fillText('stick / arrows / WASD drive   RT gas  LT brake   C car   R reset', 22, 52);
-  }
-
-
-  // ---------- Runner Mode (futurist skin): hunters on foot, drones with spotlights, heat, a night to survive ----------
-  const HUNTER_LIST = [
-    { name: 'Lockjaw', key: 'lockjaw', speed: 105 }, { name: 'Ruth', key: 'ruth', speed: 115 },
-    { name: 'Vince', key: 'vince', speed: 100 }, { name: 'Dana', key: 'dana', speed: 120 },
-    { name: 'Sully', key: 'sully', speed: 110 }, { name: 'Silk', key: 'silk', speed: 125 },
-    { name: 'Gus', key: 'gus', speed: 112 }, { name: 'Hollis', key: 'hollis', speed: 98 },
-  ];
-  HUNTER_LIST.forEach((h) => load('rh_' + h.key, 'hunters/v9_' + h.key + '.png'));
-  load('rh_hollis', 'hunters/v10b_hollis.png');
-  load('drone', 'roofs/roofs_a552f0e2_1.png');
-  const NIGHT = 90;                 // seconds on air before morning
-  const SIGHT_H = 300, SPOT_R = 150, CIV_R = 170;
-  const R = { mode: 'run', t: 0, heat: 0, pay: 0, msg: '', hunters: [], drones: [], civs: [] };
-
-  function resetRunner() {
-    R.mode = 'run'; R.t = 0; R.heat = 0; R.pay = 0; R.msg = '';
-    R.hunters = HUNTER_LIST.map((h, i) => ({ name: h.name, speed: h.speed, key: 'rh_' + h.key,
-      x: rnd(400, WORLD.w - 400), y: rnd(400, WORLD.h - 400), active: i < 2, state: 'patrol', pat: rnd(0, 6.28) }));
-    R.drones = [0, 1, 2].map((i) => ({ x: rnd(500, WORLD.w - 500), y: rnd(500, WORLD.h - 500),
-      heading: rnd(0, 6.28), spin: rnd(0.25, 0.45) * (i % 2 ? 1 : -1), active: i < 1, sees: false }));
-    R.civs = Array.from({ length: 18 }, () => ({ x: rnd(60, WORLD.w - 60), y: rnd(60, WORLD.h - 60),
-      vx: rnd(-25, 25), vy: rnd(-25, 25), alarm: 0, turned: false }));
-  }
-
-  function runnerUpdate(dt) {
-    if (R.mode !== 'run') return;
-    R.t += dt;
-    const speed = Math.abs(car.speed);
-    // drones sweep the streets; each one lights a spot of street under it
-    R.drones.forEach((d) => {
-      d.heading += d.spin * dt;
-      d.x = clamp(d.x + Math.cos(d.heading) * 90 * dt, 200, WORLD.w - 200);
-      d.y = clamp(d.y + Math.sin(d.heading) * 90 * dt, 200, WORLD.h - 200);
-      d.sees = d.active && Math.hypot(d.x - car.x, d.y - car.y) < SPOT_R;
-    });
-    const level = Math.floor(R.heat);
-    R.drones.forEach((d, i) => { d.active = i < Math.min(3, 1 + Math.floor(level / 2)); });
-    const hunterSeen = R.hunters.some((h) => h.active && Math.hypot(h.x - car.x, h.y - car.y) < SIGHT_H);
-    const seen = hunterSeen || R.drones.some((d) => d.sees);
-    R.heat = clamp(R.heat + (seen ? 0.45 : -0.25) * dt, 0, 5);
-    const n = Math.min(R.hunters.length, 2 + Math.floor(R.heat));
-    R.hunters.forEach((h, i) => { h.active = i < n; });
-
-    R.hunters.forEach((h) => {
-      if (!h.active) return;
-      const d = Math.hypot(car.x - h.x, car.y - h.y);
-      if (d < SIGHT_H) {
-        h.state = 'chase';
-        const ang = Math.atan2(car.y - h.y, car.x - h.x);
-        h.x += Math.cos(ang) * h.speed * dt; h.y += Math.sin(ang) * h.speed * dt;
-        // caught only if you're nearly stopped next to them; a fast bike goes past
-        if (d < 24 && speed < 220 && R.mode === 'run') { R.mode = 'caught'; R.msg = h.name + ' caught you'; }
-      } else {
-        h.state = 'patrol'; h.pat += dt * 0.6;
-        h.x = clamp(h.x + Math.cos(h.pat) * 40 * dt, 40, WORLD.w - 40);
-        h.y = clamp(h.y + Math.sin(h.pat) * 40 * dt, 40, WORLD.h - 40);
-      }
-    });
-
-    R.civs.forEach((c) => {
-      if (c.turned) return;
-      c.x = clamp(c.x + c.vx * dt, 40, WORLD.w - 40); c.y = clamp(c.y + c.vy * dt, 40, WORLD.h - 40);
-      if (Math.random() < 0.01) { c.vx = rnd(-25, 25); c.vy = rnd(-25, 25); }
-      if (c.alarm > 0) c.alarm -= dt;
-      if (Math.hypot(c.x - car.x, c.y - car.y) < CIV_R && Math.random() < (0.06 + R.heat * 0.03) * dt) {
-        c.alarm = 2.5; c.turned = true; R.heat = clamp(R.heat + 1, 0, 5);
-      }
-    });
-
-    if (R.t >= NIGHT && R.mode === 'run') { R.mode = 'morning'; R.pay += 10000; R.msg = 'Morning. You survived the night.'; }
-  }
-
-  function drawRunnerGround() {
-    R.civs.forEach((c) => {
-      ctx.fillStyle = c.turned ? '#7a2a2a' : '#c9c3d6';
-      ctx.beginPath(); ctx.arc(c.x, c.y, 6, 0, Math.PI * 2); ctx.fill();
-      if (c.alarm > 0) { ctx.fillStyle = '#ffd34d'; ctx.font = 'bold 14px monospace'; ctx.fillText('!', c.x - 3, c.y - 12); }
-    });
-    R.hunters.forEach((h) => {
-      if (!h.active) return;
-      const sp = img[h.key];
-      if (sp) { const w = 46, hh = sp.height * (w / sp.width); ctx.drawImage(sp, h.x - w / 2, h.y - hh / 2, w, hh); }
-      else { ctx.fillStyle = '#c0392b'; ctx.fillRect(h.x - 12, h.y - 12, 24, 24); }
-      ctx.fillStyle = '#ffe9b0'; ctx.font = '10px monospace'; ctx.fillText(h.name, h.x - 14, h.y - 28);
-    });
-  }
-
-  function drawRunnerAir() {
-    R.drones.forEach((d) => {
-      if (!d.active) return;
-      // spotlight on the street under the drone, like a beam
-      const col = d.sees ? 'rgba(255,70,90,' : 'rgba(255,230,140,';
-      const g = ctx.createRadialGradient(d.x, d.y, 10, d.x, d.y, SPOT_R);
-      g.addColorStop(0, col + '0.42)'); g.addColorStop(1, col + '0)');
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(d.x, d.y, SPOT_R, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-      const dr = img.drone;
-      if (dr) { ctx.save(); ctx.translate(d.x, d.y); ctx.rotate(d.heading); const w = 64, h = dr.height * (w / dr.width); ctx.drawImage(dr, -w / 2, -h / 2, w, h); ctx.restore(); }
-    });
-  }
-
-  function drawRunnerHud() {
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(12, 70, 360, 56);
-    ctx.fillStyle = '#e8d9b5'; ctx.font = '13px monospace';
-    ctx.fillText('HEAT ' + Math.floor(R.heat) + ' / 5', 22, 90);
-    ctx.fillStyle = '#333'; ctx.fillRect(22, 98, 260, 8);
-    ctx.fillStyle = '#ff5a7a'; ctx.fillRect(22, 98, 260 * (R.heat / 5), 8);
-    ctx.fillStyle = '#e8d9b5';
-    ctx.fillText('MORNING IN ' + Math.max(0, NIGHT - R.t).toFixed(0) + 's   PAY $' + R.pay.toLocaleString(), 22, 120);
-    if (R.mode !== 'run') {
-      ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(W / 2 - 220, H / 2 - 50, 440, 100);
-      ctx.fillStyle = '#6ef0ff'; ctx.font = 'bold 18px monospace'; ctx.textAlign = 'center';
-      ctx.fillText(R.msg, W / 2, H / 2 - 8);
-      ctx.fillStyle = '#e8d9b5'; ctx.font = '13px monospace';
-      ctx.fillText('Press R to run again', W / 2, H / 2 + 26);
-      ctx.textAlign = 'left';
+    ctx.fillText('CAR: ' + CAR_NAMES[car.sprite] + '   SPEED ' + Math.round(Math.abs(car.speed)), 22, 34);
+    ctx.fillText('STATE: ' + state + '   ALT ' + Math.round(car.z * 0.047) + ' M', 22, 56);
+    ctx.fillText('FLYING TRAFFIC ' + fliers.length, 22, 78);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(12, H - 40, W - 24, 28);
+    ctx.fillStyle = '#e8d9b5'; ctx.font = '12px monospace';
+    ctx.fillText('stick / WASD  RT gas  LT brake  A or L land   B or E get out   C car   R reset', 22, H - 21);
+    if (msgT > 0) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.font = 'bold 16px monospace';
+      const tw = ctx.measureText(msg).width;
+      ctx.fillRect(W / 2 - tw / 2 - 14, 22, tw + 28, 30);
+      ctx.fillStyle = '#6ef0ff'; ctx.textAlign = 'center'; ctx.fillText(msg, W / 2, 43); ctx.textAlign = 'left';
     }
   }
 
-  function step(ts) {
-    const dt = Math.min(0.05, (ts - (last || ts)) / 1000);
-    last = ts;
+  // called by the game each frame, after the game has drawn the camera, before its React HUD
+  // the game's own camera is locked to the hover bike here: the world is the game's, the runner moves through it
+  function lockCam(cam, Wg, Hg) {
+    W = Wg; H = Hg;
+    const now = performance.now(), dt = Math.min(0.05, (now - (lastT || now)) / 1000);
+    lastT = now; t += dt;
+    if (!placed) { car.x = cam.x; car.y = cam.y; place(); }
     update(dt);
-    ctx.fillStyle = '#0e0d0c'; ctx.fillRect(0, 0, W, H);
-    drawWorld();
+    const p = walker.on ? walker : car;
+    camNow = { x: p.x, y: p.y, z: clamp(Math.min(W, H) / 1400, 0.16, 3.2) };
+    cam.x = camNow.x; cam.y = camNow.y; cam.z = camNow.z;
+  }
+  // called by the game after its frame has been drawn: the runner's layer goes on top
+  function overlay(canvas) {
+    ctx = canvas.getContext('2d');
+    const dpr = canvas.width / W;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawOverlay();
     drawHud();
   }
 
@@ -14957,52 +14941,35 @@ const RUNNER_API = (function () {
     keys[e.key] = true;
     if (!RUN_ON) return;
     if ((e.key === 'c' || e.key === 'C') && cycleCooldown <= 0) { car.sprite = (car.sprite + 1) % CAR_FILES.length; cycleCooldown = 0.2; }
-    if (RUN_ON && (e.key === 'r' || e.key === 'R')) { car.x = 160; car.y = 160; car.heading = 0; car.speed = 0; car.lean = 0; resetRunner(); }
-    if (RUN_ON && e.key.startsWith('Arrow')) e.preventDefault();
+    if (e.key === 'l' || e.key === 'L') pend.land = true;
+    if (e.key === 'e' || e.key === 'E') pend.exit = true;
+    if (e.key === 'r' || e.key === 'R') resetRunner();
+    if (e.key.startsWith('Arrow')) e.preventDefault();
   });
   window.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
-  resetRunner();
   return {
-    setOn: (on) => {
-      RUN_ON = !!on;
-      if (RUN_ON) { car.x = 160; car.y = 160; car.heading = 0; car.speed = 0; car.lean = 0; resetRunner(); }
-    },
-    frame: (canvas) => { cv = canvas; ctx = cv.getContext('2d'); W = cv.width; H = cv.height; step(performance.now()); },
+    isOn: () => RUN_ON,
+    setOn: (on) => { RUN_ON = !!on; if (RUN_ON) resetRunner(); },
+    lockCam,
+    overlay,
   };
 })();
 
-
-/* RUNNER MODE (futurist city): its own mode from the title, like FOOTBALL MODE. BACK or Escape leaves it. */
+/* RUNNER MODE (futurist city): its own mode from the title, like FOOTBALL MODE. The game's world runs underneath;
+   the runner's layer is drawn on top by the game's frame. BACK or Escape leaves it and returns to the title. */
 function RunnerShell({ onExit }) {
-  const ref = useRef(null);
   useEffect(() => {
-    const cv = ref.current;
-    const fit = () => { cv.width = window.innerWidth; cv.height = window.innerHeight; };
-    fit();
-    window.addEventListener('resize', fit);
     const esc = (e) => { if (e.key === 'Escape') onExit(); };
     window.addEventListener('keydown', esc);
     RUNNER_API.setOn(true);
-    let raf = 0;
-    const loop = () => {
-      raf = requestAnimationFrame(loop);
-      try { RUNNER_API.frame(cv); } catch (err) { console.error('runner', err); }
-    };
-    raf = requestAnimationFrame(loop);
-    return () => {
-      cancelAnimationFrame(raf);
-      RUNNER_API.setOn(false);
-      window.removeEventListener('resize', fit);
-      window.removeEventListener('keydown', esc);
-    };
+    return () => { RUNNER_API.setOn(false); window.removeEventListener('keydown', esc); };
   }, []);
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: '#0e0d0c' }}>
-      <canvas ref={ref} style={{ width: '100%', height: '100%', display: 'block' }} />
+    <div style={{ position: 'fixed', inset: 0, zIndex: 950, pointerEvents: 'none' }}>
       <div onClick={onExit}
-        style={{ position: 'absolute', top: 14, left: 14, padding: '8px 14px', border: '1px solid #6ef0ff',
-          background: 'rgba(10,11,14,0.72)', color: '#6ef0ff', fontSize: 11,
+        style={{ pointerEvents: 'auto', position: 'absolute', top: 14, right: 14, padding: '8px 14px',
+          border: '1px solid #6ef0ff', background: 'rgba(10,11,14,0.72)', color: '#6ef0ff', fontSize: 11,
           letterSpacing: '0.26em', cursor: 'pointer', userSelect: 'none' }}>BACK</div>
     </div>
   );
@@ -15017,7 +14984,7 @@ export default function IronLionLayer004() {
   const imgs = useRef({});
   const G = useRef(null);
   G.footballOpen = () => setFbOn(true);   // layer 579: FOOTBALL MODE from the title
-  G.runnerOpen = () => setRnOn(true);     // RUNNER MODE from the title
+  G.runnerOpen = () => { if (G.current) G.current.title = false; setHud((h) => ({ ...h, title: false })); setRnOn(true); };   // RUNNER MODE from the title
   const input = useRef({ x: 0, y: 0, run: false, brake: false, keys: {} });
   const [ready, setReady] = useState(false);
   // the loading screen stays up at least one full beat, so a fast load doesn't just flash it (layer 514)
@@ -51932,7 +51899,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { frameBody(now); } catch (err) {
+      try { frameBody(now); if (RUNNER_API.isOn()) RUNNER_API.overlay(canvasRef.current); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
@@ -52422,6 +52389,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         g.cam.z = lerp(g.cam.z, clamp(tzF, 0.16, 3.2), clamp(dt * 2, 0, 1));
       }
 
+      // Runner Mode (overlay): the camera follows the hover bike, then the game draws its own world as usual
+      if (RUNNER_API.isOn()) RUNNER_API.lockCam(g.cam, W, H);
       // render
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = "#101114";
@@ -59787,7 +59756,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         </div>
       ) : null}
       {fbOn && <FootballShell onExit={() => setFbOn(false)} />}
-      {rnOn && <RunnerShell onExit={() => setRnOn(false)} />}
+      {rnOn && <RunnerShell onExit={() => { setRnOn(false); if (G.current) G.current.title = true; setHud((h) => ({ ...h, title: true })); }} />}
       {/* ---------- title ----------
           Drawn over the live attract-mode flyover, so the background is the actual city with
           its actual traffic and lights rather than a still. */}
