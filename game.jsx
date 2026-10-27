@@ -2791,7 +2791,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 585 — purple haze in Runner Mode only; minimap zoom on ], bigger blinking star; C.A.N. STUDIOS on CAN_CELL";
+const BUILD_TAG = "LAYER 589 — runner builder (head, build, colours, stats, name) then the C.A.N. lobby with the hover bike parked outside; hoverboard art under the skater kids in Runner Mode; random runner each Runner Mode start; litter under the player; skater kids on hoverboards in Runner Mode; hover bike; purple haze Runner Mode only; minimap zoom on ]; C.A.N. STUDIOS";
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14643,6 +14643,23 @@ const RUNNER_API = (function () {
   load('glow', 'holo/holo_8dd91f32_1.png');
   load('haze_ground', 'haze/ground_haze.png');
   load('head_rider', 'heads/head_m_buzz.png');
+  // LAYER 586: the random runner. Every head from the heads sheets is loaded; Runner Mode picks one (and a suit colour)
+  // each time it starts (resetRunner). Male and female folders, as the heads pack ships them.
+  const RHEADS = [['male', 'mhead_short'], ['male', 'head_m_bald'], ['male', 'head_m_afro'], ['male', 'mhead_afro'],
+    ['male', 'mhead_buzz'], ['male', 'head_m_receding'], ['male', 'mhead_curly'], ['male', 'mhead_crewcut'],
+    ['male', 'mhead_receding'], ['male', 'head_m_short'], ['male', 'head_m_crewcut'], ['male', 'head_m_curly'],
+    ['male', 'head_m_mohawk'], ['male', 'mhead_bald'], ['male', 'mhead_mohawk'], ['male', 'head_m_buzz'],
+    ['female', 'head_bun'], ['female', 'head_curly'], ['female', 'head_swirl'], ['female', 'head_cap_b'], ['female', 'head_cap_a']];
+  RHEADS.forEach(([sex, nm]) => load('rh_' + nm, 'heads/' + sex + '/' + nm + '.png'));
+  load('hoverboard', 'hover/hoverboard.png');                   // LAYER 587: the skater kids' hoverboard art
+  const RSUITS = ['#6ef0ff', '#ff5ad0', '#ffd23a', '#7dff6a', '#ff7a2a', '#b98cff'];
+  const RUNNER_LOOK = { head: 'head_m_buzz', suit: '#6ef0ff', body: 'average', bodyK: 1, name: 'RUNNER', stats: null, chosen: false };
+  const BODY_TYPES = { slim: 0.88, average: 1, athletic: 1.06, heavy: 1.18 };
+  function rollRunnerLook() {
+    const h = RHEADS[(Math.random() * RHEADS.length) | 0];
+    RUNNER_LOOK.head = h[1];
+    RUNNER_LOOK.suit = RSUITS[(Math.random() * RSUITS.length) | 0];
+  }
   load('att_pod', 'attach/att_pod_twin.png');       // alternative-fuel kit (art)
   load('att_canister', 'attach/att_canister.png');
   load('att_intake', 'attach/att_intake.png');
@@ -14685,6 +14702,9 @@ const RUNNER_API = (function () {
   }
   let cycleCooldown = 0, msg = '', msgT = 0;
   const pend = { land: false, exit: false };
+  // LAYER 589: the C.A.N. lobby. While the player is inside a building the runner's camera and overlay stand down;
+  // the hover bike waits parked outside the door (lobbyBike), and leaving the lobby lands it there.
+  let lobby = false, lobbyBike = null;
   let padPrev = { a: false, b: false };
   const say = (s, secs) => { msg = s; msgT = secs || 2.5; };
 
@@ -14807,6 +14827,7 @@ const RUNNER_API = (function () {
 
   function resetRunner() {
     placed = false; car.speed = 0; car.lean = 0; walker.on = false; fliers.length = 0;
+    if (!RUNNER_LOOK.chosen) rollRunnerLook();          // built in the builder: kept; otherwise a random look
   }
   // the first frame in Runner Mode: the bike starts where the game camera is
   function place() {
@@ -15022,9 +15043,10 @@ const RUNNER_API = (function () {
 
   function drawWalker(x, y) {
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 4, y + 6, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#2a2d3a'; ctx.beginPath(); ctx.ellipse(x, y, 8, 10, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#6ef0ff'; ctx.lineWidth = 2; ctx.stroke();
-    if (img.head_rider) { const hw = 20, hh = img.head_rider.height * (hw / img.head_rider.width); ctx.drawImage(img.head_rider, x - hw / 2, y - 12 - hh, hw, hh); }
+    const bk = RUNNER_LOOK.bodyK || 1; ctx.fillStyle = '#2a2d3a'; ctx.beginPath(); ctx.ellipse(x, y, 8 * bk, 10 * bk, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = RUNNER_LOOK.suit; ctx.lineWidth = 2; ctx.stroke();
+    const hd = img['rh_' + RUNNER_LOOK.head] || img.head_rider;
+    if (hd) { const hw = 20, hh = hd.height * (hw / hd.width); ctx.drawImage(hd, x - hw / 2, y - 12 - hh, hw, hh); }
   }
 
   // everything the runner adds, in world units on top of the game's frame
@@ -15081,13 +15103,18 @@ const RUNNER_API = (function () {
   // the game's own camera is locked to the hover bike here: the world is the game's, the runner moves through it
   function lockCam(cam, Wg, Hg, zoomU, spawn, spawnMode) {
     W = Wg; H = Hg;
+    if (lobby) return;                       // the game's own camera follows the player inside
     const now = performance.now(), dt = Math.min(0.05, (now - (lastT || now)) / 1000);
     lastT = now; t += dt;
     if (!placed) {
       // spawn where the player is: on foot as the walker, otherwise on the bike at the vehicle's spot
       const sp = spawn || cam;
       if (spawnMode === 'foot') { walker.x = sp.x; walker.y = sp.y; place(); walker.on = true; }
-      else { car.x = sp.x; car.y = sp.y; place(); }
+      else {
+        // LAYER 585: on the bike you come in on the hover bike, not whatever car was last picked
+        if (spawnMode === 'moto') { const hb = CAR_FILES.indexOf('cars_43a7a337_1'); if (hb >= 0) car.sprite = hb; }
+        car.x = sp.x; car.y = sp.y; place();
+      }
     }
     update(dt);
     const p = walker.on ? walker : car;
@@ -15158,11 +15185,7 @@ const RUNNER_API = (function () {
       if (tv.x < x0 || tv.x > x1 || tv.y < y0 || tv.y > y1) continue;
       drawKit(tv.x, tv.y, tv.ang, tv.m.len, tv.x);
     }
-    if (RUN_ON && outdoors) {                              // runner mode, out in the street: litter and burning barrels
-      trashTick(cam, traffic, performance.now());
-      drawTrash(x0, y0, x1, y1);
-      for (const b of TRASH.barrels) if (b.x > x0 - 80 && b.x < x1 + 80 && b.y > y0 - 80 && b.y < y1 + 80) drawBarrel(b, trashClock);
-    }
+    if (RUN_ON && outdoors) trashTick(cam, traffic, performance.now());     // the litter moves here; it is drawn on the ground (groundTrash)
     ctx.restore();
   }
 
@@ -15276,7 +15299,44 @@ const RUNNER_API = (function () {
     ctx.restore();
   }
 
+  /* LAYER 586: the litter and the burning cans are drawn on the GROUND, right after the road, so the traffic and the
+     player sit on top of them. Called by the game's frame with its own context and view. */
+  function groundTrash(c, v) {
+    if (!RUN_ON || !c || !v) return;
+    ctx = c;
+    ctx.save();
+    drawTrash(v.x0, v.y0, v.x1, v.y1);
+    for (const b of TRASH.barrels) if (b.x > v.x0 - 80 && b.x < v.x1 + 80 && b.y > v.y0 - 80 && b.y < v.y1 + 80) drawBarrel(b, trashClock);
+    ctx.restore();
+  }
+  /* LAYER 586: the skater kids ride hoverboards. A glowing pad floats under the feet, bobbing, with a rim on each side.
+     Drawn over the kid, in the game's own world transform. */
+  function hoverKid(c, x, y, tall) {
+    if (!RUN_ON || !c) return;
+    ctx = c;
+    const s = tall || 1, bob = Math.sin(performance.now() / 260 + x * 0.013) * 1.6;
+    const py = y + 13 * s + bob, rx = 15 * s, ry = 3.6 * s;
+    const hb = img.hoverboard;                                   // the hoverboard art (hover/hoverboard.png), when it is there
+    if (hb && hb.width) {
+      const w = 40 * s, h = w * (hb.height / hb.width);
+      ctx.save(); ctx.drawImage(hb, x - w / 2, py - h / 2, w, h); ctx.restore();
+      return;
+    }
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(x, py, 2, x, py, rx * 1.6);
+    g.addColorStop(0, 'rgba(90,230,255,0.75)'); g.addColorStop(1, 'rgba(90,230,255,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, py, rx * 1.6, ry * 2.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#1b2430'; ctx.beginPath(); ctx.ellipse(x, py, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#6af0ff'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(x, py, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#6af0ff';
+    ctx.fillRect(x - rx - 1.5, py - 1, 2.5, 2); ctx.fillRect(x + rx - 1, py - 1, 2.5, 2);    // the side rims
+    ctx.restore();
+  }
+
   window.addEventListener('keydown', (e) => {
+    if (e.target && e.target.tagName === 'INPUT') return;   // typing a name in the builder
     keys[e.key] = true;
     if ((e.key === 'g' || e.key === 'G') && !RUN_ON) dismountWanted = true;
     if (!RUN_ON) return;
@@ -15290,18 +15350,153 @@ const RUNNER_API = (function () {
 
   return {
     isOn: () => RUN_ON,
-    setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); startSong(); } else stopSong(); },
+    setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); startSong(); } else { stopSong(); lobby = false; } },
     lockCam,
     overlay,
     augments,
     augmentAt,
     takeDismount,
+    groundTrash,
+    hoverKid,
+    // LAYER 589: the builder and the lobby
+    heads: () => RHEADS.slice(),
+    suits: () => RSUITS.slice(),
+    bodies: () => Object.keys(BODY_TYPES),
+    setLook: (l) => {
+      const o = Object.assign({}, l);
+      if (o.body && BODY_TYPES[o.body] != null) { RUNNER_LOOK.body = o.body; RUNNER_LOOK.bodyK = BODY_TYPES[o.body]; }
+      if (o.head) RUNNER_LOOK.head = o.head;
+      if (o.suit) RUNNER_LOOK.suit = o.suit;
+      if (o.name) RUNNER_LOOK.name = String(o.name).slice(0, 14);
+      if (o.stats) RUNNER_LOOK.stats = Object.assign({}, o.stats);
+      RUNNER_LOOK.chosen = true;
+    },
+    getLook: () => Object.assign({}, RUNNER_LOOK),
+    enterLobby: (bx, by) => { lobby = true; lobbyBike = { x: bx, y: by }; walker.on = false; pend.exit = false; pend.land = false; },
+    leaveLobby: (sx, sy) => {
+      if (!lobby) return;
+      lobby = false;
+      const b = lobbyBike || { x: sx, y: sy };
+      const hb = CAR_FILES.indexOf('cars_43a7a337_1'); if (hb >= 0) car.sprite = hb;
+      car.x = b.x; car.y = b.y; car.z = 0; car.mode = 'landed'; car.speed = 0; car.lean = 0;
+      walker.x = sx; walker.y = sy; walker.heading = 0; walker.on = true;
+      placed = true; pend.exit = false; pend.land = false;
+      say('YOUR BIKE IS OUT FRONT. E NEAR IT TO GET ON', 5);
+    },
+    inLobby: () => lobby,
   };
 })();
 
 /* RUNNER MODE (futurist city): its own mode from the title, like FOOTBALL MODE. The game's world runs underneath;
    the runner's layer is drawn on top by the game's frame. BACK or Escape leaves it and returns to the title. */
-function RunnerShell({ onExit }) {
+/* LAYER 589: the runner builder. Opens when Runner Mode starts: head, body, colours, stats, name; then START drops
+   the player into the C.A.N. lobby with the hover bike parked outside. Stats: 20 points, each 1 to 10. */
+const RB_STATS = ['Speed', 'Strength', 'Stamina', 'Agility', 'Awareness', 'Stealth', 'Fighting', 'Charisma'];
+const RB_BODY = { slim: 'Slim', average: 'Average', athletic: 'Athletic', heavy: 'Heavy' };
+function RunnerBuilder({ onStart, onCancel }) {
+  const [step, setStep] = useState(0);
+  const [head, setHead] = useState(null);
+  const [body, setBody] = useState('average');
+  const [suit, setSuit] = useState(null);
+  const [stats, setStats] = useState(() => Object.fromEntries(RB_STATS.map((k) => [k, 1])));
+  const [name, setName] = useState('RUNNER');
+  const heads = RUNNER_API.heads();
+  const suits = RUNNER_API.suits();
+  const spent = RB_STATS.reduce((a, k) => a + stats[k] - 1, 0);
+  const left = 20 - spent;
+  const bump = (k, d) => setStats((o) => {
+    const v = o[k] + d;
+    if (v < 1 || v > 10) return o;
+    if (d > 0 && left <= 0) return o;
+    return { ...o, [k]: v };
+  });
+  const headKey = head ? head[1] : null;
+  const btn = (on) => ({ padding: '8px 14px', border: '1px solid #6ef0ff', background: on ? 'rgba(110,240,255,0.18)' : 'rgba(10,11,14,0.72)',
+    color: '#6ef0ff', fontSize: 12, letterSpacing: '0.2em', cursor: 'pointer', userSelect: 'none', opacity: on === false ? 0.35 : 1 });
+  const steps = ['HEAD', 'BODY', 'COLOURS', 'STATS', 'NAME'];
+  const go = (n) => setStep(Math.max(0, Math.min(4, n)));
+  const finish = () => {
+    RUNNER_API.setLook({ head: headKey || 'head_m_buzz', body, suit: suit || '#6ef0ff', name: (name || 'RUNNER').trim() || 'RUNNER',
+      stats: Object.fromEntries(RB_STATS.map((k) => [k, stats[k]])) });
+    onStart();
+  };
+  return (
+    <div style={{ pointerEvents: 'auto', position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
+      width: 'min(92vw, 520px)', maxHeight: '90vh', overflowY: 'auto', padding: 18, background: 'rgba(10,11,14,0.86)',
+      border: '1px solid #6ef0ff', color: '#e6fbff', fontFamily: 'inherit' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ fontSize: 13, letterSpacing: '0.3em', color: '#6ef0ff' }}>RUNNER BUILDER</div>
+        <div style={{ fontSize: 11, letterSpacing: '0.2em', opacity: 0.8 }}>{step + 1} / 5 · {steps[step]}</div>
+      </div>
+
+      {step === 0 && (<div>
+        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick a head</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 8 }}>
+          {heads.map(([sex, nm]) => {
+            const on = headKey === nm;
+            return (<div key={nm} onClick={() => setHead([sex, nm])}
+              style={{ border: on ? '2px solid #6ef0ff' : '1px solid rgba(110,240,255,0.35)', background: 'rgba(255,255,255,0.04)',
+                padding: 4, cursor: 'pointer', textAlign: 'center' }}>
+              <img src={'assets/runner/heads/' + sex + '/' + nm + '.png'} alt="" style={{ width: '100%', imageRendering: 'auto' }} />
+            </div>);
+          })}
+        </div>
+      </div>)}
+
+      {step === 1 && (<div>
+        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick a build</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+          {Object.keys(RB_BODY).map((k) => (
+            <div key={k} onClick={() => setBody(k)}
+              style={{ ...btn(body === k), padding: 12, textAlign: 'center' }}>{RB_BODY[k].toUpperCase()}</div>
+          ))}
+        </div>
+      </div>)}
+
+      {step === 2 && (<div>
+        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick your suit colour</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          {suits.map((c) => (
+            <div key={c} onClick={() => setSuit(c)}
+              style={{ width: 48, height: 48, borderRadius: 24, background: c, cursor: 'pointer',
+                border: (suit || '#6ef0ff') === c ? '3px solid #fff' : '2px solid rgba(0,0,0,0.5)' }} />
+          ))}
+        </div>
+      </div>)}
+
+      {step === 3 && (<div>
+        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Spend 20 points · {left} left</div>
+        {RB_STATS.map((k) => (
+          <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0' }}>
+            <div style={{ fontSize: 13, letterSpacing: '0.12em' }}>{k.toUpperCase()}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div onClick={() => bump(k, -1)} style={{ ...btn(stats[k] > 1), padding: '2px 10px' }}>−</div>
+              <div style={{ width: 24, textAlign: 'center' }}>{stats[k]}</div>
+              <div onClick={() => bump(k, 1)} style={{ ...btn(stats[k] < 10 && left > 0), padding: '2px 10px' }}>+</div>
+            </div>
+          </div>
+        ))}
+      </div>)}
+
+      {step === 4 && (<div>
+        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Name yourself</div>
+        <input value={name} maxLength={14} onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()} onKeyUp={(e) => e.stopPropagation()}
+          style={{ width: '100%', boxSizing: 'border-box', padding: 10, background: 'rgba(0,0,0,0.5)', color: '#6ef0ff',
+            border: '1px solid #6ef0ff', fontSize: 16, letterSpacing: '0.2em' }} />
+      </div>)}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, gap: 10, flexWrap: 'wrap' }}>
+        <div onClick={() => (step === 0 ? onCancel() : go(step - 1))} style={btn(true)}>{step === 0 ? 'EXIT' : 'BACK'}</div>
+        {step < 4 && <div onClick={() => { if (step !== 3 || left === 0) go(step + 1); }} style={btn(step !== 3 || left === 0)}>NEXT</div>}
+        {step === 4 && <div onClick={finish} style={btn(true)}>START</div>}
+      </div>
+    </div>
+  );
+}
+
+function RunnerShell({ onExit, onStart }) {
+  const [built, setBuilt] = useState(false);
   useEffect(() => {
     const esc = (e) => { if (e.key === 'Escape') onExit(); };
     window.addEventListener('keydown', esc);
@@ -15310,6 +15505,7 @@ function RunnerShell({ onExit }) {
   }, []);
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 950, pointerEvents: 'none' }}>
+      {!built && <RunnerBuilder onStart={() => { setBuilt(true); if (onStart) onStart(); }} onCancel={onExit} />}
       <div onClick={onExit}
         style={{ pointerEvents: 'auto', position: 'absolute', top: 14, right: 14, padding: '8px 14px',
           border: '1px solid #6ef0ff', background: 'rgba(10,11,14,0.72)', color: '#6ef0ff', fontSize: 11,
@@ -15327,6 +15523,21 @@ export default function IronLionLayer004() {
   const imgs = useRef({});
   const G = useRef(null);
   G.footballOpen = () => setFbOn(true);   // layer 579: FOOTBALL MODE from the title
+  // LAYER 589: after the builder, the player walks into the C.A.N. lobby on floor 1; the hover bike is parked at the door
+  G.runnerEnterCan = () => {
+    const g = G.current; if (!g) return;
+    const cc = getCell(CAN_CELL.i, CAN_CELL.j);
+    const b = cc && cc.blds ? cc.blds.find((x) => x.can) : null;
+    if (!b) return;
+    const [dx, dy] = doorPoint(b);
+    const ds = b.door ? b.door.side : 2, dp = b.door ? b.door.pos : 0.5;
+    const [ix, iy] = ds === 0 ? [b.x + b.w * dp, b.y + 34] : ds === 3 ? [b.x + 34, b.y + b.h * dp]
+      : ds === 1 ? [b.x + b.w - 34, b.y + b.h * dp] : [b.x + b.w * dp, b.y + b.h - 34];
+    g.title = false;
+    g.inside = b; g.floor = b.entry || 1; g.insideT = 1; g.pfolk = null; g.mode = "foot";
+    g.p.x = ix; g.p.y = iy; g.p.vx = g.p.vy = 0; g.cam.x = ix; g.cam.y = iy;
+    RUNNER_API.enterLobby(dx, dy);
+  };
   G.runnerOpen = () => { if (G.current) G.current.title = false; setHud((h) => ({ ...h, title: false })); setRnOn(true); };   // RUNNER MODE from the title
   const input = useRef({ x: 0, y: 0, run: false, brake: false, keys: {} });
   const [ready, setReady] = useState(false);
@@ -23131,8 +23342,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const r = 7.5 * (s || 1); ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, 6.3); ctx.clip(); return r; }
     function swimRing538(x, y, r) { ctx.restore(); const t = g.t || 0; ctx.strokeStyle = "rgba(220,235,245,0.55)"; ctx.lineWidth = 1.5;
       for (let k = 0; k < 2; k++) { const q = ((t * 0.9 + k * 0.5) % 1); ctx.globalAlpha = 1 - q; ctx.beginPath(); ctx.ellipse(x, y + 1, r + 3 + q * 10, (r + 3 + q * 10) * 0.7, 0, 0, 6.3); ctx.stroke(); } ctx.globalAlpha = 1; }
-    function drawYouth(p, angOverride, backOff) { const r = p && swimClip538(p.x, p.y, (p.tall || 1) * (p.hero ? 1.1 : 1)); if (!r) return drawYouth0(p, angOverride, backOff);
-      const out = drawYouth0(p, angOverride, backOff); swimRing538(p.x, p.y, r); return out; }
+    // LAYER 586: the skater kids ride hoverboards in Runner Mode (RUNNER_API.hoverKid draws the pad over the kid)
+    function youthHover(p, out) { if (out && p && /^yt_skater/.test(p.yt || "") && RUNNER_API.isOn()) RUNNER_API.hoverKid(ctx, p.x, p.y, p.tall || 1); return out; }
+    function drawYouth(p, angOverride, backOff) { const r = p && swimClip538(p.x, p.y, (p.tall || 1) * (p.hero ? 1.1 : 1)); if (!r) return youthHover(p, drawYouth0(p, angOverride, backOff));
+      const out = drawYouth0(p, angOverride, backOff); swimRing538(p.x, p.y, r); return youthHover(p, out); }
     G.ytSizeT = (yt, tall) => { const A0 = ARM_BY_YT[yt], AP = A0 && armsReady(A0) ? A0 : null; const im = AP ? imgs.current[AP.torso] : imgs.current[yt]; if (!im || !im.width) return null;
       const h = AP && AP.wid ? 30 * 0.82 * (tall || 1) * AP.wid * 0.8 / (im.width / im.height) : 30 * 0.82 * (tall || 1) * (AP ? AP.scale : (YT_SCALE[yt] || 1)), w = h * (im.width / im.height); return { w: +w.toFixed(1), h: +h.toFixed(1), arms: !!AP }; };   // test hook (layer 567)
     function drawYouth0(p, angOverride, backOff) {
@@ -52252,7 +52465,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { frameBody(now); if (RUNNER_API.isOn()) RUNNER_API.overlay(canvasRef.current); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
+      try { frameBody(now); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
@@ -52796,6 +53009,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return;
       }
       drawGround(view);
+      if (RUNNER_API.isOn() && !g.inside) RUNNER_API.groundTrash(ctx, view);   // LAYER 586: litter under the traffic and the player
       if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawDealers(view); drawStanLot(view); drawAptLot(view); bozHouseInit(); drawYard(view); drawHill(view); drawCrush(view); drawBozHouse(view); stepRhu(); drawRhu(view); drawWoods(view); drawDirtJumps(view); drawTrackRiders(view); drawAirport(view); drawStudentWorld(view); }
       if (!g.inside) drawMarkGround(view);
       if (!g.inside) drawCasings(view);
@@ -60136,7 +60350,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         </div>
       ) : null}
       {fbOn && <FootballShell onExit={() => setFbOn(false)} />}
-      {rnOn && <RunnerShell onExit={() => { setRnOn(false); if (G.current) G.current.title = true; setHud((h) => ({ ...h, title: true })); }} />}
+      {rnOn && <RunnerShell onStart={() => G.runnerEnterCan && G.runnerEnterCan()} onExit={() => { setRnOn(false); if (G.current) G.current.title = true; setHud((h) => ({ ...h, title: true })); }} />}
       {/* ---------- title ----------
           Drawn over the live attract-mode flyover, so the background is the actual city with
           its actual traffic and lights rather than a still. */}
