@@ -1,0 +1,23 @@
+{
+  "body": "runner_body_big_no_head.png",
+  "size_px": [
+    833,
+    746
+  ],
+  "source_crop_origin": [
+    95,
+    244
+  ],
+  "head_centre_px": [
+    418,
+    66
+  ],
+  "head_width_px": 408,
+  "head_centre_frac": [
+    0.5018,
+    0.0885
+  ],
+  "head_width_frac": 0.4898,
+  "neckline_y_px": 14,
+  "note": "Head is not in this PNG. Place the head art centred on head_centre_frac, width head_width_frac of body width."
+}
