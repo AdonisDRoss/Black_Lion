@@ -1327,7 +1327,8 @@ const SKY_LINES = {
 const SEWER_CAMP = {
   keys: ["sc_barrel_fire", "sc_barrel_cold", "sc_mattress", "sc_shelter", "sc_tarp", "sc_cart",
          "sc_bedrolls", "sc_crate_radio", "sc_bucket_white", "sc_bucket_blue", "sc_cookpot",
-         "sc_cardboard", "sc_lights", "sc_bottles", "sc_sign", "sc_lantern", "sc_battery_lamp"],
+         "sc_cardboard", "sc_lights", "sc_bottles", "sc_sign", "sc_lantern", "sc_battery_lamp",
+         "rs_trash_1", "rs_trash_2", "rs_trash_3", "rs_trash_4", "rs_lamp", "rs_newspaper", "rs_bowl", "rs_drifter"],
   chance: 0.30,                 // per tunnel arm, seeded -- about one camp per junction
   along: [700, 900],            // how far out from the junction: 700 + up to 900
   always: [["sc_cardboard", -58, 66, 56]],
@@ -1342,6 +1343,10 @@ const SEWER_CAMP = {
     [0.45, ["sc_sign", 140, 80, 26]],
     [0.55, ["sc_bottles", 78, 44, 24]],
     [0.35, ["sc_barrel_cold", 150, 56, 16]],
+    // LAYER 653: the runner's underground props, on the ledge between the water and the wall (v 60-90), never in a home
+    [0.50, ["rs_trash_1", 112, 84, 24]], [0.40, ["rs_trash_2", -92, 84, 22]], [0.40, ["rs_trash_3", 22, 88, 26]], [0.35, ["rs_trash_4", -150, 82, 22]],
+    [0.30, ["rs_lamp", -20, 64, 22]], [0.35, ["rs_newspaper", 170, 70, 18]], [0.35, ["rs_bowl", 60, 90, 16]],
+    [0.45, ["rs_drifter", 128, 74, 30]],   // LAYER 654: a drifter sitting in the camp
   ],
   // the heart of it: a barrel or a pot, and it is the light
   fire: [["sc_barrel_fire", 0, 58, 20], ["sc_cookpot", 0, 60, 24]],
@@ -2133,6 +2138,9 @@ for (const kind of ["dog", "cat"])
   for (let i = 1; i <= ANIM[kind].n; i++) ANIM_ART[ANIM[kind].pre + i] = "assets/animals/" + ANIM[kind].pre + i + ".png";
 const SC_ART = {};
 for (const k of SEWER_CAMP.keys) SC_ART[k] = "assets/sewer/" + k + ".png";
+// LAYER 653: the runner's underground junk (trash, lamp, newspaper, bowl) lives in the sewer camps, from assets/runner/sewer
+for (const k of ["rs_trash_1", "rs_trash_2", "rs_trash_3", "rs_trash_4", "rs_lamp", "rs_newspaper", "rs_bowl"]) SC_ART[k] = "assets/runner/sewer/" + k.slice(3) + ".png";
+SC_ART.rs_drifter = "assets/runner/people/drifter_walk_a.png";   // LAYER 654: a drifter from the poor camps
 /* LAYER 546: the camp kit again, from DIRECTLY ABOVE (hl_*). TD546 maps each old 3/4 plate to its top-down one and a
    width factor against the width the camp tables already give it (a barrel seen from above is wider than the side of
    one); an array picks by position. Every camp -- the sewer's and the alleys' -- and the alley clutter draw through it. */
@@ -2794,7 +2802,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 645";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 660";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14589,10 +14597,10 @@ const RUNNER_API = (function () {
     cars_4eb54de1_1: { len: 100, nose: Math.PI, dark: [20, 60, 62], light: [120, 220, 215], glow: '#3affe0' },  // Halcyon taxi (guessed nose)
     cars_6093fd94_1: { len: 104, nose: Math.PI, dark: [70, 35, 10], light: [240, 150, 60], glow: '#ff8a2a' },  // Meridian cargo
     cars_a9a16625_1: { len: 100, nose: -Math.PI / 2, dark: [70, 35, 10], light: [240, 150, 60], glow: '#ff8a2a' },  // Meridian news
-    cars_d049053c_1: { len: 102, nose: Math.PI, dark: [14, 52, 22], light: [90, 200, 110], glow: '#4dff7a' },  // Kestrel patrol
+    cars_d049053c_1: { len: 102, nose: Math.PI, dark: [14, 52, 22], light: [90, 200, 110], glow: '#4dff7a', alt: { rect: [410, 124, 884, 392], dark: [70, 36, 14], light: [240, 170, 80] } },  // Kestrel patrol: LAYER 659, the open cabin (seats and bed) in amber
     cars_f238fa36_1: { len: 102, nose: Math.PI, dark: [14, 52, 22], light: [90, 200, 110], glow: '#4dff7a' },  // Kestrel camera
     cars_6775c1f3_1: { len: 104, nose: 0, dark: [40, 46, 30], light: [150, 160, 110], glow: '#b8ff3a' },    // Rook armoured
-    cars_8e80b993_1: { len: 104, nose: 0, dark: [40, 46, 30], light: [150, 160, 110], glow: '#b8ff3a' },    // Rook transport
+    cars_8e80b993_1: { len: 104, nose: 0, dark: [40, 46, 30], light: [150, 160, 110], glow: '#b8ff3a', alt: { rect: [510, 212, 928, 278], dark: [14, 30, 70], light: [90, 150, 240] } },    // Rook transport: LAYER 659, a blue band down the middle of the deck
     cars_43a7a337_1: { len: 62, nose: 0, dark: [14, 30, 70], light: [90, 150, 240], glow: '#3a9bff', rider: true,
       handling: { max: 470, accel: 340, brake: 420, turn: 3.6, drag: 0.30, lean: 0.22 } },  // hover bike with rider
   };
@@ -14648,6 +14656,10 @@ const RUNNER_API = (function () {
       const tt = tintTo && tintTo.lazy ? CAR_META[tintTo.lazy] : tintTo;
       const base = unfringe(i, /^car_/.test(key));
       img[key] = clearRGB((tt && tt.dark) ? tint(base, tt.dark, tt.light) : base);   // LAYER 634
+      if (tt && tt.alt && tt.dark) {   // LAYER 659: the second colour, copied into its rectangle from the same art in the second palette
+        const [x0, y0, x1, y1] = tt.alt.rect, alt2 = clearRGB(tint(base, tt.alt.dark, tt.alt.light));
+        img[key].getContext('2d').drawImage(alt2, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+      }
     };
     i.src = (window.ASSET_DATA && window.ASSET_DATA[path]) || A(path);
   }
@@ -14670,6 +14682,9 @@ const RUNNER_API = (function () {
   load('glow', 'holo/holo_8dd91f32_1.png');
   load('haze_ground', 'haze/ground_haze.png');
   load('head_rider', 'heads/female/head_cap_a.png');
+  load('breather_icon', 'breather/breather_icon_48.png');   // LAYER 655: the gas mask badge
+  load('fis_badge', 'badges/fis_badge.png');              // LAYER 656: the FIS agent's badge
+  load('police_badge', 'badges/police_badge.png');        // LAYER 657: the police badge, the game's own RAVEN HOOK badge
   // LAYER 586: the random runner. Every head from the heads sheets is loaded; Runner Mode picks one (and a suit colour)
   // each time it starts (resetRunner). Male and female folders, as the heads pack ships them.
   // LAYER 599: the heads that crop or break are taken out (m/head_m_afro, _bald, _buzz, _crewcut, _curly, _mohawk,
@@ -14680,9 +14695,9 @@ const RUNNER_API = (function () {
   // wide and open, so its head sits lower to cover the neck hole.
   const HEAD_DROP = { average: 0, slim: 0, athletic: 0.02, heavy: 0.14 };
   // LAYER 602: the head is centred on each body's neck hole (share of the body's height), so it covers the hole
-  const HEAD_CY = { slim: 29.5 / 159, athletic: 37.4 / 159, heavy: 17.2 / 159, average: 28.7 / 159 };
+  const HEAD_CY = { slim: 29.5 / 159, athletic: 37.4 / 159, heavy: 17.2 / 159, average: 28.7 / 159, big: 0.0885 };   // LAYER 660: the one body, head centre from its anchor file
   // LAYER 603: head width for each body (share of body width). Slim needs a touch more to cover its hole.
-  const HEAD_WF = { slim: 0.40 };
+  const HEAD_WF = { slim: 0.40, big: 0.4898 };   // LAYER 660: head width from the anchor file
   const RHEADS = [['male', 'mhead_afro'], ['male', 'mhead_curly'], ['male', 'mhead_mohawk'],
     ['female', 'head_bun'], ['female', 'head_cap_a'], ['female', 'head_cap_b'], ['female', 'head_curly'], ['female', 'head_swirl']];
   RHEADS.forEach(([sex, nm]) => load('rh_' + nm, 'heads/' + sex + '/' + nm + '.png'));
@@ -14694,12 +14709,13 @@ const RUNNER_API = (function () {
   const sprCache = {};
   // LAYER 598: the build bodies, each on the Lion's 224 x 159 canvas (same scale), arms cut at the elbow.
   // The forearm and hand are drawn in code from the elbow point (E) to the hand point (H), in the skin tone.
-  const BODY_FILES = { slim: 'body/body_slim.png', athletic: 'body/body_athletic.png', heavy: 'body/body_heavy.png', average: 'body/body_average.png' };
+  const BODY_FILES = { slim: 'body/body_slim.png', athletic: 'body/body_athletic.png', heavy: 'body/body_heavy.png', average: 'body/body_average.png', cop_gas: 'body/body_cop_gas.png', big: 'body/runner_body_big_nohead.png' };   // LAYER 657: the two cops, legs and arms cut
   for (const k of Object.keys(BODY_FILES)) load('body_' + k, BODY_FILES[k]);
-  const BODY_ARMS = {"slim": {"L": {"E": [23.0, 121.5], "H": [19.2, 159.6]}, "R": {"E": [193.5, 121.5], "H": [197.3, 159.6]}, "W": 31}, "athletic": {"L": {"E": [26.0, 108.4], "H": [26.0, 151.8]}, "R": {"E": [198.0, 108.4], "H": [198.0, 151.8]}, "W": 22}, "heavy": {"L": {"E": [7.9, 81.3], "H": [-10.5, 106.2]}, "R": {"E": [216.1, 81.3], "H": [234.5, 106.2]}, "W": 22}, "average": {"L": {"E": [18.8, 86.6], "H": [-6.4, 117.5]}, "R": {"E": [204.9, 86.6], "H": [230.2, 117.5]}, "W": 15}};                   // LAYER 587: the skater kids' hoverboard art
+  load('cop_leg_L', 'cops/gas_leg_L.png'); load('cop_leg_R', 'cops/gas_leg_R.png');   // LAYER 660: the cops' cut legs
+  const BODY_ARMS = {"slim": {"L": {"E": [23.0, 121.5], "H": [19.2, 159.6]}, "R": {"E": [193.5, 121.5], "H": [197.3, 159.6]}, "W": 31}, "athletic": {"L": {"E": [26.0, 108.4], "H": [26.0, 151.8]}, "R": {"E": [198.0, 108.4], "H": [198.0, 151.8]}, "W": 22}, "heavy": {"L": {"E": [24, 58], "H": [14, 106]}, "R": {"E": [200, 58], "H": [210, 106]}, "W": 26}, "average": {"L": {"E": [18.8, 86.6], "H": [-6.4, 117.5]}, "R": {"E": [204.9, 86.6], "H": [230.2, 117.5]}, "W": 15}, "cop_gas": {"L": {"E": [46.7, 110.8], "H": [52.0, 128.0]}, "R": {"E": [184.0, 108.0], "H": [168.0, 134.0]}, "W": 36}};                   // LAYER 587: the skater kids' hoverboard art
   const RSUITS = ['#6ef0ff', '#ff5ad0', '#ffd23a', '#7dff6a', '#ff7a2a', '#b98cff'];
-  const RUNNER_LOOK = { head: 'mhead_curly', suit: '#6ef0ff', body: 'average', bodyK: 1, name: 'RUNNER', stats: null, chosen: false, skin: null };
-  const BODY_TYPES = { slim: 1, average: 1, athletic: 1, heavy: 1 };
+  const RUNNER_LOOK = { head: 'mhead_curly', suit: '#6ef0ff', body: 'big', bodyK: 1, name: 'RUNNER', stats: null, chosen: false, skin: null };
+  const BODY_TYPES = { slim: 1, average: 1, athletic: 1, heavy: 1, big: 1 };
   function rollRunnerLook() {
     const h = RHEADS[(Math.random() * RHEADS.length) | 0];
     RUNNER_LOOK.head = h[1];
@@ -14756,6 +14772,7 @@ const RUNNER_API = (function () {
   // the hover bike waits parked outside the door (lobbyBike), and leaving the lobby lands it there.
   let lobby = false, lobbyBike = null, camSmooth = null;
   let held = null;                                          // LAYER 603: the weapon in hand (a key, or null)
+  let haze = 0, hazeT = 0, mask = false;                    // LAYER 647: the haze load (0 to 1), its clock, and whether a breather is on
   const HAND_DOWN = 0.10;                                    // share of the body height the hands drop while holding
   let padPrev = { a: false, b: false };
   let padL3Prev = false, logOpen = false;
@@ -14843,6 +14860,31 @@ const RUNNER_API = (function () {
     const k = m.len / Math.max(sp.width, sp.height); ctx.drawImage(sp, -sp.width * k / 2, -sp.height * k / 2, sp.width * k, sp.height * k);
     ctx.restore();
   }
+  // LAYER 654: in Runner Mode the river and the ocean are green. Pools and the other water are left as they are.
+  const GREEN_CH = 1600, GREEN_CELL = 50, greenCache = new Map();
+  function greenChunk(cx, cy) {
+    const key = cx + ',' + cy;
+    if (greenCache.has(key)) return greenCache.get(key);
+    const n = GREEN_CH / GREEN_CELL, cv = document.createElement('canvas'); cv.width = n; cv.height = n;
+    const c2 = cv.getContext('2d'), dat = c2.createImageData(n, n), q = dat.data;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const wd = waterDepth(cx * GREEN_CH + (i + 0.5) * GREEN_CELL, cy * GREEN_CH + (j + 0.5) * GREEN_CELL);
+      if (wd <= 0.05) continue;
+      const o = (j * n + i) * 4; q[o] = 60; q[o + 1] = 255; q[o + 2] = 90; q[o + 3] = 255 * Math.min(1, 0.45 + wd * 0.55);
+    }
+    c2.putImageData(dat, 0, 0);
+    if (greenCache.size > 400) greenCache.clear();
+    greenCache.set(key, cv); return cv;
+  }
+  function drawGreenWater(cam) {
+    const hw = W / 2 / cam.z, hh = H / 2 / cam.z;
+    const cx0 = Math.floor((cam.x - hw) / GREEN_CH), cx1 = Math.floor((cam.x + hw) / GREEN_CH);
+    const cy0 = Math.floor((cam.y - hh) / GREEN_CH), cy1 = Math.floor((cam.y + hh) / GREEN_CH);
+    ctx.save(); ctx.globalCompositeOperation = 'color';
+    for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++)
+      ctx.drawImage(greenChunk(cx, cy), cx * GREEN_CH, cy * GREEN_CH, GREEN_CH, GREEN_CH);
+    ctx.restore();
+  }
   function figureAt(canvas, x, y, cam, vx, vy) {
     if (!RUN_ON || !canvas || !cam || !Number.isFinite(x)) return;
     const now = performance.now(), dt = Math.min(0.05, (now - (figT || now)) / 1000); figT = now;
@@ -14854,10 +14896,9 @@ const RUNNER_API = (function () {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.save();
     ctx.translate(W / 2, H / 2); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y);
+    drawGreenWater(cam);
     if (!lobby) drawCar('car_' + CAR_FILES[car.sprite], car.x, car.y, car.z, car.heading || 0, car.lean || 0);   // LAYER 631: the bike, with its rider, in every mode
     if (walker.on) drawWalker(x, y);
-    // LAYER 645: TEMP diagnostic. A red dot over the figure's spot, so we can see whether the figure is drawn at all on the device.
-    if (walker.on) { ctx.fillStyle = '#ff2a2a'; ctx.beginPath(); ctx.arc(x, y - 90, 18, 0, Math.PI * 2); ctx.fill(); }
     else if (!lobby) {                                   // LAYER 638: on the bike, he is drawn sitting on it, turned the way it faces
       const h = walker.heading; walker.heading = car.heading || 0;
       drawWalker(car.x, car.y - car.z);
@@ -15158,8 +15199,9 @@ const RUNNER_API = (function () {
       const k = m.len / Math.max(sp.width, sp.height);
       const w = sp.width * k, h = sp.height * k;
       ctx.drawImage(sp, -w / 2, -h / 2, w, h);
-      ctx.restore();
       if (m.rider) {
+        // LAYER 651: the rider is drawn inside the bike's frame; the old extra restore here popped the camera transform
+        // (figureAt's save) and left every later draw in the identity frame, so the on-foot runner never showed
         // rider: sits on the bike's centre line; the head is drawn upright below, so he faces the viewer
         ctx.save(); ctx.translate(-5, 0);
         ctx.fillStyle = '#e8d9b5';
@@ -15258,6 +15300,11 @@ const RUNNER_API = (function () {
   }
   function bodySprite() {
     const bk = bodyKey(); const src = bk && img[bk]; if (!src || !(src.naturalWidth || src.width)) return null;
+    if (bk.startsWith('body_cop_')) {                  // LAYER 657: the cops keep their own navy and gold, not the suit colour
+      if (sprCache[bk]) return sprCache[bk];
+      const cvc = document.createElement('canvas'); cvc.width = src.naturalWidth || src.width; cvc.height = src.naturalHeight || src.height;
+      cvc.getContext('2d').drawImage(src, 0, 0); sprCache[bk] = cvc; return cvc;
+    }
     const key = 'body|' + bk + '|' + RUNNER_LOOK.suit;
     if (sprCache[key]) return sprCache[key];
     const cv = document.createElement('canvas'); cv.width = src.naturalWidth || src.width; cv.height = src.naturalHeight || src.height;
@@ -15303,10 +15350,24 @@ const RUNNER_API = (function () {
     const r = parseInt(hex.slice(1, 3), 16) * k, g = parseInt(hex.slice(3, 5), 16) * k, b = parseInt(hex.slice(5, 7), 16) * k;
     return 'rgb(' + Math.min(255, r | 0) + ',' + Math.min(255, g | 0) + ',' + Math.min(255, b | 0) + ')';
   }
-  function drawArm(ex, ey, hx, hy, w, sk, suit) {
+  // LAYER 652: the heavy body's arms take the colour of the jacket sleeve they come off (sampled from the body art)
+  const toneCache = new WeakMap();
+  function sleeveTone(bs) {
+    if (!bs) return null;
+    if (toneCache.has(bs)) return toneCache.get(bs);
+    let hex = null;
+    try {
+      const d = bs.getContext('2d').getImageData(20, 68, 8, 8).data;
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+      if (n) hex = '#' + [r / n, g / n, b / n].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+    } catch (e) { hex = null; }
+    toneCache.set(bs, hex); return hex;
+  }
+  function drawArm(ex, ey, hx, hy, w, sk, suit, sleeveHex) {
     const dx = hx - ex, dy = hy - ey, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, nx = -uy, ny = ux;
     const wr = w * 0.68, wx = ex + ux * L * 0.78, wy = ey + uy * L * 0.78;
-    const sleeve = shadeHex(suit, 0.62), light = shadeHex(suit, 0.85);
+    const sleeve = sleeveHex || shadeHex(suit, 0.62), light = sleeveHex ? shadeHex(sleeveHex, 1.25) : shadeHex(suit, 0.85);
     ctx.lineJoin = 'round';
     ctx.fillStyle = sleeve; ctx.beginPath();
     ctx.moveTo(ex + nx * w / 2, ey + ny * w / 2); ctx.lineTo(wx + nx * wr / 2, wy + ny * wr / 2);
@@ -15333,7 +15394,19 @@ const RUNNER_API = (function () {
     ctx.restore();
   }
   // LAYER 606: where each body's legs come off. y is the row (of 159) where the jacket ends, w the hip width (of 224).
-  const HIP_BY_BODY = { slim: { y: 150, w: 80 }, athletic: { y: 146, w: 88 }, heavy: { y: 123, w: 85 }, average: { y: 123, w: 85 } };
+  const HIP_BY_BODY = { slim: { y: 150, w: 80 }, athletic: { y: 146, w: 88 }, heavy: { y: 123, w: 85 }, average: { y: 123, w: 85 }, cop_gas: { y: 143, w: 89 } };
+  // LAYER 657: the cops' sleeves and gloves (their arms are drawn in code from the cut, in the cop's own colours)
+  const COP_LOOK = { cop_gas: { sleeve: '#1d2f57', glove: '#2b1f16', hip: '#16233f' } };
+  const COP_LEG_PIVOT = { L: [77.6, 145], R: [145.1, 145] };   // LAYER 660: hip pivots on the 224 x 159 cop art
+  const COP_LEG_AMP = 0.2;                                      // LAYER 660: how far a leg shrinks or grows in a step
+  // LAYER 654: the breather on the runner's face: a dark mask over the nose and mouth, two filters, and the hose
+  function drawRunnerMask(cx, cy, s) {
+    ctx.save();
+    ctx.fillStyle = '#1b1d22'; ctx.beginPath(); ctx.ellipse(cx, cy, 6.2 * s, 3.6 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7a8088'; ctx.beginPath(); ctx.arc(cx - 3.4 * s, cy + 0.6 * s, 1.8 * s, 0, Math.PI * 2); ctx.arc(cx + 3.4 * s, cy + 0.6 * s, 1.8 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#111'; ctx.lineWidth = 1.4 * s; ctx.beginPath(); ctx.moveTo(cx + 2 * s, cy + 3 * s); ctx.quadraticCurveTo(cx + 8 * s, cy + 7 * s, cx + 6 * s, cy + 12 * s); ctx.stroke();
+    ctx.restore();
+  }
   function drawWalker(x, y) {
     const bk = RUNNER_LOOK.bodyK || 1;
     // LAYER 628: top-down. The whole figure turns to the way he walks; its front is the bottom edge of the art,
@@ -15341,6 +15414,10 @@ const RUNNER_API = (function () {
     const hdg = walker.heading == null ? Math.PI / 2 : walker.heading;
     ctx.save(); ctx.translate(x, y); ctx.rotate(hdg - Math.PI / 2); ctx.translate(-x, -y);
     const bs = bodySprite();
+    const copL = bs && bodyKey() && bodyKey().startsWith('body_cop_') ? COP_LOOK[bodyKey().slice(5)] : null;   // LAYER 657
+    // LAYER 660: the big body has its legs in the art; the cop's legs are cut and drawn from pieces, so both skip the code legs
+    const copLegs = bs && bodyKey() === 'body_cop_gas' && img.cop_leg_L && img.cop_leg_R ? { L: img.cop_leg_L, R: img.cop_leg_R } : null;
+    const baked = RUNNER_LOOK.body === 'big' || !!copLegs;
     const bw = 70 * bk, bh = bs ? bw * (bs.height / bs.width) : 56 * bk;   // LAYER 643: about the length of the bike, so he reads on a phone or a TV
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 6, y + 10, 16, 9, 0, 0, Math.PI * 2); ctx.fill();
     // LAYER 598 / 606: little boots on navy trousers. The legs come off the hip, and each leg is as wide as its part of the hip.
@@ -15348,43 +15425,55 @@ const RUNNER_API = (function () {
     const hp = HIP_BY_BODY[RUNNER_LOOK.body] || HIP_BY_BODY.average;
     const hipTop = y - bh / 2 + hp.y * (bh / 159), hipW = hp.w * (bw / 224), gap = 0.05 * hipW, legW = (hipW - gap) / 2;
     const footBot = y + bh / 2 + 8 * bk, lx = x - hipW / 2, rx = x + gap / 2, tEnd = footBot - 4.1 * bk;
+    if (!baked) {
     ctx.fillStyle = '#0c0c0e';                                   // trousers (black)
     ctx.fillRect(lx, hipTop, legW, tEnd - hipTop + st); ctx.fillRect(rx, hipTop, legW, tEnd - hipTop - st);
     ctx.fillStyle = '#17110c';                                   // boots
     ctx.fillRect(lx - 0.6, tEnd + st, legW + 1.2, 3.4 * bk); ctx.fillRect(rx - 0.6, tEnd - st, legW + 1.2, 3.4 * bk);
     ctx.fillStyle = '#5a4a3a';                                   // soles
     ctx.fillRect(lx - 0.6, footBot - 0.7 * bk + st, legW + 1.2, 0.7 * bk); ctx.fillRect(rx - 0.6, footBot - 0.7 * bk - st, legW + 1.2, 0.7 * bk);
-    // LAYER 606: a bit of hip under the jacket, in the suit's shade, so the legs come off it
-    ctx.fillStyle = shadeHex(RUNNER_LOOK.suit, 0.5);
+    // LAYER 606: a bit of hip under the jacket, in the suit's shade, so the legs come off it (LAYER 657: the cops' own navy)
+    ctx.fillStyle = copL ? copL.hip : shadeHex(RUNNER_LOOK.suit, 0.5);
     ctx.beginPath(); ctx.moveTo(lx, hipTop); ctx.lineTo(lx + hipW, hipTop);
     ctx.lineTo(x + hipW / 2 - hipW * 0.04, y + bh / 2 + bk); ctx.lineTo(lx + hipW * 0.04, y + bh / 2 + bk); ctx.closePath(); ctx.fill();
+    }
+    // LAYER 660: the cop's cut legs, one grows and the other shrinks about the hip as he walks
+    if (copLegs) {
+      const sx2 = bw / 224, sy2 = bh / 159, ph = walker.on && walker.step ? Math.sin(walker.step) : 0;
+      ['L', 'R'].forEach((side, i) => {
+        const pv = COP_LEG_PIVOT[side], k = 1 + (i === 0 ? -COP_LEG_AMP : COP_LEG_AMP) * ph;
+        const px = x - bw / 2 + pv[0] * sx2, py = y - bh / 2 + pv[1] * sy2;
+        ctx.save(); ctx.translate(px, py); ctx.scale(1, k); ctx.translate(-px, -py);
+        ctx.drawImage(copLegs[side], x - bw / 2, y - bh / 2, bw, bh); ctx.restore();
+      });
+    }
     // the body: the Lion's jacket in the suit colour, or the old disc if the art is not there yet
     if (bs) ctx.drawImage(bs, x - bw / 2, y - bh / 2, bw, bh);
     const arms = BODY_ARMS[RUNNER_LOOK.body];
     // LAYER 603: holding a weapon, the hands come down (HAND_DOWN of the body height) and the weapon sits in the right hand
     const holding = !!held, dropPx = holding ? HAND_DOWN * 159 : 0;
     if (bs && arms) {
-      const sx = bw / 224, sy = bh / 159, sk = RUNNER_LOOK.skin || '#e0b48c';
+      const sx = bw / 224, sy = bh / 159, sk = copL ? copL.glove : (RUNNER_LOOK.skin || '#e0b48c');
       ctx.strokeStyle = sk; ctx.fillStyle = sk; ctx.lineCap = 'round';
       let rHand = null;
       for (const side of ['L', 'R']) {
         const a = arms[side];
         const ex = x - bw / 2 + a.E[0] * sx, ey = y - bh / 2 + a.E[1] * sy;
         const hx = x - bw / 2 + a.H[0] * sx, hy = y - bh / 2 + (a.H[1] + dropPx) * sy;
-        drawArm(ex, ey, hx, hy, arms.W * sx, sk, RUNNER_LOOK.suit);
+        drawArm(ex, ey, hx, hy, arms.W * sx, sk, RUNNER_LOOK.suit, copL ? copL.sleeve : (RUNNER_LOOK.body === 'heavy' ? sleeveTone(bs) : null));
         if (side === 'R') rHand = { hx, hy, ang: Math.atan2(hy - ey, hx - ex) };
       }
       if (holding && rHand) drawHeld(rHand.hx, rHand.hy, rHand.ang, bw / 40);
     }
-    else {
+    else if (!bs) {
       ctx.fillStyle = '#2a2d3a'; ctx.beginPath(); ctx.ellipse(x, y, bw / 2, bh / 2, 0, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = RUNNER_LOOK.suit; ctx.lineWidth = 3; ctx.stroke();
     }
     // the head sits on the body's top, over the Lion's own head
-    const hd = headSprite(RUNNER_LOOK.head);
+    const hd = bs && bodyKey() && bodyKey().startsWith('body_cop_') ? null : headSprite(RUNNER_LOOK.head);   // LAYER 657: the cops' heads are in their art
     if (hd) { const hk = HEAD_SCALE[RUNNER_LOOK.head] || 1, hw = (HEAD_WF[RUNNER_LOOK.body] || 0.36) * bw * hk, hh = hd.height * (hw / hd.width); const cyF = HEAD_CY[RUNNER_LOOK.body];
       const hy = cyF != null ? y - bh / 2 + cyF * bh - hh / 2 : y - bh / 2 + 0.02 * bh - (hk - 1) * 0.06 * bh + (HEAD_DROP[RUNNER_LOOK.body] || 0) * bh;
-      ctx.drawImage(hd, x - hw / 2, hy, hw, hh); }
+      ctx.drawImage(hd, x - hw / 2, hy, hw, hh); if (mask) drawRunnerMask(x, hy + hh * 0.62, hw / 25); }
     ctx.restore();
   }
 
@@ -15496,7 +15585,7 @@ const RUNNER_API = (function () {
   // Drawn over the game's frame in the game's own camera. Nothing is drawn inside buildings or on the title.
   const augOf = new WeakMap();
   function augmentFor(p) {
-    if (!augOf.has(p)) { const k = Math.random(); augOf.set(p, k < 0.33 ? 0 : k < 0.66 ? 1 : 2); }
+    if (!augOf.has(p)) { const k = Math.random(); augOf.set(p, k < 0.2 ? 0 : k < 0.45 ? 1 : k < 0.7 ? 2 : 3); }   // LAYER 646: 3 = a breather on the face
     return augOf.get(p);
   }
   function drawAugment(x, y, kind) {
@@ -15507,6 +15596,15 @@ const RUNNER_API = (function () {
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = 'rgba(120,245,255,0.95)'; ctx.fillRect(x - 7, y - 1.5, 14, 3);
       ctx.restore();
+    } else if (kind === 3) {                                // LAYER 646: a breather, small, across the nose and mouth
+      ctx.save();
+      ctx.fillStyle = 'rgba(22,24,30,0.95)'; ctx.beginPath(); ctx.ellipse(x, y + 2.5, 4.6, 2.6, 0, 0, Math.PI * 2); ctx.fill();   // the mask
+      ctx.fillStyle = 'rgba(150,156,168,0.95)';                                                                                 // two filter cans
+      ctx.beginPath(); ctx.arc(x - 5.2, y + 2.5, 1.7, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + 5.2, y + 2.5, 1.7, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(60,64,72,0.95)'; ctx.lineWidth = 1.1;                                                              // the hose back past the ear
+      ctx.beginPath(); ctx.moveTo(x + 5.2, y + 2.5); ctx.quadraticCurveTo(x + 9, y + 1, x + 9.5, y - 3); ctx.stroke();
+      ctx.restore();
     } else if (kind === 2) {                                // a cyber eye: a ring with a bright pupil
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       ctx.strokeStyle = 'rgba(255,90,200,0.95)'; ctx.lineWidth = 1.4;
@@ -15516,14 +15614,42 @@ const RUNNER_API = (function () {
     }
   }
   // called by the game right after it draws a civilian: the implant sits on the head, under the power lines
+  // LAYER 655: with the scan log open (L3) in Runner Mode, every person in view shows a face above the head.
+  // A gas mask or an augment sits beside the face; a person with neither shows the face alone.
+  const faceOf = new WeakMap();
+  function faceFor(o) {
+    if (!faceOf.has(o)) faceOf.set(o, RHEADS[(Math.random() * RHEADS.length) | 0][1]);
+    return faceOf.get(o);
+  }
+  function drawFaceTag(o, x, bottom, k) {
+    const hs = headSprite(faceFor(o));
+    if (!hs || !hs.width) return;
+    const fw = 22 / dZ, fh = fw * hs.height / hs.width, top = bottom - fh;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x - fw / 2 - 2 / dZ, top - 2 / dZ, fw + 4 / dZ, fh + 4 / dZ);
+    ctx.drawImage(hs, x - fw / 2, top, fw, fh);
+    const bx = x + fw / 2 + 9 / dZ, by = top + fh / 2;
+    if (k === 3) {                                          // a gas mask (the breather)
+      const gi = img.breather_icon;
+      if (gi && gi.width) ctx.drawImage(gi, bx - 8 / dZ, by - 8 / dZ, 16 / dZ, 16 / dZ);
+      else { ctx.fillStyle = 'rgba(22,24,30,0.95)'; ctx.beginPath(); ctx.arc(bx, by, 6 / dZ, 0, Math.PI * 2); ctx.fill(); }
+    } else if (k === 1) {                                   // a cyan visor
+      ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(120,245,255,0.95)';
+      ctx.fillRect(bx - 7 / dZ, by - 1.5 / dZ, 14 / dZ, 3 / dZ);
+    } else if (k === 2) {                                   // a cyber eye
+      ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(255,90,200,0.95)'; ctx.lineWidth = 1.6 / dZ;
+      ctx.beginPath(); ctx.arc(bx, by, 4.5 / dZ, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+  }
   function augmentAt(c, o, x, y, scale) {
     if (!o || !c) return;
     const k = augmentFor(o);
-    if (!k) return;
     ctx = c;
     ctx.save();
     const dT = 46 * (scale || 1.173);
-    drawAugment(x, y - dT * 0.3, k);
+    if (k) drawAugment(x, y - dT * 0.3, k);
+    if (RUN_ON && logOpen) drawFaceTag(o, x, y - dT * 0.3 - 16 / dZ, k);
     ctx.restore();
   }
   // ---------- LAYER 609: traffic drones (hover cops) and the airborne cars ----------
@@ -15712,7 +15838,7 @@ const RUNNER_API = (function () {
   function startIncident(d, f) {
     f.drBusy = true; f.drHeld = true;                  // held: the flier's own AI stops steering
     d.bub = { t: 5 }; d.alert = 6;
-    incidents.push({ d, f, stage: 'warn', t: 0, cr: null, tow: null, spot: null, park: null, civ: null, driverIn: false, ax: 1, ay: 0, carAt: null, outX: 0, outY: 0 });
+    incidents.push({ d, f, stage: 'warn', t: 0, cr: null, tow: null, spot: null, park: null, civ: null, driverIn: false, ax: 1, ay: 0, carAt: null, outX: 0, outY: 0, stand: null, boardAt: null, civAt: null });
   }
   function incidentTick(inc, dt, cam) {
     const f = inc.f, d = inc.d;
@@ -15745,10 +15871,24 @@ const RUNNER_API = (function () {
         inc.cr.z = 0; inc.cr.hover = false; inc.cr.ang = Math.atan2(f.y - inc.cr.y, f.x - inc.cr.x);
         inc.stage = 'exit'; inc.t = 0;
         inc.civ = (CIV && CIV.pick) ? CIV.pick() : null;
+        const pxA = -inc.ay, pyA = inc.ax;   // LAYER 658: the air cop stands at the cruiser's side; the back seat is at its middle
+        inc.stand = { x: inc.park.x + pxA * 28, y: inc.park.y + pyA * 28 };
+        inc.boardAt = { x: inc.park.x + pxA * 4, y: inc.park.y + pyA * 4 };
+        inc.civAt = { x: f.x, y: f.y };
       }
-    } else if (inc.stage === 'exit') {                  // the driver walks out, cuffed, to the cruiser
-      if (inc.t >= 1.6) { inc.stage = 'drive'; inc.t = 0; inc.driverIn = true; }
-    } else if (inc.stage === 'drive') {                 // the driver is in; the cruiser pulls away (see below)
+    } else if (inc.stage === 'exit') {                  // LAYER 658: the air cop steps out and stands by the cruiser
+      if (inc.t >= 0.6) { inc.stage = 'walk'; inc.t = 0; }
+    } else if (inc.stage === 'walk') {                  // the driver gets out and walks backwards to the cop, who orders him to
+      const k = clamp(inc.t / 1.8, 0, 1), st = inc.stand;
+      inc.civAt = { x: f.x + (st.x - f.x) * k, y: f.y + (st.y - f.y) * k };
+      if (inc.t >= 1.8) { inc.stage = 'cuff'; inc.t = 0; inc.civAt = { x: st.x, y: st.y }; }
+    } else if (inc.stage === 'cuff') {                  // the cuffs go on, at the cop's side
+      if (inc.t >= 0.8) { inc.stage = 'board'; inc.t = 0; }
+    } else if (inc.stage === 'board') {                 // he walks to the back seat and gets in
+      const k = clamp(inc.t / 0.8, 0, 1), st = inc.stand, bd = inc.boardAt;
+      inc.civAt = { x: st.x + (bd.x - st.x) * k, y: st.y + (bd.y - st.y) * k };
+      if (inc.t >= 0.8) { inc.stage = 'drive'; inc.t = 0; inc.driverIn = true; inc.civAt = null; }
+    } else if (inc.stage === 'drive') {                 // the driver is in; the cruiser lifts and flies off (see below)
       if (inc.t >= 1.2) { inc.stage = 'tow'; inc.t = 0; inc.tow = { x: f.x - inc.outX * 420, y: f.y - inc.outY * 420, ang: 0 }; }
     } else if (inc.stage === 'tow') {                   // the air tow comes in over the car and hooks it
       const tw = inc.tow, dx = f.x - tw.x, dy = f.y - tw.y, L = Math.hypot(dx, dy);
@@ -15767,9 +15907,26 @@ const RUNNER_API = (function () {
       if (Math.hypot(f.x - cam.x, f.y - cam.y) > 1600 || inc.t > 14) inc.done = true;
     }
     // once the driver is in, the cruiser drives away on its own
-    if (inc.driverIn && inc.cr) { inc.cr.x += inc.ax * 150 * dt; inc.cr.y += inc.ay * 150 * dt; }
+    if (inc.driverIn && inc.cr) { inc.cr.x += inc.ax * 150 * dt; inc.cr.y += inc.ay * 150 * dt; inc.cr.z = Math.min(260, (inc.cr.z || 0) + 220 * dt); inc.cr.hover = true; }   // LAYER 658: it lifts as it goes
     // the shock stays on the car and the drone while it lasts
     if (inc.stage === 'shock') d.alert = 1;
+  }
+  load('cuffs', 'badges/cuffs.png');                       // LAYER 658: the game's own handcuff icon (ui/ui_cuffs.png)
+  load('cop_air_stand', 'cops/cop_air_suit_keyed.png');    // LAYER 658: the air cop, uncut, stands by the cruiser
+  // LAYER 656: the badges and the cuffs over an arrest. Drawn in screen pixels through dZ, like the scan labels.
+  function drawBadgeIcon(im, x, y, w) {
+    if (!im || !im.width) return;
+    const h = w * im.height / im.width;
+    ctx.drawImage(im, x - w / 2, y - h / 2, w, h);
+  }
+  // LAYER 658: the handcuff icon, the game's own (ui/ui_cuffs.png), centred on the point
+  function drawCuffs(x, y) { drawBadgeIcon(img.cuffs, x, y, 16 / dZ); }
+  // LAYER 658: the air-unit cop, uncut, stood by the cruiser for the arrest (world units; her feet at the point)
+  function drawAirCop(st) {
+    const im = img.cop_air_stand; if (!im || !im.width) return;
+    const w = 44, h = w * im.height / im.width;
+    ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(st.x, st.y + 3, 13, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.drawImage(im, st.x - w / 2, st.y - h * 0.9, w, h); ctx.restore();
   }
   function drawIncident(inc, now) {
     const cr = inc.cr, f = inc.f;
@@ -15786,11 +15943,18 @@ const RUNNER_API = (function () {
         ctx.beginPath(); ctx.arc(cr.x, cr.y - cr.z - 6, 5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
       }
     }
-    if (inc.stage === 'exit' && inc.civ && inc.park) {  // the driver, walking out to the cruiser
-      const k = clamp(inc.t / 1.6, 0, 1), x = f.x + (inc.park.x - f.x) * k, y = f.y + (inc.park.y - f.y) * k;
-      CIV.draw(inc.civ, x, y, (inc.park.x - f.x) * 0.5, (inc.park.y - f.y) * 0.5, inc.t);
-      ctx.save(); ctx.strokeStyle = 'rgba(214,224,234,0.95)'; ctx.lineWidth = 1.5 / dZ;   // the cuffs
-      ctx.beginPath(); ctx.moveTo(x - 4 / dZ, y - 7 / dZ); ctx.lineTo(x + 4 / dZ, y - 7 / dZ); ctx.stroke(); ctx.restore();
+    // LAYER 656: the FIS agent (the hover drone) shows its badge while it works the car; the cruiser carries the police
+    // star; the driver is in cuffs from the moment the cruiser comes in, before he is put in the car
+    if (inc.d && inc.stage !== 'lift' && inc.stage !== 'haul' && inc.stage !== 'tow') drawBadgeIcon(img.fis_badge, inc.d.x, inc.d.y - 44 / dZ, 30 / dZ);
+    if (cr && (inc.stage === 'call' || inc.stage === 'land' || inc.stage === 'exit' || inc.stage === 'drive')) drawBadgeIcon(img.police_badge, cr.x, cr.y - cr.z - 34 / dZ, 18 / dZ);
+    if (f && (inc.stage === 'call' || inc.stage === 'land')) drawCuffs(f.x, f.y - f.z - 26 / dZ);
+    // LAYER 658: the air cop stands by the cruiser; the driver walks back to her, is cuffed, and gets in the back
+    if (inc.stand && (inc.stage === 'exit' || inc.stage === 'walk' || inc.stage === 'cuff' || inc.stage === 'board')) drawAirCop(inc.stand);
+    if (inc.civ && inc.civAt && inc.stand && (inc.stage === 'walk' || inc.stage === 'cuff' || inc.stage === 'board')) {
+      const p = inc.civAt, st = inc.stand, bd = inc.boardAt;
+      const face = inc.stage === 'walk' ? { x: f.x - st.x, y: f.y - st.y } : { x: bd.x - st.x, y: bd.y - st.y };   // walking backwards, he faces away from the cop
+      CIV.draw(inc.civ, p.x, p.y, face.x * 0.5, face.y * 0.5, inc.t);
+      drawCuffs(p.x, p.y - 26 / dZ);
     }
     if (inc.stage === 'shock' || inc.stage === 'autoland') {
       drawLightning(inc.d.x, inc.d.y - 4, f.x, f.y - f.z - 6);
@@ -15838,9 +16002,10 @@ const RUNNER_API = (function () {
         if (f.scanT >= DRONE.scanT) {
           f.scanT = 0;
           const hit = warrantRoll(f);
-          logScan(RHEADS[Math.floor(Math.random() * RHEADS.length)][1], hit);
-          if (hit) { f.lab = { t: 1.6, txt: 'WARRANT', hit: true }; startIncident(d, f); }
-          else { f.lab = { t: 1.4, txt: 'CLEAR', hit: false }; f.scanCool = 6; }
+          const scanHead = RHEADS[Math.floor(Math.random() * RHEADS.length)][1];
+          logScan(scanHead, hit);
+          if (hit) { f.lab = { t: 1.6, txt: 'WARRANT', hit: true, head: scanHead }; startIncident(d, f); }
+          else { f.lab = { t: 1.4, txt: 'CLEAR', hit: false, head: scanHead }; f.scanCool = 6; }
         }
       }
     }
@@ -15897,6 +16062,8 @@ const RUNNER_API = (function () {
       if (f.lab && f.lab.t > 0) {
         ctx.font = 'bold ' + Math.round(14 / dZ) + 'px monospace'; ctx.textAlign = 'center';
         ctx.fillStyle = f.lab.hit ? 'rgba(255,90,90,0.95)' : 'rgba(120,255,160,0.95)';
+        const lhs = f.lab.head ? headSprite(f.lab.head) : null;
+        if (lhs && lhs.width) { const lw = 26 / dZ, lhh = lw * lhs.height / lhs.width; ctx.drawImage(lhs, f.x - lw / 2, f.y - f.z - 34 / dZ - 14 / dZ - lhh, lw, lhh); }
         ctx.fillText(f.lab.txt, f.x, f.y - f.z - 34 / dZ);
       }
     }
@@ -16064,6 +16231,26 @@ const RUNNER_API = (function () {
     const dl = p.x - (r.fx0 - m), dr = (r.fx1 + m) - p.x, dt = p.y - (r.fy0 - m), db = (r.gy1 + m) - p.y;
     const mn = Math.min(dl, dr, dt, db);
     if (mn === dl) p.x = r.fx0 - m; else if (mn === dr) p.x = r.fx1 + m; else if (mn === dt) p.y = r.fy0 - m; else p.y = r.gy1 + m;
+  }
+  // LAYER 647: the haze builds in the health bar, from the right, while he breathes it with no breather on, outdoors.
+  // Indoors, in the sewers, or on a breather, it cools.
+  function hazeTick(outdoors) {
+    const now = performance.now(), dt = Math.min(0.2, (now - (hazeT || now)) / 1000); hazeT = now;
+    if (outdoors && !mask) haze = Math.min(1, haze + dt * 0.05);    // full in about 20 seconds
+    else haze = Math.max(0, haze - dt * 0.025);                     // clears in about 40 seconds
+  }
+  const HAZE_CAP = 0.7;   // LAYER 648: the purple never takes more than 70% of the bar, so a full haze can't drop health to zero
+  function hazeLevel() { return Math.min(haze, HAZE_CAP); }
+  function setMask(v) { mask = !!v; }
+  function hasMask() { return mask; }
+  // LAYER 650: the skater kids stay off the C.A.N. tower, its roof and its front, the way the walker does
+  function keepYouthOut(list) {
+    if (!CAN_LOT_RECT || !list) return;
+    const r = canRect(), m = 14;
+    for (const p of list) {
+      if (!p || !p.yt || !Number.isFinite(p.x)) continue;
+      if (p.x > r.fx0 - m && p.x < r.fx1 + m && p.y > r.fy0 - m && p.y < r.gy1 + m) pushOut(p, r, m);
+    }
   }
   function keepOut(p) {
     if (!p || !Number.isFinite(p.x)) return;
@@ -16254,6 +16441,8 @@ const RUNNER_API = (function () {
     },
     inLobby: () => lobby,
     riding: () => !walker.on && !lobby,   // LAYER 644: on the bike outside the lot's lobby
+    hazeTick, hazeLevel, setMask, hasMask,  // LAYER 647
+    keepYouthOut,                           // LAYER 650
     setHeld: (k) => { held = k || null; },
     getHeld: () => held,
     roofIn,
@@ -16280,7 +16469,7 @@ const RB_BODY = { slim: 'Slim', average: 'Average', athletic: 'Athletic', heavy:
 function RunnerBuilder({ onStart, onCancel }) {
   const [step, setStep] = useState(0);
   const [head, setHead] = useState(null);
-  const [body, setBody] = useState('average');
+  const [body, setBody] = useState('big');   // LAYER 660: one build for now
   const [suit, setSuit] = useState(null);
   const [skin, setSkin] = useState(null);
   const [stats, setStats] = useState(() => Object.fromEntries(RB_STATS.map((k) => [k, 1])));
@@ -16337,13 +16526,8 @@ function RunnerBuilder({ onStart, onCancel }) {
       </div>)}
 
       {step === 1 && (<div>
-        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick a build</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-          {Object.keys(RB_BODY).map((k) => (
-            <div key={k} onClick={() => setBody(k)}
-              style={{ ...btn(body === k), padding: 12, textAlign: 'center' }}>{RB_BODY[k].toUpperCase()}</div>
-          ))}
-        </div>
+        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Build</div>
+        <div style={{ fontSize: 12, letterSpacing: '0.2em', color: '#6ef0ff', padding: 12, border: '1px solid #6ef0ff' }}>ONE BUILD FOR NOW</div>
       </div>)}
 
       {step === 2 && (<div>
@@ -25911,6 +26095,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (it.rot) { ctx.save(); ctx.translate(it.x, it.y); ctx.rotate(Math.PI / 2);
             ctx.drawImage(im, -iw / 2, -h / 2, iw, h); ctx.restore(); }
           else ctx.drawImage(im, it.x - iw / 2, it.y - h / 2, iw, h);
+          if (it.k.startsWith("rs_trash")) sewerWaterBit(it.x, it.y, iw, h);
         }
         ctx.globalAlpha = 1;
         // sparks off the top of the fire
@@ -25931,6 +26116,19 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (q.say > 0 && q.line) bubble(q.x, q.y, q.line, SKY_LINES.tint);
         }
       }
+    }
+    // LAYER 654: the trash sits in the sewer water: a dark waterline, and a ripple that breathes round its base
+    function sewerWaterBit(x, y, w, h) {
+      const t = performance.now() / 1000, base = y + h * 0.32;
+      ctx.save();
+      ctx.fillStyle = 'rgba(30,70,62,0.55)'; ctx.beginPath(); ctx.ellipse(x, base, w * 0.62, w * 0.16, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(170,240,220,0.6)'; ctx.lineWidth = 1.2;
+      for (let k = 0; k < 2; k++) {
+        const f = (t * 0.8 + k * 0.5) % 1, sc = 0.7 + 0.5 * f;
+        ctx.globalAlpha = 0.7 * (1 - f);
+        ctx.beginPath(); ctx.ellipse(x, base, w * 0.62 * sc, w * 0.16 * sc, 0, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
     }
     function drawSewer(view) {
       if (!g.sewer) return;
@@ -53381,7 +53579,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title && RUNNER_API.riding()) { g.grap = null; g.jump = null; g.roof = null; RUNNER_API.keepOut(g.p); } else if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.keepOut(g.p); RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
+      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title) RUNNER_API.hazeTick(!g.inside && !g.sewer); if (RUNNER_API.isOn() && !g.title && g.peds) RUNNER_API.keepYouthOut(g.peds); if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { const hz = RUNNER_API.hazeLevel(); if (hz > 0 && g.p.hp > (g.p.maxHp || 100) * (1 - hz)) g.p.hp = (g.p.maxHp || 100) * (1 - hz); } /* LAYER 648: the haze caps health, like a debuff */ if (RUNNER_API.isOn() && !g.title && RUNNER_API.riding()) { g.grap = null; g.jump = null; g.roof = null; RUNNER_API.keepOut(g.p); } else if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.keepOut(g.p); RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
@@ -54582,6 +54780,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             night: g.nightTarget > 0.5, nearCar, peds: g.peds.length,
             hp: g.p.hp, saved: g.stats.saved, lost: g.stats.lost,
             stamina: g.p.stamina, maxStamina: g.p.maxStamina, cash: g.p.cash, skill: g.p.skill,
+            haze: RUNNER_API.isOn() ? RUNNER_API.hazeLevel() : 0,   // LAYER 647
             fuel: inVehicle() ? activeVeh().fuel : 100, maxFuel: inVehicle() ? activeVeh().maxFuel : 100,
             refueling: g.refueling, nearPump: nearGasPump(),
             turfHeat: g.kingsTurfHeat,
@@ -61110,6 +61309,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         <div style={{ marginTop: 8, width: 148, height: 12, background: "rgba(255,255,255,0.12)", position: "relative" }}>
           <div style={{ width: `${Math.min(100, hud.hp ?? 100)}%`, height: "100%",
             background: (hud.hp ?? 100) > 35 ? "#d9a441" : "#c8452f", transition: "width .2s" }} />
+          {(hud.haze || 0) > 0 && <div style={{ position: "absolute", right: 0, top: 0, height: "100%", width: `${Math.min(100, (hud.haze || 0) * 100)}%`, background: "#8a3fd1", opacity: 0.9, transition: "width .3s" }} />}   {/* LAYER 647: the haze, filling right to left */}
           <div style={{ position: "absolute", left: 5, top: 0, lineHeight: "12px", fontSize: 8, fontWeight: 700, letterSpacing: "0.22em", color: "#15120c", textShadow: "0 0 2px rgba(255,240,200,0.5)" }}>HEALTH</div>
         </div>
         <div style={{ marginTop: 3, width: 148, height: 11, background: "rgba(255,255,255,0.1)", position: "relative" }}>
@@ -61997,7 +62197,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         </div>
       )}
       {/* DISPATCH ON THE RADIO -- and it is always Sally. */}
-      {hud.radioCall && (
+      {hud.radioCall && !rnOn && (
         <div style={{ position: "absolute", right: 14, top: "26%", zIndex: 60, display: "flex", gap: 10, alignItems: "center",
           background: "rgba(10,11,14,0.86)", border: "1px solid rgba(217,164,65,0.4)", padding: "8px 12px", maxWidth: 360, fontFamily: mono }}>
           <img src="assets/heroes/pt_sally.png" alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
@@ -62396,7 +62596,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           RHFD {hud.rhfd}
         </div>
       )}
-      {hud.compWait > 0 ? (
+      {hud.compWait > 0 && !rnOn ? (
         <div style={{ marginTop: 6, fontSize: 9, letterSpacing: "0.14em", color: "#8fd0c0" }}>
           DEVON WAITS \u00b7 {hud.compWait} MORE CALLS
         </div>
@@ -62606,7 +62806,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           background: "radial-gradient(ellipse at center, rgba(0,0,0,0) 38%, rgba(24,14,4,0.55) 100%)",
           boxShadow: "inset 0 0 120px rgba(217,164,65,0.30)" }} />
       )}
-      {hud.show && hud.show.scanner && hud.crime && (
+      {!rnOn && hud.show && hud.show.scanner && hud.crime && (
         <div style={{
           position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)",
           fontFamily: mono, fontSize: 10, letterSpacing: "0.14em", textAlign: "center",
@@ -63078,7 +63278,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           <>
             {/* Malcolm's car controls: the radio, the gumball, and Ramos at the wheel. They lived in
                 the on-foot set only, so behind the wheel -- where they matter -- they were gone. */}
-            {hud.canRadio && btn("RADIO", "dispatch", () => G.pickOpen && G.pickOpen("radio"), null, false, 56)}
+            {hud.canRadio && !rnOn && btn("RADIO", "dispatch", () => G.pickOpen && G.pickOpen("radio"), null, false, 56)}
             {hud.canGumball && btn("SIREN", hud.gumball ? "on" : "gumball", () => G.gumballFn && G.gumballFn(), null, hud.gumball, 56)}
             {hud.lowrider && btn("HYDRO", hud.hydUp ? "hop / slam" : "lift it", () => G.hydroFn && G.hydroFn(), null, hud.hydUp, 56)}
             {hud.ramosCar && btn("RAMOS", hud.autoOn ? "take wheel" : "you drive",
@@ -63194,7 +63394,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             {hud.atMalcolm && btn(hud.detMode ? "RAMOS" : "MALCOLM", "talk", () => G.malcolmFn && G.malcolmFn(), null, !!hud.malcolm)}
             {hud.atTalk && btn("TALK", "question", () => G.talkFn && G.talkFn(), null, !!hud.talk)}
             {hud.atTrunk && btn("TRUNK", "long guns", () => G.pickOpen && G.pickOpen("trunk"), null, false)}
-            {hud.canRadio && btn("RADIO", "dispatch", () => G.pickOpen && G.pickOpen("radio"), null, false)}
+            {hud.canRadio && !rnOn && btn("RADIO", "dispatch", () => G.pickOpen && G.pickOpen("radio"), null, false)}
             {hud.canGumball && btn("SIREN", hud.gumball ? "on" : "gumball", () => G.gumballFn && G.gumballFn(), null, hud.gumball)}
             {hud.lowrider && btn("HYDRO", hud.hydUp ? "hop / slam" : "lift it", () => G.hydroFn && G.hydroFn(), null, hud.hydUp)}
             {hud.atCarver && btn("CARVER", "swat orders", () => G.pickOpen && G.pickOpen("carver"), null, false)}

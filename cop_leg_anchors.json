@@ -1,0 +1,25 @@
+{
+ "canvas": [
+  224,
+  159
+ ],
+ "leg_L_pivot": [
+  77.6,
+  145
+ ],
+ "leg_R_pivot": [
+  145.1,
+  145
+ ],
+ "arm_L_pivot": [
+  36.5,
+  107
+ ],
+ "arm_R_pivot": [
+  183.8,
+  107
+ ],
+ "leg_amp": 0.2,
+ "arm_amp": 0.15,
+ "note": "Legs scale vertically about the hip pivot; arms scale vertically about the shoulder pivot. Body base has arm holes filled."
+}
