@@ -1347,6 +1347,7 @@ const SEWER_CAMP = {
     [0.50, ["rs_trash_1", 112, 84, 24]], [0.40, ["rs_trash_2", -92, 84, 22]], [0.40, ["rs_trash_3", 22, 88, 26]], [0.35, ["rs_trash_4", -150, 82, 22]],
     [0.30, ["rs_lamp", -20, 64, 22]], [0.35, ["rs_newspaper", 170, 70, 18]], [0.35, ["rs_bowl", 60, 90, 16]],
     [0.45, ["rs_drifter", 128, 74, 30]],   // LAYER 654: a drifter sitting in the camp
+    [0.22, ["stall_gear", -112, 74, 92], ["stall_breather", -112, 74, 92], ["stall_mechanic", -112, 74, 92], ["stall_fence", -112, 74, 92], ["stall_clinic_cot", -112, 74, 92], ["stall_lender", -112, 74, 92]],   // LAYER 663: a market stall, one of six
   ],
   // the heart of it: a barrel or a pot, and it is the light
   fire: [["sc_barrel_fire", 0, 58, 20], ["sc_cookpot", 0, 60, 24]],
@@ -1355,6 +1356,10 @@ const SEWER_CAMP = {
   // where the people sit, around the fire; how many are there follows the meter
   seats: [[-24, 44], [24, 42], [-22, 84], [10, 86]],
   glow: 170, lit: 210,
+  // LAYER 661: a breather man standing at some camps. An NPC, so he only sways in place.
+  stand: { chance: 0.35, at: [40, 80], w: 38 },
+  trader: { at: [-30, 74], w: 60 },   // LAYER 663: beside a market stall, not behind it
+  rig: { chance: 0.40, at: [-150, 64], w: 38 },   // LAYER 664: one of the three cut people, standing (sways only)
 };
 /* ---------- NEON FLATS ----------
    The district had no identity in the generator -- zoneOf calls these cells `city`, so the Flats
@@ -2141,6 +2146,20 @@ for (const k of SEWER_CAMP.keys) SC_ART[k] = "assets/sewer/" + k + ".png";
 // LAYER 653: the runner's underground junk (trash, lamp, newspaper, bowl) lives in the sewer camps, from assets/runner/sewer
 for (const k of ["rs_trash_1", "rs_trash_2", "rs_trash_3", "rs_trash_4", "rs_lamp", "rs_newspaper", "rs_bowl"]) SC_ART[k] = "assets/runner/sewer/" + k.slice(3) + ".png";
 SC_ART.rs_drifter = "assets/runner/people/drifter_walk_a.png";   // LAYER 654: a drifter from the poor camps
+// LAYER 661: the breather man, cut from the H4 art into four pieces on one 150 x 142 canvas (see people/breather_anchors.json)
+for (let k = 0; k < 4; k++) for (const part of ["body", "leg_L", "leg_R", "arm_L", "arm_R"]) SC_ART["brt" + k + "_" + part] = "assets/runner/people/looks/breather_" + k + "_" + part + ".png";   // LAYER 663: four looks, hair and clothes differ
+for (let k = 0; k < 4; k++) SC_ART["trd" + k] = "assets/runner/people/looks/trader_" + k + ".png";   // LAYER 663: the trader, four looks
+/* LAYER 664: three sewer people cut for movement, the same way as the breather: body, two legs (the shrinking-leg walk
+   stretches them about the hip) and two arms (they swing about the shoulder). cw/ch is the figure canvas; piv is in that canvas. */
+const SEW_RIG = {
+  drifter: { cw: 169, ch: 185, piv: { leg_L: [62, 151], leg_R: [104, 151], arm_L: [33, 50], arm_R: [136, 44] } },
+  hood:    { cw: 151, ch: 196, piv: { leg_L: [63, 169], leg_R: [87, 169], arm_L: [34, 75], arm_R: [116, 75] } },
+  druggie: { cw: 151, ch: 196, piv: { leg_L: [63, 169], leg_R: [87, 169], arm_L: [34, 75], arm_R: [116, 75] } },
+};
+const SEW_RIG_NAMES = ["drifter", "hood", "druggie"];
+for (const r of SEW_RIG_NAMES) for (const part of ["body", "leg_L", "leg_R", "arm_L", "arm_R"]) SC_ART["rg_" + r + "_" + part] = "assets/runner/people/rig/" + r + "_" + part + ".png";
+for (let k = 0; k < 4; k++) for (const part of ["body", "arm_L", "arm_R"]) SC_ART["trd" + k + "_" + part] = "assets/runner/people/looks/trader_" + k + "_" + part + ".png";   // LAYER 664: the trader cut for moving arms
+for (const k of ["stall_gear", "stall_breather", "stall_mechanic", "stall_fence", "stall_clinic_cot", "stall_lender"]) SC_ART[k] = "assets/runner/stalls/" + k + ".png";   // LAYER 663: market stalls
 /* LAYER 546: the camp kit again, from DIRECTLY ABOVE (hl_*). TD546 maps each old 3/4 plate to its top-down one and a
    width factor against the width the camp tables already give it (a barrel seen from above is wider than the side of
    one); an array picks by position. Every camp -- the sewer's and the alleys' -- and the alley clutter draw through it. */
@@ -2802,7 +2821,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 660";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 666";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -4348,7 +4367,7 @@ function onElSpan(x, y) {
    street on purpose -- a way to cross turf unseen, not a shortcut. */
 const SEWER_EVERY = AVE_EVERY;           // tunnels follow the avenues
 const TUN_HW = 96;                       // half-width of a corridor
-const SEWER_MAX = CITY_N;                // the network stops at the city limits
+const SEWER_MAX = 28;                    // LAYER 664: the network reaches every district -- county, mountain, stadium and kestrel sit past the city limit (grid 30)
 const onTunnelV = (x) => {
   const i = Math.round(x / PITCH);
   return i % SEWER_EVERY === 0 && i >= 0 && i <= SEWER_MAX && Math.abs(x - SX(i)) < TUN_HW;
@@ -4360,7 +4379,10 @@ const onTunnelH = (y) => {
 const inTunnel = (x, y) => onTunnelV(x) || onTunnelH(y);
 /* Manholes sit at every second junction of the network, so an entrance is never far but
    never underfoot either. */
+/* LAYER 662: four more entrances, so every city district has a manhole. Terminal, Barrio, Skate and Neon Flats had none. */
+const EXTRA_MANHOLES = [[12, 8], [16, 12], [4, 8], [8, 12], [24, 4], [28, 24]];   // LAYER 664: stadium and kestrel had no manhole
 function isManhole(i, j) {
+  if (EXTRA_MANHOLES.some(([a, b]) => a === i && b === j)) return true;
   return i % SEWER_EVERY === 0 && j % SEWER_EVERY === 0
     && i >= 0 && i <= SEWER_MAX && j >= 0 && j <= SEWER_MAX
     && ((i / SEWER_EVERY) + (j / SEWER_EVERY)) % 2 === 0;
@@ -4368,8 +4390,8 @@ function isManhole(i, j) {
 /* THE PRISON CULVERT (layer 523). A brick storm drain from 1931: up from under Kestrel's south wall,
    straight north along the i16 line to where that tunnel's stub ends at the city limits. Narrower than a
    city corridor. One ladder on it -- the OUTFALL, past the north fence. */
-const CULVERT = { x: SX(16), y0: SX(SEWER_MAX) - TUN_HW, y1: PRISON_BOX.y1 + 60, hw: 70,
-                  exitY: SX(SEWER_MAX) + 320, dropY: PRISON_BOX.y1 - 160 };
+const CULVERT = { x: SX(16), y0: SX(CITY_N) - TUN_HW, y1: PRISON_BOX.y1 + 60, hw: 70,
+                  exitY: SX(CITY_N) + 320, dropY: PRISON_BOX.y1 - 160 };
 const inCulvert = (x, y) => Math.abs(x - CULVERT.x) < CULVERT.hw - 10 && y > CULVERT.y0 && y < CULVERT.y1 - 20;
 /* Where a man can actually stand down there. The old test let a vertical tunnel run on forever past the
    drawn end of the network -- walk south far enough and you were in the black. */
@@ -17988,7 +18010,7 @@ export default function IronLionLayer004() {
     const mark = (L) => L.forEach((el, i) => { el.style.outline = i === sel ? "2px solid #ffd65a" : "none"; el.style.background = i === sel ? "rgba(60,50,20,0.95)" : "rgba(12,13,17,0.9)"; });
     const live = () => new Set([...document.querySelectorAll("[data-act]")].map((e) => e.getAttribute("data-act")));
     const act = (labels) => { const A = G.acts || {}, L = live(); for (const l of labels) if (L.has(l) && A[l]) return A[l]; return null; };
-    const tap = (labels) => { const a = act(labels); if (!a) return false; a.onDown && a.onDown(); if (a.onUp) setTimeout(a.onUp, 140); return true; };
+    const tap = (labels) => { const a = act(labels); if (!a) return false; a.onDown && a.onDown(); if (typeof a.onUp === "function") setTimeout(a.onUp, 140); return true; };
     G.padTap = tap; G.inputT = () => ({ run: !!input.current.run, x: input.current.x, y: input.current.y, w: !!input.current.keys.w, s: !!input.current.keys.s, sp: !!input.current.keys[" "] });   // test hook
     const openWheel = () => { const A = G.acts || {}, list = [];
       // in a car with your people: the DRIVER first, with his face (layer 517)
@@ -19120,6 +19142,8 @@ export default function IronLionLayer004() {
         g.p.x += g.p.vx * dt; g.p.y += g.p.vy * dt;
         g.p.vx *= 0.90; g.p.vy *= 0.90;
       }
+      /* LAYER 664: underground there is no street to collide with. The street's buildings and walkers were shoving a man
+         out of the tunnel at junctions that sit under a block, so the sewer skips them (updateSewer keeps you in the net). */
       collideCircle(g.p, 13);
       collideBuildings(g.p, 13, false);
       collideActors(g.p, 13);
@@ -24086,7 +24110,50 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         for (let a = ci - 1; a <= ci + 1; a++) for (let b = cj - 1; b <= cj + 1; b++) { const L = M.get(a * 4096 + b); if (!L) continue;
           for (const q of L) { if (q === p) continue; const dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy); if (d >= 20 || d < 0.01) continue; const push = (20 - d) * 0.25; p.x += dx / d * push; p.y += dy / d * push; } }
         if (g.mode === "foot" && !g.inside) { const dx = p.x - g.p.x, dy = p.y - g.p.y, d = Math.hypot(dx, dy); if (d < 22 && d > 0.01) { p.x += dx / d * (22 - d) * 0.5; p.y += dy / d * (22 - d) * 0.5; } } } }
+    /* LAYER 662: SEWER WALKERS. Civilians from the city's own pool (same plates, builds and outfits as the street),
+       walking the tunnels the way people walk the sidewalks: along the ledge, turning at the junctions. Fewer than the
+       street -- a dozen in range at most. The ledge keeps them off the channel. */
+    const SEW_JS = SEWER_EVERY * PITCH, SEW_CAP = 12, SEW_RANGE = 1100;
+    function sewerPlace(p) { if (p.ax === 'h') { p.x = p.A; p.y = p.L + p.lane; } else { p.x = p.L + p.lane; p.y = p.A; } }
+    function spawnSewerWalker(cx, cy) {
+      if (outfits.length === 0) makeOutfit();
+      const lim = SX(SEWER_MAX), horiz = Math.random() < 0.5;
+      const L = Math.round((horiz ? cy : cx) / SEW_JS) * SEW_JS;
+      if (L < 0 || L > lim) return;
+      const A = clamp((horiz ? cx : cy) + (Math.random() - 0.5) * 1.6 * SEW_RANGE, 0, lim);
+      const lane = (Math.random() < 0.5 ? -1 : 1) * (56 + Math.random() * 16);
+      const p = { sew: true, ax: horiz ? 'h' : 'v', L, A, lane, dir: Math.random() < 0.5 ? -1 : 1,
+        spd: 40 + Math.random() * 22, x: 0, y: 0, vx: 0, vy: 0, bi: 0, bj: 0, ck: 0, off: [0, 0], tgt: [0, 0],
+        o: outfits[(Math.random() * outfits.length) | 0], civ: pickCiv(), jit: 0.95 + Math.random() * 0.1,
+        anim: Math.random() * 6.28, mode: 'walk', timer: 0, idlePose: 'talk' };
+      if (Math.random() < 0.4) p.rig = SEW_RIG_NAMES[(Math.random() * 3) | 0];   // LAYER 664: two in five walk as a cut figure
+      sewerPlace(p); g.peds.push(p);
+    }
+    function sewerWalkersTick(dt, cx, cy) {
+      const lim = SX(SEWER_MAX);
+      g.peds = g.peds.filter((p) => !p.sew || Math.hypot(p.x - cx, p.y - cy) < SEW_RANGE * 1.5);
+      let n = 0; for (const p of g.peds) if (p.sew) n++;
+      if (n < SEW_CAP && Math.random() < dt * 4) spawnSewerWalker(cx, cy);
+      for (const p of g.peds) {
+        if (!p.sew) continue;
+        const prev = p.A;
+        p.A = clamp(p.A + p.dir * p.spd * dt, 0, lim);
+        const J = Math.round(p.A / SEW_JS) * SEW_JS;     // at a junction, sometimes turn into the crossing tunnel
+        if (J >= 0 && J <= lim && (prev - J) * (p.A - J) <= 0 && Math.random() < 0.35) {
+          const oldL = p.L; p.ax = p.ax === 'h' ? 'v' : 'h'; p.L = J; p.A = oldL; p.dir = Math.random() < 0.5 ? -1 : 1;
+        }
+        if (p.A <= 0 || p.A >= lim) p.dir = -p.dir;
+        const ox = p.x, oy = p.y; sewerPlace(p);
+        p.vx = p.x - ox; p.vy = p.y - oy; p.anim += dt * p.spd * 0.12;
+        /* LAYER 665: a cut figure turns to the way it walks. The sprite's head (top of the art) is turned onto the
+           heading, easing so it does not snap at the junctions. Canvas rotate(r) maps up (0,-1) to (sin r, -cos r). */
+        if (Math.hypot(p.vx, p.vy) > 1e-3) { const want = Math.atan2(p.vx, -p.vy); let d = want - (p.face || 0); d = Math.atan2(Math.sin(d), Math.cos(d)); p.face = (p.face || 0) + d * Math.min(1, dt * 10); }
+      }
+    }
     function updatePeds(dt, cx, cy) {
+      /* LAYER 662: underground there is no street crowd -- only the tunnel walkers */
+      if (g.sewer) { g.peds = g.peds.filter((p) => p.sew); sewerWalkersTick(dt, cx, cy); return; }
+      if (g.peds.some((p) => p.sew)) g.peds = g.peds.filter((p) => !p.sew);
       separatePeds568();
       const cap = Math.min(W, H) < 520 ? 56 : 104;
       if (inSkate(cx, cy)) {
@@ -24251,6 +24318,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
 
     function drawPed(p) {
+      if (p.rig) { drawRigPed(p); return; }
       if (p.bailT > 0) { drawPedDown(p); return; }
       if (p.skate) { drawPedSkating(p); return; }
       if (p.yt && drawYouth(p)) return;
@@ -26025,7 +26093,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                    yt: SKY_ADDICTS[(rr() * SKY_ADDICTS.length) | 0], sky: true,
                    bang: Math.atan2(fy - y, fx - x), say: 0, line: null };
         });
-        camp = { fx, fy, items, folk, horiz, ph: rr() * 6.28 };
+        const ph = rr() * 6.28;
+        const stand = [];
+        if (rr() < SEWER_CAMP.stand.chance) { const [bx, by] = at(SEWER_CAMP.stand.at[0], SEWER_CAMP.stand.at[1]); stand.push({ x: bx, y: by, w: SEWER_CAMP.stand.w, ph: rr() * 6.28, look: (rr() * 4) | 0 }); }
+        if (rr() < SEWER_CAMP.rig.chance) { const [rx, ry] = at(SEWER_CAMP.rig.at[0], SEWER_CAMP.rig.at[1]); stand.push({ kind: "rig", rig: SEW_RIG_NAMES[(rr() * 3) | 0], x: rx, y: ry, w: SEWER_CAMP.rig.w, ph: rr() * 6.28 }); }
+        if (items.some((q) => q.k.startsWith("stall_"))) { const [tx, ty] = at(SEWER_CAMP.trader.at[0], SEWER_CAMP.trader.at[1]); stand.push({ kind: "trader", x: tx, y: ty, w: SEWER_CAMP.trader.w, look: (rr() * 4) | 0 }); }
+        camp = { fx, fy, items, folk, horiz, ph, stand };
       }
       g.camps.set(key, camp);
       return camp;
@@ -26066,6 +26139,63 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     /* Drawn AFTER the dark closes in, which is the whole trick: a camp is lit by its own fire, so
        you can see it from down the tunnel when you cannot see the brick you are standing on.
        Brightness is whichever is more -- the fire's reach or your own -- and a flicker on both. */
+    /* LAYER 663: the trader stands beside a market stall. Upper body only (the sprite is cut at the counter line), static. */
+    function drawTraderNpc(s, t) {
+      const I = imgs.current, L = "trd" + (s.look | 0) + "_";
+      if (!I[L + "body"] || !I[L + "body"].width) return;
+      const cw = 228, ch = 144, k = s.w / cw, ox = s.x - cw * k / 2, oy = s.y - ch * k;
+      const put = (im, px, py, rot) => {
+        if (!im || !im.width) return;
+        ctx.save(); ctx.translate(ox + px * k, oy + py * k); ctx.rotate(rot); ctx.scale(k, k); ctx.translate(-px, -py);
+        ctx.drawImage(im, 0, 0, cw, ch); ctx.restore();
+      };
+      const sw = Math.sin(t * 1.2 + (s.ph || 0));
+      put(I[L + "body"], 0, 0, 0);
+      put(I[L + "arm_L"], 80, 42, 0.1 * sw);
+      put(I[L + "arm_R"], 170, 42, -0.1 * sw);
+    }
+    /* LAYER 661: the breather man. Four cut pieces on the H4 canvas (150 x 142); the feet sit at the ground point.
+       He stands and barely moves: a slow sway of the legs and a small one in the arms, no walk. */
+    function drawBreatherNpc(s, t) {
+      const I = imgs.current, P = "brt" + (s.look | 0) + "_";
+      if (!I[P + "body"] || !I[P + "body"].width) return;
+      const cw = 150, ch = 142, k = s.w / cw, ox = s.x - cw * k / 2, oy = s.y - 140 * k;
+      const put = (im, px, py, sc) => {
+        if (!im || !im.width) return;
+        ctx.save(); ctx.translate(ox + px * k, oy + py * k); ctx.scale(k, k * sc); ctx.translate(-px, -py);
+        ctx.drawImage(im, 0, 0, cw, ch); ctx.restore();
+      };
+      const a = Math.sin(t * 1.4 + s.ph), b = Math.sin(t * 1.4 + s.ph + Math.PI);
+      put(I[P + "leg_L"], 74, 114, 1 + 0.03 * a); put(I[P + "leg_R"], 104, 114, 1 + 0.03 * b);
+      put(I[P + "body"], 0, 0, 1);
+      put(I[P + "arm_L"], 50, 42, 1 + 0.02 * b); put(I[P + "arm_R"], 126, 42, 1 + 0.02 * a);
+    }
+    /* LAYER 664: a cut figure that moves. Legs stretch and shrink about the hip (the shrinking-leg walk) and the arms
+       swing about the shoulder. walk 0 = standing (a slow sway), 1 = walking on phase ph. */
+    function drawRigNpc(s, t, ph, walk) {
+      const R = SEW_RIG[s.rig], I = imgs.current, P = "rg_" + s.rig + "_";
+      if (!R || !I[P + "body"] || !I[P + "body"].width) return;
+      const k = s.w / R.cw, ox = s.x - R.cw * k / 2, oy = s.y - R.ch * k;
+      const put = (im, px, py, sy, rot) => {
+        if (!im || !im.width) return;
+        ctx.save(); ctx.translate(ox + px * k, oy + py * k); ctx.rotate(rot || 0); ctx.scale(k, k * sy); ctx.translate(-px, -py);
+        ctx.drawImage(im, 0, 0, R.cw, R.ch); ctx.restore();
+      };
+      const w = walk || 0, a = Math.sin(ph || 0) * w, b = -a, idle = Math.sin(t * 1.4 + (s.ph || 0)) * (1 - w), pv = R.piv;
+      const rcx = s.x, rcy = s.y - R.ch * k / 2;
+      if (s.rot) { ctx.save(); ctx.translate(rcx, rcy); ctx.rotate(s.rot); ctx.translate(-rcx, -rcy); }   // LAYER 665: turn to the way it walks
+      put(I[P + "leg_L"], pv.leg_L[0], pv.leg_L[1], 1 + 0.2 * a + 0.02 * idle);
+      put(I[P + "leg_R"], pv.leg_R[0], pv.leg_R[1], 1 + 0.2 * b - 0.02 * idle);
+      put(I[P + "body"], 0, 0, 1);
+      put(I[P + "arm_L"], pv.arm_L[0], pv.arm_L[1], 1 + 0.02 * idle, 0.08 * b);
+      put(I[P + "arm_R"], pv.arm_R[0], pv.arm_R[1], 1 - 0.02 * idle, -0.08 * b);
+      if (s.rot) ctx.restore();
+    }
+    /* A sewer walker drawn as a cut figure. Walking when it is moving, standing otherwise. */
+    function drawRigPed(p) {
+      const moving = Math.hypot(p.vx || 0, p.vy || 0) > 0.05;
+      drawRigNpc({ rig: p.rig, x: p.x, y: p.y, w: 36, ph: p.ph || 0, rot: p.face || 0 }, g.t || 0, p.anim || 0, moving ? 1 : 0);
+    }
     function drawCamps(view) {
       const t = g.t || 0, pv = g.p;
       const n = campCount();
@@ -26115,6 +26245,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           ctx.globalAlpha = 1;
           if (q.say > 0 && q.line) bubble(q.x, q.y, q.line, SKY_LINES.tint);
         }
+        for (const s of c.stand || []) { ctx.globalAlpha = light(s.x, s.y); drawShadow(s.x, s.y + 2, 9, 4, 0.3); (s.kind === "trader" ? drawTraderNpc(s, t) : s.kind === "rig" ? drawRigNpc(s, t, 0, 0) : drawBreatherNpc(s, t)); ctx.globalAlpha = 1; }
       }
     }
     // LAYER 654: the trash sits in the sewer water: a dark waterline, and a ripple that breathes round its base
@@ -26176,10 +26307,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         /* The channel runs the same animated water as the river, then a heavy dark wash over
            it. Underground it should be the SAME water moving at the same rate -- it is the same
            city -- just with almost no light on it. */
-        ctx.fillStyle = waterPat("#12181a");
+        ctx.fillStyle = waterPat("#1f4a22");   // LAYER 662: the sewer water is green
         if (r.vert) ctx.fillRect(r.c - 34, a0, 68, a1 - a0);
         else ctx.fillRect(a0, r.c - 34, a1 - a0, 68);
-        ctx.fillStyle = "rgba(6,9,11,0.72)";
+        ctx.fillStyle = "rgba(30,86,36,0.86)";
         if (r.vert) ctx.fillRect(r.c - 34, a0, 68, a1 - a0);
         else ctx.fillRect(a0, r.c - 34, a1 - a0, 68);
         const flow = (g.t * 60) % 120;
@@ -26194,6 +26325,17 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         ctx.fillStyle = wpat || "rgba(255,255,255,0.045)";
         if (r.vert) { ctx.fillRect(r.c - TUN_HW, a0, 10, a1 - a0); ctx.fillRect(r.c + TUN_HW - 10, a0, 10, a1 - a0); }
         else { ctx.fillRect(a0, r.c - TUN_HW, a1 - a0, 10); ctx.fillRect(a0, r.c + TUN_HW - 10, a1 - a0, 10); }
+        // LAYER 662: bridges across the green channel, in the sewer's own concrete tile. Only some stretches have one.
+        const brIm = imgs.current["tx_sw_concrete_tile"], brPat = brIm && brIm.width ? ctx.createPattern(brIm, "repeat") : null;
+        const BR = 900, span = TUN_HW - 10;
+        for (let q = Math.floor(a0 / BR) * BR; q < a1; q += BR) {
+          if (Math.abs(Math.sin(q * 0.011 + r.c * 0.053)) < 0.4) continue;
+          ctx.fillStyle = brPat || "rgba(120,110,95,0.9)";
+          if (r.vert) ctx.fillRect(r.c - span, q + 300, span * 2, 56); else ctx.fillRect(q + 300, r.c - span, 56, span * 2);
+          ctx.fillStyle = "rgba(0,0,0,0.35)";
+          if (r.vert) { ctx.fillRect(r.c - span, q + 300, span * 2, 3); ctx.fillRect(r.c - span, q + 353, span * 2, 3); }
+          else { ctx.fillRect(q + 300, r.c - span, 3, span * 2); ctx.fillRect(q + 353, r.c - span, 3, span * 2); }
+        }
       }
       // junction furniture, seeded per junction so a corner is the same corner every time
       for (let i = Math.max(0, i0); i <= Math.min(SEWER_MAX, i1); i++) {
@@ -26261,7 +26403,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function drawCulvert(view) {
       const C = CULVERT, x = C.x, hw = C.hw;
       if (view.x1 < x - hw - 40 || view.x0 > x + hw + 40 || view.y1 < C.y0 || view.y0 > C.y1 + 40) return;
-      const a0 = Math.max(SX(SEWER_MAX) - 4, view.y0 - 200), a1 = Math.min(C.y1, view.y1 + 200);
+      const a0 = Math.max(SX(CITY_N) - 4, view.y0 - 200), a1 = Math.min(C.y1, view.y1 + 200);
       if (a1 > a0) {
         const bim = imgs.current.tx_sw_brick_dark || imgs.current.tx_sw_moss;
         ctx.fillStyle = (bim && bim.width && ctx.createPattern(bim, "repeat")) || "#2e231e";
@@ -26272,8 +26414,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (mim && mim.width) { ctx.save(); ctx.globalAlpha = 0.55; ctx.fillStyle = ctx.createPattern(mim, "repeat");
           for (let q = Math.floor(a0 / 700) * 700; q < a1; q += 700) { const s = Math.abs(Math.sin(q * 0.013)); ctx.fillRect(x - hw, q + 120 * s, hw * 2, 140 + 160 * s); }
           ctx.restore(); }
-        ctx.fillStyle = waterPat("#12181a"); ctx.fillRect(x - 20, a0, 40, a1 - a0);
-        ctx.fillStyle = "rgba(6,9,11,0.7)"; ctx.fillRect(x - 20, a0, 40, a1 - a0);
+        ctx.fillStyle = waterPat("#1f4a22"); ctx.fillRect(x - 20, a0, 40, a1 - a0);
+        ctx.fillStyle = "rgba(30,86,36,0.84)"; ctx.fillRect(x - 20, a0, 40, a1 - a0);
         const flow = (g.t * 40) % 100;                      // it drains NORTH, toward the city
         ctx.fillStyle = "rgba(120,150,140,0.07)";
         for (let q = Math.floor(a0 / 100) * 100; q < a1; q += 100) ctx.fillRect(x - 16, q - flow, 32, 16);
@@ -61083,16 +61225,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       data-act={label}
       onContextMenu={(e) => e.preventDefault()}
       onPointerDown={(e) => { e.preventDefault(); onDown && onDown(); }}
-      onPointerUp={(e) => { e.preventDefault(); onUp && onUp(); }}
+      onPointerUp={(e) => { e.preventDefault(); if (typeof onUp === "function") onUp(); }}
       /* CANCEL AND LEAVE RELEASE IT TOO. pointerup is not the only way a press ends: slide the
          thumb off the button and you get pointerleave, and the browser fires pointercancel on
          its own whenever it decides the gesture belongs to it -- a scroll, a notification, the
          Safari toolbar. Neither was bound, so onUp never ran and the flag stayed set. On GAS
          that is a car accelerating with nothing pressed; the joystick already binds cancel,
          which is why it was only ever the buttons that stuck. */
-      onPointerCancel={(e) => { e.preventDefault(); onUp && onUp(); }}
-      onPointerLeave={(e) => { onUp && onUp(); }}
-      onPointerLeave={() => onUp && onUp()}
+      onPointerCancel={(e) => { e.preventDefault(); if (typeof onUp === "function") onUp(); }}
+      onPointerLeave={() => { if (typeof onUp === "function") onUp(); }}   /* LAYER 666: one handler; a non-function here used to throw */
       style={{
         width: size || 68, height: size || 68, borderRadius: "50%", display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center", userSelect: "none", touchAction: "none",
