@@ -2821,7 +2821,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 666";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 674";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -3985,7 +3985,14 @@ const HEAD_ICON = { shank: "wi_bayonet", razor: "wi_razor", pencil: "wi_pencil",
   beretta: "wi_pistol", revolver: "wi_revolver", shotgun: "wi_shotgun", bat: "wi_bat", knuckles: "wi_knuckles", tireiron: "wi_tireiron", bottle: "wi_bottle" };
 for (const k of ["wi_bat", "wi_bayonet", "wi_bottle", "wi_knuckles", "wi_pencil", "wi_pistol", "wi_razor", "wi_revolver", "wi_shotgun", "wi_tireiron", "wi_zipgun"])
   PD_ART[k] = "assets/ui/" + k + ".png";
-PD_ART.wi_empty = "assets/ui/wi_empty.png";   // HOLSTER / BARE HANDS on the weapon wheel -- the one slot with no weapon key to look an icon up by
+PD_ART.wi_empty = "assets/ui/wi_empty.png";
+// LAYER 674: art in assets/runner: the weapon icon cells (rw_) and the backpacks' photos used as icons (pk_). The top-down in-hand sprites are not used.
+const RUNNER_ICON = { laser: 'i1_laser_pistol', laser_rifle: 'i2_laser_rifle', wave_gun: 'i3_wave_gun', arc_gauntlet: 'i4_arc_gauntlet', thermal_lance: 'i5_thermal_lance',
+  sound_gun: 'i6_sound_gun', stun_baton: 'i7_stun_baton', electro_net: 'i8_electro_net_launcher', pepper_fog: 'i9_pepper_fog_canister', foam_gun: 'i10_foam_gun' };
+for (const k of Object.keys(RUNNER_ICON)) PD_ART['rw_' + k] = 'assets/runner/weapons/icons/' + RUNNER_ICON[k] + '.png';
+const PACK_ICON = { daypack: 'bp_front_1', rucksack: 'bp_front_2', expedition: 'bp_front_3' };
+for (const k of Object.keys(PACK_ICON)) PD_ART['pk_' + k] = 'assets/runner/backpacks/icons_front/' + PACK_ICON[k] + '.png';
+PD_ART.wi_laser = "assets/runner/weapons/icons/i1_laser_pistol.png";   // LAYER 670: the laser pistol's wheel icon   // HOLSTER / BARE HANDS on the weapon wheel -- the one slot with no weapon key to look an icon up by
 // the ACTION WHEEL's own fixed slots (layer 520 wheel; these were text-only before this session) -- DRIVER already
 // gets a face, everything else on it (TALK, RADIO, HYDRO, the hero powers...) comes from live context and has no
 // single icon to give it, so just these five, always the same meaning wherever they turn up on the wheel.
@@ -14913,6 +14920,7 @@ const RUNNER_API = (function () {
     walker.x = x; walker.y = y;
     const sp = Math.hypot(vx || 0, vy || 0);
     if (sp > 5) { walker.heading = Math.atan2(vy, vx); walker.step = (walker.step || 0) + dt * 11; }
+    walker.amp = (walker.amp || 0) + ((sp > 5 ? 1 : 0) - (walker.amp || 0)) * Math.min(1, dt * 8);   // LAYER 667: how much he is walking, 0 to 1
     ctx = canvas.getContext('2d');
     const dpr = canvas.width / W;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -15103,18 +15111,34 @@ const RUNNER_API = (function () {
     car.x = sp.x; car.y = sp.y; car.z = AIR_Z; car.mode = 'down'; car.speed = 0; car.lean = 0; car.heading = -Math.PI / 2;
     say('YOUR BIKE IS COMING DOWN BESIDE YOU');
   }
+  // LAYER 668: where he steps off the landed bike. It is beside the bike, and on the roof when the bike is on the roof. The old spot
+  // (70 px east) could fall past the roof's edge, and keepOut then pushed him to the front wall, hundreds of px away.
+  let dismountAt = null;
+  function dismountSpot() {
+    const r = canRect(), m = 24;
+    const onRoof = car.x >= r.fx0 && car.x <= r.fx1 && car.y >= r.fy0 && car.y <= r.fy1;
+    if (onRoof) canRoof = true;
+    const inside = (x, y) => !onRoof || (x >= r.fx0 + m && x <= r.fx1 - m && y >= r.fy0 + m && y <= r.fy1 - m);
+    for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2, Math.PI / 4, 3 * Math.PI / 4, -3 * Math.PI / 4, -Math.PI / 4]) {
+      const x = car.x + Math.cos(a) * 70, y = car.y + Math.sin(a) * 70;
+      if (inside(x, y)) return { x, y };
+    }
+    return { x: car.x, y: car.y };
+  }
   function exitOrBoard() {
+    const packSpot = packStashNear(); if (packSpot) { packPickup(packSpot); return; }   // LAYER 673: E by a pack stash
+    if (stashNear()) { pickLaser(); return; }   // LAYER 670: E by the stash picks up the laser pistol
     if (walker.on) {
       // LAYER 635: reach is wider -- the bike is a small thing on a phone screen
       const dd = Math.hypot(walker.x - car.x, walker.y - car.y);
       if (dd < 200 && car.mode !== 'landed') say('WAIT. THE BIKE IS STILL COMING DOWN');
-      else if (dd < 200) { walker.on = false; say('ON THE BIKE · L TO LIFT OFF · E TO GET OFF WHEN LANDED'); }
+      else if (dd < 200) { walker.on = false; dismountAt = null; say('ON THE BIKE · L TO LIFT OFF · E TO GET OFF WHEN LANDED'); }
       else if (car.mode === 'landed') callBike();      // LAYER 639: too far to get on -- the bike comes down to you
       else say('THE BIKE IS IN THE AIR. L TO LAND IT');
       return;
     }
     if (car.mode !== 'landed') return say('LAND FIRST · L');
-    walker.on = true; walker.x = car.x + 70; walker.y = car.y; walker.heading = 0;
+    const dm = dismountSpot(); walker.on = true; dismountAt = dm; walker.heading = 0;   // LAYER 668: keepOut places him there (the body is g.p, and figureAt copies it into walker every frame)
     say('ON FOOT · E NEAR THE VEHICLE TO GET BACK IN');
   }
 
@@ -15429,6 +15453,26 @@ const RUNNER_API = (function () {
     ctx.strokeStyle = '#111'; ctx.lineWidth = 1.4 * s; ctx.beginPath(); ctx.moveTo(cx + 2 * s, cy + 3 * s); ctx.quadraticCurveTo(cx + 8 * s, cy + 7 * s, cx + 6 * s, cy + 12 * s); ctx.stroke();
     ctx.restore();
   }
+  /* LAYER 667: the big body (833 by 746 art) is drawn as four pieces: the body above the hips, two legs below them and two arms
+     outside the body. Each piece is the same recoloured picture, clipped to its rectangle, and moved about its pivot. The rectangles
+     cover the whole picture with no overlap, so at rest it is the picture as it was. Legs stride by scaling in y about the hip; arms
+     swing by a little scale about the shoulder, the same as the rig people. ph runs -1 to 1 while he walks. */
+  function drawBigCut(bs, x, y, bw, bh, ph) {
+    const AW = bs.width, AH = bs.height, s = bw / AW, X0 = x - bw / 2, Y0 = y - bh / 2, M = 60;   // M: art px of margin, so a stretched piece is not cut at its old edge
+    const HIP_Y = 430, SH_Y = 200, MID = 416, LX = 182, RX = 650;   // art px: hips, shoulders, the crotch, and the arm edges
+    const px_ = (v) => Math.round(X0 + v * s), py_ = (v) => Math.round(Y0 + v * s);
+    const piece = (x0, x1, y0, y1, pvx, pvy, k) => {
+      ctx.save(); ctx.beginPath(); ctx.rect(px_(x0), py_(y0), px_(x1) - px_(x0), py_(y1) - py_(y0)); ctx.clip();
+      const qx = X0 + pvx * s, qy = Y0 + pvy * s;
+      ctx.translate(qx, qy); ctx.scale(1, k); ctx.translate(-qx, -qy);
+      ctx.drawImage(bs, X0, Y0, bw, bh); ctx.restore();
+    };
+    piece(-M, LX, -M, AH + M, 125, SH_Y, 1 - 0.14 * ph);            // left arm
+    piece(RX, AW + M, -M, AH + M, 708, SH_Y, 1 + 0.14 * ph);        // right arm
+    piece(LX, MID, HIP_Y, AH + M, 318, HIP_Y, 1 + 0.35 * ph);       // left leg
+    piece(MID, RX, HIP_Y, AH + M, 515, HIP_Y, 1 - 0.35 * ph);       // right leg
+    piece(LX, RX, -M, HIP_Y, 0, 0, 1);                              // body, above the hips
+  }
   function drawWalker(x, y) {
     const bk = RUNNER_LOOK.bodyK || 1;
     // LAYER 628: top-down. The whole figure turns to the way he walks; its front is the bottom edge of the art,
@@ -15440,8 +15484,8 @@ const RUNNER_API = (function () {
     // LAYER 660: the big body has its legs in the art; the cop's legs are cut and drawn from pieces, so both skip the code legs
     const copLegs = bs && bodyKey() === 'body_cop_gas' && img.cop_leg_L && img.cop_leg_R ? { L: img.cop_leg_L, R: img.cop_leg_R } : null;
     const baked = RUNNER_LOOK.body === 'big' || !!copLegs;
-    const bw = 70 * bk, bh = bs ? bw * (bs.height / bs.width) : 56 * bk;   // LAYER 643: about the length of the bike, so he reads on a phone or a TV
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 6, y + 10, 16, 9, 0, 0, Math.PI * 2); ctx.fill();
+    const bw = 40 * bk, bh = bs ? bw * (bs.height / bs.width) : 56 * bk;   // LAYER 667: 40 wide, the street people are 36 and the bike is 62 long (was 70)
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 0.09 * bw, y + 0.14 * bw, 0.23 * bw, 0.13 * bw, 0, 0, Math.PI * 2); ctx.fill();
     // LAYER 598 / 606: little boots on navy trousers. The legs come off the hip, and each leg is as wide as its part of the hip.
     const st = walker.on && walker.step ? Math.sin(walker.step) * 2.5 : 0;
     const hp = HIP_BY_BODY[RUNNER_LOOK.body] || HIP_BY_BODY.average;
@@ -15470,7 +15514,9 @@ const RUNNER_API = (function () {
       });
     }
     // the body: the Lion's jacket in the suit colour, or the old disc if the art is not there yet
-    if (bs) ctx.drawImage(bs, x - bw / 2, y - bh / 2, bw, bh);
+    if (bs && RUNNER_LOOK.body === 'big') drawBigCut(bs, x, y, bw, bh, walker.on ? (walker.amp || 0) * Math.sin(walker.step || 0) : 0);   // LAYER 667
+    else if (bs) ctx.drawImage(bs, x - bw / 2, y - bh / 2, bw, bh);
+    drawPackBack(x, y, bw, bh);   // LAYER 671: the pack is on the back, under the arms and the head
     const arms = BODY_ARMS[RUNNER_LOOK.body];
     // LAYER 603: holding a weapon, the hands come down (HAND_DOWN of the body height) and the weapon sits in the right hand
     const holding = !!held, dropPx = holding ? HAND_DOWN * 159 : 0;
@@ -15495,7 +15541,7 @@ const RUNNER_API = (function () {
     const hd = bs && bodyKey() && bodyKey().startsWith('body_cop_') ? null : headSprite(RUNNER_LOOK.head);   // LAYER 657: the cops' heads are in their art
     if (hd) { const hk = HEAD_SCALE[RUNNER_LOOK.head] || 1, hw = (HEAD_WF[RUNNER_LOOK.body] || 0.36) * bw * hk, hh = hd.height * (hw / hd.width); const cyF = HEAD_CY[RUNNER_LOOK.body];
       const hy = cyF != null ? y - bh / 2 + cyF * bh - hh / 2 : y - bh / 2 + 0.02 * bh - (hk - 1) * 0.06 * bh + (HEAD_DROP[RUNNER_LOOK.body] || 0) * bh;
-      ctx.drawImage(hd, x - hw / 2, hy, hw, hh); if (mask) drawRunnerMask(x, hy + hh * 0.62, hw / 25); }
+      ctx.drawImage(hd, x - hw / 2, hy, hw, hh); if (mask) drawRunnerMask(x, hy + hh * 0.62, hw / 25); drawCollarDot(x, hy + hh * 0.86, hw); }
     ctx.restore();
   }
 
@@ -15576,14 +15622,19 @@ const RUNNER_API = (function () {
     if (!logOpen) {
       ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x0, y0, 288, 24);
       ctx.fillStyle = '#e8d9b5'; ctx.font = '12px monospace'; ctx.fillText('SCAN LOG (L3)', x0 + 10, y0 + 16);
+      drawShockIcon(x0 + 262, y0 + 12, 0.62);   // LAYER 670: the collar, on the closed log too
       ctx.restore(); return;
     }
-    const h = 48 + Math.max(1, scanLog.length) * 40;
+    const h = 92 + Math.max(1, scanLog.length) * 40;
     ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(x0, y0, 288, h);
     ctx.fillStyle = '#e8d9b5'; ctx.font = 'bold 13px monospace'; ctx.fillText('SCAN LOG (L3 TO CLOSE)', x0 + 10, y0 + 20);
-    if (!scanLog.length) { ctx.font = '12px monospace'; ctx.fillText('NOTHING SCANNED YET', x0 + 10, y0 + 50); }
+    // LAYER 670: the collar. Its light blinks faster the closer the nearest hunter is.
+    drawShockIcon(x0 + 26, y0 + 56, 1.1);
+    ctx.fillStyle = '#6ef0ff'; ctx.font = 'bold 12px monospace'; ctx.fillText('COLLAR ON', x0 + 52, y0 + 50);
+    ctx.fillStyle = collarNear < 700 ? '#ff8a8a' : '#9fffc0'; ctx.font = '11px monospace'; ctx.fillText(collarWord(), x0 + 52, y0 + 68);
+    if (!scanLog.length) { ctx.fillStyle = '#e8d9b5'; ctx.font = '12px monospace'; ctx.fillText('NOTHING SCANNED YET', x0 + 10, y0 + 100); }
     scanLog.forEach((e, i) => {
-      const ry = y0 + 36 + i * 40;
+      const ry = y0 + 84 + i * 40;
       const hs = headSprite(e.head);
       if (hs && hs.width) { const hw = 32, hh = hs.height * (hw / hs.width); ctx.drawImage(hs, x0 + 8, ry, hw, hh); }
       ctx.font = 'bold 12px monospace';
@@ -16276,18 +16327,343 @@ const RUNNER_API = (function () {
   }
   function keepOut(p) {
     if (!p || !Number.isFinite(p.x)) return;
-    if (!walker.on && !lobby) { p.x = car.x; p.y = car.y; p.vx = 0; p.vy = 0; return; }   // LAYER 638: on the bike, the body goes where the bike goes
+    // LAYER 638: on the bike, the body goes where the bike goes. LAYER 668: and the roof flag follows the bike, so a bike that is
+    // off the roof never leaves the flag set (the old stale flag sent him to the roof's north edge, 600 px away).
+    if (!walker.on && !lobby) { p.x = car.x; p.y = car.y; p.vx = 0; p.vy = 0; canRoof = onCanRoof(car.x, car.y); return; }
+    // LAYER 668: the spot he steps off to (set by exitOrBoard)
+    if (dismountAt) { p.x = dismountAt.x; p.y = dismountAt.y; p.vx = 0; p.vy = 0; dismountAt = null; }
     const r = canRect(), m = 24;                          // m: the walker's half width
     const onTop = p.x >= r.fx0 && p.x <= r.fx1 && p.y >= r.fy0 && p.y <= r.fy1;
     if (canRoof) {
       if (onTop) return;
       canRoof = false; p.vx = 0; p.vy = 0;                // over the edge: down to the street
-      say('OFF THE ROOF. DOWN TO THE STREET.', 2.5);
-      pushOut(p, r, m);
+      // LAYER 668: only a step off the roof's own edge is pushed. pushOut assumes the point is inside the rect,
+      // so a point far outside it would be snapped to the nearest wall; such a point stays where it is.
+      if (p.x > r.fx0 - m && p.x < r.fx1 + m && p.y > r.fy0 - m && p.y < r.gy1 + m) {
+        say('OFF THE ROOF. DOWN TO THE STREET.', 2.5);
+        pushOut(p, r, m);
+      }
       return;
     }
     if (!(p.x > r.fx0 - m && p.x < r.fx1 + m && p.y > r.fy0 - m && p.y < r.gy1 + m)) return;
     pushOut(p, r, m); p.vx = 0; p.vy = 0;
+  }
+  // ---------- LAYER 670: the rebuilt hunters, the hospital alert, the collar light, the first mission (the laser pistol), the beams, the street noise ----------
+  // HUNTERS: the rebuilt top-down art (assets/runner/hunters), keyed the same way as the runner's own art. Each hunter is one of nine.
+  const HUNT = { n: 3, ring: 1400, spd: 120, near: 200, far: 1000, stun: 5, dyingT: 0.8 };   // ring: spawn distance; far: bar empty; near: bar full; stun: seconds
+  const HUNT_ART = ['v9_dana', 'v9_gus', 'v9_hollis', 'v9_lockjaw', 'v9_ruth', 'v9_silk', 'v9_sully', 'v9_vince', 'v10b_hollis'];
+  const huntImg = {};
+  function huntArt(name) {
+    if (huntImg[name] !== undefined) return huntImg[name];
+    huntImg[name] = null;
+    const i = new Image();
+    i.onload = () => { huntImg[name] = unfringe(i, false); };
+    i.src = A('hunters/' + name + '.png');
+    return null;
+  }
+  let alertOn = false, alertLvl = 0, hunters = [], huntLast = 0, collarNear = Infinity;
+  function hunterReset() { alertOn = false; alertLvl = 0; hunters = []; }
+  // (tx, ty): where the runner is for the hunters (his place outdoors, the door of the building he is in). inHosp: he is in the hospital.
+  function hunterTick(tx, ty, inHosp) {
+    const now = performance.now(), dt = Math.min(0.05, (now - (huntLast || now)) / 1000); huntLast = now;
+    if (inHosp && !alertOn) {
+      alertOn = true; hunters = [];
+      for (let k = 0; k < HUNT.n; k++) {
+        const a = (k / HUNT.n) * Math.PI * 2 + rnd(-0.4, 0.4);
+        hunters.push({ x: tx + Math.cos(a) * HUNT.ring, y: ty + Math.sin(a) * HUNT.ring, art: HUNT_ART[(Math.random() * HUNT_ART.length) | 0], hd: 0, stunT: 0, dead: false, dying: 0, ph: Math.random() * 6 });
+      }
+      say('THE HUNTERS KNOW WHERE YOU ARE. GET FAR ENOUGH AWAY FOR THE BAR TO EMPTY.', 5);
+    }
+    if (!alertOn) return;
+    let dmin = Infinity;
+    for (const h of hunters) {
+      if (h.dead) { h.dying -= dt; continue; }
+      h.ph += dt * 8;
+      if (h.stunT > 0) h.stunT -= dt;
+      else {
+        const dx = tx - h.x, dy = ty - h.y, d = Math.hypot(dx, dy);
+        const step = Math.min(Math.max(0, d - HUNT.near * 0.9), HUNT.spd * dt);
+        if (d > 0.001 && step > 0) { h.x += dx / d * step; h.y += dy / d * step; h.hd = Math.atan2(dy, dx); }
+      }
+      dmin = Math.min(dmin, Math.hypot(tx - h.x, ty - h.y));
+    }
+    hunters = hunters.filter((h) => !(h.dead && h.dying <= 0));
+    alertLvl = clamp((HUNT.far - dmin) / (HUNT.far - HUNT.near), 0, 1);
+    if (!inHosp && alertLvl <= 0) { alertOn = false; hunters = []; say('THE HUNTERS HAVE LOST YOUR TRAIL.', 4); }
+  }
+  function drawHunter(c, h) {
+    const im = huntArt(h.art), k = h.dead ? Math.max(0, h.dying / HUNT.dyingT) : 1;
+    const hw = 46, bob = h.stunT > 0 ? 0 : Math.sin(h.ph) * 0.8;
+    c.save(); c.globalAlpha = k; c.translate(h.x, h.y + bob); c.rotate((h.hd || 0) - Math.PI / 2);   // the art's front is its bottom edge, as the runner's
+    if (im && im.width) { const hh = hw * (im.height / im.width); c.drawImage(im, -hw / 2, -hh / 2, hw, hh); }
+    else { c.fillStyle = '#1a1020'; c.beginPath(); c.arc(0, 0, 13, 0, Math.PI * 2); c.fill(); }   // only while the art is still loading
+    c.restore();
+    if (h.stunT > 0 && !h.dead) {   // stunned: a blue ring that flickers
+      c.save(); c.strokeStyle = 'rgba(79,195,255,' + (0.5 + 0.4 * Math.sin(h.ph * 2)) + ')'; c.lineWidth = 2.5;
+      c.beginPath(); c.ellipse(h.x, h.y, 30, 22, 0, 0, Math.PI * 2); c.stroke(); c.restore();
+    }
+  }
+  function drawBeam(c, b, now) {
+    const life = Math.max(0, (b.until - now) / 180), col = b.kill ? '255,48,48' : '79,195,255';   // red kills, blue stuns
+    c.save(); c.lineCap = 'round';
+    c.strokeStyle = 'rgba(' + col + ',' + (0.35 * life) + ')'; c.lineWidth = 9; c.beginPath(); c.moveTo(b.x0, b.y0); c.lineTo(b.x1, b.y1); c.stroke();
+    c.strokeStyle = 'rgba(' + col + ',' + life + ')'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(b.x0, b.y0); c.lineTo(b.x1, b.y1); c.stroke();
+    c.fillStyle = 'rgba(' + col + ',' + life + ')'; c.beginPath(); c.arc(b.x0, b.y0, 5 * life + 1, 0, Math.PI * 2); c.fill();
+    c.restore();
+  }
+  // the alert bar (bottom left, above the joystick), the mission line above it, the stash, the hunters and the beams
+  function worldHud(canvas, cam, outdoors) {
+    if (!canvas) return;
+    if (MISSION.stage === 'none' && CAN_LOT_RECT) missionStart();
+    if (!packsPlaced && CAN_LOT_RECT) packStashStart();
+    collarNear = Infinity;
+    for (const h of hunters) if (!h.dead) collarNear = Math.min(collarNear, Math.hypot(h.x - walker.x, h.y - walker.y));
+    const c = canvas.getContext('2d'), dpr = canvas.width / W, now = performance.now();
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (outdoors && cam) {
+      c.save(); c.translate(W / 2, H / 2); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y);
+      if (MISSION.stage === 'pistol') {
+        const sa = alleyArt();
+        if (sa) c.drawImage(sa, MISSION.x - 32, MISSION.y - 24, 64, 48); else { c.fillStyle = '#2e5a3a'; c.fillRect(MISSION.x - 32, MISSION.y - 24, 64, 48); }
+        const pulse = 0.5 + 0.5 * Math.sin(now / 260);
+        c.strokeStyle = 'rgba(110,240,255,' + (0.35 + 0.5 * pulse) + ')'; c.lineWidth = 2.5;
+        c.beginPath(); c.arc(MISSION.x, MISSION.y, 40 + 4 * pulse, 0, Math.PI * 2); c.stroke();
+      }
+      for (const s of PACK_STASH) if (!s.got) {   // LAYER 673: the pack stashes, the same dumpster, ringed in the pack's team colour
+        const sa = alleyArt();
+        if (sa) c.drawImage(sa, s.x - 32, s.y - 24, 64, 48); else { c.fillStyle = '#2e5a3a'; c.fillRect(s.x - 32, s.y - 24, 64, 48); }
+        c.strokeStyle = PACK_KIND[s.kind].line; c.lineWidth = 2.5; c.globalAlpha = 0.45 + 0.35 * (0.5 + 0.5 * Math.sin(now / 260));
+        c.beginPath(); c.arc(s.x, s.y, 40, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
+      }
+      for (const h of hunters) drawHunter(c, h);
+      LASER.beams = LASER.beams.filter((b) => b.until > now);
+      for (const b of LASER.beams) drawBeam(c, b, now);
+      c.restore();
+    }
+    if (MISSION.stage === 'pistol') {
+      c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(6, H - 296, 218, 26);
+      c.fillStyle = '#6ef0ff'; c.font = 'bold 11px monospace'; c.textAlign = 'left'; c.fillText('FIRST MISSION: GET YOUR PISTOL', 14, H - 279);
+    }
+    if (!alertOn) return;
+    const bw = 180, bx = 14, by = H - 214;   // bottom left, above the joystick: the top of the screen is full of the objectives and the HUD
+    c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(bx - 8, by - 22, bw + 16, 40);
+    c.fillStyle = '#ff6b6b'; c.font = 'bold 11px monospace'; c.textAlign = 'left'; c.fillText('HUNTERS KNOW WHERE YOU ARE', bx, by - 6);
+    c.fillStyle = '#2a2a2a'; c.fillRect(bx, by, bw, 10);
+    c.fillStyle = alertLvl > 0.66 ? '#ff3a3a' : '#ffb13a'; c.fillRect(bx, by, bw * alertLvl, 10);
+    c.strokeStyle = '#ffffff'; c.lineWidth = 1; c.strokeRect(bx, by, bw, 10);
+  }
+  // the first mission: a laser pistol is stashed under a dumpster on the street, by the C.A.N. lot
+  let alleyImgCache;
+  function alleyArt() {
+    if (alleyImgCache !== undefined) return alleyImgCache;
+    alleyImgCache = null;
+    const i = new Image(); i.onload = () => { alleyImgCache = i; }; i.src = 'assets/alley/al_dumpster.png';
+    return null;
+  }
+  const MISSION = { stage: 'none', x: 0, y: 0 };   // stage: none, pistol (the stash is out), done
+  function missionStart() {
+    const L = canRect().lot, x0 = L[2] + 260, y0 = L[3] - 120;
+    const sp = clearSpot(x0, y0, null) || { x: x0, y: y0 };
+    MISSION.stage = 'pistol'; MISSION.x = sp.x; MISSION.y = sp.y;
+    HUNT_ART.forEach(huntArt);
+    say('FIRST MISSION: GET YOUR PISTOL. IT IS STASHED UNDER A DUMPSTER. E TO PICK IT UP.', 6);
+  }
+  function stashNear() { return MISSION.stage === 'pistol' && walker.on && Math.hypot(walker.x - MISSION.x, walker.y - MISSION.y) < 90; }
+  // THE LASER PISTOL: stuck on STUN until a mission fixes it. F (or STR) fires it.
+  const LASER = { has: false, mode: 'stun', locked: true, lastFire: 0, beams: [] };
+  const LASER_RANGE = 360;
+  function pickLaser() {
+    LASER.has = true; LASER.mode = 'stun'; LASER.locked = true; MISSION.stage = 'done';
+    say('GOT THE LASER PISTOL. IT IS STUCK ON STUN. F TO FIRE.', 5);
+  }
+  // the laser's shot sound (LAYER 671): one short clip; each shot plays its own copy so shots can overlap
+  let laserSfx = null;
+  function playLaserShot() {
+    try {
+      if (!laserSfx) { laserSfx = new Audio('assets/audio/laser_shot.wav'); laserSfx.preload = 'auto'; }
+      const a = laserSfx.cloneNode(); a.volume = 0.6;
+      const pr = a.play(); if (pr && pr.catch) pr.catch(() => {});
+    } catch (e) { /* no sound here */ }
+  }
+  // returns true when the shot was taken (or is still cooling down), so the caller does not fall through to fists
+  function fire() {
+    if (!LASER.has || !RUN_ON || !walker.on || lobby) return false;
+    const now = performance.now();
+    if (now - LASER.lastFire < 450) return true;
+    LASER.lastFire = now;
+    playLaserShot();
+    const dx = Math.cos(walker.heading || 0), dy = Math.sin(walker.heading || 0);
+    const ox = walker.x + dx * 18, oy = walker.y + dy * 18, kill = LASER.mode === 'kill';
+    let ex = ox + dx * LASER_RANGE, ey = oy + dy * LASER_RANGE, hit = null, bt = LASER_RANGE;
+    for (const h of hunters) {
+      if (h.dead) continue;
+      const rx = h.x - ox, ry = h.y - oy, t = rx * dx + ry * dy;
+      if (t < 0 || t > bt) continue;
+      if (Math.abs(rx * dy - ry * dx) < 22) { hit = h; bt = t; }
+    }
+    if (hit) {
+      ex = ox + dx * bt; ey = oy + dy * bt;
+      if (kill) { hit.dead = true; hit.dying = HUNT.dyingT; puff(hit.x, hit.y, 'medium'); say('HUNTER DOWN.', 2); }
+      else { hit.stunT = HUNT.stun; say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); }
+    }
+    LASER.beams.push({ x0: ox, y0: oy, x1: ex, y1: ey, kill, until: now + 180 });
+    return true;
+  }
+  // the weapon wheel's items for the runner: the pistol, and its mode button (locked on stun for now)
+  function laserItems() {
+    if (!LASER.has) return [];
+    const mode = LASER.mode.toUpperCase();
+    return [
+      { label: 'LASER PISTOL', sub: mode + (LASER.locked ? ' · LOCKED' : ''), icon: PD_ART.wi_laser, id: 'laser:draw' },
+      { label: 'MODE: ' + mode, sub: LASER.locked ? 'LOCKED ON STUN · FIX IT ON A MISSION' : 'TAP TO SWITCH STUN / KILL', icon: null, id: 'laser:mode' },
+    ];
+  }
+  function laserPick(k) {
+    if (k === 'draw') say('LASER PISTOL IN HAND. F TO FIRE.', 3);
+    else if (k === 'mode') {
+      if (LASER.locked) say('LOCKED ON STUN. GET IT FIXED ON A MISSION.', 4);
+      else { LASER.mode = LASER.mode === 'stun' ? 'kill' : 'stun'; say('MODE: ' + LASER.mode.toUpperCase(), 3); }
+    }
+  }
+  // THE SHOCK COLLAR: a translucent red light on the neck. It blinks, faster the closer the nearest hunter is.
+  function collarHz() { return 0.7 + 7 * clamp((1100 - collarNear) / 1100, 0, 1); }
+  function collarWord() { return collarNear < 300 ? 'HUNTER CLOSE' : collarNear < 700 ? 'HUNTER NEAR' : 'NO HUNTER NEAR'; }
+  function drawCollarDot(x, y, hw) {
+    const t = performance.now() / 1000, pulse = Math.pow(0.5 + 0.5 * Math.sin(t * collarHz() * Math.PI * 2), 3);   // sharp on, soft off
+    const r = Math.max(3, hw * 0.12);
+    ctx.save();
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, r * 2.4);
+    gr.addColorStop(0, 'rgba(255,40,40,' + (0.15 + 0.45 * pulse) + ')'); gr.addColorStop(1, 'rgba(255,40,40,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, r * 2.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,70,70,' + (0.35 + 0.6 * pulse) + ')'; ctx.beginPath(); ctx.arc(x, y, Math.max(1, hw * 0.035), 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  // THE STREET: the city noise loops under the music, outdoors in Runner Mode
+  const AMB_VOL = 0.3;   // under the music. Change here to turn it up or down.
+  let ambAud = null;
+  function ambienceTick(on) {
+    if (!ambAud) { try { ambAud = new Audio('assets/audio/city_noise.mp3'); ambAud.loop = true; ambAud.volume = AMB_VOL; ambAud.preload = 'auto'; } catch (e) { ambAud = false; } }
+    if (!ambAud) return;
+    if (on) { if (ambAud.paused) ambAud.play().catch(() => {}); } else if (!ambAud.paused) ambAud.pause();
+  }
+  // LAYER 674: street chatter, one short clip at a random gap outdoors (CHATTER_VOL and CHATTER_GAP, in seconds, set how often and how loud)
+  const CHATTER_VOL = 0.25, CHATTER_GAP = [6, 14];
+  let chatterNext = 0, chatterAud = null;
+  function chatterTick(on) {
+    if (!on) return;
+    const t = performance.now() / 1000;
+    if (!chatterNext) chatterNext = t + rnd(CHATTER_GAP[0], CHATTER_GAP[1]);
+    if (t < chatterNext) return;
+    chatterNext = t + rnd(CHATTER_GAP[0], CHATTER_GAP[1]);
+    try {
+      if (!chatterAud) { chatterAud = new Audio('assets/audio/street_chatter.mp3'); chatterAud.preload = 'auto'; }
+      const a = chatterAud.cloneNode(); a.volume = CHATTER_VOL;
+      const pr = a.play(); if (pr && pr.catch) pr.catch(() => {});
+    } catch (e) { /* no sound here */ }
+  }
+  // a downed runner wakes in the ward, on foot. The bike keeps the place he left it (it comes down if it was in the air).
+  function wake(msg) {
+    walker.on = true; dismountAt = null; canRoof = false; lobby = false; lobbyBike = null;
+    if (car.mode !== 'landed') car.mode = 'down';
+    car.speed = 0; car.lean = 0;
+    say(msg, 5);
+  }
+  // the hover sounds (placeholders). Attachment 1 = hover bike, 2 = hover trucks, 3 = average hover cars, 4 = sports hover cars.
+  // Each class is one loop. Its loudness is the nearest moving vehicle of that class, falling off with distance from the runner.
+  const HOVER_SND = { bike: 'assets/audio/hover_bike.wav', truck: 'assets/audio/hover_truck.wav', car: 'assets/audio/hover_car.wav', sports: 'assets/audio/hover_sports.wav' };
+  const HOVER_CLASS = { cars_b714ecba_1: 'sports', cars_87f02ce2_1: 'sports', cars_6093fd94_1: 'truck',
+    cars_6775c1f3_1: 'truck', cars_8e80b993_1: 'truck', cars_43a7a337_1: 'bike' };   // the rest (sedans, taxi, the news jeep, camera car) are average cars
+  const hoverAud = {};
+  function hoverSoundTick(outdoors) {
+    ambienceTick(RUN_ON && outdoors);
+    chatterTick(RUN_ON && outdoors);
+    if (!RUN_ON || !outdoors) { for (const k in hoverAud) if (hoverAud[k] && !hoverAud[k].paused) hoverAud[k].pause(); return; }
+    const lx = walker.x, ly = walker.y, FALL = 1400;
+    const loud = (x, y) => Math.max(0, 1 - Math.hypot(x - lx, y - ly) / FALL);
+    const want = { bike: 0, truck: 0, car: 0, sports: 0 };
+    if (car.mode !== 'landed' || Math.abs(car.speed) > 10) want.bike = Math.max(want.bike, 0.5 * loud(car.x, car.y));
+    for (const f of fliers) {
+      if (f.mode === 'rest') continue;
+      const k = HOVER_CLASS[String(f.sprite).replace(/^car_/, '')] || 'car';
+      want[k] = Math.max(want[k], 0.35 * loud(f.x, f.y));
+    }
+    for (const k of Object.keys(HOVER_SND)) {
+      if (!hoverAud[k]) { try { const a = new Audio(HOVER_SND[k]); a.loop = true; a.preload = 'auto'; hoverAud[k] = a; } catch (e) { hoverAud[k] = null; } }
+      const a = hoverAud[k]; if (!a) continue;
+      if (want[k] > 0.01) { a.volume = Math.min(1, want[k]); if (a.paused) a.play().catch(() => {}); }
+      else if (!a.paused) a.pause();
+    }
+  }
+  // THE PACKS (LAYER 673). Three styles, each found in a dumpster stash around the C.A.N. lot; none on him at the start.
+  // The bag stays black. Its outline, flap and straps take the pack's team colour (placeholders: red, yellow, blue).
+  // Each style has its own shape: the daypack is small, the rucksack has a bedroll, the expedition pack has frame bars and a pot.
+  const PACK_KIND = {
+    daypack: { name: 'DAYPACK', line: '#d6453d' },
+    rucksack: { name: 'RUCKSACK', line: '#e8c46a' },
+    expedition: { name: 'EXPEDITION PACK', line: '#3d7ee8' },
+  };
+  let packOn = null;          // the style he is wearing, or null
+  let packsPlaced = false;
+  const PACK_STASH = [];      // { kind, x, y, got }
+  function packStashStart() {
+    packsPlaced = true;
+    const L = canRect().lot, mx = (L[0] + L[2]) / 2;
+    const spots = [['daypack', L[0] - 260, L[3] - 120], ['rucksack', mx, L[1] - 260], ['expedition', mx, L[3] + 260]];
+    for (const [kind, x, y] of spots) { const sp = clearSpot(x, y, null) || { x, y }; PACK_STASH.push({ kind, x: sp.x, y: sp.y, got: false }); }
+  }
+  function packStashNear() {
+    if (!walker.on) return null;
+    return PACK_STASH.find((s) => !s.got && Math.hypot(walker.x - s.x, walker.y - s.y) < 90) || null;
+  }
+  function packPickup(s) {
+    s.got = true; packOn = s.kind;
+    say('FOUND A ' + PACK_KIND[s.kind].name + '. IT IS ON YOUR BACK NOW.', 4);
+  }
+  // Top-down, the back is the top edge of the art: the pack sits above the body's top edge, under the arms and the head,
+  // and turns with him (the figure is rotated to his heading). Nothing is drawn until he has found one.
+  function drawPackBack(x, y, bw, bh) {
+    if (packOn) drawPackBlock(x, y, bw, bh, packOn);
+  }
+  function drawPackBlock(x, y, bw, bh, kind) {
+    const line = PACK_KIND[kind].line, lw = Math.max(1, bw / 28);
+    const sz = kind === 'expedition' ? { w: 0.96, h: 0.5 } : kind === 'rucksack' ? { w: 0.86, h: 0.56 } : { w: 0.76, h: 0.4 };
+    const W = bw * sz.w, H = bh * sz.h;
+    const x0 = x - W / 2, y0 = y - bh / 2 - H * 0.5, r = W * 0.16;
+    const box = (px, py, w, h, rad) => { ctx.beginPath(); ctx.moveTo(px + rad, py); ctx.arcTo(px + w, py, px + w, py + h, rad); ctx.arcTo(px + w, py + h, px, py + h, rad); ctx.arcTo(px, py + h, px, py, rad); ctx.arcTo(px, py, px + w, py, rad); ctx.closePath(); };
+    ctx.save();
+    // a soft shadow under the bag
+    box(x0 + 1.2, y0 + 1.6, W, H, r); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+    if (kind === 'rucksack') {   // a rolled bedroll strapped under the bag, toward the front
+      box(x0 + W * 0.04, y0 + H - H * 0.04, W * 0.92, bh * 0.14, bh * 0.07);
+      ctx.fillStyle = '#2b2a27'; ctx.fill(); ctx.strokeStyle = line; ctx.lineWidth = lw; ctx.stroke();
+    }
+    if (kind === 'expedition') { // a cooking pot clipped to the top of the frame
+      ctx.beginPath(); ctx.arc(x, y0 - W * 0.02, W * 0.13, 0, Math.PI * 2);
+      ctx.fillStyle = '#2b2a27'; ctx.fill(); ctx.strokeStyle = line; ctx.lineWidth = lw; ctx.stroke();
+    }
+    // the bag: black, outlined in the team colour
+    box(x0, y0, W, H, r); ctx.fillStyle = '#15171b'; ctx.fill(); ctx.strokeStyle = line; ctx.lineWidth = lw; ctx.stroke();
+    // the flap over the top third, with a buckle in the team colour
+    box(x0 + W * 0.12, y0 + H * 0.12, W * 0.76, H * 0.34, r * 0.5); ctx.fillStyle = '#20232a'; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = line; ctx.beginPath(); ctx.arc(x, y0 + H * 0.29, Math.max(1.2, W * 0.07), 0, Math.PI * 2); ctx.fill();
+    // a strap across the bottom
+    ctx.fillStyle = line; ctx.fillRect(x0 + W * 0.08, y0 + H * 0.8, W * 0.84, Math.max(1.2, H * 0.1));
+    if (kind === 'expedition') {  // the frame bars up both sides of the bag
+      ctx.fillRect(x0 + W * 0.16, y0 + H * 0.2, lw * 1.3, H * 0.8);
+      ctx.fillRect(x0 + W * 0.84 - lw * 1.3, y0 + H * 0.2, lw * 1.3, H * 0.8);
+    }
+    // two straps that run forward over the shoulders into the torso
+    const strapY = y0 + H, strapH = Math.max(0, (y + bh * 0.05) - strapY), sw = Math.max(1.4, W * 0.14);
+    ctx.fillRect(x - W * 0.34, strapY - 1, sw, strapH);
+    ctx.fillRect(x + W * 0.2, strapY - 1, sw, strapH);
+    ctx.restore();
+  }
+  function huntDbg() {
+    const playing = Object.keys(hoverAud).filter((k) => hoverAud[k] && !hoverAud[k].paused);
+    return { on: alertOn, lvl: +alertLvl.toFixed(2), n: hunters.length, playing, mission: MISSION.stage, stash: [Math.round(MISSION.x), Math.round(MISSION.y)],
+      laser: { has: LASER.has, mode: LASER.mode, locked: LASER.locked }, collarNear: Math.round(collarNear), hz: +collarHz().toFixed(2),
+      ambPlaying: !!(ambAud && !ambAud.paused), hs: hunters.map((h) => [Math.round(h.x), Math.round(h.y), +h.stunT.toFixed(2), h.dead ? 1 : 0]),
+      pack: { on: packOn, stash: PACK_STASH.map((s) => [s.kind, Math.round(s.x), Math.round(s.y), s.got]) } };
   }
   // the spawn is on the roof; the bike is parked in a stall in the lot's south row
   // LAYER 638: you and the bike both start on the roof, side by side
@@ -16417,7 +16793,7 @@ const RUNNER_API = (function () {
   window.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
   return {
-    dbg: () => ({ look: { bodyK: RUNNER_LOOK.bodyK, body: RUNNER_LOOK.body, suit: RUNNER_LOOK.suit }, bodyArt: !!bodySprite(), bodyKeys: Object.keys(img).filter((k) => /^body_/.test(k)), walkerOn: walker.on, mode: car.mode, carX: Math.round(car.x), carY: Math.round(car.y), walkX: Math.round(walker.x), walkY: Math.round(walker.y), dZ, drones: drones.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y), flying: d.flying })), fliers: fliers.length, incidents: incidents.length, drawn: dStat, droneArt: !!img.drone, bikeArt: !!img['car_cars_43a7a337_1'], airtowArt: !!img.airtow }),
+    dbg: () => ({ hunt: huntDbg(), look: { bodyK: RUNNER_LOOK.bodyK, body: RUNNER_LOOK.body, suit: RUNNER_LOOK.suit }, bodyArt: !!bodySprite(), bodyKeys: Object.keys(img).filter((k) => /^body_/.test(k)), walkerOn: walker.on, mode: car.mode, carX: Math.round(car.x), carY: Math.round(car.y), walkX: Math.round(walker.x), walkY: Math.round(walker.y), dZ, drones: drones.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y), flying: d.flying })), fliers: fliers.length, incidents: incidents.length, drawn: dStat, droneArt: !!img.drone, bikeArt: !!img['car_cars_43a7a337_1'], airtowArt: !!img.airtow }),
     isOn: () => RUN_ON,
     setArt: (a) => { ART = a || {}; },
     setCivs: (c) => { CIV = c || null; },
@@ -16428,6 +16804,7 @@ const RUNNER_API = (function () {
     augments,
     augmentAt,
     takeDismount,
+    wake, hunterTick, worldHud, hunterReset, hoverSoundTick, huntDbg, fire, laserItems, laserPick,
     groundTrash,
     hoverKid,
     // LAYER 589: the builder and the lobby
@@ -23064,6 +23441,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.pickOpen = (kind) => { if (!(kind || "").startsWith("gomez:")) g.gzSaid = null;
       if (!(kind || "").startsWith("det:")) g.detSaid = null; g.pickOpen = kind; setHud((h) => ({ ...h, pick: pickPanel(kind) })); };
     G.pickFn = (id) => {
+      if (id.startsWith("laser:")) { RUNNER_API.laserPick(id.slice(6)); return; }   // LAYER 670
       if (id.startsWith("wpn:")) {
         const k = id.slice(4);
         g.p.wpn = k; g.p.ammo = WPN_AMMO[k] || 6; g.p.holstered = false;
@@ -41561,6 +41939,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     const wpnNm = (k) => (k === "pistol_sd" ? "SUPPRESSED .22" : null) || (CONTRABAND[k] && CONTRABAND[k].nm) || String(k).replace(/_/g, " ").toUpperCase();
     const wpnIco = (k) => { const ic = (g.prisonMode && !g.pescaped && HEAD_ICON[k]) || wIconOf(k); return ic && PD_ART[ic] ? PD_ART[ic] : null; };
     G.weaponWheel = () => { const items = [];
+      if (RUNNER_API.isOn()) { const L = RUNNER_API.laserItems(); if (!L.length) { g.pickupFlash = { nm: "lift:NOTHING TO PULL", t: 1.4 }; return false; } return G.radialOpen({ kind: "weapons", title: "WEAPON WHEEL", items: L }); }   // LAYER 670: the runner's wheel is the laser pistol
       if (g.prisonMode && !g.pescaped) { const seen = new Set();
         for (const k of g.pinv || []) if (PWPN[k] && !seen.has(k)) { seen.add(k); items.push({ label: wpnNm(k), sub: g.pwpn === k ? "out -- take it to put it away" : k === "zipgun" || k === "gun" ? "one bad shot can put YOU in the infirmary" : "pull it out", icon: wpnIco(k), id: "pocket:" + k }); }
         if (g.pwpn) items.push({ label: "BARE HANDS", sub: "put it away", icon: PD_ART.wi_empty, id: "pocket:" + g.pwpn }); }
@@ -48858,6 +49237,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
 
     function strike() {
+      if (RUNNER_API.isOn() && RUNNER_API.fire()) return;   // LAYER 670: the laser pistol, when the runner has it
       // a strike thrown inside the Lion's minute lands with everything behind it; a punch
       // thrown in a jacket and jeans does not
       const lionHit = (g.lionOn ? 2 : 1) * (g.plain ? 0.55 : 1);
@@ -53721,7 +54101,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title) RUNNER_API.hazeTick(!g.inside && !g.sewer); if (RUNNER_API.isOn() && !g.title && g.peds) RUNNER_API.keepYouthOut(g.peds); if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { const hz = RUNNER_API.hazeLevel(); if (hz > 0 && g.p.hp > (g.p.maxHp || 100) * (1 - hz)) g.p.hp = (g.p.maxHp || 100) * (1 - hz); } /* LAYER 648: the haze caps health, like a debuff */ if (RUNNER_API.isOn() && !g.title && RUNNER_API.riding()) { g.grap = null; g.jump = null; g.roof = null; RUNNER_API.keepOut(g.p); } else if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.keepOut(g.p); RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
+      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title) RUNNER_API.hazeTick(!g.inside && !g.sewer); if (RUNNER_API.isOn() && !g.title && g.peds) RUNNER_API.keepYouthOut(g.peds); if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { const hz = RUNNER_API.hazeLevel(); if (hz > 0 && g.p.hp > (g.p.maxHp || 100) * (1 - hz)) g.p.hp = (g.p.maxHp || 100) * (1 - hz); } /* LAYER 648: the haze caps health, like a debuff */ if (RUNNER_API.isOn() && !g.title && RUNNER_API.riding()) { g.grap = null; g.jump = null; g.roof = null; RUNNER_API.keepOut(g.p); } else if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.keepOut(g.p); RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); /* LAYER 669: the hunters' alert and the hover sounds */ if (RUNNER_API.isOn() && !g.title) { const inHosp = !!(g.inside && g.inside.kind === "hospital"); const tg = g.inside ? doorPoint(g.inside) : [g.p.x, g.p.y]; RUNNER_API.hunterTick(tg[0], tg[1], inHosp); RUNNER_API.worldHud(canvasRef.current, g.cam, !g.inside); } else RUNNER_API.hunterReset(); RUNNER_API.hoverSoundTick(RUNNER_API.isOn() && !g.title && !g.inside); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
@@ -54124,7 +54504,20 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       /* KILLED BY THE COPS (layer 519): you don't just get up somewhere -- you wake up in custody. An escaped con goes
          back to Kestrel in the jumpsuit (the SHU, like a recapture); anyone else with the police on him is booked. */
-      if (g.p.hp <= 0 && !((g.arrested || 0) > 0) && g.prisonMode && g.pescaped) { g.p.hp = Math.max(30, (g.p.maxHp || 100) * 0.5); arrestPlayer(); g.jobNote = "You went down in the street. You woke up in a Kestrel ambulance, cuffed to the rail -- 72 hours in the SHU."; }
+      /* LAYER 669: in Runner Mode a downed runner wakes in the hospital ward, on foot, at half health. The bike stays where he left it. */
+      if (RUNNER_API.isOn() && !g.title && g.p.hp != null && g.p.hp <= 0) {
+        const hb = getCell(HOSPITAL_CELL.i, HOSPITAL_CELL.j), hosp = hb && (hb.blds || []).find((q) => q.kind === "hospital");
+        if (hosp) {
+          const ds = hosp.door ? hosp.door.side : 2, dp = hosp.door ? hosp.door.pos : 0.5;
+          const [ix, iy] = ds === 0 ? [hosp.x + hosp.w * dp, hosp.y + 34] : ds === 3 ? [hosp.x + 34, hosp.y + hosp.h * dp]
+            : ds === 1 ? [hosp.x + hosp.w - 34, hosp.y + hosp.h * dp] : [hosp.x + hosp.w * dp, hosp.y + hosp.h - 34];
+          g.inside = hosp; g.floor = hosp.entry || 0; g.insideT = 1; g.pfolk = null; g.mode = "foot"; g.roof = null; g.grap = null; g.jump = null;
+          g.p.x = ix; g.p.y = iy; g.p.vx = g.p.vy = 0; g.cam.x = ix; g.cam.y = iy;
+        }
+        g.p.hp = Math.max(1, Math.round((g.p.maxHp || 100) * 0.5)); g.hurtT = 0;
+        RUNNER_API.wake("YOU WOKE UP IN " + HOSPITAL_NAME + ". YOUR BIKE IS WHERE YOU LEFT IT.");
+      }
+      else if (g.p.hp <= 0 && !((g.arrested || 0) > 0) && g.prisonMode && g.pescaped) { g.p.hp = Math.max(30, (g.p.maxHp || 100) * 0.5); arrestPlayer(); g.jobNote = "You went down in the street. You woke up in a Kestrel ambulance, cuffed to the rail -- 72 hours in the SHU."; }
       else if (g.p.hp <= 0 && !((g.arrested || 0) > 0) && ((g.heat || 0) > 0 || (g.wantedT || 0) > 0) && !g.prisonMode && !g.studentMode) downHero("arrest");
       else if (g.p.hp <= 0 && !((g.arrested || 0) > 0)) downHero("ko");
       if (!g.inside) updateChatter(dt);
@@ -61260,7 +61653,6 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     <div
       onContextMenu={(e) => e.preventDefault()}
       onDragStart={(e) => e.preventDefault()}
-      onSelectStart={(e) => e.preventDefault()}
       style={{
         position: "relative", width: "100%", height: "100vh", background: "#0b0c0f",
         overflow: "hidden", touchAction: "none",
