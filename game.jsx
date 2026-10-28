@@ -2821,7 +2821,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 681";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 688";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14618,14 +14618,14 @@ const RUNNER_API = (function () {
   let placed = false, lastT = 0, t = 0;
   let camNow = { x: 0, y: 0, z: 0.5 };
   // per-vehicle draw data: length along the long axis (world units), and which way the nose points in the art
-  // 0 = nose right, Math.PI = nose left, -Math.PI/2 = nose at top (portrait art)
+  // 0 = nose right, Math.PI = nose left, Math.PI/2 = nose at top (portrait art), -Math.PI/2 = nose at bottom
   const CAR_META = {
     cars_b714ecba_1: { len: 100, nose: 0, dark: [70, 14, 40], light: [230, 60, 120], glow: '#ff3a8c' },    // Vortex sports
     cars_87f02ce2_1: { len: 100, nose: Math.PI, dark: [40, 20, 60], light: [190, 120, 230], glow: '#d070ff' },  // Vortex pursuit
     cars_39e0f112_1: { len: 100, nose: Math.PI, dark: [20, 60, 62], light: [120, 220, 215], glow: '#3affe0' },  // Halcyon sedan (guessed nose)
     cars_4eb54de1_1: { len: 100, nose: Math.PI, dark: [20, 60, 62], light: [120, 220, 215], glow: '#3affe0' },  // Halcyon taxi (guessed nose)
     cars_6093fd94_1: { len: 104, nose: Math.PI, dark: [70, 35, 10], light: [240, 150, 60], glow: '#ff8a2a' },  // Meridian cargo
-    cars_a9a16625_1: { len: 100, nose: -Math.PI / 2, dark: [70, 35, 10], light: [240, 150, 60], glow: '#ff8a2a' },  // Meridian news
+    cars_a9a16625_1: { len: 100, nose: Math.PI / 2, dark: [70, 35, 10], light: [240, 150, 60], glow: '#ff8a2a' },  // Meridian news: nose at the top of the art, so +PI/2 (was -PI/2, which flew it backwards)
     cars_d049053c_1: { len: 102, nose: Math.PI, dark: [14, 52, 22], light: [90, 200, 110], glow: '#4dff7a', alt: { rect: [410, 124, 884, 392], dark: [70, 36, 14], light: [240, 170, 80] } },  // Kestrel patrol: LAYER 659, the open cabin (seats and bed) in amber
     cars_f238fa36_1: { len: 102, nose: Math.PI, dark: [14, 52, 22], light: [90, 200, 110], glow: '#4dff7a' },  // Kestrel camera
     cars_6775c1f3_1: { len: 104, nose: 0, dark: [40, 46, 30], light: [150, 160, 110], glow: '#b8ff3a' },    // Rook armoured
@@ -14724,15 +14724,15 @@ const RUNNER_API = (function () {
   // wide and open, so its head sits lower to cover the neck hole.
   const HEAD_DROP = { average: 0, slim: 0, athletic: 0.02, heavy: 0.14 };
   // LAYER 602: the head is centred on each body's neck hole (share of the body's height), so it covers the hole
-  const HEAD_CY = { slim: 29.5 / 159, athletic: 37.4 / 159, heavy: 17.2 / 159, average: 28.7 / 159, big: 0.0885 };   // LAYER 660: the one body, head centre from its anchor file
+  const HEAD_CY = { slim: 29.5 / 159, athletic: 37.4 / 159, heavy: 17.2 / 159, average: 28.7 / 159, big: 0.0885, female: 0.1833 };   // LAYER 688: female, the neck hole at 158 of the 862 px picture   // LAYER 660: the one body, head centre from its anchor file
   // LAYER 603: head width for each body (share of body width). Slim needs a touch more to cover its hole.
-  const HEAD_WF = { slim: 0.40, big: 0.4898 };   // LAYER 660: head width from the anchor file
+  const HEAD_WF = { slim: 0.40, big: 0.4898, female: 0.42 };   // LAYER 660: head width from the anchor file
   const RHEADS = [['male', 'mhead_afro'], ['male', 'mhead_curly'], ['male', 'mhead_mohawk'],
     ['female', 'head_bun'], ['female', 'head_cap_a'], ['female', 'head_cap_b'], ['female', 'head_curly'], ['female', 'head_swirl']];
   /* LAYER 676: the runner's head list is RHEADS PLUS the top-down heads of the old hunters (heads/head_m_*), since the
      hunters got new skins. The builder and the random look use PHEADS. The L3 scan log and the face tags use the Black
      Lion faces (assets/faces), not these top-down heads. */
-  const PHEADS = RHEADS.concat(['afro', 'bald', 'buzz', 'crewcut', 'curly', 'mohawk', 'receding', 'short'].map((s) => ['', 'head_m_' + s]));
+  const PHEADS = RHEADS;   // LAYER 688: the old hunters' heads (head_m_*) are out of the player's list. The builder and the random look use PHEADS.
   PHEADS.forEach(([sex, nm]) => load('rh_' + nm, sex ? 'heads/' + sex + '/' + nm + '.png' : 'heads/' + nm + '.png'));
   load('hoverboard', 'hover/hoverboard.png');
   load('drone', 'drone/traffic_drone.png');        // LAYER 608: the traffic drone
@@ -14744,13 +14744,15 @@ const RUNNER_API = (function () {
   const sprCache = {};
   // LAYER 598: the build bodies, each on the Lion's 224 x 159 canvas (same scale), arms cut at the elbow.
   // The forearm and hand are drawn in code from the elbow point (E) to the hand point (H), in the skin tone.
-  const BODY_FILES = { slim: 'body/body_slim.png', athletic: 'body/body_athletic.png', heavy: 'body/body_heavy.png', average: 'body/body_average.png', cop_gas: 'body/body_cop_gas.png', big: 'body/runner_body_big_nohead.png' };   // LAYER 657: the two cops, legs and arms cut
+  const BODY_FILES = { slim: 'body/body_slim.png', athletic: 'body/body_athletic.png', heavy: 'body/body_heavy.png', average: 'body/body_average.png', cop_gas: 'body/body_cop_gas.png', big: 'body/runner_body_big_nohead.png', female: 'body/runner_body_female.png' };   // LAYER 657: the two cops, legs and arms cut
   for (const k of Object.keys(BODY_FILES)) load('body_' + k, BODY_FILES[k]);
+  for (const k of ['torso', 'arm_L', 'arm_R', 'leg_L', 'leg_R']) load('fem_' + k, 'body/fem_' + k + '.png');   // LAYER 688: the female body in five cut pieces
   load('cop_leg_L', 'cops/gas_leg_L.png'); load('cop_leg_R', 'cops/gas_leg_R.png');   // LAYER 660: the cops' cut legs
   const BODY_ARMS = {"slim": {"L": {"E": [23.0, 121.5], "H": [19.2, 159.6]}, "R": {"E": [193.5, 121.5], "H": [197.3, 159.6]}, "W": 31}, "athletic": {"L": {"E": [26.0, 108.4], "H": [26.0, 151.8]}, "R": {"E": [198.0, 108.4], "H": [198.0, 151.8]}, "W": 22}, "heavy": {"L": {"E": [24, 58], "H": [14, 106]}, "R": {"E": [200, 58], "H": [210, 106]}, "W": 26}, "average": {"L": {"E": [18.8, 86.6], "H": [-6.4, 117.5]}, "R": {"E": [204.9, 86.6], "H": [230.2, 117.5]}, "W": 15}, "cop_gas": {"L": {"E": [46.7, 110.8], "H": [52.0, 128.0]}, "R": {"E": [184.0, 108.0], "H": [168.0, 134.0]}, "W": 36}};                   // LAYER 587: the skater kids' hoverboard art
   const RSUITS = ['#6ef0ff', '#ff5ad0', '#ffd23a', '#7dff6a', '#ff7a2a', '#b98cff'];
   const RUNNER_LOOK = { head: 'mhead_curly', suit: '#6ef0ff', body: 'big', bodyK: 1, name: 'RUNNER', stats: null, chosen: false, skin: null };
-  const BODY_TYPES = { slim: 1, average: 1, athletic: 1, heavy: 1, big: 1 };
+  const BODY_TYPES = { slim: 1, average: 1, athletic: 1, heavy: 1, big: 1, female: 1 };
+  const BAKED_BODY = { big: 1, female: 1 };   // LAYER 684: the bodies with the legs and arms in the art, drawn whole
   function rollRunnerLook() {
     const h = PHEADS[(Math.random() * PHEADS.length) | 0];
     RUNNER_LOOK.head = h[1];
@@ -14802,14 +14804,14 @@ const RUNNER_API = (function () {
     return out;
   }
   let cycleCooldown = 0, msg = '', msgT = 0;
-  const pend = { land: false, exit: false, board: false, dismount: false, fire: false };
+  const pend = { land: false, exit: false, call: false, fire: false, target: false };
   // LAYER 589: the C.A.N. lobby. While the player is inside a building the runner's camera and overlay stand down;
   // the hover bike waits parked outside the door (lobbyBike), and leaving the lobby lands it there.
   let lobby = false, lobbyBike = null, camSmooth = null;
   let held = null;                                          // LAYER 603: the weapon in hand (a key, or null)
   let haze = 0, hazeT = 0, mask = false;                    // LAYER 647: the haze load (0 to 1), its clock, and whether a breather is on
   const HAND_DOWN = 0.10;                                    // share of the body height the hands drop while holding
-  let padPrev = { a: false, b: false, xb: false, yb: false, rb: false };
+  let padPrev = { a: false, b: false, xb: false, yb: false, rb: false, lb: false };
   let padL3Prev = false, logOpen = false;
   const scanLog = [];                              // LAYER 619: the last scans, with the face, the result and the shock
   const say = (s, secs) => { msg = s; msgT = secs || 2.5; };
@@ -15151,8 +15153,8 @@ const RUNNER_API = (function () {
     }
     return { x: car.x, y: car.y };
   }
-  /* LAYER 675: the pad and the keys share these. E (and the pad's Y, the action) picks up a stash, else boards or gets off.
-     A boards the bike, B takes off or lands it, X gets off. walker.on is true while he is on foot. */
+  /* LAYER 683: the pad and the keys share these. E (and the pad's A and Y, the action) picks up a stash, else boards or gets off.
+     B takes off or lands the bike, X calls it down beside him. walker.on is true while he is on foot. */
   function exitOrBoard() {
     const packSpot = packStashNear(); if (packSpot) { packPickup(packSpot); return; }   // LAYER 673: E by a pack stash
     if (stashNear()) { pickLaser(); return; }   // LAYER 670: E by the stash picks up the laser pistol
@@ -15165,7 +15167,7 @@ const RUNNER_API = (function () {
     // LAYER 635: reach is wider -- the bike is a small thing on a phone screen
     const dd = Math.hypot(walker.x - car.x, walker.y - car.y);
     if (dd < 200 && car.mode !== 'landed') say('WAIT. THE BIKE IS STILL COMING DOWN');
-    else if (dd < 200) { walker.on = false; dismountAt = null; say('ON THE BIKE · L OR B TO LIFT OFF · E OR X TO GET OFF WHEN LANDED'); }
+    else if (dd < 200) { walker.on = false; dismountAt = null; say('ON THE BIKE · L OR B TO LIFT OFF · E OR A TO GET OFF WHEN LANDED'); }
     else if (car.mode === 'landed') callBike();      // LAYER 639: too far to get on -- the bike comes down to you
     else say('THE BIKE IS IN THE AIR. L OR B TO LAND IT');
   }
@@ -15221,7 +15223,7 @@ const RUNNER_API = (function () {
 
   // ---------- input ----------
   function readPad() {
-    const out = { x: 0, y: 0, rt: 0, lt: 0, a: false, b: false, xb: false, yb: false, rb: false, l3: false };
+    const out = { x: 0, y: 0, rt: 0, lt: 0, a: false, b: false, xb: false, yb: false, rb: false, lb: false, l3: false };
     const list = navigator.getGamepads ? navigator.getGamepads() : [];
     for (const g of list) {
       if (!g) continue;
@@ -15233,6 +15235,7 @@ const RUNNER_API = (function () {
       out.xb = !!(g.buttons[2] && g.buttons[2].pressed);
       out.yb = !!(g.buttons[3] && g.buttons[3].pressed);
       out.rb = !!(g.buttons[5] && g.buttons[5].pressed);
+      out.lb = !!(g.buttons[4] && g.buttons[4].pressed);
       out.l3 = !!(g.buttons[10] && g.buttons[10].pressed);
       break;
     }
@@ -15243,19 +15246,19 @@ const RUNNER_API = (function () {
     mateTick(dt);
     canTick(dt);   // LAYER 680: the C.A.N. drone
     const pad = readPad();
-    if (pad.a && !padPrev.a) pend.board = true;          // LAYER 675: A boards the bike
-    if (pad.b && !padPrev.b) pend.land = true;           // B takes off, or lands
-    if (pad.xb && !padPrev.xb) pend.dismount = true;     // X gets off
-    if (pad.yb && !padPrev.yb) pend.exit = true;         // Y is the action (E): stash pickups, else board or get off
-    if (pad.rb && !padPrev.rb) pend.fire = true;         // RB fires the pistol
-    padPrev = { a: pad.a, b: pad.b, xb: pad.xb, yb: pad.yb, rb: pad.rb };
+    if (pad.a && !padPrev.a) pend.exit = true;           // LAYER 683: A is the action (E): stash pickups, else board or get off
+    if (pad.b && !padPrev.b && !walker.on) pend.land = true;   // B takes off, or lands the bike (on foot, B punches)
+    if (pad.xb && !padPrev.xb) pend.call = true;         // LAYER 683: X calls the bike down beside him
+    if (pad.lb && !padPrev.lb) pend.target = true;       // LAYER 683: LB locks the aim on the nearest target, again lets go
+    if (pad.rb && !padPrev.rb) pend.fire = true;         // LAYER 683: RB shoots with the pistol; without it, RB punches (the main pad poll)
+    padPrev = { a: pad.a, b: pad.b, xb: pad.xb, yb: pad.yb, rb: pad.rb, lb: pad.lb };
     if (pad.l3 && !padL3Prev) logOpen = !logOpen;      // LAYER 619: L3 opens and closes the scan log
     padL3Prev = pad.l3;
     cycleCooldown -= dt; msgT -= dt;
     if (pend.land) { pend.land = false; if (!walker.on) toggleLand(); else say('GET IN THE CAR FIRST'); }
-    if (pend.board) { pend.board = false; boardBike(); }
-    if (pend.dismount) { pend.dismount = false; getOffBike(); }
+    if (pend.call) { pend.call = false; if (walker.on) callBike(); else say('YOU ARE ON THE BIKE'); }
     if (pend.fire) { pend.fire = false; fire(); }
+    if (pend.target) { pend.target = false; toggleTarget(); }
     if (pend.exit) { pend.exit = false; exitOrBoard(); }
     if (walker.on) {
       updateWalker(dt, pad);
@@ -15502,6 +15505,26 @@ const RUNNER_API = (function () {
      outside the body. Each piece is the same recoloured picture, clipped to its rectangle, and moved about its pivot. The rectangles
      cover the whole picture with no overlap, so at rest it is the picture as it was. Legs stride by scaling in y about the hip; arms
      swing by a little scale about the shoulder, the same as the rig people. ph runs -1 to 1 while he walks. */
+  // LAYER 688: the female body in five cut pieces (body/fem_<piece>.png). The picture is 780 x 862 and each piece sits at its origin in it.
+  // The legs turn about the hips and the arms about the shoulders, the way the hunters' rig does. The head sits on the hole in the torso.
+  const FEM = { size: [780, 862], o: { torso: [31, 0], arm_L: [0, 208], arm_R: [598, 208], leg_L: [118, 478], leg_R: [390, 478] }, sh: [[113, 228], [667, 228]], hip: [[268, 488], [512, 488]] };
+  function femReady() { return ['fem_torso', 'fem_arm_L', 'fem_arm_R', 'fem_leg_L', 'fem_leg_R'].every((k) => img[k] && img[k].width); }
+  // one piece, turned about its joint piv (picture px). X0, Y0: the picture's top-left on the canvas; s: picture px -> canvas px
+  function femPiece(k, o, piv, ang, X0, Y0, s) {
+    const im = img[k], px = X0 + piv[0] * s, py = Y0 + piv[1] * s;
+    ctx.save(); ctx.translate(px, py); ctx.rotate(ang);
+    ctx.drawImage(im, X0 + o[0] * s - px, Y0 + o[1] * s - py, im.width * s, im.height * s);
+    ctx.restore();
+  }
+  // ph: -1 to 1 as he walks. At rest (0) the pieces are where they were cut, so the picture is as it was.
+  function drawFemRig(x, y, bw, bh, ph) {
+    const s = bw / FEM.size[0], X0 = x - bw / 2, Y0 = y - bh / 2, o = FEM.o;
+    femPiece('fem_leg_L', o.leg_L, FEM.hip[0], ph * 0.16, X0, Y0, s);
+    femPiece('fem_leg_R', o.leg_R, FEM.hip[1], -ph * 0.16, X0, Y0, s);
+    femPiece('fem_torso', o.torso, [0, 0], 0, X0, Y0, s);
+    femPiece('fem_arm_L', o.arm_L, FEM.sh[0], -ph * 0.07, X0, Y0, s);
+    femPiece('fem_arm_R', o.arm_R, FEM.sh[1], ph * 0.07, X0, Y0, s);
+  }
   function drawBigCut(bs, x, y, bw, bh, ph) {
     const AW = bs.width, AH = bs.height, s = bw / AW, X0 = x - bw / 2, Y0 = y - bh / 2, M = 60;   // M: art px of margin, so a stretched piece is not cut at its old edge
     const HIP_Y = 430, SH_Y = 200, MID = 416, LX = 182, RX = 650;   // art px: hips, shoulders, the crotch, and the arm edges
@@ -15528,7 +15551,7 @@ const RUNNER_API = (function () {
     const copL = bs && bodyKey() && bodyKey().startsWith('body_cop_') ? COP_LOOK[bodyKey().slice(5)] : null;   // LAYER 657
     // LAYER 660: the big body has its legs in the art; the cop's legs are cut and drawn from pieces, so both skip the code legs
     const copLegs = bs && bodyKey() === 'body_cop_gas' && img.cop_leg_L && img.cop_leg_R ? { L: img.cop_leg_L, R: img.cop_leg_R } : null;
-    const baked = RUNNER_LOOK.body === 'big' || !!copLegs;
+    const baked = !!BAKED_BODY[RUNNER_LOOK.body] || !!copLegs;
     const bw = 36 * bk, bh = bs ? bw * (bs.height / bs.width) : 56 * bk;   // LAYER 677: 36 wide (was 40), a little smaller; the bike is 62 long
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 0.09 * bw, y + 0.14 * bw, 0.23 * bw, 0.13 * bw, 0, 0, Math.PI * 2); ctx.fill();
     // LAYER 598 / 606: little boots on navy trousers. The legs come off the hip, and each leg is as wide as its part of the hip.
@@ -15559,7 +15582,8 @@ const RUNNER_API = (function () {
       });
     }
     // the body: the Lion's jacket in the suit colour, or the old disc if the art is not there yet
-    if (bs && RUNNER_LOOK.body === 'big') drawBigCut(bs, x, y, bw, bh, walker.on ? (walker.amp || 0) * Math.sin(walker.step || 0) : 0);   // LAYER 667
+    if (bs && RUNNER_LOOK.body === 'female' && femReady()) drawFemRig(x, y, bw, bh, walker.on && walker.step ? Math.sin(walker.step) : 0);   // LAYER 688: the female body in pieces, so the limbs swing
+    else if (bs && BAKED_BODY[RUNNER_LOOK.body]) drawBigCut(bs, x, y, bw, bh, walker.on ? (walker.amp || 0) * Math.sin(walker.step || 0) : 0);   // LAYER 667
     else if (bs) ctx.drawImage(bs, x - bw / 2, y - bh / 2, bw, bh);
     drawPackBack(x, y, bw, bh);   // LAYER 671: the pack is on the back, under the arms and the head
     const arms = BODY_ARMS[RUNNER_LOOK.body];
@@ -15586,7 +15610,7 @@ const RUNNER_API = (function () {
     const hd = bs && bodyKey() && bodyKey().startsWith('body_cop_') ? null : headSprite(RUNNER_LOOK.head);   // LAYER 657: the cops' heads are in their art
     if (hd) { const hk = HEAD_SCALE[RUNNER_LOOK.head] || 1, hw = (HEAD_WF[RUNNER_LOOK.body] || 0.36) * bw * hk, hh = hd.height * (hw / hd.width); const cyF = HEAD_CY[RUNNER_LOOK.body];
       const hy = cyF != null ? y - bh / 2 + cyF * bh - hh / 2 : y - bh / 2 + 0.02 * bh - (hk - 1) * 0.06 * bh + (HEAD_DROP[RUNNER_LOOK.body] || 0) * bh;
-      ctx.drawImage(hd, x - hw / 2, hy, hw, hh); if (mask) drawRunnerMask(x, hy + hh * 0.62, hw / 25); if (!mateDrawing) drawCollarDot(x + hw * 0.38, hy + hh * 0.5, hw); }   // LAYER 677: the collar light on the right side of the head, not on the nose
+      ctx.drawImage(hd, x - hw / 2, hy, hw, hh); if (mask) drawRunnerMask(x, hy + hh * 0.62, hw / 25); drawCollarDot(x + hw * 0.38, hy + hh * 0.5, hw); }   // LAYER 684: every runner wears the shock collar, teammates too   // LAYER 677: the collar light on the right side of the head, not on the nose
     ctx.restore();
   }
 
@@ -15599,7 +15623,7 @@ const RUNNER_API = (function () {
     ctx.fillText('FLYING TRAFFIC ' + fliers.length, 22, 78);
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(12, H - 40, W - 24, 28);
     ctx.fillStyle = '#e8d9b5'; ctx.font = '12px monospace';
-    ctx.fillText('stick / WASD  RT gas  LT brake  A or L land   B or E get out   C car   R reset', 22, H - 21);
+    ctx.fillText('stick / WASD  RT gas  LT brake  A act  B punch/land  X bike  LB target  RB shoot/punch  Y wheel  C car  R reset', 22, H - 21);
     if (msgT > 0) {
       ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.font = 'bold 16px monospace';
       const tw = ctx.measureText(msg).width;
@@ -16429,14 +16453,90 @@ const RUNNER_API = (function () {
   // ---------- LAYER 670: the rebuilt hunters, the hospital alert, the collar light, the first mission (the laser pistol), the beams, the street noise ----------
   // HUNTERS: the rebuilt top-down art (assets/runner/hunters), keyed the same way as the runner's own art. Each hunter is one of nine.
   const HUNT = { n: 3, ring: 1400, spd: 120, near: 200, far: 1000, stun: 5, dyingT: 0.8 };   // ring: spawn distance; far: bar empty; near: bar full; stun: seconds
-  const HUNT_ART = ['v9_dana', 'v9_gus', 'v9_hollis', 'v9_lockjaw', 'v9_ruth', 'v9_silk', 'v9_sully', 'v9_vince', 'v10b_hollis'];
-  const huntImg = {};
-  function huntArt(name) {
-    if (huntImg[name] !== undefined) return huntImg[name];
-    huntImg[name] = null;
-    const i = new Image();
-    i.onload = () => { huntImg[name] = unfringe(i, false); };
-    i.src = A('hunters/' + name + '.png');
+  // LAYER 687: the chopped rig (assets/runner/hunters/<name>/<name>_<piece>.png): torso, two arms, two legs, each at the origin
+  // the cut gave it (anchors.json, in the source picture's pixels). The arms turn about the shoulders, the legs about the hips.
+  const HUNT_ART = ['dana', 'gus', 'hollis', 'lockjaw', 'ruth', 'silk', 'sully', 'vince'];
+  const HUNT_SCALE = 0.11;   // source px -> game px. The shoulders are about the same width on every hunter, so one scale fits all.
+  const HUNT_RIG = {   // sh: [left, right] shoulder; hip: [left, right] hip; o: each piece's origin; hand: the right hand's grip, where the weapon sits
+    dana:    { sh: [[150, 172], [360, 172]], hip: [[205, 274], [300, 274]], o: { torso: [150, 67], arm_L: [129, 203], arm_R: [361, 197], leg_L: [150, 274], leg_R: [255, 274] }, hand: [371, 309] },
+    gus:     { sh: [[150, 130], [362, 130]], hip: [[190, 345], [322, 345]], o: { torso: [136, 38], arm_L: [72, 129], arm_R: [377, 130], leg_L: [138, 282], leg_R: [256, 282] }, hand: [423, 319] },
+    hollis:  { sh: [[152, 130], [362, 130]], hip: [[212, 304], [302, 304]], o: { torso: [157, 77], arm_L: [112, 127], arm_R: [358, 130], leg_L: [159, 304], leg_R: [266, 304] }, hand: [378, 290] },
+    lockjaw: { sh: [[138, 178], [366, 178]], hip: [[205, 292], [300, 292]], o: { torso: [1, 1], arm_L: [1, 140], arm_R: [365, 140], leg_L: [1, 292], leg_R: [252, 292] }, hand: [401, 336] },
+    ruth:    { sh: [[150, 180], [355, 180]], hip: [[205, 346], [300, 346]], o: { torso: [142, 45], arm_L: [81, 163], arm_R: [363, 159], leg_L: [146, 346], leg_R: [252, 346] }, hand: [364, 441] },
+    silk:    { sh: [[160, 172], [350, 172]], hip: [[215, 275], [295, 275]], o: { torso: [158, 51], arm_L: [109, 150], arm_R: [353, 150], leg_L: [138, 275], leg_R: [255, 275] }, hand: [385, 290] },
+    sully:   { sh: [[150, 150], [355, 150]], hip: [[205, 265], [300, 265]], o: { torso: [127, 45], arm_L: [97, 130], arm_R: [345, 130], leg_L: [148, 265], leg_R: [252, 265] }, hand: [383, 310] },
+    vince:   { sh: [[128, 185], [376, 185]], hip: [[210, 322], [294, 322]], o: { torso: [115, 19], arm_L: [81, 170], arm_R: [378, 170], leg_L: [149, 322], leg_R: [253, 322] }, hand: [418, 283] },
+  };
+  // LAYER 684: each hunter's kit, from the Zone 1 roster (claude/running-man-mode-design.md). The weapon matches the person:
+  // a brawler has knuckles, the marksman a rifle, the ex-cop a revolver. role: 'gun' fires a beam, 'melee' swings in close.
+  // fx: the attack effect (see the note in claude/runner-mode-todo.md: each weapon type gets its own effect later).
+  const HUNT_KIT = {
+    lockjaw:  { name: 'MERCER DANE', w: 'knuckles', len: 10, role: 'melee', range: 64, cd: 1.2, hit: 0.5, fx: 'stun' },
+    ruth:     { name: 'RUTH OKONKWO-HALE', w: 'pistol_sd', role: 'gun', range: 240, cd: 2.2, hit: 0.35, fx: 'stun' },
+    vince:    { name: 'VINCE TALLANT', w: 'rifle_bolt', role: 'gun', range: 420, cd: 2.6, hit: 0.7, fx: 'stun' },
+    dana:     { name: 'DANA QUILL', w: 'shotgun_short', role: 'gun', range: 180, cd: 2.4, hit: 0.55, fx: 'stun' },
+    sully:    { name: 'SULLY BRANDT', w: 'revolver', role: 'gun', range: 280, cd: 1.6, hit: 0.5, fx: 'stun' },
+    silk:     { name: 'SILK', w: 'switchblade', role: 'melee', range: 56, cd: 1.0, hit: 0.7, fx: 'stun' },
+    gus:      { name: 'GUS PELTIER', w: 'pipe', role: 'melee', range: 80, cd: 1.4, hit: 0.5, fx: 'stun' },
+    hollis:   { name: 'HOLLIS WREN', w: 'knife', role: 'melee', range: 60, cd: 1.6, hit: 0.4, fx: 'stun' },
+  };
+  function makeHunter(x, y) {
+    const art = HUNT_ART[(Math.random() * HUNT_ART.length) | 0], kit = HUNT_KIT[art] || null;
+    return { x, y, art, kit, name: kit ? kit.name : 'A HUNTER', cd: 0.6 + Math.random() * 1.4, hd: 0, stunT: 0, dead: false, dying: 0, ph: Math.random() * 6 };
+  }
+  const KIT_IMG = {};
+  function kitImg(w) {
+    if (!KIT_IMG[w]) { const i = new Image(); i.src = 'assets/weapons/hw_' + w + '.png'; KIT_IMG[w] = i; }
+    return KIT_IMG[w];
+  }
+  // a hunter with a weapon, on foot and in reach of the runner, fires or swings. A hit stuns him, as a teammate's shot does.
+  function hunterStrike(h, dt) {
+    const k = h.kit;
+    if (!k || h.dead || h.stunT > 0 || !alertOn || !walker.on || lobby || !RUN_ON) return;
+    h.cd = Math.max(0, h.cd - dt);
+    const dp = Math.hypot(walker.x - h.x, walker.y - h.y);
+    if (dp > k.range || h.cd > 0 || PSTUN.t > 0) return;
+    h.cd = k.cd + Math.random() * 0.6;
+    h.hd = Math.atan2(walker.y - h.y, walker.x - h.x);
+    const hit = Math.random() < k.hit;
+    if (k.role === 'gun') {
+      const ang = h.hd + (hit ? 0 : (Math.random() < 0.5 ? -1 : 1) * (0.16 + Math.random() * 0.14)), far = hit ? dp : k.range;
+      LASER.beams.push({ x0: h.x, y0: h.y, x1: h.x + Math.cos(ang) * far, y1: h.y + Math.sin(ang) * far, kill: false, until: performance.now() + 260 });
+      playLaserShot();
+    }
+    if (k.role === 'gun') h.rec = 0.12;   // the weapon kicks back after a shot
+    if (hit) stunPlayer(h);
+  }
+  // LAYER 687: the hunter's weapon in his right hand, drawn in the figure's frame: the grip at the hand, the barrel forward (+y); a shot kicks it back
+  function drawHunterWeapon(c, h, rig, cen) {
+    const im = kitImg(h.kit.w);
+    if (!im.complete || !im.naturalWidth) return;
+    const S = HUNT_SCALE, L = h.kit.len || (h.kit.role === 'melee' ? 30 : 42), H = L * im.naturalHeight / im.naturalWidth;
+    const kick = h.rec > 0 ? 2 * (h.rec / 0.12) : 0;
+    c.save(); c.translate((rig.hand[0] - cen[0]) * S, (rig.hand[1] - cen[1]) * S); c.rotate(-Math.PI / 2);   // the art has the barrel on the left and the grip on the right: turned so the barrel points forward (+y)
+    c.drawImage(im, -0.7 * L + kick, -H / 2, L, H);   // the hand holds the grip, 70% of the way along from the barrel
+    c.restore();
+  }
+  // the centre of a hunter's figure, in source px: the middle of his four joints
+  function rigC(r) { return [(r.sh[0][0] + r.sh[1][0] + r.hip[0][0] + r.hip[1][0]) / 4, (r.sh[0][1] + r.sh[1][1] + r.hip[0][1] + r.hip[1][1]) / 4]; }
+  // one piece of the rig, in the hunter's frame (the figure's centre at 0, 0, the front at +y). piv: the joint it turns about, in source px
+  function rigPiece(c, im, o, cen, piv, ang) {
+    const S = HUNT_SCALE;
+    c.save(); c.translate((piv[0] - cen[0]) * S, (piv[1] - cen[1]) * S); c.rotate(ang);
+    c.drawImage(im, (o[0] - piv[0]) * S, (o[1] - piv[1]) * S, im.width * S, im.height * S);
+    c.restore();
+  }
+  // a hunter's five pieces, loaded once: null until all five are in
+  const HUNT_IMG = {};
+  function rigArt(name) {
+    if (HUNT_IMG[name] !== undefined) return HUNT_IMG[name];
+    HUNT_IMG[name] = null;
+    const parts = {}; let left = 5;
+    for (const k of ['torso', 'arm_L', 'arm_R', 'leg_L', 'leg_R']) {
+      const i = new Image();
+      i.onload = () => { parts[k] = i; if (--left === 0) HUNT_IMG[name] = parts; };
+      i.src = A('hunters/' + name + '_' + k + '.png');
+    }
     return null;
   }
   let alertOn = false, alertLvl = 0, hunters = [], huntLast = 0, collarNear = Infinity;
@@ -16449,7 +16549,7 @@ const RUNNER_API = (function () {
       alertOn = true; hunters = [];
       for (let k = 0; k < HUNT.n; k++) {
         const a = (k / HUNT.n) * Math.PI * 2 + rnd(-0.4, 0.4);
-        hunters.push({ x: tx + Math.cos(a) * HUNT.ring, y: ty + Math.sin(a) * HUNT.ring, art: HUNT_ART[(Math.random() * HUNT_ART.length) | 0], hd: 0, stunT: 0, dead: false, dying: 0, ph: Math.random() * 6 });
+        hunters.push(makeHunter(tx + Math.cos(a) * HUNT.ring, ty + Math.sin(a) * HUNT.ring));
       }
       say('THE HUNTERS KNOW WHERE YOU ARE. GET FAR ENOUGH AWAY FOR THE BAR TO EMPTY.', 5);
     }
@@ -16457,13 +16557,14 @@ const RUNNER_API = (function () {
     let dmin = Infinity;
     for (const h of hunters) {
       if (h.dead) { h.dying -= dt; continue; }
-      h.ph += dt * 8;
+      h.ph += dt * 8; h.mv = false; if (h.rec > 0) h.rec -= dt;
       if (h.stunT > 0) h.stunT -= dt;
       else {
         const dx = tx - h.x, dy = ty - h.y, d = Math.hypot(dx, dy);
         const step = Math.min(Math.max(0, d - HUNT.near * 0.9), HUNT.spd * dt);
-        if (d > 0.001 && step > 0) { h.x += dx / d * step; h.y += dy / d * step; h.hd = Math.atan2(dy, dx); }
+        if (d > 0.001 && step > 0) { h.x += dx / d * step; h.y += dy / d * step; h.hd = Math.atan2(dy, dx); h.mv = true; }
       }
+      hunterStrike(h, dt);
       dmin = Math.min(dmin, Math.hypot(tx - h.x, ty - h.y));
     }
     hunters = hunters.filter((h) => !(h.dead && h.dying <= 0));
@@ -16471,10 +16572,18 @@ const RUNNER_API = (function () {
     if (!inHosp && alertLvl <= 0) { alertOn = false; hunters = []; canKnown = null; say('THE HUNTERS HAVE LOST YOUR TRAIL.', 4); }
   }
   function drawHunter(c, h) {
-    const im = huntArt(h.art), k = h.dead ? Math.max(0, h.dying / HUNT.dyingT) : 1;
-    const hw = 46, bob = h.stunT > 0 ? 0 : Math.sin(h.ph) * 0.8;
+    const rig = HUNT_RIG[h.art], parts = rigArt(h.art), k = h.dead ? Math.max(0, h.dying / HUNT.dyingT) : 1;
+    const bob = h.stunT > 0 ? 0 : Math.sin(h.ph) * 0.8, sw = h.mv ? Math.sin(h.ph) : 0;   // sw: his stride, while he walks
     c.save(); c.globalAlpha = k; c.translate(h.x, h.y + bob); c.rotate((h.hd || 0) - Math.PI / 2);   // the art's front is its bottom edge, as the runner's
-    if (im && im.width) { const hh = hw * (im.height / im.width); c.drawImage(im, -hw / 2, -hh / 2, hw, hh); }
+    if (rig && parts) {   // LAYER 687: the rig. Legs first, then the torso, then the arms. The weapon arm stays still; the other swings a little.
+      const cen = rigC(rig), o = rig.o;
+      rigPiece(c, parts.leg_L, o.leg_L, cen, rig.hip[0], sw * 0.18);
+      rigPiece(c, parts.leg_R, o.leg_R, cen, rig.hip[1], -sw * 0.18);
+      rigPiece(c, parts.torso, o.torso, cen, cen, 0);
+      rigPiece(c, parts.arm_L, o.arm_L, cen, rig.sh[0], -sw * 0.08);
+      rigPiece(c, parts.arm_R, o.arm_R, cen, rig.sh[1], 0);
+      if (h.kit && !h.dead) drawHunterWeapon(c, h, rig, cen);   // LAYER 684: the hunter's weapon in hand
+    }
     else { c.fillStyle = '#1a1020'; c.beginPath(); c.arc(0, 0, 13, 0, Math.PI * 2); c.fill(); }   // only while the art is still loading
     c.restore();
     if (h.stunT > 0 && !h.dead) {   // stunned: a blue ring that flickers
@@ -16492,7 +16601,7 @@ const RUNNER_API = (function () {
     barrio: 'THE BARRIO', industrial: 'THE INDUSTRIAL DISTRICT', park: 'THE PARK', terminal: 'THE TERMINAL', neonflats: 'THE NEON FLATS', northend: 'THE NORTH END',
     stadium: 'THE STADIUM', cemetery: 'THE CEMETERY', civic: 'CIVIC CENTER', county: 'THE COUNTY LINE', mountain: 'THE MOUNTAIN', kestrel: 'KESTREL', city: 'THE CITY' };
   const CAN_ADS = [['C.A.N.  ·  WE SEE IT FIRST', '#6ef0ff'], ['THE RUNNER SHOW  ·  GAMES ARE BACK ON', '#ffd23a']];
-  const MATE_NAMES = { red: 'JAX', yellow: 'MARISOL', blue: 'DEV', green: 'RONNIE' };     // placeholder names
+  const MATE_NAMES = { red: ['JAX', 'RICO'], yellow: ['MARISOL', 'LENA'], blue: ['DEV', 'KAI'], green: ['RONNIE', 'BEA'], you: 'CASS' };     // placeholder names
   const PLAYER_WANTED = { name: 'THE RUNNER', player: true, last: 'THE CITY' };
   const canDrones = [];
   let canBroadcast = null, canIdx = 0;
@@ -16501,7 +16610,7 @@ const RUNNER_API = (function () {
   const HOLO_CTX = HOLO.getContext('2d');
   function zoneLabel(x, y) { return CAN_ZONE[zoneOf(jIdx(x), jIdx(y))] || 'THE CITY'; }
   function playerXY() { return walker.on ? { x: walker.x, y: walker.y } : { x: car.x, y: car.y }; }
-  function canWanted() { return [PLAYER_WANTED].concat(mates); }
+  function canWanted() { return [PLAYER_WANTED].concat(mates.filter((m) => !m.friend)); }
   function canDroneSpawn() {
     const p = nearJunctions(car.x, car.y, 8);
     canDrones.length = 0;
@@ -16523,7 +16632,7 @@ const RUNNER_API = (function () {
     alertOn = true; hunters = [];
     for (let k = 0; k < HUNT.n; k++) {
       const a = (k / HUNT.n) * Math.PI * 2 + rnd(-0.4, 0.4);
-      hunters.push({ x: x + Math.cos(a) * 520, y: y + Math.sin(a) * 520, art: HUNT_ART[(Math.random() * HUNT_ART.length) | 0], hd: 0, stunT: 0, dead: false, dying: 0, ph: Math.random() * 6 });
+      hunters.push(makeHunter(x + Math.cos(a) * 520, y + Math.sin(a) * 520));
     }
     say('C.A.N. HAS YOU. THE HUNTERS ARE COMING.', 5);
   }
@@ -16718,10 +16827,14 @@ const RUNNER_API = (function () {
   const PSTUN = { t: 0, x: 0, y: 0 };                      // the Lion's stun: time left, and where he was stunned
   const LOOSE = { x: 0, y: 0, on: false, holder: null };   // the case: holder is null, 'player', or a teammate
   let mates = [], mateDrawing = false;
-  const BODY_KEYS = ['slim', 'average', 'athletic', 'heavy', 'big'];
-  function mateLook() {
-    const h = PHEADS[(Math.random() * PHEADS.length) | 0];
-    return { head: h[1], suit: RSUITS[(Math.random() * RSUITS.length) | 0], body: BODY_KEYS[(Math.random() * BODY_KEYS.length) | 0], bodyK: 1 };
+  const BODY_KEYS = ['slim', 'average', 'athletic', 'heavy', 'big', 'female'];
+  // LAYER 684: a runner's look on a team. The suit is the team's colour, so both runners on a team wear the same suit.
+  // A female build gets a female head.
+  function mateLook(suit) {
+    const body = BODY_KEYS[(Math.random() * BODY_KEYS.length) | 0], fem = body === 'female';
+    const pool = PHEADS.filter((p) => (p[0] === 'female') === fem);
+    const h = pool[(Math.random() * pool.length) | 0];
+    return { head: h[1], suit, body, bodyK: 1 };
   }
   // a clear spot a random distance from the bike, for the teammates and the case
   function randomSpot(minD, maxD) {
@@ -16732,14 +16845,17 @@ const RUNNER_API = (function () {
     }
     return { x: car.x + maxD, y: car.y };
   }
-  // one random runner per team, placed around the bike, and the case dropped somewhere else in the city
+  // LAYER 684: two runners per team, placed around the bike, in the team's suit colour. The player's own team is him and one
+  // teammate (the friend), in his suit colour. The friend never shoots at him; finding him is the second mission.
   function spawnTeam() {
     mates = []; PSTUN.t = 0;
-    for (const t of MATE_TEAMS) {
+    const put = (team, name, col, friend) => {
       const sp = randomSpot(900, 2400);
-      mates.push({ team: t.k, name: MATE_NAMES[t.k], last: zoneLabel(sp.x, sp.y), col: t.col, x: sp.x, y: sp.y, hx: sp.x, hy: sp.y, heading: Math.random() * 6.283,
-        step: 0, stunT: 0, cd: 1 + Math.random() * 2, target: null, retarget: 0, look: mateLook() });
-    }
+      mates.push({ team, friend: !!friend, name, last: zoneLabel(sp.x, sp.y), col, x: sp.x, y: sp.y, hx: sp.x, hy: sp.y, heading: Math.random() * 6.283,
+        step: 0, stunT: 0, cd: 1 + Math.random() * 2, target: null, retarget: 0, look: mateLook(col) });
+    };
+    for (const t of MATE_TEAMS) for (let k = 0; k < 2; k++) put(t.k, MATE_NAMES[t.k][k], t.col, false);
+    put('you', MATE_NAMES.you, RUNNER_LOOK.suit, true);
     const cs = randomSpot(800, 1800);
     LOOSE.x = cs.x; LOOSE.y = cs.y; LOOSE.on = true; LOOSE.holder = null;
     canKnown = null; canBoom = []; canRespawnT = 0;
@@ -16770,11 +16886,11 @@ const RUNNER_API = (function () {
       if (m.stunT > 0) { m.stunT = Math.max(0, m.stunT - dt); continue; }
       m.cd = Math.max(0, m.cd - dt);
       const dp = Math.hypot(walker.x - m.x, walker.y - m.y);
-      const seen = walker.on && dp < MATE_SIGHT;
+      const seen = !m.friend && walker.on && dp < MATE_SIGHT;
       let tx = m.x, ty = m.y, spd = 0;
       if (seen) { tx = walker.x; ty = walker.y; spd = dp > 240 ? MATE_SPD * 0.8 : 0; }        // they close in, then stand and shoot
       else if (LOOSE.holder === m) { const ax = m.x - walker.x, ay = m.y - walker.y, L = Math.hypot(ax, ay) || 1; tx = m.x + ax / L * 300; ty = m.y + ay / L * 300; spd = MATE_SPD * 1.3; }   // the one with the case runs off
-      else if (LOOSE.on && !LOOSE.holder) { tx = LOOSE.x; ty = LOOSE.y; spd = MATE_SPD * 1.2; }   // everyone goes for the loose case
+      else if (LOOSE.on && !LOOSE.holder && !m.friend) { tx = LOOSE.x; ty = LOOSE.y; spd = MATE_SPD * 1.2; }   // everyone goes for the loose case
       else {
         m.retarget -= dt;
         if (!m.target || m.retarget <= 0) { const a = Math.random() * Math.PI * 2, d = 150 + Math.random() * (MATE_HOME - 150); m.target = { x: m.hx + Math.cos(a) * d, y: m.hy + Math.sin(a) * d }; m.retarget = 3 + Math.random() * 3; }
@@ -16783,7 +16899,7 @@ const RUNNER_API = (function () {
       const dx = tx - m.x, dy = ty - m.y, L = Math.hypot(dx, dy);
       if (L > 4 && spd > 0) { const s = Math.min(L, spd * dt); m.x += dx / L * s; m.y += dy / L * s; m.heading = Math.atan2(dy, dx); m.step += dt * 11; }
       if (seen) m.heading = Math.atan2(walker.y - m.y, walker.x - m.x);
-      if (LOOSE.on && !LOOSE.holder && Math.hypot(LOOSE.x - m.x, LOOSE.y - m.y) < 40) { LOOSE.holder = m; say(m.name + ' HAS THE CASE. STUN HIM TO GET IT BACK.', 4); }
+      if (!m.friend && LOOSE.on && !LOOSE.holder && Math.hypot(LOOSE.x - m.x, LOOSE.y - m.y) < 40) { LOOSE.holder = m; say(m.name + ' HAS THE CASE. STUN HIM TO GET IT BACK.', 4); }
       if (LOOSE.holder === m) { LOOSE.x = m.x; LOOSE.y = m.y; }
       if (seen && dp <= LASER_RANGE && m.cd <= 0 && PSTUN.t <= 0) {
         // the shot: it lands on the Lion, or it goes wide by a little
@@ -16836,6 +16952,55 @@ const RUNNER_API = (function () {
     c.restore();
   }
   // the alert bar (bottom left, above the joystick), the mission line above it, the stash, the hunters and the beams
+  // LAYER 683: an arrow to the pistol stash. On screen, a small arrow bobs above the dumpster. Off screen, an arrow sits on the
+  // edge of the screen and points the way. It goes once he is at the stash.
+  // the stash's place on the screen, from the camera; and whether it is on screen (inside the bounds the arrows keep to)
+  function missionScreen(cam, W, H) {
+    const dxw = MISSION.x - cam.x, dyw = MISSION.y - cam.y;
+    const sx = W / 2 + dxw * cam.z, sy = H / 2 + dyw * cam.z;
+    return { sx, sy, near: Math.hypot(dxw, dyw) < 60, on: sx > 24 && sx < W - 24 && sy > 80 && sy < H - 240 };
+  }
+  // off screen: an arrow on the edge of the screen (clear of the top HUD and the joystick), pointing the way to the stash
+  function drawMissionArrow(c, cam, W, H, now) {
+    const m = missionScreen(cam, W, H);
+    if (m.near || m.on) return;   // he is at the stash, or it is on screen (drawMissionStashArrow)
+    const cx = W / 2, cy = H / 2, dx = m.sx - cx, dy = m.sy - cy, L = Math.hypot(dx, dy) || 1;
+    const ux = dx / L, uy = dy / L;
+    const x0 = 24, x1 = W - 24, y0 = 80, y1 = H - 240;
+    const tX = ux > 0 ? (x1 - cx) / ux : ux < 0 ? (x0 - cx) / ux : Infinity;
+    const tY = uy > 0 ? (y1 - cy) / uy : uy < 0 ? (y0 - cy) / uy : Infinity;
+    const t = Math.min(tX, tY);
+    const ex = cx + ux * t, ey = cy + uy * t;
+    c.save();
+    c.fillStyle = '#6ef0ff'; c.strokeStyle = 'rgba(0,0,0,0.8)'; c.lineWidth = 2; c.font = 'bold 10px monospace'; c.textAlign = 'center';
+    // a triangle with its tip along (ux, uy)
+    const bx = ex - ux * 14, by = ey - uy * 14, px = -uy, py = ux;
+    c.beginPath(); c.moveTo(ex, ey); c.lineTo(bx + px * 10, by + py * 10); c.lineTo(bx - px * 10, by - py * 10); c.closePath();
+    c.fill(); c.stroke();
+    c.fillText(MISSION.label, ex - ux * 26, ey - uy * 26 + 3);
+    c.restore();
+  }
+  // on screen: a downward arrow bobbing just above the stash. Drawn in the world, so it sits on the dumpster; it keeps its size at any zoom.
+  function drawMissionStashArrow(c, cam, W, H, now) {
+    const m = missionScreen(cam, W, H);
+    if (m.near || !m.on) return;
+    c.save();
+    c.translate(MISSION.x, MISSION.y); c.scale(1 / cam.z, 1 / cam.z);
+    const ty = -30 + Math.sin(now / 180) * 4;
+    c.fillStyle = '#6ef0ff'; c.strokeStyle = 'rgba(0,0,0,0.8)'; c.lineWidth = 2; c.font = 'bold 10px monospace'; c.textAlign = 'center';
+    c.beginPath(); c.moveTo(0, ty); c.lineTo(-9, ty - 16); c.lineTo(-3.5, ty - 16); c.lineTo(-3.5, ty - 30);
+    c.lineTo(3.5, ty - 30); c.lineTo(3.5, ty - 16); c.lineTo(9, ty - 16); c.closePath();
+    c.fill(); c.stroke();
+    c.fillText(MISSION.label, 0, ty - 36);
+    c.restore();
+  }
+  // LAYER 684: the second mission, find the teammate. The arrow follows him; within reach of him on foot, he is found.
+  function missionTeammate() {
+    const f = mates.find((m) => m.friend);
+    if (!f) { MISSION.stage = 'done'; return; }
+    MISSION.x = f.x; MISSION.y = f.y;
+    if (walker.on && Math.hypot(walker.x - f.x, walker.y - f.y) < 160) { MISSION.stage = 'done'; say('FOUND YOUR TEAMMATE: ' + f.name + '.', 5); runBanner('TEAMMATE FOUND', 2.6); }
+  }
   function worldHud(canvas, cam, outdoors) {
     if (!canvas) return;
     if (MISSION.stage === 'none' && CAN_LOT_RECT) missionStart();
@@ -16846,33 +17011,24 @@ const RUNNER_API = (function () {
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawRunBanners(c);   // LAYER 680: the mission banners, in screen space
     drawCanBulletin(c);  // LAYER 680: the C.A.N. lookout bulletin, in screen space
+    if (MISSION.stage === 'teammate') missionTeammate();   // LAYER 684: the second mission
+    if (outdoors && cam && (MISSION.stage === 'pistol' || MISSION.stage === 'teammate')) drawMissionArrow(c, cam, W, H, now);   // LAYER 683: the arrow to the pistol, then to the teammate
     if (outdoors && cam) {
       c.save(); c.translate(W / 2, H / 2); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y);
-      if (MISSION.stage === 'pistol') {
-        const sa = alleyArt();
-        if (sa) c.drawImage(sa, MISSION.x - 32, MISSION.y - 24, 64, 48); else { c.fillStyle = '#2e5a3a'; c.fillRect(MISSION.x - 32, MISSION.y - 24, 64, 48); }
-        const pulse = 0.5 + 0.5 * Math.sin(now / 260);
-        c.strokeStyle = 'rgba(110,240,255,' + (0.35 + 0.5 * pulse) + ')'; c.lineWidth = 2.5;
-        c.beginPath(); c.arc(MISSION.x, MISSION.y, 40 + 4 * pulse, 0, Math.PI * 2); c.stroke();
-      }
-      for (const s of PACK_STASH) if (!s.got) {   // LAYER 673: the pack stashes, the same dumpster, ringed in the pack's team colour
-        const sa = alleyArt();
-        if (sa) c.drawImage(sa, s.x - 32, s.y - 24, 64, 48); else { c.fillStyle = '#2e5a3a'; c.fillRect(s.x - 32, s.y - 24, 64, 48); }
-        c.strokeStyle = PACK_KIND[s.kind].line; c.lineWidth = 2.5; c.globalAlpha = 0.45 + 0.35 * (0.5 + 0.5 * Math.sin(now / 260));
-        c.beginPath(); c.arc(s.x, s.y, 40, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
-      }
       for (const h of hunters) drawHunter(c, h);
       for (const m of mates) drawMate(c, m);   // LAYER 679: the teammates
       drawCase(c);
       if (RUN_ON) for (const cd of canDrones) drawCanDrone(c, cd, now);   // LAYER 680: the C.A.N. drone, its light and hologram
       if (RUN_ON) drawCanBooms(c);
+      if (MISSION.stage === 'pistol' || MISSION.stage === 'teammate') drawMissionStashArrow(c, cam, W, H, now);   // LAYER 683: the arrow on the stash, then on the teammate
+      if (RUN_ON) drawAimLock(c, now);
       LASER.beams = LASER.beams.filter((b) => b.until > now);
       for (const b of LASER.beams) drawBeam(c, b, now);
       c.restore();
     }
-    if (MISSION.stage === 'pistol') {
-      c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(6, H - 296, 218, 26);
-      c.fillStyle = '#6ef0ff'; c.font = 'bold 11px monospace'; c.textAlign = 'left'; c.fillText('FIRST MISSION: GET YOUR PISTOL', 14, H - 279);
+    if (MISSION.stage === 'pistol' || MISSION.stage === 'teammate') {
+      c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(6, H - 296, 262, 26);
+      c.fillStyle = '#6ef0ff'; c.font = 'bold 11px monospace'; c.textAlign = 'left'; c.fillText(MISSION.stage === 'pistol' ? 'FIRST MISSION: GET YOUR PISTOL' : 'SECOND MISSION: FIND YOUR TEAMMATE', 14, H - 279);
     }
     if (!alertOn) return;
     const bw = 180, bx = 14, by = H - 214;   // bottom left, above the joystick: the top of the screen is full of the objectives and the HUD
@@ -16890,12 +17046,12 @@ const RUNNER_API = (function () {
     const i = new Image(); i.onload = () => { alleyImgCache = i; }; i.src = 'assets/alley/al_dumpster.png';
     return null;
   }
-  const MISSION = { stage: 'none', x: 0, y: 0 };   // stage: none, pistol (the stash is out), done
+  const MISSION = { stage: 'none', x: 0, y: 0, label: 'PISTOL' };   // stage: none, pistol (the stash is out), done
   function missionStart() {
     const L = canRect().lot, x0 = L[2] + 260, y0 = L[3] - 120;
     const sp = clearSpot(x0, y0, null) || { x: x0, y: y0 };
     MISSION.stage = 'pistol'; MISSION.x = sp.x; MISSION.y = sp.y;
-    HUNT_ART.forEach(huntArt);
+    HUNT_ART.forEach(rigArt);
     say('FIRST MISSION: GET YOUR PISTOL. IT IS STASHED UNDER A DUMPSTER, WITH $' + STASH_CASH + '. E TO PICK IT UP.', 6);
   }
   function stashNear() { return MISSION.stage === 'pistol' && walker.on && Math.hypot(walker.x - MISSION.x, walker.y - MISSION.y) < 90; }
@@ -16929,7 +17085,7 @@ const RUNNER_API = (function () {
     c.restore();
   }
   function pickLaser() {
-    LASER.has = true; LASER.drawn = false; LASER.mode = 'stun'; LASER.locked = true; MISSION.stage = 'done';
+    LASER.has = true; LASER.drawn = false; LASER.mode = 'stun'; LASER.locked = true; MISSION.stage = 'teammate'; MISSION.label = 'TEAMMATE';
     cashOwed += STASH_CASH;
     runBanner('MISSION COMPLETE', 2.6); runBanner('SURVIVE THE NIGHT!!!', 3.4);   // LAYER 680: the banners, one after the other
     say('GOT THE LASER PISTOL AND $' + STASH_CASH + '. IT IS STUCK ON STUN. OPEN THE WEAPON WHEEL TO DRAW IT.', 5);
@@ -16944,23 +17100,57 @@ const RUNNER_API = (function () {
     } catch (e) { /* no sound here */ }
   }
   // returns true when the shot was taken (or is still cooling down), so the caller does not fall through to fists
+  // LAYER 683: LB locks the aim on the nearest target in range (a hunter, or the C.A.N. drone). LB again lets go.
+  let aimLock = null, PEOPLE = null;   // aimLock: { ref, drone, kind }. PEOPLE: civilians, gang and police, set each frame
+  function aimPos(L) { return L.drone ? { x: L.ref.x, y: L.ref.y - CAN.lift } : { x: L.ref.x, y: L.ref.y }; }
+  function aimValid() {
+    if (!aimLock) return null;
+    const r = aimLock.ref;
+    const alive = aimLock.drone ? canDrones.includes(r) : aimLock.kind === 'hunter' ? (hunters.includes(r) && !r.dead) : aimLock.kind === 'mate' ? (mates.includes(r) && !r.dead) : !!(PEOPLE && PEOPLE.includes(r) && !r.dead);
+    if (!alive || !walker.on) { aimLock = null; return null; }
+    return aimPos(aimLock);
+  }
+  function aimAngle() { const t = aimValid(); return t ? Math.atan2(t.y - walker.y, t.x - walker.x) : (walker.heading || 0); }
+  // LB: cycles the aim through everyone in range, nearest first: hunters, teammates, civilians, gang, police, and the drone. Past the last one, it lets go.
+  function toggleTarget() {
+    if (!walker.on) return say('TARGETS ARE ON FOOT', 2);
+    const cand = [];
+    for (const h of hunters) if (!h.dead) cand.push({ ref: h, drone: false, kind: 'hunter' });
+    for (const m of mates) if (!m.dead && !m.friend) cand.push({ ref: m, drone: false, kind: 'mate' });
+    if (PEOPLE) for (const p of PEOPLE) if (!p.dead && (p.hp === undefined || p.hp > 0) && Number.isFinite(p.x) && Number.isFinite(p.y)) cand.push({ ref: p, drone: false, kind: 'person' });
+    for (const cd of canDrones) cand.push({ ref: cd, drone: true, kind: 'drone' });
+    const list = cand.map((L) => ({ L, d: Math.hypot(aimPos(L).x - walker.x, aimPos(L).y - walker.y) })).filter((q) => q.d < LASER_RANGE).sort((a, b) => a.d - b.d);
+    if (!list.length) { aimLock = null; return say('NO ONE IN RANGE', 2); }
+    const cur = aimValid() ? list.findIndex((q) => q.L.ref === aimLock.ref) : -1;
+    if (cur + 1 >= list.length) { aimLock = null; return say('TARGET LET GO.', 2); }
+    aimLock = { ...list[cur + 1].L };
+    say('TARGET: ' + targetName(aimLock), 2);
+  }
+  function targetName(L) { return L.drone ? 'THE C.A.N. DRONE' : L.kind === 'hunter' ? 'A HUNTER' : L.kind === 'mate' ? 'A TEAMMATE' : 'A PERSON'; }
+  function drawAimLock(c, now) {
+    const t = aimValid(); if (!t) return;
+    const pulse = 0.5 + 0.5 * Math.sin(now / 120);
+    c.strokeStyle = 'rgba(255,60,60,' + (0.5 + 0.5 * pulse) + ')'; c.lineWidth = 2;
+    c.beginPath(); c.arc(t.x, t.y, 22 + 3 * pulse, 0, Math.PI * 2); c.stroke();
+  }
   function fire() {
-    if (LASER.has && !LASER.drawn && RUN_ON && walker.on && !lobby) { say('PISTOL IS PUT AWAY. OPEN THE WEAPON WHEEL TO DRAW IT.', 2.5); return true; }
+    if (LASER.has && !LASER.drawn && RUN_ON && walker.on && !lobby) { LASER.drawn = true; say('LASER PISTOL IN HAND. RB OR F TO FIRE.', 2.5); return true; }   // LAYER 683: the first press draws it
     if (PSTUN.t > 0 && walker.on) return true;   // LAYER 679: stunned, he cannot fire
     if (!LASER.has || !RUN_ON || !walker.on || lobby) return false;
     const now = performance.now();
     if (now - LASER.lastFire < 450) return true;
     LASER.lastFire = now;
     playLaserShot();
-    const dx = Math.cos(walker.heading || 0), dy = Math.sin(walker.heading || 0);
+    const aim = aimAngle();   // LAYER 683: toward the locked target, or the way he faces
+    const dx = Math.cos(aim), dy = Math.sin(aim);
     const ox = walker.x + dx * 18, oy = walker.y + dy * 18, kill = LASER.mode === 'kill';
     let ex = ox + dx * LASER_RANGE, ey = oy + dy * LASER_RANGE, hit = null, bt = LASER_RANGE;
     // LAYER 680: the drone is a target. A beam within 30 px of it downs it, unless a hunter stands closer on the line.
     let downed = null;
     for (const cd of canDrones) { const ax = cd.x - ox, ay = (cd.y - CAN.lift) - oy, t = ax * dx + ay * dy; if (t < 0 || t > bt) continue; if (Math.abs(ax * dy - ay * dx) < 30) { downed = cd; bt = t; } }
     const downedT = bt;
-    for (const h of hunters.concat(mates)) {
-      if (h.dead) continue;
+    for (const h of hunters.concat(mates, PEOPLE || [])) {
+      if (h.dead || h.friend) continue;
       const rx = h.x - ox, ry = h.y - oy, t = rx * dx + ry * dy;
       if (t < 0 || t > bt) continue;
       if (Math.abs(rx * dy - ry * dx) < 22) { hit = h; bt = t; }
@@ -16968,7 +17158,8 @@ const RUNNER_API = (function () {
     if (downed && bt === downedT) { ex = ox + dx * bt; ey = oy + dy * bt; canShootDown(downed); }
     else if (hit) {
       ex = ox + dx * bt; ey = oy + dy * bt;
-      if (hit.team) mateHit(hit);   // LAYER 679: a teammate is stunned, not killed
+      if (mates.includes(hit)) mateHit(hit);   // LAYER 679: a teammate is stunned, not killed
+      else if (!hunters.includes(hit)) { hit.stunT = HUNT.stun; say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); }   // LAYER 683: a civilian, gang member or cop
       else if (kill) { hit.dead = true; hit.dying = HUNT.dyingT; puff(hit.x, hit.y, 'medium'); say('HUNTER DOWN.', 2); }
       else { hit.stunT = HUNT.stun; say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); }
     }
@@ -17177,7 +17368,7 @@ const RUNNER_API = (function () {
   }
   function huntDbg() {
     const playing = Object.keys(hoverAud).filter((k) => hoverAud[k] && !hoverAud[k].paused);
-    return { on: alertOn, lvl: +alertLvl.toFixed(2), n: hunters.length, playing, mission: MISSION.stage, stash: [Math.round(MISSION.x), Math.round(MISSION.y)],
+    return { on: alertOn, lvl: +alertLvl.toFixed(2), n: hunters.length, playing, mission: MISSION.stage, stash: [Math.round(MISSION.x), Math.round(MISSION.y)], bike: car.mode, onFoot: walker.on, aim: aimLock ? (aimLock.drone ? 'drone' : aimLock.kind) : null, guns: hunters.map((h) => (h.kit ? h.kit.w : null)), crew: mates.map((m) => [m.team, !!m.friend, m.col, m.look.body, m.look.suit]),
       mates: mates.map((m) => [m.team, Math.round(m.x), Math.round(m.y), +m.stunT.toFixed(1)]),
       loose: [Math.round(LOOSE.x), Math.round(LOOSE.y), LOOSE.on, LOOSE.holder === 'player' ? 'player' : LOOSE.holder ? LOOSE.holder.team : null], pstun: +PSTUN.t.toFixed(2), can: canDrones.map((d) => [Math.round(d.x), Math.round(d.y), d.flying, +d.count.toFixed(2), d.line, d.holo ? d.holo.name : null, +d.hover.toFixed(2)]),
       laser: { has: LASER.has, drawn: LASER.drawn, mode: LASER.mode, locked: LASER.locked }, collarNear: Math.round(collarNear), hz: +collarHz().toFixed(2),
@@ -17270,6 +17461,26 @@ const RUNNER_API = (function () {
     for (const b of TRASH.barrels) if (b.x > v.x0 - 80 && b.x < v.x1 + 80 && b.y > v.y0 - 80 && b.y < v.y1 + 80) drawBarrel(b, trashClock);
     ctx.restore();
   }
+  // LAYER 682: the stash dumpsters (the pistol, and the pack stashes) lie on the ground, so the walker and the bike are drawn over them
+  function groundStash(c, v) {
+    if (!RUN_ON || !c || !v) return;
+    const now = performance.now();
+    c.save();
+    if (MISSION.stage === 'pistol') {
+      const sa = alleyArt();
+      if (sa) c.drawImage(sa, MISSION.x - 32, MISSION.y - 24, 64, 48); else { c.fillStyle = '#2e5a3a'; c.fillRect(MISSION.x - 32, MISSION.y - 24, 64, 48); }
+      const pulse = 0.5 + 0.5 * Math.sin(now / 260);
+      c.strokeStyle = 'rgba(110,240,255,' + (0.35 + 0.5 * pulse) + ')'; c.lineWidth = 2.5;
+      c.beginPath(); c.arc(MISSION.x, MISSION.y, 40 + 4 * pulse, 0, Math.PI * 2); c.stroke();
+    }
+    for (const s of PACK_STASH) if (!s.got) {   // LAYER 673: the pack stashes, the same dumpster, ringed in the pack's team colour
+      const sa = alleyArt();
+      if (sa) c.drawImage(sa, s.x - 32, s.y - 24, 64, 48); else { c.fillStyle = '#2e5a3a'; c.fillRect(s.x - 32, s.y - 24, 64, 48); }
+      c.strokeStyle = PACK_KIND[s.kind].line; c.lineWidth = 2.5; c.globalAlpha = 0.45 + 0.35 * (0.5 + 0.5 * Math.sin(now / 260));
+      c.beginPath(); c.arc(s.x, s.y, 40, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
+    }
+    c.restore();
+  }
   /* LAYER 586: the skater kids ride hoverboards. A glowing pad floats under the feet, bobbing, with a rim on each side.
      Drawn over the kid, in the game's own world transform. */
   function hoverKid(c, x, y, tall) {
@@ -17324,17 +17535,21 @@ const RUNNER_API = (function () {
     augmentAt,
     takeDismount,
     wake, hunterTick, worldHud, hunterReset, hoverSoundTick, huntDbg, fire, laserItems, laserPick, gearItems, gearPick, takeCash,
-    groundTrash,
+    groundTrash, groundStash, onFoot: () => walker.on, armed: () => LASER.has,
+    setPeople: (p, groups) => { PEOPLE = (p || []).concat(...(groups || [])); },
     hoverKid,
     // LAYER 589: the builder and the lobby
     heads: () => PHEADS.slice(),
     suits: () => RSUITS.slice(),
     bodies: () => Object.keys(BODY_TYPES),
+    bodyList: (sex) => (sex === 'female' ? ['female'] : ['big', 'average', 'slim', 'athletic', 'heavy']),
+    bodyFile: (k) => BODY_FILES[k],
+    alertHere: (x, y) => canAlert(x, y),   // the C.A.N. call-in, at the hunters' own distance (used by the tests)
     setLook: (l) => {
       const o = Object.assign({}, l);
       if (o.body && BODY_TYPES[o.body] != null) { RUNNER_LOOK.body = o.body; RUNNER_LOOK.bodyK = BODY_TYPES[o.body]; }
       if (o.head) RUNNER_LOOK.head = o.head;
-      if (o.suit) RUNNER_LOOK.suit = o.suit;
+      if (o.suit) { RUNNER_LOOK.suit = o.suit; for (const m of mates) if (m.friend) { m.col = o.suit; m.look.suit = o.suit; } }   // LAYER 684: the teammate wears the suit the player picked
       if (o.name) RUNNER_LOOK.name = String(o.name).slice(0, 14);
       if (o.skin !== undefined) RUNNER_LOOK.skin = o.skin;
       if (o.stats) RUNNER_LOOK.stats = Object.assign({}, o.stats);
@@ -17387,7 +17602,8 @@ const RB_BODY = { slim: 'Slim', average: 'Average', athletic: 'Athletic', heavy:
 function RunnerBuilder({ onStart, onCancel }) {
   const [step, setStep] = useState(0);
   const [head, setHead] = useState(null);
-  const [body, setBody] = useState('big');   // LAYER 660: one build for now
+  const [sex, setSex] = useState(null);   // LAYER 684: male or female, chosen first
+  const [body, setBody] = useState('big');
   const [suit, setSuit] = useState(null);
   const [skin, setSkin] = useState(null);
   const [stats, setStats] = useState(() => Object.fromEntries(RB_STATS.map((k) => [k, 1])));
@@ -17405,10 +17621,17 @@ function RunnerBuilder({ onStart, onCancel }) {
   const headKey = head ? head[1] : null;
   const btn = (on) => ({ padding: '8px 14px', border: '1px solid #6ef0ff', background: on ? 'rgba(110,240,255,0.18)' : 'rgba(10,11,14,0.72)',
     color: '#6ef0ff', fontSize: 12, letterSpacing: '0.2em', cursor: 'pointer', userSelect: 'none', opacity: on === false ? 0.35 : 1 });
-  const steps = ['HEAD', 'BODY', 'COLOURS', 'STATS', 'NAME'];
-  const go = (n) => setStep(Math.max(0, Math.min(4, n)));
+  // LAYER 684: male or female first. It picks the heads and the builds; changing it resets a head that does not fit.
+  const chooseSex = (v) => {
+    setSex(v);
+    setBody(v === 'female' ? 'female' : (body === 'female' ? 'big' : body));
+    if (head && (head[0] === 'female') !== (v === 'female')) setHead(null);
+  };
+  const canNext = step === 0 ? !!sex : step === 4 ? left === 0 : true;
+  const steps = ['SEX', 'HEAD', 'BODY', 'COLOURS', 'STATS', 'NAME'];
+  const go = (n) => setStep(Math.max(0, Math.min(5, n)));
   const finish = () => {
-    RUNNER_API.setLook({ head: headKey || 'head_m_buzz', body, suit: suit || '#6ef0ff', skin: skin && skin !== '#ffffff' ? skin : null, name: (name || 'RUNNER').trim() || 'RUNNER',
+    RUNNER_API.setLook({ head: headKey || (sex === 'female' ? 'head_bun' : 'mhead_curly'), body, suit: suit || '#6ef0ff', skin: skin && skin !== '#ffffff' ? skin : null, name: (name || 'RUNNER').trim() || 'RUNNER',
       stats: Object.fromEntries(RB_STATS.map((k) => [k, stats[k]])) });
     onStart();
   };
@@ -17418,10 +17641,20 @@ function RunnerBuilder({ onStart, onCancel }) {
       border: '1px solid #6ef0ff', color: '#e6fbff', fontFamily: 'inherit' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ fontSize: 13, letterSpacing: '0.3em', color: '#6ef0ff' }}>RUNNER BUILDER</div>
-        <div style={{ fontSize: 11, letterSpacing: '0.2em', opacity: 0.8 }}>{step + 1} / 5 · {steps[step]}</div>
+        <div style={{ fontSize: 11, letterSpacing: '0.2em', opacity: 0.8 }}>{step + 1} / 6 · {steps[step]}</div>
       </div>
 
       {step === 0 && (<div>
+        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Male or female</div>
+        <div style={{ display: 'flex', gap: 12 }}>
+          {[['male', 'MALE'], ['female', 'FEMALE']].map(([v, lab]) => (
+            <div key={v} onClick={() => chooseSex(v)}
+              style={{ ...btn(true), flex: 1, textAlign: 'center', padding: '18px 10px', border: sex === v ? '2px solid #fff' : '1px solid #6ef0ff', background: sex === v ? 'rgba(110,240,255,0.28)' : 'rgba(110,240,255,0.08)' }}>{lab}</div>
+          ))}
+        </div>
+      </div>)}
+
+      {step === 1 && (<div>
         <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Skin tone</div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           {RB_SKINS.map((c) => (
@@ -17432,23 +17665,32 @@ function RunnerBuilder({ onStart, onCancel }) {
         </div>
         <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick a head</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 8 }}>
-          {heads.map(([sex, nm]) => {
+          {heads.filter(([s]) => (s === 'female') === (sex === 'female')).map(([s, nm]) => {
             const on = headKey === nm;
-            return (<div key={nm} onClick={() => setHead([sex, nm])}
+            return (<div key={nm} onClick={() => setHead([s, nm])}
               style={{ border: on ? '2px solid #6ef0ff' : '1px solid rgba(110,240,255,0.35)', background: 'rgba(255,255,255,0.04)',
                 padding: 4, cursor: 'pointer', textAlign: 'center' }}>
-              <img src={'assets/runner/heads/' + sex + '/' + nm + '.png'} alt="" style={{ width: '100%', imageRendering: 'auto' }} />
+              <img src={'assets/runner/heads/' + (s ? s + '/' : '') + nm + '.png'} alt="" style={{ width: '100%', imageRendering: 'auto' }} />
             </div>);
           })}
         </div>
       </div>)}
 
-      {step === 1 && (<div>
-        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Build</div>
-        <div style={{ fontSize: 12, letterSpacing: '0.2em', color: '#6ef0ff', padding: 12, border: '1px solid #6ef0ff' }}>ONE BUILD FOR NOW</div>
+      {step === 2 && (<div>
+        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>{sex === 'female' ? 'Female build' : 'Male build'}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 8 }}>
+          {RUNNER_API.bodyList(sex).map((k) => {
+            const on = body === k;
+            return (<div key={k} onClick={() => setBody(k)}
+              style={{ border: on ? '2px solid #6ef0ff' : '1px solid rgba(110,240,255,0.35)', background: 'rgba(255,255,255,0.04)', padding: 4, cursor: 'pointer', textAlign: 'center' }}>
+              <img src={'assets/runner/' + RUNNER_API.bodyFile(k)} alt="" style={{ width: '100%', imageRendering: 'auto' }} />
+              <div style={{ fontSize: 11, letterSpacing: '0.16em', marginTop: 4 }}>{k.toUpperCase()}</div>
+            </div>);
+          })}
+        </div>
       </div>)}
 
-      {step === 2 && (<div>
+      {step === 3 && (<div>
         <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick your suit colour</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
           {suits.map((c) => (
@@ -17459,7 +17701,7 @@ function RunnerBuilder({ onStart, onCancel }) {
         </div>
       </div>)}
 
-      {step === 3 && (<div>
+      {step === 4 && (<div>
         <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Spend 20 points · {left} left</div>
         {RB_STATS.map((k) => (
           <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0' }}>
@@ -17473,7 +17715,7 @@ function RunnerBuilder({ onStart, onCancel }) {
         ))}
       </div>)}
 
-      {step === 4 && (<div>
+      {step === 5 && (<div>
         <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Name yourself</div>
         <input value={name} maxLength={14} onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.stopPropagation()} onKeyUp={(e) => e.stopPropagation()}
@@ -17483,8 +17725,8 @@ function RunnerBuilder({ onStart, onCancel }) {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, gap: 10, flexWrap: 'wrap' }}>
         <div onClick={() => (step === 0 ? onCancel() : go(step - 1))} style={btn(true)}>{step === 0 ? 'EXIT' : 'BACK'}</div>
-        {step < 4 && <div onClick={() => { if (step !== 3 || left === 0) go(step + 1); }} style={btn(step !== 3 || left === 0)}>NEXT</div>}
-        {step === 4 && <div onClick={finish} style={btn(true)}>START</div>}
+        {step < 5 && <div onClick={() => { if (canNext) go(step + 1); }} style={btn(canNext)}>NEXT</div>}
+        {step === 5 && <div onClick={finish} style={btn(true)}>START</div>}
       </div>
     </div>
   );
@@ -19005,12 +19247,14 @@ export default function IronLionLayer004() {
          RB fire), so the world's A / B / X / Y / RB stand down here. LB still opens the wheel. */
       const onRun675 = RUNNER_API.isOn();
       if (!onRun675 && press(0)) doAction();
-      if (!onRun675 && press(1)) { if (!closeSomething() && G.strikeFn) G.strikeFn(); }
+      // LAYER 683: B punches. In Runner Mode B takes off or lands the bike, so it punches only while he is on foot.
+      if (press(1)) { if (onRun675) { if (RUNNER_API.onFoot() && G.strikeFn) G.strikeFn(); } else if (!closeSomething() && G.strikeFn) G.strikeFn(); }
       const rel = (i) => !B(i) && was[i];                       // only touch a key on a press or a release, so the keyboard still works
       if (!onRun675 && press(2)) K[" "] = true; if (rel(2)) K[" "] = false;
-      if (!onRun675 && press(3) && G.coverFn) G.coverFn();
-      if (press(4)) openWheel();
-      if (!onRun675 && press(5)) { if (!tap(["TGT"])) tap(["DRAW", "PUT UP"]); }
+      // LAYER 683: in Runner Mode Y opens the wheel, LB is the target (read by the runner), and RB punches on foot until he has the pistol
+      if (press(3)) { if (onRun675) openWheel(); else if (G.coverFn) G.coverFn(); }
+      if (press(4) && !onRun675) openWheel();
+      if (press(5)) { if (onRun675) { if (RUNNER_API.onFoot() && !RUNNER_API.armed() && G.strikeFn) G.strikeFn(); } else if (!tap(["TGT"])) tap(["DRAW", "PUT UP"]); }
       // the triggers: a car's pedals, or on foot draw / run
       if (press(7)) { if (car) K["w"] = true; else input.current.run = true; }
       if (rel(7)) { K["w"] = false; input.current.run = !!sprint && !car; }
@@ -54639,7 +54883,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { { const rc = RUNNER_API.takeCash(); if (rc && g.p) g.p.cash = (g.p.cash || 0) + rc; }   // LAYER 678: the stash cash
+      try { RUNNER_API.setPeople(g.peds, Array.isArray(g.crews) ? g.crews.map((c) => (c && c.members) || []) : []);   // LAYER 683: everyone the aim can pick
+        { const rc = RUNNER_API.takeCash(); if (rc && g.p) g.p.cash = (g.p.cash || 0) + rc; }   // LAYER 678: the stash cash
         if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title) RUNNER_API.hazeTick(!g.inside && !g.sewer); if (RUNNER_API.isOn() && !g.title && g.peds) RUNNER_API.keepYouthOut(g.peds); if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { const hz = RUNNER_API.hazeLevel(); if (hz > 0 && g.p.hp > (g.p.maxHp || 100) * (1 - hz)) g.p.hp = (g.p.maxHp || 100) * (1 - hz); } /* LAYER 648: the haze caps health, like a debuff */ if (RUNNER_API.isOn() && !g.title && RUNNER_API.riding()) { g.grap = null; g.jump = null; g.roof = null; RUNNER_API.keepOut(g.p); } else if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.keepOut(g.p); RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); /* LAYER 669: the hunters' alert and the hover sounds */ if (RUNNER_API.isOn() && !g.title) { const inHosp = !!(g.inside && g.inside.kind === "hospital"); const tg = g.inside ? doorPoint(g.inside) : [g.p.x, g.p.y]; RUNNER_API.hunterTick(tg[0], tg[1], inHosp); RUNNER_API.worldHud(canvasRef.current, g.cam, !g.inside); } else RUNNER_API.hunterReset(); RUNNER_API.hoverSoundTick(RUNNER_API.isOn() && !g.title && !g.inside); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
@@ -55197,7 +55442,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return;
       }
       drawGround(view);
-      if (RUNNER_API.isOn() && !g.inside) { RUNNER_API.groundTrash(ctx, view); RUNNER_API.windTrash(ctx, view, g.wx && g.wx.k); }   // LAYER 586: litter under the traffic and the player; LAYER 632: it blows in a storm
+      if (RUNNER_API.isOn() && !g.inside) { RUNNER_API.groundTrash(ctx, view); RUNNER_API.groundStash(ctx, view); RUNNER_API.windTrash(ctx, view, g.wx && g.wx.k); }   // LAYER 586: litter under the traffic and the player; LAYER 632: it blows in a storm
       if (!g.inside) { drawOldTownGround(view); drawOldTownBlacktop(view); drawRoundabout(view); drawDealers(view); drawStanLot(view); drawAptLot(view); bozHouseInit(); drawYard(view); drawHill(view); drawCrush(view); drawBozHouse(view); stepRhu(); drawRhu(view); drawWoods(view); drawDirtJumps(view); drawTrackRiders(view); drawAirport(view); drawStudentWorld(view); }
       if (!g.inside) drawMarkGround(view);
       if (!g.inside) drawCasings(view);
