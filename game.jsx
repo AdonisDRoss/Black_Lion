@@ -2821,7 +2821,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 674";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 681";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -14729,9 +14729,15 @@ const RUNNER_API = (function () {
   const HEAD_WF = { slim: 0.40, big: 0.4898 };   // LAYER 660: head width from the anchor file
   const RHEADS = [['male', 'mhead_afro'], ['male', 'mhead_curly'], ['male', 'mhead_mohawk'],
     ['female', 'head_bun'], ['female', 'head_cap_a'], ['female', 'head_cap_b'], ['female', 'head_curly'], ['female', 'head_swirl']];
-  RHEADS.forEach(([sex, nm]) => load('rh_' + nm, 'heads/' + sex + '/' + nm + '.png'));
+  /* LAYER 676: the runner's head list is RHEADS PLUS the top-down heads of the old hunters (heads/head_m_*), since the
+     hunters got new skins. The builder and the random look use PHEADS. The L3 scan log and the face tags use the Black
+     Lion faces (assets/faces), not these top-down heads. */
+  const PHEADS = RHEADS.concat(['afro', 'bald', 'buzz', 'crewcut', 'curly', 'mohawk', 'receding', 'short'].map((s) => ['', 'head_m_' + s]));
+  PHEADS.forEach(([sex, nm]) => load('rh_' + nm, sex ? 'heads/' + sex + '/' + nm + '.png' : 'heads/' + nm + '.png'));
   load('hoverboard', 'hover/hoverboard.png');
   load('drone', 'drone/traffic_drone.png');        // LAYER 608: the traffic drone
+  load('can_drone', 'drone/can_drone.png');        // LAYER 680: the C.A.N. news drone
+  load('can_explode', 'drone/can_explode.png');    // LAYER 680: its explosion, six frames in a strip
   load('airtow', 'drone/airtow.png');             // LAYER 610: the air tow (flatbed, cab to the left)
   for (let q = 0; q < 8; q++) load('puff_' + q, 'smoke/puff_' + q + '.png');   // LAYER 622: exhaust puffs, 0 and 4 small, 1 and 5 medium, 2 3 6 7 big
   // LAYER 594: the Lion's jacket body (the game's own hero art), recoloured per look; heads go on top of it
@@ -14746,7 +14752,7 @@ const RUNNER_API = (function () {
   const RUNNER_LOOK = { head: 'mhead_curly', suit: '#6ef0ff', body: 'big', bodyK: 1, name: 'RUNNER', stats: null, chosen: false, skin: null };
   const BODY_TYPES = { slim: 1, average: 1, athletic: 1, heavy: 1, big: 1 };
   function rollRunnerLook() {
-    const h = RHEADS[(Math.random() * RHEADS.length) | 0];
+    const h = PHEADS[(Math.random() * PHEADS.length) | 0];
     RUNNER_LOOK.head = h[1];
     RUNNER_LOOK.suit = RSUITS[(Math.random() * RSUITS.length) | 0];
   }
@@ -14796,14 +14802,14 @@ const RUNNER_API = (function () {
     return out;
   }
   let cycleCooldown = 0, msg = '', msgT = 0;
-  const pend = { land: false, exit: false };
+  const pend = { land: false, exit: false, board: false, dismount: false, fire: false };
   // LAYER 589: the C.A.N. lobby. While the player is inside a building the runner's camera and overlay stand down;
   // the hover bike waits parked outside the door (lobbyBike), and leaving the lobby lands it there.
   let lobby = false, lobbyBike = null, camSmooth = null;
   let held = null;                                          // LAYER 603: the weapon in hand (a key, or null)
   let haze = 0, hazeT = 0, mask = false;                    // LAYER 647: the haze load (0 to 1), its clock, and whether a breather is on
   const HAND_DOWN = 0.10;                                    // share of the body height the hands drop while holding
-  let padPrev = { a: false, b: false };
+  let padPrev = { a: false, b: false, xb: false, yb: false, rb: false };
   let padL3Prev = false, logOpen = false;
   const scanLog = [];                              // LAYER 619: the last scans, with the face, the result and the shock
   const say = (s, secs) => { msg = s; msgT = secs || 2.5; };
@@ -14883,7 +14889,7 @@ const RUNNER_API = (function () {
   // LAYER 629: the parked bike. car.sprite is an index into CAR_FILES, so the image is looked up by its name
   function bikeParked(x, y, heading) {
     const name = CAR_FILES[car.sprite]; if (!name) return;
-    const sp = img['car_' + name]; if (!sp || !sp.width) return;
+    const sp = tintedSprite(img['car_' + name], name === 'cars_43a7a337_1' ? PLAYER_BIKE_TINT : null); if (!sp || !sp.width) return;   // LAYER 680: parked, it is still his red bike
     const m = CAR_META[name] || { len: 62, nose: 0 };
     ctx.save(); ctx.translate(x, y); ctx.rotate(heading + m.nose);
     const k = m.len / Math.max(sp.width, sp.height); ctx.drawImage(sp, -sp.width * k / 2, -sp.height * k / 2, sp.width * k, sp.height * k);
@@ -14985,6 +14991,24 @@ const RUNNER_API = (function () {
   function jIdx(v) { return clamp(Math.round(v / PITCH), 1, N - 1); }
   function densAt(x, y) { const z = zoneOf(jIdx(x), jIdx(y)); return DENS[z] != null ? DENS[z] : 0.35; }
   const CAR_POOL = CAR_FILES.filter((f) => f !== 'cars_43a7a337_1').map((f) => 'car_' + f);   // the hover cars: the car art, no kit
+  // LAYER 680: bike colours. The bike art is one blue sheet; a tint recolours it, keeping its shading. null = the art as drawn (blue).
+  const PLAYER_BIKE_TINT = '#d4102a';                                              // Donny's: cherry red
+  const BIKE_TINTS = ['#e8c46a', '#3fbf6a', '#ff7a1a', '#8e4fd8', '#8a8d96', '#d8d8e0', null];
+  const TINT_CACHE = new WeakMap();
+  function tintedSprite(sp, col) {
+    if (!sp || !sp.width || !col) return sp;
+    let m = TINT_CACHE.get(sp); if (!m) { m = new Map(); TINT_CACHE.set(sp, m); }
+    let cv = m.get(col);
+    if (!cv) {
+      cv = document.createElement('canvas'); cv.width = sp.width; cv.height = sp.height;
+      const t = cv.getContext('2d');
+      t.drawImage(sp, 0, 0);
+      t.globalCompositeOperation = 'color'; t.fillStyle = col; t.fillRect(0, 0, cv.width, cv.height);   // the colour's hue, the art's light
+      t.globalCompositeOperation = 'destination-in'; t.drawImage(sp, 0, 0);                              // back to the art's own shape
+      m.set(col, cv);
+    }
+    return cv;
+  }
   function newFlier(cx, cy) {
     // a junction near the camera, kept with a chance that follows the zone's density
     let ci = jIdx(cx + rnd(-1400, 1400)), cj = jIdx(cy + rnd(-1400, 1400));
@@ -14993,7 +15017,8 @@ const RUNNER_API = (function () {
     const f = { x: SX(ci), y: SX(cj), heading: 0, z: rnd(110, 180), cruise: rnd(110, 180),
       mode: 'fly', tx: SX(ci), ty: SX(cj), ci, cj, wait: 0, spd: rnd(170, 260),
       sprite: bike ? 'car_cars_43a7a337_1' : CAR_POOL[Math.floor(Math.random() * CAR_POOL.length)],
-      head: bike ? RHEADS[Math.floor(Math.random() * RHEADS.length)][1] : null, riderRow: (Math.random() * 10) | 0 };
+      head: null, riderRow: (Math.random() * 10) | 0,   // LAYER 679: no top-down heads on the street people
+      tint: bike ? BIKE_TINTS[(Math.random() * BIKE_TINTS.length) | 0] : null };   // LAYER 680: a bike's colour
     return f;
   }
   // the next junction along a road from the one the flier is at (never off the grid)
@@ -15092,6 +15117,7 @@ const RUNNER_API = (function () {
     placed = true;
     car.z = AIR_Z; car.mode = 'air'; car.speed = 0; car.lean = 0; walker.on = false;
     fliers.length = 0; for (let k = 0; k < 16; k++) fliers.push(newFlier(car.x, car.y));
+    spawnTeam();   // LAYER 679: the teammates and the case
     say('FUTURE CITY · L TO LAND · E TO GET OUT', 4);
   }
 
@@ -15125,19 +15151,27 @@ const RUNNER_API = (function () {
     }
     return { x: car.x, y: car.y };
   }
+  /* LAYER 675: the pad and the keys share these. E (and the pad's Y, the action) picks up a stash, else boards or gets off.
+     A boards the bike, B takes off or lands it, X gets off. walker.on is true while he is on foot. */
   function exitOrBoard() {
     const packSpot = packStashNear(); if (packSpot) { packPickup(packSpot); return; }   // LAYER 673: E by a pack stash
     if (stashNear()) { pickLaser(); return; }   // LAYER 670: E by the stash picks up the laser pistol
-    if (walker.on) {
-      // LAYER 635: reach is wider -- the bike is a small thing on a phone screen
-      const dd = Math.hypot(walker.x - car.x, walker.y - car.y);
-      if (dd < 200 && car.mode !== 'landed') say('WAIT. THE BIKE IS STILL COMING DOWN');
-      else if (dd < 200) { walker.on = false; dismountAt = null; say('ON THE BIKE · L TO LIFT OFF · E TO GET OFF WHEN LANDED'); }
-      else if (car.mode === 'landed') callBike();      // LAYER 639: too far to get on -- the bike comes down to you
-      else say('THE BIKE IS IN THE AIR. L TO LAND IT');
-      return;
-    }
-    if (car.mode !== 'landed') return say('LAND FIRST · L');
+    if (caseNear()) { pickCase(); return; }     // LAYER 679: E by the case picks it up
+    if (walker.on) return boardBike();
+    getOffBike();
+  }
+  function boardBike() {
+    if (!walker.on) return say('YOU ARE ON THE BIKE');
+    // LAYER 635: reach is wider -- the bike is a small thing on a phone screen
+    const dd = Math.hypot(walker.x - car.x, walker.y - car.y);
+    if (dd < 200 && car.mode !== 'landed') say('WAIT. THE BIKE IS STILL COMING DOWN');
+    else if (dd < 200) { walker.on = false; dismountAt = null; say('ON THE BIKE · L OR B TO LIFT OFF · E OR X TO GET OFF WHEN LANDED'); }
+    else if (car.mode === 'landed') callBike();      // LAYER 639: too far to get on -- the bike comes down to you
+    else say('THE BIKE IS IN THE AIR. L OR B TO LAND IT');
+  }
+  function getOffBike() {
+    if (walker.on) return say('YOU ARE ON FOOT');
+    if (car.mode !== 'landed') return say('LAND FIRST · L OR B');
     const dm = dismountSpot(); walker.on = true; dismountAt = dm; walker.heading = 0;   // LAYER 668: keepOut places him there (the body is g.p, and figureAt copies it into walker every frame)
     say('ON FOOT · E NEAR THE VEHICLE TO GET BACK IN');
   }
@@ -15187,7 +15221,7 @@ const RUNNER_API = (function () {
 
   // ---------- input ----------
   function readPad() {
-    const out = { x: 0, y: 0, rt: 0, lt: 0, a: false, b: false, l3: false };
+    const out = { x: 0, y: 0, rt: 0, lt: 0, a: false, b: false, xb: false, yb: false, rb: false, l3: false };
     const list = navigator.getGamepads ? navigator.getGamepads() : [];
     for (const g of list) {
       if (!g) continue;
@@ -15196,6 +15230,9 @@ const RUNNER_API = (function () {
       out.lt = g.buttons[6] ? g.buttons[6].value : 0;
       out.a = !!(g.buttons[0] && g.buttons[0].pressed);
       out.b = !!(g.buttons[1] && g.buttons[1].pressed);
+      out.xb = !!(g.buttons[2] && g.buttons[2].pressed);
+      out.yb = !!(g.buttons[3] && g.buttons[3].pressed);
+      out.rb = !!(g.buttons[5] && g.buttons[5].pressed);
       out.l3 = !!(g.buttons[10] && g.buttons[10].pressed);
       break;
     }
@@ -15203,14 +15240,22 @@ const RUNNER_API = (function () {
   }
 
   function update(dt) {
+    mateTick(dt);
+    canTick(dt);   // LAYER 680: the C.A.N. drone
     const pad = readPad();
-    if (pad.a && !padPrev.a) pend.land = true;
-    if (pad.b && !padPrev.b) pend.exit = true;
-    padPrev = { a: pad.a, b: pad.b };
+    if (pad.a && !padPrev.a) pend.board = true;          // LAYER 675: A boards the bike
+    if (pad.b && !padPrev.b) pend.land = true;           // B takes off, or lands
+    if (pad.xb && !padPrev.xb) pend.dismount = true;     // X gets off
+    if (pad.yb && !padPrev.yb) pend.exit = true;         // Y is the action (E): stash pickups, else board or get off
+    if (pad.rb && !padPrev.rb) pend.fire = true;         // RB fires the pistol
+    padPrev = { a: pad.a, b: pad.b, xb: pad.xb, yb: pad.yb, rb: pad.rb };
     if (pad.l3 && !padL3Prev) logOpen = !logOpen;      // LAYER 619: L3 opens and closes the scan log
     padL3Prev = pad.l3;
     cycleCooldown -= dt; msgT -= dt;
     if (pend.land) { pend.land = false; if (!walker.on) toggleLand(); else say('GET IN THE CAR FIRST'); }
+    if (pend.board) { pend.board = false; boardBike(); }
+    if (pend.dismount) { pend.dismount = false; getOffBike(); }
+    if (pend.fire) { pend.fire = false; fire(); }
     if (pend.exit) { pend.exit = false; exitOrBoard(); }
     if (walker.on) {
       updateWalker(dt, pad);
@@ -15235,7 +15280,7 @@ const RUNNER_API = (function () {
   }
   // a vehicle at ground point (x, y), lifted z units up the screen; its glow stays on the ground
   function drawCar(sprite, x, y, z, heading, lean) {
-    const sp = img[sprite], m = carMeta(sprite);
+    const sp = tintedSprite(img[sprite], RUN_ON && sprite === 'car_cars_43a7a337_1' ? PLAYER_BIKE_TINT : null), m = carMeta(sprite);   // LAYER 680: Donny's bike is cherry red
     lean = lean || 0;
     drawGlow(x, y, heading, m.len, m.glow);
     ctx.save();
@@ -15484,7 +15529,7 @@ const RUNNER_API = (function () {
     // LAYER 660: the big body has its legs in the art; the cop's legs are cut and drawn from pieces, so both skip the code legs
     const copLegs = bs && bodyKey() === 'body_cop_gas' && img.cop_leg_L && img.cop_leg_R ? { L: img.cop_leg_L, R: img.cop_leg_R } : null;
     const baked = RUNNER_LOOK.body === 'big' || !!copLegs;
-    const bw = 40 * bk, bh = bs ? bw * (bs.height / bs.width) : 56 * bk;   // LAYER 667: 40 wide, the street people are 36 and the bike is 62 long (was 70)
+    const bw = 36 * bk, bh = bs ? bw * (bs.height / bs.width) : 56 * bk;   // LAYER 677: 36 wide (was 40), a little smaller; the bike is 62 long
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 0.09 * bw, y + 0.14 * bw, 0.23 * bw, 0.13 * bw, 0, 0, Math.PI * 2); ctx.fill();
     // LAYER 598 / 606: little boots on navy trousers. The legs come off the hip, and each leg is as wide as its part of the hip.
     const st = walker.on && walker.step ? Math.sin(walker.step) * 2.5 : 0;
@@ -15541,7 +15586,7 @@ const RUNNER_API = (function () {
     const hd = bs && bodyKey() && bodyKey().startsWith('body_cop_') ? null : headSprite(RUNNER_LOOK.head);   // LAYER 657: the cops' heads are in their art
     if (hd) { const hk = HEAD_SCALE[RUNNER_LOOK.head] || 1, hw = (HEAD_WF[RUNNER_LOOK.body] || 0.36) * bw * hk, hh = hd.height * (hw / hd.width); const cyF = HEAD_CY[RUNNER_LOOK.body];
       const hy = cyF != null ? y - bh / 2 + cyF * bh - hh / 2 : y - bh / 2 + 0.02 * bh - (hk - 1) * 0.06 * bh + (HEAD_DROP[RUNNER_LOOK.body] || 0) * bh;
-      ctx.drawImage(hd, x - hw / 2, hy, hw, hh); if (mask) drawRunnerMask(x, hy + hh * 0.62, hw / 25); drawCollarDot(x, hy + hh * 0.86, hw); }
+      ctx.drawImage(hd, x - hw / 2, hy, hw, hh); if (mask) drawRunnerMask(x, hy + hh * 0.62, hw / 25); if (!mateDrawing) drawCollarDot(x + hw * 0.38, hy + hh * 0.5, hw); }   // LAYER 677: the collar light on the right side of the head, not on the nose
     ctx.restore();
   }
 
@@ -15603,18 +15648,38 @@ const RUNNER_API = (function () {
     ctx.globalAlpha = 0.3; ctx.fillStyle = pat; ctx.fillRect(0, 0, W, H);
     ctx.restore();
   }
+  // LAYER 676: NPC faces are the Black Lion portraits (assets/faces), drawn from the same pools the main game uses
+  const BL_FACE_IMG = {};
+  function blFacePick() {
+    const pools = [RB_FACES.older, RB_FACES.mid, RB_FACES.young].filter((p) => p && p.length);
+    const pool = pools[(Math.random() * pools.length) | 0];
+    return pool[(Math.random() * pool.length) | 0];
+  }
+  function blFaceSprite(file) {
+    if (!file) return null;
+    let i = BL_FACE_IMG[file];
+    if (!i) { i = new Image(); i.src = 'assets/faces/' + file; BL_FACE_IMG[file] = i; }
+    return i.complete && i.naturalWidth ? i : null;
+  }
   function logScan(head, hit) {
     scanLog.unshift({ head, hit, t: performance.now() });
     if (scanLog.length > 8) scanLog.length = 8;
   }
   // the shock collar: a cyan ring with two contact prongs and a red light
+  // LAYER 677: the collar's icon art (assets/runner/hud/icon_collar.png, from claude/runner-hud-icon-prompts.md) when it is
+  // in the folder; until then the drawn icon below stands in.
+  const COLLAR_IMG = new Image(); COLLAR_IMG.src = 'assets/runner/hud/icon_collar.png';
   function drawShockIcon(x, y, s) {
+    if (COLLAR_IMG.complete && COLLAR_IMG.naturalWidth) { const d = 34 * s; ctx.drawImage(COLLAR_IMG, x - d / 2, y - d / 2, d, d); return; }
     ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
     ctx.strokeStyle = '#6ef0ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(0, 0, 14, 9, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.fillStyle = '#6ef0ff'; ctx.fillRect(-9, 6, 3, 6); ctx.fillRect(6, 6, 3, 6);
     ctx.fillStyle = '#ff4d4d'; ctx.beginPath(); ctx.arc(0, -1, 3, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
+  // LAYER 677: the cyber the runner has equipped, shown beside his head in the L3 log. Each: { icon: () => image }.
+  // Empty until a cyber item exists for the runner (the augments in the code so far only draw on NPCs).
+  const RUNNER_CYBER = [];
   function drawScanLog() {
     if (!RUN_ON) return;
     const x0 = W - 300, y0 = 12;
@@ -15625,17 +15690,29 @@ const RUNNER_API = (function () {
       drawShockIcon(x0 + 262, y0 + 12, 0.62);   // LAYER 670: the collar, on the closed log too
       ctx.restore(); return;
     }
-    const h = 92 + Math.max(1, scanLog.length) * 40;
+    const h = 124 + Math.max(1, scanLog.length) * 40;
     ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(x0, y0, 288, h);
     ctx.fillStyle = '#e8d9b5'; ctx.font = 'bold 13px monospace'; ctx.fillText('SCAN LOG (L3 TO CLOSE)', x0 + 10, y0 + 20);
+    // LAYER 677: the status row. His head, the cyber he has equipped beside it, and a small circle (the collar light).
+    const hs0 = headSprite(RUNNER_LOOK.head);
+    if (hs0 && hs0.width) { const hw0 = 30, hh0 = hs0.height * (hw0 / hs0.width); ctx.drawImage(hs0, x0 + 8, y0 + 30, hw0, hh0); }
+    if (!RUNNER_CYBER.length) { ctx.fillStyle = '#9a9486'; ctx.font = '11px monospace'; ctx.fillText('NO CYBER EQUIPPED', x0 + 52, y0 + 50); }
+    RUNNER_CYBER.slice(0, 4).forEach((c2, i) => {
+      const cx2 = x0 + 56 + i * 34, cy2 = y0 + 46;
+      ctx.strokeStyle = '#6ef0ff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx2, cy2, 13, 0, Math.PI * 2); ctx.stroke();
+      const ci = c2.icon && c2.icon(); if (ci && ci.width) ctx.drawImage(ci, cx2 - 11, cy2 - 11, 22, 22);
+    });
+    { const t2 = performance.now() / 1000, p2 = Math.pow(0.5 + 0.5 * Math.sin(t2 * collarHz() * Math.PI * 2), 3);   // the small circle blinks like the collar light
+      ctx.fillStyle = 'rgba(255,60,60,' + (0.25 + 0.75 * p2) + ')'; ctx.beginPath(); ctx.arc(x0 + 262, y0 + 46, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#2a0a0a'; ctx.lineWidth = 1; ctx.stroke(); }
     // LAYER 670: the collar. Its light blinks faster the closer the nearest hunter is.
-    drawShockIcon(x0 + 26, y0 + 56, 1.1);
-    ctx.fillStyle = '#6ef0ff'; ctx.font = 'bold 12px monospace'; ctx.fillText('COLLAR ON', x0 + 52, y0 + 50);
-    ctx.fillStyle = collarNear < 700 ? '#ff8a8a' : '#9fffc0'; ctx.font = '11px monospace'; ctx.fillText(collarWord(), x0 + 52, y0 + 68);
-    if (!scanLog.length) { ctx.fillStyle = '#e8d9b5'; ctx.font = '12px monospace'; ctx.fillText('NOTHING SCANNED YET', x0 + 10, y0 + 100); }
+    drawShockIcon(x0 + 26, y0 + 84, 1.0);
+    ctx.fillStyle = '#6ef0ff'; ctx.font = 'bold 12px monospace'; ctx.fillText('COLLAR ON', x0 + 52, y0 + 80);
+    ctx.fillStyle = collarNear < 700 ? '#ff8a8a' : '#9fffc0'; ctx.font = '11px monospace'; ctx.fillText(collarWord(), x0 + 52, y0 + 98);
+    if (!scanLog.length) { ctx.fillStyle = '#e8d9b5'; ctx.font = '12px monospace'; ctx.fillText('NOTHING SCANNED YET', x0 + 10, y0 + 130); }
     scanLog.forEach((e, i) => {
-      const ry = y0 + 84 + i * 40;
-      const hs = headSprite(e.head);
+      const ry = y0 + 116 + i * 40;
+      const hs = blFaceSprite(e.head);
       if (hs && hs.width) { const hw = 32, hh = hs.height * (hw / hs.width); ctx.drawImage(hs, x0 + 8, ry, hw, hh); }
       ctx.font = 'bold 12px monospace';
       ctx.fillStyle = e.hit ? '#ff8a8a' : '#9fffc0';
@@ -15691,11 +15768,11 @@ const RUNNER_API = (function () {
   // A gas mask or an augment sits beside the face; a person with neither shows the face alone.
   const faceOf = new WeakMap();
   function faceFor(o) {
-    if (!faceOf.has(o)) faceOf.set(o, RHEADS[(Math.random() * RHEADS.length) | 0][1]);
+    if (!faceOf.has(o)) faceOf.set(o, blFacePick());
     return faceOf.get(o);
   }
   function drawFaceTag(o, x, bottom, k) {
-    const hs = headSprite(faceFor(o));
+    const hs = blFaceSprite(faceFor(o));
     if (!hs || !hs.width) return;
     const fw = 22 / dZ, fh = fw * hs.height / hs.width, top = bottom - fh;
     ctx.save();
@@ -16075,7 +16152,7 @@ const RUNNER_API = (function () {
         if (f.scanT >= DRONE.scanT) {
           f.scanT = 0;
           const hit = warrantRoll(f);
-          const scanHead = RHEADS[Math.floor(Math.random() * RHEADS.length)][1];
+          const scanHead = blFacePick();
           logScan(scanHead, hit);
           if (hit) { f.lab = { t: 1.6, txt: 'WARRANT', hit: true, head: scanHead }; startIncident(d, f); }
           else { f.lab = { t: 1.4, txt: 'CLEAR', hit: false, head: scanHead }; f.scanCool = 6; }
@@ -16114,7 +16191,7 @@ const RUNNER_API = (function () {
       drawShadow(f.x, f.y, f.heading, len, f.z);
       drawGlow(f.x, f.y - f.z, f.heading, len, carMeta(f.sprite).glow);
       ctx.save(); ctx.translate(f.x, f.y - f.z); ctx.rotate(f.heading + carMeta(f.sprite).nose);
-      { const sp = img[f.sprite]; if (sp) { const k = len / Math.max(sp.width, sp.height); ctx.drawImage(sp, -sp.width * k / 2, -sp.height * k / 2, sp.width * k, sp.height * k); } }
+      { const sp = tintedSprite(img[f.sprite], f.tint); if (sp) { const k = len / Math.max(sp.width, sp.height); ctx.drawImage(sp, -sp.width * k / 2, -sp.height * k / 2, sp.width * k, sp.height * k); } }
       // LAYER 624: a bike's rider is a civilian from the crowd's own top-down sheet, picked once per bike and turned
       // to face the way the bike goes. Until the crowd is ready the motorcycle gangs' rider sheet stands in.
       const rsheet = ART.gang_wolves_ride;
@@ -16135,7 +16212,7 @@ const RUNNER_API = (function () {
       if (f.lab && f.lab.t > 0) {
         ctx.font = 'bold ' + Math.round(14 / dZ) + 'px monospace'; ctx.textAlign = 'center';
         ctx.fillStyle = f.lab.hit ? 'rgba(255,90,90,0.95)' : 'rgba(120,255,160,0.95)';
-        const lhs = f.lab.head ? headSprite(f.lab.head) : null;
+        const lhs = f.lab.head ? blFaceSprite(f.lab.head) : null;   // LAYER 679: the scan label shows a Black Lion face
         if (lhs && lhs.width) { const lw = 26 / dZ, lhh = lw * lhs.height / lhs.width; ctx.drawImage(lhs, f.x - lw / 2, f.y - f.z - 34 / dZ - 14 / dZ - lhh, lw, lhh); }
         ctx.fillText(f.lab.txt, f.x, f.y - f.z - 34 / dZ);
       }
@@ -16327,6 +16404,7 @@ const RUNNER_API = (function () {
   }
   function keepOut(p) {
     if (!p || !Number.isFinite(p.x)) return;
+    if (PSTUN.t > 0) { p.x = PSTUN.x; p.y = PSTUN.y; p.vx = 0; p.vy = 0; }   // LAYER 679: stunned, he sits where he was hit
     // LAYER 638: on the bike, the body goes where the bike goes. LAYER 668: and the roof flag follows the bike, so a bike that is
     // off the roof never leaves the flag set (the old stale flag sent him to the roof's north edge, 600 px away).
     if (!walker.on && !lobby) { p.x = car.x; p.y = car.y; p.vx = 0; p.vy = 0; canRoof = onCanRoof(car.x, car.y); return; }
@@ -16362,9 +16440,10 @@ const RUNNER_API = (function () {
     return null;
   }
   let alertOn = false, alertLvl = 0, hunters = [], huntLast = 0, collarNear = Infinity;
-  function hunterReset() { alertOn = false; alertLvl = 0; hunters = []; }
+  function hunterReset() { alertOn = false; alertLvl = 0; hunters = []; canKnown = null; }
   // (tx, ty): where the runner is for the hunters (his place outdoors, the door of the building he is in). inHosp: he is in the hospital.
   function hunterTick(tx, ty, inHosp) {
+    if (canKnown && !inHosp) { tx = canKnown.x; ty = canKnown.y; }   // LAYER 680: they go to his last reported place
     const now = performance.now(), dt = Math.min(0.05, (now - (huntLast || now)) / 1000); huntLast = now;
     if (inHosp && !alertOn) {
       alertOn = true; hunters = [];
@@ -16389,7 +16468,7 @@ const RUNNER_API = (function () {
     }
     hunters = hunters.filter((h) => !(h.dead && h.dying <= 0));
     alertLvl = clamp((HUNT.far - dmin) / (HUNT.far - HUNT.near), 0, 1);
-    if (!inHosp && alertLvl <= 0) { alertOn = false; hunters = []; say('THE HUNTERS HAVE LOST YOUR TRAIL.', 4); }
+    if (!inHosp && alertLvl <= 0) { alertOn = false; hunters = []; canKnown = null; say('THE HUNTERS HAVE LOST YOUR TRAIL.', 4); }
   }
   function drawHunter(c, h) {
     const im = huntArt(h.art), k = h.dead ? Math.max(0, h.dying / HUNT.dyingT) : 1;
@@ -16402,6 +16481,351 @@ const RUNNER_API = (function () {
       c.save(); c.strokeStyle = 'rgba(79,195,255,' + (0.5 + 0.4 * Math.sin(h.ph * 2)) + ')'; c.lineWidth = 2.5;
       c.beginPath(); c.ellipse(h.x, h.y, 30, 22, 0, 0, Math.PI * 2); c.stroke(); c.restore();
     }
+  }
+  // ---------- LAYER 680: the C.A.N. news drone ----------
+  // Like the traffic drone it hovers at a junction, then goes on. While it hovers it flashes its ads, shoots a blue light
+  // down, projects a blue hologram of one runner on the wanted list, and broadcasts who to look out for and where they
+  // were last seen. Inside its ring it says SEARCHING and a hunter countdown runs; outside, SEARCHING OUT OF BUBBLE and the
+  // outside the ring the countdown cools off (CAN.cool counts a second). A countdown that runs out brings the hunters. The names are placeholders until the cast is written.
+  const CAN = { ring: 200, count: 6, cool: 1, spd: 420, hoverMin: 6, hoverMax: 9, lift: 130, bulletinT: 9, followSpd: 380, respawn: 40 };
+  const CAN_ZONE = { downtown: 'DOWNTOWN', hood: 'THE HOOD', projects: 'THE PROJECTS', uptown: 'UPTOWN', chinatown: 'CHINATOWN', irish: 'THE IRISH QUARTER',
+    barrio: 'THE BARRIO', industrial: 'THE INDUSTRIAL DISTRICT', park: 'THE PARK', terminal: 'THE TERMINAL', neonflats: 'THE NEON FLATS', northend: 'THE NORTH END',
+    stadium: 'THE STADIUM', cemetery: 'THE CEMETERY', civic: 'CIVIC CENTER', county: 'THE COUNTY LINE', mountain: 'THE MOUNTAIN', kestrel: 'KESTREL', city: 'THE CITY' };
+  const CAN_ADS = [['C.A.N.  ·  WE SEE IT FIRST', '#6ef0ff'], ['THE RUNNER SHOW  ·  GAMES ARE BACK ON', '#ffd23a']];
+  const MATE_NAMES = { red: 'JAX', yellow: 'MARISOL', blue: 'DEV', green: 'RONNIE' };     // placeholder names
+  const PLAYER_WANTED = { name: 'THE RUNNER', player: true, last: 'THE CITY' };
+  const canDrones = [];
+  let canBroadcast = null, canIdx = 0;
+  let canKnown = null, canBoom = [], canRespawnT = 0;   // canKnown: the runner's last reported place, which the hunters go to
+  const HOLO = document.createElement('canvas'); HOLO.width = 96; HOLO.height = 140;
+  const HOLO_CTX = HOLO.getContext('2d');
+  function zoneLabel(x, y) { return CAN_ZONE[zoneOf(jIdx(x), jIdx(y))] || 'THE CITY'; }
+  function playerXY() { return walker.on ? { x: walker.x, y: walker.y } : { x: car.x, y: car.y }; }
+  function canWanted() { return [PLAYER_WANTED].concat(mates); }
+  function canDroneSpawn() {
+    const p = nearJunctions(car.x, car.y, 8);
+    canDrones.length = 0;
+    canDrones.push({ x: p[0], y: p[1], tx: p[0], ty: p[1], ang: 0, flying: false, hover: droneRand(CAN.hoverMin, CAN.hoverMax),
+      count: 0, inRing: false, line: '', holo: null, locked: false, talk: null, lastLabel: null, callT: 0 });
+    canRespawnT = 0;
+    const pl = playerXY(); PLAYER_WANTED.last = zoneLabel(pl.x, pl.y);
+  }
+  // a stop: the next runner on the wanted list goes up in the hologram, and the street is told who to look out for
+  function canStop(d) {
+    const list = canWanted(), w = list[canIdx % list.length]; canIdx++;
+    d.holo = w;
+    canBroadcast = { until: performance.now() + CAN.bulletinT * 1000, who: w };
+    say('C.A.N. BULLETIN: BE ON THE LOOKOUT FOR ' + w.name + '. LAST SEEN ' + w.last + '.', 6);
+  }
+  // the countdown ran out: the hunters come in from the ring, close enough that the trail holds
+  function canAlert(x, y) {
+    if (alertOn) return;
+    alertOn = true; hunters = [];
+    for (let k = 0; k < HUNT.n; k++) {
+      const a = (k / HUNT.n) * Math.PI * 2 + rnd(-0.4, 0.4);
+      hunters.push({ x: x + Math.cos(a) * 520, y: y + Math.sin(a) * 520, art: HUNT_ART[(Math.random() * HUNT_ART.length) | 0], hd: 0, stunT: 0, dead: false, dying: 0, ph: Math.random() * 6 });
+    }
+    say('C.A.N. HAS YOU. THE HUNTERS ARE COMING.', 5);
+  }
+  function canTick(dt) {
+    if (!RUN_ON || lobby) return;
+    if (canBoom.length) { for (const e of canBoom) e.t += dt; canBoom = canBoom.filter((e) => e.t < 1.2); }
+    if (!canDrones.length) { if (canRespawnT > 0) { canRespawnT -= dt; return; } canDroneSpawn(); }
+    const d = canDrones[0], pl = playerXY(), now = performance.now();
+    if (d.locked) {
+      // locked on: it follows the runner from 90 px off, and calls out each new street to the hunters
+      const dx = pl.x - d.x, dy = pl.y - d.y, L = Math.hypot(dx, dy);
+      if (L > 90) { const m = Math.min(L - 90, CAN.followSpd * dt); d.x += dx / L * m; d.y += dy / L * m; d.ang = Math.atan2(dy, dx); }
+      canKnown = { x: pl.x, y: pl.y };   // his place, every frame, while the drone can see him
+      const lab = crossStreet(pl.x, pl.y);
+      if (lab !== d.lastLabel && now - d.callT > 6000) {
+        d.lastLabel = lab; d.callT = now;
+        d.talk = { text: 'NOW ON ' + lab.toUpperCase(), until: now + 3500 };
+        say('C.A.N. TO THE HUNTERS: HE IS ON ' + lab.toUpperCase() + '.', 4);
+      }
+      d.line = 'LOCKED ON';
+      return;
+    }
+    if (Math.hypot(d.x - car.x, d.y - car.y) > 1400) { canDroneSpawn(); return; }   // it works the blocks by the runner, not the far side of town
+    if (d.flying) {
+      const dx = d.tx - d.x, dy = d.ty - d.y, L = Math.hypot(dx, dy);
+      if (L < 8) { d.flying = false; d.x = d.tx; d.y = d.ty; d.hover = droneRand(CAN.hoverMin, CAN.hoverMax); canStop(d); }
+      else { const m = Math.min(L, CAN.spd * dt); d.x += dx / L * m; d.y += dy / L * m; d.ang = Math.atan2(dy, dx); }
+    } else {
+      d.hover -= dt;
+      if (d.hover <= 0) {
+        let [nx, ny] = freeJunction(d.x, d.y, d); if (Math.hypot(nx - d.x, ny - d.y) < 50) [nx, ny] = freeJunction(d.x, d.y, d);
+        d.tx = nx; d.ty = ny; d.flying = true; d.holo = null;
+      }
+    }
+    if (d.flying) { d.line = ''; d.inRing = false; d.count = Math.max(0, d.count - CAN.cool * dt); return; }
+    // the ring: whoever is in it is seen there, and the one who is in it counts down
+    for (const w of canWanted()) {
+      const wx = w.player ? pl.x : w.x, wy = w.player ? pl.y : w.y;
+      if (Math.hypot(wx - d.x, wy - d.y) < CAN.ring) w.last = zoneLabel(wx, wy);
+    }
+    const inside = Math.hypot(pl.x - d.x, pl.y - d.y) < CAN.ring;
+    if (inside) {
+      if (!d.inRing) say('SEARCHING.', 2);
+      d.inRing = true; d.line = 'SEARCHING';
+      d.count += dt;
+      if (d.count >= CAN.count) { d.count = 0; d.locked = true; d.line = 'LOCKED ON'; canAlert(pl.x, pl.y); say('C.A.N. HAS YOU. IT WILL FOLLOW YOU NOW.', 4); }
+    } else {
+      if (d.inRing) say('SEARCHING OUT OF BUBBLE.', 3);
+      d.inRing = false; d.line = 'SEARCHING OUT OF BUBBLE';
+      d.count = Math.max(0, d.count - CAN.cool * dt);
+    }
+  }
+  // the LED ad panel over the drone, flashing: the C.A.N. ad, then the runner show ad, every 1.5 seconds
+  function drawCanAds(c, d, now) {
+    const [txt, col] = CAN_ADS[Math.floor(now / 1500) % CAN_ADS.length];
+    c.save(); c.translate(d.x, d.y - CAN.lift - 34);
+    c.globalAlpha = Math.sin(now / 80) > -0.2 ? 1 : 0.35;
+    c.fillStyle = 'rgba(8,10,16,0.9)'; c.fillRect(-116, -9, 232, 18);
+    c.strokeStyle = col; c.lineWidth = 1; c.strokeRect(-116, -9, 232, 18);
+    c.fillStyle = col; c.font = '700 9px ui-monospace, monospace'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(txt, 0, 0);
+    c.restore();
+  }
+  // draws a runner's figure with the given look at x,y, then puts the player's own look and walker state back
+  function drawLookFigure(target, x, y, look, step, heading) {
+    const L0 = { head: RUNNER_LOOK.head, suit: RUNNER_LOOK.suit, body: RUNNER_LOOK.body, bodyK: RUNNER_LOOK.bodyK, skin: RUNNER_LOOK.skin };
+    const W0 = { on: walker.on, step: walker.step, heading: walker.heading, amp: walker.amp };
+    const P0 = { packOn, mask, held }, prevCtx = ctx;
+    Object.assign(RUNNER_LOOK, look, { skin: null });
+    walker.on = true; walker.step = step; walker.heading = heading; walker.amp = 1;
+    packOn = null; mask = false; held = null; mateDrawing = true; ctx = target;
+    try { drawWalker(x, y); }
+    finally {
+      mateDrawing = false; packOn = P0.packOn; mask = P0.mask; held = P0.held; ctx = prevCtx;
+      Object.assign(RUNNER_LOOK, L0); walker.on = W0.on; walker.step = W0.step; walker.heading = W0.heading; walker.amp = W0.amp;
+    }
+  }
+  // the hologram: the wanted runner, drawn on its own canvas, turned all blue, then laid over the street, see-through
+  function drawHologram(c, d, now) {
+    const w = d.holo;
+    const look = w.player ? { head: RUNNER_LOOK.head, suit: RUNNER_LOOK.suit, body: RUNNER_LOOK.body, bodyK: RUNNER_LOOK.bodyK } : w.look;
+    HOLO_CTX.setTransform(1, 0, 0, 1, 0, 0); HOLO_CTX.globalCompositeOperation = 'source-over';
+    HOLO_CTX.clearRect(0, 0, HOLO.width, HOLO.height);
+    drawLookFigure(HOLO_CTX, HOLO.width / 2, HOLO.height - 14, look, now / 160, w.heading || 0);
+    HOLO_CTX.globalCompositeOperation = 'source-atop'; HOLO_CTX.fillStyle = 'rgba(70,190,255,0.92)'; HOLO_CTX.fillRect(0, 0, HOLO.width, HOLO.height);
+    HOLO_CTX.globalCompositeOperation = 'source-over'; HOLO_CTX.fillStyle = 'rgba(0,0,0,0.22)';
+    for (let yy = 0; yy < HOLO.height; yy += 3) HOLO_CTX.fillRect(0, yy, HOLO.width, 1);
+    const flick = 0.5 + 0.12 * Math.sin(now / 37) + 0.06 * Math.sin(now / 113);
+    const hs = 1.1, hw = HOLO.width * hs, hh = HOLO.height * hs;
+    c.save(); c.globalAlpha = flick; c.globalCompositeOperation = 'lighter';
+    c.drawImage(HOLO, d.x - hw / 2, d.y - 12 - hh, hw, hh);
+    c.restore();
+  }
+  // the bulletin, in the open left column (the HUD panels sit above it): BE ON THE LOOKOUT, the name, and LAST SEEN.
+  // Each line shrinks to fit the panel, so a long zone name still fits.
+  function drawCanBulletin(c) {
+    if (!canBroadcast) return;
+    const now = performance.now();
+    if (now > canBroadcast.until) { canBroadcast = null; return; }
+    const bw = 206, bx = 10, by = 252, bh = 104, tw = bw - 16;
+    c.save();
+    c.fillStyle = 'rgba(6,10,18,0.88)'; c.fillRect(bx, by, bw, bh);
+    c.strokeStyle = 'rgba(110,240,255,' + (0.55 + 0.35 * Math.sin(now / 160)).toFixed(3) + ')'; c.lineWidth = 2; c.strokeRect(bx, by, bw, bh);
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    const line = (txt, y, px, col) => {
+      let s = px; c.font = '700 ' + s + 'px ui-monospace, monospace';
+      while (c.measureText(txt).width > tw && s > 7) { s--; c.font = '700 ' + s + 'px ui-monospace, monospace'; }
+      c.fillStyle = col; c.fillText(txt, bx + bw / 2, y);
+    };
+    line('C.A.N. BULLETIN', by + 14, 10, '#6ef0ff');
+    line('BE ON THE LOOKOUT', by + 30, 10, '#6ef0ff');
+    line(canBroadcast.who.name, by + 56, 22, '#ffd23a');
+    line('LAST SEEN', by + 79, 9, '#e8e4d8');
+    line(canBroadcast.who.last, by + 93, 11, '#ffffff');
+    c.restore();
+  }
+  // the drone is shot down: it blows up where it hangs, and it is gone until the respawn. The hunters keep canKnown.
+  function canShootDown(cd) {
+    canDrones.length = 0; canRespawnT = CAN.respawn; canBroadcast = null;
+    canBoom.push({ x: cd.x, y: cd.y - CAN.lift, t: 0 });
+    say("C.A.N. DRONE DOWN. IT CAN'T REPORT WHERE YOU ARE. THE HUNTERS HAVE YOUR LAST POSITION.", 6);
+  }
+  function drawCanBooms(c) {
+    const im = img.can_explode;
+    for (const e of canBoom) {
+      const f = Math.min(5, Math.floor(e.t / 0.2));
+      if (im && im.width) c.drawImage(im, f * 200, 0, 200, 200, e.x - 62, e.y - 62, 124, 124);
+      else { c.fillStyle = 'rgba(255,170,60,' + Math.max(0, 1 - e.t / 1.2).toFixed(3) + ')'; c.beginPath(); c.arc(e.x, e.y, 40, 0, 6.3); c.fill(); }
+    }
+  }
+  // locked on: a red ring under the drone, and a dashed line from the drone down to the runner
+  function drawCanLock(c, d, now) {
+    const pulse = 0.5 + 0.5 * Math.sin(now / 150), tx = canKnown ? canKnown.x : d.x, ty = canKnown ? canKnown.y : d.y;
+    c.save(); c.globalCompositeOperation = 'lighter';
+    c.strokeStyle = 'rgba(255,90,70,' + (0.45 + 0.4 * pulse).toFixed(3) + ')'; c.lineWidth = 2;
+    c.beginPath(); c.arc(d.x, d.y, 44 + 4 * pulse, 0, Math.PI * 2); c.stroke();
+    c.setLineDash([6, 6]); c.beginPath(); c.moveTo(d.x, d.y - CAN.lift); c.lineTo(tx, ty); c.stroke(); c.setLineDash([]);
+    c.restore();
+  }
+  // the speech bubble: the street he has just reached, said out loud for the hunters
+  function drawCanTalk(c, d, now) {
+    const t = d.talk.text, by = d.y - CAN.lift - 92;
+    c.save(); c.font = '700 10px ui-monospace, monospace';
+    const tw = c.measureText(t).width + 16;
+    c.fillStyle = 'rgba(240,244,250,0.96)'; c.fillRect(d.x - tw / 2, by - 11, tw, 22);
+    c.beginPath(); c.moveTo(d.x - 5, by + 11); c.lineTo(d.x + 5, by + 11); c.lineTo(d.x, by + 17); c.closePath(); c.fill();
+    c.fillStyle = '#10141c'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(t, d.x, by);
+    c.restore();
+  }
+  function drawCanDrone(c, d, now) {
+    ctx = c;
+    const lift = CAN.lift;
+    if (d.locked) drawCanLock(c, d, now);
+    else if (!d.flying) {
+      // the detection ring on the street; it turns amber once the countdown runs
+      const col = d.count > 0 ? '255,150,70' : '110,240,255';
+      c.save(); c.globalCompositeOperation = 'lighter';
+      c.fillStyle = 'rgba(' + col + ',0.06)'; c.strokeStyle = 'rgba(' + col + ',0.55)'; c.lineWidth = 1.5;
+      c.beginPath(); c.arc(d.x, d.y, CAN.ring, 0, Math.PI * 2); c.fill(); c.stroke();
+      const sw = (now / 900) % (Math.PI * 2);
+      c.beginPath(); c.moveTo(d.x, d.y); c.lineTo(d.x + Math.cos(sw) * CAN.ring, d.y + Math.sin(sw) * CAN.ring); c.stroke();
+      c.restore();
+      // the blue light, down onto the street
+      const pulse = 0.5 + 0.5 * Math.sin(now / 220);
+      c.save(); c.globalCompositeOperation = 'lighter';
+      const lg = c.createLinearGradient(0, d.y - lift, 0, d.y);
+      lg.addColorStop(0, 'rgba(90,200,255,0.02)'); lg.addColorStop(1, 'rgba(90,200,255,0.42)');
+      c.fillStyle = lg; c.beginPath(); c.moveTo(d.x - 5, d.y - lift); c.lineTo(d.x + 5, d.y - lift); c.lineTo(d.x + 44, d.y); c.lineTo(d.x - 44, d.y); c.closePath(); c.fill();
+      c.fillStyle = 'rgba(90,200,255,' + (0.22 + 0.18 * pulse).toFixed(3) + ')'; c.beginPath(); c.ellipse(d.x, d.y, 44, 20, 0, 0, Math.PI * 2); c.fill();
+      c.restore();
+      if (d.holo) drawHologram(c, d, now);
+    }
+    drawShadow(d.x, d.y, d.ang, 56, lift);
+    const im = img.can_drone;
+    c.save(); c.translate(d.x, d.y - lift); c.rotate(d.ang + Math.PI / 2);
+    if (im && im.width) c.drawImage(im, -30, -28.8, 60, 57.6);
+    else { c.fillStyle = '#d8dce2'; c.fillRect(-18, -18, 36, 36); c.fillStyle = '#e33'; c.beginPath(); c.arc(0, 0, 4, 0, 6.3); c.fill(); }
+    c.restore();
+    if (d.talk && now < d.talk.until) drawCanTalk(c, d, now);
+    if (!d.flying && !d.locked) drawCanAds(c, d, now);
+    if (d.line || d.count > 0) {
+      c.save(); c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '700 10px ui-monospace, monospace';
+      c.fillStyle = d.count > 0 ? '#ff9a4a' : '#6ef0ff';
+      c.fillText(d.count > 0 ? 'HUNTERS IN ' + Math.ceil(CAN.count - d.count) : d.line, d.x, d.y - lift - 56);
+      c.restore();
+    }
+  }
+  // ---------- LAYER 679: one random runner per team in the city, the case, and the stun ----------
+  const MATE_TEAMS = [{ k: 'red', col: '#d6453d' }, { k: 'yellow', col: '#e8c46a' }, { k: 'blue', col: '#3d7ee8' }, { k: 'green', col: '#3fbf6a' }];
+  const MATE_SIGHT = 640, MATE_SHOT_CD = 1.8, MATE_HIT = 0.4, MATE_SPD = 105, MATE_HOME = 650;
+  const STUN_PLAYER = 4;                                   // seconds the Lion sits still after a stun
+  const PSTUN = { t: 0, x: 0, y: 0 };                      // the Lion's stun: time left, and where he was stunned
+  const LOOSE = { x: 0, y: 0, on: false, holder: null };   // the case: holder is null, 'player', or a teammate
+  let mates = [], mateDrawing = false;
+  const BODY_KEYS = ['slim', 'average', 'athletic', 'heavy', 'big'];
+  function mateLook() {
+    const h = PHEADS[(Math.random() * PHEADS.length) | 0];
+    return { head: h[1], suit: RSUITS[(Math.random() * RSUITS.length) | 0], body: BODY_KEYS[(Math.random() * BODY_KEYS.length) | 0], bodyK: 1 };
+  }
+  // a clear spot a random distance from the bike, for the teammates and the case
+  function randomSpot(minD, maxD) {
+    for (let i = 0; i < 60; i++) {
+      const a = Math.random() * Math.PI * 2, d = minD + Math.random() * (maxD - minD);
+      const sp = clearSpot(car.x + Math.cos(a) * d, car.y + Math.sin(a) * d, null);
+      if (sp) return sp;
+    }
+    return { x: car.x + maxD, y: car.y };
+  }
+  // one random runner per team, placed around the bike, and the case dropped somewhere else in the city
+  function spawnTeam() {
+    mates = []; PSTUN.t = 0;
+    for (const t of MATE_TEAMS) {
+      const sp = randomSpot(900, 2400);
+      mates.push({ team: t.k, name: MATE_NAMES[t.k], last: zoneLabel(sp.x, sp.y), col: t.col, x: sp.x, y: sp.y, hx: sp.x, hy: sp.y, heading: Math.random() * 6.283,
+        step: 0, stunT: 0, cd: 1 + Math.random() * 2, target: null, retarget: 0, look: mateLook() });
+    }
+    const cs = randomSpot(800, 1800);
+    LOOSE.x = cs.x; LOOSE.y = cs.y; LOOSE.on = true; LOOSE.holder = null;
+    canKnown = null; canBoom = []; canRespawnT = 0;
+    canDroneSpawn();   // LAYER 680: the C.A.N. drone starts near the bike
+    say('THE CASE IS OUT THERE. EVERY TEAM IS LOOKING FOR IT.', 5);
+  }
+  function caseNear() { return LOOSE.on && LOOSE.holder == null && walker.on && Math.hypot(walker.x - LOOSE.x, walker.y - LOOSE.y) < 90; }
+  function pickCase() { LOOSE.holder = 'player'; say('GOT THE CASE. ALL OF THEM WILL COME FOR YOU NOW.', 4); }
+  function dropCaseAt(x, y) { LOOSE.holder = null; LOOSE.x = x; LOOSE.y = y; LOOSE.on = true; }
+  // a teammate's shot lands on the Lion: he sits still for a while, and drops the case if he has it
+  function stunPlayer(m) {
+    PSTUN.t = STUN_PLAYER; PSTUN.x = walker.x; PSTUN.y = walker.y;
+    if (LOOSE.holder === 'player') { dropCaseAt(walker.x, walker.y); say(m.name + ' STUNNED YOU. THE CASE IS ON THE GROUND.', 4); }
+    else say(m.name + ' STUNNED YOU. SITTING STILL FOR ' + STUN_PLAYER + ' SECONDS.', 3);
+  }
+  // the Lion's stun lands on a teammate: he drops the case if he has it
+  function mateHit(m) {
+    m.stunT = HUNT.stun;
+    if (LOOSE.holder === m) { dropCaseAt(m.x, m.y); say(m.name + ' IS STUNNED AND DROPPED THE CASE.', 3); }
+    else say(m.name + ' IS STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2);
+  }
+  // each frame: the stun clock, and every teammate looks for the Lion, looks for the case, or wanders near home
+  function mateTick(dt) {
+    if (PSTUN.t > 0) PSTUN.t = Math.max(0, PSTUN.t - dt);
+    if (!RUN_ON || lobby || !mates.length) return;
+    const now = performance.now();
+    for (const m of mates) {
+      if (m.stunT > 0) { m.stunT = Math.max(0, m.stunT - dt); continue; }
+      m.cd = Math.max(0, m.cd - dt);
+      const dp = Math.hypot(walker.x - m.x, walker.y - m.y);
+      const seen = walker.on && dp < MATE_SIGHT;
+      let tx = m.x, ty = m.y, spd = 0;
+      if (seen) { tx = walker.x; ty = walker.y; spd = dp > 240 ? MATE_SPD * 0.8 : 0; }        // they close in, then stand and shoot
+      else if (LOOSE.holder === m) { const ax = m.x - walker.x, ay = m.y - walker.y, L = Math.hypot(ax, ay) || 1; tx = m.x + ax / L * 300; ty = m.y + ay / L * 300; spd = MATE_SPD * 1.3; }   // the one with the case runs off
+      else if (LOOSE.on && !LOOSE.holder) { tx = LOOSE.x; ty = LOOSE.y; spd = MATE_SPD * 1.2; }   // everyone goes for the loose case
+      else {
+        m.retarget -= dt;
+        if (!m.target || m.retarget <= 0) { const a = Math.random() * Math.PI * 2, d = 150 + Math.random() * (MATE_HOME - 150); m.target = { x: m.hx + Math.cos(a) * d, y: m.hy + Math.sin(a) * d }; m.retarget = 3 + Math.random() * 3; }
+        tx = m.target.x; ty = m.target.y; spd = MATE_SPD;
+      }
+      const dx = tx - m.x, dy = ty - m.y, L = Math.hypot(dx, dy);
+      if (L > 4 && spd > 0) { const s = Math.min(L, spd * dt); m.x += dx / L * s; m.y += dy / L * s; m.heading = Math.atan2(dy, dx); m.step += dt * 11; }
+      if (seen) m.heading = Math.atan2(walker.y - m.y, walker.x - m.x);
+      if (LOOSE.on && !LOOSE.holder && Math.hypot(LOOSE.x - m.x, LOOSE.y - m.y) < 40) { LOOSE.holder = m; say(m.name + ' HAS THE CASE. STUN HIM TO GET IT BACK.', 4); }
+      if (LOOSE.holder === m) { LOOSE.x = m.x; LOOSE.y = m.y; }
+      if (seen && dp <= LASER_RANGE && m.cd <= 0 && PSTUN.t <= 0) {
+        // the shot: it lands on the Lion, or it goes wide by a little
+        const hit = Math.random() < MATE_HIT, miss = (Math.random() < 0.5 ? -1 : 1) * (0.16 + Math.random() * 0.14);
+        const ang = Math.atan2(walker.y - m.y, walker.x - m.x) + (hit ? 0 : miss), far = hit ? dp : LASER_RANGE;
+        LASER.beams.push({ x0: m.x, y0: m.y, x1: m.x + Math.cos(ang) * far, y1: m.y + Math.sin(ang) * far, kill: false, until: now + 260 });
+        playLaserShot();
+        m.cd = MATE_SHOT_CD + Math.random() * 0.8;
+        if (hit) stunPlayer(m);
+      }
+    }
+  }
+  // one teammate, drawn as a runner: his own look is swapped in for the draw, then put back
+  function drawMate(c, m) {
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 260);
+    c.save(); c.strokeStyle = m.col; c.lineWidth = 2.5; c.globalAlpha = m.stunT > 0 ? 0.3 + 0.3 * pulse : 0.85;
+    c.beginPath(); c.ellipse(m.x, m.y + 4, 24, 15, 0, 0, Math.PI * 2); c.stroke(); c.restore();
+    const L0 = { head: RUNNER_LOOK.head, suit: RUNNER_LOOK.suit, body: RUNNER_LOOK.body, bodyK: RUNNER_LOOK.bodyK, skin: RUNNER_LOOK.skin };
+    const W0 = { on: walker.on, step: walker.step, heading: walker.heading, amp: walker.amp };
+    const P0 = { packOn, mask, held };
+    Object.assign(RUNNER_LOOK, m.look, { skin: null });
+    walker.on = true; walker.step = m.step; walker.heading = m.heading; walker.amp = m.stunT > 0 ? 0 : 1;
+    packOn = null; mask = false; held = null; mateDrawing = true; ctx = c;
+    try { drawWalker(m.x, m.y); }
+    finally {
+      mateDrawing = false; packOn = P0.packOn; mask = P0.mask; held = P0.held;
+      Object.assign(RUNNER_LOOK, L0); walker.on = W0.on; walker.step = W0.step; walker.heading = W0.heading; walker.amp = W0.amp;
+    }
+  }
+  // the case: a little briefcase on the ground in a glow, or in the hand of whoever has it
+  function drawCase(c) {
+    if (!LOOSE.on) return;
+    const who = LOOSE.holder === 'player' ? walker : LOOSE.holder;
+    const x = who ? who.x : LOOSE.x, y = who ? who.y - 24 : LOOSE.y;
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 200);
+    c.save();
+    if (!who) { c.strokeStyle = 'rgba(255,210,90,' + (0.35 + 0.5 * pulse) + ')'; c.lineWidth = 2.5; c.beginPath(); c.arc(LOOSE.x, LOOSE.y, 34 + 4 * pulse, 0, Math.PI * 2); c.stroke(); }
+    c.translate(x, y);
+    c.fillStyle = '#3a2a1a'; c.fillRect(-11, -7, 22, 14);
+    c.strokeStyle = '#ffd23a'; c.lineWidth = 1.5; c.strokeRect(-11, -7, 22, 14);
+    c.beginPath(); c.moveTo(-4, -7); c.lineTo(-4, -11); c.lineTo(4, -11); c.lineTo(4, -7); c.stroke();
+    c.restore();
   }
   function drawBeam(c, b, now) {
     const life = Math.max(0, (b.until - now) / 180), col = b.kill ? '255,48,48' : '79,195,255';   // red kills, blue stuns
@@ -16420,6 +16844,8 @@ const RUNNER_API = (function () {
     for (const h of hunters) if (!h.dead) collarNear = Math.min(collarNear, Math.hypot(h.x - walker.x, h.y - walker.y));
     const c = canvas.getContext('2d'), dpr = canvas.width / W, now = performance.now();
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawRunBanners(c);   // LAYER 680: the mission banners, in screen space
+    drawCanBulletin(c);  // LAYER 680: the C.A.N. lookout bulletin, in screen space
     if (outdoors && cam) {
       c.save(); c.translate(W / 2, H / 2); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y);
       if (MISSION.stage === 'pistol') {
@@ -16436,6 +16862,10 @@ const RUNNER_API = (function () {
         c.beginPath(); c.arc(s.x, s.y, 40, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
       }
       for (const h of hunters) drawHunter(c, h);
+      for (const m of mates) drawMate(c, m);   // LAYER 679: the teammates
+      drawCase(c);
+      if (RUN_ON) for (const cd of canDrones) drawCanDrone(c, cd, now);   // LAYER 680: the C.A.N. drone, its light and hologram
+      if (RUN_ON) drawCanBooms(c);
       LASER.beams = LASER.beams.filter((b) => b.until > now);
       for (const b of LASER.beams) drawBeam(c, b, now);
       c.restore();
@@ -16466,15 +16896,43 @@ const RUNNER_API = (function () {
     const sp = clearSpot(x0, y0, null) || { x: x0, y: y0 };
     MISSION.stage = 'pistol'; MISSION.x = sp.x; MISSION.y = sp.y;
     HUNT_ART.forEach(huntArt);
-    say('FIRST MISSION: GET YOUR PISTOL. IT IS STASHED UNDER A DUMPSTER. E TO PICK IT UP.', 6);
+    say('FIRST MISSION: GET YOUR PISTOL. IT IS STASHED UNDER A DUMPSTER, WITH $' + STASH_CASH + '. E TO PICK IT UP.', 6);
   }
   function stashNear() { return MISSION.stage === 'pistol' && walker.on && Math.hypot(walker.x - MISSION.x, walker.y - MISSION.y) < 90; }
   // THE LASER PISTOL: stuck on STUN until a mission fixes it. F (or STR) fires it.
-  const LASER = { has: false, mode: 'stun', locked: true, lastFire: 0, beams: [] };
+  const LASER = { has: false, drawn: false, mode: 'stun', locked: true, lastFire: 0, beams: [] };
   const LASER_RANGE = 360;
+  // LAYER 678: the cash stashed with the pistol. Runner Mode owes it to the Lion; the frame loop pays it (takeCash).
+  const STASH_CASH = 150;
+  let cashOwed = 0;
+  function takeCash() { const c = cashOwed; cashOwed = 0; return c; }
+  // LAYER 680: the big screen banners. One at a time, each fades in, holds, and fades out; the queue runs in order.
+  const RUN_BANNERS = [];
+  function runBanner(text, life) { RUN_BANNERS.push({ text, life, start: null }); }
+  function drawRunBanners(c) {
+    if (!RUN_BANNERS.length) return;
+    const b = RUN_BANNERS[0], now = performance.now();
+    if (b.start == null) b.start = now;
+    const age = (now - b.start) / 1000;
+    if (age >= b.life) { RUN_BANNERS.shift(); return; }
+    const a = Math.max(0, Math.min(1, age / 0.35, (b.life - age) / 0.45));
+    c.save();
+    c.globalAlpha = a; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillStyle = 'rgba(0,0,0,0.55)'; c.fillRect(0, H / 2 - 62, W, 124);
+    c.fillStyle = 'rgba(217,164,65,0.9)'; c.fillRect(0, H / 2 - 62, W, 3); c.fillRect(0, H / 2 + 59, W, 3);
+    let fs = 56;
+    c.font = '900 ' + fs + 'px ui-monospace, monospace';
+    while (c.measureText(b.text).width > W - 28 && fs > 16) { fs -= 2; c.font = '900 ' + fs + 'px ui-monospace, monospace'; }
+    c.lineWidth = Math.max(4, fs / 7); c.lineJoin = 'round'; c.strokeStyle = 'rgba(0,0,0,0.9)';
+    c.strokeText(b.text, W / 2, H / 2 + 2);
+    c.fillStyle = '#ffd23a'; c.fillText(b.text, W / 2, H / 2 + 2);
+    c.restore();
+  }
   function pickLaser() {
-    LASER.has = true; LASER.mode = 'stun'; LASER.locked = true; MISSION.stage = 'done';
-    say('GOT THE LASER PISTOL. IT IS STUCK ON STUN. F TO FIRE.', 5);
+    LASER.has = true; LASER.drawn = false; LASER.mode = 'stun'; LASER.locked = true; MISSION.stage = 'done';
+    cashOwed += STASH_CASH;
+    runBanner('MISSION COMPLETE', 2.6); runBanner('SURVIVE THE NIGHT!!!', 3.4);   // LAYER 680: the banners, one after the other
+    say('GOT THE LASER PISTOL AND $' + STASH_CASH + '. IT IS STUCK ON STUN. OPEN THE WEAPON WHEEL TO DRAW IT.', 5);
   }
   // the laser's shot sound (LAYER 671): one short clip; each shot plays its own copy so shots can overlap
   let laserSfx = null;
@@ -16487,6 +16945,8 @@ const RUNNER_API = (function () {
   }
   // returns true when the shot was taken (or is still cooling down), so the caller does not fall through to fists
   function fire() {
+    if (LASER.has && !LASER.drawn && RUN_ON && walker.on && !lobby) { say('PISTOL IS PUT AWAY. OPEN THE WEAPON WHEEL TO DRAW IT.', 2.5); return true; }
+    if (PSTUN.t > 0 && walker.on) return true;   // LAYER 679: stunned, he cannot fire
     if (!LASER.has || !RUN_ON || !walker.on || lobby) return false;
     const now = performance.now();
     if (now - LASER.lastFire < 450) return true;
@@ -16495,15 +16955,21 @@ const RUNNER_API = (function () {
     const dx = Math.cos(walker.heading || 0), dy = Math.sin(walker.heading || 0);
     const ox = walker.x + dx * 18, oy = walker.y + dy * 18, kill = LASER.mode === 'kill';
     let ex = ox + dx * LASER_RANGE, ey = oy + dy * LASER_RANGE, hit = null, bt = LASER_RANGE;
-    for (const h of hunters) {
+    // LAYER 680: the drone is a target. A beam within 30 px of it downs it, unless a hunter stands closer on the line.
+    let downed = null;
+    for (const cd of canDrones) { const ax = cd.x - ox, ay = (cd.y - CAN.lift) - oy, t = ax * dx + ay * dy; if (t < 0 || t > bt) continue; if (Math.abs(ax * dy - ay * dx) < 30) { downed = cd; bt = t; } }
+    const downedT = bt;
+    for (const h of hunters.concat(mates)) {
       if (h.dead) continue;
       const rx = h.x - ox, ry = h.y - oy, t = rx * dx + ry * dy;
       if (t < 0 || t > bt) continue;
       if (Math.abs(rx * dy - ry * dx) < 22) { hit = h; bt = t; }
     }
-    if (hit) {
+    if (downed && bt === downedT) { ex = ox + dx * bt; ey = oy + dy * bt; canShootDown(downed); }
+    else if (hit) {
       ex = ox + dx * bt; ey = oy + dy * bt;
-      if (kill) { hit.dead = true; hit.dying = HUNT.dyingT; puff(hit.x, hit.y, 'medium'); say('HUNTER DOWN.', 2); }
+      if (hit.team) mateHit(hit);   // LAYER 679: a teammate is stunned, not killed
+      else if (kill) { hit.dead = true; hit.dying = HUNT.dyingT; puff(hit.x, hit.y, 'medium'); say('HUNTER DOWN.', 2); }
       else { hit.stunT = HUNT.stun; say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); }
     }
     LASER.beams.push({ x0: ox, y0: oy, x1: ex, y1: ey, kill, until: now + 180 });
@@ -16511,19 +16977,65 @@ const RUNNER_API = (function () {
   }
   // the weapon wheel's items for the runner: the pistol, and its mode button (locked on stun for now)
   function laserItems() {
-    if (!LASER.has) return [];
+    if (!LASER.has) {
+      const st = MISSION.stage === 'pistol' ? 'IT IS STASHED UNDER A DUMPSTER. WALK TO IT, PRESS E' : 'FIRST MISSION: GET YOUR PISTOL';
+      return [{ label: 'NO PISTOL YET', sub: st, icon: null, id: 'laser:none' }];
+    }
     const mode = LASER.mode.toUpperCase();
     return [
-      { label: 'LASER PISTOL', sub: mode + (LASER.locked ? ' · LOCKED' : ''), icon: PD_ART.wi_laser, id: 'laser:draw' },
+      { label: 'LASER PISTOL', sub: LASER.drawn ? 'IN HAND · F FIRES · PICK TO PUT AWAY' : 'PUT AWAY · PICK TO DRAW', icon: PD_ART.wi_laser, id: 'laser:draw' },
       { label: 'MODE: ' + mode, sub: LASER.locked ? 'LOCKED ON STUN · FIX IT ON A MISSION' : 'TAP TO SWITCH STUN / KILL', icon: null, id: 'laser:mode' },
     ];
   }
   function laserPick(k) {
-    if (k === 'draw') say('LASER PISTOL IN HAND. F TO FIRE.', 3);
+    if (k === 'none') say(MISSION.stage === 'pistol' ? 'YOUR PISTOL IS UNDER A DUMPSTER ON THE STREET.' : 'GET YOUR PISTOL FIRST.', 4);
+    else if (k === 'draw') { LASER.drawn = !LASER.drawn; say(LASER.drawn ? 'LASER PISTOL IN HAND. F TO FIRE.' : 'LASER PISTOL PUT AWAY.', 3); }
     else if (k === 'mode') {
       if (LASER.locked) say('LOCKED ON STUN. GET IT FIXED ON A MISSION.', 4);
       else { LASER.mode = LASER.mode === 'stun' ? 'kill' : 'stun'; say('MODE: ' + LASER.mode.toUpperCase(), 3); }
     }
+  }
+  /* LAYER 678: the runner's weapon wheel is four categories. gearItems() is the top ring; gearItems(cat) is one category.
+     WEAPONS: the pistol. EQUIPMENT: the backpack and the gas mask. ITEMS: FOOD, MEDS, DRUGS (empty until they are built).
+     CYBERWEAR: what he has fitted, to view. Equipping it needs a cybersurgeon; surgeons come later (see the notes). */
+  function gearItems(cat) {
+    const back = (to) => ({ label: 'BACK', sub: 'UP ONE LEVEL', icon: null, id: 'cat:' + to });
+    if (!cat || cat === 'top') {
+      const kit = (packOn ? 1 : 0) + (gasOwned ? 1 : 0);
+      return [
+        { label: 'WEAPONS', sub: LASER.has ? 'LASER PISTOL' : 'NONE YET', icon: PD_ART.wi_laser || null, id: 'cat:weapons' },
+        { label: 'EQUIPMENT', sub: kit ? kit + ' ON YOU' : 'NONE YET', icon: null, id: 'cat:equipment' },
+        { label: 'ITEMS', sub: 'FOOD · MEDS · DRUGS', icon: null, id: 'cat:items' },
+        { label: 'CYBERWEAR', sub: RUNNER_CYBER.length ? RUNNER_CYBER.length + ' FITTED' : 'NONE FITTED', icon: null, id: 'cat:cyber' },
+      ];
+    }
+    if (cat === 'weapons') return [...laserItems(), back('top')];
+    if (cat === 'equipment') {
+      const out = [];
+      if (packOn) out.push({ label: packOff ? 'PUT ON BACKPACK' : 'TAKE OFF BACKPACK', sub: PACK_KIND[packOn].name + (packOff ? ' · OFF, NOT SHOWING' : ' · ON YOUR BACK'), icon: PD_ART['pk_' + packOn] || null, id: 'gear:pack' });
+      if (gasOwned) out.push({ label: mask ? 'TAKE OFF GAS MASK' : 'PUT ON GAS MASK', sub: mask ? 'ON · PICK TO HIDE IT' : 'OFF · PICK TO PUT IT ON', icon: null, id: 'gear:mask' });
+      if (!out.length) out.push({ label: 'NOTHING ON YOU', sub: 'A BACKPACK OR A GAS MASK', icon: null, id: 'gear:none' });
+      return [...out, back('top')];
+    }
+    if (cat === 'items') return [
+      { label: 'FOOD', sub: 'NONE ON YOU YET', icon: null, id: 'cat:food' },
+      { label: 'MEDS', sub: 'NONE ON YOU YET', icon: null, id: 'cat:meds' },
+      { label: 'DRUGS', sub: 'NONE ON YOU YET', icon: null, id: 'cat:drugs' },
+      back('top')];
+    if (cat === 'food' || cat === 'meds' || cat === 'drugs') return [{ label: 'NOTHING YET', sub: 'THIS KIND IS NOT BUILT YET', icon: null, id: 'gear:none' }, back('items')];
+    if (cat === 'cyber') {
+      const out = RUNNER_CYBER.length
+        ? RUNNER_CYBER.map((c, i) => ({ label: c.name || 'CYBERWEAR', sub: 'VIEW · EQUIP NEEDS A CYBERSURGEON', icon: null, id: 'gear:cyber' + i }))
+        : [{ label: 'NO CYBERWEAR', sub: 'A CYBERSURGEON FITS IT', icon: null, id: 'gear:none' }];
+      return [...out, back('top')];
+    }
+    return [back('top')];
+  }
+  function gearPick(k) {
+    if (k === 'pack') { if (!packOn) return; packOff = !packOff; say(packOff ? 'BACKPACK TAKEN OFF. NOT SHOWING.' : 'BACKPACK ON.', 3); }
+    else if (k === 'mask') { if (!gasOwned) return; setMask(!mask); say(mask ? 'GAS MASK ON.' : 'GAS MASK OFF.', 3); }
+    else if (k === 'none') say('NOTHING TO USE HERE YET.', 2.5);
+    else if (k.startsWith('cyber')) say('TO EQUIP CYBERWEAR YOU NEED A CYBERSURGEON. SURGEONS COME LATER.', 4);
   }
   // THE SHOCK COLLAR: a translucent red light on the neck. It blinks, faster the closer the nearest hunter is.
   function collarHz() { return 0.7 + 7 * clamp((1100 - collarNear) / 1100, 0, 1); }
@@ -16601,14 +17113,17 @@ const RUNNER_API = (function () {
     daypack: { name: 'DAYPACK', line: '#d6453d' },
     rucksack: { name: 'RUCKSACK', line: '#e8c46a' },
     expedition: { name: 'EXPEDITION PACK', line: '#3d7ee8' },
+    gas: { name: 'GAS MASK', line: '#9fffc0' },   // LAYER 677: the bag with a gas mask in it (a stash, not a pack)
   };
   let packOn = null;          // the style he is wearing, or null
+  let packOff = false;        // LAYER 677: the pack is on his back but taken off (hidden), from the weapon wheel
+  let gasOwned = false;       // LAYER 677: he has the gas mask (on or off is the shared mask flag)
   let packsPlaced = false;
   const PACK_STASH = [];      // { kind, x, y, got }
   function packStashStart() {
     packsPlaced = true;
     const L = canRect().lot, mx = (L[0] + L[2]) / 2;
-    const spots = [['daypack', L[0] - 260, L[3] - 120], ['rucksack', mx, L[1] - 260], ['expedition', mx, L[3] + 260]];
+    const spots = [['daypack', L[0] - 260, L[3] - 120], ['rucksack', mx, L[1] - 260], ['expedition', mx, L[3] + 260], ['gas', L[0] - 260, L[1] + 120]];
     for (const [kind, x, y] of spots) { const sp = clearSpot(x, y, null) || { x, y }; PACK_STASH.push({ kind, x: sp.x, y: sp.y, got: false }); }
   }
   function packStashNear() {
@@ -16616,13 +17131,15 @@ const RUNNER_API = (function () {
     return PACK_STASH.find((s) => !s.got && Math.hypot(walker.x - s.x, walker.y - s.y) < 90) || null;
   }
   function packPickup(s) {
-    s.got = true; packOn = s.kind;
-    say('FOUND A ' + PACK_KIND[s.kind].name + '. IT IS ON YOUR BACK NOW.', 4);
+    s.got = true;
+    if (s.kind === 'gas') { gasOwned = true; say('FOUND A GAS MASK IN THE BAG. OPEN THE WEAPON WHEEL TO PUT IT ON.', 5); return; }
+    packOn = s.kind; packOff = false;
+    say('FOUND A ' + PACK_KIND[s.kind].name + '. IT IS ON YOUR BACK NOW. WEAPON WHEEL TO TAKE IT OFF.', 4);
   }
   // Top-down, the back is the top edge of the art: the pack sits above the body's top edge, under the arms and the head,
   // and turns with him (the figure is rotated to his heading). Nothing is drawn until he has found one.
   function drawPackBack(x, y, bw, bh) {
-    if (packOn) drawPackBlock(x, y, bw, bh, packOn);
+    if (packOn && !packOff) drawPackBlock(x, y, bw, bh, packOn);
   }
   function drawPackBlock(x, y, bw, bh, kind) {
     const line = PACK_KIND[kind].line, lw = Math.max(1, bw / 28);
@@ -16661,9 +17178,11 @@ const RUNNER_API = (function () {
   function huntDbg() {
     const playing = Object.keys(hoverAud).filter((k) => hoverAud[k] && !hoverAud[k].paused);
     return { on: alertOn, lvl: +alertLvl.toFixed(2), n: hunters.length, playing, mission: MISSION.stage, stash: [Math.round(MISSION.x), Math.round(MISSION.y)],
-      laser: { has: LASER.has, mode: LASER.mode, locked: LASER.locked }, collarNear: Math.round(collarNear), hz: +collarHz().toFixed(2),
+      mates: mates.map((m) => [m.team, Math.round(m.x), Math.round(m.y), +m.stunT.toFixed(1)]),
+      loose: [Math.round(LOOSE.x), Math.round(LOOSE.y), LOOSE.on, LOOSE.holder === 'player' ? 'player' : LOOSE.holder ? LOOSE.holder.team : null], pstun: +PSTUN.t.toFixed(2), can: canDrones.map((d) => [Math.round(d.x), Math.round(d.y), d.flying, +d.count.toFixed(2), d.line, d.holo ? d.holo.name : null, +d.hover.toFixed(2)]),
+      laser: { has: LASER.has, drawn: LASER.drawn, mode: LASER.mode, locked: LASER.locked }, collarNear: Math.round(collarNear), hz: +collarHz().toFixed(2),
       ambPlaying: !!(ambAud && !ambAud.paused), hs: hunters.map((h) => [Math.round(h.x), Math.round(h.y), +h.stunT.toFixed(2), h.dead ? 1 : 0]),
-      pack: { on: packOn, stash: PACK_STASH.map((s) => [s.kind, Math.round(s.x), Math.round(s.y), s.got]) } };
+      pack: { on: packOn, off: packOff, gas: gasOwned, mask, stash: PACK_STASH.map((s) => [s.kind, Math.round(s.x), Math.round(s.y), s.got]) } };
   }
   // the spawn is on the roof; the bike is parked in a stall in the lot's south row
   // LAYER 638: you and the bike both start on the roof, side by side
@@ -16804,11 +17323,11 @@ const RUNNER_API = (function () {
     augments,
     augmentAt,
     takeDismount,
-    wake, hunterTick, worldHud, hunterReset, hoverSoundTick, huntDbg, fire, laserItems, laserPick,
+    wake, hunterTick, worldHud, hunterReset, hoverSoundTick, huntDbg, fire, laserItems, laserPick, gearItems, gearPick, takeCash,
     groundTrash,
     hoverKid,
     // LAYER 589: the builder and the lobby
-    heads: () => RHEADS.slice(),
+    heads: () => PHEADS.slice(),
     suits: () => RSUITS.slice(),
     bodies: () => Object.keys(BODY_TYPES),
     setLook: (l) => {
@@ -18482,13 +19001,16 @@ export default function IronLionLayer004() {
           opts.forEach((el, i) => { el.style.outline = i === g.mapSel ? "2px solid #f2c45a" : ""; el.style.outlineOffset = "2px"; }); if (opts[g.mapSel].scrollIntoView) opts[g.mapSel].scrollIntoView({ block: "nearest" }); }
         if (press(0) && g.mapSel != null && g.mapSel >= 0 && opts[g.mapSel]) opts[g.mapSel].click();
         for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i); return; }
-      if (press(0)) doAction();
-      if (press(1)) { if (!closeSomething() && G.strikeFn) G.strikeFn(); }
+      /* LAYER 675: in Runner Mode the runner reads the pad itself (A board, B take off or land, X get off, Y action,
+         RB fire), so the world's A / B / X / Y / RB stand down here. LB still opens the wheel. */
+      const onRun675 = RUNNER_API.isOn();
+      if (!onRun675 && press(0)) doAction();
+      if (!onRun675 && press(1)) { if (!closeSomething() && G.strikeFn) G.strikeFn(); }
       const rel = (i) => !B(i) && was[i];                       // only touch a key on a press or a release, so the keyboard still works
-      if (press(2)) K[" "] = true; if (rel(2)) K[" "] = false;
-      if (press(3) && G.coverFn) G.coverFn();
+      if (!onRun675 && press(2)) K[" "] = true; if (rel(2)) K[" "] = false;
+      if (!onRun675 && press(3) && G.coverFn) G.coverFn();
       if (press(4)) openWheel();
-      if (press(5)) { if (!tap(["TGT"])) tap(["DRAW", "PUT UP"]); }
+      if (!onRun675 && press(5)) { if (!tap(["TGT"])) tap(["DRAW", "PUT UP"]); }
       // the triggers: a car's pedals, or on foot draw / run
       if (press(7)) { if (car) K["w"] = true; else input.current.run = true; }
       if (rel(7)) { K["w"] = false; input.current.run = !!sprint && !car; }
@@ -23442,6 +23964,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!(kind || "").startsWith("det:")) g.detSaid = null; g.pickOpen = kind; setHud((h) => ({ ...h, pick: pickPanel(kind) })); };
     G.pickFn = (id) => {
       if (id.startsWith("laser:")) { RUNNER_API.laserPick(id.slice(6)); return; }   // LAYER 670
+      if (id.startsWith("gear:")) { RUNNER_API.gearPick(id.slice(5)); return; }   // LAYER 677: the pack and the gas mask
+      if (id.startsWith("cat:")) { G.weaponCat(id.slice(4)); return; }   // LAYER 678: a wheel category opens its own ring
       if (id.startsWith("wpn:")) {
         const k = id.slice(4);
         g.p.wpn = k; g.p.ammo = WPN_AMMO[k] || 6; g.p.holstered = false;
@@ -41938,8 +42462,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        and HOLSTER. D-pad down / I / the POCKETS button: everything in your pockets, round a ring. */
     const wpnNm = (k) => (k === "pistol_sd" ? "SUPPRESSED .22" : null) || (CONTRABAND[k] && CONTRABAND[k].nm) || String(k).replace(/_/g, " ").toUpperCase();
     const wpnIco = (k) => { const ic = (g.prisonMode && !g.pescaped && HEAD_ICON[k]) || wIconOf(k); return ic && PD_ART[ic] ? PD_ART[ic] : null; };
+    /* LAYER 678: the runner's wheel is four categories (WEAPONS, EQUIPMENT, ITEMS, CYBERWEAR). A category opens its own
+       ring; BACK goes up one level. 'top' is the first ring. */
+    G.weaponCat = (name) => { if (name === "top") return G.weaponWheel();
+      const title = { weapons: "WEAPONS", equipment: "EQUIPMENT", items: "ITEMS", food: "ITEMS · FOOD", meds: "ITEMS · MEDS", drugs: "ITEMS · DRUGS", cyber: "CYBERWEAR" }[name] || "WEAPON WHEEL";
+      return G.radialOpen({ kind: "weapons", title, items: RUNNER_API.gearItems(name) }); };
     G.weaponWheel = () => { const items = [];
-      if (RUNNER_API.isOn()) { const L = RUNNER_API.laserItems(); if (!L.length) { g.pickupFlash = { nm: "lift:NOTHING TO PULL", t: 1.4 }; return false; } return G.radialOpen({ kind: "weapons", title: "WEAPON WHEEL", items: L }); }   // LAYER 670: the runner's wheel is the laser pistol
+      if (RUNNER_API.isOn()) { const L = RUNNER_API.gearItems(); if (!L.length) { g.pickupFlash = { nm: "lift:NOTHING TO PULL", t: 1.4 }; return false; } return G.radialOpen({ kind: "weapons", title: "WEAPON WHEEL", items: L }); }   // LAYER 670: the runner's wheel is the laser pistol
       if (g.prisonMode && !g.pescaped) { const seen = new Set();
         for (const k of g.pinv || []) if (PWPN[k] && !seen.has(k)) { seen.add(k); items.push({ label: wpnNm(k), sub: g.pwpn === k ? "out -- take it to put it away" : k === "zipgun" || k === "gun" ? "one bad shot can put YOU in the infirmary" : "pull it out", icon: wpnIco(k), id: "pocket:" + k }); }
         if (g.pwpn) items.push({ label: "BARE HANDS", sub: "put it away", icon: PD_ART.wi_empty, id: "pocket:" + g.pwpn }); }
@@ -51805,8 +52334,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function laneMarks(center, hw, ave, vertical, a0, a1) {
       const step = 70, dash = 34;
       const start = Math.floor(a0 / step) * step;
+      // LAYER 680: the centre paint flashes yellow and white, every 1.5 seconds
+      const flashCol = Math.floor(performance.now() / 1500) % 2 ? "rgba(246,246,240,0.92)" : "rgba(242,196,52,0.92)";
       if (ave) {
-        ctx.fillStyle = "rgba(216,176,80,0.6)";
+        ctx.fillStyle = flashCol;
         if (vertical) { ctx.fillRect(center - 5, a0, 3, a1 - a0); ctx.fillRect(center + 2, a0, 3, a1 - a0); }
         else { ctx.fillRect(a0, center - 5, a1 - a0, 3); ctx.fillRect(a0, center + 2, a1 - a0, 3); }
         ctx.fillStyle = "rgba(185,188,192,0.3)";
@@ -51815,16 +52346,23 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           else { ctx.fillRect(s, center - hw * 0.52, dash, 3); ctx.fillRect(s, center + hw * 0.52, dash, 3); }
         }
       } else {
-        ctx.fillStyle = "rgba(216,176,80,0.42)";
+        ctx.fillStyle = flashCol;
         for (let s = start; s < a1; s += step) {
           if (vertical) ctx.fillRect(center - 1.5, s, 3, dash);
           else ctx.fillRect(s, center - 1.5, dash, 3);
         }
       }
-      // curb edge
-      ctx.fillStyle = "rgba(150,152,156,0.25)";
-      if (vertical) { ctx.fillRect(center - hw, a0, 2, a1 - a0); ctx.fillRect(center + hw - 2, a0, 2, a1 - a0); }
-      else { ctx.fillRect(a0, center - hw, a1 - a0, 2); ctx.fillRect(a0, center + hw - 2, a1 - a0, 2); }
+      // LAYER 680: the kerbs are a blue line that glows, on both edges of the carriageway (a soft outer glow, then a bright core)
+      const glowOuter = "rgba(70,150,255,0.10)", glowInner = "rgba(90,170,255,0.24)", kerbCore = "rgba(120,195,255,0.95)";
+      ctx.fillStyle = glowOuter;
+      if (vertical) { ctx.fillRect(center - hw - 7, a0, 14, a1 - a0); ctx.fillRect(center + hw - 7, a0, 14, a1 - a0); }
+      else { ctx.fillRect(a0, center - hw - 7, a1 - a0, 14); ctx.fillRect(a0, center + hw - 7, a1 - a0, 14); }
+      ctx.fillStyle = glowInner;
+      if (vertical) { ctx.fillRect(center - hw - 3, a0, 6, a1 - a0); ctx.fillRect(center + hw - 3, a0, 6, a1 - a0); }
+      else { ctx.fillRect(a0, center - hw - 3, a1 - a0, 6); ctx.fillRect(a0, center + hw - 3, a1 - a0, 6); }
+      ctx.fillStyle = kerbCore;
+      if (vertical) { ctx.fillRect(center - hw - 1, a0, 2.5, a1 - a0); ctx.fillRect(center + hw - 1.5, a0, 2.5, a1 - a0); }
+      else { ctx.fillRect(a0, center - hw - 1, a1 - a0, 2.5); ctx.fillRect(a0, center + hw - 1.5, a1 - a0, 2.5); }
     }
 
     /* layer 545: chain-link from above -- the mesh as a pale band with diamonds, the rail, the cap of every post (fn_post),
@@ -54101,7 +54639,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        silent class of bug into a line of red text with the actual message. */
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      try { if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title) RUNNER_API.hazeTick(!g.inside && !g.sewer); if (RUNNER_API.isOn() && !g.title && g.peds) RUNNER_API.keepYouthOut(g.peds); if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { const hz = RUNNER_API.hazeLevel(); if (hz > 0 && g.p.hp > (g.p.maxHp || 100) * (1 - hz)) g.p.hp = (g.p.maxHp || 100) * (1 - hz); } /* LAYER 648: the haze caps health, like a debuff */ if (RUNNER_API.isOn() && !g.title && RUNNER_API.riding()) { g.grap = null; g.jump = null; g.roof = null; RUNNER_API.keepOut(g.p); } else if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.keepOut(g.p); RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); /* LAYER 669: the hunters' alert and the hover sounds */ if (RUNNER_API.isOn() && !g.title) { const inHosp = !!(g.inside && g.inside.kind === "hospital"); const tg = g.inside ? doorPoint(g.inside) : [g.p.x, g.p.y]; RUNNER_API.hunterTick(tg[0], tg[1], inHosp); RUNNER_API.worldHud(canvasRef.current, g.cam, !g.inside); } else RUNNER_API.hunterReset(); RUNNER_API.hoverSoundTick(RUNNER_API.isOn() && !g.title && !g.inside); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
+      try { { const rc = RUNNER_API.takeCash(); if (rc && g.p) g.p.cash = (g.p.cash || 0) + rc; }   // LAYER 678: the stash cash
+        if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title) RUNNER_API.hazeTick(!g.inside && !g.sewer); if (RUNNER_API.isOn() && !g.title && g.peds) RUNNER_API.keepYouthOut(g.peds); if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { const hz = RUNNER_API.hazeLevel(); if (hz > 0 && g.p.hp > (g.p.maxHp || 100) * (1 - hz)) g.p.hp = (g.p.maxHp || 100) * (1 - hz); } /* LAYER 648: the haze caps health, like a debuff */ if (RUNNER_API.isOn() && !g.title && RUNNER_API.riding()) { g.grap = null; g.jump = null; g.roof = null; RUNNER_API.keepOut(g.p); } else if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.keepOut(g.p); RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); /* LAYER 669: the hunters' alert and the hover sounds */ if (RUNNER_API.isOn() && !g.title) { const inHosp = !!(g.inside && g.inside.kind === "hospital"); const tg = g.inside ? doorPoint(g.inside) : [g.p.x, g.p.y]; RUNNER_API.hunterTick(tg[0], tg[1], inHosp); RUNNER_API.worldHud(canvasRef.current, g.cam, !g.inside); } else RUNNER_API.hunterReset(); RUNNER_API.hoverSoundTick(RUNNER_API.isOn() && !g.title && !g.inside); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
