@@ -9,6 +9,9 @@ try { if (typeof navigator !== "undefined" && "gamepadInputEmulation" in navigat
    No buildings yet — chain-link fences are the only obstacles.
    ============================================================ */
 
+// TITLE SCREEN: only RUNNER MODE is listed while the other modes are shelved. Set true to bring NEW GAME, DETECTIVE, STUDENT and FOOTBALL back.
+const TITLE_OTHER_MODES = false;
+
 const A = {
   idle: "data:image/webp;base64,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",
   w_up: "data:image/webp;base64,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",
@@ -2826,7 +2829,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 688";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 689";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -15329,7 +15332,18 @@ const RUNNER_API = (function () {
     mateTick(dt);
     canTick(dt);   // LAYER 680: the C.A.N. drone
     const pad = readPad();
-    if (pad.a && !padPrev.a) { pend.exit = true; pend.exitPad = true; }   // LAYER 683: A is the action (E): stash pickups, else board or get off
+    if (yMenu.open) {                                          // the menu has the pad while it is open: stick moves, A picks, B or Y closes
+      if (yMenu.mode === 'menu') {
+        if (pad.y > 0.6 && yMenu.stickY <= 0.6) yMenu.sel = (yMenu.sel + 1) % yMenu.opts.length;
+        if (pad.y < -0.6 && yMenu.stickY >= -0.6) yMenu.sel = (yMenu.sel + yMenu.opts.length - 1) % yMenu.opts.length;
+      }
+      yMenu.stickY = pad.y;
+      if (pad.a && !padPrev.a) yMenuPick();
+      if (pad.b && !padPrev.b) { yMenu.open = false; yMenu.mode = 'menu'; }   // Y closes it through yAction (the pad poll)
+      padPrev = { a: pad.a, b: pad.b, xb: pad.xb, yb: pad.yb, rb: pad.rb, lb: pad.lb, r3: pad.r3 };
+      return;
+    }
+    if (pad.a && !padPrev.a) { if (bartenderNear()) openYMenu(); else { pend.exit = true; pend.exitPad = true; } }   // A: talk to the person by you, else the stash or the bike (E)   // LAYER 683: A is the action (E): stash pickups, else board or get off
     if (pad.b && !padPrev.b && !walker.on) pend.land = true;   // B takes off, or lands the bike (on foot, B punches)
     if (pad.r3 && !padPrev.r3) pend.call = true;         // LAYER 690: R3 calls the bike down beside him (it was X, and X caught A's presses inside)
     if (pad.lb && !padPrev.lb) pend.target = true;       // LAYER 683: LB locks the aim on the nearest target, again lets go
@@ -15399,9 +15413,10 @@ const RUNNER_API = (function () {
     if (sp) {
       const k = m.len / Math.max(sp.width, sp.height);
       const w = sp.width * k, h = sp.height * k;
-      if (m.rider) riderPart(-1);      // LAYER 690: the legs go under the bike
+      const onIt = !walker.on;         // the rider is only on the bike when he is ON it -- parked, he is on foot beside it
+      if (m.rider && onIt) riderPart(-1);      // LAYER 690: the legs go under the bike
       ctx.drawImage(sp, -w / 2, -h / 2, w, h);
-      if (m.rider) riderPart(1);       // the torso, arms and head go over it
+      if (m.rider && onIt) riderPart(1);       // the torso, arms and head go over it
     } else { ctx.fillStyle = '#9aa'; ctx.fillRect(-m.len / 2, -20, m.len, 40); }
     ctx.restore();
   }
@@ -15812,7 +15827,10 @@ const RUNNER_API = (function () {
     const drawn = spawn && Number.isFinite(spawn.x) ? spawn : (walker.on ? walker : car);
     const tx = drawn.x, ty = drawn.y;
     if (!camSmooth || Math.hypot(tx - camSmooth.x, ty - camSmooth.y) > 600) camSmooth = { x: tx, y: ty };
-    const k = 1 - Math.exp(-dt * 16);
+    /* THE CAMERA KEEPS UP. The gain grows with how far behind the bike the camera is, so at speed (flying, a fast run) it closes
+       the gap quickly instead of trailing. It still centres on him -- no look-ahead. */
+    const lagD = Math.hypot(tx - camSmooth.x, ty - camSmooth.y);
+    const k = 1 - Math.exp(-dt * (16 + Math.min(60, lagD * 0.12)));
     camSmooth.x += (tx - camSmooth.x) * k; camSmooth.y += (ty - camSmooth.y) * k;
     camNow = { x: camSmooth.x, y: camSmooth.y, z: clamp((Math.min(W, H) / 1400) * (zoomU || 1), 0.16, 3.2) };
     cam.x = camNow.x; cam.y = camNow.y; cam.z = camNow.z;
@@ -16669,7 +16687,48 @@ const RUNNER_API = (function () {
       playLaserShot();
     }
     if (k.role === 'gun') h.rec = 0.12;   // the weapon kicks back after a shot
-    if (hit) stunPlayer(h);
+    if (hit) { stunPlayer(h); h.wantRob = true; }   // the man who stunned him may go through his gear next
+  }
+  /* THE ROBBERY (Donny). A hunter who has stunned him closes in and starts going through his gear. A ticker runs above him for
+     FIVE SECONDS while he is at the runner's side. The runner stops it by MOVING (he shakes him off); stunned, he cannot move, so
+     the ticker keeps running -- and the man can stun him again. At five seconds he takes one thing and runs. */
+  const ROB = { h: null, t: 0 };
+  const ROB_NEED = 5, ROB_REACH = 70;
+  function robItems() { const L = []; if (LASER.has) L.push('pistol'); if (packOn) L.push('pack'); if (gasOwned) L.push('mask'); if (sleepOwned) L.push('bag'); return L; }
+  function robEnd(h) { if (ROB.h === h) { ROB.h = null; ROB.t = 0; ROB.lx = null; } h.robbing = false; h.wantRob = false; }
+  function hunterRob(h, dt) {
+    if (h.dead) { if (ROB.h === h) robEnd(h); return; }
+    if (h.fleeT > 0) {                                   // running off with it, away from the runner
+      h.fleeT -= dt; const dx = h.x - walker.x, dy = h.y - walker.y, d = Math.hypot(dx, dy) || 1;
+      h.x += dx / d * HUNT.spd * 2.2 * dt; h.y += dy / d * HUNT.spd * 2.2 * dt; h.hd = Math.atan2(dy, dx); h.mv = true;
+      if (h.fleeT <= 0) { h.dead = true; h.dying = 0; }   // gone out of the scene
+      return;
+    }
+    if (h.stunT > 0) { if (ROB.h === h) robEnd(h); return; }   // a teammate's shot puts him down: the job is off
+    if (h.wantRob && !ROB.h && walker.on) {               // one robber at a time: he comes in close
+      const d = Math.hypot(walker.x - h.x, walker.y - h.y);
+      if (d > 44) { const s = Math.min(d - 44, HUNT.spd * 1.8 * dt); h.x += (walker.x - h.x) / d * s; h.y += (walker.y - h.y) / d * s; h.hd = Math.atan2(walker.y - h.y, walker.x - h.x); h.mv = true; }
+      else { ROB.h = h; ROB.t = 0; ROB.lx = null; h.robbing = true; say(h.name + ' IS GOING THROUGH YOUR GEAR. MOVE TO SHAKE HIM OFF!', 4); }
+    }
+    if (ROB.h !== h) return;
+    if (ROB.lx == null) { ROB.lx = walker.x; ROB.ly = walker.y; }
+    const d = Math.hypot(walker.x - h.x, walker.y - h.y);
+    if (d > ROB_REACH) { if (d > 0.001) { const s = Math.min(d - 44, HUNT.spd * 1.8 * dt); h.x += (walker.x - h.x) / d * s; h.y += (walker.y - h.y) / d * s; } h.hd = Math.atan2(walker.y - h.y, walker.x - h.x); return; }
+    h.hd = Math.atan2(walker.y - h.y, walker.x - h.x);
+    const moving = ROB.lx != null && Math.hypot(walker.x - ROB.lx, walker.y - ROB.ly) > 1.2;   // he has moved under his own power (keys or stick)
+    if (PSTUN.t <= 0 && moving) {                       // he moved: the man is shaken off and runs
+      robEnd(h); h.fleeT = 3; say('YOU SHOOK HIM OFF. HE RUNS.', 3); return;
+    }
+    ROB.t += dt; ROB.lx = walker.x; ROB.ly = walker.y;   // stunned, or standing still: the ticker runs
+    if (ROB.t >= ROB_NEED) {
+      const L = robItems(), pick = L.length ? L[(Math.random() * L.length) | 0] : null;
+      if (pick === 'pistol') { LASER.has = false; LASER.drawn = false; say(h.name + ' TOOK YOUR LASER PISTOL AND RAN.', 5); }
+      else if (pick === 'pack') { packOn = null; packOff = false; say(h.name + ' TOOK YOUR BACKPACK AND RAN.', 5); }
+      else if (pick === 'mask') { gasOwned = false; mask = false; say(h.name + ' TOOK YOUR GAS MASK AND RAN.', 5); }
+      else if (pick === 'bag') { sleepOwned = false; sleepDown = null; lying = null; say(h.name + ' TOOK YOUR SLEEPING BAG AND RAN.', 5); }
+      else say(h.name + ' FOUND NOTHING ON YOU AND WALKED OFF.', 4);
+      robEnd(h); h.fleeT = 6;
+    }
   }
   // LAYER 687: the hunter's weapon in his right hand, drawn in the figure's frame: the grip at the hand, the barrel forward (+y); a shot kicks it back
   function drawHunterWeapon(c, h, rig, cen) {
@@ -16717,18 +16776,20 @@ const RUNNER_API = (function () {
       }
       say('THE HUNTERS KNOW WHERE YOU ARE. GET FAR ENOUGH AWAY FOR THE BAR TO EMPTY.', 5);
     }
-    if (!alertOn) return;
+    if (!alertOn) { ROB.h = null; ROB.t = 0; return; }
     let dmin = Infinity;
     for (const h of hunters) {
       if (h.dead) { h.dying -= dt; continue; }
       h.ph += dt * 8; h.mv = false; if (h.rec > 0) h.rec -= dt;
       if (h.stunT > 0) h.stunT -= dt;
+      else if (h.fleeT > 0 || h.wantRob || ROB.h === h) { /* the robbery moves him (hunterRob) */ }
       else {
         const dx = tx - h.x, dy = ty - h.y, d = Math.hypot(dx, dy);
         const step = Math.min(Math.max(0, d - HUNT.near * 0.9), HUNT.spd * dt);
         if (d > 0.001 && step > 0) { h.x += dx / d * step; h.y += dy / d * step; h.hd = Math.atan2(dy, dx); h.mv = true; }
       }
       hunterStrike(h, dt);
+      hunterRob(h, dt);
       dmin = Math.min(dmin, Math.hypot(tx - h.x, ty - h.y));
     }
     hunters = hunters.filter((h) => !(h.dead && h.dying <= 0));
@@ -16753,6 +16814,14 @@ const RUNNER_API = (function () {
     if (h.stunT > 0 && !h.dead) {   // stunned: a blue ring that flickers
       c.save(); c.strokeStyle = 'rgba(79,195,255,' + (0.5 + 0.4 * Math.sin(h.ph * 2)) + ')'; c.lineWidth = 2.5;
       c.beginPath(); c.ellipse(h.x, h.y, 30, 22, 0, 0, Math.PI * 2); c.stroke(); c.restore();
+    }
+    if (ROB.h === h && !h.dead) {   // THE TICKER: five seconds, over the man who is going through his gear
+      const f = clamp(ROB.t / ROB_NEED, 0, 1), bw = 74, bx = h.x - bw / 2, by = h.y - 50;
+      c.save(); c.fillStyle = 'rgba(8,8,12,0.85)'; c.fillRect(bx - 3, by - 3, bw + 6, 12);
+      c.fillStyle = PSTUN.t > 0 ? '#ff7a3a' : '#ffd65a'; c.fillRect(bx, by, bw * f, 6);
+      c.font = '700 9px ui-monospace, monospace'; c.textAlign = 'center'; c.fillStyle = PSTUN.t > 0 ? '#ff9a6a' : '#ffd65a';
+      c.fillText(PSTUN.t > 0 ? 'TAKING YOUR GEAR' : 'MOVE! ' + Math.max(0, ROB_NEED - ROB.t).toFixed(1) + 's', h.x, by - 6);
+      c.restore();
     }
   }
   // ---------- LAYER 680: the C.A.N. news drone ----------
@@ -17022,13 +17091,19 @@ const RUNNER_API = (function () {
     return { head: h[1], suit, body, bodyK: 1, skin: RUNNER_SKIN_PICK[(Math.random() * RUNNER_SKIN_PICK.length) | 0], hair: HAIR_MASK_FILES[h[1]] ? RUNNER_HAIR[(Math.random() * RUNNER_HAIR.length) | 0] : null };
   }
   // a clear spot a random distance from the bike, for the teammates and the case
+  /* THE MAP IS THE MAP. The bike and the walker are held inside the world (40 to SX(N) - 40); a teammate placed past that
+     edge could never be reached, so every spot here is checked against the same box, and a teammate is kept inside it. */
+  const inWorld = (x, y) => x >= 40 && y >= 40 && x <= SX(N) - 40 && y <= SX(N) - 40;
   function randomSpot(minD, maxD) {
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 80; i++) {
       const a = Math.random() * Math.PI * 2, d = minD + Math.random() * (maxD - minD);
-      const sp = clearSpot(car.x + Math.cos(a) * d, car.y + Math.sin(a) * d, null);
-      if (sp) return sp;
+      const x0 = car.x + Math.cos(a) * d, y0 = car.y + Math.sin(a) * d;
+      if (!inWorld(x0, y0)) continue;
+      const sp = clearSpot(x0, y0, null);
+      if (sp && inWorld(sp.x, sp.y)) return sp;
     }
-    return { x: car.x + maxD, y: car.y };
+    // nothing clear inside the box: the middle of the reachable part, which is always on the map
+    return { x: clamp(car.x, 60, SX(N) - 60), y: clamp(car.y, 60, SX(N) - 60) };
   }
   // LAYER 684: two runners per team, placed around the bike, in the team's suit colour. The player's own team is him and one
   // teammate (the friend), in his suit colour. The friend never shoots at him; finding him is the second mission.
@@ -17083,6 +17158,7 @@ const RUNNER_API = (function () {
       }
       const dx = tx - m.x, dy = ty - m.y, L = Math.hypot(dx, dy);
       if (L > 4 && spd > 0) { const s = Math.min(L, spd * dt); m.x += dx / L * s; m.y += dy / L * s; m.heading = Math.atan2(dy, dx); m.step += dt * 11; }
+      m.x = clamp(m.x, 40, SX(N) - 40); m.y = clamp(m.y, 40, SX(N) - 40);   // a teammate stays on the map the runner can reach
       if (seen) m.heading = Math.atan2(walker.y - m.y, walker.x - m.x);
       if (!m.friend && LOOSE.on && !LOOSE.holder && Math.hypot(LOOSE.x - m.x, LOOSE.y - m.y) < 40) { LOOSE.holder = m; say(m.name + ' HAS THE CASE. STUN HIM TO GET IT BACK.', 4); }
       if (LOOSE.holder === m) { LOOSE.x = m.x; LOOSE.y = m.y; }
@@ -17189,6 +17265,88 @@ const RUNNER_API = (function () {
     MISSION.x = f.x; MISSION.y = f.y;
     if (walker.on && Math.hypot(walker.x - f.x, walker.y - f.y) < 160) { MISSION.stage = 'done'; say('FOUND YOUR TEAMMATE: ' + f.name + '.', 5); runBanner('TEAMMATE FOUND', 2.6); }
   }
+  /* ---------- THE Y MENU, THE BAR AND THE TIP (first pass) ----------
+     After the pistol, stage 'teammate' is an arrow to the bar. Stand by the bartender and press Y: the menu opens. ASK ABOUT YOUR
+     TEAMMATE opens a short talk that gives an address (stage 'house'). The bar and house spots are placeholders until they are placed. */
+  const BAR_NAME = 'THE LAST CALL';
+  const TIP_ADDRESS = '612 SAUNDERS AVE';
+  const yMenu = { open: false, mode: 'menu', sel: 0, opts: [], lines: [], li: 0, title: '', speaker: '', stickY: 0 };
+  let barSpot = null, houseSpot = null, houseSeen = false;
+  function missionBar() {
+    if (!barSpot) { const L = canRect().lot; barSpot = clearSpot(L[2] + 700, L[3] - 40, null) || { x: L[2] + 700, y: L[3] - 40 }; }
+    MISSION.label = 'BAR'; MISSION.x = barSpot.x; MISSION.y = barSpot.y;
+  }
+  function missionHouse() {
+    if (!houseSpot) { const b = barSpot || { x: 0, y: 0 }; houseSpot = clearSpot(b.x - 900, b.y + 300, null) || { x: b.x - 900, y: b.y + 300 }; }
+    MISSION.label = 'HOUSE'; MISSION.x = houseSpot.x; MISSION.y = houseSpot.y;
+    if (!houseSeen && walker.on && Math.hypot(walker.x - houseSpot.x, walker.y - houseSpot.y) < 110) {
+      houseSeen = true; say(TIP_ADDRESS + '. THE DOOR IS SHUT. THE FIGHT INSIDE IS NOT BUILT YET.', 6);
+    }
+  }
+  function bartenderNear() { return MISSION.stage === 'teammate' && barSpot && walker.on && Math.hypot(walker.x - barSpot.x, walker.y - barSpot.y) < 150; }
+  function openYMenu() {
+    if (!walker.on) { say('GET OFF THE BIKE TO TALK TO PEOPLE', 3); return; }
+    if (!bartenderNear()) { say('NOBODY HERE WANTS TO TALK', 2.5); return; }
+    Object.assign(yMenu, { open: true, mode: 'menu', sel: 0, li: 0, lines: [], title: BAR_NAME, speaker: 'BARTENDER',
+      opts: ['ASK ABOUT YOUR TEAMMATE', 'ORDER A DRINK', 'LEAVE'] });
+  }
+  const TALK_TEAMMATE = [
+    'Your partner came through about an hour ago. Bleeding from the arm, but walking.',
+    'Said they were fixing up an empty house on Saunders. A base, somewhere the hunters would not look.',
+    'Six hunters came up the street after them. I did not see who came out.',
+    TIP_ADDRESS + '. Don’t tell anybody I said so.'
+  ];
+  function yMenuPick() {
+    if (yMenu.mode === 'talk') {
+      yMenu.li++;
+      if (yMenu.li >= yMenu.lines.length) {
+        yMenu.open = false; yMenu.mode = 'menu';
+        MISSION.stage = 'house'; missionHouse();
+        say('TIP: ' + TIP_ADDRESS + '. THE ARROW IS ON THE HOUSE.', 6); runBanner('NEW LEAD', 2.2);
+      }
+      return;
+    }
+    const o = yMenu.opts[yMenu.sel];
+    if (o === 'ASK ABOUT YOUR TEAMMATE') { yMenu.mode = 'talk'; yMenu.lines = TALK_TEAMMATE; yMenu.li = 0; }
+    else if (o === 'ORDER A DRINK') { yMenu.open = false; say('HE POURS IT. ON THE HOUSE. "YOU LOOK LIKE YOU NEED IT."', 4); }
+    else yMenu.open = false;
+  }
+  function drawYMenu(c, W, H) {
+    if (!yMenu.open) return;
+    c.save();
+    const bw = Math.min(W - 32, 340), x = (W - bw) / 2, pad = 14, font = 'monospace';
+    c.textBaseline = 'middle';
+    if (yMenu.mode === 'talk') {
+      const line = yMenu.lines[yMenu.li] || '';
+      c.font = '13px ' + font; const words = line.split(' '), rows = []; let cur = '';
+      for (const wd of words) { const t = cur ? cur + ' ' + wd : wd; if (c.measureText(t).width > bw - pad * 2 && cur) { rows.push(cur); cur = wd; } else cur = t; }
+      if (cur) rows.push(cur);
+      const bh = 58 + rows.length * 18 + 22, y = H * 0.56 - bh / 2;
+      c.fillStyle = 'rgba(8,10,14,0.9)'; c.fillRect(x, y, bw, bh);
+      c.strokeStyle = '#6ef0ff'; c.lineWidth = 1.5; c.strokeRect(x + 0.5, y + 0.5, bw - 1, bh - 1);
+      c.fillStyle = '#6ef0ff'; c.font = 'bold 11px ' + font; c.textAlign = 'left';
+      c.fillText(yMenu.title + '  ·  ' + yMenu.speaker, x + pad, y + 18);
+      c.fillStyle = '#e8d9b5'; c.font = '13px ' + font;
+      rows.forEach((r, i) => c.fillText(r, x + pad, y + 46 + i * 18));
+      c.fillStyle = 'rgba(232,217,181,0.6)'; c.font = '10px ' + font; c.textAlign = 'right';
+      c.fillText('A next  (' + (yMenu.li + 1) + '/' + yMenu.lines.length + ')', x + bw - pad, y + bh - 12);
+    } else {
+      const rowH = 34, bh = 52 + yMenu.opts.length * rowH + 24, y = H * 0.56 - bh / 2;
+      c.fillStyle = 'rgba(8,10,14,0.9)'; c.fillRect(x, y, bw, bh);
+      c.strokeStyle = '#6ef0ff'; c.lineWidth = 1.5; c.strokeRect(x + 0.5, y + 0.5, bw - 1, bh - 1);
+      c.fillStyle = '#6ef0ff'; c.font = 'bold 12px ' + font; c.textAlign = 'left';
+      c.fillText('Y  ·  ' + yMenu.title, x + pad, y + 20);
+      yMenu.opts.forEach((o, i) => {
+        const ry = y + 40 + i * rowH, on = i === yMenu.sel;
+        c.fillStyle = on ? 'rgba(110,240,255,0.18)' : 'rgba(0,0,0,0)'; c.fillRect(x + 6, ry, bw - 12, rowH - 4);
+        c.fillStyle = on ? '#d8fbff' : 'rgba(232,217,181,0.75)'; c.font = (on ? 'bold ' : '') + '12px ' + font;
+        c.fillText((on ? '▶ ' : '   ') + o, x + pad, ry + (rowH - 4) / 2);
+      });
+      c.fillStyle = 'rgba(232,217,181,0.5)'; c.font = '10px ' + font; c.textAlign = 'right';
+      c.fillText('A choose   B close', x + bw - pad, y + bh - 12);
+    }
+    c.restore();
+  }
   function worldHud(canvas, cam, outdoors) {
     if (!canvas) return;
     if (MISSION.stage === 'none' && CAN_LOT_RECT) missionStart();
@@ -17198,9 +17356,10 @@ const RUNNER_API = (function () {
     const c = canvas.getContext('2d'), dpr = canvas.width / W, now = performance.now();
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawRunBanners(c);   // LAYER 680: the mission banners, in screen space
+    drawYMenu(c, W, H);  // the Y menu and the talk, over the banners
     drawCanBulletin(c);  // LAYER 680: the C.A.N. lookout bulletin, in screen space
-    if (MISSION.stage === 'teammate') missionTeammate();   // LAYER 684: the second mission
-    if (outdoors && cam && (MISSION.stage === 'pistol' || MISSION.stage === 'teammate')) drawMissionArrow(c, cam, W, H, now);   // LAYER 683: the arrow to the pistol, then to the teammate
+    if (MISSION.stage === 'teammate') missionBar(); else if (MISSION.stage === 'house') missionHouse();   // the bar, then the house (the Y menu)
+    if (outdoors && cam && (MISSION.stage === 'pistol' || MISSION.stage === 'teammate' || MISSION.stage === 'house')) drawMissionArrow(c, cam, W, H, now);   // LAYER 683: the arrow to the pistol, then to the teammate
     if (outdoors && cam) {
       c.save(); c.translate(W / 2, H / 2); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y);
       for (const h of hunters) drawHunter(c, h);
@@ -17209,13 +17368,13 @@ const RUNNER_API = (function () {
       if (sleepDown && !lying) drawSleepBag(c);   // LAYER 691: the bag on the ground (with him, when he lies on it)
       if (RUN_ON) for (const cd of canDrones) drawCanDrone(c, cd, now);   // LAYER 680: the C.A.N. drone, its light and hologram
       if (RUN_ON) drawCanBooms(c);
-      if (MISSION.stage === 'pistol' || MISSION.stage === 'teammate') drawMissionStashArrow(c, cam, W, H, now);   // LAYER 683: the arrow on the stash, then on the teammate
+      if (MISSION.stage === 'pistol' || MISSION.stage === 'teammate' || MISSION.stage === 'house') drawMissionStashArrow(c, cam, W, H, now);   // LAYER 683: the arrow on the stash, then on the teammate
       if (RUN_ON) drawAimLock(c, now);
       LASER.beams = LASER.beams.filter((b) => b.until > now);
       for (const b of LASER.beams) drawBeam(c, b, now);
       c.restore();
     }
-    if (MISSION.stage === 'pistol' || MISSION.stage === 'teammate') {
+    if (MISSION.stage === 'pistol' || MISSION.stage === 'teammate' || MISSION.stage === 'house') {
       c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(6, H - 296, 262, 26);
       c.fillStyle = '#6ef0ff'; c.font = 'bold 11px monospace'; c.textAlign = 'left'; c.fillText(MISSION.stage === 'pistol' ? 'FIRST MISSION: GET YOUR PISTOL' : 'SECOND MISSION: FIND YOUR TEAMMATE', 14, H - 279);
     }
@@ -17544,27 +17703,46 @@ const RUNNER_API = (function () {
   }
   // the hover sounds (placeholders). Attachment 1 = hover bike, 2 = hover trucks, 3 = average hover cars, 4 = sports hover cars.
   // Each class is one loop. Its loudness is the nearest moving vehicle of that class, falling off with distance from the runner.
-  const HOVER_SND = { bike: 'assets/audio/hover_bike.wav', truck: 'assets/audio/hover_truck.wav', car: 'assets/audio/hover_car.wav', sports: 'assets/audio/hover_sports.wav' };
+  const HOVER_SND = { bike: 'assets/audio/hover_bike.wav', truck: 'assets/audio/hover_truck.wav', car: 'assets/audio/hover_car.wav', sports: 'assets/audio/hover_sports.wav', muscle: 'assets/audio/hover_muscle.wav' };
   const HOVER_CLASS = { cars_b714ecba_1: 'sports', cars_87f02ce2_1: 'sports', cars_6093fd94_1: 'truck',
     cars_6775c1f3_1: 'truck', cars_8e80b993_1: 'truck', cars_43a7a337_1: 'bike' };   // the rest (sedans, taxi, the news jeep, camera car) are average cars
   const hoverAud = {};
+  /* THE ENGINE REV, for every engine (his bike, the hover trucks, cars and sports cars, and the car he drives on the street):
+     it climbs with the throttle, HOLDS on the top note at top speed, and only comes down when the vehicle really slows (more than
+     12% under the top it reached). Each class keeps its own rev. */
+  const REVS = { bike: { lvl: 0, peak: 0 }, truck: { lvl: 0, peak: 0 }, car: { lvl: 0, peak: 0 }, sports: { lvl: 0, peak: 0 }, muscle: { lvl: 0, peak: 0 }, world: { lvl: 0, peak: 0 } };
+  const FLIER_TOP = 260;   // the cruise speed the hover fliers reach (their spd), for the top of their rev
+  function revFollow(r, target) {
+    const t = clamp(target, 0, 1);
+    if (t >= r.peak || t < r.peak - 0.12) r.peak = t;
+    r.lvl += (r.peak - r.lvl) * (r.peak > r.lvl ? 0.18 : 0.06);   // up quickly, down slowly
+    return r.lvl;
+  }
   function hoverSoundTick(outdoors) {
     ambienceTick(RUN_ON && outdoors);
     chatterTick(RUN_ON && outdoors);
     if (!RUN_ON || !outdoors) { for (const k in hoverAud) if (hoverAud[k] && !hoverAud[k].paused) hoverAud[k].pause(); return; }
     const lx = walker.x, ly = walker.y, FALL = 1400;
     const loud = (x, y) => Math.max(0, 1 - Math.hypot(x - lx, y - ly) / FALL);
-    const want = { bike: 0, truck: 0, car: 0, sports: 0 };
-    if (car.mode !== 'landed' || Math.abs(car.speed) > 10) want.bike = Math.max(want.bike, 0.5 * loud(car.x, car.y));
+    const want = { bike: 0, truck: 0, car: 0, sports: 0, muscle: 0 };
+    /* HIS BIKE'S ENGINE: it climbs with the throttle and HOLDS at the top of the climb, so it reads as one engine running. It only
+       comes down when he really slows (more than 12% under the peak) -- a bump, a turn or a dip in speed no longer makes it pump up and down. */
+    /* Every engine winds up with the throttle and holds at the top; see REVS. */
+    const bn = clamp(Math.abs(car.speed || 0) / 470, 0, 1);
+    if (car.mode !== 'landed' || Math.abs(car.speed) > 10) want.bike = Math.max(want.bike, loud(car.x, car.y));
+    const tops = { bike: bn, truck: 0, car: 0, sports: 0, muscle: 0 };
     for (const f of fliers) {
       if (f.mode === 'rest') continue;
       const k = HOVER_CLASS[String(f.sprite).replace(/^car_/, '')] || 'car';
-      want[k] = Math.max(want[k], 0.35 * loud(f.x, f.y));
+      const l = loud(f.x, f.y);
+      want[k] = Math.max(want[k], 0.35 * l);
+      if (l > 0) tops[k] = Math.max(tops[k], clamp((f.spd || 0) / FLIER_TOP, 0, 1));
     }
     for (const k of Object.keys(HOVER_SND)) {
+      const r = revFollow(REVS[k], tops[k]);
       if (!hoverAud[k]) { try { const a = new Audio(HOVER_SND[k]); a.loop = true; a.preload = 'auto'; hoverAud[k] = a; } catch (e) { hoverAud[k] = null; } }
       const a = hoverAud[k]; if (!a) continue;
-      if (want[k] > 0.01) { a.volume = Math.min(1, want[k]); if (a.paused) a.play().catch(() => {}); }
+      if (want[k] > 0.01) { a.volume = Math.min(1, want[k] * (0.55 + 0.45 * r)); a.playbackRate = 0.7 + 0.9 * r; if (a.paused) a.play().catch(() => {}); }
       else if (!a.paused) a.pause();
     }
   }
@@ -17644,7 +17822,7 @@ const RUNNER_API = (function () {
   function huntDbg() {
     const playing = Object.keys(hoverAud).filter((k) => hoverAud[k] && !hoverAud[k].paused);
     return { on: alertOn, lvl: +alertLvl.toFixed(2), n: hunters.length, playing, mission: MISSION.stage, stash: [Math.round(MISSION.x), Math.round(MISSION.y)], bike: car.mode, onFoot: walker.on, aim: aimLock ? (aimLock.drone ? 'drone' : aimLock.kind) : null, guns: hunters.map((h) => (h.kit ? h.kit.w : null)), crew: mates.map((m) => [m.team, !!m.friend, m.col, m.look.body, m.look.suit]),
-      mates: mates.map((m) => [m.team, Math.round(m.x), Math.round(m.y), +m.stunT.toFixed(1)]),
+      mates: mates.map((m) => [m.team, Math.round(m.x), Math.round(m.y), +m.stunT.toFixed(1), m.friend ? 'friend' : 'team', m.col, m.look && m.look.suit]),
       loose: [Math.round(LOOSE.x), Math.round(LOOSE.y), LOOSE.on, LOOSE.holder === 'player' ? 'player' : LOOSE.holder ? LOOSE.holder.team : null], pstun: +PSTUN.t.toFixed(2), can: canDrones.map((d) => [Math.round(d.x), Math.round(d.y), d.flying, +d.count.toFixed(2), d.line, d.holo ? d.holo.name : null, +d.hover.toFixed(2)]),
       laser: { has: LASER.has, drawn: LASER.drawn, mode: LASER.mode, locked: LASER.locked }, collarNear: Math.round(collarNear), hz: +collarHz().toFixed(2),
       ambPlaying: !!(ambAud && !ambAud.paused), hs: hunters.map((h) => [Math.round(h.x), Math.round(h.y), +h.stunT.toFixed(2), h.dead ? 1 : 0]),
@@ -17824,7 +18002,9 @@ const RUNNER_API = (function () {
     bodyFile: (k) => BODY_FILES[k],
     alertHere: (x, y) => canAlert(x, y),   // the C.A.N. call-in, at the hunters' own distance (used by the tests)
     // LAYER 690: where the runner's objective is, for the minimap's blue star (the pistol stash, then the teammate)
-    missionPip: () => (MISSION.stage === 'pistol' || MISSION.stage === 'teammate') ? { x: MISSION.x, y: MISSION.y } : null,
+    // TEST ONLY: lets the headless checks put the mission and the walker where they need to be
+    dbg: { setMission: (st) => { MISSION.stage = st; }, placeWalker: (x, y) => { walker.x = x; walker.y = y; walker.on = true; }, stage: () => MISSION.stage, bar: () => barSpot, pos: () => [walker.x, walker.y, walker.on], near: () => bartenderNear(), menuOpen: () => yMenu.open },
+    missionPip: () => (MISSION.stage === 'pistol' || MISSION.stage === 'teammate' || MISSION.stage === 'house') ? { x: MISSION.x, y: MISSION.y } : null,
     // LAYER 690: the world's action (its doAction), which the pad's A runs on foot when no bike is beside him
     setWorldAct: (f) => { worldActHook = f; },
     setLook: (l) => {
@@ -18468,10 +18648,10 @@ export default function IronLionLayer004() {
     function updateEngineSpeed(speed, running, paused) {
       const ctx = audio.current;
       if (!ctx || !AUDIO.eng || !AUDIO.engGain) return;
-      const norm = clamp(speed / AUDIO.topSpeed, 0, 1);
-      const pitch = AUDIO.minPitch + norm * (AUDIO.maxPitch - AUDIO.minPitch);
+      const rev = revFollow(REVS.world, Math.abs(speed) / AUDIO.topSpeed);   // holds at the top of a climb; see REVS
+      const pitch = AUDIO.minPitch + rev * (AUDIO.maxPitch - AUDIO.minPitch);
       AUDIO.eng.playbackRate.setTargetAtTime(pitch, ctx.currentTime, 0.06);
-      const gain = !running || paused ? 0 : 0.05 + norm * 0.11;
+      const gain = !running || paused ? 0 : 0.05 + rev * 0.11;
       AUDIO.engGain.gain.setTargetAtTime(gain, ctx.currentTime, 0.10);
     }
 
@@ -19333,7 +19513,7 @@ export default function IronLionLayer004() {
       mode: "foot",
       p: { x: sx + 60, y: sy, vx: 0, vy: 0, dir: "down", anim: 0, moving: 0, hp: 100, atk: 0, atkCd: 0,
         stamina: 100, maxStamina: 100, cash: 35, skill: 0,
-        wpn: "pistol_auto", aimAng: 0, muzzle: 0, drawnT: 0, fireCd: 0 },
+        wpn: "pistol_auto", holstered: true, aimAng: 0, muzzle: 0, drawnT: 0, fireCd: 0 },   // starts holstered: the icon over his head only shows once a gun is out
       // tough 0.40: the Lion's car takes 40% of the crush anything else would, and needs a
       // 175-force hit before it marks at all, against 70 for a street car
       /* Parked in a line square to the bay door rather than at arbitrary offsets. The car takes
@@ -19438,6 +19618,7 @@ export default function IronLionLayer004() {
     const eatClick = (e) => { if (curLock && e.isTrusted) { e.preventDefault(); e.stopPropagation(); } };   // the pad's own menu clicks are not "trusted": they still work
     window.addEventListener("click", eatClick, { capture: true }); document.addEventListener("selectstart", (e) => { if (curLock) e.preventDefault(); });
     let raf2 = 0; const was = {}; let sel = 0, navT = 0, sprint = 0;
+    let tsel = 0, tTab = null;      // the table overlay's own highlight (XBOX), reset each time a new table opens
     const menuOpts = () => [...document.querySelectorAll("[data-pickopt]")];
     const mark = (L) => L.forEach((el, i) => { el.style.outline = i === sel ? "2px solid #ffd65a" : "none"; el.style.background = i === sel ? "rgba(60,50,20,0.95)" : "rgba(12,13,17,0.9)"; });
     const live = () => new Set([...document.querySelectorAll("[data-act]")].map((e) => e.getAttribute("data-act")));
@@ -19493,6 +19674,34 @@ export default function IronLionLayer004() {
       const moving = Math.hypot(ax, ay) > dz;
       if (!G.padOnNow && (moving || gp.buttons.some((q) => q && (q.pressed || q.value > 0.35)))) { G.padOnNow = 1; setPadOn(true); }
       if (moving) { input.current.x = ax; input.current.y = ay; input.current.pad = 1; } else if (input.current.pad) { input.current.x = 0; input.current.y = 0; input.current.pad = 0; sprint = 0; }
+      /* XBOX: THE TABLE (craps, slots, roulette, blackjack, poker). Stick / D-pad walk the buttons on screen, A presses the lit one,
+         X presses the main action (ROLL / DEAL / PULL / DRAW), B walks away. The world is paused while a table is up, so nothing
+         else on this pad runs. */
+      if (g && g.table && G.tableCloseFn) {
+        const TL = [...document.querySelectorAll("[data-tableopt]")];
+        if (g.table !== tTab && TL.length) {           // wait until React has drawn this table's buttons before choosing the default
+          tTab = g.table; const pi = TL.findIndex((el) => el.getAttribute("data-tableopt") === "primary"); tsel = pi < 0 ? 0 : pi; }
+        if (tsel >= TL.length) tsel = 0;
+        const dn = B(13) || ay > 0.6, up = B(12) || ay < -0.6, rt = B(15) || ax > 0.6, lf = B(14) || ax < -0.6, moved = dn || up || rt || lf;
+        navT -= 1 / 60;
+        if (moved && navT <= 0 && TL.length && TL[tsel]) {
+          const dir = dn ? [0, 1] : up ? [0, -1] : rt ? [1, 0] : [-1, 0];
+          const R = TL.map((el) => el.getBoundingClientRect()), c = R[tsel], cx = c.left + c.width / 2, cy = c.top + c.height / 2;
+          let best = -1, bd = 1e9;
+          R.forEach((r, i) => { if (i === tsel) return; const x = r.left + r.width / 2 - cx, y = r.top + r.height / 2 - cy, along = x * dir[0] + y * dir[1];
+            if (along <= 4) return; const d = along + Math.abs(x * dir[1] + y * dir[0]) * 2.5; if (d < bd) { bd = d; best = i; } });
+          if (best >= 0) tsel = best;
+          navT = 0.22;
+        }
+        if (!moved) navT = 0;
+        TL.forEach((el, i) => { el.style.outline = i === tsel ? "2px solid #ffd65a" : "none"; el.style.outlineOffset = "2px"; });
+        if (moved && TL[tsel] && TL[tsel].scrollIntoView) TL[tsel].scrollIntoView({ block: "nearest" });   // keep the lit button in view on a short screen
+        if (B(0) && !was[0] && TL[tsel]) TL[tsel].click();
+        if (B(2) && !was[2]) { const pr = TL.find((el) => el.getAttribute("data-tableopt") === "primary"); if (pr) pr.click(); }
+        if (B(1) && !was[1]) G.tableCloseFn();
+        for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i);
+        input.current.x = 0; input.current.y = 0; input.current.run = false; return;
+      }
       const L = menuOpts();
       if (L.length) {                                          // a panel is open (or the wheel): the pad is the menu
         if (sel >= L.length) sel = L.length - 1;
@@ -19557,7 +19766,7 @@ export default function IronLionLayer004() {
       const rel = (i) => !B(i) && was[i];                       // only touch a key on a press or a release, so the keyboard still works
       if (!onRun675 && press(2)) K[" "] = true; if (rel(2)) K[" "] = false;
       // LAYER 683: in Runner Mode Y opens the wheel, LB is the target (read by the runner), and RB punches on foot until he has the pistol
-      if (press(3)) { if (onRun675) openWheel(); else if (G.coverFn) G.coverFn(); }
+      if (press(3)) { if (onRun675) openWheel(); else if (G.coverFn) G.coverFn(); }   // Y: the action wheel, in Runner Mode too
       if (press(4) && !onRun675) openWheel();
       if (press(5)) { if (onRun675) { if (RUNNER_API.onFoot() && !RUNNER_API.armed() && G.strikeFn) G.strikeFn(); } else if (!tap(["TGT"])) tap(["DRAW", "PUT UP"]); }
       // the triggers: a car's pedals, or on foot draw / run
@@ -36566,7 +36775,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          only drawn in the second after firing. `hxArt` is what marks a hench plate, so this
          covers every pool at once and none of the ordinary peds. */
       if (m.x != null && m.wpn && wIconOf(m.wpn)) (g.wIcons = g.wIcons || []).push(m);   // layer 486: armed = the icon over his head, drawn or not
-      if (!(m.drawnT > 0) && !m.hxArt) return;
+      /* Drawn only while drawnT runs: it is raised when a target is in range and on each shot, and drops off after. Holstering
+         puts it out of the hand for everyone, the rogue crews too. */
+      if (!(m.drawnT > 0)) return;
       const hwk = hwKey542(m.wpn), hwIm = imgs.current["hw_" + hwk];          // the top-down sheet first (layer 536; 542: every key)
       const w2 = WPN2[m.wpn], a2 = w2 && imgs.current.wpn2_atlas;
       const wr = hwIm && hwIm.width ? null : (a2 && a2.width) ? w2 : WPN[m.wpn];
@@ -48301,7 +48512,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           for (let q = 0; q < 4; q++) { const life = (t * 0.4 + q * 0.25) % 1; ctx.fillStyle = `rgba(200,200,200,${(0.35 * (1 - life)).toFixed(2)})`; ctx.beginPath(); ctx.arc(cx + Math.sin(q * 3 + t) * 6, cy - 12 - life * 50, 6 + life * 10, 0, 6.3); ctx.fill(); }
           ctx.fillStyle = "#6a4a2a"; ctx.fillRect(cx + 40, cy - 30, 60, 24); ctx.fillStyle = "#e8e0c8"; ctx.fillRect(cx + 46, cy - 26, 12, 8); ctx.fillRect(cx + 70, cy - 24, 14, 8);
           [["yt_hire_driver_2", -40, 10], ["yt_hire_dealer_5", 30, 40], ["yt_hire_fence_2", -20, -50], ["yt_hire_lookout_4", 60, 0]].forEach(([yt, dx, dy]) => P(cx + dx, cy + dy, yt, Math.atan2(-dy, -dx))); }
-        if (sc === "dice") { const im = imgs.current.alp_dice2_a; if (im && im.width) ctx.drawImage(im, cx - 29, cy - 36, 58, 72); drawDice544({ x: cx, y: cy }); } } }      // people-sized (layer 567: was 78 x 96)
+        if (sc === "dice") { const im = imgs.current.alp_dice2_a; if (im && im.width) ctx.drawImage(im, cx - 37, cy - 46, 74, 92); drawDice544({ x: cx, y: cy }); } } }      // people-sized (layer 567: was 78 x 96)
     G.courtFn561 = () => { if (g.mode !== "foot" || g.inside) return false; for (const K of courtsNear561(400)) { const S = courtSpots561(K), sc = courtScene561(K), d = (p) => Math.hypot(g.p.x - p[0], g.p.y - p[1]);
         if (d(S.lady) < 55 && (g.clock || 0) / 60 >= 7 && (g.clock || 0) / 60 < 22) { g.court561 = { K, S }; g.courtSaid = null; G.pickOpen("court561"); return true; }
         if (sc === "wash" && d(S.washer) < 60) { g.court561 = { K, S, wash: 1 }; g.courtSaid = null; G.pickOpen("court561"); return true; }
@@ -48365,7 +48576,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const td = !q.dv && td546(q.t, q.w, q.x, q.y), tim = td && imgs.current[td[0]];
         if (tim && tim.width) { const w2 = q.camp ? td[1] : Math.min(td[1], q.w * 1.2), h2 = w2 * tim.height / tim.width; ctx.drawImage(tim, q.x - w2 / 2, q.y - h2 / 2, w2, h2); continue; }      // layer 546: the top-down plate
         const im = imgs.current[q.dv ? "alp_dice2_" + q.dv : q.t] || imgs.current[q.t]; if (!im || !im.width) continue;
-        if (q.dv) { const sc = Math.min(q.w / im.width, q.h / im.height) * 0.74; /* the dice crew at people size (layer 567) */ ctx.drawImage(im, q.x - im.width * sc / 2, q.y - im.height * sc / 2, im.width * sc, im.height * sc); drawDice544(q); continue; }
+        if (q.dv) { const sc = Math.min(q.w / im.width, q.h / im.height) * 0.95; /* the dice crew at people size (layer 567), a little bigger again */ ctx.drawImage(im, q.x - im.width * sc / 2, q.y - im.height * sc / 2, im.width * sc, im.height * sc); drawDice544(q); continue; }
         if (q.critter) { if (!q.hx) { q.hx = q.x; q.hy = q.y; } q.x = q.hx + Math.sin(g.t * 0.9 + q.hy) * 30; q.y = q.hy + Math.cos(g.t * 0.7 + q.hx) * 10; }
         if (q.alpha) ctx.globalAlpha = q.alpha;
         const sc = Math.min(q.w / im.width, q.h / im.height); ctx.drawImage(im, q.x - im.width * sc / 2, q.y - im.height * sc / 2, im.width * sc, im.height * sc); if (q.alpha) ctx.globalAlpha = 1;
@@ -51900,7 +52111,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           }
           if (v.rbCd > 0) v.rbCd -= dt;
         }
+        const px0 = v.x, py0 = v.y;
         v.x += fx * v.spd * dt; v.y += fy * v.spd * dt;
+        /* THE SEA IS NOT A ROAD. A street car that would step from land into water turns round where it stands instead of
+           driving in (the freeway is on its own deck, so it is left out). It leaves the water behind and drives back to land. */
+        if (!v.fwy && waterDepth(v.x, v.y) > 0.2 && waterDepth(px0, py0) < 0.05) {
+          v.x = px0; v.y = py0; v.spd = 0; v.ang += Math.PI; v.dir = -(v.dir || 1);
+          v.fleeing = Math.max(v.fleeing || 0, 1.5); v.stuck = 0;
+        }
         v.rad = v.bus ? (v.m.w || 66) / 2 + 6 : 19;
         /* A CAR IS NOT A GHOST. Traffic never tested the buildings, so a swerve, a shunt or a
            turn could put one straight through a wall; and a car that has been sitting still in
@@ -63220,7 +63438,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           </div>}
           {/* NEW GAME (layer 501): Rey's story from the 1969 flashback -- what was PRISON MODE is the game now. Into the
               first empty slot; with all four full, into the selected one (it says so). */}
-          <div
+          {TITLE_OTHER_MODES && <div
             onClick={() => {
               const gg = G.current, e0 = G.firstEmptySlot ? G.firstEmptySlot() : 0;
               G.slotPick(e0 || (G.slotsFn ? G.slotsFn().find((q) => q.on).n : 1));
@@ -63231,7 +63449,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               background: "rgba(10,11,14,0.72)", color: "#f2d2b8", fontSize: 12,
               letterSpacing: "0.28em", cursor: "pointer", userSelect: "none" }}>
             {"NEW GAME" + (G.firstEmptySlot && !G.firstEmptySlot() ? " \u00b7 OVERWRITES SLOT " + (G.slotsFn ? G.slotsFn().find((q) => q.on).n : 1) : "")}
-          </div>
+          </div>}
           {G.slotsFn && (
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap", justifyContent: "center", maxWidth: "92vw" }}>
               {G.slotsFn().map((q) => (
@@ -63246,7 +63464,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             </div>)}
           {/* DETECTIVE MODE: straight into the task force room in plain clothes, Malcolm with a
               case already in his hand. Picks up a save if there is one, like BEGIN does. */}
-          <div
+          {TITLE_OTHER_MODES && <div
             onClick={() => {
               const gg = G.current;
               if (G.loadFn) G.loadFn("lite");
@@ -63259,10 +63477,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             <img src="assets/ui/ui_badge.png" alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
               style={{ height: 18, verticalAlign: "middle", marginRight: 10, imageRendering: "pixelated" }} />
             DETECTIVE MODE
-          </div>
+          </div>}
           {/* PRISON MODE is NEW GAME now (layer 501); detective and student stay as their own stories */}
           {/* STUDENT MODE (layer 458): a kid at Central High, a home, the school day. */}
-          <div
+          {TITLE_OTHER_MODES && <div
             onClick={() => {
               const gg = G.current;
               gg.title = false; gg.nightTarget = 0; gg.bootDen = false; gg.studentStart = true;
@@ -63272,15 +63490,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               background: "rgba(10,11,14,0.72)", color: "#f2e6b8", fontSize: 11,
               letterSpacing: "0.26em", cursor: "pointer", userSelect: "none" }}>
             STUDENT MODE
-          </div>
+          </div>}
           {/* FOOTBALL MODE (layer 579): the mini football game, from the title; it stays on the title underneath. */}
-          <div
+          {TITLE_OTHER_MODES && <div
             onClick={() => { if (G.footballOpen) G.footballOpen(); }}
             style={{ marginTop: 12, padding: "11px 30px", border: "1px solid #5aa86a",
               background: "rgba(10,11,14,0.72)", color: "#d6f0dc", fontSize: 11,
               letterSpacing: "0.26em", cursor: "pointer", userSelect: "none" }}>
             FOOTBALL MODE
-          </div>
+          </div>}
           {/* RUNNER MODE: the futurist hunt, from the title like FOOTBALL MODE. */}
           <div
             onClick={() => { if (G.runnerOpen) G.runnerOpen(); }}
@@ -63600,8 +63818,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
            That is a hard freeze at the table. Now it reports itself and hands back the pause. */
         try {
         const T = hud.table;
-        const btn = (label, fn, on) => (
-          <div key={label} onClick={fn}
+        /* XBOX: every table button carries data-tableopt, so the pad can walk them (stick / D-pad) and A presses the lit one.
+           The main action (ROLL / DEAL / PULL / DRAW) is marked "primary" -- X presses it from anywhere on the table. */
+        const btn = (label, fn, on, prim) => (
+          <div key={label} data-tableopt={prim ? "primary" : "1"} onClick={fn}
             style={{ padding: "10px 16px", cursor: "pointer", minWidth: 74, textAlign: "center",
               border: `1px solid ${on ? C.gold : "rgba(217,164,65,0.35)"}`,
               background: on ? "rgba(217,164,65,0.16)" : "rgba(12,13,17,0.85)",
@@ -63615,7 +63835,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const card = (c, i, held) => {
           const red = c.s === "H" || c.s === "D";
           return (
-            <div key={i} onClick={() => T.kind === "poker" && T.stage === "draw"
+            <div key={i} data-tableopt={T.kind === "poker" && T.stage === "draw" ? "1" : undefined}
+                onClick={() => T.kind === "poker" && T.stage === "draw"
                                         && G.tableActFn && G.tableActFn("hold" + i)}
               style={{ position: "relative", width: 46, height: 66, borderRadius: 4,
                 border: `1px solid ${held ? C.gold : "rgba(30,26,22,0.55)"}`,
@@ -63757,11 +63978,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               {T.kind === "roulette" && T.stage === "bet" &&
                 ["red", "black", "odd", "even", "zero"].map((p) =>
                   btn(p.toUpperCase(), () => G.tableActFn(p), T.pick === p))}
-              {T.stage === "bet" && !T.rolling && btn(T.kind === "slots" ? "PULL" : T.kind === "craps" ? "ROLL \u00b7 $" + T.bet : "DEAL", () => G.tablePlayFn())}
-              {T.kind === "craps" && T.stage === "point" && !T.rolling && btn("ROLL", () => G.tableActFn("roll"), true)}
+              {T.stage === "bet" && !T.rolling && btn(T.kind === "slots" ? "PULL" : T.kind === "craps" ? "ROLL \u00b7 $" + T.bet : "DEAL", () => G.tablePlayFn(), false, true)}
+              {T.kind === "craps" && T.stage === "point" && !T.rolling && btn("ROLL", () => G.tableActFn("roll"), true, true)}
               {T.kind === "blackjack" && T.stage === "play" && btn("HIT", () => G.tableActFn("hit"))}
               {T.kind === "blackjack" && T.stage === "play" && btn("STAND", () => G.tableActFn("stand"))}
-              {T.kind === "poker" && T.stage === "draw" && btn("DRAW", () => G.tableActFn("go"))}
+              {T.kind === "poker" && T.stage === "draw" && btn("DRAW", () => G.tableActFn("go"), false, true)}
             </div>
 
             {!!(T.folk && T.folk.length) && (
