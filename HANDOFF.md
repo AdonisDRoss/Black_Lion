@@ -1,25 +1,27 @@
-# LAYER 660: one body, cop legs cut and walking
+# Layer 707: the jobs, the flashes and the MISSIONS tab
 
-## What changed in game.jsx
-- Character creator: one build. Step 2 says ONE BUILD FOR NOW. The body picker is gone, and the default body is `big`.
-- `big` body: runner_body_big_nohead.png in assets/runner/body/. The head is placed from its anchor (HEAD_CY big 0.0885, HEAD_WF big 0.4898). Its legs and arms are in the art, so the code legs are skipped for it. It stands still for now, with no walk cycle.
-- Cop (cop_gas): the legs are cut from the uncut bust and drawn under the coat. At rest they add back to the uncut art exactly. While he walks, one leg shrinks and the other grows about the hip (COP_LEG_AMP 0.2). The code-drawn trousers are not drawn for him.
-- Cop arms: left drawn in code. The arm cut reassembles exactly at rest, but when the arms swing, the body art shows patches, so I did not wire them.
-- Air cop: unchanged (uncut art).
-- Fallback fix: a body with no arm entry no longer draws the grey disc over itself.
+Upload: game.jsx (replace). No new assets this layer; the gold ! badge, the flashes and the log are drawn in code.
+Build tag should read LAYER 707.
 
-## Files in this pack
-- game.jsx (LAYER 660, the source of truth)
-- assets/runner/cops/gas_leg_L.png, gas_leg_R.png (224 x 159, full canvas, legs only)
-- assets/runner/body/runner_body_big_nohead.png and its .anchor.json
-- cop_leg_anchors.json (hip pivots, leg_amp, arm pivots)
-- screenshots/creator_one_build.png, cop_legs_zoom.png, cop_cut_frames.png, big_body_zoom.png
+## What is in it
+- After the lethal chip is in, four people on the street wear a gold ! over their head (one more every 4 seconds until four are out).
+- A (on foot) next to one: their offer, then TAKE THE JOB or NOT NOW.
+- 16 jobs: 8 missions (deliver a package, fence a part, hold a stash, tail a target, find the missing kid, run a message, scout the night, breather run) and 8 crimes (lift a parcel, pick a pocket, shoplift, break into a car, strip a car, shakedown, burgle a shuttered shop, rob the fence). Each one pays into the pocket on completion.
+- Each job is a short run of steps. The arrow, the blue minimap star and a dashed gold ring mark the current spot. The HUD shows JOB: <step>.
+- Flashes across the screen: MISSION STARTED (with the job's name), MISSION COMPLETE with +$ pay, MISSION FAILED in red with the reason (BLOWN: <step> or TOO LATE).
+- Pause menu: new MISSIONS tab (LB/RB, or click). The list shows each job and its status. Select one to read the offer, the talk and the objectives (ticked as they are done). On the pad: D-pad to a row, A to open it.
 
-## Test
-- The test build loads with no page errors. The 404s are non-runner art that the test folder doesn't have, and they were there before this layer.
-- The cop legs move, but at phone scale the step is only a few pixels. COP_LEG_AMP can be raised (0.35 would be clearly visible) if you want it bigger.
+## Test steps
+1. Buy the chip from the doctor ($10). Within about 12 seconds, four gold ! badges should show on the street.
+2. Walk up to one and press A. Read the offer. Choose TAKE THE JOB. MISSION STARTED flashes.
+3. Follow the arrow and the blue star to the spot. Check the dashed ring is on it and the HUD line matches.
+4. Finish a mission: MISSION COMPLETE with the pay. Check the pocket went up.
+5. Finish a crime: stand on its spot and press A. A blown job shows MISSION FAILED and pays nothing.
+6. RUN A MESSAGE is timed: 90 seconds from picking up the note. Let it run out to see TOO LATE.
+7. Pause, open MISSIONS. Check the offer, the talk and the objectives are all there for the job you just did.
 
-## Not done
-- The drifter has walk_a and walk_b, but only walk_a is loaded. He does not walk yet.
-- The sewer's druggies, market traders and breather people are not made yet.
-- The big body's legs are not cut, so it does not walk yet.
+## Not yet
+- Night objectives (the pot ones) are not in this layer.
+- One job at a time.
+- Hunter nets, the C.A.N. tower start on the roof, and the roof art are not in this layer.
+- Not browser-tested yet. The job logic was tested headless (all 16 jobs start to finish, a blown crime, a timed failure). Check the gold ! height over the heads and the flash placement on screen.

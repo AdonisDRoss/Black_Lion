@@ -2830,7 +2830,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 705";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 707";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -4002,7 +4002,88 @@ const RUNNER_ICON = { laser: 'i1_laser_pistol', laser_rifle: 'i2_laser_rifle', w
 for (const k of Object.keys(RUNNER_ICON)) PD_ART['rw_' + k] = 'assets/runner/weapons/icons/' + RUNNER_ICON[k] + '.png';
 const PACK_ICON = { daypack: 'bp_front_1', rucksack: 'bp_front_2', expedition: 'bp_front_3' };
 for (const k of Object.keys(PACK_ICON)) PD_ART['pk_' + k] = 'assets/runner/backpacks/icons_front/' + PACK_ICON[k] + '.png';
-PD_ART.eq_bedroll = "assets/runner/sewer/bed_roll.png";
+PD_ART.eq_bedroll = "assets/runner/sewer/bed_roll.png";   // LAYER 691: the rolled sleeping bag, its wheel icon
+PD_ART.wi_laser = "assets/runner/weapons/icons/i1_laser_pistol.png";   // LAYER 670: the laser pistol's wheel icon   // HOLSTER / BARE HANDS on the weapon wheel -- the one slot with no weapon key to look an icon up by
+// the ACTION WHEEL's own fixed slots (layer 520 wheel; these were text-only before this session) -- DRIVER already
+// gets a face, everything else on it (TALK, RADIO, HYDRO, the hero powers...) comes from live context and has no
+// single icon to give it, so just these five, always the same meaning wherever they turn up on the wheel.
+PD_ART.ac_weapons = "assets/ui/ac_weapons.png";
+PD_ART.ac_pockets = "assets/ui/ac_pockets.png";
+PD_ART.ac_fasttravel = "assets/ui/ac_fasttravel.png";
+PD_ART.ac_crewrules = "assets/ui/ac_crewrules.png";
+PD_ART.ac_sitdown = "assets/ui/ac_sitdown.png";
+
+/* GARAGE PARTS (layer 468). The scrapyard MECHANIC edits a car parked in the motor pool: a wheel of parts, then a shop for
+   the part with prices. Everything lives on the pool slot as slot.mods = { engine, brakes, plating, wing, paint, nitro:{t,n} }
+   and is read by carStat / carThirst / the brake line in stepCar / partsApply (armour + paint) -- so it rides with the car
+   out of the stall and back in (G.motorParkFn copies mods to the new slot). s = top speed, a = acceleration, th = fuel
+   thirst, g = grip, tough = damage taken (lower is harder to hurt), br = braking. Art: assets/parts/<img>.png */
+const PARTS_ART = "assets/parts/";
+const PARTS = {
+  engine: { nm: "ENGINE", sub: "stock is whatever the car came with", icon: "en_t_gtr", list: [
+    { k: "f_flat", nm: "FACTORY ECONOMY BLOCK", img: "en_f_flat", price: 500, s: 0.98, a: 0.97, th: 0.85, note: "SIPS FUEL" },
+    { k: "f_sbc", nm: "FACTORY SMALL-BLOCK V8", img: "en_f_sbc", price: 1200, s: 1.02, a: 1.03, th: 1.0, note: "THE DEFAULT" },
+    { k: "f_v8", nm: "FACTORY 80s POWER V8", img: "en_f_v8", price: 1800, s: 1.05, a: 1.06, th: 1.1, note: "DETROIT IRON" },
+    { k: "t_sr20", nm: "SR20DET TURBO", img: "en_t_sr20", price: 4200, s: 1.14, a: 1.10, th: 1.1, note: "TURBO" },
+    { k: "t_v8", nm: "SINGLE-TURBO V8", img: "en_t_v8", price: 6800, s: 1.20, a: 1.12, th: 1.3, note: "TURBO" },
+    { k: "t_rotary", nm: "TWIN-TURBO ROTARY", img: "en_t_rotary", price: 8800, s: 1.16, a: 1.18, th: 1.5, note: "TURBO \u00b7 THIRSTY" },
+    { k: "t_gtr", nm: "TWIN-TURBO V6 GTR", img: "en_t_gtr", price: 14500, s: 1.26, a: 1.20, th: 1.35, note: "TURBO \u00b7 THE BEST" },
+    { k: "s_orange", nm: "BOOST BLOWER", img: "en_s_orange", price: 3200, s: 1.05, a: 1.20, th: 1.15, note: "SUPERCHARGER" },
+    { k: "s_red", nm: "SUPERCHARGED V8", img: "en_s_red", price: 5200, s: 1.08, a: 1.26, th: 1.25, note: "SUPERCHARGER" },
+    { k: "s_gold", nm: "GIVE'ER BLOWER", img: "en_s_gold", price: 7400, s: 1.10, a: 1.32, th: 1.4, note: "SUPERCHARGER" },
+    { k: "s_purple", nm: "PERFORMANCE V8", img: "en_s_purple", price: 10500, s: 1.13, a: 1.36, th: 1.3, note: "SUPERCHARGER \u00b7 THE BEST" } ] },
+  brakes: { nm: "BRAKES", sub: "stop on a dime", icon: "br_3", list: [
+    { k: "1", nm: "BASIC BRAKES", img: "br_1", price: 400, br: 1.0, note: "STOCK FEEL" },
+    { k: "2", nm: "PERFORMANCE BRAKES", img: "br_2", price: 1400, br: 1.4, note: "BRAKES 40% HARDER" },
+    { k: "3", nm: "RACING BRAKES", img: "br_3", price: 3200, br: 1.8, note: "BRAKES 80% HARDER" } ] },
+  plating: { nm: "PLATING", sub: "armour for the body", icon: "pt_3_2", list: [
+    { k: "1", nm: "LIGHT PLATING", img: "pt_1_1", price: 800, tough: 0.85, s: 0.99, a: 0.99, note: "TAKES 15% LESS DAMAGE" },
+    { k: "2", nm: "REINFORCED PLATING", img: "pt_2_4", price: 2200, tough: 0.70, s: 0.97, a: 0.97, note: "30% LESS \u00b7 A LITTLE HEAVIER" },
+    { k: "3", nm: "HEAVY ARMOR PLATING", img: "pt_3_2", price: 5000, tough: 0.50, s: 0.94, a: 0.94, note: "HALF DAMAGE \u00b7 HEAVY" } ] },
+  wing: { nm: "WING", sub: "grip at speed", icon: "wg_4_3", list: [] },
+  light: { nm: "LIGHTS", sub: "headlight colour and a glow under the car", icon: "pl_01", list: [] },
+  tires: { nm: "TIRES", sub: "full speed on dirt and grass", icon: "tt_tire", list: [
+    { k: "offroad", nm: "OFF-ROAD TIRES", img: "tt_tire", src: "assets/city/tt_tire.png", price: 1800, note: "REGULAR SPEED OFF THE ROAD" } ] },
+  weapons: { nm: "WEAPONS", sub: "bolted to the car; refills are cheaper than the kit", icon: "wx_turret", list: [
+    { k: "oil", nm: "OIL SLICK", img: "wx_oil_3", src: "assets/carwpn/wx_oil_3.png", price: 1500, ammo: 3, note: "DROPS BEHIND \u00b7 CARS SPIN \u00b7 KEY Z" },
+    { k: "cal", nm: "CALTROPS", img: "wx_cal_one", src: "assets/carwpn/wx_cal_one.png", price: 1800, ammo: 3, note: "FLATS THE TIRES BEHIND YOU \u00b7 KEY X" },
+    { k: "smoke", nm: "SMOKE SCREEN", img: "wx_smoke_2", src: "assets/carwpn/wx_smoke_2.png", price: 2000, ammo: 3, note: "COPS LOSE YOU IN IT \u00b7 KEY V" },
+    { k: "missile", nm: "MISSILE RACK", img: "wx_missile", src: "assets/carwpn/wx_missile.png", price: 6000, ammo: 3, note: "3 MISSILES, FORWARD \u00b7 KEY M" },
+    { k: "turret", nm: "HOOD MINI-TURRETS", img: "wx_turret", src: "assets/carwpn/wx_turret.png", price: 7500, ammo: 300, note: "ONE EACH SIDE, FORWARD, AUTO \u00b7 300 RDS" },
+    { k: "mg", nm: "ROOF MACHINE GUN", img: "wx_mg", src: "assets/carwpn/wx_mg.png", price: 9000, ammo: 500, note: "AUTO-AIMS AT THREATS \u00b7 500 RDS" } ] },
+  nitro: { nm: "NITROUS", sub: "the world slows, you don't", icon: "nx_nos", list: [
+    { k: "bos", nm: "BOS NITROUS SYSTEMS \u00b7 3 SHOTS", img: "nx_bos", price: 2000, secs: 7, note: "7 SECONDS OF SLOW-MO" },
+    { k: "nos", nm: "NOS NITROUS OXIDE \u00b7 3 SHOTS", img: "nx_nos", price: 3500, secs: 11, note: "11 SECONDS OF SLOW-MO" } ] } };
+{ const WN = [["LIP SPOILER", 300, 1.04, ["RED", "BLUE", "GREEN", "YELLOW"]], ["STREET WING", 700, 1.08, ["WHITE", "BLACK", "SILVER", "ORANGE"]],
+    ["TOURING WING", 1400, 1.12, ["NAVY", "MAROON", "TEAL", "PURPLE"]], ["RACE WING", 2600, 1.18, ["GOLD", "CARBON", "PINK", "CYAN"]]];
+  WN.forEach(([nm, price, gr, cols], r) => cols.forEach((c, i) => PARTS.wing.list.push({ k: "wg_" + (r + 1) + "_" + (i + 1), nm: nm + " \u00b7 " + c, img: "wg_" + (r + 1) + "_" + (i + 1), price, g: gr, note: "GRIP +" + Math.round((gr - 1) * 100) + "%" })));
+  for (const [k, nm, hex] of [["pl_01","RED","#e40c0c"],["pl_02","ORANGE","#fc840c"],["pl_03","YELLOW","#fcfc0c"],["pl_04","LIME","#9cfc0c"],["pl_05","GREEN","#0cfc0c"],["pl_06","CYAN","#0cfcfc"],["pl_07","BLUE","#0c6ce4"],["pl_08","PURPLE","#6c0ccc"],["pl_09","MAGENTA","#9c84cc"],["pl_10","PINK","#fc549c"],["pl_11","LIGHT PINK","#fcb4cc"],["pl_12","BROWN","#843c24"],["pl_13","TEAL","#0c9c84"],["pl_14","OLIVE","#84840c"],["pl_15","FOREST GREEN","#0c540c"],["pl_16","NAVY","#0c246c"],["pl_17","INDIGO","#3c2484"],["pl_18","MAROON","#6c0c24"],["pl_19","SILVER","#b4cccc"],["pl_20","GOLD","#e4b424"],["pl_21","BRONZE","#9c6c3c"],["pl_22","COPPER","#cc843c"],["pl_23","GUNMETAL","#848484"],["pl_24","BLACK","#1c1c22"],["pl_25","MINT","#6cfccc"],["pl_26","SKY BLUE","#6cccfc"],["pl_27","CRIMSON","#840c0c"],["pl_28","LAVENDER","#ccb4fc"],["pl_29","IVORY","#fcfccc"],["pl_30","TAN","#ccb484"],["pl_31","VIOLET","#540c6c"],["pl_32","LEMON","#e4e40c"],["pl_33","TANGERINE","#e46c0c"],["pl_34","MIDNIGHT","#242454"],["pl_35","PERIWINKLE","#6c84cc"],["pl_36","DEEP TEAL","#0c5454"],["pl_37","SUNSET PEARL","#e49c3c"],["pl_38","OIL SLICK","#9c6c9c"],["pl_39","MOSS","#54540c"],["pl_40","KELLY GREEN","#3c840c"],["pl_41","SEAFOAM","#84e484"]]) PARTS.light.list.push({ k, nm, img: k, price: 250, hex, note: "HEADLIGHTS + UNDERGLOW" }); }
+for (const cat in PARTS) for (const it of PARTS[cat].list) PD_ART["pa_" + it.img] = it.src || (PARTS_ART + it.img + ".png");
+const modsOf = (c) => (c && ((c.pool && c.pool.mods) || c.mods)) || null;   // a pool car keeps them on its stall slot, any other car on itself
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(",");
+const offroadTires = (c) => { const m = modsOf(c); return !!(m && m.tires === "offroad"); };
+/* ROW HOUSES AND COURTS (layer 473). Pure planner: the avenue at line 4 is the main road (two lanes each way, 400 wide); on each side the
+   cells beside it get two-lane cul-de-sacs running off it, row houses facing the stub on both sides, a parking bay along each kerb, a
+   turning circle at the end, and a one-car alley behind the houses shared with the next court's backs. Everything is laid out on the cell's
+   own lot rect, greedily from the top, skipping whatever a landmark already stands on. */
+const RH = { hw: 172, hh: 100, road: 96, walk: 36, bulb: 130, alley: 90, hc: 464 };
+function planCourts(c, i, rects) {
+  const west = i === 3, ax = west ? c.lx1 : c.lx0, hit = (r, q) => r[0] < q[2] + 40 && q[0] < r[2] + 40 && r[1] < q[3] + 40 && q[1] < r[3] + 40;
+  for (const Lc of [700, 560, 420]) {
+    const courts = []; let y = c.ly0 + 4;
+    while (y + RH.hc <= c.ly1) {
+      const r = [west ? ax - Lc : ax, y, west ? ax : ax + Lc, y + RH.hc];
+      if (rects.some((q) => hit(r, q))) { y += 20; continue; }
+      const yc = y + RH.hc / 2, n = Math.floor((Lc - 150) / RH.hw), cx = west ? ax - Lc + RH.bulb + 10 : ax + Lc - RH.bulb - 10, houses = [];
+      for (let k = 0; k < n; k++) { const x = west ? ax - 30 - RH.hw * (k + 1) : ax + 30 + RH.hw * k;
+        houses.push({ x, y: yc - RH.road - RH.walk - RH.hh, side: 2 }, { x, y: yc + RH.road + RH.walk, side: 0 }); }
+      courts.push({ x0: r[0], x1: r[2], y0: y, y1: y + RH.hc, yc, west, ax, cx, Lc, n, houses });
+      y += RH.hc + RH.alley;
+    }
+    if (courts.length) return courts;
+  }
+  return [];
+}
 PD_ART.clinic_room = "assets/runner/cyber/clinic_sewer_room.png";
 /* LAYER 692-693: THE SEWER CLINIC. E or A by the clinic stall opens its back room. In the room: LIE ON THE COT ($50:
    health back to full, the health cap cleared) or LEAVE. E or A does the cot if you can pay, otherwise it just leaves. */
@@ -17457,9 +17538,10 @@ const RUNNER_API = (function () {
   const INF_NAMES = ['MARCUS TULL', 'LUIS ORTEGA', 'NELL HARROW', 'TOMMY VASQUEZ', 'OTIS BLANK', 'RUBY SALAS', 'FRANK DOYLE', 'CHINA LEE', 'DEV PATEL', 'KAI MORROW', 'JOSIE FAY', 'RONNIE BELL'];
   const DOC_FACE = 'male_03';
   let storeSpot = null, docSpot = null, docMan = null, informants = [], chain = [], chainLink = 0, runnerCash = 0, bedHint = 0;
-  const STORY_STAGES = ['pistol', 'teammate', 'house', 'bed', 'store', 'ask', 'informant', 'doctor'];
+  const STORY_STAGES = ['pistol', 'teammate', 'house', 'bed', 'store', 'ask', 'informant', 'doctor', 'mission'];
   function missionOn() { return STORY_STAGES.includes(MISSION.stage); }
   function missionTitle() {
+    if (MISSION.stage === 'mission') return rjTitle();   // LAYER 707: the current job step
     return { pistol: 'FIRST MISSION: GET YOUR PISTOL', teammate: 'SECOND MISSION: FIND YOUR TEAMMATE', house: 'SECOND MISSION: THE HOUSE ON SAUNDERS',
       bed: 'THE PARTNER: LIE DOWN ON THE BAG', store: 'FIND THE DOCTOR: GO TO THE STORE', ask: 'FIND THE DOCTOR: ASK AROUND',
       informant: 'FIND THE DOCTOR: FOLLOW THE LEAD', doctor: 'FIND THE DOCTOR: THE DOCTOR' }[MISSION.stage] || '';
@@ -17530,6 +17612,7 @@ const RUNNER_API = (function () {
   }
   // A (or E) on foot: talk to the one beside him. Returns true when it talked, so the world action does not run
   function storyTalk() {
+    if (rjAction()) return true;   // LAYER 707: a job giver, a job's contact, or a pick or job spot
     if (!missionOn() || !['ask', 'informant', 'doctor'].includes(MISSION.stage)) return false;
     const p = storyNear(); if (!p) return false;
     if (p === docMan) {
@@ -17614,6 +17697,218 @@ const RUNNER_API = (function () {
       }
     }
   }
+  /* LAYER 707: THE JOBS. Once the lethal chip is in, people on the street with work for the runner wear a gold ! over their head.
+     Talk to one (A), hear the offer, and take the job. A job is a short run of steps, and the arrow and the blue minimap star point
+     at the current one: pick (pick something up on a spot), goto (reach a spot), talk (a contact on a spot) or job (a crime on a spot:
+     a roll, and a blown job pays nothing). The pay goes in the pocket. A flash shows the start, the finish or the failure, and the
+     money. Every job (offer, talk, objectives, how it ended) is kept in the MISSIONS tab of the pause menu. One job at a time. */
+  const JOB_DEFS = [
+    { id: 'deliver', kind: 'MISSION', title: 'DELIVER A PACKAGE', pay: 350,
+      offer: ['You look like you can run. I need a parcel carried across town.', 'Pick it up at the loading bay. Drop it at the laundry on Dunmore. Do not open it.'],
+      steps: [
+        { k: 'pick', item: 'THE PARCEL', hud: 'PICK UP THE PARCEL', say: 'PICK UP THE PARCEL AT THE LOADING BAY. PRESS A ON IT.' },
+        { k: 'goto', hud: 'TAKE IT TO THE LAUNDRY', say: 'TAKE THE PARCEL TO THE LAUNDRY ON DUNMORE. THE ARROW IS ON THE DOOR.', arrive: 'AT THE LAUNDRY DOOR.' },
+        { k: 'talk', who: 'LAUNDRY CLERK', same: true, hud: 'HAND IT OVER', say: 'HAND THE PARCEL TO THE CLERK. PRESS A TO TALK.', lines: ['Took long enough.', 'Tell him the cash is in the usual place.'] } ] },
+    { id: 'fence', kind: 'MISSION', title: 'FENCE A PART', pay: 450,
+      offer: ['I have a carburettor off a stolen Rook. It is hot.', 'The fence on Ashby takes it for half. Go and get him to pay more.'],
+      steps: [
+        { k: 'pick', item: 'THE CARBURETTOR', hud: 'PICK UP THE PART', say: 'PICK UP THE CARBURETTOR. PRESS A ON IT.' },
+        { k: 'goto', hud: 'GO TO THE FENCE ON ASHBY', say: 'GO TO THE FENCE ON ASHBY. THE ARROW IS ON HIM.', arrive: 'THE FENCE IS IN SIGHT.' },
+        { k: 'talk', who: 'THE FENCE', same: true, hud: 'HAGGLE WITH THE FENCE', say: 'HAGGLE WITH THE FENCE. PRESS A TO TALK.', lines: ['Let me see it.', 'Four hundred. Take it or walk.'] } ] },
+    { id: 'stash', kind: 'MISSION', title: 'HOLD A STASH', pay: 300,
+      offer: ['My cousin needs a bag held for one night. Nobody touches it.', 'Get it from him. Put it somewhere nobody will find it.'],
+      steps: [
+        { k: 'talk', who: 'THE COUSIN', hud: 'GET THE BAG', say: 'GET THE BAG FROM THE COUSIN. PRESS A TO TALK.', lines: ['Here. Do not open it.', 'Hold it till morning.'] },
+        { k: 'goto', hud: 'HIDE THE BAG', say: 'HIDE THE BAG SOMEWHERE SAFE. THE ARROW IS ON THE SPOT.', arrive: 'THE BAG IS HIDDEN.' } ] },
+    { id: 'tail', kind: 'MISSION', title: 'TAIL A TARGET', pay: 400,
+      offer: ['A man in a grey coat goes into the Ruby Bar every night at nine. I want to know who he meets.', 'Follow him from a distance. Do not let him see you.'],
+      steps: [
+        { k: 'goto', hud: 'FOLLOW THE GREY COAT', say: 'THE GREY COAT IS ON THE STREET. KEEP BACK AND FOLLOW HIM.', arrive: 'HE IS STILL ON THE STREET.' },
+        { k: 'goto', hud: 'WATCH THE RUBY BAR', say: 'HE WENT IN THE RUBY BAR. GET CLOSE TO THE DOOR.', arrive: 'NEAR THE RUBY BAR DOOR.' },
+        { k: 'talk', who: 'THE BARMAID', same: true, hud: 'ASK THE BARMAID', say: 'ASK THE BARMAID WHO HE MET. PRESS A TO TALK.', lines: ['The grey coat? He sat with a man in a blue hat.', 'Paid in cash. Tipped nothing.'] } ] },
+    { id: 'kid', kind: 'MISSION', title: 'FIND THE MISSING KID', pay: 500,
+      offer: ['My nephew went out two nights ago and did not come back.', 'Start with his friends. Ask around.'],
+      steps: [
+        { k: 'talk', who: 'FRIEND ONE', hud: 'ASK THE FIRST FRIEND', say: 'ASK HIS FIRST FRIEND. PRESS A TO TALK.', lines: ['He was going to the Sawmill.', 'He owed a man there money.'] },
+        { k: 'goto', hud: 'GO TO THE SAWMILL', say: 'GO TO THE SAWMILL. THE ARROW IS ON IT.', arrive: 'AT THE SAWMILL.' },
+        { k: 'talk', who: 'FRIEND TWO', same: true, hud: 'ASK THE SECOND FRIEND', say: 'ASK THE SECOND FRIEND HERE. PRESS A TO TALK.', lines: ['He is in the old laundry. Ask for Dutch.'] },
+        { k: 'goto', hud: 'GO TO THE OLD LAUNDRY', say: 'GO TO THE OLD LAUNDRY. THE ARROW IS ON IT.', arrive: 'AT THE OLD LAUNDRY.' },
+        { k: 'talk', who: 'THE NEPHEW', same: true, hud: 'FIND THE NEPHEW', say: 'FIND THE NEPHEW HERE. PRESS A TO TALK.', lines: ['Tell my uncle I am fine.', 'Tell him I will be home for supper.'] } ] },
+    { id: 'message', kind: 'MISSION', title: 'RUN A MESSAGE', pay: 250,
+      offer: ['A note has to reach the cab stand on Fifth before the shift changes.', 'You have ninety seconds. No stops.'],
+      steps: [
+        { k: 'pick', item: 'THE NOTE', hud: 'PICK UP THE NOTE', say: 'PICK UP THE NOTE. NINETY SECONDS ONCE YOU HAVE IT.' },
+        { k: 'goto', limit: 90, hud: 'THE CAB STAND ON FIFTH', say: 'THE CAB STAND ON FIFTH. THE CLOCK IS RUNNING.', arrive: 'JUST IN TIME.' },
+        { k: 'talk', who: 'CAB DRIVER', same: true, hud: 'GIVE THE NOTE', say: 'GIVE THE NOTE TO THE CAB DRIVER. PRESS A TO TALK.', lines: ['Just in time. Tell him I am in.'] } ] },
+    { id: 'scout', kind: 'MISSION', title: 'SCOUT THE NIGHT', pay: 300,
+      offer: ['The hunters change their routes after dark. I want them mapped.', 'Three spots. Check each one, then come back and tell me what you saw.'],
+      steps: [
+        { k: 'goto', hud: 'SCOUT 1 OF 3', say: 'SCOUT ONE OF THREE. THE ARROW IS ON THE SPOT.', arrive: 'ONE DOWN.' },
+        { k: 'goto', hud: 'SCOUT 2 OF 3', say: 'SCOUT TWO OF THREE. THE ARROW IS ON THE SPOT.', arrive: 'TWO DOWN.' },
+        { k: 'goto', hud: 'SCOUT 3 OF 3', say: 'SCOUT THREE OF THREE. THE ARROW IS ON THE SPOT.', arrive: 'THREE DOWN.' },
+        { k: 'talk', who: 'THE HANDLER', same: true, hud: 'REPORT TO THE HANDLER', say: 'REPORT TO THE HANDLER. PRESS A TO TALK.', lines: ['Good. Two patrols and a jeep. Keep it that way.'] } ] },
+    { id: 'breather', kind: 'MISSION', title: 'BREATHER RUN', pay: 300,
+      offer: ['The breather stall ran dry. My neighbour is on the third floor with no mask.', 'Get two filter masks from the stall and take them up to him.'],
+      steps: [
+        { k: 'pick', item: 'TWO FILTER MASKS', hud: 'GET THE MASKS', say: 'GET TWO FILTER MASKS FROM THE BREATHER STALL. PRESS A ON THEM.' },
+        { k: 'goto', hud: 'THE NEIGHBOUR', say: 'TAKE THE MASKS TO THE NEIGHBOUR. THE ARROW IS ON HIS BUILDING.', arrive: 'AT THE NEIGHBOUR BUILDING.' },
+        { k: 'talk', who: 'THE NEIGHBOUR', same: true, hud: 'HAND THEM OVER', say: 'HAND THE MASKS OVER. PRESS A TO TALK.', lines: ['You are a lifesaver.', 'Tell the stall I said so.'] } ] },
+    { id: 'van', kind: 'CRIME', title: 'LIFT A PARCEL', pay: 300,
+      offer: ['A delivery van stops on Ninth every morning. Parcel on the front seat.', 'Get in, get it, get out. Quick.'],
+      steps: [
+        { k: 'goto', hud: 'THE VAN ON NINTH', say: 'THE VAN IS ON NINTH. THE ARROW IS ON IT.', arrive: 'THE VAN IS HERE.' },
+        { k: 'job', odds: 0.75, same: true, hud: 'LIFT THE PARCEL', say: 'PRESS A AT THE VAN TO LIFT THE PARCEL.' } ] },
+    { id: 'pocket', kind: 'CRIME', title: 'PICK A POCKET', pay: 400,
+      offer: ['Market day on Ninth. A man in a camel coat has a fat wallet and a loud mouth.', 'Lift it in the crowd. Do not get caught.'],
+      steps: [
+        { k: 'goto', hud: 'THE CROWD ON NINTH', say: 'THE CROWD ON NINTH. THE ARROW IS ON THE MARKET.', arrive: 'IN THE CROWD.' },
+        { k: 'job', odds: 0.6, same: true, hud: 'PICK THE POCKET', say: 'PRESS A WHEN YOU ARE ON THE CAMEL COAT.' } ] },
+    { id: 'shop', kind: 'CRIME', title: 'SHOPLIFT THE CORNER STORE', pay: 300,
+      offer: ['The corner store on Halsted. The clerk reads the paper all day.', 'Take what you can carry.'],
+      steps: [
+        { k: 'goto', hud: 'THE CORNER STORE', say: 'THE CORNER STORE ON HALSTED. THE ARROW IS ON IT.', arrive: 'AT THE CORNER STORE.' },
+        { k: 'job', odds: 0.7, same: true, hud: 'TAKE FROM THE SHELF', say: 'PRESS A AT THE SHELF.' } ] },
+    { id: 'carbreak', kind: 'CRIME', title: 'BREAK INTO A CAR', pay: 500,
+      offer: ['There is a car on Gould with a jacket and cash in the glove box.', 'Get in and get it.'],
+      steps: [
+        { k: 'goto', hud: 'THE CAR ON GOULD', say: 'THE CAR ON GOULD. THE ARROW IS ON IT.', arrive: 'AT THE CAR.' },
+        { k: 'job', odds: 0.65, same: true, hud: 'BREAK IN', say: 'PRESS A TO BREAK IN.' } ] },
+    { id: 'strip', kind: 'CRIME', title: 'STRIP A CAR', pay: 1000,
+      offer: ['A Rook is parked on Pike. The owner is at the bar. I want the engine and the wheels.', 'Take the parts to the fence after.'],
+      steps: [
+        { k: 'goto', hud: 'THE ROOK ON PIKE', say: 'THE ROOK ON PIKE. THE ARROW IS ON IT.', arrive: 'AT THE ROOK.' },
+        { k: 'job', odds: 0.8, same: true, hud: 'STRIP THE CAR', say: 'PRESS A TO STRIP THE CAR.' },
+        { k: 'talk', who: 'THE FENCE', hud: 'SELL THE PARTS', say: 'TAKE THE PARTS TO THE FENCE. PRESS A TO TALK.', lines: ['Parts. Good. Here is your cash.'] } ] },
+    { id: 'shake', kind: 'CRIME', title: 'SHAKEDOWN', pay: 600,
+      offer: ['The shop on Ninth owes the tip. Lean on him for the weekly cut.', 'Do not break anything. Just make him scared.'],
+      steps: [
+        { k: 'goto', hud: 'THE SHOP ON NINTH', say: 'THE SHOP ON NINTH. THE ARROW IS ON IT.', arrive: 'AT THE SHOP.' },
+        { k: 'talk', who: 'THE SHOPKEEPER', same: true, hud: 'LEAN ON THE SHOPKEEPER', say: 'LEAN ON THE SHOPKEEPER. PRESS A TO TALK.', lines: ['Please. I have a family.', 'Next week. Same time.'] },
+        { k: 'job', odds: 0.7, same: true, hud: 'COLLECT THE CUT', say: 'PRESS A AT THE TILL TO COLLECT THE CUT.' } ] },
+    { id: 'burgle', kind: 'CRIME', title: 'BURGLE A SHUTTERED SHOP', pay: 800,
+      offer: ['The shutter is down at the record shop on Grant. The till is still full from last month.'],
+      steps: [
+        { k: 'goto', hud: 'THE RECORD SHOP', say: 'THE RECORD SHOP ON GRANT. THE ARROW IS ON IT.', arrive: 'AT THE RECORD SHOP.' },
+        { k: 'job', odds: 0.7, same: true, hud: 'OPEN THE TILL', say: 'PRESS A AT THE SHUTTER TO GET IN.' } ] },
+    { id: 'fencehit', kind: 'CRIME', title: 'ROB THE FENCE', pay: 1500,
+      offer: ['The fence on Ashby keeps his cash in the back room. Make it ours.', 'He will not be happy. He will not call anyone either.'],
+      steps: [
+        { k: 'goto', hud: 'THE FENCE BACK DOOR', say: 'THE FENCE BACK DOOR ON ASHBY. THE ARROW IS ON IT.', arrive: 'AT THE BACK DOOR.' },
+        { k: 'job', odds: 0.5, same: true, hud: 'ROB THE BACK ROOM', say: 'PRESS A AT THE BACK DOOR.' } ] }
+  ];
+  const RJ = { givers: [], contacts: [], active: null, log: [], pool: [], spawnCd: 0, last: 0 };
+  // a flash across the screen: the title, a line under it, and the pay (the same banner as the rest of Runner Mode)
+  function runFlash(o) { RUN_BANNERS.push({ text: o.title, sub: o.sub || '', pay: o.pay || 0, fail: !!o.fail, life: o.life || 2.6, start: null }); }
+  function jobPos() { return walker.on ? walker : car; }
+  function rjNearest(list) { let best = null, bd = 130; for (const p of list) { const d = Math.hypot(walker.x - p.x, walker.y - p.y); if (d < bd) { best = p; bd = d; } } return best; }
+  function rjTitle() { const A = RJ.active; if (!A) return ''; const s = A.def.steps[A.step]; return s ? 'JOB: ' + s.hud : ''; }
+  function rjSpawnGiver() {
+    if (!RJ.pool.length) RJ.pool = JOB_DEFS.slice().sort(() => Math.random() - 0.5);   // the list runs out, then it starts again
+    const def = RJ.pool.shift();
+    const p = randomSpot(380, 1000);
+    const g = makeInformant(p, pickName(RJ.givers.map((q) => q.name)));
+    g.job = def; RJ.givers.push(g);
+  }
+  // each frame: keep four givers on the street once the chip is in, the job's timer, and goto arrivals
+  function rjFrame(now) {
+    const dt = RJ.last ? Math.min(0.1, (now - RJ.last) / 1000) : 0; RJ.last = now;
+    if (LASER.chip && RJ.givers.length < 4) { RJ.spawnCd -= dt; if (RJ.spawnCd <= 0) { rjSpawnGiver(); RJ.spawnCd = 4; } }
+    const A = RJ.active; if (!A) return;
+    if (A.timer > 0) { A.timer -= dt; if (A.timer <= 0) { A.timer = 0; rjFail('TOO LATE'); return; } }
+    const s = A.def.steps[A.step], p = jobPos();
+    if (s && s.k === 'goto' && A.spot && Math.hypot(p.x - A.spot.x, p.y - A.spot.y) < 130) { say(s.arrive || 'GOT THERE.', 3); rjNext(); }
+  }
+  // the gold ! over each giver's head, the contacts, and the ring on the spot the job is at
+  function rjDrawWorld(c, now) {
+    for (const g of RJ.givers) {
+      drawMate(c, g);
+      const bx = g.x, by = g.y - 60 + Math.sin(now / 260 + g.x) * 2.5;
+      c.save(); c.beginPath(); c.arc(bx, by, 11, 0, Math.PI * 2); c.fillStyle = '#ffd23a'; c.fill();
+      c.lineWidth = 2.5; c.strokeStyle = '#000'; c.stroke();
+      c.fillStyle = '#000'; c.font = 'bold 16px monospace'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('!', bx, by + 1);
+      c.restore();
+    }
+    for (const k of RJ.contacts) drawMate(c, k);
+    const A = RJ.active;
+    if (A && A.spot) {
+      c.save(); c.strokeStyle = 'rgba(255,210,58,0.85)'; c.lineWidth = 3; c.setLineDash([10, 8]);
+      c.beginPath(); c.arc(A.spot.x, A.spot.y, 46 + 4 * Math.sin(now / 200), 0, Math.PI * 2); c.stroke(); c.restore();
+    }
+  }
+  // A on foot: a giver with a job, the contact of the current talk step, or the spot of a pick or a job
+  function rjAction() {
+    if (!walker.on) return false;
+    const A = RJ.active;
+    if (!A) { const g = rjNearest(RJ.givers); if (!g) return false; rjOffer(g); return true; }
+    const s = A.def.steps[A.step]; if (!s) return false;
+    if (s.k === 'talk') { const c = rjNearest(RJ.contacts); if (c && c === A.contact) { rjTalk(c); return true; } return false; }
+    if ((s.k === 'pick' || s.k === 'job') && A.spot && Math.hypot(walker.x - A.spot.x, walker.y - A.spot.y) < 110) {
+      if (s.k === 'pick') { A.carry = s.item; say('GOT ' + s.item + '.', 3); rjNext(); return true; }
+      if (Math.random() < s.odds) { say('IT WORKED. NOBODY SAW.', 3); rjNext(); }
+      else rjFail('BLOWN: ' + s.hud);
+      return true;
+    }
+    return false;
+  }
+  function rjOffer(g) { openTalk(g.name, g.look.profile, g.job.offer, () => openJobMenu(g), 'JOB OFFER'); }
+  function openJobMenu(g) {
+    Object.assign(yMenu, { open: true, mode: 'menu', sel: 0, li: 0, lines: [], title: 'THE JOB', speaker: g.name, face: null, done: null,
+      opts: ['TAKE THE JOB · $' + g.job.pay.toLocaleString(), 'NOT NOW'], onPick: (o) => { if (o.indexOf('TAKE') === 0) rjStart(g); } });
+  }
+  function rjStart(g) {
+    if (RJ.active) { say('FINISH THE JOB YOU HAVE FIRST.', 3); return; }
+    const def = g.job;
+    RJ.givers = RJ.givers.filter((q) => q !== g);
+    const entry = { id: def.id, title: def.title, kind: def.kind, giver: g.name, status: 'ACTIVE', pay: def.pay, paid: 0, why: '',
+      talk: def.offer.map((l) => ({ who: g.name, line: l })), objectives: [] };
+    RJ.log.unshift(entry);
+    RJ.active = { def, entry, step: 0, spot: null, contact: null, timer: 0, carry: null };
+    runFlash({ title: 'MISSION STARTED', sub: def.title, life: 2.6 });
+    rjStep();
+  }
+  // the current step: its spot (a new one, or the last one for a same step), its contact, and the arrow and star on it
+  function rjStep() {
+    const A = RJ.active; if (!A) return;
+    const s = A.def.steps[A.step];
+    if (!s) { rjFinish(); return; }
+    if (!(s.same && A.spot)) { const p = randomSpot(420, 1300); A.spot = { x: p.x, y: p.y }; }
+    A.timer = s.limit || 0;
+    A.contact = null;
+    if (s.k === 'talk') { A.contact = makeInformant(A.spot, s.who); RJ.contacts.push(A.contact); }
+    MISSION.stage = 'mission'; MISSION.label = s.hud; MISSION.x = A.spot.x; MISSION.y = A.spot.y;
+    A.entry.objectives.push({ text: s.say, done: false });
+    say(s.say, 6);
+  }
+  function rjNext() {
+    const A = RJ.active; if (!A) return;
+    const objs = A.entry.objectives; if (objs.length) objs[objs.length - 1].done = true;
+    if (A.contact) RJ.contacts = RJ.contacts.filter((q) => q !== A.contact);
+    A.step++;
+    if (A.step >= A.def.steps.length) rjFinish(); else rjStep();
+  }
+  function rjTalk(c) {
+    const A = RJ.active, s = A.def.steps[A.step];
+    for (const l of s.lines) A.entry.talk.push({ who: c.name, line: l });
+    openTalk(c.name, c.look.profile, s.lines, () => rjNext(), s.hud);
+  }
+  function rjFinish() {
+    const A = RJ.active; if (!A) return;
+    A.entry.status = 'DONE'; A.entry.paid = A.def.pay;
+    RJ.active = null; RJ.contacts = [];
+    cashOwed += A.def.pay;
+    MISSION.stage = 'done';
+    runFlash({ title: 'MISSION COMPLETE', sub: A.def.title, pay: A.def.pay, life: 3.4 });
+    say('PAID. THE NEXT JOB IS ON THE STREET.', 5);
+  }
+  function rjFail(why) {
+    const A = RJ.active; if (!A) return;
+    A.entry.status = 'FAILED'; A.entry.why = why;
+    RJ.active = null; RJ.contacts = [];
+    MISSION.stage = 'done';
+    runFlash({ title: 'MISSION FAILED', sub: why, fail: true, life: 2.8 });
+    say(why + '. NOTHING PAID.', 4);
+  }
+  function jobLog() { return RJ.log; }
   function bartenderNear() { return MISSION.stage === 'teammate' && barSpot && walker.on && Math.hypot(walker.x - barSpot.x, walker.y - barSpot.y) < 150; }
   function openYMenu() {
     if (!walker.on) { say('GET OFF THE BIKE TO TALK TO PEOPLE', 3); return; }
@@ -17694,12 +17989,14 @@ const RUNNER_API = (function () {
     drawYMenu(c, W, H);  // the Y menu and the talk, over the banners
     drawCanBulletin(c);  // LAYER 680: the C.A.N. lookout bulletin, in screen space
     if (MISSION.stage === 'teammate') missionBar(); else if (MISSION.stage === 'house') missionHouse(); else missionStoryTick();   // the bar, then the house (the Y menu)
+    rjFrame(now);   // LAYER 707: the jobs (givers, the timer, the arrivals)
     if (outdoors && cam && (missionOn())) drawMissionArrow(c, cam, W, H, now);   // LAYER 683: the arrow to the pistol, then to the teammate
     if (outdoors && cam) {
       c.save(); c.translate(W / 2, H / 2); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y);
       for (const h of hunters) drawHunter(c, h);
       for (const m of mates) drawMate(c, m);   // LAYER 679: the teammates
       for (const m of informants) drawMate(c, m);   // LAYER 705: the people who may know the doctor
+      rjDrawWorld(c, now);   // LAYER 707: the job givers (gold !), the job's contacts and its spot
       if (docMan) drawMate(c, docMan);
       drawCase(c);
       if (sleepDown && !lying) drawSleepBag(c);   // LAYER 691: the bag on the ground (with him, when he lies on it)
@@ -17757,16 +18054,29 @@ const RUNNER_API = (function () {
     const age = (now - b.start) / 1000;
     if (age >= b.life) { RUN_BANNERS.shift(); return; }
     const a = Math.max(0, Math.min(1, age / 0.35, (b.life - age) / 0.45));
+    const two = !!(b.sub || b.pay), bh = two ? 150 : 124, top = H / 2 - bh / 2;   // LAYER 707: a flash can carry a line and the pay
     c.save();
     c.globalAlpha = a; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillStyle = 'rgba(0,0,0,0.55)'; c.fillRect(0, H / 2 - 62, W, 124);
-    c.fillStyle = 'rgba(217,164,65,0.9)'; c.fillRect(0, H / 2 - 62, W, 3); c.fillRect(0, H / 2 + 59, W, 3);
+    c.fillStyle = 'rgba(0,0,0,0.55)'; c.fillRect(0, top, W, bh);
+    c.fillStyle = b.fail ? 'rgba(232,48,42,0.9)' : 'rgba(217,164,65,0.9)'; c.fillRect(0, top, W, 3); c.fillRect(0, top + bh - 3, W, 3);
+    const ty = two ? H / 2 - 14 : H / 2 + 2;
     let fs = 56;
     c.font = '900 ' + fs + 'px ui-monospace, monospace';
     while (c.measureText(b.text).width > W - 28 && fs > 16) { fs -= 2; c.font = '900 ' + fs + 'px ui-monospace, monospace'; }
     c.lineWidth = Math.max(4, fs / 7); c.lineJoin = 'round'; c.strokeStyle = 'rgba(0,0,0,0.9)';
-    c.strokeText(b.text, W / 2, H / 2 + 2);
-    c.fillStyle = '#ffd23a'; c.fillText(b.text, W / 2, H / 2 + 2);
+    c.strokeText(b.text, W / 2, ty);
+    c.fillStyle = b.fail ? '#ff6a5a' : '#ffd23a'; c.fillText(b.text, W / 2, ty);
+    if (b.sub) {
+      let sf = 15; c.font = '600 ' + sf + 'px ui-monospace, monospace';
+      while (c.measureText(b.sub).width > W - 28 && sf > 10) { sf -= 1; c.font = '600 ' + sf + 'px ui-monospace, monospace'; }
+      c.lineWidth = 4; c.strokeStyle = 'rgba(0,0,0,0.9)'; c.strokeText(b.sub, W / 2, H / 2 + 26);
+      c.fillStyle = '#e8d9b5'; c.fillText(b.sub, W / 2, H / 2 + 26);
+    }
+    if (b.pay) {
+      const money = '+$' + b.pay.toLocaleString();
+      c.font = '900 30px ui-monospace, monospace'; c.lineWidth = 5; c.strokeStyle = 'rgba(0,0,0,0.9)';
+      c.strokeText(money, W / 2, H / 2 + 56); c.fillStyle = '#7fd35a'; c.fillText(money, W / 2, H / 2 + 56);
+    }
     c.restore();
   }
   function pickLaser() {
@@ -18401,7 +18711,7 @@ const RUNNER_API = (function () {
     augments,
     augmentAt,
     takeDismount,
-    wake, hunterTick, worldHud, hunterReset, hoverSoundTick, setVest, soakHit, vestBar, setPhone, setLaserChip, setCash: (c) => { runnerCash = +c || 0; }, huntDbg, fire, laserItems, laserPick, gearItems, gearPick, setSleepHook: (h) => { sleepHook = h; }, sleepWheelClosed, takeCash,
+    wake, hunterTick, worldHud, hunterReset, hoverSoundTick, setVest, soakHit, vestBar, setPhone, setLaserChip, setCash: (c) => { runnerCash = +c || 0; }, jobLog, huntDbg, fire, laserItems, laserPick, gearItems, gearPick, setSleepHook: (h) => { sleepHook = h; }, sleepWheelClosed, takeCash,
     groundTrash, groundStash, onFoot: () => walker.on, armed: () => LASER.has,
     setPeople: (p, groups) => { PEOPLE = (p || []).concat(...(groups || [])); },
     hoverKid,
@@ -18512,12 +18822,53 @@ function CyberBody() {
     </div>
   );
 }
+// LAYER 707: the MISSIONS tab of the pause menu. Every job the runner has taken: who gave it, the talk, the objectives, and how it ended.
+function MissionLogTab() {
+  const [selObj, setSelObj] = useState(null), [, setTick] = useState(0);
+  useEffect(() => { const t = setInterval(() => setTick((x) => x + 1), 400); return () => clearInterval(t); }, []);
+  const log = (RUNNER_API.jobLog && RUNNER_API.jobLog()) || [];
+  const frame = { position: 'relative', width: 'min(92vw, 1000px)', maxHeight: '86vh', overflowY: 'auto', display: 'flex', gap: 22, alignItems: 'flex-start',
+    padding: '58px 16px 16px', boxSizing: 'border-box', fontFamily: 'ui-monospace, monospace', color: '#f1ead8' };
+  const head = { color: '#e8c46a', letterSpacing: '0.2em', fontSize: 12 };
+  const row = (active) => ({ cursor: 'pointer', padding: '7px 10px', border: '1px solid ' + (active ? '#e8c46a' : '#2a2a33'),
+    background: active ? 'rgba(232,196,106,0.08)' : 'rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', fontSize: 12, letterSpacing: '0.08em' });
+  if (!log.length) return (
+    <div style={{ ...frame, flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
+      <div style={head}>MISSIONS</div>
+      <div style={{ fontSize: 12, color: '#9a9486', lineHeight: 1.6 }}>No jobs yet. Once the chip is in, people on the street with work for you wear a gold !. Press A to talk to them.</div>
+    </div>
+  );
+  const cur = log.includes(selObj) ? selObj : log[0];
+  const tone = (st) => (st === 'ACTIVE' ? '#f2c45a' : st === 'DONE' ? '#7fd35a' : '#e8302a');
+  return (
+    <div style={frame} onClick={(e) => e.stopPropagation()}>
+      <div style={{ width: 'min(36vw, 330px)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={head}>MISSIONS · {log.length}</div>
+        {log.map((e, i) => (
+          <div key={i} data-padrow="1" onClick={() => setSelObj(e)} style={row(e === cur)}>
+            <span>{e.title}</span><span style={{ color: tone(e.status), fontSize: 10 }}>{e.status}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, lineHeight: 1.5 }}>
+        <div style={head}>{cur.title}</div>
+        <div style={{ color: '#9a9486' }}>{cur.kind} · GIVEN BY {cur.giver} · <span style={{ color: tone(cur.status) }}>{cur.status}</span>
+          {cur.status === 'DONE' ? ' · PAID $' + cur.paid.toLocaleString() : ''}{cur.why ? ' · ' + cur.why : ''}</div>
+        <div style={head}>OBJECTIVES</div>
+        {cur.objectives.map((o, i) => (<div key={i} style={{ color: o.done ? '#7fd35a' : '#f1ead8' }}>{o.done ? '[x] ' : '[ ] '}{o.text}</div>))}
+        <div style={head}>CONVERSATION</div>
+        {cur.talk.map((t, i) => (<div key={i}><span style={{ color: '#e8c46a' }}>{t.who}: </span>{t.line}</div>))}
+      </div>
+    </div>
+  );
+}
 function PauseTabBody({ tab, padSel, acts }) {
   const frame = { position: 'relative', width: 'min(92vw, 1000px)', maxHeight: '86vh', overflowY: 'auto', display: 'flex', gap: 22, alignItems: 'flex-start',
     padding: '58px 16px 16px', boxSizing: 'border-box', fontFamily: 'ui-monospace, monospace', color: '#f1ead8' };
   const row = (active) => ({ cursor: 'pointer', padding: '7px 10px', border: '1px solid ' + (active ? '#e8c46a' : '#2a2a33'),
     background: active ? 'rgba(232,196,106,0.08)' : 'rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', fontSize: 12, letterSpacing: '0.08em' });
   const head = { color: '#e8c46a', letterSpacing: '0.2em', fontSize: 12 };
+  if (tab === 4) return <MissionLogTab />;   // LAYER 707: the jobs, their talk and their objectives
   if (tab === 1) {
     const S = RUNNER_API.charSheet();
     return (
@@ -20278,7 +20629,7 @@ export default function IronLionLayer004() {
       if (g && g.mapOpen && press(3)) { G.statsToggle(true); for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i); return; }
       if (g && g.mapOpen) { if (press(9) || press(1)) setMapOpen(false);
         /* LAYER 694: LB and RB move between the tabs. On CHARACTER, INVENTORY and SYSTEM the D-pad walks the rows (data-padrow) and A presses the lit one. */
-        if (press(4) || press(5)) { const t = ((g.pauseTab || 0) + (press(5) ? 1 : 3)) % 4; g.pauseTab = t; g.padRow = -1; setPauseTab(t); setPadSel(-1); }
+        if (press(4) || press(5)) { const t = ((g.pauseTab || 0) + (press(5) ? 1 : 4)) % 5; g.pauseTab = t; g.padRow = -1; setPauseTab(t); setPadSel(-1); }
         if (g.pauseTab) {
           const rows = [...document.querySelectorAll("[data-padrow]")];
           if (rows.length && (press(12) || press(13))) { g.padRow = g.padRow == null || g.padRow < 0 ? 0 : (g.padRow + (press(13) ? 1 : -1) + rows.length) % rows.length; setPadSel(g.padRow); }
@@ -65499,7 +65850,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           <div data-tabbar="1" onClick={(e) => e.stopPropagation()}
             style={{ position: "absolute", top: 10, left: 0, right: 0, zIndex: 6, display: "flex", justifyContent: "center", gap: 6 }}>
             <span style={{ fontSize: 10, color: "#9a9486", alignSelf: "center", marginRight: 6 }}>LB</span>
-            {["MAP", "CHARACTER", "INVENTORY", "SYSTEM"].map((nm, i) => (
+            {["MAP", "CHARACTER", "INVENTORY", "SYSTEM", "MISSIONS"].map((nm, i) => (
               <div key={nm} onClick={() => { if (G.current) { G.current.pauseTab = i; G.current.padRow = -1; } setPauseTab(i); setPadSel(-1); }}
                 style={{ cursor: "pointer", padding: "6px 12px", fontSize: 11, letterSpacing: "0.16em", border: "1px solid " + (pauseTab === i ? C.gold : "#3a3a44"), color: pauseTab === i ? C.gold : "#9a9486", background: pauseTab === i ? "rgba(232,196,106,0.10)" : "transparent" }}>{nm}</div>
             ))}
