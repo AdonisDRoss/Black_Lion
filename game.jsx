@@ -2830,7 +2830,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 720";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 730";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -15103,6 +15103,9 @@ const RUNNER_API = (function () {
     drawGreenWater(cam);
     drawHideoutLot(ctx);   // LAYER 704: the lot behind the hideout, under the bike and the parked car
     if (!lobby) drawCar('car_' + CAR_FILES[car.sprite], car.x, car.y, car.z, car.heading || 0, car.lean || 0);   // LAYER 631: the bike, with its rider, in every mode
+    if (!lobby && ownCar && car !== ownCar) drawCar('car_' + CAR_FILES[ownCar.sprite], ownCar.x, ownCar.y, 0, ownCar.heading || 0, 0);   // LAYER 727
+    if (!lobby && teamCarV && car !== teamCarV) drawCar('car_' + CAR_FILES[teamCarV.sprite], teamCarV.x, teamCarV.y, 0, teamCarV.heading || 0, 0);   // LAYER 723
+    if (!lobby && parkedHover) drawCar('car_' + CAR_FILES[parkedHover.sprite], parkedHover.x, parkedHover.y, parkedHover.z, parkedHover.heading || 0, 0);   // LAYER 723: the hover bike, parked
     if (walker.on) drawSneakWalker(x, y);
     else if (!lobby) {                                   // LAYER 638: on the bike, he is drawn sitting on it, turned the way it faces
       const h = walker.heading; walker.heading = car.heading || 0;
@@ -15339,7 +15342,9 @@ const RUNNER_API = (function () {
   const fliers = [];
 
   // ---------- the player: hover, land, get out ----------
-  const car = { x: 0, y: 0, heading: 0, speed: 0, sprite: BIKE_INDEX, lean: 0, z: 150, mode: 'air' };
+  let car = { x: 0, y: 0, heading: 0, speed: 0, sprite: BIKE_INDEX, lean: 0, z: 150, mode: 'air' };
+  let parkedHover = null;   // LAYER 723: the hover bike, parked while the runner drives a ground car
+  let teamCarV = null;      // LAYER 723: the teammate's car, a ground car you can drive any time
   const walker = { x: 0, y: 0, heading: 0, on: false };
   const AIR_Z = 150, LIFT = 110;
 
@@ -15353,11 +15358,14 @@ const RUNNER_API = (function () {
     placed = true;
     car.z = AIR_Z; car.mode = 'air'; car.speed = 0; car.lean = 0; walker.on = false;
     fliers.length = 0; for (let k = 0; k < 16; k++) fliers.push(newFlier(car.x, car.y));
+    if (teamCarV) { teamCarV.route = null; teamCarV.driver = null; }   // LAYER 726
+    ownCar = null; hotwire = null;   // LAYER 727
     spawnTeam();   // LAYER 679: the teammates and the case
     say('FUTURE CITY · L TO LAND · E TO GET OUT', 4);
   }
 
   function toggleLand() {
+    if (car.mode === 'ground') return say('THAT CAR DOESN\'T FLY. L IS FOR THE BIKE.', 3);   // LAYER 727
     if (car.mode === 'air') {
       if (Math.abs(car.speed) > 140) return say('SLOW DOWN TO LAND');
       if (!landable(car.x, car.y) && !onCanRoof(car.x, car.y)) return say('NO LANDING ON A BUILDING, WATER OR DECK');
@@ -15367,8 +15375,11 @@ const RUNNER_API = (function () {
     else if (car.mode === 'landed') { car.mode = 'up'; puff(car.x, car.y, car.sprite === BIKE_INDEX ? 'small' : 'medium'); say('LIFTING OFF'); }   // LAYER 622
     else if (car.mode === 'up') { car.mode = 'down'; say('LANDING'); }
   }
+  // LAYER 722: how far from the bike you can be and still call it. Beyond this the call is refused.
+  const SUMMON_R = 900;
   // LAYER 639: the bike comes down on a clear spot beside you, so you can always get to it from the ground
   function callBike() {
+    if (Math.hypot(car.x - walker.x, car.y - walker.y) > SUMMON_R) return say('THE BIKE IS TOO FAR AWAY TO CALL. GO BACK TOWARD IT.', 3);   // LAYER 722
     const sp = clearSpot(walker.x + 60, walker.y, null) || { x: walker.x + 60, y: walker.y };
     car.x = sp.x; car.y = sp.y; car.z = AIR_Z; car.mode = 'down'; car.speed = 0; car.lean = 0; car.heading = -Math.PI / 2;
     say('YOUR BIKE IS COMING DOWN BESIDE YOU');
@@ -15397,19 +15408,25 @@ const RUNNER_API = (function () {
   const GET_IN_R = 110, BAG_R = 90;
   let worldActHook = null;
   function exitOrBoard(fromPad) {
+    if (arrestDeskNear()) return arrestDesk();   // LAYER 729: E at the desk, under arrest: the sergeant
+    if (ARR.on) return;                          // LAYER 729: in cuffs, E does nothing
     if (lying) return;         // LAYER 717: lying on the bag, A and E do nothing else
     if (storyTalk()) return;   // LAYER 705: an informant or the doctor beside him
     if (PMB.inside) return;    // LAYER 709: in the bar the bike and the pack stay put
     const packSpot = packStashNear(); if (packSpot) { packPickup(packSpot); return; }   // LAYER 673: E by a pack stash
     if (stashNear()) { pickLaser(); return; }   // LAYER 670: E by the stash picks up the laser pistol
     if (caseNear()) { pickCase(); return; }     // LAYER 679: E by the case picks it up
-    if (!walker.on) return getOffBike();
+    if (!walker.on) return (car === teamCarV || car === ownCar) ? leaveTeamCar() : getOffBike();   // LAYER 723: out of the ground car, or off the bike (LAYER 727: or your own)
     // LAYER 717: the bag takes A and E when he is close to it (the bag menu). Whichever of the bag and the bike is nearer wins,
     // and the bike is only boarded from GET_IN_R, so a press near the bag never hops him onto the bike.
     const dBag = sleepOwned && sleepDown ? Math.hypot(walker.x - sleepDown.x, walker.y - sleepDown.y) : Infinity;
     const dBike = Math.hypot(walker.x - car.x, walker.y - car.y);
     if (dBag <= BAG_R && dBag <= dBike) return bagMenu();
+    let nearCar = null, dCar = Infinity;   // LAYER 723 / 727: the nearest car that is not being driven (the team car, or the one you hot-wired)
+    for (const c of [teamCarV, ownCar]) if (c && c !== car) { const d = Math.hypot(walker.x - c.x, walker.y - c.y); if (d < dCar) { dCar = d; nearCar = c; } }
+    if (nearCar && dCar < GET_IN_R && dCar <= dBike) return enterTeamCar(nearCar);
     if (dBike < GET_IN_R) return boardBike();   // the bike is beside him: get on
+    const loose = looseCarNear(); if (loose) return startHotwire(loose);   // LAYER 727: a landed car nobody owns
     if (fromPad && worldActHook) worldActHook();                                      // stairs, doors, objects: the world's action
   }
   function boardBike() {
@@ -15421,6 +15438,66 @@ const RUNNER_API = (function () {
     else if (car.mode === 'landed') callBike();      // LAYER 639: too far to get on -- the bike comes down to you
     else say('THE BIKE IS IN THE AIR. L OR B TO LAND IT');
   }
+  // LAYER 723: ANY CAR DRIVES. The teammate's car is a ground car: you get in any time and drive it. The hover bike drives only when
+  // it is parked and landed; then you get in and take off. While you drive the car the bike waits where it is.
+  const TEAM_CAR_STOP = 60;   // a car must be nearly stopped before you get out
+  function enterTeamCar(c = teamCarV) {   // LAYER 727: any ground car of ours (the team car, or the one you hot-wired)
+    if (!c) return;
+    if (c.route) return say(teamDriverName() + ' HAS THE WHEEL. STOP HER FIRST.', 3);   // LAYER 726
+    if (car.mode !== 'landed') return say('LAND THE BIKE FIRST, THEN GET IN THE CAR.', 3);
+    parkedHover = car; car = c; car.mode = 'ground';
+    walker.on = false; dismountAt = null;
+    say('IN THE CAR. WASD TO DRIVE. E TO GET OUT.', 3);
+  }
+  function leaveTeamCar() {
+    if (!parkedHover) return say('YOU ARE ON FOOT');
+    if (Math.abs(car.speed) > TEAM_CAR_STOP) return say('STOP THE CAR FIRST.', 2);
+    car.speed = 0; car.lean = 0;
+    const dm = dismountSpot();
+    const hv = parkedHover; parkedHover = null; car = hv;
+    walker.on = true; dismountAt = dm; walker.heading = 0;
+    say('ON FOOT. E NEAR A CAR OR THE BIKE TO GET IN.', 3);
+  }
+  // LAYER 727: HOT-WIRE. A car that has landed, and that nobody is driving, can be taken. On foot, press E by it and stay by it
+  // for three seconds: it starts, and you take the wheel. Get out and it stays where you left it; E by it gets you back in.
+  // The hover bike is not a car for this. Only one car of your own at a time.
+  const HOTWIRE_T = 3;
+  let ownCar = null, hotwire = null;
+  function looseCarNear() {
+    let best = null, bd = GET_IN_R * 1.2;
+    for (const f of fliers) {
+      if (!f || f.mode !== 'rest' || f.drBusy || f.lab) continue;   // landed, and not held by a drone or in a scan
+      if (f.sprite === 'car_cars_43a7a337_1') continue;              // the hover bike
+      const d = Math.hypot(walker.x - f.x, walker.y - f.y);
+      if (d < bd) { bd = d; best = f; }
+    }
+    return best;
+  }
+  function startHotwire(f) {
+    if (ownCar) return say('YOU ALREADY HAVE A CAR. DRIVE THAT ONE.', 3);
+    if (car.mode !== 'landed') return say('LAND THE BIKE FIRST', 3);
+    if (CAR_FILES.indexOf(String(f.sprite).replace(/^car_/, '')) < 0) return say('THAT ONE WON\'T START.', 3);
+    hotwire = { f, t: 0, last: -1 };
+    say('HOT-WIRING. STAY BY IT.', 2);
+  }
+  function hotwireTick(dt) {
+    const h = hotwire; if (!h) return;
+    const f = h.f;
+    const ok = walker.on && !lying && fliers.indexOf(f) >= 0 && f.mode === 'rest' && !f.drBusy && Math.hypot(walker.x - f.x, walker.y - f.y) < GET_IN_R * 1.5;
+    if (!ok) { hotwire = null; say('HOT-WIRE BROKEN OFF.', 2); return; }
+    h.t += dt;
+    const left = Math.ceil(HOTWIRE_T - h.t);
+    if (left !== h.last && left > 0) { h.last = left; say('HOT-WIRING ' + left, 1); }
+    if (h.t >= HOTWIRE_T) takeLooseCar(f);
+  }
+  function takeLooseCar(f) {
+    hotwire = null;
+    const k = fliers.indexOf(f); if (k >= 0) fliers.splice(k, 1);
+    ownCar = { x: f.x, y: f.y, z: 0, heading: f.heading || 0, speed: 0, lean: 0, mode: 'ground', sprite: CAR_FILES.indexOf(String(f.sprite).replace(/^car_/, '')), home: null };
+    enterTeamCar(ownCar);
+    engineStartSound();
+    carAlarm('IT STARTS. THE ALARM IS GOING. WASD TO DRIVE, AND FAST.');   // LAYER 728: taking a car sets its alarm off
+  }
   function getOffBike() {
     if (walker.on) return say('YOU ARE ON FOOT');
     if (car.mode !== 'landed') return say('LAND FIRST · L OR B');
@@ -15428,6 +15505,166 @@ const RUNNER_API = (function () {
     say('ON FOOT · E NEAR THE VEHICLE TO GET BACK IN');
   }
 
+  // LAYER 724: a ground car follows the street. Over a block it can fly over the buildings when you steer that way. With no steering
+  // it heads for the nearest street and centres itself on it. At a crossing it keeps its heading.
+  function wrapAng(a) { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; }
+  function streetFollow(dt) {
+    const i = Math.round(car.x / PITCH), j = Math.round(car.y / PITCH);
+    const dxV = car.x - SX(i), dyH = car.y - SX(j);
+    const onV = Math.abs(dxV) <= halfW(i), onH = Math.abs(dyH) <= halfW(j);
+    const turnTo = (want) => { car.heading += clamp(wrapAng(want - car.heading), -1.6 * dt, 1.6 * dt); };
+    if (onV && onH) return;
+    if (onV) { turnTo(Math.sin(car.heading) >= 0 ? Math.PI / 2 : -Math.PI / 2); car.x += clamp(-dxV, -60 * dt, 60 * dt); return; }
+    if (onH) { turnTo(Math.cos(car.heading) >= 0 ? 0 : Math.PI); car.y += clamp(-dyH, -60 * dt, 60 * dt); return; }
+    if (Math.abs(dxV) < Math.abs(dyH)) turnTo(dxV > 0 ? Math.PI : 0);
+    else turnTo(dyH > 0 ? -Math.PI / 2 : Math.PI / 2);
+  }
+  // LAYER 725: cars collide with each other. A ground car is stopped by a building: its footprint, its walls, and the C.A.N. tower
+  // (front and roof). The hover bike flies over buildings, as it always has, so only the cars stop each other, and the flying
+  // traffic at the same height. The check uses a ring round the car, so the body clears a wall and not only its middle.
+  // A car that starts inside something is free to leave it, so it is never stuck.
+  function carInBlock(x, y, r) {
+    const can = CAN_LOT_RECT ? canRect() : null;
+    const pts = [[x, y]];
+    if (r > 0) for (let k = 0; k < 8; k++) pts.push([x + Math.cos(k * Math.PI / 4) * r, y + Math.sin(k * Math.PI / 4) * r]);
+    for (const [px, py] of pts) {
+      if (inBuilding(px, py)) return true;
+      if (can && px >= can.fx0 && px <= can.fx1 && py >= can.fy0 && py <= can.gy1) return true;
+    }
+    return false;
+  }
+  function carHits(x0, y0, c = car) {
+    let hit = false;
+    if (c.mode === 'ground' && carInBlock(c.x, c.y, 26) && !carInBlock(x0, y0, 0)) hit = true;
+    const others = [car, parkedHover, teamCarV, ownCar].filter((v, i, arr) => v && v !== c && arr.indexOf(v) === i).concat(fliers);
+    for (const o of others) {
+      if (!o || !Number.isFinite(o.x) || !Number.isFinite(o.y) || Math.abs((o.z || 0) - c.z) >= 60) continue;   // same height only
+      const dNow = Math.hypot(c.x - o.x, c.y - o.y), dBefore = Math.hypot(x0 - o.x, y0 - o.y);
+      if (dNow < 56 && dNow < dBefore) hit = true;     // closing on another car: stop; moving apart is allowed
+    }
+    if (hit) { c.x = x0; c.y = y0; c.speed *= 0.3; }
+  }
+  // LAYER 726: TEAM CAR ORDERS. Your teammate drives the car. On the TEAM CAR wheel pick a place and the teammate who owns the car
+  // jogs to it, gets in, and drives there along the streets, however far away it is. OBJECTIVE is the mark on the arrow when you give
+  // the order. HOME is the lot. BAR and HOUSE are the spots on the map. STOP pulls her over where she is.
+  const TEAM_JOG = 2.5, TEAM_DRIVE = 230, TEAM_ACCEL = 260;   // his jog is MATE_SPD times TEAM_JOG; the car cruises at TEAM_DRIVE px/s
+  // the street grid from one point to another: junction to junction along the street centrelines, never through water.
+  // Returns the junctions in order, or null if no road gets there.
+  function roadPath(x0, y0, x1, y1) {
+    const W = N + 1, key = (i, j) => i * W + j;
+    const si = clamp(Math.round(x0 / PITCH), 0, N), sj = clamp(Math.round(y0 / PITCH), 0, N);
+    const gi = clamp(Math.round(x1 / PITCH), 0, N), gj = clamp(Math.round(y1 / PITCH), 0, N);
+    const sk = key(si, sj), gk = key(gi, gj);
+    const prev = new Int32Array(W * W).fill(-2);
+    prev[sk] = -1;
+    const q = [sk];
+    const wet = (i, j, ni, nj) => {   // a street segment is out if water covers any of it
+      for (let t = 0; t <= 1.001; t += 0.1) if (waterDepth(SX(i) + (SX(ni) - SX(i)) * t, SX(j) + (SX(nj) - SX(j)) * t) > 0.05) return true;
+      return false;
+    };
+    for (let h = 0; h < q.length && prev[gk] === -2; h++) {
+      const k = q[h], i = Math.floor(k / W), j = k % W;
+      for (const [ni, nj] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) {
+        if (ni < 0 || nj < 0 || ni > N || nj > N) continue;
+        const nk = key(ni, nj);
+        if (prev[nk] !== -2 || wet(i, j, ni, nj)) continue;
+        prev[nk] = k; q.push(nk);
+      }
+    }
+    if (prev[gk] === -2) return null;
+    const pts = [];
+    for (let k = gk; k !== -1; k = prev[k]) pts.push({ x: clamp(SX(Math.floor(k / W)), 60, SX(N) - 60), y: clamp(SX(k % W), 60, SX(N) - 60) });   // inside the box the car is held to
+    return pts.reverse();
+  }
+  function teamDriver() { return mates.find((m) => m.friend) || null; }
+  function teamDriverName() { const d = teamDriver(); return d ? d.name : 'YOUR TEAMMATE'; }
+  function teamCarOK() { return !!(teamCarV && RUN_ON && !lobby && car !== teamCarV); }
+  function teamCarSub() {
+    const c = teamCarV; if (!c) return '';
+    if (c.route && c.route.ready) return teamDriverName() + ' DRIVING TO ' + c.route.label;
+    if (c.route) return teamDriverName() + ' ON HIS WAY TO THE CAR';
+    return 'PARKED · PICK A PLACE';
+  }
+  // the wheel's places: the objective only while there is one on the arrow; STOP only while she is going somewhere
+  function teamOrderItems() {
+    const c = teamCarV, out = [];
+    if (!c) return out;
+    if (MISSION.stage !== 'none' && MISSION.stage !== 'done') out.push({ label: 'OBJECTIVE', sub: MISSION.label || 'the arrow', id: 'tc:objective' });
+    out.push({ label: 'HOME', sub: 'the lot', id: 'tc:home' });
+    if (barSpot) out.push({ label: 'BAR', sub: 'the bar', id: 'tc:bar' });
+    if (houseSpot) out.push({ label: 'HOUSE', sub: 'the house', id: 'tc:house' });
+    if (c.route) out.push({ label: 'STOP', sub: 'pull over where she is', id: 'tc:stop' });
+    return out;
+  }
+  // the driver steps out beside the car, where he will wander from now on
+  function stepOut(d, c) {
+    d.driving = false; d.order = null;
+    d.x = clamp(c.x - Math.sin(c.heading) * 44, 40, SX(N) - 40); d.y = clamp(c.y + Math.cos(c.heading) * 44, 40, SX(N) - 40);
+    d.hx = d.x; d.hy = d.y;
+  }
+  function endTeamRoute(c, msg) {
+    const d = c.driver; c.route = null; c.speed = 0; c.driver = null;
+    if (d) { stepOut(d, c); say(d.name + ': ' + msg, 4); }
+  }
+  function teamOrder(dest) {
+    const c = teamCarV;
+    if (!c || car === c) return;
+    if (dest === 'stop') {
+      if (!c.route) return say('SHE IS NOT GOING ANYWHERE.', 2);
+      const d = c.driver; c.route = null; c.speed = 0; c.driver = null;
+      if (d) { stepOut(d, c); say(d.name + ': PULLING OVER.', 3); }
+      return;
+    }
+    let spot = null, label = '';
+    if (dest === 'objective') {
+      if (MISSION.stage === 'none' || MISSION.stage === 'done') return say('NO OBJECTIVE ON THE ARROW RIGHT NOW.', 3);
+      spot = { x: MISSION.x, y: MISSION.y }; label = MISSION.label || 'OBJECTIVE';
+    }
+    else if (dest === 'home') { spot = c.home; label = 'LOT'; }
+    else if (dest === 'bar') { spot = barSpot; label = 'BAR'; }
+    else if (dest === 'house') { spot = houseSpot; label = 'HOUSE'; }
+    if (!spot) return say('THAT PLACE IS NOT ON THE MAP YET.', 3);
+    const d = teamDriver();
+    if (!d) return say('NOBODY TO DRIVE IT.', 3);
+    if (d.stunT > 0) return say(d.name + ' IS DOWN. NOT NOW.', 3);
+    const stop = streetSpot(spot.x, spot.y);
+    const pts = roadPath(c.x, c.y, stop.x, stop.y);
+    if (!pts) return say('NO ROAD GETS THERE.', 3);
+    pts.push({ x: clamp(stop.x, 60, SX(N) - 60), y: clamp(stop.y, 60, SX(N) - 60) });
+    if (c.driver && c.driver !== d) stepOut(c.driver, c);
+    const aboard = c.driver === d && d.driving;   // already at the wheel: the car goes at once
+    c.route = { pts, i: 0, slow: 0, label, ready: aboard, dest: stop };
+    c.driver = d;
+    d.order = aboard ? null : { label };
+    if (!aboard) d.driving = false;
+    say(d.name + ': GOING TO THE ' + label + '.', 4);
+  }
+  // the driver gets to the car and gets in; the car goes once he is in
+  function boardTeamCar(m) {
+    const c = teamCarV; m.order = null; m.driving = true; c.driver = m;
+    if (c.route) c.route.ready = true;
+    c.speed = 0;
+    say(m.name + ': GOT IT.', 2);
+  }
+  // each frame: the teammate's car drives its route. It turns to face each junction, slows when it is not lined up, and gives up
+  // if it cannot move for 2.5 seconds (a wall it cannot get round)
+  function teamDriveTick(dt) {
+    const c = teamCarV, R = c && c.route;
+    if (!R || !R.ready || car === c) return;
+    if (R.i >= R.pts.length) return endTeamRoute(c, "WE'RE HERE.");
+    const wp = R.pts[R.i], dx = wp.x - c.x, dy = wp.y - c.y, L = Math.hypot(dx, dy);
+    if (L < 36) { R.i++; return; }
+    const err = wrapAng(Math.atan2(dy, dx) - c.heading);
+    c.heading += clamp(err, -2.4 * dt, 2.4 * dt);
+    const cruise = Math.abs(err) < 0.5 ? TEAM_DRIVE : 70;
+    c.speed = clamp(c.speed + clamp(cruise - c.speed, -TEAM_ACCEL * 2 * dt, TEAM_ACCEL * dt), 0, TEAM_DRIVE);
+    const x0 = c.x, y0 = c.y;
+    c.x = clamp(c.x + Math.cos(c.heading) * c.speed * dt, 40, SX(N) - 40);
+    c.y = clamp(c.y + Math.sin(c.heading) * c.speed * dt, 40, SX(N) - 40);
+    carHits(x0, y0, c);
+    R.slow = c.speed < 25 ? R.slow + dt : 0;
+    if (R.slow > 2.5) endTeamRoute(c, "I CAN'T GET THROUGH.");
+  }
   function updateCar(dt, pad) {
     const hd = handlingOf(car.sprite);
     if (car.mode === 'down' || car.mode === 'up') {
@@ -15444,6 +15681,7 @@ const RUNNER_API = (function () {
       return;
     }
     if (car.mode === 'landed') { car.speed = 0; car.lean = 0; return; }
+    const px0 = car.x, py0 = car.y;   // LAYER 725: where the car was before this frame's drive
     const acc = ((keys.ArrowUp || keys.w || keys.W) || pad.rt > 0.1) ? hd.accel * Math.max(pad.rt, 1) : 0;
     const brk = ((keys.ArrowDown || keys.s || keys.S) || pad.lt > 0.1) ? 1 : 0;
     const steer = clamp((((keys.ArrowRight || keys.d || keys.D) ? 1 : 0) - ((keys.ArrowLeft || keys.a || keys.A) ? 1 : 0)) + (Math.abs(pad.x) > 0.15 ? pad.x : 0), -1, 1);
@@ -15455,8 +15693,10 @@ const RUNNER_API = (function () {
     const leanTarget = steer * clamp(Math.abs(car.speed) / hd.max, 0, 1) * (hd.lean || 0) * Math.sign(car.speed || 1);
     car.lean += (leanTarget - car.lean) * Math.min(1, 6 * dt);
     car.heading += turn * dt;
+    if (car.mode === 'ground' && steer === 0 && Math.abs(car.speed) > 20) streetFollow(dt);   // LAYER 724: no steering, the car follows the street
     car.x = clamp(car.x + Math.cos(car.heading) * car.speed * dt, 40, SX(N) - 40);
     car.y = clamp(car.y + Math.sin(car.heading) * car.speed * dt, 40, SX(N) - 40);
+    carHits(px0, py0);   // LAYER 725
   }
   function updateWalker(dt, pad) {
     stepLying(dt); if (lying) return;   // LAYER 692: lying on the bag, he does not walk
@@ -15494,8 +15734,295 @@ const RUNNER_API = (function () {
     return out;
   }
 
+  /* LAYER 728: CAR ALARMS, THE ARREST AND THE EVIDENCE ROOM (Donny). Taking a car nobody owns sets its alarm off. The alarm is a
+     crime the city sees, so the game's own police get the call, as they do in the prison game: heat goes up, and the cars and cops
+     come. When a cop takes the runner in, the show has him, so he is released: his pistol goes in evidence, a quarter of his cash
+     is taken, and he is booked in the precinct lobby and walks out. Nobody goes to jail in Runner Mode. The pistol is bought back
+     in the evidence room at the back of the precinct, at half its price. */
+  const RPOL = { evidence: null, evHere: false, ev: null, inside: false };
+  const RPOL_PISTOL = 200;     // what the pistol is worth; the buy-back is half of it
+  const RPOL_FINE = 0.25;      // the share of the cash carried that is taken on arrest
+  let moneyDelta = 0, bookReq = false, alarmReq = null, alarmCtx = null;
+  function takeMoneyDelta() { const d = moneyDelta; moneyDelta = 0; return d; }     // the main game takes this each frame: a fine is minus, a buy-back is minus too
+  function takeBook() { const b = bookReq; bookReq = false; return b; }             // the main game books him in at the precinct when this is true
+  function takeAlarm() { const a = alarmReq; alarmReq = null; return a; }           // the main game reports the alarm to the police when this is set
+  function policeFrame(info) { RPOL.inside = !!info.inside; RPOL.ev = info.ev || null; RPOL.evHere = !!(info.ev && info.ev.here); }
+  // the game's own audio context (the component resumes it on the first press). A context made later, on its own, can sit silent.
+  let audioGet = null;
+  function gameCtx() {
+    try {
+      const c = audioGet && audioGet();
+      if (c) { if (c.state === 'suspended' && c.resume) c.resume(); return c; }
+      const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return null;
+      if (!alarmCtx) alarmCtx = new Ctx();
+      if (alarmCtx.state === 'suspended' && alarmCtx.resume) alarmCtx.resume();
+      return alarmCtx;
+    } catch (e) { return null; }
+  }
+  // the siren: two tones for about four seconds
+  function alarmSound() {
+    try {
+      const ctx = gameCtx(); if (!ctx) return;
+      const t0 = ctx.currentTime, o = ctx.createOscillator(), gn = ctx.createGain();
+      o.type = 'square'; gn.gain.value = 0.05;
+      for (let i = 0; i < 8; i++) o.frequency.setValueAtTime(i % 2 ? 960 : 720, t0 + i * 0.5);
+      o.connect(gn); gn.connect(ctx.destination); o.start(t0); o.stop(t0 + 4);
+    } catch (e) { /* no sound here */ }
+  }
+  // the engine turns over: a low note climbs and settles, with a rasp, when a car you have hot-wired starts
+  function engineStartSound() {
+    try {
+      const ctx = gameCtx(); if (!ctx) return;
+      const t0 = ctx.currentTime, o = ctx.createOscillator(), gn = ctx.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(36, t0); o.frequency.exponentialRampToValueAtTime(120, t0 + 0.9); o.frequency.exponentialRampToValueAtTime(64, t0 + 1.5);
+      gn.gain.setValueAtTime(0.0001, t0); gn.gain.exponentialRampToValueAtTime(0.14, t0 + 0.2); gn.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.6);
+      o.connect(gn); gn.connect(ctx.destination); o.start(t0); o.stop(t0 + 1.7);
+    } catch (e) { /* no sound here */ }
+  }
+  // a car nobody owns has been taken: the alarm goes, and the frame reports it to the police
+  function carAlarm(msg) {
+    alarmReq = ownCar ? { x: ownCar.x, y: ownCar.y } : { x: walker.x, y: walker.y };
+    alarmSound(); say(msg || 'CAR ALARM! THE COPS ARE COMING.', 4);
+  }
+  /* LAYER 729: THE ARREST (Donny). A cop takes him in: the handcuffs go on over his head, he is put in the back of the car and the
+     car drives to the precinct (ten seconds; the camera goes there, and the figure is out of sight). The screen goes black, and
+     he is booked in the lobby. The screen comes back up, ARRESTED in big letters, and then he is at the desk, cuffed. The desk
+     sergeant takes the fine for the arrest and lets him go: the show has him, so he is released. He can leave, or walk to the
+     evidence room, where the pistol is bought back. The pistol goes in evidence at the arrest, as before. */
+  const ARR = { on: false, phase: '', t: 0, from: null, to: null, hold: null, fine: 0, promptT: 0, leaveReq: false };
+  const ARR_CUFF = 1.6, ARR_RIDE = 10, ARR_FADE = 0.8, ARR_TITLE = 2.6;
+  // a cop has taken him in (the main game's arrest, in Runner Mode). Nothing is taken here but the pistol; the fine is at the desk.
+  function policeArrest() {
+    if (ARR.on) return;
+    let gun = false;
+    if (LASER.has) { RPOL.evidence = { mode: LASER.mode, locked: LASER.locked, chip: LASER.chip }; LASER.has = false; LASER.drawn = false; LASER.beams = []; gun = true; }
+    const pc = cellOf(SX(8) + PITCH / 2, SX(11) + PITCH / 2), prec = pc && pc.blds ? pc.blds.find((q) => q.kind === 'precinct') : null;
+    ARR.on = true; ARR.phase = 'cuff'; ARR.t = 0; ARR.fine = 0; ARR.promptT = 0; ARR.leaveReq = false;
+    ARR.hold = { x: walker.x, y: walker.y }; ARR.from = { x: walker.x, y: walker.y };
+    ARR.to = prec ? { x: prec.x + prec.w / 2, y: prec.y + prec.h / 2 } : { x: walker.x, y: walker.y };
+    say(gun ? 'THE COPS HAVE YOU. YOUR PISTOL IS TAKEN.' : 'THE COPS HAVE YOU.', 3);
+  }
+  // the sequence, a step at a time: cuffs, the ride, the fade, the booking, the title, then the desk
+  function arrestTick(dt) {
+    if (!ARR.on) return;
+    ARR.t += dt;
+    if (ARR.phase === 'cuff' && ARR.t >= ARR_CUFF) { ARR.phase = 'ride'; ARR.t = 0; }
+    else if (ARR.phase === 'ride' && ARR.t >= ARR_RIDE) { ARR.phase = 'fade'; ARR.t = 0; }
+    else if (ARR.phase === 'fade' && ARR.t >= ARR_FADE) { ARR.phase = 'station'; ARR.t = 0; bookReq = true; }   // the screen is black: he is booked in the lobby
+    else if (ARR.phase === 'station' && ARR.t >= ARR_FADE) { ARR.phase = 'title'; ARR.t = 0; }
+    else if (ARR.phase === 'title' && ARR.t >= ARR_TITLE) { ARR.phase = 'desk'; ARR.t = 0; ARR.promptT = 0; }
+    if (ARR.phase === 'desk' && arrestDeskNear()) { ARR.promptT -= dt; if (ARR.promptT <= 0) { say('E · TALK TO THE DESK SERGEANT', 2.5); ARR.promptT = 5; } }
+  }
+  // the lobby's booking spot is where he stands until he is released: the booking reports it here
+  function arrestBooked(x, y) { if (ARR.on) ARR.hold = { x, y }; }
+  // while he is under arrest he cannot walk: the main body is held where he stands
+  function arrestHold(p) { if (!ARR.on || !ARR.hold || !p) return; p.x = ARR.hold.x; p.y = ARR.hold.y; p.vx = 0; p.vy = 0; }
+  // the ride: the camera goes from the street to the precinct over the ride, and stays there through the fade
+  function rideCam() {
+    if (!ARR.on || !ARR.from || !ARR.to) return null;
+    if (ARR.phase === 'fade') return ARR.to;
+    if (ARR.phase !== 'ride') return null;
+    const k = clamp(ARR.t / ARR_RIDE, 0, 1), e = k * k * (3 - 2 * k);
+    return { x: ARR.from.x + (ARR.to.x - ARR.from.x) * e, y: ARR.from.y + (ARR.to.y - ARR.from.y) * e };
+  }
+  function takeLeave() { const l = ARR.leaveReq; ARR.leaveReq = false; return l; }
+  function arrestDeskNear() { return !!(ARR.on && ARR.phase === 'desk' && ARR.hold && !yMenu.open && Math.hypot(walker.x - ARR.hold.x, walker.y - ARR.hold.y) < 170); }
+  // E at the desk: the sergeant talks, then takes the fine
+  function arrestDesk() {
+    ARR.fine = Math.floor(Math.max(0, runnerCash) * RPOL_FINE);
+    openTalk('DESK SERGEANT', null, [
+      'SERGEANT: You are the runner from the show. The show has you, so you are released.',
+      'SERGEANT: That is the arrest. Nobody goes to a cell for the show.',
+      'SERGEANT: The arrest is $' + ARR.fine + '. I take that now.'
+    ], () => arrestPayMenu(), 'THE PRECINCT DESK');
+  }
+  function arrestPayMenu() {
+    Object.assign(yMenu, { open: true, mode: 'menu', sel: 0, li: 0, lines: [], title: 'DESK SERGEANT', speaker: 'DESK SERGEANT', face: null, done: null,
+      opts: ['PAY $' + ARR.fine + ' · GET RELEASED'], onPick: () => arrestPay() });
+  }
+  function arrestPay() {
+    const fine = Math.min(ARR.fine, Math.max(0, runnerCash));
+    moneyDelta -= fine; runnerCash -= fine;
+    ARR.on = false; ARR.phase = ''; ARR.hold = null; ARR.from = null; ARR.to = null;
+    say('THE SERGEANT TAKES $' + fine + ' FOR THE ARREST. YOU ARE FREE.', 4);
+    const opts = ['LEAVE THE PRECINCT'];
+    if (RPOL.evidence) opts.push('GO TO THE EVIDENCE ROOM');
+    Object.assign(yMenu, { open: true, mode: 'menu', sel: 0, li: 0, lines: [], title: 'THE PRECINCT', speaker: 'DESK SERGEANT', face: null, done: null,
+      opts, onPick: (o) => { if (o === 'LEAVE THE PRECINCT') ARR.leaveReq = true; else say('THE EVIDENCE ROOM IS AT THE BACK OF THE PRECINCT. UPSTAIRS.', 5); } });
+  }
+  // the handcuffs and the ARRESTED card, drawn on the screen
+  function arrestDraw(canvas) {
+    if (!ARR.on || !canvas) return;
+    ctx = canvas.getContext('2d');
+    const dpr = canvas.width / W;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    let black = 0;
+    if (ARR.phase === 'fade') black = clamp(ARR.t / ARR_FADE, 0, 1);
+    if (ARR.phase === 'station') black = clamp(1 - ARR.t / ARR_FADE, 0, 1);
+    if (black > 0) { ctx.fillStyle = 'rgba(0,0,0,' + black + ')'; ctx.fillRect(0, 0, W, H); }
+    if (ARR.phase === 'ride') {   // the siren, red and blue, and where he is going
+      const pulse = (Math.sin(ARR.t * 9) + 1) / 2;
+      ctx.fillStyle = pulse > 0.5 ? 'rgba(255,40,60,0.10)' : 'rgba(60,120,255,0.10)'; ctx.fillRect(0, 0, W, H);
+      ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(W / 2 - 230, 196, 460, 30);
+      ctx.fillStyle = '#f0e6c8'; ctx.fillText('IN THE BACK OF THE CAR · TO THE PRECINCT', W / 2, 217);
+    }
+    if (ARR.phase === 'title') {
+      const k = clamp(ARR.t / ARR_TITLE, 0, 1), a = Math.sin(Math.PI * k);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, H / 2 - 56, W, 112);
+      ctx.font = 'bold 64px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#ff5a4a';
+      ctx.fillText('ARRESTED', W / 2, H / 2 + 22);
+      ctx.globalAlpha = 1;
+    }
+    ctx.textAlign = 'left';
+  }
+  /* LAYER 730: THE TV (Donny). The screens in the show: the death cards (the next morning, with the story), the winner pack (the
+     ads and the runners who have won), the host and the TV girl on the news, and the 8 am update. The picture sits above a box of
+     text that types out like a caption. The screen has the football replay look (scanlines, a tracking band, snow) and the C.A.N.
+     logo in the bottom corner. A press of A (or Enter or Space) finishes the text; a second press closes the scene. If nobody
+     presses, it closes itself after TV_HOLD seconds. Scenes queue, with a burst of static between them. */
+  const TV = { on: false, gap: 0, next: null, pic: null, full: '', tag: '', after: null, t: 0, shown: 0, done: false, hold: 0, queue: [] };
+  const TV_HOLD = 20, TV_CPS = 40, TV_GAP = 0.6, TV_LOGO = 72;
+  const TV_PIC = { x: 64, y: 16, w: 832, h: 340 }, TV_BOX = { x: 64, y: 372, w: 760, h: 128 };
+  const TV_ART = {};   // the pictures as they are, with no keying: a card keeps every colour it has
+  function loadTV(key, path) {
+    const i = new Image();
+    i.onload = () => { TV_ART[key] = i; };
+    i.onerror = () => {};
+    i.src = (window.ASSET_DATA && window.ASSET_DATA[path]) || A(path);
+  }
+  for (let k = 1; k <= 4; k++) loadTV('card_death_' + k, 'cards/cards_death/death_card_0' + k + '.png');
+  for (let k = 1; k <= 6; k++) loadTV('card_win_' + k, 'cards/cards_winner/winner_card_0' + k + '.png');
+  for (let k = 1; k <= 6; k++) loadTV('tv_host_' + k, 'tv/host_mood_0' + k + '.png');
+  for (let k = 1; k <= 6; k++) loadTV('tv_girl_' + k, 'tv/tvgirl_mood_0' + k + '.png');
+  loadTV('tv_cohost', 'tv/cohost_front_bun.png');
+  loadTV('tv_logo', 'tv/logo_can.png');
+  // a scene: its picture (a key of TV_ART), its lines (a string, or an array of lines), what runs after it, and the tag in the corner
+  function tvPlay(pic, lines, after, tag) {
+    const s = { pic, full: Array.isArray(lines) ? lines.join('\n') : String(lines || ''), after: after || null, tag: tag || 'ON AIR' };
+    if (TV.on) TV.queue.push(s); else tvStart(s);
+  }
+  function tvStart(s) {
+    Object.assign(TV, { on: true, gap: 0, next: null, pic: s.pic, full: s.full, after: s.after, tag: s.tag, t: 0, shown: 0, done: false, hold: TV_HOLD });
+  }
+  // the scene is over: the next one in the queue comes after a burst of static, then the callback of this one runs
+  function tvEnd() {
+    const after = TV.after, nx = TV.queue.shift() || null;
+    Object.assign(TV, { on: !!nx, gap: nx ? TV_GAP : 0, next: nx, pic: null, full: '', after: null, tag: '', t: 0, shown: 0, done: false, hold: 0 });
+    if (after) after();
+  }
+  // every frame: the typing, the hold, and the static between scenes
+  function tvTick(dt) {
+    if (!TV.on) return;
+    if (TV.gap > 0) { TV.gap -= dt; if (TV.gap <= 0) { const s = TV.next; if (s) tvStart(s); else tvEnd(); } return; }
+    TV.t += dt;
+    if (!TV.done) {
+      TV.shown = Math.min(TV.full.length, Math.floor(TV.t * TV_CPS));
+      if (TV.shown >= TV.full.length) { TV.shown = TV.full.length; TV.done = true; TV.hold = TV_HOLD; }
+    } else {
+      TV.hold -= dt;
+      if (TV.hold <= 0) tvEnd();
+    }
+  }
+  // A, Enter or Space: the text is finished at once; a second press closes the scene
+  function tvKey() {
+    if (!TV.on || TV.gap > 0) return;
+    if (!TV.done) { TV.shown = TV.full.length; TV.done = true; TV.hold = TV_HOLD; return; }
+    tvEnd();
+  }
+  // the text in rows that fit the box; when there are too many, the caption rolls up and the newest rows stay
+  function tvRows(g, text, maxW, maxRows) {
+    const rows = [];
+    for (const para of text.split('\n')) {
+      let line = '';
+      for (const w of para.split(' ')) {
+        const tryL = line ? line + ' ' + w : w;
+        if (line && g.measureText(tryL).width > maxW) { rows.push(line); line = w; } else line = tryL;
+      }
+      rows.push(line);
+    }
+    return rows.slice(-maxRows);
+  }
+  // the screen: the picture, the caption, the replay look, and the C.A.N. logo last, in the bottom corner
+  // the TV is drawn on a layer of its own, over the whole screen: the HUD and the menus sit under it, and it is placed over the game canvas
+  let tvLayer = null;
+  function tvLayerFor(canvas) {
+    if (!tvLayer) { tvLayer = document.createElement('canvas'); tvLayer.style.cssText = 'position:fixed;pointer-events:none;z-index:1000;display:none'; document.body.appendChild(tvLayer); }
+    const r = canvas.getBoundingClientRect();
+    tvLayer.style.left = r.left + 'px'; tvLayer.style.top = r.top + 'px'; tvLayer.style.width = r.width + 'px'; tvLayer.style.height = r.height + 'px';
+    if (tvLayer.width !== canvas.width) tvLayer.width = canvas.width;
+    if (tvLayer.height !== canvas.height) tvLayer.height = canvas.height;
+    tvLayer.style.display = 'block';
+    return tvLayer;
+  }
+  function tvHide() { if (tvLayer) tvLayer.style.display = 'none'; }
+  // the runner is switched off in the middle of a scene: the scene is taken off the screen, and the queue with it
+  function tvStop() { TV.on = false; TV.gap = 0; TV.next = null; TV.queue = []; TV.after = null; tvHide(); }
+  function tvDraw(canvas) {
+    if (!canvas) return;
+    if (!TV.on) { tvHide(); return; }
+    const cv = tvLayerFor(canvas), g = cv.getContext('2d');
+    const dpr = cv.width / W, t = performance.now() / 1000, gap = TV.gap > 0;
+    g.save(); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+    if (!gap && TV.pic) {
+      const pic = TV_ART[TV.pic];
+      if (pic && pic.width) {
+        const s = Math.min(TV_PIC.w / pic.width, TV_PIC.h / pic.height), dw = pic.width * s, dh = pic.height * s;
+        g.drawImage(pic, TV_PIC.x + (TV_PIC.w - dw) / 2, TV_PIC.y + (TV_PIC.h - dh) / 2, dw, dh);
+      } else {
+        g.fillStyle = '#161616'; g.fillRect(TV_PIC.x, TV_PIC.y, TV_PIC.w, TV_PIC.h);
+        g.font = 'bold 16px monospace'; g.textAlign = 'center'; g.fillStyle = '#777'; g.fillText('NO PICTURE', W / 2, TV_PIC.y + TV_PIC.h / 2 + 6);
+      }
+      g.fillStyle = 'rgba(0,0,0,.85)'; g.fillRect(TV_BOX.x, TV_BOX.y, TV_BOX.w, TV_BOX.h);
+      g.strokeStyle = 'rgba(240,230,200,.45)'; g.lineWidth = 1; g.strokeRect(TV_BOX.x + .5, TV_BOX.y + .5, TV_BOX.w - 1, TV_BOX.h - 1);
+      g.font = 'bold 18px monospace'; g.textAlign = 'left'; g.fillStyle = '#f4efe0';
+      const rows = tvRows(g, TV.full.slice(0, TV.shown), TV_BOX.w - 36, 5);
+      rows.forEach((r, i) => g.fillText(r, TV_BOX.x + 18, TV_BOX.y + 28 + i * 22));
+      if (!TV.done && Math.floor(t * 2) % 2 === 0) {   // the cursor of the typing
+        const last = rows.length ? rows[rows.length - 1] : '', row = Math.max(0, rows.length - 1);
+        g.fillRect(TV_BOX.x + 18 + g.measureText(last).width + 3, TV_BOX.y + 28 + row * 22 - 14, 10, 16);
+      }
+    }
+    if (gap) { g.fillStyle = 'rgba(255,255,255,.55)'; for (let i = 0; i < 400; i++) g.fillRect(Math.random() * W, Math.random() * H, 2, 1.5); }   // the static between two scenes
+    // the replay look, as the football replay has it: scanlines, a tracking band, and snow
+    g.fillStyle = 'rgba(0,0,0,.2)'; for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1);
+    const band = (t * 140) % (H + 40) - 20;
+    g.fillStyle = 'rgba(255,255,255,.10)'; g.fillRect(0, band, W, 14);
+    g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(0, band + 16, W, 3);
+    if (!gap) {
+      g.fillStyle = 'rgba(255,255,255,.35)'; for (let i = 0; i < 70; i++) g.fillRect(Math.random() * W, Math.random() * H, 1.5, 1);
+      g.font = '700 13px monospace'; g.textAlign = 'left'; g.fillStyle = 'rgba(255,40,40,.85)';
+      if (Math.floor(t * 2) % 2 === 0) { g.beginPath(); g.arc(22, 22, 5, 0, 6.3); g.fill(); }
+      g.fillText(TV.tag, 34, 27);
+      if (TV.done) { g.font = 'bold 12px monospace'; g.textAlign = 'right'; g.fillStyle = 'rgba(240,230,200,.8)'; g.fillText('PRESS A TO CLOSE', W - 22, 27); }
+    }
+    const logo = TV_ART.tv_logo;
+    if (logo && logo.width) { g.globalAlpha = 0.9; g.drawImage(logo, W - 84, H - 84, TV_LOGO, TV_LOGO); g.globalAlpha = 1; }
+    g.restore();
+  }
+  // the evidence room: the pistol is bought back here, at half its price
+  function evidenceOK() { return !!(RPOL.evidence && RPOL.evHere); }
+  function evidencePrice() { return Math.round(RPOL_PISTOL / 2); }
+  function evidenceSub() { return 'YOUR LASER PISTOL · $' + evidencePrice(); }
+  function evidenceItems() { return RPOL.evidence ? [{ label: 'LASER PISTOL', sub: 'BUY BACK · $' + evidencePrice(), id: 'ev:pistol' }] : []; }
+  function buyBack(id) {
+    const p = RPOL.evidence;
+    if (!p || id !== 'pistol') return;
+    const price = evidencePrice();
+    if (runnerCash < price) { say('NOT ENOUGH CASH. THE PISTOL IS $' + price + '.', 3); return; }
+    moneyDelta -= price; runnerCash -= price;
+    LASER.has = true; LASER.drawn = false; LASER.mode = p.mode; LASER.locked = p.locked; LASER.chip = p.chip;
+    RPOL.evidence = null; say('YOUR LASER PISTOL IS BACK. $' + price + '.', 4);
+  }
+
   function update(dt) {
     mateTick(dt);
+    teamDriveTick(dt);   // LAYER 726
+    hotwireTick(dt);     // LAYER 727
+    arrestTick(dt);      // LAYER 729: the arrest, the ride, the desk
+    tvTick(dt);          // LAYER 730: the TV scenes
     turretTick(dt);   // LAYER 709: the roof guns
     canTick(dt);   // LAYER 680: the C.A.N. drone
     const pad = readPad();
@@ -15516,7 +16043,7 @@ const RUNNER_API = (function () {
     if (pad.lb && !padPrev.lb) pend.target = true;       // LAYER 683: LB locks the aim on the nearest target, again lets go
     if (pad.rb && !padPrev.rb) pend.fire = true;         // LAYER 683: RB shoots with the pistol; without it, RB punches (the main pad poll)
     padPrev = { a: pad.a, b: pad.b, xb: pad.xb, yb: pad.yb, rb: pad.rb, lb: pad.lb, r3: pad.r3 };
-    RUN_SNEAK = walker.on && pad.lt > 0.5 && !PMB.inside;   // LAYER 717: hold LT (L2) on foot to sneak. L3 no longer does anything.
+    RUN_SNEAK = walker.on && (pad.lt > 0.5 || !!keys.Control) && !PMB.inside;   // LAYER 717: hold LT (L2) on foot to sneak. LAYER 721: hold Control on the keyboard too.
     coverTick(dt);
     cycleCooldown -= dt; msgT -= dt;
     if (pend.land) { pend.land = false; if (!walker.on) toggleLand(); else say('GET IN THE CAR FIRST'); }
@@ -15880,6 +16407,8 @@ const RUNNER_API = (function () {
     piece(LX, RX, -M, HIP_Y, 0, 0, 1);                              // body, above the hips
   }
   function drawWalker(x, y) {
+    if (ARR.on && ARR.phase === 'ride') return;        // LAYER 729: in the back of the car, out of sight
+    if (ARR.on) drawBadgeIcon(img.cuffs, x, y - 44 / dZ, 26 / dZ);   // LAYER 729: the handcuffs, over his head, until he is released
     if (lying && sleepDown) { drawLying(); return; }   // LAYER 692: head out of the bag, no body
     const bk = RUNNER_LOOK.bodyK || 1;
     // LAYER 628: top-down. The whole figure turns to the way he walks; its front is the bottom edge of the art,
@@ -16427,7 +16956,7 @@ const RUNNER_API = (function () {
     // the shock stays on the car and the drone while it lasts
     if (inc.stage === 'shock') d.alert = 1;
   }
-  load('cuffs', 'badges/cuffs.png');                       // LAYER 658: the game's own handcuff icon (ui/ui_cuffs.png)
+  load('cuffs', 'badges/cuffs.png');                       // LAYER 658: the game's own handcuff icon (runner/badges/cuffs.png)
   load('cop_air_stand', 'cops/cop_air_suit_keyed.png');    // LAYER 658: the air cop, uncut, stands by the cruiser
   // LAYER 656: the badges and the cuffs over an arrest. Drawn in screen pixels through dZ, like the scan labels.
   function drawBadgeIcon(im, x, y, w) {
@@ -17425,6 +17954,15 @@ const RUNNER_API = (function () {
     for (const m of mates) {
       if (m.stunT > 0) { m.stunT = Math.max(0, m.stunT - dt); continue; }
       if (m.companion) { companionTick(m, dt, now); continue; }   // LAYER 705: the partner
+      if (m.order) {   // LAYER 726: he jogs to the car to drive it
+        const c = teamCarV;
+        if (!c) { m.order = null; continue; }
+        const dx = c.x - m.x, dy = c.y - m.y, L = Math.hypot(dx, dy);
+        if (L < 60) boardTeamCar(m);
+        else { const s = Math.min(L, MATE_SPD * TEAM_JOG * dt); m.x += dx / L * s; m.y += dy / L * s; m.heading = Math.atan2(dy, dx); m.step += dt * 13; }
+        continue;
+      }
+      if (m.driving) { if (teamCarV) { m.x = teamCarV.x; m.y = teamCarV.y; } continue; }   // LAYER 726: at the wheel, he is the car
       m.cd = Math.max(0, m.cd - dt);
       const dp = Math.hypot(walker.x - m.x, walker.y - m.y);
       const seen = !m.friend && walker.on && !PMB.inside && dp < MATE_SIGHT;
@@ -17612,6 +18150,7 @@ const RUNNER_API = (function () {
       team: { x: cx, y: cy - h / 2, w, h, car: 'car_cars_39e0f112_1' },   // the teammate's car, parked
       you: { x: cx, y: cy + h / 2, w, h, car: null },                      // the runner's spot
     };
+    if (!teamCarV) teamCarV = { home: { x: lotSpots.team.x, y: lotSpots.team.y }, x: lotSpots.team.x, y: lotSpots.team.y, z: 0, heading: Math.PI, speed: 0, lean: 0, mode: 'ground', sprite: CAR_FILES.indexOf('cars_39e0f112_1') };   // LAYER 723
   }
   function lotSpotAt(x, y) {
     if (!lotSpots) return null;
@@ -17645,7 +18184,7 @@ const RUNNER_API = (function () {
     c.fillStyle = '#ffd23a'; c.font = 'bold 13px monospace'; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.fillText("TEAMMATE'S", L.team.x, L.box.y + 14); c.fillText('YOUR SPOT', L.you.x, L.box.y + L.box.h - 14);
     c.restore();
-    if (L.team.car) drawParkedCar(c, L.team.car, L.team.x, L.team.y, Math.PI);
+    if (L.team.car && !teamCarV) drawParkedCar(c, L.team.car, L.team.x, L.team.y, Math.PI);
   }
   /* LAYER 705: THE STORY ROUTE. The partner is rescued at the hideout (the house): he becomes the companion, walks with you, and
      fights whoever comes at you. Lying down on the bed roll and sleeping to midnight starts the mission for the doctor: go to
@@ -18468,7 +19007,7 @@ const RUNNER_API = (function () {
     if (outdoors && cam && !PMB.inside) {
       c.save(); c.translate(W / 2, H / 2); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y);
       for (const h of hunters) drawHunter(c, h);
-      for (const m of mates) drawMate(c, m);   // LAYER 679: the teammates
+      for (const m of mates) if (!m.driving) drawMate(c, m);   // LAYER 679: the teammates (LAYER 726: not the one at the wheel)
       for (const m of informants) drawMate(c, m);   // LAYER 705: the people who may know the doctor
       rjDrawWorld(c, now);   // LAYER 707: the job givers (gold !), the job's contacts and its spot
       if (RUN_ON) drawTurrets(c);   // LAYER 709: the roof guns on the Pheromone
@@ -18886,7 +19425,8 @@ const RUNNER_API = (function () {
        comes down when he really slows (more than 12% under the peak) -- a bump, a turn or a dip in speed no longer makes it pump up and down. */
     /* Every engine winds up with the throttle and holds at the top; see REVS. */
     const bn = clamp(Math.abs(car.speed || 0) / 470, 0, 1);
-    if (car.mode !== 'landed' || Math.abs(car.speed) > 10) want.bike = Math.max(want.bike, loud(car.x, car.y));
+    const groundCar = !!(car && (car === ownCar || car === teamCarV));   // a car on the road: its engine is the street loop below, not the bike's
+    if (!groundCar && (car.mode !== 'landed' || Math.abs(car.speed) > 10)) want.bike = Math.max(want.bike, loud(car.x, car.y));
     const tops = { bike: bn, truck: 0, car: 0, sports: 0, muscle: 0 };
     for (const f of fliers) {
       if (f.mode === 'rest') continue;
@@ -18905,6 +19445,10 @@ const RUNNER_API = (function () {
       if (!sk) continue;
       const l = loud(v.x, v.y);
       if (l > sWant[sk]) { sWant[sk] = l; sTop[sk] = clamp(sp / STREET_TOP, 0, 1); }
+    }
+    if (groundCar) {   // the car you are driving (or the team car): its engine, by its make, idling even at rest. The hover loop of its class plays it.
+      const gk = streetClass({ k: CAR_FILES[car.sprite] }) || 'car';
+      want[gk] = Math.max(want[gk], 0.6); tops[gk] = Math.max(tops[gk], clamp(Math.abs(car.speed || 0) / FLIER_TOP, 0, 1));
     }
     for (const k of Object.keys(STREET_SND)) {
       const r = revFollow(REVS['st_' + k], sTop[k]);
@@ -19164,10 +19708,11 @@ const RUNNER_API = (function () {
 
   window.addEventListener('keydown', (e) => {
     if (e.target && e.target.tagName === 'INPUT') return;   // typing a name in the builder
+    if (TV.on) { if (e.key === 'a' || e.key === 'A' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tvKey(); } return; }   // LAYER 730: the TV scene takes these keys
     keys[e.key] = true;
     if ((e.key === 'g' || e.key === 'G') && !RUN_ON) dismountWanted = true;
     if (!RUN_ON) return;
-    if ((e.key === 'c' || e.key === 'C') && cycleCooldown <= 0) { car.sprite = (car.sprite + 1) % CAR_FILES.length; cycleCooldown = 0.2; }
+    if ((e.key === 'c' || e.key === 'C') && cycleCooldown <= 0 && !parkedHover) { car.sprite = (car.sprite + 1) % CAR_FILES.length; cycleCooldown = 0.2; }
     if (e.key === 'l' || e.key === 'L') pend.land = true;
     if (e.key === 'e' || e.key === 'E') pend.exit = true;
     if (e.key === 'r' || e.key === 'R') resetRunner();
@@ -19176,12 +19721,17 @@ const RUNNER_API = (function () {
   window.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
   return {
+    teamCarOK, teamCarSub, teamOrderItems, teamOrder,   // LAYER 726: the TEAM CAR wheel
+    policeFrame, takeMoneyDelta, takeBook, takeAlarm, policeArrest, evidenceOK, evidenceSub, evidenceItems, buyBack,   // LAYER 728: the arrest, the alarm, the evidence room
     dbg: () => ({ hunt: huntDbg(), look: { bodyK: RUNNER_LOOK.bodyK, body: RUNNER_LOOK.body, suit: RUNNER_LOOK.suit }, bodyArt: !!bodySprite(), bodyKeys: Object.keys(img).filter((k) => /^body_/.test(k)), walkerOn: walker.on, mode: car.mode, carX: Math.round(car.x), carY: Math.round(car.y), walkX: Math.round(walker.x), walkY: Math.round(walker.y), dZ, drones: drones.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y), flying: d.flying })), can: canDrones.map((d) => ({ x: Math.round(d.x), y: Math.round(d.y), flying: d.flying, tail: d.tail, inRing: d.inRing, count: +d.count.toFixed(2), outT: +d.outT.toFixed(2), locked: d.locked, line: d.line, px: Math.round(playerXY().x), py: Math.round(playerXY().y) })), fliers: fliers.length, incidents: incidents.length, drawn: dStat, droneArt: !!img.drone, bikeArt: !!img['car_cars_43a7a337_1'], airtowArt: !!img.airtow }),
     isOn: () => RUN_ON,
     charSheet: () => charSheet(), spendStat: (k) => spendStat(k), inventory: () => runInventory(), toggleLog: () => { logOpen = !logOpen; }, sneaking: () => RUN_SNEAK,
     setArt: (a) => { ART = a || {}; },
+    setAudio: (get) => { audioGet = get; },
+    arrestBooked, arrestHold, rideCam, takeLeave, arrestDraw,
+    tvPlay, tvOn: () => TV.on, tvDraw,   // LAYER 730: the TV scenes
     setCivs: (c) => { CIV = c || null; },
-    setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); startSong(); } else { stopSong(); lobby = false; } { const G0 = (window.__ironlion = window.__ironlion || {}); G0.runOn698 = RUN_ON; if (G0.hqSync) G0.hqSync(RUN_ON); } },   // LAYER 698: the headquarters follow Runner Mode
+    setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); startSong(); } else { stopSong(); lobby = false; tvStop(); } { const G0 = (window.__ironlion = window.__ironlion || {}); G0.runOn698 = RUN_ON; if (G0.hqSync) G0.hqSync(RUN_ON); } },   // LAYER 698: the headquarters follow Runner Mode
     lockCam,
     keepOut, canSpawn, windTrash,
     overlay,
@@ -21009,10 +21559,12 @@ export default function IronLionLayer004() {
       // in a car with your people: the DRIVER first, with his face (layer 517)
       const dc = !RW && G.driverCard && G.driverCard(); if (dc) list.push({ label: "DRIVER", sub: dc.name + (dc.driving ? " \u00b7 driving" : " \u00b7 orders"), icon: dc.face });
       for (const l of live()) if (A[l] && l !== "E" && l !== "DRIVER" && (!RW || RUNNER_WHEEL.indexOf(l) >= 0)) list.push({ label: l, sub: A[l].sub || "" });
+      if (RW && RUNNER_API.teamCarOK()) list.push({ label: "TEAM CAR", sub: RUNNER_API.teamCarSub() });   // LAYER 726: your teammate drives it
+      if (RW && RUNNER_API.evidenceOK()) list.push({ label: "EVIDENCE ROOM", sub: RUNNER_API.evidenceSub() });   // LAYER 728: his pistol is in evidence, and he is in the room
       list.push({ label: "FAST TRAVEL", sub: "airport \u00b7 train \u00b7 port \u00b7 home", icon: PD_ART.ac_fasttravel });     // always there (layer 514)
       const g0w = G.current; if (g0w && g0w.prisonMode && g0w.pescaped) { list.push({ label: "CREW RULES", sub: "who we fight", icon: PD_ART.ac_crewrules }, { label: "SIT-DOWN", sub: g0w.sit ? "set" : "call one", icon: PD_ART.ac_sitdown }); }   // layer 519
       if (!RW && g0w && G.convNear551 && G.convNear551()) { const M = G.convNear551(); list.push({ label: M.roofDown ? "ROOF UP" : "ROOF DOWN", sub: "the convertible", id: "conv:roof" }); }      // layer 551
-      list.push(RW ? { label: "INVENTORY", sub: "your bag and pockets", icon: PD_ART.ac_weapons } : { label: "WEAPONS", sub: "the weapon wheel", icon: PD_ART.ac_weapons });     // layer 520: a wheel of its own
+      list.push(RW ? { label: "INVENTORY", sub: "your bag and pockets", icon: PD_ART.ac_pockets } : { label: "WEAPONS", sub: "the weapon wheel", icon: PD_ART.ac_weapons });     // layer 520: a wheel of its own
       if (g0w && g0w.prisonMode) list.push({ label: "POCKETS", sub: "what's on you", icon: PD_ART.ac_pockets });
       setPadWheel({ kind: "action", title: "ACTION WHEEL", items: list.filter((o, i, A) => A.findIndex((q) => q.label === o.label) === i) });
       const gg = G.current; if (gg && !gg.paused) { gg.paused = true; gg.wheelPause = 1; } };
@@ -21033,6 +21585,8 @@ export default function IronLionLayer004() {
     });
     G.onWheelClose = () => RUNNER_API.sleepWheelClosed();   // LAYER 692: a wheel closed with no pick gets him up
     G.wheelPick = (l) => { G.wheelClose(); if (l === "DRIVER") { setTimeout(() => G.driverOpen && G.driverOpen(), 30); return; }
+      if (l === "TEAM CAR") { setTimeout(() => G.radialOpen({ kind: "teamcar", title: "TEAM CAR", items: RUNNER_API.teamOrderItems() }), 30); return; }   // LAYER 726
+      if (l === "EVIDENCE ROOM") { setTimeout(() => G.radialOpen({ kind: "evidence", title: "EVIDENCE ROOM", items: RUNNER_API.evidenceItems() }), 30); return; }   // LAYER 728
       if (l === "WEAPONS" || l === "INVENTORY") { setTimeout(() => G.weaponWheel && G.weaponWheel(), 30); return; }
       if (l === "POCKETS") { setTimeout(() => G.pocketsWheel && G.pocketsWheel(), 30); return; }
       if (l === "CREW RULES" || l === "SIT-DOWN") { setTimeout(() => { const gg = G.current; if (l === "SIT-DOWN") gg.sitView = "gang"; G.pickOpen && G.pickOpen(l === "CREW RULES" ? "crewrules" : "sitcall"); }, 30); return; } if (l === "FAST TRAVEL") { setTimeout(() => G.hubOpen && G.hubOpen(), 30); return; } setTimeout(() => tap([l]), 30); };
@@ -26111,6 +26665,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.pickOpen = (kind) => { if (!(kind || "").startsWith("gomez:")) g.gzSaid = null;
       if (!(kind || "").startsWith("det:")) g.detSaid = null; g.pickOpen = kind; setHud((h) => ({ ...h, pick: pickPanel(kind) })); };
     G.pickFn = (id) => {
+      if (id.startsWith("tc:")) { RUNNER_API.teamOrder(id.slice(3)); return; }   // LAYER 726: the TEAM CAR places
+      if (id.startsWith("ev:")) { RUNNER_API.buyBack(id.slice(3)); return; }   // LAYER 728: buy a thing back from the evidence room
       if (id.startsWith("laser:")) { RUNNER_API.laserPick(id.slice(6)); return; }   // LAYER 670
       if (id.startsWith("gear:")) { RUNNER_API.gearPick(id.slice(5)); return; }   // LAYER 677: the pack and the gas mask
       if (id.startsWith("cat:")) { G.weaponCat(id.slice(4)); return; }   // LAYER 678: a wheel category opens its own ring
@@ -40010,7 +40566,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        loud enough that being seen is beside the point -- a gunshot carries. */
     function witnessed(x, y, level, always) {
       if (g.detMode) return;
-      if (RUNNER_API.isOn() && !g.title) { for (const p of g.peds || []) if (Math.hypot(p.x - x, p.y - y) < 320) p.witT = 2.5; return; }   // LAYER 614: no police in Runner Mode; the witnesses say so            // he IS the police
+      if (RUNNER_API.isOn() && !g.title) { for (const p of g.peds || []) if (Math.hypot(p.x - x, p.y - y) < 320) p.witT = 2.5; }   // the witnesses say so; LAYER 728: the police are in Runner Mode now, so the call goes on
       if (g.jamUntil > (g.pday || 0) * 1440 + (g.clock || 0) && Math.random() < 0.6) return;     // the hacker: cameras dark, calls slow (layer 501)
       if (g.inside && !always) return;
       if (!always && !copsWatching(x, y)) { radioCall537(x, y, level); return; }        // unseen: maybe somebody calls it in (layer 537)
@@ -40096,6 +40652,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.arrestPlayerFn = () => arrestPlayer();   // test hook
     function arrestPlayer() {
       if (g.arrested) return;
+      /* LAYER 728: in Runner Mode a cop's arrest is the show's. He is released after the cash and the pistol (RUNNER_API.policeArrest):
+         no jail, and not half his cash. The police are sent home at the start of the next frame, not here, because this can be
+         called in the middle of the police loop, and that loop must not find its list cleared under it. */
+      if (RUNNER_API.isOn() && !g.prisonMode) { RUNNER_API.policeArrest(); g.runnerCopsOut = 1; return; }
       if (g.story) setTimeout(() => storyFail("THEY TOOK YOU IN. The job's blown -- everybody on it scattered.", "MISSION FAILED \u00b7 ARRESTED"), 0);      // layer 545
       /* AN ESCAPED CONVICT TAKEN is not booked and released: he goes back to Kestrel, straight to the
          SHU for 72 hours, and his crew hold the scrapyard without him. */
@@ -56830,9 +57390,43 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       raf = requestAnimationFrame(frame);
       try { RUNNER_API.setPeople(g.peds, Array.isArray(g.crews) ? g.crews.map((c) => (c && c.members) || []) : []);   // LAYER 683: everyone the aim can pick
         { const rc = RUNNER_API.takeCash(); if (rc && g.p) g.p.cash = (g.p.cash || 0) + rc; }   // LAYER 678: the stash cash
-        if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; } frameBody(now); if (RUNNER_API.isOn() && !g.title) RUNNER_API.hazeTick(!g.inside && !g.sewer); if (RUNNER_API.isOn() && !g.title && g.peds) RUNNER_API.keepYouthOut(g.peds); if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { const hz = RUNNER_API.hazeLevel(); if (hz > 0 && g.p.hp > (g.p.maxHp || 100) * (1 - hz)) g.p.hp = (g.p.maxHp || 100) * (1 - hz); } /* LAYER 648: the haze caps health, like a debuff */ if (RUNNER_API.isOn() && !g.title && RUNNER_API.riding()) { g.grap = null; g.jump = null; g.roof = null; RUNNER_API.keepOut(g.p); } else if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.keepOut(g.p); RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); /* LAYER 669: the hunters' alert and the hover sounds */ if (RUNNER_API.isOn() && !g.title) { const inHosp = !!(g.inside && g.inside.kind === "hospital"); const tg = g.inside ? doorPoint(g.inside) : [g.p.x, g.p.y]; RUNNER_API.hunterTick(tg[0], tg[1], inHosp); RUNNER_API.worldHud(canvasRef.current, g.cam, !g.inside); } else RUNNER_API.hunterReset(); RUNNER_API.hoverSoundTick(RUNNER_API.isOn() && !g.title && !g.inside, g.traffic); RUNNER_API.setVest(!!g.vestHave, !!g.vestOn, (patch) => Object.assign(g, patch));
+        { const md = RUNNER_API.takeMoneyDelta(); if (md && g.p) g.p.cash = Math.max(0, (g.p.cash || 0) + md); }   // LAYER 728: the fine, and what the evidence room takes
+        if (RUNNER_API.takeBook()) {   // LAYER 728: the arrest. The cops take him to the precinct, and he is booked in the lobby, on the lobby's floor
+          const pc = getCell(8, 11), prec = pc && (pc.blds || []).find((q) => q.kind === "precinct");
+          if (prec) {
+            const pls = buildingPlans(prec), lfi = pls.findIndex((pl) => (pl.rooms || []).some((q) => q.k === "pdlobby"));
+            const lob = lfi >= 0 ? pls[lfi].rooms.find((q) => q.k === "pdlobby") : null;
+            const ds = prec.door ? prec.door.side : 2, dp = prec.door ? prec.door.pos : 0.5;
+            const [ix, iy] = lob ? [(lob.x0 + lob.x1) / 2, (lob.y0 + lob.y1) / 2]
+              : ds === 0 ? [prec.x + prec.w * dp, prec.y + 34] : ds === 3 ? [prec.x + 34, prec.y + prec.h * dp]
+              : ds === 1 ? [prec.x + prec.w - 34, prec.y + prec.h * dp] : [prec.x + prec.w * dp, prec.y + prec.h - 34];
+            g.inside = prec; g.floor = lob ? lfi : 0; g.insideT = 1; g.pfolk = null; g.mode = "foot"; g.roof = null; g.grap = null; g.jump = null;
+            g.p.x = ix; g.p.y = iy; g.p.vx = g.p.vy = 0; g.cam.x = ix; g.cam.y = iy;
+            RUNNER_API.arrestBooked(ix, iy);   // LAYER 729: he stands at the desk here until the sergeant lets him go
+          }
+        }
+        if (RUNNER_API.takeLeave()) {   // LAYER 729: released, and he walks out of the precinct
+          const pc = getCell(8, 11), prec = pc && (pc.blds || []).find((q) => q.kind === "precinct");
+          if (prec) {
+            const ds = prec.door ? prec.door.side : 2, dp = prec.door ? prec.door.pos : 0.5;
+            const [ox, oy] = ds === 0 ? [prec.x + prec.w * dp, prec.y - 40] : ds === 3 ? [prec.x - 40, prec.y + prec.h * dp]
+              : ds === 1 ? [prec.x + prec.w + 40, prec.y + prec.h * dp] : [prec.x + prec.w * dp, prec.y + prec.h + 40];
+            g.inside = null; g.floor = 0; g.insideT = 0; g.mode = "foot"; g.roof = null; g.grap = null; g.jump = null;
+            g.p.x = ox; g.p.y = oy; g.p.vx = g.p.vy = 0; g.cam.x = ox; g.cam.y = oy;
+          }
+        }
+        { const al = RUNNER_API.takeAlarm(); if (al) witnessed(al.x, al.y, 1, true); }   // LAYER 728: the car alarm is a crime the city sees, so the game's own police get the call
+        RUNNER_API.policeFrame({ inside: !!g.inside, ev: (() => {   // LAYER 728: the evidence room in the precinct (on whichever floor it is), and whether he is in it
+          const pls = g.inside && g.inside.kind === "precinct" ? buildingPlans(g.inside) : [];
+          let hit = null;
+          pls.forEach((pl, fi) => { if (!hit) { const r = (pl.rooms || []).find((q) => q.k === "evidence"); if (r) hit = { r, fi }; } });
+          if (!hit) return null;
+          const x = (hit.r.x0 + hit.r.x1) / 2, y = (hit.r.y0 + hit.r.y1) / 2;
+          return { x, y, here: g.floor === hit.fi && Math.hypot(g.p.x - x, g.p.y - y) < 120 };
+        })() });
+        if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; if (g.runnerCopsOut) { g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; g.detectives = null; g.runnerCopsOut = 0; } } frameBody(now); RUNNER_API.arrestHold(g.p); if (RUNNER_API.isOn() && !g.title) RUNNER_API.hazeTick(!g.inside && !g.sewer); if (RUNNER_API.isOn() && !g.title && g.peds) RUNNER_API.keepYouthOut(g.peds); if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { const hz = RUNNER_API.hazeLevel(); if (hz > 0 && g.p.hp > (g.p.maxHp || 100) * (1 - hz)) g.p.hp = (g.p.maxHp || 100) * (1 - hz); } /* LAYER 648: the haze caps health, like a debuff */ if (RUNNER_API.isOn() && !g.title && RUNNER_API.riding()) { g.grap = null; g.jump = null; g.roof = null; RUNNER_API.keepOut(g.p); } else if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.keepOut(g.p); RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); /* LAYER 669: the hunters' alert and the hover sounds */ if (RUNNER_API.isOn() && !g.title) { const inHosp = !!(g.inside && g.inside.kind === "hospital"); const tg = g.inside ? doorPoint(g.inside) : [g.p.x, g.p.y]; RUNNER_API.hunterTick(tg[0], tg[1], inHosp); RUNNER_API.worldHud(canvasRef.current, g.cam, !g.inside); } else RUNNER_API.hunterReset(); RUNNER_API.hoverSoundTick(RUNNER_API.isOn() && !g.title && !g.inside, g.traffic); RUNNER_API.setVest(!!g.vestHave, !!g.vestOn, (patch) => Object.assign(g, patch));
         RUNNER_API.setPhone(!!g.phoneOwned, () => setTimeout(() => { if (G.phoneWheel) G.phoneWheel(); }, 60));
-        RUNNER_API.setLaserChip(!!g.laserChip); RUNNER_API.setCash(g.p ? (g.p.cash || 0) : 0); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
+        RUNNER_API.setLaserChip(!!g.laserChip); RUNNER_API.setCash(g.p ? (g.p.cash || 0) : 0); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setAudio(() => audio.current); { const rc = RUNNER_API.rideCam(); if (rc) { g.cam.x = rc.x; g.cam.y = rc.y; } } RUNNER_API.arrestDraw(canvasRef.current); RUNNER_API.tvDraw(canvasRef.current); /* LAYER 730: the TV, over everything */ RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
@@ -57092,7 +57686,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       resolveTrafficOverlap();
       updateItems(dt, g.cam.x, g.cam.y);
-      if (!RUNNER_API.isOn()) updatePolice(dt);
+      updatePolice(dt);   // LAYER 728: the police run in Runner Mode too
       stepCopChase(dt); solidCars(); trafficSeparate(); stepBizEcon(dt); stepCover(dt); stepArtFolk(dt); stepBank(dt); unionTerm(); airport();      // the police chase you; parked cars, blocks and cruisers are solid (layer 483)
       updateDetectives(dt);
       updateWeather(dt);
