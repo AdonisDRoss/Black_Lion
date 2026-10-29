@@ -1,0 +1,51 @@
+{
+  "canvas": [
+    113,
+    142
+  ],
+  "body_offset_y": 10,
+  "pieces": {
+    "torso": "surgeon_torso.png",
+    "arm_L": "surgeon_arm_L.png",
+    "arm_R": "surgeon_arm_R.png",
+    "leg_L": "surgeon_leg_L.png",
+    "leg_R": "surgeon_leg_R.png"
+  },
+  "heads": {
+    "bald": "surgeon_head_bald.png",
+    "cap": "surgeon_head_cap.png",
+    "grey_bun": "surgeon_head_grey_bun.png",
+    "grey_knot": "surgeon_head_grey_knot.png"
+  },
+  "draw_order": [
+    "leg_L",
+    "leg_R",
+    "head",
+    "torso",
+    "arm_L",
+    "arm_R"
+  ],
+  "pivots": {
+    "arm_L": [
+      22,
+      24
+    ],
+    "arm_R": [
+      92,
+      24
+    ],
+    "leg_L": [
+      50,
+      98
+    ],
+    "leg_R": [
+      66,
+      98
+    ],
+    "neck": [
+      56,
+      54
+    ]
+  },
+  "note": "Every piece is a full 113 x 142 canvas and stacks at (0,0). Arms turn about the shoulder pivot, legs about the hip pivot, the head about the neck. Pivots are estimates; tune in play."
+}
