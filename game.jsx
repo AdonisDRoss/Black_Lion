@@ -1169,6 +1169,11 @@ for (const k of ["ct_gym", "ct_walkup", "ct_store", "ct_barber", "ct_laundro", "
                  "ct_courthouse", "ct_offices", "ct_chronicle", "ct_policehq", "ct_works",
                  "ct_stadium", "ct_dome", "ct_gates"])
   CITY2[k] = "assets/city/" + k + ".png";
+/* LAYER 698: THE MEGA CORP HEADQUARTERS' ROOF PLATES (claude/hq-buildings-art-prompts.md). Drawn by drawMarks like every
+   other landmark plate. hq_raven_roof is a provisional square pad of the 2:1 photo roof; the photo original sits beside it. */
+CITY2.hq_raven = "assets/hq/hq_raven_roof.png";
+CITY2.hq_halcyon = "assets/hq/hq_halcyon_roof.png";
+CITY2.hq_calloway = "assets/hq/hq_calloway_roof.png";
 /* THE DECO. Fifty-one pieces off the Dice Lair sheets -- sofas, glass tables, deco rugs,
    statues, palms, the poker table, the bar. Numbered in reading order rather than named,
    because naming fifty-one props by eye costs more than it saves and the interior code will
@@ -14725,11 +14730,17 @@ const RUNNER_API = (function () {
   // wide and open, so its head sits lower to cover the neck hole.
   const HEAD_DROP = { average: 0, slim: 0, athletic: 0.02, heavy: 0.14 };
   // LAYER 602: the head is centred on each body's neck hole (share of the body's height), so it covers the hole
-  const HEAD_CY = { slim: 29.5 / 159, athletic: 37.4 / 159, heavy: 17.2 / 159, average: 28.7 / 159, big: 0.0885, female: 0.1833 };   // LAYER 688: female, the neck hole at 158 of the 862 px picture   // LAYER 660: the one body, head centre from its anchor file
+  const HEAD_CY = { slim: 29.5 / 159, athletic: 37.4 / 159, heavy: 17.2 / 159, average: 28.7 / 159, big: 0.0885, female: 0.1833, heavy_b: 0.064 };   // LAYER 688: female, the neck hole at 158 of the 862 px picture   // LAYER 660: the one body, head centre from its anchor file
   // LAYER 603: head width for each body (share of body width). Slim needs a touch more to cover its hole.
-  const HEAD_WF = { slim: 0.40, big: 0.4898, female: 0.48 };   // LAYER 690: 0.42 -> 0.48, so her head keeps its size on the smaller figure   // LAYER 660: head width from the anchor file
+  const HEAD_WF = { slim: 0.40, big: 0.4898, female: 0.48, heavy_b: 0.42 };   // LAYER 690: 0.42 -> 0.48, so her head keeps its size on the smaller figure   // LAYER 660: head width from the anchor file
   const RHEADS = [['male', 'mhead_afro'], ['male', 'mhead_curly'], ['male', 'mhead_mohawk'],
-    ['female', 'head_bun'], ['female', 'head_cap_a'], ['female', 'head_cap_b'], ['female', 'head_curly'], ['female', 'head_swirl']];
+    // LAYER 697: the nine round-1 male heads (the officer cap is police-only, not a runner head)
+    ['male', 'mhead_r1_01_bald_shaved'], ['male', 'mhead_r1_02_buzz_cut'], ['male', 'mhead_r1_03_side_part'], ['male', 'mhead_r1_04_slicked_back'], ['male', 'mhead_r1_05_receding_crop'],
+    ['male', 'mhead_r1_06_flat_top'], ['male', 'mhead_r1_07_swept_back'], ['male', 'mhead_r1_08_curly_short'], ['male', 'mhead_r1_09_combed_over'],
+    ['female', 'head_swirl'],   // LAYER 696: bun, cap A, cap B and curly are out of the female list (Donny struck them out); their files stay in the assets
+    // LAYER 695: eight more female heads from the head sheet (pixie, side bob, shaggy, long wavy, pigtails, top knot, headscarf, beret); the beret has no hair mask, so it takes the skin like the caps
+    ['female', 'head_f_pixie'], ['female', 'head_f_sidebob'], ['female', 'head_f_shaggy'], ['female', 'head_f_wavy'],
+    ['female', 'head_f_pigtails'], ['female', 'head_f_topknot'], ['female', 'head_f_scarf'], ['female', 'head_f_beret']];
   /* LAYER 676: the runner's head list is RHEADS PLUS the top-down heads of the old hunters (heads/head_m_*), since the
      hunters got new skins. The builder and the random look use PHEADS. The L3 scan log and the face tags use the Black
      Lion faces (assets/faces), not these top-down heads. */
@@ -14738,7 +14749,12 @@ const RUNNER_API = (function () {
   // LAYER 690: the hair masks (heads/masks). White where the head is hair, black where it is skin (face, ears, chin). The six
   // heads with hair have one; the two caps do not, so the caps take the skin all over as before.
   const HAIR_MASK_FILES = { mhead_afro: 'male_mhead_afro_hair.png', mhead_curly: 'male_mhead_curly_hair.png', mhead_mohawk: 'male_mhead_mohawk_hair.png',
-    head_bun: 'female_head_bun_hair.png', head_curly: 'female_head_curly_hair.png', head_swirl: 'female_head_swirl_hair.png' };
+    mhead_r1_01_bald_shaved: 'male_mhead_r1_01_bald_shaved_hair.png', mhead_r1_02_buzz_cut: 'male_mhead_r1_02_buzz_cut_hair.png', mhead_r1_03_side_part: 'male_mhead_r1_03_side_part_hair.png',
+    mhead_r1_04_slicked_back: 'male_mhead_r1_04_slicked_back_hair.png', mhead_r1_05_receding_crop: 'male_mhead_r1_05_receding_crop_hair.png', mhead_r1_06_flat_top: 'male_mhead_r1_06_flat_top_hair.png',
+    mhead_r1_07_swept_back: 'male_mhead_r1_07_swept_back_hair.png', mhead_r1_08_curly_short: 'male_mhead_r1_08_curly_short_hair.png', mhead_r1_09_combed_over: 'male_mhead_r1_09_combed_over_hair.png',   // LAYER 697
+    head_swirl: 'female_head_swirl_hair.png',
+    head_f_pixie: 'female_head_f_pixie_hair.png', head_f_sidebob: 'female_head_f_sidebob_hair.png', head_f_shaggy: 'female_head_f_shaggy_hair.png', head_f_wavy: 'female_head_f_wavy_hair.png',
+    head_f_pigtails: 'female_head_f_pigtails_hair.png', head_f_topknot: 'female_head_f_topknot_hair.png', head_f_scarf: 'female_head_f_scarf_hair.png' };   // LAYER 695: the new heads' hair masks (the beret has none)
   const HAIR_MASKS = {};
   for (const nm of Object.keys(HAIR_MASK_FILES)) { const mi = new Image(); mi.onload = () => { HAIR_MASKS[nm] = mi; }; const mp = 'heads/masks/' + HAIR_MASK_FILES[nm]; mi.src = (window.ASSET_DATA && window.ASSET_DATA[mp]) || A(mp); }
   // the hair colours the player can pick (black, dark brown, brown, auburn, red, blonde, platinum, grey) and the skin tones
@@ -14755,7 +14771,7 @@ const RUNNER_API = (function () {
   const sprCache = {};
   // LAYER 598: the build bodies, each on the Lion's 224 x 159 canvas (same scale), arms cut at the elbow.
   // The forearm and hand are drawn in code from the elbow point (E) to the hand point (H), in the skin tone.
-  const BODY_FILES = { slim: 'body/body_slim.png', athletic: 'body/body_athletic.png', heavy: 'body/body_heavy.png', average: 'body/body_average.png', cop_gas: 'body/body_cop_gas.png', big: 'body/runner_body_big_nohead.png', female: 'body/runner_body_female.png' };   // LAYER 657: the two cops, legs and arms cut
+  const BODY_FILES = { slim: 'body/body_slim.png', athletic: 'body/body_athletic.png', heavy: 'body/body_heavy.png', heavy_b: 'body/body_heavy_b.png', average: 'body/body_average.png', cop_gas: 'body/body_cop_gas.png', big: 'body/runner_body_big_nohead.png', female: 'body/runner_body_female.png' };   // LAYER 657: the two cops, legs and arms cut
   for (const k of Object.keys(BODY_FILES)) load('body_' + k, BODY_FILES[k]);
   for (const k of ['torso', 'arm_L', 'arm_R', 'leg_L', 'leg_R']) load('fem_' + k, 'body/fem_' + k + '.png');   // LAYER 688: the female body in five cut pieces
   load('cop_leg_L', 'cops/gas_leg_L.png'); load('cop_leg_R', 'cops/gas_leg_R.png');   // LAYER 660: the cops' cut legs
@@ -14763,7 +14779,7 @@ const RUNNER_API = (function () {
   const RSUITS = ['#6ef0ff', '#ff5ad0', '#ffd23a', '#7dff6a', '#ff7a2a', '#b98cff'];
   const RUNNER_LOOK = { head: 'mhead_curly', suit: '#6ef0ff', body: 'big', bodyK: 1, name: 'RUNNER', stats: null, chosen: false, skin: null, hair: null };   // LAYER 690: hair = the hair colour (null: black)
   const BODY_TYPES = { slim: 1, average: 1, athletic: 1, heavy: 1, big: 1, female: 1 };
-  const BAKED_BODY = { big: 1, female: 1 };   // LAYER 684: the bodies with the legs and arms in the art, drawn whole
+  const BAKED_BODY = { big: 1, female: 1, heavy_b: 1 };   // LAYER 684: the bodies with the legs and arms in the art, drawn whole
   function rollRunnerLook() {
     const h = PHEADS[(Math.random() * PHEADS.length) | 0];
     RUNNER_LOOK.head = h[1];
@@ -14788,25 +14804,70 @@ const RUNNER_API = (function () {
   function handlingOf(index) { return (CAR_META[CAR_FILES[index]] && CAR_META[CAR_FILES[index]].handling) || DEFAULT_HANDLING; }
 
   const keys = {};
-  // the Runner Mode theme: Grain Silo Ghosts, in assets/runner (plays while Runner Mode is on)
-  const SONG_PATHS = ['assets/runner/Grain_Silo_Ghosts.mp3', 'assets/runner/6971a82b-Grain_Silo_Ghosts.mp3'];
-  let song = null, songTry = 0, songArmed = false;
+  /* LAYER 699 (Donny): Runner Mode's world music is a shuffle of two tracks. Each one fades in, plays a random stretch, fades
+     out, and the next pick is random, so a different one can be playing at any time. Grain Silo Ghosts is the Runner Mode theme from before; Midnight In The Sprawl joins it. The
+     fades are on the element's volume, which phones may ignore; the tracks still change on the clock. Each entry is [file, fallback]. */
+  const RUN_SONGS = [
+    ['assets/runner/Grain_Silo_Ghosts.mp3', 'assets/runner/6971a82b-Grain_Silo_Ghosts.mp3'],
+    ['assets/runner/Midnight_In_The_Sprawl.mp3', 'assets/runner/ddcc7e35-Midnight_In_The_Sprawl.mp3'],
+  ];
+  const RUN_VOL = 0.6, RUN_FADE_IN = 3, RUN_FADE_OUT = 3, RUN_HOLD = [45, 120];   // seconds
+  const runEl = RUN_SONGS.map(() => null), runTry = RUN_SONGS.map(() => 0);
+  let runCur = -1, runPhase = 'idle', runT = 0, runHold = 0, runGap = 0, runTick = null, songArmed = false;
+  function runAudio(i) {
+    if (!runEl[i]) {
+      const a = new Audio(RUN_SONGS[i][0]);
+      a.preload = 'auto'; a.volume = 0;
+      a.onerror = () => { runTry[i]++; if (runTry[i] < RUN_SONGS[i].length) { a.src = RUN_SONGS[i][runTry[i]]; a.load(); } };
+      runEl[i] = a;
+    }
+    return runEl[i];
+  }
   // LAYER 597: phones block audio that starts without a tap, so a refused play() is tried again on the next touch or key
   function songGo() {
-    try { if (RUN_ON && song && song.paused) song.play().catch(() => {}); } catch (e) { /* no audio here */ }
+    try { if (RUN_ON && runCur >= 0 && runPhase !== 'gap') { const a = runAudio(runCur); if (a.paused) a.play().catch(() => {}); } } catch (e) { /* no audio here */ }
+  }
+  function runPick() { return Math.floor(Math.random() * RUN_SONGS.length); }   // a plain random pick: the same track can come round twice
+  function runStart(i) {
+    try {
+      const a = runAudio(i);
+      runCur = i; runPhase = 'in'; runT = 0;
+      a.currentTime = 0; a.volume = 0;
+      a.play().catch(() => { songGo(); });
+      runHold = RUN_HOLD[0] + Math.random() * (RUN_HOLD[1] - RUN_HOLD[0]);
+    } catch (e) { /* no audio here */ }
+  }
+  function runStep() {   // every 100 ms while Runner Mode is on
+    if (!RUN_ON || runCur < 0) return;
+    if (runPhase === 'gap') { runT += 0.1; if (runT >= runGap) runStart(runPick()); return; }
+    const a = runAudio(runCur);
+    if (a.paused) return;                                  // waiting on a tap (phones)
+    runT += 0.1;
+    if (runPhase === 'in') { a.volume = RUN_VOL * Math.min(1, runT / RUN_FADE_IN); if (runT >= RUN_FADE_IN) { runPhase = 'hold'; runT = 0; } }
+    else if (runPhase === 'hold') {
+      a.volume = RUN_VOL;
+      const near = a.duration && a.currentTime > a.duration - RUN_FADE_OUT;
+      if (runT >= runHold || a.ended || near) { runPhase = 'out'; runT = 0; }
+    } else if (runPhase === 'out') {
+      a.volume = RUN_VOL * Math.max(0, 1 - runT / RUN_FADE_OUT);
+      if (runT >= RUN_FADE_OUT) { a.pause(); runPhase = 'gap'; runT = 0; runGap = Math.random() * 3; }
+    }
   }
   function startSong() {
     try {
-      if (!song) {
-        song = new Audio(SONG_PATHS[0]);
-        song.loop = true; song.volume = 0.6; song.preload = 'auto';
-        song.onerror = () => { songTry++; if (songTry < SONG_PATHS.length) { song.src = SONG_PATHS[songTry]; song.load(); } };
-      }
-      song.play().catch(() => { songGo(); });
       if (!songArmed) { songArmed = true; ['pointerdown', 'touchend', 'keydown'].forEach((t) => window.addEventListener(t, songGo, { passive: true })); }
+      if (runCur < 0) runStart(runPick());
+      else if (runPhase !== 'gap') { const a = runAudio(runCur); a.play().catch(() => { songGo(); }); }
+      if (!runTick) runTick = setInterval(runStep, 100);
     } catch (e) { /* no audio here */ }
   }
-  function stopSong() { try { if (song) song.pause(); } catch (e) { /* ignore */ } }
+  function stopSong() {
+    try {
+      if (runTick) { clearInterval(runTick); runTick = null; }
+      runEl.forEach((a) => { if (a) a.pause(); });
+      runCur = -1; runPhase = 'idle';
+    } catch (e) { /* ignore */ }
+  }
   // the game's own stop button: G (keyboard) or Y (controller) gets off the bike, outside Runner Mode
   let dismountWanted = false, padYPrev = false;
   function takeDismount() {
@@ -15431,15 +15492,22 @@ const RUNNER_API = (function () {
       const cvc = document.createElement('canvas'); cvc.width = src.naturalWidth || src.width; cvc.height = src.naturalHeight || src.height;
       cvc.getContext('2d').drawImage(src, 0, 0); sprCache[bk] = cvc; return cvc;
     }
-    const key = 'body|' + bk + '|' + RUNNER_LOOK.suit;
+    const key = 'body|' + bk + '|' + RUNNER_LOOK.suit + '|' + (RUNNER_LOOK.skin || '');
     if (sprCache[key]) return sprCache[key];
     const cv = document.createElement('canvas'); cv.width = src.naturalWidth || src.width; cv.height = src.naturalHeight || src.height;
     const c2 = cv.getContext('2d'); c2.drawImage(src, 0, 0);
     let d; try { d = c2.getImageData(0, 0, cv.width, cv.height); } catch (e) { return null; }
     const p = d.data, hx = RUNNER_LOOK.suit, sr = parseInt(hx.slice(1, 3), 16), sg = parseInt(hx.slice(3, 5), 16), sb = parseInt(hx.slice(5, 7), 16);
+    // LAYER 693: the hands on a cut body take the player's skin tone (the picture's skin is only in those boxes; the rest keeps the suit rule)
+    const bcut = BIG_CUTS[bk.slice(5)], handBoxes = bcut && bcut.hands, sk0 = RUNNER_LOOK.skin || '#e0b48c';
+    const skin = [parseInt(sk0.slice(1, 3), 16), parseInt(sk0.slice(3, 5), 16), parseInt(sk0.slice(5, 7), 16)];
     for (let i = 0; i < p.length; i += 4) {
       if (p[i + 3] < 10) continue;
       const r = p[i], g = p[i + 1], b = p[i + 2], lum = 0.3 * r + 0.59 * g + 0.11 * b;
+      const q = i / 4, qx = q % cv.width, qy = (q - qx) / cv.width;
+      if (handBoxes && r > g && g > b && r - b > 40 && r > 110 && handBoxes.some((h) => qx >= h[0] && qx < h[2] && qy >= h[1] && qy < h[3])) {
+        const k = 0.72 + 0.28 * Math.min(1, Math.max(0, (lum - 106) / 63)); p[i] = skin[0] * k; p[i + 1] = skin[1] * k; p[i + 2] = skin[2] * k; continue;
+      }
       if (r > 140 && g > 100 && r - b > 50 && g - b > 30) { p[i] = p[i + 1] = p[i + 2] = 255; continue; }   // gold trim: white
       // LAYER 641: the jacket and the body are shades of the suit colour, not black (black vanished on a dark street)
       if (Math.max(r, g, b) - Math.min(r, g, b) > 30) { const k2 = Math.max(0.45, lum / 120); p[i] = Math.min(255, sr * k2); p[i + 1] = Math.min(255, sg * k2); p[i + 2] = Math.min(255, sb * k2); continue; }
@@ -15571,7 +15639,8 @@ const RUNNER_API = (function () {
   const FEM = { size: [780, 862], o: { torso: [31, 0], arm_L: [0, 208], arm_R: [598, 208], leg_L: [118, 478], leg_R: [390, 478] }, sh: [[113, 228], [667, 228]], hip: [[268, 488], [512, 488]] };
   function femReady() { return ['fem_torso', 'fem_arm_L', 'fem_arm_R', 'fem_leg_L', 'fem_leg_R'].every((k) => img[k] && img[k].width); }
   // LAYER 690: she is drawn a little smaller, so she is not taller than the men on foot
-  const FEM_K = 0.85;
+  // LAYER 694: 0.85 -> 0.81. Her picture is 780 x 862 and the big body's is 833 x 746, so at 0.81 she is drawn the same height as big (both 0.8955 of their bw) and her width is 780/862 of that.
+  const FEM_K = 0.81;
   // LAYER 690: each female piece takes the suit colour the way the male jacket does (LAYER 594): saturated and dark pixels
   // become the suit's shades, the gold trim goes white. Cached per piece and suit.
   function femSrc(k) {
@@ -15607,9 +15676,13 @@ const RUNNER_API = (function () {
     femPiece('fem_arm_L', o.arm_L, FEM.sh[0], -ph * 0.07, X0, Y0, s);
     femPiece('fem_arm_R', o.arm_R, FEM.sh[1], ph * 0.07, X0, Y0, s);
   }
+  // LAYER 693: where each baked body is cut, in its own art px. big: the original cut. heavy_b: measured from its art (the legs and arms part at y 380,
+  // the arm gap at x 170 and 627, the legs split at x 400, the shoulder joint at y 190).
+  const BIG_CUTS = { big: { HIP_Y: 430, SH_Y: 200, MID: 416, LX: 182, RX: 650 }, heavy_b: { HIP_Y: 380, SH_Y: 190, MID: 400, LX: 170, RX: 627, hands: [[0, 480, 150, 600], [650, 480, 798, 600]] } };   // hands: the boxes (art px) where the skin is recoloured to the player's skin
   function drawBigCut(bs, x, y, bw, bh, ph) {
     const AW = bs.width, AH = bs.height, s = bw / AW, X0 = x - bw / 2, Y0 = y - bh / 2, M = 60;   // M: art px of margin, so a stretched piece is not cut at its old edge
-    const HIP_Y = 430, SH_Y = 200, MID = 416, LX = 182, RX = 650;   // art px: hips, shoulders, the crotch, and the arm edges
+    const CUT = BIG_CUTS[RUNNER_LOOK.body] || BIG_CUTS.big;
+    const HIP_Y = CUT.HIP_Y, SH_Y = CUT.SH_Y, MID = CUT.MID, LX = CUT.LX, RX = CUT.RX;   // art px: hips, shoulders, the crotch, and the arm edges
     const px_ = (v) => Math.round(X0 + v * s), py_ = (v) => Math.round(Y0 + v * s);
     const piece = (x0, x1, y0, y1, pvx, pvy, k) => {
       ctx.save(); ctx.beginPath(); ctx.rect(px_(x0), py_(y0), px_(x1) - px_(x0), py_(y1) - py_(y0)); ctx.clip();
@@ -17728,7 +17801,7 @@ const RUNNER_API = (function () {
     isOn: () => RUN_ON,
     setArt: (a) => { ART = a || {}; },
     setCivs: (c) => { CIV = c || null; },
-    setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); startSong(); } else { stopSong(); lobby = false; } },
+    setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); startSong(); } else { stopSong(); lobby = false; } { const G0 = (window.__ironlion = window.__ironlion || {}); G0.runOn698 = RUN_ON; if (G0.hqSync) G0.hqSync(RUN_ON); } },   // LAYER 698: the headquarters follow Runner Mode
     lockCam,
     keepOut, canSpawn, windTrash,
     overlay,
@@ -17746,7 +17819,7 @@ const RUNNER_API = (function () {
     headPreview: (nm, skin, hair) => headPreview(nm, skin, hair),
     suits: () => RSUITS.slice(),
     bodies: () => Object.keys(BODY_TYPES),
-    bodyList: (sex) => (sex === 'female' ? ['female'] : ['big', 'average', 'slim', 'athletic', 'heavy']),
+    bodyList: (sex) => (sex === 'female' ? ['female'] : ['big']),   // LAYER 694: for now the runners have two bodies, big (male) and female; the other male bodies stay in BODY_FILES
     bodyFile: (k) => BODY_FILES[k],
     alertHere: (x, y) => canAlert(x, y),   // the C.A.N. call-in, at the hunters' own distance (used by the tests)
     // LAYER 690: where the runner's objective is, for the minimap's blue star (the pistol stash, then the teammate)
@@ -17807,7 +17880,7 @@ const RUNNER_API = (function () {
    the player into the C.A.N. lobby with the hover bike parked outside. Stats: 20 points, each 1 to 10. */
 const RB_STATS = ['Speed', 'Strength', 'Stamina', 'Agility', 'Awareness', 'Stealth', 'Fighting', 'Charisma'];
 const RB_SKINS = ['#ffffff', '#f1d2b3', '#e0b48c', '#c58c5e', '#8d5a3a', '#5c3a24'];
-const RB_BODY = { slim: 'Slim', average: 'Average', athletic: 'Athletic', heavy: 'Heavy' };
+const RB_BODY = { slim: 'Slim', average: 'Average', athletic: 'Athletic', heavy: 'Heavy', heavy_b: 'Heavy B' };
 function RunnerBuilder({ onStart, onCancel }) {
   const [step, setStep] = useState(0);
   const [head, setHead] = useState(null);
@@ -17841,7 +17914,7 @@ function RunnerBuilder({ onStart, onCancel }) {
   const steps = ['SEX', 'HEAD', 'BODY', 'COLOURS', 'STATS', 'NAME'];
   const go = (n) => setStep(Math.max(0, Math.min(5, n)));
   const finish = () => {
-    RUNNER_API.setLook({ head: headKey || (sex === 'female' ? 'head_bun' : 'mhead_curly'), body, suit: suit || '#6ef0ff', skin: skin || null, hair: headKey && RUNNER_API.hasHair(headKey) ? hair : null, name: (name || 'RUNNER').trim() || 'RUNNER',
+    RUNNER_API.setLook({ head: headKey || (sex === 'female' ? 'head_swirl' : 'mhead_curly'), body, suit: suit || '#6ef0ff', skin: skin || null, hair: headKey && RUNNER_API.hasHair(headKey) ? hair : null, name: (name || 'RUNNER').trim() || 'RUNNER',
       stats: Object.fromEntries(RB_STATS.map((k) => [k, stats[k]])) });
     onStart();
   };
@@ -19110,7 +19183,8 @@ export default function IronLionLayer004() {
 
     const keys = Object.keys(all);
     // what has to be in before the game starts (layer 516): the bakes at boot and the first screen
-    const BOOT = keys.filter((k) => BOOT_ART.has(k) || BOOT_ART_RE.test(k)), bootSet = new Set(BOOT);
+    // LAYER 698: the three HQ plates are on screen from the first frame, like the courthouse
+    const BOOT = keys.filter((k) => BOOT_ART.has(k) || BOOT_ART_RE.test(k) || /^hq_(raven|halcyon|calloway)$/.test(k)), bootSet = new Set(BOOT);
     const store = {}, asked = {}, lastUse = {}, pxOf = {}; let pxTot = 0, artClock = performance.now() / 1000, rec = null;
     const px = (k, im) => { const c = store[k] || im; if (!c || !c.width || pxOf[k]) return; pxOf[k] = c.width * c.height; pxTot += pxOf[k]; lastUse[k] = artClock; };
     let left = BOOT.length;
@@ -48365,7 +48439,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (const S of SCHOOLS) {
         let best = null;
         for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { if (zoneOf(i, j) !== S.zone) continue; const c = getCell(i, j); if (!c) continue;
-          for (const b of (c.blds || [])) { if (!b.door || b.landmark || b.homeOf || b.pd || b.hideout || b.mercBar || b.school || b.inPrison) continue;
+          for (const b of (c.blds || [])) { if (!b.door || b.landmark || b.homeOf || b.pd || b.hideout || b.mercBar || b.school || b.inPrison || b.hqCorp) continue;   // LAYER 698: a headquarters is not a school
             if (!best || b.w * b.h > best.w * best.h) best = b; } }
         if (!best) continue;
         best.school = S.id; best.name = S.nm; best.floors = 2; best.entry = 0; best.plans = null; out.push(best);   // two floors (layer 456)
@@ -59750,6 +59824,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       { k: "ct_offices",    i: 13, j: 4, w: 0.36, h: 0.26 },
       { k: "ct_chronicle",  i: 15, j: 6, w: 0.40, h: 0.26 },
       { k: "ct_policehq",   i: 12, j: 5, w: 0.38, h: 0.26 },
+      /* LAYER 698: THE MEGA CORP HEADQUARTERS (hq_plan/make_map.py). Each sits in its lot inset 100 units all round, as the plan
+         has it: centre offsets are from the cell centre, sizes are the footprints (844x916, 288x844, 844x844 units). `clear`
+         takes the block's own building (a plain one just goes; a named one would move -- none of these three lots has one).
+         `parking` paves the ground and stripes the north and south strips. */
+      { k: "hq_raven",    i: 11, j: 1, w: 844 / 1500, h: 916 / 1500, ox: -0.024,  oy: 0,     kind: "office",    floors: 6, door: 0.5, doorSide: 0, clear: true, parking: 1, hqName: "RAVEN STUDIOS" },
+      { k: "hq_halcyon",  i: 19, j: 4, w: 288 / 1500, h: 844 / 1500, ox: -0.2093, oy: 0.024, kind: "warehouse", floors: 4, door: 0.5, doorSide: 0, clear: true, parking: 1, hqName: "HALCYON ATMOSPHERICS" },
+      { k: "hq_calloway", i: 15, j: 4, w: 844 / 1500, h: 844 / 1500, ox: -0.024,  oy: 0.024, kind: "office",    floors: 4, door: 0.5, doorSide: 0, clear: true, parking: 1, hqName: "CALLOWAY CORRECTIONAL" },
       { k: "ct_gates",      i: 24, j: 2, w: 0.26, h: 0.14, oy: 0.34 },
       /* THE TOWER, AS A CAP. Your idea, and it is the right one: the building itself is a block
          the generator can make, and this plate sits on top of it as its roof. Drawn at the
@@ -59861,12 +59942,60 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        treat it as a building rather than a picture. It gets a door, an interior, collision, a
        stair and a roof for free, because every one of those systems walks c.blds.
        Done once and lazily -- the cells are generated on demand, so this cannot run at load. */
+    /* LAYER 698: A HEADQUARTERS' GROUND. The block's own dirt, weeds and ruts come off, the lot is paved (type 1 is the
+       asphalt lot), and stall dividers run along the strips north and south of the building. Those strips are the 100-unit
+       green band the plan keeps round each footprint, so they are the parking now. The east and west strips are too narrow
+       for stalls and stay bare asphalt. Patches and oil holes stay, because they are the pavement's own wear. */
+    function hqParking698(c, fy0, fy1) {
+      if (!c || !Array.isArray(c.det)) return;
+      const keep = c.det.filter((d) => d.t === "patch" || d.t === "hole");
+      for (let sx = c.lx0 + 18; sx < c.lx1 - 40; sx += 58) {
+        if (fy0 - c.ly0 > 60) keep.push({ t: "stall", x: sx, y: c.ly0 + 26, h: 44 });
+        if (c.ly1 - fy1 > 60) keep.push({ t: "stall", x: sx, y: fy1 + 26, h: 44 });
+      }
+      c.det = keep; c.type = 1;
+    }
+    /* LAYER 698: THE HEADQUARTERS ARE RUNNER MODE ONLY. hqSync698 runs whenever Runner Mode switches (setOn). Putting one in takes
+       its block: the buildings the clear removes are kept on the mark, and the ground is kept too, so taking it back out puts the
+       block back exactly as it was. */
+    function hqPlace698(m) {
+      const c = getCell(m.i, m.j);
+      if (!c || !Array.isArray(c.blds) || m.b) return;
+      const w = m.w * PITCH, h = m.h * PITCH;
+      const x = SX(m.i) + PITCH / 2 + (m.ox || 0) * PITCH - w / 2, y = SX(m.j) + PITCH / 2 + (m.oy || 0) * PITCH - h / 2;
+      const b = mkB(x, y, w, h, m.floors || 1, m.kind || "store", Math.random, "mark_" + m.k);
+      b.capPlate = m.k; b.landmark = false;
+      if (m.door != null && b.door) b.door.pos = m.door;
+      if (m.doorSide != null && b.door) b.door.side = m.doorSide;
+      b.name = m.hqName; b.hqCorp = m.hqName;
+      m.took = [];
+      for (let q = c.blds.length - 1; q >= 0; q--) {
+        const o = c.blds[q];
+        if (o.capPlate) continue;
+        if (o.x < x + w + 30 && x - 30 < o.x + o.w && o.y < y + h + 30 && y - 30 < o.y + o.h) { m.took.push({ o, q }); c.blds.splice(q, 1); }
+      }
+      m.ground = { det: c.det, type: c.type, alley543: c.alley543, lots543: c.lots543, walls: c.walls };
+      if (m.parking) hqParking698(c, y, y + h);
+      c.blds.push(b); m.b = b;
+    }
+    function hqUnplace698(m) {
+      const c = getCell(m.i, m.j);
+      if (!c || !m.b) return;
+      const i = c.blds.indexOf(m.b); if (i >= 0) c.blds.splice(i, 1);
+      for (const t of (m.took || []).slice().reverse()) c.blds.splice(Math.min(t.q, c.blds.length), 0, t.o);
+      Object.assign(c, m.ground || {});
+      m.b = null; m.took = null; m.ground = null;
+    }
+    function hqSync698(on) {
+      for (const m of MARKS) { if (!m.hqName) continue; if (on) hqPlace698(m); else if (m.b) hqUnplace698(m); }
+    }
+    { const G0 = (window.__ironlion = window.__ironlion || {}); G0.hqSync = hqSync698; if (G0.runOn698) hqSync698(true); }   // a switch that came before this scope ran still lands
     function placeMarks() {
       if (g.marksPlaced) return;
       rowHouseInit();                                              // layer 473
       let any = false;
       for (const m of MARKS) {
-        if (m.b) continue;
+        if (m.b || m.hqName) continue;                 // a headquarters comes in with Runner Mode (hqSync698)
         const c = getCell(m.i, m.j);
         if (!c || !Array.isArray(c.blds)) continue;
         any = true;
@@ -59963,12 +60092,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         m.b = b;
       }
       if (any) { const seen = new Set(); for (const m of MARKS) { if (!m.b) continue; const c = getCell(m.i, m.j); if (!c || seen.has(c)) continue; seen.add(c); settle563(c); } }   // layer 563
-      if (any && MARKS.every((m) => m.b)) g.marksPlaced = 1;
+      if (any && MARKS.every((m) => m.b || m.hqName)) g.marksPlaced = 1;
     }
     function marksClamp() {
       if (g.inside || g.mode !== "foot" || g.roof || !Number.isFinite(g.p.x)) return;
       for (const m of MARKS) {
-        if (MARK_SOFT.has(m.k) || m.b) continue;   // a placed building collides on its own
+        if (MARK_SOFT.has(m.k) || m.b || m.hqName) continue;   // a placed building collides on its own; a headquarters is LAYER 698
         const cx = SX(m.i) + PITCH / 2 + (m.ox || 0) * PITCH;
         const cy = SX(m.j) + PITCH / 2 + (m.oy || 0) * PITCH;
         if (Math.abs(g.p.x - cx) > PITCH || Math.abs(g.p.y - cy) > PITCH) continue;
@@ -60180,6 +60309,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function drawMarks() {
       if (g.inside) return;
       for (const m of MARKS) {
+        if (m.hqName && !m.b) continue;                // LAYER 698: only in Runner Mode
         let im = imgs.current[m.k];
         if ((!im || !im.width) && m.alt) im = imgs.current[m.alt];        // a stand-in roof till its own is made (layer 516)
         if (!im || !im.width) continue;
