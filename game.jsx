@@ -9,8 +9,8 @@ try { if (typeof navigator !== "undefined" && "gamepadInputEmulation" in navigat
    No buildings yet — chain-link fences are the only obstacles.
    ============================================================ */
 
-// TITLE SCREEN: only RUNNER MODE is listed while the other modes are shelved. Set true to bring NEW GAME, DETECTIVE, STUDENT and FOOTBALL back.
-const TITLE_OTHER_MODES = false;
+// TITLE SCREEN: NEW GAME, DETECTIVE, STUDENT and FOOTBALL are listed with RUNNER MODE (LAYER 711). Set false to shelve them again.
+const TITLE_OTHER_MODES = true;
 
 const A = {
   idle: "data:image/webp;base64,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",
@@ -2830,7 +2830,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 707";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 711";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -3133,6 +3133,8 @@ const CIVIC = [
     name: "THE VANCE RESIDENCE", floors: 2, pip: "#d0c090", shape: "mansion" },
   { key: "flats_motel", kind: "motel", cell: { i: 25, j: 21 },
     name: "THE STARLITE MOTEL", floors: 1, pip: "#cf8f5a", shape: "motel" },
+  /* LAYER 708: THE PHEROMONE MOTEL, on the lot at the corner of the manhole junction (8,12). Bar on the ground floor, D and Dex above. */
+  { key: "pheromone_rh", kind: "motel", cell: { i: 7, j: 12 }, name: "THE PHEROMONE MOTEL", floors: 4, pip: "#ff5ad0" },
 ];
 const civicAt = (i, j) => CIVIC.find((c) => c.cell.i === i && c.cell.j === j) || null;
 const inTown = (i, j) => i >= TOWN.i0 && i <= TOWN.i1 && j >= TOWN.j0 && j <= TOWN.j1;
@@ -6399,6 +6401,17 @@ function getCell(i, j) {
 
 /* ---------- helpers ---------- */
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+/* THE ENGINE REV, for every engine (his bike, the hover trucks, cars and sports cars, and the car he drives on the street):
+   it climbs with the throttle, HOLDS on the top note at top speed, and only comes down when the vehicle really slows (more than
+   12% under the top it reached). Each class keeps its own rev. */
+const REVS = { bike: { lvl: 0, peak: 0 }, truck: { lvl: 0, peak: 0 }, car: { lvl: 0, peak: 0 }, sports: { lvl: 0, peak: 0 }, muscle: { lvl: 0, peak: 0 }, world: { lvl: 0, peak: 0 }, st_bike: { lvl: 0, peak: 0 }, st_truck: { lvl: 0, peak: 0 }, st_car: { lvl: 0, peak: 0 }, st_sports: { lvl: 0, peak: 0 }, st_muscle: { lvl: 0, peak: 0 } };
+const FLIER_TOP = 260;   // the cruise speed the hover fliers reach (their spd), for the top of their rev
+function revFollow(r, target) {
+  const t = clamp(target, 0, 1);
+  if (t >= r.peak || t < r.peak - 0.12) r.peak = t;
+  r.lvl += (r.peak - r.lvl) * (r.peak > r.lvl ? 0.18 : 0.06);   // up quickly, down slowly
+  return r.lvl;
+}
 const lerp = (a, b, t) => a + (b - a) * t;
 function onRoad(x, y) {
   const i = clamp(Math.round(x / PITCH), 0, N), j = clamp(Math.round(y / PITCH), 0, N);
@@ -14844,6 +14857,13 @@ const RUNNER_API = (function () {
     big: ['male_05', 'male_08'],
   };
   for (const pool of Object.values(PROFILE_FACES)) for (const n of pool) load('prof_' + n, 'portraits/' + n + '.png');
+  /* LAYER 709: D and Dex (assets/runner/pheromone/): talk-box faces and the top-down sprites in the street. */
+  load('prof_pm_d', 'pheromone/pm_d_profile.png'); load('prof_pm_dex', 'pheromone/pm_dex_profile.png');
+  load('pm_d_top_down', 'pheromone/pm_d_top_down.png'); load('pm_dex_top_down', 'pheromone/pm_dex_top_down.png');
+  loadTop('tur_mg', 'carwpn/wx_mg.png');   // LAYER 709: the roof gun (the car shop's machine gun, when it is on the disk)
+  for (const k of ['mb_booth_l', 'mb_booth_r', 'mb_cigmachine', 'mb_counter', 'mb_crates', 'mb_dartboard', 'mb_jukebox', 'mb_neon', 'mb_pool', 'mb_shelf_a', 'mb_shelf_b', 'mb_stool', 'mb_stool_b', 'mb_stool_c', 'mb_stool_d', 'mb_table']) loadTop(k, 'bar/' + k + '.png');   // LAYER 709: the bar's furniture
+  // LAYER 710: an asset at the top of assets/ (the runner loader adds assets/runner/ to its paths, so these are loaded direct)
+  function loadTop(key, path) { const i = new Image(); i.onload = () => { img[key] = i; }; i.src = (window.ASSET_DATA && window.ASSET_DATA[path]) || ('assets/' + path); }
   function profileFace(body) { const pool = PROFILE_FACES[body] || PROFILE_FACES.average; return pool[(Math.random() * pool.length) | 0]; }
   const BAKED_BODY = { big: 1, female: 1, heavy_b: 1 };   // LAYER 684: the bodies with the legs and arms in the art, drawn whole
   function rollRunnerLook() {
@@ -15367,6 +15387,7 @@ const RUNNER_API = (function () {
   let worldActHook = null;
   function exitOrBoard(fromPad) {
     if (storyTalk()) return;   // LAYER 705: an informant or the doctor beside him
+    if (PMB.inside) return;    // LAYER 709: in the bar the bike and the pack stay put
     const packSpot = packStashNear(); if (packSpot) { packPickup(packSpot); return; }   // LAYER 673: E by a pack stash
     if (stashNear()) { pickLaser(); return; }   // LAYER 670: E by the stash picks up the laser pistol
     if (caseNear()) { pickCase(); return; }     // LAYER 679: E by the case picks it up
@@ -15458,6 +15479,7 @@ const RUNNER_API = (function () {
 
   function update(dt) {
     mateTick(dt);
+    turretTick(dt);   // LAYER 709: the roof guns
     canTick(dt);   // LAYER 680: the C.A.N. drone
     const pad = readPad();
     if (yMenu.open) {                                          // the menu has the pad while it is open: stick moves, A picks, B or Y closes
@@ -15486,7 +15508,7 @@ const RUNNER_API = (function () {
     if (pend.target) { pend.target = false; toggleTarget(); }
     if (pend.exit) { const fromPad = !!pend.exitPad; pend.exit = false; pend.exitPad = false; exitOrBoard(fromPad); }
     if (walker.on) {
-      updateWalker(dt, pad);
+      if (PMB.inside) pmRoomMove(dt, pad); else updateWalker(dt, pad);   // LAYER 709: in the bar he walks the room
       // LAYER 640: a bike called down to you still comes down while you walk; nothing steers it
       if (car.mode === 'down' || car.mode === 'up') updateCar(dt, { rt: 0, lt: 0, x: 0 });
     } else updateCar(dt, pad);
@@ -16853,11 +16875,12 @@ const RUNNER_API = (function () {
   // a hunter with a weapon, on foot and in reach of the runner, fires or swings. A hit stuns him, as a teammate's shot does.
   function hunterStrike(h, dt) {
     const k = h.kit;
-    if (!k || h.dead || h.stunT > 0 || !alertOn || !walker.on || lobby || !RUN_ON) return;
+    if (!k || h.dead || h.stunT > 0 || !alertOn || !walker.on || lobby || !RUN_ON || PMB.inside) return;
     h.cd = Math.max(0, h.cd - dt);
     const dp = Math.hypot(walker.x - h.x, walker.y - h.y);
     if (dp > k.range || h.cd > 0 || PSTUN.t > 0) return;
     h.cd = k.cd + Math.random() * 0.6;
+    h.hostileT = performance.now();   // LAYER 709: a shot at the runner, for the roof guns
     h.hd = Math.atan2(walker.y - h.y, walker.x - h.x);
     const hit = Math.random() < k.hit;
     if (k.role === 'gun') {
@@ -17031,6 +17054,29 @@ const RUNNER_API = (function () {
   let canKnown = null, canBoom = [], canRespawnT = 0;   // canKnown: the runner's last reported place, which the hunters go to
   const HOLO = document.createElement('canvas'); HOLO.width = 96; HOLO.height = 140;
   const HOLO_CTX = HOLO.getContext('2d');
+  // LAYER 710: a face in hologram blue. paintHoloPortrait fits a portrait into a canvas, turns it blue, and lays scanlines on it.
+  // holoFaceOf is the picture of a wanted runner (the Lion's own face, or the teammate's), or null if it has none.
+  function paintHoloPortrait(x2, w2, h2, im) {
+    x2.setTransform(1, 0, 0, 1, 0, 0); x2.globalCompositeOperation = 'source-over'; x2.clearRect(0, 0, w2, h2);
+    const iw = im.width || im.naturalWidth, ih = im.height || im.naturalHeight, s = Math.min(w2 / iw, h2 / ih);
+    x2.drawImage(im, (w2 - iw * s) / 2, (h2 - ih * s) / 2, iw * s, ih * s);
+    x2.globalCompositeOperation = 'source-atop'; x2.fillStyle = 'rgba(70,190,255,0.92)'; x2.fillRect(0, 0, w2, h2);
+    x2.globalCompositeOperation = 'source-over'; x2.fillStyle = 'rgba(0,0,0,0.22)';
+    for (let yy = 0; yy < h2; yy += 3) x2.fillRect(0, yy, w2, 1);
+  }
+  function holoFaceOf(w) {
+    const f = w.player ? RUNNER_LOOK.profile : (w.look && w.look.profile);
+    const im = f ? img['prof_' + f] : null;
+    return im && (im.width || im.naturalWidth) ? im : null;
+  }
+  const BULL = document.createElement('canvas'); BULL.width = 84; BULL.height = 104; const BULL_CTX = BULL.getContext('2d');
+  // the bulletin's picture, beside its panel: it flickers in blue like the drone's hologram
+  function bulletinFace(c, who, now, bx, by, bw) {
+    const im = holoFaceOf(who); if (!im) return;
+    paintHoloPortrait(BULL_CTX, BULL.width, BULL.height, im);
+    c.save(); c.globalAlpha = 0.7 + 0.2 * Math.sin(now / 45); c.globalCompositeOperation = 'lighter';
+    c.drawImage(BULL, bx + bw + 8, by, BULL.width, BULL.height); c.restore();
+  }
   function zoneLabel(x, y) { return CAN_ZONE[zoneOf(jIdx(x), jIdx(y))] || 'THE CITY'; }
   function playerXY() { return walker.on ? { x: walker.x, y: walker.y } : { x: car.x, y: car.y }; }
   function canWanted() { return [PLAYER_WANTED].concat(mates.filter((m) => !m.friend)); }
@@ -17155,12 +17201,16 @@ const RUNNER_API = (function () {
   function drawHologram(c, d, now) {
     const w = d.holo;
     const look = w.player ? { head: RUNNER_LOOK.head, suit: RUNNER_LOOK.suit, body: RUNNER_LOOK.body, bodyK: RUNNER_LOOK.bodyK } : w.look;
-    HOLO_CTX.setTransform(1, 0, 0, 1, 0, 0); HOLO_CTX.globalCompositeOperation = 'source-over';
-    HOLO_CTX.clearRect(0, 0, HOLO.width, HOLO.height);
-    drawLookFigure(HOLO_CTX, HOLO.width / 2, HOLO.height - 14, look, now / 160, w.heading || 0);
-    HOLO_CTX.globalCompositeOperation = 'source-atop'; HOLO_CTX.fillStyle = 'rgba(70,190,255,0.92)'; HOLO_CTX.fillRect(0, 0, HOLO.width, HOLO.height);
-    HOLO_CTX.globalCompositeOperation = 'source-over'; HOLO_CTX.fillStyle = 'rgba(0,0,0,0.22)';
-    for (let yy = 0; yy < HOLO.height; yy += 3) HOLO_CTX.fillRect(0, yy, HOLO.width, 1);
+    const hf = holoFaceOf(w);
+    if (hf) paintHoloPortrait(HOLO_CTX, HOLO.width, HOLO.height, hf);   // LAYER 710: the wanted runner's own picture, in blue
+    else {
+      HOLO_CTX.setTransform(1, 0, 0, 1, 0, 0); HOLO_CTX.globalCompositeOperation = 'source-over';
+      HOLO_CTX.clearRect(0, 0, HOLO.width, HOLO.height);
+      drawLookFigure(HOLO_CTX, HOLO.width / 2, HOLO.height - 14, look, now / 160, w.heading || 0);
+      HOLO_CTX.globalCompositeOperation = 'source-atop'; HOLO_CTX.fillStyle = 'rgba(70,190,255,0.92)'; HOLO_CTX.fillRect(0, 0, HOLO.width, HOLO.height);
+      HOLO_CTX.globalCompositeOperation = 'source-over'; HOLO_CTX.fillStyle = 'rgba(0,0,0,0.22)';
+      for (let yy = 0; yy < HOLO.height; yy += 3) HOLO_CTX.fillRect(0, yy, HOLO.width, 1);
+    }
     const flick = 0.5 + 0.12 * Math.sin(now / 37) + 0.06 * Math.sin(now / 113);
     const hs = 1.1, hw = HOLO.width * hs, hh = HOLO.height * hs;
     c.save(); c.globalAlpha = flick; c.globalCompositeOperation = 'lighter';
@@ -17188,6 +17238,7 @@ const RUNNER_API = (function () {
     line(canBroadcast.who.name, by + 56, 22, '#ffd23a');
     line('LAST SEEN', by + 79, 9, '#e8e4d8');
     line(canBroadcast.who.last, by + 93, 11, '#ffffff');
+    bulletinFace(c, canBroadcast.who, now, bx, by, bw);   // LAYER 710: the wanted runner's picture, in blue
     c.restore();
   }
   // the drone is shot down: it blows up where it hangs, and it is gone until the respawn. The hunters keep canKnown.
@@ -17336,10 +17387,12 @@ const RUNNER_API = (function () {
       if (m.companion) { companionTick(m, dt, now); continue; }   // LAYER 705: the partner
       m.cd = Math.max(0, m.cd - dt);
       const dp = Math.hypot(walker.x - m.x, walker.y - m.y);
-      const seen = !m.friend && walker.on && dp < MATE_SIGHT;
+      const seen = !m.friend && walker.on && !PMB.inside && dp < MATE_SIGHT;
+      const fr = !seen && !m.friend && !m.companion ? mateFriendNear(m) : null;   // LAYER 709: a rival with no sight of the Lion shoots a teammate he can see
       let tx = m.x, ty = m.y, spd = 0;
       if (seen) { tx = walker.x; ty = walker.y; spd = dp > 240 ? MATE_SPD * 0.8 : 0; }        // they close in, then stand and shoot
       else if (LOOSE.holder === m) { const ax = m.x - walker.x, ay = m.y - walker.y, L = Math.hypot(ax, ay) || 1; tx = m.x + ax / L * 300; ty = m.y + ay / L * 300; spd = MATE_SPD * 1.3; }   // the one with the case runs off
+      else if (fr) { tx = fr.x; ty = fr.y; spd = Math.hypot(fr.x - m.x, fr.y - m.y) > 240 ? MATE_SPD * 0.8 : 0; }   // LAYER 709: they close in on the teammate, then stand and shoot
       else if (LOOSE.on && !LOOSE.holder && !m.friend) { tx = LOOSE.x; ty = LOOSE.y; spd = MATE_SPD * 1.2; }   // everyone goes for the loose case
       else {
         m.retarget -= dt;
@@ -17350,16 +17403,19 @@ const RUNNER_API = (function () {
       if (L > 4 && spd > 0) { const s = Math.min(L, spd * dt); m.x += dx / L * s; m.y += dy / L * s; m.heading = Math.atan2(dy, dx); m.step += dt * 11; }
       m.x = clamp(m.x, 40, SX(N) - 40); m.y = clamp(m.y, 40, SX(N) - 40);   // a teammate stays on the map the runner can reach
       if (seen) m.heading = Math.atan2(walker.y - m.y, walker.x - m.x);
+      else if (fr) m.heading = Math.atan2(fr.y - m.y, fr.x - m.x);
       if (!m.friend && LOOSE.on && !LOOSE.holder && Math.hypot(LOOSE.x - m.x, LOOSE.y - m.y) < 40) { LOOSE.holder = m; say(m.name + ' HAS THE CASE. STUN HIM TO GET IT BACK.', 4); }
       if (LOOSE.holder === m) { LOOSE.x = m.x; LOOSE.y = m.y; }
-      if (seen && dp <= LASER_RANGE && m.cd <= 0 && PSTUN.t <= 0) {
+      const tg = seen ? walker : fr, dT = tg ? Math.hypot(tg.x - m.x, tg.y - m.y) : Infinity;   // LAYER 709: the Lion, or the teammate a rival can see
+      if (tg && dT <= LASER_RANGE && m.cd <= 0 && !(seen && PSTUN.t > 0)) {
         // the shot: it lands on the Lion, or it goes wide by a little
         const hit = Math.random() < MATE_HIT, miss = (Math.random() < 0.5 ? -1 : 1) * (0.16 + Math.random() * 0.14);
-        const ang = Math.atan2(walker.y - m.y, walker.x - m.x) + (hit ? 0 : miss), far = hit ? dp : LASER_RANGE;
+        const ang = Math.atan2(tg.y - m.y, tg.x - m.x) + (hit ? 0 : miss), far = hit ? dT : LASER_RANGE;
         LASER.beams.push({ x0: m.x, y0: m.y, x1: m.x + Math.cos(ang) * far, y1: m.y + Math.sin(ang) * far, kill: false, until: now + 260 });
         playLaserShot();
         m.cd = MATE_SHOT_CD + Math.random() * 0.8;
-        if (hit) stunPlayer(m);
+        m.hostileT = now;   // LAYER 709: a shot, for the roof guns
+        if (hit) { if (seen) stunPlayer(m); else mateHit(fr); }
       }
     }
   }
@@ -17613,6 +17669,7 @@ const RUNNER_API = (function () {
   // A (or E) on foot: talk to the one beside him. Returns true when it talked, so the world action does not run
   function storyTalk() {
     if (rjAction()) return true;   // LAYER 707: a job giver, a job's contact, or a pick or job spot
+    if (pmAction()) return true;   // LAYER 708: D and Dex by the manhole
     if (!missionOn() || !['ask', 'informant', 'doctor'].includes(MISSION.stage)) return false;
     const p = storyNear(); if (!p) return false;
     if (p === docMan) {
@@ -17820,6 +17877,7 @@ const RUNNER_API = (function () {
   }
   // the gold ! over each giver's head, the contacts, and the ring on the spot the job is at
   function rjDrawWorld(c, now) {
+    pmDrawWorld(c, now);   // LAYER 708: D and Dex by the manhole
     for (const g of RJ.givers) {
       drawMate(c, g);
       const bx = g.x, by = g.y - 60 + Math.sin(now / 260 + g.x) * 2.5;
@@ -17835,6 +17893,349 @@ const RUNNER_API = (function () {
       c.beginPath(); c.arc(A.spot.x, A.spot.y, 46 + 4 * Math.sin(now / 200), 0, Math.PI * 2); c.stroke(); c.restore();
     }
   }
+  /*PM_BEGIN*/
+  /* LAYER 708: THE PHEROMONE MOTEL. D and Dex stand in the street at the manhole corner of the lot (junction 8,12).
+     Dex rents the rooms and gives Act 1. D gives Act 2. Act 3 is both. Each act is three parts; a part pays when done,
+     a blown part restarts its act at Part 1, and the acts unlock in order. Not built yet: the bar interior, floors 2 to 4,
+     and what a rented room does (see HANDOFF.md). */
+  const PMH_ACTS = { 1: { pay: 1000, who: 'dex' }, 2: { pay: 2000, who: 'd' }, 3: { pay: 4000, who: 'both' } };
+  const PMH_SPOT = { d: null, dex: null };
+  const PMP = { act: 1, part: 0 };
+  const PMH = { room: null };
+  const PMH_TALK_DOWN = ["DEX: Five a night. You get the key, and you don't ask me about the stairs.", "YOU: Five. Deal.", "DEX: Don't make me regret it."];
+  // where D and Dex are: behind the counter inside the Pheromone (the guns hold fire if either is on their line)
+  function pmPos(k) {
+    const b = pmBld();
+    if (!b) return k === 'd' ? { x: 11560, y: 18330 } : { x: 11720, y: 18330 };
+    return k === 'd' ? { x: b.x + b.w * 0.36, y: b.y + b.h * 0.5 } : { x: b.x + b.w * 0.62, y: b.y + b.h * 0.5 };
+  }
+  // where the mission's arrival at the Pheromone is: the spot just outside its door
+  function pmArrive() { const d = pmDoor(); return d ? { x: d.ox, y: d.oy } : pmPos('d'); }
+  const PMH_PARTS = {
+    1: [
+      ['THE COURIER · PART 1', ['DEX: A courier is waiting at the loading bay with a case. Get it before the hunters do.'],
+        [{ k: 'goto', hud: 'MEET THE COURIER', say: 'Meet the courier at the loading bay.', arrive: 'THE COURIER HANDS OVER THE CASE.' },
+         { k: 'job', hud: 'GET PAST THE PATROL', say: 'A hunter patrol is on the road between you. Get past it.', odds: 0.6 },
+         { k: 'goto', hud: 'BRING IT TO THE MOTEL', say: 'Bring the case to the Pheromone.', at: 'pm', arrive: 'DEX TAKES THE CASE.' }]],
+      ['THE COURIER · PART 2', ['DEX: The checkpoint on Ninth has a hunter with a radio. I want that radio.'],
+        [{ k: 'goto', hud: 'FIND THE CHECKPOINT', say: 'Find the checkpoint on Ninth.', arrive: 'THE CHECKPOINT.' },
+         { k: 'job', hud: 'LIFT THE RADIO', say: 'Lift the radio without getting stunned.', odds: 0.5 },
+         { k: 'goto', hud: 'BRING THE RADIO TO THE MOTEL', say: 'Bring the radio to the Pheromone.', at: 'pm', arrive: 'DEX TAKES THE RADIO.' }]],
+      ['THE COURIER · PART 3', ["DEX: One more. The courier's people want the case back before dawn."],
+        [{ k: 'goto', hud: 'FIND THE COURIER\'S MAN', say: 'Find the courier\'s man.', arrive: 'HE TAKES IT BACK.' },
+         { k: 'job', hud: 'GET THE CASE BACK', say: 'Get the case back from the hunters.', odds: 0.45 },
+         { k: 'goto', hud: 'BRING IT TO THE MOTEL', say: 'Back to the Pheromone.', at: 'pm', arrive: 'DEX PAYS OUT.' }]],
+    ],
+    2: [
+      ['THE CONVOY · PART 1', ['D: An armoured van runs from the depot to the bank every night. Tail it.'],
+        [{ k: 'goto', hud: 'FIND THE VAN', say: 'Find the armoured van at the depot.', arrive: 'THE VAN IS MOVING.' },
+         { k: 'job', hud: 'TAIL THE VAN TO THE BANK', say: 'Stay on the van to the bank. Do not get made.', odds: 0.6 },
+         { k: 'goto', hud: 'REPORT TO D', say: 'Report to D at the Pheromone.', at: 'pm', arrive: 'D NODS. GOOD.' }]],
+      ['THE CONVOY · PART 2', ['D: Dex wants a turret on the escort\'s route. Plant it where the van slows.'],
+        [{ k: 'goto', hud: 'FIND THE ESCORT ROUTE', say: 'Find where the escort slows down.', arrive: 'THE ROUTE.' },
+         { k: 'job', hud: 'PLANT THE MINI-TURRET', say: 'Plant the mini-turret without being seen.', odds: 0.5 },
+         { k: 'goto', hud: 'REPORT TO D', say: 'Report to D at the Pheromone.', at: 'pm', arrive: 'D NODS. GOOD.' }]],
+      ['THE CONVOY · PART 3', ['D: Get the van to the drop before the chopper sees it.'],
+        [{ k: 'goto', hud: 'TAKE THE VAN TO THE DROP', say: 'Take the van to the drop.', arrive: 'THE VAN IS AT THE DROP.' },
+         { k: 'job', hud: 'LOSE THE CHOPPER', say: 'Lose the chopper over the rail yard.', odds: 0.5 },
+         { k: 'goto', hud: 'REPORT TO D', say: 'Report to D at the Pheromone.', at: 'pm', arrive: 'D PAYS OUT.' }]],
+    ],
+    3: [
+      ['HOLD THE ROOF · PART 1', ['DEX: The hunters keep armoured cars in a motor pool. I need the keys.'],
+        [{ k: 'goto', hud: 'GET INTO THE MOTOR POOL', say: 'Get into the hunters\' motor pool.', arrive: 'INSIDE THE POOL.' },
+         { k: 'job', hud: 'TAKE THE KEYS', say: 'Take the keys off the board without a fight.', odds: 0.5 },
+         { k: 'goto', hud: 'BRING THE KEYS TO THE MOTEL', say: 'Bring the keys to the Pheromone.', at: 'pm', arrive: 'DEX TAKES THE KEYS.' }]],
+      ['HOLD THE ROOF · PART 2', ['D: Two more hunters in the garage. Take them down before they call it in.'],
+        [{ k: 'goto', hud: 'GET TO THE GARAGE', say: 'Get to the garage.', arrive: 'THE GARAGE.' },
+         { k: 'job', hud: 'CLEAR THE GARAGE', say: 'Clear the garage before the call goes out.', odds: 0.45 },
+         { k: 'goto', hud: 'GET THE CAR OUT', say: 'Get the car back to the Pheromone.', at: 'pm', arrive: 'D SAYS THE CAR IS HERS NOW.' }]],
+      ['HOLD THE ROOF · PART 3', ['DEX: Hold the roof while the crew gets out. Ten minutes, then we leave.'],
+        [{ k: 'goto', hud: 'GET TO THE ROOF', say: 'Get to the roof of the Pheromone.', at: 'pm', arrive: 'THE ROOF IS OURS.' },
+         { k: 'job', hud: 'HOLD THE ROOF', say: 'Hold the roof. Keep the hunters off the stairs.', odds: 0.5 },
+         { k: 'goto', hud: 'GET DOWN TO THE CREW', say: 'Get down to the crew.', at: 'pm', arrive: 'THE CREW IS OUT. DEX PAYS.' }]],
+    ],
+  };
+  function pmDef(act, n) {
+    const p = PMH_PARTS[act] && PMH_PARTS[act][n];
+    if (!p) return null;
+    return { id: 'pm' + act + '_' + (n + 1), title: p[0], kind: 'MISSION', pay: PMH_ACTS[act].pay, offer: p[1], steps: p[2], pm: { act: act, part: n } };
+  }
+  function pmNext(who) {
+    if (PMP.act > 3) return null;
+    const a = PMH_ACTS[PMP.act];
+    if (a.who !== 'both' && a.who !== who) return null;
+    return pmDef(PMP.act, PMP.part);
+  }
+  function pmDone(def) {
+    if (!def || !def.pm) return;
+    PMP.part++;
+    if (PMP.part >= PMH_PARTS[def.pm.act].length) {
+      PMP.act++; PMP.part = 0;
+      say(PMP.act > 3 ? 'ALL THREE ACTS ARE DONE. THE PHEROMONE IS QUIET NOW.' : 'ACT ' + def.pm.act + ' IS DONE. THE NEXT ACT PAYS MORE.', 5);
+    }
+  }
+  function pmBlown(def) { if (def && def.pm) PMP.part = 0; }
+  function pmCha() { const S = (RUNNER_LOOK && RUNNER_LOOK.stats) || {}; return S.Charisma || 1; }
+  function rentRoom(price) {
+    if (runnerCash < price) { say('NOT ENOUGH CASH. THE ROOM IS $' + price + '.', 3); return; }
+    cashOwed -= price; runnerCash -= price;
+    PMH.room = { no: 3, price: price };
+    runFlash({ title: 'ROOM RENTED', sub: 'ROOM 3 · $' + price + ' A NIGHT', life: 2.6 });
+    say('DEX HANDS YOU THE KEY. ROOM 3, TOP FLOOR.', 4);
+  }
+  function openPmMenu(who) {
+    const d = pmNext(who), name = who === 'dex' ? 'DEX' : 'D', face = who === 'dex' ? 'pm_dex' : 'pm_d';
+    if (!d && who !== 'dex') { say('D: NOTHING FOR YOU YET. COME BACK WHEN THE NEXT ACT IS OPEN.', 4); return; }
+    const opts = [];
+    if (d) opts.push('TAKE A JOB · $' + d.pay.toLocaleString());
+    if (who === 'dex') { opts.push('RENT A ROOM · $15'); if (pmCha() >= 4) opts.push('TALK HIM DOWN · $5'); }
+    opts.push('NOT NOW');
+    const giver = { name: name, look: { profile: face }, job: d };
+    Object.assign(yMenu, { open: true, mode: 'menu', sel: 0, li: 0, lines: [], title: 'THE PHEROMONE MOTEL', speaker: name, face: null, done: null, opts: opts,
+      onPick: (o) => {
+        if (o.indexOf('TAKE A JOB') === 0) { if (d) rjOffer(giver); return; }
+        if (o.indexOf('RENT A ROOM') === 0) { rentRoom(15); return; }
+        if (o.indexOf('TALK HIM DOWN') === 0) { openTalk('DEX', 'pm_dex', PMH_TALK_DOWN, () => rentRoom(5), 'TALK HIM DOWN'); return; }
+      } });
+  }
+  // E or A: inside, beside D or Dex opens their menu; outside, at the Pheromone's door, goes in
+  function pmAction() {
+    if (!walker.on) return false;
+    if (PMB.inside) return pmInsideAction();
+    const dr = pmDoor();
+    if (dr && Math.hypot(walker.x - dr.x, walker.y - dr.y) < 80) { pmEnterBar(); return true; }
+    return false;
+  }
+    // outside: a pink label by the door, so the way in shows from the street
+  function pmDrawWorld(c, now) {
+    const dr = pmDoor();
+    if (!dr || PMB.inside) return;
+    const lab = 'THE PHEROMONE · E';
+    c.save(); c.font = 'bold 11px monospace'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = '#000'; c.fillStyle = '#ff5ad0';
+    c.strokeText(lab, dr.x, dr.y - 22); c.fillText(lab, dr.x, dr.y - 22); c.restore();
+  }
+  /*PM_END*/
+  /*TUR_BEGIN*/
+  /* LAYER 709: THE ROOF GUNS. Two machine guns on the roof of THE PHEROMONE MOTEL. While nobody is shooting they sweep back and
+     forth on their pivots. When a rival shoots at the runner, or at a teammate, inside TUR_RANGE of a gun, the gun locks on the
+     nearest such shooter, turns to him and fires. It never fires at D or Dex: it holds fire while either of them stands on the
+     line of fire. A hit is the runner's own shot: a stun, or a kill on HARM. D and Dex are never on the shooter lists. */
+  const TUR = { list: [], built: false };
+  const TUR_RANGE = 560, TUR_SWEEP = 0.85, TUR_AMP = 0.85, TUR_TURN = 3.2, TUR_CD = 0.55, TUR_HIT = 0.7, TUR_HOT = 3.0;
+  const TUR_SAFE = 34;                 // how close D or Dex may stand to the line of fire before the gun holds
+  const TUR_ART_ROT = Math.PI / 2;     // the machine-gun sprite is drawn barrel-up
+  function turDiff(a, b) { let d = (b - a) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; }
+  function turTo(a, b, m) { const d = turDiff(a, b); return Math.abs(d) <= m ? a + d : a + Math.sign(d) * m; }
+  // the motel, found in its civic cell (7,12); the guns go on its roof the first time it is there
+  function turSetup() {
+    if (TUR.built) return;
+    const c = cellOf(SX(7) + PITCH / 2, SX(12) + PITCH / 2), b = c && c.blds ? c.blds.find((q) => q.civic === 'pheromone_rh') : null;
+    if (!b) return;
+    TUR.built = true;
+    const spots = [{ fx: 0.27, fy: 0.34, base: 0.55 }, { fx: 0.73, fy: 0.66, base: -2.6 }];   // each sweeps around its own axis
+    for (let k = 0; k < spots.length; k++) {
+      const s = spots[k];
+      TUR.list.push({ x: b.x + b.w * s.fx, y: b.y + b.h * s.fy, base: s.base, ph: k * 2.1, ang: s.base, tgt: null, cd: 0, fx: 0, engaged: false });
+    }
+  }
+  // the shooters: rivals who fired at the runner or at a teammate in the last TUR_HOT seconds, and who are still fighting
+  function turHot(now) {
+    const L = [], lim = TUR_HOT * 1000;
+    for (const h of hunters) if (!h.dead && h.stunT <= 0 && h.hostileT && now - h.hostileT < lim) L.push(h);
+    for (const m of mates) if (!m.friend && !m.companion && m.stunT <= 0 && m.hostileT && now - m.hostileT < lim) L.push(m);
+    return L;
+  }
+  // false if D or Dex stands on the line from the gun to the target
+  function turLineSafe(t, tx, ty) {
+    const dx = tx - t.x, dy = ty - t.y, L2 = dx * dx + dy * dy || 1;
+    for (const k of ['d', 'dex']) {
+      const p = pmPos(k), u = clamp(((p.x - t.x) * dx + (p.y - t.y) * dy) / L2, 0, 1);
+      if (Math.hypot(t.x + dx * u - p.x, t.y + dy * u - p.y) < TUR_SAFE) return false;
+    }
+    return true;
+  }
+  function turFire(t, e) {
+    const now = performance.now();
+    t.cd = TUR_CD + Math.random() * 0.25; t.fx = 0.07;
+    const ox = t.x + Math.cos(t.ang) * 20, oy = t.y + Math.sin(t.ang) * 20;
+    const hit = Math.random() < TUR_HIT, kill = LASER.mode === 'kill';
+    const miss = (Math.random() < 0.5 ? -1 : 1) * (0.1 + Math.random() * 0.1);
+    const ang = t.ang + (hit ? 0 : miss), far = hit ? Math.hypot(e.x - ox, e.y - oy) : TUR_RANGE;
+    LASER.beams.push({ x0: ox, y0: oy, x1: ox + Math.cos(ang) * far, y1: oy + Math.sin(ang) * far, kill, until: now + 180 });
+    playLaserShot();
+    if (!hit) return;
+    if (mates.includes(e)) { mateHit(e); return; }   // a rival in a team is stunned, not killed, as the runner's shot does
+    if (kill) { e.dead = true; e.dying = HUNT.dyingT; puff(e.x, e.y, 'medium'); neutralize(e); say('ROOF GUN: HUNTER DOWN.', 2); }
+    else { e.stunT = HUNT.stun; neutralize(e); say('ROOF GUN: STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); }
+  }
+  // each frame: a gun locks on the nearest shooter in range, or sweeps; it fires once it is on target and the line is clear
+  function turretTick(dt) {
+    if (!RUN_ON || lobby) return;
+    turSetup();
+    if (!TUR.list.length) return;
+    const now = performance.now(), hot = turHot(now);
+    for (const t of TUR.list) {
+      t.cd = Math.max(0, t.cd - dt); t.fx = Math.max(0, t.fx - dt); t.ph += dt * TUR_SWEEP;
+      let best = null, bd = TUR_RANGE;
+      for (const e of hot) { const d = Math.hypot(e.x - t.x, e.y - t.y); if (d < bd) { bd = d; best = e; } }
+      const want = best ? Math.atan2(best.y - t.y, best.x - t.x) : t.base + TUR_AMP * Math.sin(t.ph);
+      t.ang = turTo(t.ang, want, TUR_TURN * dt);
+      t.tgt = best;
+      if (!best) { t.engaged = false; continue; }
+      if (!t.engaged) { t.engaged = true; say('ROOF GUN: ON A SHOOTER.', 2); }
+      if (t.cd > 0 || Math.abs(turDiff(t.ang, want)) > 0.12) continue;
+      if (turLineSafe(t, best.x, best.y)) turFire(t, best);
+    }
+  }
+  // the nearest teammate a rival can see (the friend, or the partner), who is not stunned
+  function mateFriendNear(m) {
+    let best = null, bd = MATE_SIGHT;
+    for (const f of mates) {
+      if (f === m || !(f.friend || f.companion) || f.stunT > 0) continue;
+      const d = Math.hypot(f.x - m.x, f.y - m.y);
+      if (d < bd) { bd = d; best = f; }
+    }
+    return best;
+  }
+  // the guns on the roof: a round pivot, then the barrel (the car shop's machine gun if it is loaded, else a drawn barrel)
+  function drawTurrets(c) {
+    for (const t of TUR.list) {
+      const im = img.tur_mg, ready = !!(im && (im.width || im.naturalWidth));
+      c.save(); c.translate(t.x, t.y);
+      c.fillStyle = '#15171c'; c.beginPath(); c.arc(0, 0, 15, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = t.engaged ? '#ff5a4a' : '#5a6270'; c.lineWidth = 2; c.stroke();
+      if (ready) {
+        c.rotate(t.ang + TUR_ART_ROT);
+        const S = 40, w0 = im.width || im.naturalWidth, h0 = im.height || im.naturalHeight, hh = S * h0 / w0;
+        c.drawImage(im, -S / 2, -hh / 2, S, hh);
+      } else {
+        c.rotate(t.ang);
+        c.fillStyle = '#3a404b'; c.fillRect(-5, -6, 14, 12);
+        c.fillStyle = '#0c0d10'; c.fillRect(8, -2.5, 22, 5);
+        c.fillStyle = '#8a929e'; c.fillRect(8, -2.5, 22, 1.5);
+      }
+      c.restore();
+      if (t.fx > 0) { c.save(); c.fillStyle = '#ffd65a'; c.beginPath(); c.arc(t.x + Math.cos(t.ang) * 34, t.y + Math.sin(t.ang) * 34, 4 + 6 * (t.fx / 0.07), 0, Math.PI * 2); c.fill(); c.restore(); }
+    }
+  }
+  /*TUR_END*/
+  /*PMB_BEGIN*/
+  /* LAYER 709: THE BAR. Walk up to the Pheromone's door and press E (A on the pad) to go in. The room is drawn over the street in
+     its own space, 1000 x 640, scaled to the screen: the bar counter with D and Dex behind it, two booths, a jukebox, a pool table,
+     two tables with stools, a dartboard and a stack of crates. Walk up to D or Dex and press E for their menu, as in the street.
+     Walk out through the door to leave. Inside, the city is hidden, nobody can see you, and the gun and the bike do nothing. */
+  const PMB = { inside: false, x: 500, y: 585, heading: -Math.PI / 2, step: 0, W: 1000, H: 640, b: null };
+  const PMB_TALK = 200;                                                   // how near D or Dex must be to talk, in the room
+  const PMB_SHRINK = 0.7;   // LAYER 711: the furniture is drawn at this share of its art size, to match D and Dex (their figures are 84 px tall)
+  const PMB_CREW = { d: { x: 400, y: 200 }, dex: { x: 600, y: 200 } };   // behind the counter (the counter is shorter now)
+  const PMB_ITEMS_FULL = [   // [key, x, y, w, h, solid]: drawn in order of the bottom edge; a solid one stops him
+    ['mb_shelf_a', 30, 8, 300, 99, false], ['mb_neon', 425, 10, 150, 102, false], ['mb_shelf_b', 690, 8, 280, 96, false],
+    ['mb_jukebox', 40, 150, 90, 143, true], ['mb_cigmachine', 870, 150, 90, 122, true],
+    ['mb_counter', 290, 190, 420, 135, true],
+    ['mb_booth_l', 40, 330, 90, 150, true], ['mb_booth_r', 870, 330, 90, 150, true],
+    ['mb_table', 360, 370, 80, 90, true], ['mb_table', 600, 360, 80, 90, true],
+    ['mb_stool', 300, 380, 44, 70, false], ['mb_stool_b', 448, 380, 44, 72, false],
+    ['mb_stool_c', 540, 372, 44, 72, false], ['mb_stool_d', 688, 370, 44, 72, false],
+    ['mb_pool', 560, 488, 260, 128, true], ['mb_dartboard', 870, 490, 100, 102, false],
+    ['mb_crates', 150, 520, 130, 100, true]
+  ];
+  const PMB_ITEMS = PMB_ITEMS_FULL.map((q) => { const w = q[3] * PMB_SHRINK, h = q[4] * PMB_SHRINK; return [q[0], q[1] + (q[3] - w) / 2, q[2] + q[4] - h, w, h, q[5]]; });
+  // the Pheromone's building, found in its civic cell (7,12)
+  function pmBld() {
+    if (!PMB.b) { const c = cellOf(SX(7) + PITCH / 2, SX(12) + PITCH / 2); PMB.b = c && c.blds ? (c.blds.find((q) => q.civic === 'pheromone_rh') || null) : null; }
+    return PMB.b;
+  }
+  // the door: the point on the building's wall, and the spot just outside it
+  function pmDoor() {
+    const b = pmBld();
+    if (!b || !b.door) return null;
+    const s = b.door.side, p = b.door.pos;
+    const wx = s === 0 || s === 2 ? b.x + b.w * p : s === 3 ? b.x : b.x + b.w;
+    const wy = s === 0 ? b.y : s === 2 ? b.y + b.h : b.y + b.h * p;
+    const nx = s === 3 ? -1 : s === 1 ? 1 : 0, ny = s === 0 ? -1 : s === 2 ? 1 : 0;
+    return { x: wx, y: wy, ox: wx + nx * 46, oy: wy + ny * 46 };
+  }
+  function pmEnterBar() { PMB.inside = true; PMB.x = 500; PMB.y = 585; PMB.heading = -Math.PI / 2; say('IN THE PHEROMONE. D AND DEX ARE BEHIND THE BAR.', 3); }
+  function pmLeaveBar() {
+    PMB.inside = false;
+    const dr = pmDoor();
+    if (dr) { const p = clearSpot(dr.ox, dr.oy, null) || { x: dr.ox, y: dr.oy }; walker.x = p.x; walker.y = p.y; }
+  }
+  // inside: beside D or Dex, E opens their menu
+  function pmInsideAction() {
+    for (const k of ['d', 'dex']) { const p = PMB_CREW[k]; if (Math.hypot(PMB.x - p.x, PMB.y - p.y) < PMB_TALK) { openPmMenu(k); return true; } }
+    return false;
+  }
+  // inside the room: free space within the walls, clear of the solid things with a margin; the door takes him out
+  function pmRoomFree(x, y) {
+    if (x > 452 && x < 548 && y > PMB.H - 40) return true;
+    if (x < 26 || x > PMB.W - 26 || y < 124 || y > PMB.H - 22) return false;
+    for (const q of PMB_ITEMS) if (q[5] && x > q[1] - 14 && x < q[1] + q[3] + 14 && y > q[2] - 14 && y < q[2] + q[4] + 14) return false;
+    return true;
+  }
+  function pmRoomStep(dx, dy) { const nx = PMB.x + dx, ny = PMB.y + dy; if (pmRoomFree(nx, ny)) { PMB.x = nx; PMB.y = ny; } }
+  function pmRoomMove(dt, pad) {
+    const sx = clamp(((keys.ArrowRight || keys.d || keys.D) ? 1 : 0) - ((keys.ArrowLeft || keys.a || keys.A) ? 1 : 0) + (Math.abs(pad.x) > 0.15 ? pad.x : 0), -1, 1);
+    const sy = clamp(((keys.ArrowDown || keys.s || keys.S) ? 1 : 0) - ((keys.ArrowUp || keys.w || keys.W) ? 1 : 0) + (Math.abs(pad.y) > 0.15 ? pad.y : 0), -1, 1);
+    const m = Math.hypot(sx, sy);
+    if (m > 0.05) {
+      PMB.step += dt * 11;
+      const k = 150 * Math.min(1, m) * dt / m;
+      pmRoomStep(sx * k, 0); pmRoomStep(0, sy * k);
+      PMB.heading = Math.atan2(sy, sx);
+    }
+    if (PMB.y > PMB.H - 30 && PMB.x > 452 && PMB.x < 548) pmLeaveBar();
+  }
+  function pmRoomLook() { return { head: RUNNER_LOOK.head, suit: RUNNER_LOOK.suit, body: RUNNER_LOOK.body, bodyK: RUNNER_LOOK.bodyK, skin: RUNNER_LOOK.skin, hair: RUNNER_LOOK.hair }; }
+  function pmRoomImg(c, k, x, y, w, h) {
+    const im = img[k];
+    if (im && (im.width || im.naturalWidth)) { c.drawImage(im, x, y, w, h); return; }
+    c.fillStyle = 'rgba(120,90,160,0.45)'; c.fillRect(x, y, w, h);   // a stand-in until the bar art is on the disk
+    c.fillStyle = '#fff'; c.font = '10px monospace'; c.textAlign = 'left'; c.fillText(k, x + 4, y + 12);
+  }
+  function pmRoomCrew(c, k, x, y) {
+    const im = img[k === 'd' ? 'pm_d_top_down' : 'pm_dex_top_down'], h = 84, top = y - h * 0.8;
+    if (im && (im.width || im.naturalWidth)) { const w = h * (im.width || im.naturalWidth) / (im.height || im.naturalHeight); c.drawImage(im, x - w / 2, top, w, h); }
+    const lab = k === 'd' ? 'D' : 'DEX';
+    c.save(); c.font = 'bold 11px monospace'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = '#000'; c.fillStyle = '#ff5ad0';
+    c.strokeText(lab, x, top - 6); c.fillText(lab, x, top - 6); c.restore();
+  }
+  // the room, drawn over the street when he is in it (the canvas is W x H in screen units)
+  function pmRoomDraw(c, W, H) {
+    const s = Math.min(W / PMB.W, H / PMB.H) * 0.98, ox = (W - PMB.W * s) / 2, oy = (H - PMB.H * s) / 2;
+    c.save();
+    c.fillStyle = '#050407'; c.fillRect(0, 0, W, H);
+    c.translate(ox, oy); c.scale(s, s);
+    // the back wall, with the pink light in its bricks
+    c.fillStyle = '#1a1221'; c.fillRect(0, 0, PMB.W, 124);
+    for (let r = 0, row = 0; r < 124; r += 14, row++) for (let x = row % 2 ? -20 : 0; x < PMB.W; x += 40) { c.fillStyle = 'rgba(255,90,208,' + (0.025 + 0.02 * Math.sin(x * 0.07 + r * 0.9)).toFixed(3) + ')'; c.fillRect(x + 1, r + 1, 37, 11); }
+    // the floor: planks, with a pink glow from the door
+    c.fillStyle = '#2a1c18'; c.fillRect(0, 124, PMB.W, PMB.H - 124);
+    for (let y = 124, k = 0; y < PMB.H; y += 34, k++) { c.fillStyle = k % 2 ? 'rgba(0,0,0,0.14)' : 'rgba(255,210,170,0.04)'; c.fillRect(14, y, PMB.W - 28, 34); }
+    const gl = c.createRadialGradient(500, 520, 40, 500, 520, 520);
+    gl.addColorStop(0, 'rgba(255,90,208,0.12)'); gl.addColorStop(1, 'rgba(0,0,0,0.35)');
+    c.fillStyle = gl; c.fillRect(14, 124, PMB.W - 28, PMB.H - 124);
+    // the side walls and the front wall, with the door in it
+    c.fillStyle = '#120d18'; c.fillRect(0, 0, 14, PMB.H); c.fillRect(PMB.W - 14, 0, 14, PMB.H); c.fillRect(14, PMB.H - 14, 438, 14); c.fillRect(548, PMB.H - 14, PMB.W - 562, 14);
+    c.strokeStyle = '#ff5ad0'; c.lineWidth = 3; c.strokeRect(452, PMB.H - 16, 96, 16);
+    // the things in the room, the two behind the counter, and him: in order of their bottom edges
+    const list = PMB_ITEMS.map((q) => ({ k: q[0], x: q[1], y: q[2], w: q[3], h: q[4], bot: q[2] + q[4] }));
+    list.push({ crew: 'd', x: PMB_CREW.d.x, y: PMB_CREW.d.y, bot: PMB_CREW.d.y + 17 }, { crew: 'dex', x: PMB_CREW.dex.x, y: PMB_CREW.dex.y, bot: PMB_CREW.dex.y + 17 }, { walker: true, bot: PMB.y + 6 });
+    list.sort((a, b) => a.bot - b.bot);
+    for (const q of list) {
+      if (q.walker) drawMate(c, { x: PMB.x, y: PMB.y, heading: PMB.heading, step: PMB.step, stunT: 0, friend: true, col: 'rgba(0,0,0,0)', look: pmRoomLook() });
+      else if (q.crew) pmRoomCrew(c, q.crew, q.x, q.y);
+      else pmRoomImg(c, q.k, q.x, q.y, q.w, q.h);
+    }
+    c.fillStyle = '#ff5ad0'; c.font = 'bold 15px monospace'; c.textAlign = 'center'; c.fillText('THE PHEROMONE', 500, 121);
+    c.restore();
+    c.save(); c.fillStyle = 'rgba(255,255,255,0.6)'; c.font = '12px monospace'; c.textAlign = 'center';
+    c.fillText('WALK TO THE DOOR TO LEAVE  ·  E TO TALK', W / 2, H - 12); c.restore();
+  }
+  /*PMB_END*/
+
+
+
   // A on foot: a giver with a job, the contact of the current talk step, or the spot of a pick or a job
   function rjAction() {
     if (!walker.on) return false;
@@ -17871,7 +18272,8 @@ const RUNNER_API = (function () {
     const A = RJ.active; if (!A) return;
     const s = A.def.steps[A.step];
     if (!s) { rjFinish(); return; }
-    if (!(s.same && A.spot)) { const p = randomSpot(420, 1300); A.spot = { x: p.x, y: p.y }; }
+    if (s.at === 'pm') { const q = pmArrive(); A.spot = { x: q.x, y: q.y }; }   // LAYER 708: back to the motel
+    else if (!(s.same && A.spot)) { const p = randomSpot(420, 1300); A.spot = { x: p.x, y: p.y }; }
     A.timer = s.limit || 0;
     A.contact = null;
     if (s.k === 'talk') { A.contact = makeInformant(A.spot, s.who); RJ.contacts.push(A.contact); }
@@ -17895,14 +18297,14 @@ const RUNNER_API = (function () {
     const A = RJ.active; if (!A) return;
     A.entry.status = 'DONE'; A.entry.paid = A.def.pay;
     RJ.active = null; RJ.contacts = [];
-    cashOwed += A.def.pay;
+    cashOwed += A.def.pay; pmDone(A.def);   // LAYER 708: an act's part moves the act on
     MISSION.stage = 'done';
     runFlash({ title: 'MISSION COMPLETE', sub: A.def.title, pay: A.def.pay, life: 3.4 });
     say('PAID. THE NEXT JOB IS ON THE STREET.', 5);
   }
   function rjFail(why) {
     const A = RJ.active; if (!A) return;
-    A.entry.status = 'FAILED'; A.entry.why = why;
+    A.entry.status = 'FAILED'; A.entry.why = why; pmBlown(A.def);   // LAYER 708: a blown part restarts its act
     RJ.active = null; RJ.contacts = [];
     MISSION.stage = 'done';
     runFlash({ title: 'MISSION FAILED', sub: why, fail: true, life: 2.8 });
@@ -17945,8 +18347,10 @@ const RUNNER_API = (function () {
     const bw = Math.min(W - 32, 340), x = (W - bw) / 2, pad = 14, font = 'monospace';
     c.textBaseline = 'middle';
     if (yMenu.mode === 'talk') {
-      const line = yMenu.lines[yMenu.li] || '';
-      const pf = yMenu.face ? img['prof_' + yMenu.face] : null, fx = pf && (pf.width || pf.naturalWidth) ? 60 : 0;   // LAYER 705: the speaker's face
+      const raw = yMenu.lines[yMenu.li] || '', you = raw.indexOf('YOU:') === 0;   // LAYER 710: a line in the player's voice shows his own face
+      const line = you ? raw.slice(4).trim() : raw;
+      const faceName = you ? RUNNER_LOOK.profile : yMenu.face;
+      const pf = faceName ? img['prof_' + faceName] : null, fx = pf && (pf.width || pf.naturalWidth) ? 60 : 0;   // LAYER 705: the speaker's face
       c.font = '13px ' + font; const words = line.split(' '), rows = []; let cur = '';
       for (const wd of words) { const t = cur ? cur + ' ' + wd : wd; if (c.measureText(t).width > bw - pad * 2 - fx && cur) { rows.push(cur); cur = wd; } else cur = t; }
       if (cur) rows.push(cur);
@@ -17955,7 +18359,7 @@ const RUNNER_API = (function () {
       c.strokeStyle = '#6ef0ff'; c.lineWidth = 1.5; c.strokeRect(x + 0.5, y + 0.5, bw - 1, bh - 1);
       c.fillStyle = '#6ef0ff'; c.font = 'bold 11px ' + font; c.textAlign = 'left';
       if (fx) { const pw = 52, ph = pw * (pf.height || pf.naturalHeight) / (pf.width || pf.naturalWidth); c.drawImage(pf, x + pad, y + 26, pw, ph); c.strokeStyle = '#6ef0ff'; c.strokeRect(x + pad - 0.5, y + 25.5, pw + 1, ph + 1); }
-      c.fillText(yMenu.title + '  ·  ' + yMenu.speaker, x + pad + fx, y + 18);
+      c.fillText(yMenu.title + '  ·  ' + (you ? RUNNER_LOOK.name : yMenu.speaker), x + pad + fx, y + 18);
       c.fillStyle = '#e8d9b5'; c.font = '13px ' + font;
       rows.forEach((r, i) => c.fillText(r, x + pad + fx, y + 46 + i * 18));
       c.fillStyle = 'rgba(232,217,181,0.6)'; c.font = '10px ' + font; c.textAlign = 'right';
@@ -17965,12 +18369,14 @@ const RUNNER_API = (function () {
       c.fillStyle = 'rgba(8,10,14,0.9)'; c.fillRect(x, y, bw, bh);
       c.strokeStyle = '#6ef0ff'; c.lineWidth = 1.5; c.strokeRect(x + 0.5, y + 0.5, bw - 1, bh - 1);
       c.fillStyle = '#6ef0ff'; c.font = 'bold 12px ' + font; c.textAlign = 'left';
-      c.fillText('Y  ·  ' + yMenu.title, x + pad, y + 20);
+      const mf = img['prof_' + RUNNER_LOOK.profile], mx = mf && (mf.width || mf.naturalWidth) ? 60 : 0;   // LAYER 710: the player's own face, in its blue outline
+      if (mx) { c.drawImage(mf, x + pad, y + 26, 52, 52); c.strokeStyle = '#6ef0ff'; c.lineWidth = 1.5; c.strokeRect(x + pad - 0.5, y + 25.5, 53, 53); c.fillStyle = '#6ef0ff'; }
+      c.fillText('Y  ·  ' + yMenu.title, x + pad + mx, y + 20);
       yMenu.opts.forEach((o, i) => {
         const ry = y + 40 + i * rowH, on = i === yMenu.sel;
         c.fillStyle = on ? 'rgba(110,240,255,0.18)' : 'rgba(0,0,0,0)'; c.fillRect(x + 6, ry, bw - 12, rowH - 4);
         c.fillStyle = on ? '#d8fbff' : 'rgba(232,217,181,0.75)'; c.font = (on ? 'bold ' : '') + '12px ' + font;
-        c.fillText((on ? '▶ ' : '   ') + o, x + pad, ry + (rowH - 4) / 2);
+        c.fillText((on ? '▶ ' : '   ') + o, x + pad + mx, ry + (rowH - 4) / 2);
       });
       c.fillStyle = 'rgba(232,217,181,0.5)'; c.font = '10px ' + font; c.textAlign = 'right';
       c.fillText('A choose   B close', x + bw - pad, y + bh - 12);
@@ -17985,18 +18391,20 @@ const RUNNER_API = (function () {
     for (const h of hunters) if (!h.dead) collarNear = Math.min(collarNear, Math.hypot(h.x - walker.x, h.y - walker.y));
     const c = canvas.getContext('2d'), dpr = canvas.width / W, now = performance.now();
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (PMB.inside) pmRoomDraw(c, W, H);   // LAYER 709: the bar room covers the street
     drawRunBanners(c);   // LAYER 680: the mission banners, in screen space
     drawYMenu(c, W, H);  // the Y menu and the talk, over the banners
     drawCanBulletin(c);  // LAYER 680: the C.A.N. lookout bulletin, in screen space
     if (MISSION.stage === 'teammate') missionBar(); else if (MISSION.stage === 'house') missionHouse(); else missionStoryTick();   // the bar, then the house (the Y menu)
     rjFrame(now);   // LAYER 707: the jobs (givers, the timer, the arrivals)
-    if (outdoors && cam && (missionOn())) drawMissionArrow(c, cam, W, H, now);   // LAYER 683: the arrow to the pistol, then to the teammate
-    if (outdoors && cam) {
+    if (outdoors && cam && !PMB.inside && (missionOn())) drawMissionArrow(c, cam, W, H, now);   // LAYER 683: the arrow to the pistol, then to the teammate
+    if (outdoors && cam && !PMB.inside) {
       c.save(); c.translate(W / 2, H / 2); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y);
       for (const h of hunters) drawHunter(c, h);
       for (const m of mates) drawMate(c, m);   // LAYER 679: the teammates
       for (const m of informants) drawMate(c, m);   // LAYER 705: the people who may know the doctor
       rjDrawWorld(c, now);   // LAYER 707: the job givers (gold !), the job's contacts and its spot
+      if (RUN_ON) drawTurrets(c);   // LAYER 709: the roof guns on the Pheromone
       if (docMan) drawMate(c, docMan);
       drawCase(c);
       if (sleepDown && !lying) drawSleepBag(c);   // LAYER 691: the bag on the ground (with him, when he lies on it)
@@ -18130,6 +18538,7 @@ const RUNNER_API = (function () {
     c.beginPath(); c.arc(t.x, t.y, 22 + 3 * pulse, 0, Math.PI * 2); c.stroke();
   }
   function fire() {
+    if (PMB.inside) return false;   // LAYER 709: no shooting in the bar
     if (LASER.has && !LASER.drawn && RUN_ON && walker.on && !lobby) { LASER.drawn = true; say('LASER PISTOL IN HAND. RB OR F TO FIRE.', 2.5); return true; }   // LAYER 683: the first press draws it
     if (PSTUN.t > 0 && walker.on) return true;   // LAYER 679: stunned, he cannot fire
     if (!LASER.has || !RUN_ON || !walker.on || lobby) return false;
@@ -18387,17 +18796,7 @@ const RUNNER_API = (function () {
     return 'car';                                                 // the sedans, the hatches, the police and the rest
   }
   const hoverAud = {};
-  /* THE ENGINE REV, for every engine (his bike, the hover trucks, cars and sports cars, and the car he drives on the street):
-     it climbs with the throttle, HOLDS on the top note at top speed, and only comes down when the vehicle really slows (more than
-     12% under the top it reached). Each class keeps its own rev. */
-  const REVS = { bike: { lvl: 0, peak: 0 }, truck: { lvl: 0, peak: 0 }, car: { lvl: 0, peak: 0 }, sports: { lvl: 0, peak: 0 }, muscle: { lvl: 0, peak: 0 }, world: { lvl: 0, peak: 0 }, st_bike: { lvl: 0, peak: 0 }, st_truck: { lvl: 0, peak: 0 }, st_car: { lvl: 0, peak: 0 }, st_sports: { lvl: 0, peak: 0 }, st_muscle: { lvl: 0, peak: 0 } };
-  const FLIER_TOP = 260;   // the cruise speed the hover fliers reach (their spd), for the top of their rev
-  function revFollow(r, target) {
-    const t = clamp(target, 0, 1);
-    if (t >= r.peak || t < r.peak - 0.12) r.peak = t;
-    r.lvl += (r.peak - r.lvl) * (r.peak > r.lvl ? 0.18 : 0.06);   // up quickly, down slowly
-    return r.lvl;
-  }
+  // THE ENGINE REVS live at the top of the file (see REVS there): the audio block reads them too.
   function hoverSoundTick(outdoors, traffic) {
     ambienceTick(RUN_ON && outdoors);
     chatterTick(RUN_ON && outdoors);
@@ -18734,6 +19133,7 @@ const RUNNER_API = (function () {
     setLook: (l) => {
       const o = Object.assign({}, l);
       if (o.body && BODY_TYPES[o.body] != null) { RUNNER_LOOK.body = o.body; RUNNER_LOOK.bodyK = BODY_TYPES[o.body]; RUNNER_LOOK.profile = profileFace(o.body); }   // LAYER 704: a new face for the new build
+      if (o.profile) RUNNER_LOOK.profile = o.profile;   // LAYER 710: the face the player picked (after the body's random one)
       if (o.head) RUNNER_LOOK.head = o.head;
       if (o.suit) { RUNNER_LOOK.suit = o.suit; for (const m of mates) if (m.friend) { m.col = o.suit; m.look.suit = o.suit; } }   // LAYER 684: the teammate wears the suit the player picked
       if (o.name) RUNNER_LOOK.name = String(o.name).slice(0, 14);
@@ -18743,6 +19143,7 @@ const RUNNER_API = (function () {
       RUNNER_LOOK.chosen = true;
     },
     getLook: () => Object.assign({}, RUNNER_LOOK),
+    faceList: (sex) => (sex === 'female' ? PROFILE_FACES.female.slice() : ['male_01', 'male_02', 'male_03', 'male_04', 'male_05', 'male_06', 'male_07', 'male_08', 'male_09', 'male_10']),
     enterLobby: (bx, by) => {
       lobby = true; lobbyBike = streetSpot(bx, by); walker.on = false; pend.exit = false; pend.land = false;
     },
@@ -18934,6 +19335,11 @@ function PauseTabBody({ tab, padSel, acts }) {
   return (
     <div style={{ ...frame, flexDirection: 'column', width: 'min(60vw, 520px)' }} onClick={(e) => e.stopPropagation()}>
       <div style={head}>SYSTEM</div>
+      {RUNNER_API && RUNNER_API.getLook && (() => { const L = RUNNER_API.getLook(); return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid #6ef0ff', padding: 8, margin: '6px 0 10px', boxShadow: '0 0 12px rgba(110,240,255,0.35)' }}>
+          {L.profile && <img src={'assets/runner/portraits/' + L.profile + '.png'} alt="" style={{ width: 64, height: 64, objectFit: 'cover', border: '1px solid #6ef0ff' }} />}
+          <div style={{ fontSize: 13, letterSpacing: '0.2em', color: '#6ef0ff' }}>{L.name}</div>
+        </div>); })()}
       {opts.map(([id, nm, note], i) => (
         <div key={id} data-padrow="1" onClick={() => acts.sys(id)} style={row(padSel === i)}><span>{nm}</span><span style={{ color: '#9a9486', fontSize: 11 }}>{note}</span></div>
       ))}
@@ -18948,6 +19354,7 @@ function RunnerBuilder({ onStart, onCancel }) {
   const [suit, setSuit] = useState(null);
   const [skin, setSkin] = useState(null);
   const [hair, setHair] = useState(null);   // LAYER 690: the hair colour, picked after the head (heads with hair only)
+  const [face, setFace] = useState(null);   // LAYER 710: the portrait for the pause screen and the talk boxes; null = a random one for the build
   const [stats, setStats] = useState(() => Object.fromEntries(RB_STATS.map((k) => [k, 1])));
   const [name, setName] = useState('RUNNER');
   const heads = RUNNER_API.heads();
@@ -18969,11 +19376,11 @@ function RunnerBuilder({ onStart, onCancel }) {
     setBody(v === 'female' ? 'female' : (body === 'female' ? 'big' : body));
     if (head && (head[0] === 'female') !== (v === 'female')) setHead(null);
   };
-  const canNext = step === 0 ? !!sex : step === 4 ? left === 0 : true;
-  const steps = ['SEX', 'HEAD', 'BODY', 'COLOURS', 'STATS', 'NAME'];
-  const go = (n) => setStep(Math.max(0, Math.min(5, n)));
+  const canNext = step === 0 ? !!sex : step === 5 ? left === 0 : true;
+  const steps = ['SEX', 'HEAD', 'BODY', 'COLOURS', 'FACE', 'STATS', 'NAME'];
+  const go = (n) => setStep(Math.max(0, Math.min(6, n)));
   const finish = () => {
-    RUNNER_API.setLook({ head: headKey || (sex === 'female' ? 'head_swirl' : 'mhead_curly'), body, suit: suit || '#6ef0ff', skin: skin || null, hair: headKey && RUNNER_API.hasHair(headKey) ? hair : null, name: (name || 'RUNNER').trim() || 'RUNNER',
+    RUNNER_API.setLook({ profile: face || null, head: headKey || (sex === 'female' ? 'head_swirl' : 'mhead_curly'), body, suit: suit || '#6ef0ff', skin: skin || null, hair: headKey && RUNNER_API.hasHair(headKey) ? hair : null, name: (name || 'RUNNER').trim() || 'RUNNER',
       stats: Object.fromEntries(RB_STATS.map((k) => [k, stats[k]])) });
     onStart();
   };
@@ -18983,7 +19390,7 @@ function RunnerBuilder({ onStart, onCancel }) {
       border: '1px solid #6ef0ff', color: '#e6fbff', fontFamily: 'inherit' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ fontSize: 13, letterSpacing: '0.3em', color: '#6ef0ff' }}>RUNNER BUILDER</div>
-        <div style={{ fontSize: 11, letterSpacing: '0.2em', opacity: 0.8 }}>{step + 1} / 6 · {steps[step]}</div>
+        <div style={{ fontSize: 11, letterSpacing: '0.2em', opacity: 0.8 }}>{step + 1} / 7 · {steps[step]}</div>
       </div>
 
       {step === 0 && (<div>
@@ -19053,6 +19460,18 @@ function RunnerBuilder({ onStart, onCancel }) {
       </div>)}
 
       {step === 4 && (<div>
+        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick your face: it is the one on the pause screen and in the talk boxes</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: 8 }}>
+          {RUNNER_API.faceList(sex).map((f) => { const on = face === f; return (<div key={f} onClick={() => setFace(f)}
+            style={{ border: on ? '2px solid #6ef0ff' : '1px solid rgba(110,240,255,0.35)', background: 'rgba(255,255,255,0.04)', padding: 4, cursor: 'pointer', textAlign: 'center', boxShadow: on ? '0 0 10px #6ef0ff' : 'none' }}>
+            <img src={'assets/runner/portraits/' + f + '.png'} alt="" style={{ width: '100%', imageRendering: 'auto' }} />
+            <div style={{ fontSize: 10, letterSpacing: '0.12em', marginTop: 4 }}>{f.replace('_', ' ').toUpperCase()}</div>
+          </div>); })}
+        </div>
+        <div onClick={() => setFace(null)} style={{ ...btn(true), marginTop: 10, padding: '4px 10px' }}>RANDOM</div>
+      </div>)}
+
+      {step === 5 && (<div>
         <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Spend 20 points · {left} left</div>
         {RB_STATS.map((k) => (
           <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0' }}>
@@ -19066,7 +19485,7 @@ function RunnerBuilder({ onStart, onCancel }) {
         ))}
       </div>)}
 
-      {step === 5 && (<div>
+      {step === 6 && (<div>
         <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Name yourself</div>
         <input value={name} maxLength={14} onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.stopPropagation()} onKeyUp={(e) => e.stopPropagation()}
@@ -19076,8 +19495,8 @@ function RunnerBuilder({ onStart, onCancel }) {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, gap: 10, flexWrap: 'wrap' }}>
         <div onClick={() => (step === 0 ? onCancel() : go(step - 1))} style={btn(true)}>{step === 0 ? 'EXIT' : 'BACK'}</div>
-        {step < 5 && <div onClick={() => { if (canNext) go(step + 1); }} style={btn(canNext)}>NEXT</div>}
-        {step === 5 && <div onClick={finish} style={btn(true)}>START</div>}
+        {step < 6 && <div onClick={() => { if (canNext) go(step + 1); }} style={btn(canNext)}>NEXT</div>}
+        {step === 6 && <div onClick={finish} style={btn(true)}>START</div>}
       </div>
     </div>
   );
@@ -22349,11 +22768,11 @@ export default function IronLionLayer004() {
     /* Juice in, juice out. Every earn says what it was for. */
     function juice(n, why) {
       g.juice = Math.max(0, (g.juice || 0) + n);
-      if (n > 0) g.pickupFlash = { nm: "lift:+" + n + " JUICE \u00b7 " + why, t: 1.6 };
+      if (n > 0) g.pickupFlash = { nm: "lift:+" + n + " CRED \u00b7 " + why, t: 1.6 };
       setHud((h) => ({ ...h, juice: g.juice }));
     }
     function spend(n, what) {
-      if ((g.juice || 0) < n) { g.pickupFlash = { nm: "lift:NOT ENOUGH JUICE \u00b7 " + what + " COSTS " + n, t: 2 }; return false; }
+      if ((g.juice || 0) < n) { g.pickupFlash = { nm: "lift:NOT ENOUGH CRED \u00b7 " + what + " COSTS " + n, t: 2 }; return false; }
       g.juice -= n; setHud((h) => ({ ...h, juice: g.juice }));
       return true;
     }
@@ -24078,7 +24497,7 @@ export default function IronLionLayer004() {
       // the defence might find it: then it all comes apart, and Internal Affairs wants a word
       if ((C.planted || C.paid) && Math.random() < PLANT.caught * ((C.planted ? 1 : 0) + (C.paid || 0) * 0.5)) {
         jury = 5; C.dirtyCaught = 1; g.juice = Math.max(0, (g.juice || 0) - PLANT.juiceLoss);
-        g.jobBanner = "THE DEFENCE FOUND IT"; g.jobNote = "The plant / the paid witness came apart on the stand. -" + PLANT.juiceLoss + " juice. IA will be asking.";
+        g.jobBanner = "THE DEFENCE FOUND IT"; g.jobNote = "The plant / the paid witness came apart on the stand. -" + PLANT.juiceLoss + " cred. IA will be asking.";
       }
       jury = clamp(jury, 5, 80);
       // alternate: the People lead, the defence attacks
@@ -24453,6 +24872,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return { title: "THE BOARD \u00b7 TURN " + W2.turn, face: "assets/ui/ui_badge.png",
                rows, hot, busts, opts: [{ id: "close", label: "BACK" }] };
     }
+    G.boardPanelFn = () => boardPanel();   // the HUD BOARD button reads this; boardPanel itself lives in the game closure
     function nearHouse() {
       const D = g.dets;
       if (!D || g.inside !== D.b || g.mode !== "foot") return null;
@@ -24475,22 +24895,22 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (open && C.bag.length) opts.push({ id: "house:elias:in", label: "HAND IN " + C.bag.length + " BAG" + (C.bag.length > 1 ? "S" : "") });
         if (open) opts.push({ id: "house:elias:what", label: "WHAT HAVE WE GOT?" });
       } else if (id === "specs") {
-        if (open && C.lab.some((L) => !L.done)) opts.push({ id: "house:specs:rush", label: "RUSH ONE \u00b7 " + JUICE.cost.rush + " JUICE" });
+        if (open && C.lab.some((L) => !L.done)) opts.push({ id: "house:specs:rush", label: "RUSH ONE \u00b7 " + JUICE.cost.rush + " CRED" });
         if (open) opts.push({ id: "house:specs:read", label: "WHAT WILL IT TELL ME?" });
       } else if (id === "sparky") {
         opts.push({ id: "house:sparky:fix", label: "PATCH MY CAR UP" });
         opts.push({ id: "house:sparky:fuel", label: "FILL THEM ALL UP" });
-        opts.push({ id: "house:sparky:armor", label: "ARMOUR \u00b7 " + JUICE.cost.armor + " JUICE" });
-        opts.push({ id: "house:sparky:boost", label: "MORE UNDER THE HOOD \u00b7 " + JUICE.cost.boost + " JUICE" });
-        opts.push({ id: "house:sparky:car", label: "A CAR FROM THE POOL \u00b7 " + JUICE.cost.car + " JUICE" });
+        opts.push({ id: "house:sparky:armor", label: "ARMOUR \u00b7 " + JUICE.cost.armor + " CRED" });
+        opts.push({ id: "house:sparky:boost", label: "MORE UNDER THE HOOD \u00b7 " + JUICE.cost.boost + " CRED" });
+        opts.push({ id: "house:sparky:car", label: "A CAR FROM THE POOL \u00b7 " + JUICE.cost.car + " CRED" });
       } else if (id === "captain") {
         opts.push({ id: "house:captain:report", label: "REPORTING IN" });
         if (C && C.stage !== "done") opts.push({ id: "house:captain:case", label: "WHERE I'M AT ON THIS ONE" });
       } else if (id === "chen") {
-        opts.push({ id: "radio:swat", label: "SWAT, ON ME \u00b7 " + JUICE.cost.swat + " JUICE" });
+        opts.push({ id: "radio:swat", label: "SWAT, ON ME \u00b7 " + JUICE.cost.swat + " CRED" });
       } else if (id === "beck") {
         { const n = (g.rivalMsgs || []).filter((m) => m.at === "beck").length; if (n) opts.push({ id: "house:beck:msg", label: "SOMEBODY LEFT YOU A MESSAGE \u00b7 " + n }); }
-        opts.push({ id: "radio:k9", label: "BRING THE DOG \u00b7 " + JUICE.cost.k9 + " JUICE" });
+        opts.push({ id: "radio:k9", label: "BRING THE DOG \u00b7 " + JUICE.cost.k9 + " CRED" });
       } else if (id === "sally") {
         { const n = (g.rivalMsgs || []).filter((m) => m.at === "sally").length; if (n) opts.push({ id: "house:sally:msg", label: "MESSAGES \u00b7 " + n }); }
         opts.push({ id: "house:sally:tip", label: "ANYTHING ON THE WIRE?" });
@@ -24500,7 +24920,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           if (q.carded && !q.ran && opts.length < 7) opts.push({ id: "house:sally:run:" + n, label: "RUN " + identOf(q).name.toUpperCase() });
         });
       }
-      return { title: u.nm + " \u00b7 " + u.role + " \u00b7 " + (g.juice || 0) + " JUICE", face: "assets/heroes/pt_" + u.id + ".png",
+      return { title: u.nm + " \u00b7 " + u.role + " \u00b7 " + (g.juice || 0) + " CRED", face: "assets/heroes/pt_" + u.id + ".png",
                text, opts: opts.concat([{ id: "close", label: "THANKS" }]) };
     }
     G.replacementCar = () => {
@@ -24553,7 +24973,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           else if (spend(JUICE.cost.rush, "A RUSH")) {
             pend.sort((a2, b2) => a2.left - b2.left)[0].left = 0.1;
             said = "I'll put it under the scope myself. Give me a minute, not a morning.";
-          } else said = "You haven't got the juice for that, detective.";
+          } else said = "You haven't got the cred for that, detective.";
         } else if (what === "read") {
           const all = C.ev.filter((e) => e.got).map((e) => e.t);
           said = all.length ? all.map((t) => EVIDENCE[t].nm + " -> " + ({ prints: "a name, if he's been booked", dna: "a name, slowly", ballistics: "the gun",
@@ -24564,9 +24984,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       } else if (who === "sparky") {
         if (what === "fix") { g.car.dmg = 0; g.car.hits = 0; if (g.detCar) g.detCar.dmg = 0; said = "Panels out, glass in. She's straight."; }
         else if (what === "fuel") { for (const q of [g.car, g.moto, g.civ]) if (q) q.fuel = q.maxFuel || 100; said = "Topped off, all of them."; }
-        else if (what === "armor") { if (spend(JUICE.cost.armor, "ARMOUR")) { g.car.tough = Math.max(0.16, (g.car.tough || 0.4) * 0.55); said = "Plate in the doors, glass you can lean on. She'll take a beating now."; } else said = "Not without the juice."; }
-        else if (what === "boost") { if (spend(JUICE.cost.boost, "A BOOST")) { g.carBoost = 1.16; said = "Cam, carb and a little bottle in the boot. Don't tell the captain."; } else said = "Not without the juice."; }
-        else if (what === "car") { if (spend(JUICE.cost.car, "A CAR")) { G.replacementCar(); said = "Take that one. Bring it back with the doors on."; } else said = "Not without the juice."; }
+        else if (what === "armor") { if (spend(JUICE.cost.armor, "ARMOUR")) { g.car.tough = Math.max(0.16, (g.car.tough || 0.4) * 0.55); said = "Plate in the doors, glass you can lean on. She'll take a beating now."; } else said = "Not without the cred."; }
+        else if (what === "boost") { if (spend(JUICE.cost.boost, "A BOOST")) { g.carBoost = 1.16; said = "Cam, carb and a little bottle in the boot. Don't tell the captain."; } else said = "Not without the cred."; }
+        else if (what === "car") { if (spend(JUICE.cost.car, "A CAR")) { G.replacementCar(); said = "Take that one. Bring it back with the doors on."; } else said = "Not without the cred."; }
       } else if (who === "captain") {
         const B = g.book || { cases: [] }, closed = (B.cases || []).filter((q) => q.right).length,
               cold = (B.cases || []).length - closed, riv = (g.rivals || []).length;
@@ -25362,7 +25782,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const what = K9.finds[best.k9 - 1], cash = K9.cash * best.k9;
         g.juice = (g.juice || 0) + K9.juice; g.p.cash = (g.p.cash || 0) + cash;
         d.say = 3; d.line = "WOOF -- " + what.toUpperCase();
-        g.pickupFlash = { nm: "lift:K-9 \u00b7 " + what.toUpperCase() + " \u00b7 +" + K9.juice + " JUICE", t: 2.6 };
+        g.pickupFlash = { nm: "lift:K-9 \u00b7 " + what.toUpperCase() + " \u00b7 +" + K9.juice + " CRED", t: 2.6 };
         if (typeof bookNote === "function") bookNote("K-9 at " + (best.b.name || "the house") + ": " + what + ". $" + cash + " off the street.");
         if (best.k9 >= 3) { d.line = "THAT'S THE HOUSE, DETECTIVE."; }
       }
@@ -25426,7 +25846,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         return { title: d.nm + " \u00b7 " + d.spec, face: "assets/heroes/pt_" + d.id + ".png",
           text: g.detSaid || (open && !done ? d.help : d.hi),
           opts: (open && !done ? [{ id: "help:" + d.id, label: "HELP ME WITH THIS ONE" }] : [])
-            .concat(d.out ? [] : [{ id: "hire:" + d.id, label: "RIDE WITH ME \u00b7 " + JUICE.cost.detective + " JUICE" }])
+            .concat(d.out ? [] : [{ id: "hire:" + d.id, label: "RIDE WITH ME \u00b7 " + JUICE.cost.detective + " CRED" }])
             .concat([{ id: "close", label: "LATER" }]) };
       }
       if (kind === "computer") return { title: "DET. MALCOLM \u00b7 TERMINAL", face: "assets/ui/ui_badge.png", opts: [
@@ -25595,7 +26015,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             .concat(inv.map((it, n) => ({ id: "pstash:hide:" + n, icon: PD_ART["ci_" + it], label: "HIDE " + CONTRABAND[it].nm })))
             .concat([{ id: "close", label: "LEAVE IT" }]) };
       }
-      if (kind === "radio") return { title: "RADIO \u00b7 DISPATCH \u00b7 " + (g.juice || 0) + " JUICE", face: "assets/heroes/pt_sally.png",
+      if (kind === "radio") return { title: "RADIO \u00b7 DISPATCH \u00b7 " + (g.juice || 0) + " CRED", face: "assets/heroes/pt_sally.png",
         text: "SALLY: Go ahead, Malcolm. I've got you.",
         opts: [
         { id: "radio:p1", label: "1 CAR \u00b7 " + JUICE.cost.p1 }, { id: "radio:p2", label: "2 CARS \u00b7 " + JUICE.cost.p2 },
@@ -25715,7 +26135,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           else if (spend(JUICE.cost.detective, "A DETECTIVE")) {
             d.out = true; d.fireCd = 1; d.wpn = "beretta"; d.inCar = false; d.bldOf = g.inside; d.floorOf = g.floor; d.walking = false;
             g.squad.push(d); g.detSaid = d.nm.slice(5) + ": Let's go to work.";
-          } else g.detSaid = "You haven't got the juice, Malcolm.";
+          } else g.detSaid = "You haven't got the cred, Malcolm.";
         }
         G.pickOpen("det:" + id.slice(5)); return;
       }
@@ -41397,7 +41817,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         g.p.cash = (g.p.cash || 0) + COLD.pay; juice(COLD.juice, "A COLD CASE CLOSED");
         (g.papers = g.papers || []).push({ head: "COLD CASE CLOSED AFTER " + (1986 - f.year) + " YEARS",
           sub: "Detective Malcolm King makes an arrest in the " + f.year + " " + f.K.nm.toLowerCase() + " at " + f.place + ". " + q.name + " charged. Detective Kearney: 'Nobody gets away with it. They just get a head start.'" });
-        g.jobBanner = "COLD CASE CLOSED \\u00b7 " + f.year; g.jobNote = "+" + COLD.juice + " juice, $" + COLD.pay + ". It made the front page -- the clippings are on the computer.";
+        g.jobBanner = "COLD CASE CLOSED \\u00b7 " + f.year; g.jobNote = "+" + COLD.juice + " cred, $" + COLD.pay + ". It made the front page -- the clippings are on the computer.";
         g.pickOpen = null; setHud((h) => ({ ...h, pick: null })); return;
       }
       G.pickOpen("coldtalk");
@@ -51277,7 +51697,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
     function updateCrime(dt) {
       // PRISON MODE hears no police band (layer 518) -- inside or out after the escape: no calls, red or green
-      if (g.prisonMode) { if (g.crime && !g.crime.result) g.crime = null; return; }
+      // RUNNER MODE has no crime calls either (LAYER 711): the calls are the other modes' work
+      if (g.prisonMode || RUNNER_API.isOn()) { if (g.crime && !g.crime.result) g.crime = null; return; }
       if (!g.crime) {
         g.crimeTimer -= dt;
         // crimes used to be strictly nocturnal, so the whole system was invisible in daylight.
@@ -63985,7 +64406,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           {hud.objMin ? "\u25b8 SHOW OBJECTIVES" + (padOn ? " (L3)" : "") : "\u25be HIDE" + (padOn ? " (L3)" : "")}
         </div>
         {hud.juice != null && !hud.objMin && !hud.storyOnly && (
-          <div style={{ marginTop: 6, fontSize: 10, letterSpacing: "0.18em", color: "#d9a441" }}>JUICE {hud.juice}</div>
+          <div style={{ marginTop: 6, fontSize: 10, letterSpacing: "0.18em", color: "#d9a441" }}>CRED {hud.juice}</div>
         )}
         <div style={{ marginTop: 10, fontSize: 12, background: "rgba(10,11,14,0.7)", border: "1px solid rgba(217,164,65,0.3)", padding: "6px 9px",
           display: hud.objMin ? "none" : "block" }}>
@@ -64440,7 +64861,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         <div style={{ position: "absolute", top: (() => { const g0 = G.current; if (g0 && (g0.mode === "car" || g0.mode === "moto") && g0.mm) { const S = g0.mm.S, ph = Math.min(S, 132) * 220 / 412; return Math.max(216, g0.mm.y + S + 6 + ph + 8); } return 216; })(),
           right: 12, textAlign: "right", pointerEvents: "none", zIndex: 7, fontFamily: mono }}>
           <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "0.04em", color: hud.payFly ? "#9be37a" : "#f2c45a", textShadow: "0 2px 0 #000, 0 0 10px rgba(0,0,0,0.8)", transition: "color .3s" }}>${hud.money.toLocaleString()}</div>
-          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.22em", color: "#e8d9b5", textShadow: "0 2px 0 #000" }}>JUICE {hud.juiceNow ?? 0}</div>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.22em", color: "#e8d9b5", textShadow: "0 2px 0 #000" }}>CRED {hud.juiceNow ?? 0}</div>
           {/* THE ZOOM, standing up, under the money (layer 567) -- up is closer */}
           <div style={{ position: "relative", width: 30, height: 150, marginLeft: "auto", marginTop: 8, pointerEvents: "auto" }} onPointerDown={(e) => e.stopPropagation()}>
             <div style={{ position: "absolute", right: 0, top: -2, fontSize: 7, letterSpacing: "0.16em", color: "#e8d9b5", opacity: 0.6, whiteSpace: "nowrap" }}>ZOOM</div>
@@ -66262,9 +66683,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             {hud.atHouse && btn(hud.atHouse.nm.split(" ").pop(), "talk", () => G.pickOpen && G.pickOpen("house:" + hud.atHouse.id), null, false)}
             {hud.atGomez && btn(hud.atGomez.nm, "talk", () => G.pickOpen && G.pickOpen("gomez:" + hud.atGomez.id), null, false)}
             {hud.atBoard && btn("BOARD", "the war", () => { const gg = G.current; gg.boardOpen = !gg.boardOpen;
-              setHud((h) => ({ ...h, board: gg.boardOpen ? boardPanel() : null })); }, null, !!hud.board)}
+              setHud((h) => ({ ...h, board: gg.boardOpen ? (G.boardPanelFn ? G.boardPanelFn() : null) : null })); }, null, !!hud.board)}
             {hud.atSnitch && btn("SNITCH", "hear him out", () => G.snitchFn && G.snitchFn(), null, false)}
-            {hud.atBust && btn("BUST", JUICE.cost.swat + " juice", () => G.bustFn && G.bustFn(), null, false)}
+            {hud.atBust && btn("BUST", JUICE.cost.swat + " cred", () => G.bustFn && G.bustFn(), null, false)}
             {hud.ramosCar && btn("RAMOS", hud.autoOn ? "take the wheel" : "you drive",
               () => { if (G.current.auto) { G.current.auto = null; } else G.pickOpen && G.pickOpen("drive"); }, null, hud.autoOn)}
             {G.current && G.current.pescaped && G.current.inside && G.current.inside.biz && !G.current.inside.hideout && !G.current.inside.mercBar &&
