@@ -2830,7 +2830,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 711";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 712";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -23996,7 +23996,7 @@ export default function IronLionLayer004() {
       return !!(v && !g.inside && g.mode === "foot" && Math.hypot(g.p.x - v.x, g.p.y - v.y) < SALLY_NEAR_CAR);
     }
     function stepDispatch(dt) {
-      if (!g.detMode) return;
+      if (!g.detMode || RUNNER_API.isOn()) return;   // LAYER 712: no radio calls in Runner Mode; the queue waits for the other mode
       if (g.radioCall) { g.radioCall.t -= dt; if (g.radioCall.t <= 0) { g.radioCall = null; setHud((h) => ({ ...h, radioCall: null })); } }
       if (g.inside || !atTheRadio()) return;              // the set is in the car
       g.radioT = (g.radioT == null ? 20 : g.radioT) - dt;
@@ -31195,7 +31195,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function canBoard() { return !!boardDoor(); }
     function updateRaid(dt) {
       g.raidCd = (g.raidCd == null ? 70 : g.raidCd) - dt;
-      if (!g.raid && g.raidCd <= 0 && !g.inside) {
+      if (!g.raid && g.raidCd <= 0 && !g.inside && !RUNNER_API.isOn()) {   // LAYER 712: no police raids in Runner Mode
         startRaid();
         g.raidCd = 90 + Math.random() * 120;
       }
@@ -31308,7 +31308,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
 
     function updateWarAct(dt) {
-      if (!g.war || g.warOver) {
+      if (!g.war || g.warOver || RUNNER_API.isOn()) {   // LAYER 712: the rogue crews' turf fights are the other mode's calls
         if (g.warActCd == null) g.warActCd = 0;
         return;
       }
