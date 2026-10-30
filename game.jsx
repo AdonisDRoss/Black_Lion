@@ -2830,7 +2830,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 738";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 739";   // the notes for each layer are in the chat, not on screen
 // LAYER 737: DEBUG -- the first few errors are printed on the screen (the TV has no console). Remove once the red-screen bug is found.
 (function () {
   const shown = [];
@@ -16054,9 +16054,13 @@ const RUNNER_API = (function () {
   const rAbs = () => (RCLK.day - 1) * 1440 + RCLK.min;
   const rTeamOf = (col) => { const q = RTEAMS.find((z) => z.col === col); return q ? q.k : 'you'; };
   const rTeamCol = (k) => { const q = RTEAMS.find((z) => z.k === k); return q ? q.col : '#8a8f98'; };
+  // LAYER 739: who is a man or a woman. The news picture and the pronouns in the line follow it.
+  const RSEX = { JAX: 'm', RICO: 'm', DEV: 'm', KAI: 'm', RONNIE: 'm', MARISOL: 'f', LENA: 'f', BEA: 'f', CASS: 'f' };
+  const rFemale = (who) => RSEX[who] === 'f';
   function rFill(s, e) {
-    return s.split('{who}').join(e.who).split('{team}').join(RTEAM_NAME[e.team] || 'THE TEAM')
+    const out = s.split('{who}').join(e.who).split('{team}').join(RTEAM_NAME[e.team] || 'THE TEAM')
       .split('{place}').join(RZONE_NAME[e.zone]).split('{time}').join(clockText(e.min));
+    return rFemale(e.who) ? out.replace(/\bHe\b/g, 'She').replace(/\bhe\b/g, 'she').replace(/\bHis\b/g, 'Her').replace(/\bhis\b/g, 'her').replace(/\bHim\b/g, 'Her').replace(/\bhim\b/g, 'her') : out;
   }
   // one line of the record: what happened, where and when, and its line of news
   function rlog(kind, o) {
@@ -16151,7 +16155,7 @@ const RUNNER_API = (function () {
     RCAST_ABS = rAbs();
     fresh.sort((a, b) => b.weight - a.weight || b.id - a.id);
     fresh.slice(0, 4).forEach((e) => {
-      const figs = [{ pose: RPOSES[e.id % RPOSES.length], col: e.team ? rTeamCol(e.team) : '#8a8f98', name: e.who }];
+      const figs = [{ pose: rPoseFor(e), col: e.team ? rTeamCol(e.team) : '#8a8f98', name: e.who }];
       tvPlay('rep', ['REPORTING FROM ' + RZONE_NAME[e.zone] + '. ZONE ' + e.zone + '.', e.text], null, 'MORNING NEWS', { zone: e.zone, figs });
     });
   }
@@ -16159,6 +16163,7 @@ const RUNNER_API = (function () {
   // shrinks into a head in a box, and the runners in the story stand in the zone in their team's colour, names under them.
   const REP_HEAD = { x: 400, y: 22, w: 220, h: 220 };   // her head in the front picture, in that picture's own pixels
   const RPOSES = ['pose_m1', 'pose_m2', 'pose_m3', 'pose_m4', 'pose_m5', 'pose_f1', 'pose_f2', 'pose_f3', 'pose_f4', 'pose_f5'];
+  const rPoseFor = (e) => { const pool = rFemale(e.who) ? RPOSES.slice(5) : RPOSES.slice(0, 5); return pool[e.id % pool.length]; };   // LAYER 739
   const TV_TINT = {};
   // a runner's pose in a team colour: the grey art multiplied by the colour, its own shape kept
   function tvFigure(key, col) {
@@ -18344,7 +18349,7 @@ const RUNNER_API = (function () {
   function rLatest(n) {
     if (!RLOG.length) { tvPlay('tv_logo', ['NOTHING NEW ON THE C.A.N. WIRE YET. THE MORNING NEWS GOES OUT AT EIGHT.'], null, 'C.A.N. LIVE'); return; }
     RLOG.slice(-n).reverse().forEach((e) => {
-      const figs = [{ pose: RPOSES[e.id % RPOSES.length], col: e.team ? rTeamCol(e.team) : '#8a8f98', name: e.who }];
+      const figs = [{ pose: rPoseFor(e), col: e.team ? rTeamCol(e.team) : '#8a8f98', name: e.who }];
       tvPlay('rep', ['REPORTING FROM ' + RZONE_NAME[e.zone] + '. ZONE ' + e.zone + '.', e.text], null, 'LIVE  ' + clockText(e.min), { zone: e.zone, figs });
     });
   }
