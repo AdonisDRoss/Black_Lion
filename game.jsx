@@ -1467,14 +1467,14 @@ const ID_SHEETS = [
     "f light", "m light", "f light", "m light", "f light", "f light", "m light", "f light",] },
   { key: "id_faces_civ_b", cols: 7, rows: 4, gang: false, who: [
     "f light", "m light", "f light", "m light", "f light", "m light", "m deep",
-    "m light", "f light", "m light", "f light", "m light", "f light", "m light",
+    "m light", "f light", "m light", "f light", "m light", "f deep", "m light",
     "f mid", "m light", "f light", "m light", "f light", "m light", "m deep",
     "m light", "f mid", "m light", "f light", "m light", "f light", "f light",] },
   { key: "id_faces_civ_c", cols: 7, rows: 4, gang: false, who: [
-    "m light", "f light", "m light", "m light", "m light", "f light", "m deep",
-    "m light", "m light", "f deep", "m light", "m light", "m mid", "f deep",
-    "m light", "m light", "f light", "m light", "m light", "m light", "f deep",
-    "m light", "f mid", "m mid", "m light", "m light", "f deep", "m deep",] },
+    "m light", "f light", "m light", "m light", "m light", "f light", "m light",
+    "m light", "m light", "f deep", "m light", "m light", "m mid", "f light",
+    "m light", "m light", "f light", "m light", "m deep", "m light", "f light",
+    "m light", "f mid", "m mid", "m light", "m light", "f light", "m deep",] },
   { key: "id_faces_civ_d", cols: 7, rows: 4, gang: false, who: [
     "f deep", "m light", "m light", "f mid", "f light", "m mid", "m mid",
     "m light", "f light", "m light", "m deep", "f light", "m mid", "m mid",
@@ -1482,7 +1482,7 @@ const ID_SHEETS = [
     "m deep", "f light", "m light", "f light", "f light", "f deep", "f mid",] },
   { key: "id_faces_civ_e", cols: 8, rows: 4, gang: false, who: [
     "m light", "f light", "m light", "m light", "m light", "f light", "m light", "m deep",
-    "m light", "f deep", "m light", "f light", "m light", "f light", "f light", "m deep",
+    "m light", "f deep", "m light", "f light", "m light", "m light", "f light", "m deep",
     "m light", "f light", "m light", "m deep", "m light", "m light", "m deep", "m deep",
     "m light", "f light", "m deep", "f mid", "m light", "f light", "m light", "m light",] },
   { key: "id_faces_civ_f", cols: 8, rows: 4, gang: false, who: [
@@ -1917,7 +1917,7 @@ const CIV_CAST = [
 ].map(([k, sex, tone, tall]) => ({ k, yt: "yt_cv_" + k, face: "pt_cv_" + k, sex, tone, tall }))
 /* PAGE 2: the 16 x 8 sheet, 128 people. The photographs on that sheet do not belong to the
    bodies above them (the generator shuffled them), so these carry NO photo of their own: the
-   card draws one off the regular face pages by sex and skin tone. Sex is by row as the sheet
+   card draws one off the regular face pages by sex and skin tone, fixed per body in CIV_FACE_PAIR. Sex is by row as the sheet
    was asked for, checked by eye on the mixed rows; tone is measured off the figure. */
 .concat([
   ["p2_1_1", "m", "mid", 1.17],
@@ -1952,22 +1952,6 @@ const CIV_CAST = [
   ["p2_2_14", "m", "deep", 1.17],
   ["p2_2_15", "m", "mid", 1.12],
   ["p2_2_16", "m", "deep", 1.2],
-  ["p2_3_1", "m", "mid", 1.4],
-  ["p2_3_2", "m", "mid", 1.43],
-  ["p2_3_3", "m", "mid", 1.4],
-  ["p2_3_4", "m", "mid", 1.4],
-  ["p2_3_5", "m", "deep", 1.34],
-  ["p2_3_6", "m", "deep", 1.4],
-  ["p2_3_7", "m", "deep", 1.32],
-  ["p2_3_8", "m", "deep", 1.34],
-  ["p2_3_9", "m", "deep", 1.43],
-  ["p2_3_10", "m", "mid", 1.45],
-  ["p2_3_11", "m", "mid", 1.51],
-  ["p2_3_12", "m", "light", 1.42],
-  ["p2_3_13", "m", "mid", 1.45],
-  ["p2_3_14", "m", "mid", 1.42],
-  ["p2_3_15", "m", "deep", 1.34],
-  ["p2_3_16", "m", "mid", 1.42],
   ["p2_4_1", "f", "light", 1.31],
   ["p2_4_2", "f", "light", 1.34],
   ["p2_4_3", "f", "light", 1.29],
@@ -2044,11 +2028,120 @@ const CIV_CAST = [
   ["p2_8_10", "m", "mid", 1.25],
   ["p2_8_11", "f", "mid", 1.25],
   ["p2_8_12", "f", "mid", 1.22],
-  ["p2_8_13", "f", "mid", 1.4],
   ["p2_8_14", "m", "mid", 1.15],
-  ["p2_8_15", "f", "mid", 1.26],
-  ["p2_8_16", "m", "mid", 1.19]
 ].map(([k, sex, tone, tall]) => ({ k, yt: "yt_cv_" + k, face: null, sex, tone, tall })));
+// Page-2 bodies: each one's ID card shows a face of its own sex and skin tone. Index = row-major cell in the sheet.
+const CIV_FACE_PAIR = {
+  p2_1_1: ["id_faces_civ_d", 5],
+  p2_1_10: ["id_faces_civ_d", 10],
+  p2_1_11: ["id_faces_civ_d", 2],
+  p2_1_12: ["id_faces_1", 15],
+  p2_1_13: ["id_faces_civ_d", 19],
+  p2_1_14: ["id_faces_civ_c", 12],
+  p2_1_15: ["id_faces_civ_d", 13],
+  p2_1_16: ["id_faces_civ_e", 23],
+  p2_1_2: ["id_faces_1", 22],
+  p2_1_3: ["id_faces_civ_f", 29],
+  p2_1_4: ["id_faces_civ_c", 17],
+  p2_1_5: ["id_faces_civ_d", 6],
+  p2_1_6: ["id_faces_1", 6],
+  p2_1_7: ["id_faces_civ_e", 26],
+  p2_1_8: ["id_faces_civ_c", 23],
+  p2_1_9: ["id_faces_civ_c", 3],
+  p2_2_1: ["id_faces_1", 8],
+  p2_2_10: ["id_faces_1", 6],
+  p2_2_11: ["id_faces_civ_c", 23],
+  p2_2_12: ["id_faces_1", 15],
+  p2_2_13: ["id_faces_civ_d", 19],
+  p2_2_14: ["id_faces_civ_a", 14],
+  p2_2_15: ["id_faces_civ_c", 12],
+  p2_2_16: ["id_faces_1", 5],
+  p2_2_2: ["id_faces_civ_d", 12],
+  p2_2_3: ["id_faces_1", 12],
+  p2_2_4: ["id_faces_civ_d", 20],
+  p2_2_5: ["id_faces_civ_d", 5],
+  p2_2_6: ["id_faces_civ_f", 15],
+  p2_2_7: ["id_faces_civ_e", 13],
+  p2_2_8: ["id_faces_1", 13],
+  p2_2_9: ["id_faces_civ_d", 6],
+  p2_4_1: ["id_faces_1", 4],
+  p2_4_10: ["id_faces_civ_f", 22],
+  p2_4_11: ["id_faces_civ_d", 22],
+  p2_4_12: ["id_faces_civ_b", 8],
+  p2_4_13: ["id_faces_civ_c", 26],
+  p2_4_14: ["id_faces_civ_f", 8],
+  p2_4_15: ["id_faces_civ_b", 2],
+  p2_4_16: ["id_faces_civ_a", 29],
+  p2_4_2: ["id_faces_civ_a", 24],
+  p2_4_3: ["id_faces_civ_a", 19],
+  p2_4_4: ["id_faces_civ_e", 11],
+  p2_4_5: ["id_faces_civ_b", 0],
+  p2_4_6: ["id_faces_civ_b", 16],
+  p2_4_7: ["id_faces_civ_e", 29],
+  p2_4_8: ["id_faces_civ_b", 14],
+  p2_4_9: ["id_faces_civ_b", 4],
+  p2_5_1: ["id_faces_civ_b", 27],
+  p2_5_10: ["id_faces_1", 9],
+  p2_5_11: ["id_faces_civ_e", 27],
+  p2_5_12: ["id_faces_civ_b", 26],
+  p2_5_13: ["id_faces_civ_a", 16],
+  p2_5_14: ["id_faces_civ_d", 3],
+  p2_5_15: ["id_faces_civ_d", 27],
+  p2_5_16: ["id_faces_civ_a", 2],
+  p2_5_2: ["id_faces_civ_d", 18],
+  p2_5_3: ["id_faces_civ_a", 5],
+  p2_5_4: ["id_faces_civ_a", 31],
+  p2_5_5: ["id_faces_civ_c", 5],
+  p2_5_6: ["id_faces_civ_f", 1],
+  p2_5_7: ["id_faces_civ_a", 20],
+  p2_5_8: ["id_faces_civ_e", 9],
+  p2_5_9: ["id_faces_civ_c", 22],
+  p2_6_1: ["id_faces_civ_a", 26],
+  p2_6_10: ["id_faces_civ_d", 18],
+  p2_6_11: ["id_faces_civ_a", 20],
+  p2_6_12: ["id_faces_civ_d", 4],
+  p2_6_13: ["id_faces_civ_c", 22],
+  p2_6_14: ["id_faces_1", 9],
+  p2_6_15: ["id_faces_civ_e", 27],
+  p2_6_16: ["id_faces_civ_f", 17],
+  p2_6_2: ["id_faces_civ_d", 14],
+  p2_6_3: ["id_faces_civ_b", 22],
+  p2_6_4: ["id_faces_civ_f", 5],
+  p2_6_5: ["id_faces_civ_e", 25],
+  p2_6_6: ["id_faces_civ_a", 12],
+  p2_6_7: ["id_faces_1", 18],
+  p2_6_8: ["id_faces_civ_d", 24],
+  p2_6_9: ["id_faces_civ_b", 14],
+  p2_7_1: ["id_faces_civ_d", 13],
+  p2_7_10: ["id_faces_civ_d", 5],
+  p2_7_11: ["id_faces_civ_d", 6],
+  p2_7_12: ["id_faces_1", 6],
+  p2_7_13: ["id_faces_civ_c", 23],
+  p2_7_14: ["id_faces_civ_f", 25],
+  p2_7_15: ["id_faces_civ_d", 27],
+  p2_7_16: ["id_faces_civ_a", 2],
+  p2_7_2: ["id_faces_civ_e", 14],
+  p2_7_3: ["id_faces_civ_d", 12],
+  p2_7_4: ["id_faces_civ_a", 16],
+  p2_7_5: ["id_faces_civ_d", 3],
+  p2_7_6: ["id_faces_civ_b", 19],
+  p2_7_7: ["id_faces_civ_b", 6],
+  p2_7_8: ["id_faces_civ_d", 20],
+  p2_7_9: ["id_faces_civ_b", 18],
+  p2_8_1: ["id_faces_1", 15],
+  p2_8_10: ["id_faces_civ_d", 13],
+  p2_8_11: ["id_faces_civ_b", 14],
+  p2_8_12: ["id_faces_civ_d", 18],
+  p2_8_14: ["id_faces_civ_d", 12],
+  p2_8_2: ["id_faces_civ_e", 7],
+  p2_8_3: ["id_faces_civ_b", 22],
+  p2_8_4: ["id_faces_civ_b", 24],
+  p2_8_5: ["id_faces_civ_b", 15],
+  p2_8_6: ["id_faces_civ_b", 10],
+  p2_8_7: ["id_faces_civ_d", 19],
+  p2_8_8: ["id_faces_civ_a", 11],
+  p2_8_9: ["id_faces_civ_c", 12],
+};
 const CIV_CAST_SHARE = 0.7;       // of the street crowd, how many are drawn from the cast
 for (const c of CIV_CAST) { PD_ART[c.yt] = "assets/civ/" + c.yt + ".png"; if (c.face) PD_ART[c.face] = "assets/civ/" + c.face + ".png"; }
 /* Old Town's own police: the older cruiser (the chase units' plate), no numbers on the roof,
@@ -2830,7 +2923,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 745";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 752";   // the notes for each layer are in the chat, not on screen
 // LAYER 737: DEBUG -- the first few errors are printed on the screen (the TV has no console). Remove once the red-screen bug is found.
 (function () {
   const shown = [];
@@ -11092,6 +11185,14 @@ for (const k in LEG547) PD_ART[k] = "assets/arms/" + k + ".png";
 const LEG_SETS549 = ["jeansblk", "track", "slacks", "work", "jeansblue", "boxers", "orange"];      // orange: the jumpsuit's trousers (layer 570, recoloured from work)
 for (const s of LEG_SETS549) for (let f = 0; f < 3; f++) PD_ART["lg_walk_" + s + "_" + f] = "assets/arms/lg_walk_" + s + "_" + f + ".png";
 const LEGW549 = [0.44, 0.36];
+/* layer 751: civilians (yt_cv_*) get a walking leg set too, so the gap under the hip cut shows real trousers.
+   The dockworker's overalls get "work"; everyone else is spread over five sets by a fixed hash of their sprite name. */
+const CIV_LEG751 = ["jeansblk", "track", "slacks", "jeansblue", "work"], CIV_LEG_CACHE751 = new Map();
+const civLegSet751 = (p) => { if (!p || !p.yt || p.yt.indexOf("yt_cv_") !== 0) return null;
+  let s = CIV_LEG_CACHE751.get(p.yt); if (s !== undefined) return s;
+  if (p.yt === "yt_cv_dockworker") s = "work"; else { let h = 0; for (let i = 0; i < p.yt.length; i++) h = (h * 31 + p.yt.charCodeAt(i)) | 0; s = CIV_LEG751[Math.abs(h) % CIV_LEG751.length]; }
+  CIV_LEG_CACHE751.set(p.yt, s); return s; };
+const CIV_LEGTOP751 = {"yt_cv_barfly": 0.695, "yt_cv_busdriver": 0.712, "yt_cv_dockworker": 0.728, "yt_cv_exec": 0.664, "yt_cv_jogger": 0.747, "yt_cv_mailman": 0.683, "yt_cv_mechanic": 0.735, "yt_cv_p2_1_1": 0.743, "yt_cv_p2_1_10": 0.747, "yt_cv_p2_1_11": 0.747, "yt_cv_p2_1_12": 0.75, "yt_cv_p2_1_13": 0.747, "yt_cv_p2_1_14": 0.737, "yt_cv_p2_1_15": 0.752, "yt_cv_p2_1_16": 0.75, "yt_cv_p2_1_2": 0.747, "yt_cv_p2_1_3": 0.747, "yt_cv_p2_1_4": 0.75, "yt_cv_p2_1_5": 0.747, "yt_cv_p2_1_6": 0.75, "yt_cv_p2_1_7": 0.752, "yt_cv_p2_1_8": 0.747, "yt_cv_p2_1_9": 0.747, "yt_cv_p2_2_1": 0.739, "yt_cv_p2_2_10": 0.743, "yt_cv_p2_2_11": 0.743, "yt_cv_p2_2_12": 0.739, "yt_cv_p2_2_13": 0.743, "yt_cv_p2_2_14": 0.743, "yt_cv_p2_2_15": 0.743, "yt_cv_p2_2_16": 0.743, "yt_cv_p2_2_2": 0.739, "yt_cv_p2_2_3": 0.73, "yt_cv_p2_2_4": 0.739, "yt_cv_p2_2_5": 0.746, "yt_cv_p2_2_6": 0.739, "yt_cv_p2_2_7": 0.739, "yt_cv_p2_2_8": 0.739, "yt_cv_p2_2_9": 0.743, "yt_cv_p2_4_1": 0.747, "yt_cv_p2_4_10": 0.747, "yt_cv_p2_4_11": 0.747, "yt_cv_p2_4_12": 0.737, "yt_cv_p2_4_13": 0.752, "yt_cv_p2_4_14": 0.752, "yt_cv_p2_4_15": 0.75, "yt_cv_p2_4_16": 0.75, "yt_cv_p2_4_2": 0.75, "yt_cv_p2_4_3": 0.752, "yt_cv_p2_4_4": 0.75, "yt_cv_p2_4_5": 0.747, "yt_cv_p2_4_6": 0.737, "yt_cv_p2_4_7": 0.75, "yt_cv_p2_4_8": 0.747, "yt_cv_p2_4_9": 0.747, "yt_cv_p2_5_1": 0.747, "yt_cv_p2_5_10": 0.747, "yt_cv_p2_5_11": 0.747, "yt_cv_p2_5_12": 0.747, "yt_cv_p2_5_13": 0.754, "yt_cv_p2_5_14": 0.747, "yt_cv_p2_5_15": 0.75, "yt_cv_p2_5_16": 0.747, "yt_cv_p2_5_2": 0.747, "yt_cv_p2_5_3": 0.75, "yt_cv_p2_5_4": 0.747, "yt_cv_p2_5_5": 0.747, "yt_cv_p2_5_6": 0.754, "yt_cv_p2_5_7": 0.747, "yt_cv_p2_5_8": 0.75, "yt_cv_p2_5_9": 0.747, "yt_cv_p2_6_1": 0.749, "yt_cv_p2_6_10": 0.73, "yt_cv_p2_6_11": 0.73, "yt_cv_p2_6_12": 0.749, "yt_cv_p2_6_13": 0.757, "yt_cv_p2_6_14": 0.73, "yt_cv_p2_6_15": 0.739, "yt_cv_p2_6_16": 0.75, "yt_cv_p2_6_2": 0.73, "yt_cv_p2_6_3": 0.75, "yt_cv_p2_6_4": 0.73, "yt_cv_p2_6_5": 0.754, "yt_cv_p2_6_6": 0.739, "yt_cv_p2_6_7": 0.754, "yt_cv_p2_6_8": 0.757, "yt_cv_p2_6_9": 0.757, "yt_cv_p2_7_1": 0.747, "yt_cv_p2_7_10": 0.747, "yt_cv_p2_7_11": 0.747, "yt_cv_p2_7_12": 0.737, "yt_cv_p2_7_13": 0.75, "yt_cv_p2_7_14": 0.75, "yt_cv_p2_7_15": 0.747, "yt_cv_p2_7_16": 0.752, "yt_cv_p2_7_2": 0.75, "yt_cv_p2_7_3": 0.75, "yt_cv_p2_7_4": 0.737, "yt_cv_p2_7_5": 0.747, "yt_cv_p2_7_6": 0.74, "yt_cv_p2_7_7": 0.737, "yt_cv_p2_7_8": 0.747, "yt_cv_p2_7_9": 0.755, "yt_cv_p2_8_1": 0.749, "yt_cv_p2_8_10": 0.743, "yt_cv_p2_8_11": 0.743, "yt_cv_p2_8_12": 0.743, "yt_cv_p2_8_14": 0.746, "yt_cv_p2_8_2": 0.749, "yt_cv_p2_8_3": 0.749, "yt_cv_p2_8_4": 0.746, "yt_cv_p2_8_5": 0.749, "yt_cv_p2_8_6": 0.743, "yt_cv_p2_8_7": 0.743, "yt_cv_p2_8_8": 0.746, "yt_cv_p2_8_9": 0.743, "yt_cv_priest": 0.775, "yt_cv_punk": 0.712, "yt_cv_retiree": 0.79, "yt_cv_salesman": 0.664, "yt_cv_varsity": 0.715};   // layer 752: where each civilian's walking legs start, as a share of the sprite height (the hip, or below the new trouser band)
 const REY_LEGS548 = { street: "jeansblk", track: "track", suit: "slacks", work: "work", workvest: "jeansblue", leather: "jeansblk", boxers: "boxers" };
 const LIE_LEGS = ["lg_lie_jeans", "lg_lie_work", "lg_lie_slacks", "lg_lie_sweats", "lg_lie_ripped", "lg_lie_blanket", "lg_lie_bag"], SIT_LEGS = ["lg_sit_cross", "lg_sit_knees", "lg_sit_blanket"];
 const ARM_BY_YT = {
@@ -14468,7 +14569,7 @@ function rbMount(root, onExit, TEAMS) {
     else { ctx.fillStyle = "#7a4a22"; ctx.beginPath(); ctx.ellipse(bx, by - bz, 5, 3, 0, 0, 6.3); ctx.fill(); }
   }
   /* the crowd: civilians in the stands (never on the track or the field), most with a sign for one of the two teams */
-  const CIV_FILES = ["yt_cv_barfly.png","yt_cv_busdriver.png","yt_cv_dockworker.png","yt_cv_exec.png","yt_cv_jogger.png","yt_cv_mailman.png","yt_cv_mechanic.png","yt_cv_p2_1_1.png","yt_cv_p2_1_10.png","yt_cv_p2_1_11.png","yt_cv_p2_1_12.png","yt_cv_p2_1_13.png","yt_cv_p2_1_14.png","yt_cv_p2_1_15.png","yt_cv_p2_1_16.png","yt_cv_p2_1_2.png","yt_cv_p2_1_3.png","yt_cv_p2_1_4.png","yt_cv_p2_1_5.png","yt_cv_p2_1_6.png","yt_cv_p2_1_7.png","yt_cv_p2_1_8.png","yt_cv_p2_1_9.png","yt_cv_p2_2_1.png","yt_cv_p2_2_10.png","yt_cv_p2_2_11.png","yt_cv_p2_2_12.png","yt_cv_p2_2_13.png","yt_cv_p2_2_14.png","yt_cv_p2_2_15.png","yt_cv_p2_2_16.png","yt_cv_p2_2_2.png","yt_cv_p2_2_3.png","yt_cv_p2_2_4.png","yt_cv_p2_2_5.png","yt_cv_p2_2_6.png","yt_cv_p2_2_7.png","yt_cv_p2_2_8.png","yt_cv_p2_2_9.png","yt_cv_p2_3_1.png","yt_cv_p2_3_10.png","yt_cv_p2_3_11.png","yt_cv_p2_3_12.png","yt_cv_p2_3_13.png","yt_cv_p2_3_14.png","yt_cv_p2_3_15.png","yt_cv_p2_3_16.png","yt_cv_p2_3_2.png","yt_cv_p2_3_3.png","yt_cv_p2_3_4.png","yt_cv_p2_3_5.png","yt_cv_p2_3_6.png","yt_cv_p2_3_7.png","yt_cv_p2_3_8.png","yt_cv_p2_3_9.png","yt_cv_p2_4_1.png","yt_cv_p2_4_10.png","yt_cv_p2_4_11.png","yt_cv_p2_4_12.png","yt_cv_p2_4_13.png","yt_cv_p2_4_14.png","yt_cv_p2_4_15.png","yt_cv_p2_4_16.png","yt_cv_p2_4_2.png","yt_cv_p2_4_3.png","yt_cv_p2_4_4.png","yt_cv_p2_4_5.png","yt_cv_p2_4_6.png","yt_cv_p2_4_7.png","yt_cv_p2_4_8.png","yt_cv_p2_4_9.png","yt_cv_p2_5_1.png","yt_cv_p2_5_10.png","yt_cv_p2_5_11.png","yt_cv_p2_5_12.png","yt_cv_p2_5_13.png","yt_cv_p2_5_14.png","yt_cv_p2_5_15.png","yt_cv_p2_5_16.png","yt_cv_p2_5_2.png","yt_cv_p2_5_3.png","yt_cv_p2_5_4.png","yt_cv_p2_5_5.png","yt_cv_p2_5_6.png","yt_cv_p2_5_7.png","yt_cv_p2_5_8.png","yt_cv_p2_5_9.png","yt_cv_p2_6_1.png","yt_cv_p2_6_10.png","yt_cv_p2_6_11.png","yt_cv_p2_6_12.png","yt_cv_p2_6_13.png","yt_cv_p2_6_14.png","yt_cv_p2_6_15.png","yt_cv_p2_6_16.png","yt_cv_p2_6_2.png","yt_cv_p2_6_3.png","yt_cv_p2_6_4.png","yt_cv_p2_6_5.png","yt_cv_p2_6_6.png","yt_cv_p2_6_7.png","yt_cv_p2_6_8.png","yt_cv_p2_6_9.png","yt_cv_p2_7_1.png","yt_cv_p2_7_10.png","yt_cv_p2_7_11.png","yt_cv_p2_7_12.png","yt_cv_p2_7_13.png","yt_cv_p2_7_14.png","yt_cv_p2_7_15.png","yt_cv_p2_7_16.png","yt_cv_p2_7_2.png","yt_cv_p2_7_3.png","yt_cv_p2_7_4.png","yt_cv_p2_7_5.png","yt_cv_p2_7_6.png","yt_cv_p2_7_7.png","yt_cv_p2_7_8.png","yt_cv_p2_7_9.png","yt_cv_p2_8_1.png","yt_cv_p2_8_10.png","yt_cv_p2_8_11.png","yt_cv_p2_8_12.png","yt_cv_p2_8_13.png","yt_cv_p2_8_14.png","yt_cv_p2_8_15.png","yt_cv_p2_8_16.png","yt_cv_p2_8_2.png","yt_cv_p2_8_3.png","yt_cv_p2_8_4.png","yt_cv_p2_8_5.png","yt_cv_p2_8_6.png","yt_cv_p2_8_7.png","yt_cv_p2_8_8.png","yt_cv_p2_8_9.png","yt_cv_priest.png","yt_cv_punk.png","yt_cv_retiree.png","yt_cv_salesman.png","yt_cv_varsity.png"];
+  const CIV_FILES = ["yt_cv_barfly.png","yt_cv_busdriver.png","yt_cv_dockworker.png","yt_cv_exec.png","yt_cv_jogger.png","yt_cv_mailman.png","yt_cv_mechanic.png","yt_cv_p2_1_1.png","yt_cv_p2_1_10.png","yt_cv_p2_1_11.png","yt_cv_p2_1_12.png","yt_cv_p2_1_13.png","yt_cv_p2_1_14.png","yt_cv_p2_1_15.png","yt_cv_p2_1_16.png","yt_cv_p2_1_2.png","yt_cv_p2_1_3.png","yt_cv_p2_1_4.png","yt_cv_p2_1_5.png","yt_cv_p2_1_6.png","yt_cv_p2_1_7.png","yt_cv_p2_1_8.png","yt_cv_p2_1_9.png","yt_cv_p2_2_1.png","yt_cv_p2_2_10.png","yt_cv_p2_2_11.png","yt_cv_p2_2_12.png","yt_cv_p2_2_13.png","yt_cv_p2_2_14.png","yt_cv_p2_2_15.png","yt_cv_p2_2_16.png","yt_cv_p2_2_2.png","yt_cv_p2_2_3.png","yt_cv_p2_2_4.png","yt_cv_p2_2_5.png","yt_cv_p2_2_6.png","yt_cv_p2_2_7.png","yt_cv_p2_2_8.png","yt_cv_p2_2_9.png","yt_cv_p2_4_1.png","yt_cv_p2_4_10.png","yt_cv_p2_4_11.png","yt_cv_p2_4_12.png","yt_cv_p2_4_13.png","yt_cv_p2_4_14.png","yt_cv_p2_4_15.png","yt_cv_p2_4_16.png","yt_cv_p2_4_2.png","yt_cv_p2_4_3.png","yt_cv_p2_4_4.png","yt_cv_p2_4_5.png","yt_cv_p2_4_6.png","yt_cv_p2_4_7.png","yt_cv_p2_4_8.png","yt_cv_p2_4_9.png","yt_cv_p2_5_1.png","yt_cv_p2_5_10.png","yt_cv_p2_5_11.png","yt_cv_p2_5_12.png","yt_cv_p2_5_13.png","yt_cv_p2_5_14.png","yt_cv_p2_5_15.png","yt_cv_p2_5_16.png","yt_cv_p2_5_2.png","yt_cv_p2_5_3.png","yt_cv_p2_5_4.png","yt_cv_p2_5_5.png","yt_cv_p2_5_6.png","yt_cv_p2_5_7.png","yt_cv_p2_5_8.png","yt_cv_p2_5_9.png","yt_cv_p2_6_1.png","yt_cv_p2_6_10.png","yt_cv_p2_6_11.png","yt_cv_p2_6_12.png","yt_cv_p2_6_13.png","yt_cv_p2_6_14.png","yt_cv_p2_6_15.png","yt_cv_p2_6_16.png","yt_cv_p2_6_2.png","yt_cv_p2_6_3.png","yt_cv_p2_6_4.png","yt_cv_p2_6_5.png","yt_cv_p2_6_6.png","yt_cv_p2_6_7.png","yt_cv_p2_6_8.png","yt_cv_p2_6_9.png","yt_cv_p2_7_1.png","yt_cv_p2_7_10.png","yt_cv_p2_7_11.png","yt_cv_p2_7_12.png","yt_cv_p2_7_13.png","yt_cv_p2_7_14.png","yt_cv_p2_7_15.png","yt_cv_p2_7_16.png","yt_cv_p2_7_2.png","yt_cv_p2_7_3.png","yt_cv_p2_7_4.png","yt_cv_p2_7_5.png","yt_cv_p2_7_6.png","yt_cv_p2_7_7.png","yt_cv_p2_7_8.png","yt_cv_p2_7_9.png","yt_cv_p2_8_1.png","yt_cv_p2_8_10.png","yt_cv_p2_8_11.png","yt_cv_p2_8_12.png","yt_cv_p2_8_14.png","yt_cv_p2_8_2.png","yt_cv_p2_8_3.png","yt_cv_p2_8_4.png","yt_cv_p2_8_5.png","yt_cv_p2_8_6.png","yt_cv_p2_8_7.png","yt_cv_p2_8_8.png","yt_cv_p2_8_9.png","yt_cv_priest.png","yt_cv_punk.png","yt_cv_retiree.png","yt_cv_salesman.png","yt_cv_varsity.png"];
   const CIV_IMGS = CIV_FILES.map((f) => img("assets/civ/" + f));
   const GANG_CHANCE = 0.5;                                    // the share of home games where the King gang shows up
   const GANG_IMG = img("assets/fb/crowd/terry_king.png");     // Terry King, the oldest uncle (sprite: 69x160)
@@ -15433,13 +15534,18 @@ const RUNNER_API = (function () {
   // LAYER 717: how near he must be to get into the bike or the car, and to the sleeping bag. Tight on purpose: from far away a press
   // must not hop him onto the bike. The dismount spot is 70 px from the bike, so GET_IN_R sits just past it.
   const GET_IN_R = 110, BAG_R = 90;
+  let runnerInside = null;   // LAYER 746: the building he is in (the game's g.inside), or null outdoors
+  let runnerFloor = 0, solidTest = () => false;   // LAYER 749: the floor he is on, and the game's own solid-furniture test (SOLID_PROP)
+  function setIndoors(b, f, solid) { runnerInside = b || null; runnerFloor = f || 0; if (solid) solidTest = solid; }
   let worldActHook = null;
   function exitOrBoard(fromPad) {
     if (arrestDeskNear()) return arrestDesk();   // LAYER 729: E at the desk, under arrest: the sergeant
     if (ARR.on) return;                          // LAYER 729: in cuffs, E does nothing
     if (lying) return;         // LAYER 717: lying on the bag, A and E do nothing else
+    if (barTalkNow()) return;   // LAYER 747: E by one of the LAST CALL's people talks to him, as A does on the pad
     if (storyTalk()) return;   // LAYER 705: an informant or the doctor beside him
     if (PMB.inside) return;    // LAYER 709: in the bar the bike and the pack stay put
+    if (runnerInside) { if (fromPad && worldActHook) worldActHook(); return; }   // LAYER 746: indoors, the bike, the cars, the bag and the stashes are outside things: only the building's own action runs
     const packSpot = packStashNear(); if (packSpot) { packPickup(packSpot); return; }   // LAYER 673: E by a pack stash
     if (stashNear()) { pickLaser(); return; }   // LAYER 670: E by the stash picks up the laser pistol
     if (caseNear()) { pickCase(); return; }     // LAYER 679: E by the case picks it up
@@ -16277,6 +16383,7 @@ const RUNNER_API = (function () {
 
   function update(dt) {
     mateTick(dt);
+    houseThugTick(dt);   // LAYER 748: the house's thugs
     teamDriveTick(dt);   // LAYER 726
     hotwireTick(dt);     // LAYER 727
     arrestTick(dt);      // LAYER 729: the arrest, the ride, the desk
@@ -16294,11 +16401,12 @@ const RUNNER_API = (function () {
       }
       yMenu.stickY = pad.y;
       if (pad.a && !padPrev.a) yMenuPick();
+      if (pend.exit) { pend.exit = false; pend.exitPad = false; if (yMenu.mode === 'talk') yMenuPick(); }   // LAYER 747: E moves a talk on (the keyboard had no key for it); a menu takes no E, so none waits to fire after it closes
       if (pad.b && !padPrev.b) { yMenu.open = false; yMenu.mode = 'menu'; }   // Y closes it through yAction (the pad poll)
       padPrev = { a: pad.a, b: pad.b, xb: pad.xb, yb: pad.yb, rb: pad.rb, lb: pad.lb, r3: pad.r3 };
       return;
     }
-    if (!tvOpen && pad.a && !padPrev.a) { if (bartenderNear()) openYMenu(); else { pend.exit = true; pend.exitPad = true; } }   // A: talk to the person by you, else the stash or the bike (E)   // LAYER 683: A is the action (E): stash pickups, else board or get off
+    if (!tvOpen && pad.a && !padPrev.a) { if (!barTalkNow()) { pend.exit = true; pend.exitPad = true; } }   // A: talk to the person by you, else the stash or the bike (E)   // LAYER 683: A is the action (E): stash pickups, else board or get off
     if (!tvOpen && pad.b && !padPrev.b && !walker.on) pend.land = true;   // B takes off, or lands the bike (on foot, B punches)
     if (!tvOpen && pad.r3 && !padPrev.r3) pend.call = true;         // LAYER 690: R3 calls the bike down beside him (it was X, and X caught A's presses inside)
     if (!tvOpen && pad.lb && !padPrev.lb) pend.target = true;       // LAYER 683: LB locks the aim on the nearest target, again lets go
@@ -18213,7 +18321,7 @@ const RUNNER_API = (function () {
     canDroneSpawn();   // LAYER 680: the C.A.N. drone starts near the bike
     say('THE CASE IS OUT THERE. EVERY TEAM IS LOOKING FOR IT.', 5);
   }
-  function caseNear() { return LOOSE.on && LOOSE.holder == null && walker.on && Math.hypot(walker.x - LOOSE.x, walker.y - LOOSE.y) < 90; }
+  function caseNear() { return !runnerInside && LOOSE.on && LOOSE.holder == null && walker.on && Math.hypot(walker.x - LOOSE.x, walker.y - LOOSE.y) < 90; }
   function pickCase() { LOOSE.holder = 'player'; say('GOT THE CASE. ALL OF THEM WILL COME FOR YOU NOW.', 4); }
   function dropCaseAt(x, y) { LOOSE.holder = null; LOOSE.x = x; LOOSE.y = y; LOOSE.on = true; }
   // a teammate's shot lands on the Lion: he sits still for a while, and drops the case if he has it
@@ -18424,7 +18532,7 @@ const RUNNER_API = (function () {
   const BAR_NAME = 'THE LAST CALL';
   const TIP_ADDRESS = '612 SAUNDERS AVE';
   const yMenu = { open: false, mode: 'menu', sel: 0, opts: [], lines: [], li: 0, title: '', speaker: '', stickY: 0, face: null, done: null, onPick: null };
-  let barSpot = null, houseSpot = null, houseSeen = false;
+  let barSpot = null, houseSpot = null, houseSeen = false, houseBldg = null;
   // LAYER 714/716: the first mission goes to real buildings. THE LAST CALL is the venue on civic cell (6,9); the arrow ends at its
   // door, out on the street. The house is a real house with a door, at least three blocks from the bar, the nearest such one.
   function doorSpotOf(b) {
@@ -18450,6 +18558,7 @@ const RUNNER_API = (function () {
         if (d >= 3 * PITCH && d < bd) { bd = d; best = b; }
       }
     }
+    houseBldg = best;
     return best ? doorSpotOf(best) : null;
   }
   function missionBar() {
@@ -18460,9 +18569,8 @@ const RUNNER_API = (function () {
     if (!houseSpot) { const b = barSpot || { x: 0, y: 0 }; houseSpot = houseDoorSpot() || clearSpot(b.x - 900, b.y + 300, null) || { x: b.x - 900, y: b.y + 300 }; }
     MISSION.label = 'HOUSE'; MISSION.x = houseSpot.x; MISSION.y = houseSpot.y;
     makeLot();   // LAYER 704: the lot behind it
-    if (!houseSeen && walker.on && Math.hypot(walker.x - houseSpot.x, walker.y - houseSpot.y) < 110) {
-      houseSeen = true; partnerSaved();
-    }
+    if (!houseSeen && inHouse()) { houseSeen = true; houseThugsStart(); }   // LAYER 746: inside the house, the thugs come first (LAYER 748)
+    if (houseSeen && !houseTalked && inHouse() && (!houseThugs || houseThugsDone)) { houseTalked = true; partnerSaved(); }   // LAYER 748: the partner's text waits until the last thug is down
   }
   /* LAYER 704: THE HIDEOUT LOT. Behind the hideout (houseSpot) there is a lot with two yellow-outlined spots, side by side on
      the lot's long side. The teammate's car is parked in the north spot and stays there. The runner's bike lands in the south
@@ -18564,6 +18672,137 @@ const RUNNER_API = (function () {
   }
   function pickName(taken) { const pool = INF_NAMES.filter((n) => !taken.includes(n)); return pool[(Math.random() * pool.length) | 0]; }
   // the partner: rescued at the hideout, he sits down, and the bed roll lesson starts
+  // LAYER 748: the house's thugs. Inside the house, on the ground floor, before the partner's text: three everyday thugs in the rooms.
+  // A fist does 30 (two put one down); the pistol's beam puts one down. The partner's text starts when the last one is down.
+  const THUG_FR = [[0.17, 0.5], [0.53, 0.8], [0.87, 0.5]];   // where they stand, as fractions of the house's footprint
+  const THUG_SPD = 58, THUG_HP = 60, THUG_HIT = 30;
+  let houseThugs = null, houseThugsDone = false, houseTalked = false, houseThugPunchT = 0;
+  function inHouse() { return !!(runnerInside && houseBldg && runnerInside.x === houseBldg.x && runnerInside.y === houseBldg.y); }
+  function houseThugsStart() {
+    if (houseThugs || houseThugsDone || !houseBldg) return;
+    const b = houseBldg, names = ['A THUG', 'A SECOND THUG', 'THE THIRD THUG'];
+    houseThugs = THUG_FR.map((f, i) => ({ name: names[i], ...thugFreeSpot(b, b.x + f[0] * b.w, b.y + f[1] * b.h), heading: 0, step: 0, amp: 1, hp: THUG_HP, stunT: 0, dead: false, cd: 1 + i * 0.7, col: 'rgba(0,0,0,0)', look: mateLook(i === 1 ? '#5a2a2a' : '#2f3a2c') }));
+    say('THREE OF THEM IN THE HOUSE. THEY WANT A FIGHT.', 4);
+  }
+  function houseThugTick(dt) {
+    if (!houseThugs || houseThugsDone || !thugsHere()) return;
+    for (const t of houseThugs) {
+      if (t.dead) continue;
+      t.cd = Math.max(0, t.cd - dt);
+      if (t.stunT > 0) { t.stunT -= dt; continue; }
+      const dx = walker.x - t.x, dy = walker.y - t.y, d = Math.hypot(dx, dy) || 1;
+      if (d > 34) {
+        // round the walls: the route is re-found every 0.3s, and the thug walks to the next cell on it
+        t.routeT = (t.routeT || 0) - dt;
+        if (!t.route || t.routeT <= 0) { t.route = thugRoute(t); t.routeT = 0.3; }
+        const r = t.route;
+        while (r.length > 1 && Math.hypot(r[0].x - t.x, r[0].y - t.y) < 6) r.shift();
+        let tx = walker.x, ty = walker.y;
+        if (r.length > 1 || Math.hypot(r[0].x - t.x, r[0].y - t.y) >= 6) { tx = r[0].x; ty = r[0].y; }
+        const ex = tx - t.x, ey = ty - t.y, ed = Math.hypot(ex, ey) || 1, step = Math.min(THUG_SPD * dt, ed);
+        t.x += ex / ed * step; t.y += ey / ed * step; t.heading = Math.atan2(ey, ex); t.step += dt * 8;
+      } else t.heading = Math.atan2(dy, dx);
+      if (d <= 40 && t.cd <= 0 && walker.on && PSTUN.t <= 0) {
+        t.cd = 3.5 + Math.random() * 1.0;
+        if (Math.random() < 0.2) stunPlayer(t);                  // an everyday thug lands one swing in five: a few seconds, not a lock
+        else say(t.name + ' SWINGS AND MISSES.', 1.2);
+      }
+    }
+  }
+  // LAYER 749: the thugs walk the house the way he does: round the walls and through the doorways. A grid over the ground floor
+  // (its walls, and the solid furniture the game's SOLID_PROP names), cells THUG_CS wide, each thug's body THUG_R. Built once per house.
+  const THUG_CS = 8, THUG_R = 6;
+  let thugNav = null;
+  function thugsHere() { return inHouse() && runnerFloor === 0; }   // the thugs are on the ground floor; upstairs they wait
+  function thugNavFor(b) {
+    if (thugNav && thugNav.b === b) return thugNav;
+    const pl = buildingPlans(b)[0], nx = Math.ceil(b.w / THUG_CS), ny = Math.ceil(b.h / THUG_CS);
+    const S = [];
+    for (const w of pl.walls) S.push(w);
+    for (const p of pl.props) {
+      if (p.hard) { S.push({ x: p.x, y: p.y, w: p.w, h: p.h }); continue; }
+      if (!solidTest(p.t) || p.w < 26 || p.h < 26) continue;
+      S.push({ x: p.x + 6, y: p.y + 6, w: p.w - 12, h: p.h - 12 });
+    }
+    const blocked = new Uint8Array(nx * ny);
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const cx = b.x + (i + 0.5) * THUG_CS, cy = b.y + (j + 0.5) * THUG_CS;
+      for (const q of S) if (cx >= q.x - THUG_R && cx <= q.x + q.w + THUG_R && cy >= q.y - THUG_R && cy <= q.y + q.h + THUG_R) { blocked[j * nx + i] = 1; break; }
+    }
+    thugNav = { b, nx, ny, blocked };
+    return thugNav;
+  }
+  // the free cell nearest a point: where a thug is put down, so he never starts inside a wall
+  function thugFreeSpot(b, x, y) {
+    const N = thugNavFor(b);
+    const i0 = Math.min(N.nx - 1, Math.max(0, Math.floor((x - b.x) / THUG_CS))), j0 = Math.min(N.ny - 1, Math.max(0, Math.floor((y - b.y) / THUG_CS)));
+    for (let r = 0; r <= 8; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
+      if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
+      const i = i0 + di, j = j0 + dj;
+      if (i < 0 || j < 0 || i >= N.nx || j >= N.ny || N.blocked[j * N.nx + i]) continue;
+      return { x: b.x + (i + 0.5) * THUG_CS, y: b.y + (j + 0.5) * THUG_CS };
+    }
+    return { x, y };
+  }
+  // the route to the free cell nearest him: breadth-first over the free cells, starting from where the thug stands
+  function thugRoute(t) {
+    const N = thugNavFor(houseBldg), b = N.b, n = N.nx * N.ny;
+    const cell = (x, y) => [Math.min(N.nx - 1, Math.max(0, Math.floor((x - b.x) / THUG_CS))), Math.min(N.ny - 1, Math.max(0, Math.floor((y - b.y) / THUG_CS)))];
+    const [si, sj] = cell(t.x, t.y), [gi, gj] = cell(walker.x, walker.y);
+    const prev = new Int32Array(n).fill(-2);   // -2: not reached; -1: the start
+    const start = sj * N.nx + si, q = [start];
+    prev[start] = -1;
+    let best = start, bd = Infinity;
+    for (let h = 0; h < q.length; h++) {
+      const k = q[h], i = k % N.nx, j = (k - i) / N.nx;
+      const d = Math.hypot(i - gi, j - gj);
+      if (d < bd) { bd = d; best = k; }
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const ii = i + di, jj = j + dj;
+        if (ii < 0 || jj < 0 || ii >= N.nx || jj >= N.ny) continue;
+        const kk = jj * N.nx + ii;
+        if (prev[kk] !== -2 || N.blocked[kk]) continue;
+        prev[kk] = k; q.push(kk);
+      }
+    }
+    const route = [];
+    for (let k = best; k !== -1; k = prev[k]) route.push(k);
+    route.reverse();
+    return route.map((k) => ({ x: b.x + ((k % N.nx) + 0.5) * THUG_CS, y: b.y + (Math.floor(k / N.nx) + 0.5) * THUG_CS }));
+  }
+  function thugDown(t) { if (t.dead) return; t.dead = true; t.hp = 0; puff(t.x, t.y, 'medium'); say(t.name + ' IS DOWN.', 2); checkHouseThugs(); }
+  function checkHouseThugs() {
+    if (!houseThugs || houseThugsDone || !houseThugs.every((t) => t.dead)) return;
+    houseThugsDone = true;
+    say('THAT IS THE LAST OF THEM.', 3);
+  }
+  // a fist in the house: the nearest thug in reach takes it. True when the press was his, so the world's own punch does not also run
+  function houseThugPunch() {
+    if (!thugsHere() || !houseThugs || houseThugsDone || !walker.on) return false;
+    const now = performance.now();
+    if (now - houseThugPunchT < 380) return true;                // the swing is still going: one press, one punch
+    houseThugPunchT = now;
+    let best = null, bd = 58;
+    for (const t of houseThugs) { if (t.dead) continue; const d = Math.hypot(walker.x - t.x, walker.y - t.y); if (d < bd) { bd = d; best = t; } }
+    if (!best) return true;
+    best.hp -= THUG_HIT; best.stunT = 0.45;
+    const kx = best.x - walker.x, ky = best.y - walker.y, kd = Math.hypot(kx, ky) || 1;
+    best.x += kx / kd * 10; best.y += ky / kd * 10;              // knocked back a step
+    if (best.hp <= 0) thugDown(best); else say('HIT.', 1.2);
+    return true;
+  }
+  function drawHouseThugs(cam, c) {
+    if (!houseThugs || !thugsHere()) return;
+    const cv = c.canvas, cssW = cv.clientWidth || cv.width, dpr = cv.width / cssW, cssH = cv.height / dpr;
+    ctx = c; c.save();
+    c.setTransform(dpr, 0, 0, dpr, 0, 0); c.translate(cssW / 2, cssH / 2); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y);
+    for (const t of houseThugs) {
+      if (t.dead) {                                              // down: lying where he fell
+        c.save(); c.translate(t.x, t.y); c.rotate(Math.PI / 2); drawMate(c, Object.assign({}, t, { x: 0, y: 0, stunT: 1 })); c.restore();
+      } else drawMate(c, t);
+    }
+    c.restore();
+  }
   function partnerSaved() {
     const f = mates.find((m) => m.friend);
     if (f && houseSpot) { f.companion = true; f.x = houseSpot.x + 34; f.y = houseSpot.y + 22; f.stunT = 0; f.target = null; }
@@ -18620,7 +18859,7 @@ const RUNNER_API = (function () {
   }
   // the one he is next to on foot, if any: an informant or, at the doctor's spot, the doctor
   function storyNear() {
-    if (!walker.on) return null;
+    if (!walker.on || runnerInside) return null;
     const pool = informants.concat(docMan ? [docMan] : []);
     let best = null, bd = 130;
     for (const p of pool) { const d = Math.hypot(walker.x - p.x, walker.y - p.y); if (d < bd) { best = p; bd = d; } }
@@ -19271,23 +19510,81 @@ const RUNNER_API = (function () {
     say(why + '. NOTHING PAID.', 4);
   }
   function jobLog() { return RJ.log; }
-  function bartenderNear() { return MISSION.stage === 'teammate' && barSpot && walker.on && Math.hypot(walker.x - barSpot.x, walker.y - barSpot.y) < 150; }
-  // LAYER 742: the bar's regulars. Each has a few lines of their own. One of them, picked at random once the teammate stage starts, knows about the partner.
+  // LAYER 747: the LAST CALL's people. Walk up to one and press E (A on the pad) to talk to that one. Each stands at an
+  // offset from the room's corner, so they keep their places wherever the building sits. The bartender pours a drink on the house.
   const BAR_REGS = [
-    { label: 'ASK THE BARTENDER', speaker: 'BARTENDER', lines: ["Bar's open till four. Keep your hands on the bar.", "Nobody sits in the booth but Walt. He pays cash and never looks up."] },
-    { label: 'ASK THE MAN AT THE END OF THE BAR', speaker: 'THE MAN AT THE END', lines: ["I don't see anything. I don't look at anything.", 'Buy a drink or move down the bar.'] },
-    { label: 'ASK THE WOMAN BY THE JUKEBOX', speaker: 'THE WOMAN BY THE JUKEBOX', lines: ['Play something or get out of the light.', "Everybody in here has a story. Mine's the one on the jukebox."] },
-    { label: 'ASK THE OLD MAN IN THE BOOTH', speaker: 'THE OLD MAN IN THE BOOTH', lines: ["Sit down, you're blocking my cards.", 'I used to be a cop. Now I just play cards and lose.'] },
-    { label: 'ASK THE KID AT THE POOL TABLE', speaker: 'THE KID AT THE POOL TABLE', lines: ['Wanna play? Winner stays on the table.', 'My cousin says the cops came through here like a fire drill.'] },
+    { speaker: 'BARTENDER', lines: ["Bar's open till four. Keep your hands on the bar.", "Nobody sits in the corner but Walt. He pays cash and never looks up."] },
+    { speaker: 'THE MAN AT THE END', lines: ["I don't see anything. I don't look at anything.", 'Buy a drink or move down the bar.'] },
+    { speaker: 'THE WOMAN BY THE STAGE', lines: ['Get out of the light or get on the stage.', "Everybody in here has a story. Mine's the one nobody is listening to."] },
+    { speaker: 'THE OLD MAN IN THE CORNER', lines: ["Move, you're in my light.", 'I used to be a cop. Now I just sit here and watch the door.'] },
+    { speaker: 'THE KID AT THE RAIL', lines: ["Wanna dance? Nobody's dancing yet.", 'My cousin says the cops came through here like a fire drill.'] },
   ];
-  let barTipper = null;
-  function barAsks() { return BAR_REGS.map((r, i) => (i === barTipper ? Object.assign({ tip: true }, r) : r)); }
-  function openYMenu() {
-    if (!walker.on) { say('GET OFF THE BIKE TO TALK TO PEOPLE', 3); return; }
-    if (!bartenderNear()) { say('NOBODY HERE WANTS TO TALK', 2.5); return; }
-    if (barTipper == null) barTipper = (Math.random() * BAR_REGS.length) | 0;
-    Object.assign(yMenu, { open: true, mode: 'menu', sel: 0, li: 0, lines: [], title: BAR_NAME, speaker: 'BARTENDER', face: null, done: null, onPick: null, bar: true,
-      opts: barAsks().map((a) => a.label).concat(['ORDER A DRINK', 'LEAVE']) });
+  const BAR_PEOPLE = [
+    { reg: 0, ox: 43, oy: 505 },    // the bartender, on the room side of the bar
+    { reg: 1, ox: 137, oy: 507 },   // the man at the end of the bar
+    { reg: 2, ox: 655, oy: 147 },   // the woman by the stage
+    { reg: 3, ox: 685, oy: 437 },   // the old man in the corner
+    { reg: 4, ox: 265, oy: 152 },   // the kid at the rail
+  ];
+  const BAR_TALK_R = 64;
+  let barCrowd = null, barCrowdOf = null, barTipper = null;
+  function barCrowdFor(b) {
+    if (!b || b.civic !== 'venue_rh') return null;
+    if (barCrowdOf !== b) { barCrowdOf = b; barCrowd = BAR_PEOPLE.map((q) => ({ reg: q.reg, x: b.x + q.ox, y: b.y + q.oy, civ: null })); }
+    return barCrowd;
+  }
+  // the one of them he stands nearest to, within reach, while he is inside the LAST CALL on foot
+  function barPersonNear() {
+    if (!walker.on || !runnerInside) return null;
+    const crowd = barCrowdFor(runnerInside);
+    if (!crowd) return null;
+    let best = null, bd = BAR_TALK_R;
+    for (const p of crowd) { const d = Math.hypot(walker.x - p.x, walker.y - p.y); if (d < bd) { best = p; bd = d; } }
+    return best;
+  }
+  function bartenderNear() { return !!barPersonNear(); }   // (kept for the test hooks)
+  // the regular who knows where the partner went: his talk is the tip, and it ends the bar part
+  function tipDone() {
+    MISSION.stage = 'house'; missionHouse();
+    say('TIP: ' + TIP_ADDRESS + '. THE ARROW IS ON THE HOUSE.', 6); runBanner('NEW LEAD', 2.2);
+  }
+  function pourDrink() { say('HE POURS IT. ON THE HOUSE. "YOU LOOK LIKE YOU NEED IT."', 4); }
+  // E (or A) by one of them talks to that one. Returns true when a talk opened, so the world action does not run
+  function barTalkNow() {
+    const p = barPersonNear();
+    if (!p) return false;
+    if (barTipper == null && MISSION.stage === 'teammate') barTipper = (Math.random() * BAR_REGS.length) | 0;
+    const reg = BAR_REGS[p.reg];
+    yMenu.bar = false; yMenu.tipNow = false;
+    if (MISSION.stage === 'teammate' && p.reg === barTipper) openTalk(reg.speaker, null, TALK_TEAMMATE, tipDone, BAR_NAME);
+    else openTalk(reg.speaker, null, reg.lines, p.reg === 0 ? pourDrink : null, BAR_NAME);
+    return true;
+  }
+  // the people in the room, drawn like the crowd; the one in reach turns to him and shows [E] TALK
+  function drawBarCrowd(cam, c) {
+    const crowd = barCrowdFor(runnerInside);
+    if (!crowd || !CIV || !CIV.draw) return;
+    const near = barPersonNear(), u = 1 / cam.z;
+    const cv = c.canvas, cssW = cv.clientWidth || cv.width, dpr = cv.width / cssW, cssH = cv.height / dpr;
+    ctx = c; c.save();
+    c.setTransform(dpr, 0, 0, dpr, 0, 0); c.translate(cssW / 2, cssH / 2); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y);
+    for (const p of crowd) {
+      if (!p.civ && CIV.pick) { p.civ = CIV.pick(); if (p.civ) p.civ.scale = 1.9; }   // bigger than the street crowd: the room is small and they are the people you talk to
+      if (!p.civ) continue;
+      const dx = walker.x - p.x, dy = walker.y - p.y, d = Math.hypot(dx, dy) || 1, k = d < 220 ? 0.8 / d : 0;
+      CIV.draw(p.civ, p.x, p.y, dx * k, dy * k, 0);
+      if (p !== near) continue;
+      ctx.save();
+      ctx.font = 'bold ' + (12 * u).toFixed(2) + 'px monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const tw = ctx.measureText('[E] TALK').width + 10 * u;
+      ctx.fillStyle = 'rgba(12,13,17,0.88)';
+      ctx.fillRect(p.x - tw / 2, p.y - 96 - 9 * u, tw, 18 * u);
+      ctx.fillStyle = '#d9a441';
+      ctx.fillText('[E] TALK', p.x, p.y - 96);
+      ctx.restore();
+    }
+    c.restore();
   }
   const TALK_TEAMMATE = [
     'Your partner came through about an hour ago. Bleeding from the arm, but walking.',
@@ -19299,7 +19596,6 @@ const RUNNER_API = (function () {
     if (yMenu.mode === 'talk') {
       yMenu.li++;
       if (yMenu.li >= yMenu.lines.length) {
-        if (yMenu.bar && !yMenu.tipNow) { yMenu.mode = 'menu'; return; }   // LAYER 742: a regular with nothing on the partner: back to the bar's menu
         yMenu.open = false; yMenu.mode = 'menu'; yMenu.bar = false; yMenu.tipNow = false;
         if (yMenu.done) { const d = yMenu.done; yMenu.done = null; yMenu.face = null; d(); return; }   // LAYER 705: a talk with its own ending
         MISSION.stage = 'house'; missionHouse();
@@ -19308,10 +19604,7 @@ const RUNNER_API = (function () {
       return;
     }
     if (yMenu.onPick) { const f = yMenu.onPick; yMenu.onPick = null; yMenu.open = false; f(yMenu.opts[yMenu.sel]); return; }   // LAYER 705: the doctor's menu
-    const o = yMenu.opts[yMenu.sel], ask = yMenu.bar ? barAsks().find((a) => a.label === o) : null;
-    if (ask) { yMenu.mode = 'talk'; yMenu.speaker = ask.speaker; yMenu.lines = ask.tip ? TALK_TEAMMATE : ask.lines; yMenu.li = 0; yMenu.tipNow = !!ask.tip; }
-    else if (o === 'ORDER A DRINK') { yMenu.open = false; yMenu.bar = false; say('HE POURS IT. ON THE HOUSE. "YOU LOOK LIKE YOU NEED IT."', 4); }
-    else { yMenu.open = false; yMenu.bar = false; }
+    yMenu.open = false; yMenu.bar = false;
   }
   function drawYMenu(c, W, H) {
     if (!yMenu.open) return;
@@ -19335,7 +19628,7 @@ const RUNNER_API = (function () {
       c.fillStyle = '#e8d9b5'; c.font = '13px ' + font;
       rows.forEach((r, i) => c.fillText(r, x + pad + fx, y + 46 + i * 18));
       c.fillStyle = 'rgba(232,217,181,0.6)'; c.font = '10px ' + font; c.textAlign = 'right';
-      c.fillText('A next  (' + (yMenu.li + 1) + '/' + yMenu.lines.length + ')', x + bw - pad, y + bh - 12);
+      c.fillText('E or A next  (' + (yMenu.li + 1) + '/' + yMenu.lines.length + ')', x + bw - pad, y + bh - 12);
     } else {
       const rowH = 34, bh = 52 + yMenu.opts.length * rowH + 24, y = H * 0.56 - bh / 2;
       c.fillStyle = 'rgba(8,10,14,0.9)'; c.fillRect(x, y, bw, bh);
@@ -19365,6 +19658,8 @@ const RUNNER_API = (function () {
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (PMB.inside) pmRoomDraw(c, W, H);   // LAYER 709: the bar room covers the street
     drawRunBanners(c);   // LAYER 680: the mission banners, in screen space
+    if (cam && runnerInside && runnerInside.civic === 'venue_rh') drawBarCrowd(cam, c);   // LAYER 747: the LAST CALL's people, under the talk box
+    if (cam && thugsHere()) drawHouseThugs(cam, c);   // LAYER 748: the house's thugs, under the talk box
     drawYMenu(c, W, H);  // the Y menu and the talk, over the banners
     drawCanBulletin(c);  // LAYER 680: the C.A.N. lookout bulletin, in screen space
     if (MISSION.stage === 'teammate') missionBar(); else if (MISSION.stage === 'house') missionHouse(); else missionStoryTick();   // the bar, then the house (the Y menu)
@@ -19417,7 +19712,7 @@ const RUNNER_API = (function () {
     HUNT_ART.forEach(rigArt);
     say('FIRST MISSION: GET YOUR PISTOL. IT IS STASHED UNDER A DUMPSTER, WITH $' + STASH_CASH + ', A GAS MASK AND A SLEEPING BAG. E TO PICK IT UP.', 6);
   }
-  function stashNear() { return MISSION.stage === 'pistol' && walker.on && Math.hypot(walker.x - MISSION.x, walker.y - MISSION.y) < 90; }
+  function stashNear() { return !runnerInside && MISSION.stage === 'pistol' && walker.on && Math.hypot(walker.x - MISSION.x, walker.y - MISSION.y) < 90; }
   // THE LASER PISTOL: stuck on STUN until a mission fixes it. F (or STR) fires it.
   const LASER = { has: false, drawn: false, mode: 'stun', locked: true, lastFire: 0, beams: [], chip: false };   // LAYER 703: chip = the HARM chip is in
   const LASER_RANGE = 360;
@@ -19483,7 +19778,7 @@ const RUNNER_API = (function () {
   function aimValid() {
     if (!aimLock) return null;
     const r = aimLock.ref;
-    const alive = aimLock.drone ? canDrones.includes(r) : aimLock.kind === 'hunter' ? (hunters.includes(r) && !r.dead) : aimLock.kind === 'mate' ? (mates.includes(r) && !r.dead) : !!(PEOPLE && PEOPLE.includes(r) && !r.dead);
+    const alive = aimLock.drone ? canDrones.includes(r) : aimLock.kind === 'hunter' ? (hunters.includes(r) && !r.dead) : aimLock.kind === 'mate' ? (mates.includes(r) && !r.dead) : !!(((PEOPLE && PEOPLE.includes(r)) || (houseThugs && houseThugs.includes(r))) && !r.dead);   // LAYER 748: the house's thugs are aimed at too
     if (!alive || !walker.on) { aimLock = null; return null; }
     return aimPos(aimLock);
   }
@@ -19495,6 +19790,7 @@ const RUNNER_API = (function () {
     for (const h of hunters) if (!h.dead) cand.push({ ref: h, drone: false, kind: 'hunter' });
     for (const m of mates) if (!m.dead && !m.friend) cand.push({ ref: m, drone: false, kind: 'mate' });
     if (PEOPLE) for (const p of PEOPLE) if (!p.dead && (p.hp === undefined || p.hp > 0) && Number.isFinite(p.x) && Number.isFinite(p.y)) cand.push({ ref: p, drone: false, kind: 'person' });
+    if (houseThugs && thugsHere()) for (const t of houseThugs) if (!t.dead) cand.push({ ref: t, drone: false, kind: 'person' });   // LAYER 748: the house's thugs
     for (const cd of canDrones) cand.push({ ref: cd, drone: true, kind: 'drone' });
     const list = cand.map((L) => ({ L, d: Math.hypot(aimPos(L).x - walker.x, aimPos(L).y - walker.y) })).filter((q) => q.d < LASER_RANGE).sort((a, b) => a.d - b.d);
     if (!list.length) { aimLock = null; return say('NO ONE IN RANGE', 2); }
@@ -19514,7 +19810,7 @@ const RUNNER_API = (function () {
     if (PMB.inside) return false;   // LAYER 709: no shooting in the bar
     if (LASER.has && !LASER.drawn && RUN_ON && walker.on && !lobby) { LASER.drawn = true; say('LASER PISTOL IN HAND. RB OR F TO FIRE.', 2.5); return true; }   // LAYER 683: the first press draws it
     if (PSTUN.t > 0 && walker.on) return true;   // LAYER 679: stunned, he cannot fire
-    if (!LASER.has || !RUN_ON || !walker.on || lobby) return false;
+    if (!LASER.has || !RUN_ON || !walker.on || lobby) return houseThugPunch();   // LAYER 748: a fist in the house goes to the thugs
     const now = performance.now();
     if (now - LASER.lastFire < 450) return true;
     LASER.lastFire = now;
@@ -19527,7 +19823,7 @@ const RUNNER_API = (function () {
     let downed = null;
     for (const cd of canDrones) { const ax = cd.x - ox, ay = (cd.y - CAN.lift) - oy, t = ax * dx + ay * dy; if (t < 0 || t > bt) continue; if (Math.abs(ax * dy - ay * dx) < 30) { downed = cd; bt = t; } }
     const downedT = bt;
-    for (const h of hunters.concat(mates, PEOPLE || [])) {
+    for (const h of hunters.concat(mates, PEOPLE || [], houseThugs && thugsHere() ? houseThugs : [])) {
       if (h.dead || h.friend) continue;
       const rx = h.x - ox, ry = h.y - oy, t = rx * dx + ry * dy;
       if (t < 0 || t > bt) continue;
@@ -19536,7 +19832,8 @@ const RUNNER_API = (function () {
     if (downed && bt === downedT) { ex = ox + dx * bt; ey = oy + dy * bt; canShootDown(downed); }
     else if (hit) {
       ex = ox + dx * bt; ey = oy + dy * bt;
-      if (mates.includes(hit)) mateHit(hit);   // LAYER 679: a teammate is stunned, not killed
+      if (houseThugs && houseThugs.includes(hit)) thugDown(hit);   // LAYER 748: the pistol puts a house thug down either way
+      else if (mates.includes(hit)) mateHit(hit);   // LAYER 679: a teammate is stunned, not killed
       else if (!hunters.includes(hit)) { if (kill) harmHit(hit); else { hit.stunT = HUNT.stun; say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); } }   // LAYER 683: a civilian, gang member or cop; LAYER 703: HARM hurts them
       else if (kill) { rlog('hunter_down', { who: hit.name, zone: rZoneAt(hit.x, hit.y) }); hit.dead = true; hit.dying = HUNT.dyingT; puff(hit.x, hit.y, 'medium'); neutralize(hit); say('HUNTER DOWN.', 2); }
       else { rlog('hunter_stun', { who: hit.name, zone: rZoneAt(hit.x, hit.y) }); hit.stunT = HUNT.stun; neutralize(hit); say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); }
@@ -19595,7 +19892,7 @@ const RUNNER_API = (function () {
       if (vestHave) out.push({ label: vestWorn ? 'TAKE OFF THE VEST' : 'PUT ON THE VEST', sub: vestWorn ? 'ON · ' + Math.ceil(vestHp == null ? VEST_MAX : vestHp) + ' OF ' + VEST_MAX + ' VEST' : 'OFF · PICK TO PUT IT ON', icon: PD_ART.hud_vest, id: 'gear:vest' });
       if (gasOwned) out.push({ label: mask ? 'TAKE OFF GAS MASK' : 'PUT ON GAS MASK', sub: mask ? 'ON · PICK TO HIDE IT' : 'OFF · PICK TO PUT IT ON', icon: PD_ART.hud_gasmask, id: 'gear:mask' });
       if (sleepOwned && sleepDown && nearBag()) out.push({ label: 'LIE DOWN ON THE SLEEPING BAG', sub: 'HEAD OUT · SLEEP UNTIL', icon: PD_ART.eq_bedroll, id: 'gear:lie' });
-      if (sleepOwned) out.push(sleepDown
+      if (sleepOwned && !runnerInside) out.push(sleepDown
         ? { label: 'PICK UP SLEEPING BAG', sub: 'LAID OUT · PICK TO ROLL IT UP', icon: PD_ART.eq_bedroll, id: 'gear:bag' }
         : { label: 'PUT DOWN SLEEPING BAG', sub: 'ROLLED · PICK TO LAY IT OUT', icon: PD_ART.eq_bedroll, id: 'gear:bag' });
       if (!out.length) out.push({ label: 'NOTHING ON YOU', sub: 'A BACKPACK, A GAS MASK OR A SLEEPING BAG', icon: null, id: 'gear:none' });
@@ -19619,7 +19916,7 @@ const RUNNER_API = (function () {
   // is facing, if that spot is clear of buildings. Pick it up again from close by.
   function bagSpot() { const h = walker.heading || 0, d = 46; return { x: walker.x + Math.cos(h) * d, y: walker.y + Math.sin(h) * d, h }; }
   function bagFits(x, y) {
-    for (const [dx, dy] of [[0, 0], [-12, -28], [12, -28], [-12, 28], [12, 28]]) if (inBuilding(x + dx, y + dy)) return false;   // LAYER 745: the bag's real footprint (about 26 by 64), so a narrow room still takes it
+    for (const [dx, dy] of [[0, 0], [-10, -30], [10, -30], [-10, 30], [10, 30]]) if (inBuilding(x + dx, y + dy)) return false;   // LAYER 746: the bag's cropped footprint (about 22 by 64), so a narrow room still takes it
     return x > 40 && y > 40 && x < SX(N) - 40 && y < SX(N) - 40;
   }
   function putBag() {
@@ -19648,7 +19945,7 @@ const RUNNER_API = (function () {
   // LAYER 692: lying on the bag. He lies down with his head out, the screen fades to black, and the wheel asks NOON, EVENING or
   // MIDNIGHT (like the prison bunk). The game's sleep fade then shows the day and time, and he is up with the bag rolled back in.
   const SLEEP_AT = { noon: 720, eve: 1080, mid: 1440 };
-  function nearBag() { return !!sleepDown && Math.hypot(walker.x - sleepDown.x, walker.y - sleepDown.y) <= BAG_R; }
+  function nearBag() { return !runnerInside && !!sleepDown && Math.hypot(walker.x - sleepDown.x, walker.y - sleepDown.y) <= BAG_R; }
   function startLie() {
     if (!walker.on || !sleepOwned || !sleepDown || lying) return;
     if (!nearBag()) { say('GET CLOSER TO THE BAG TO LIE DOWN.', 2.5); return; }
@@ -19857,7 +20154,7 @@ const RUNNER_API = (function () {
     for (const [kind, x, y] of spots) { const sp = clearSpot(x, y, null) || { x, y }; PACK_STASH.push({ kind, x: sp.x, y: sp.y, got: false }); }
   }
   function packStashNear() {
-    if (!walker.on) return null;
+    if (!walker.on || runnerInside) return null;
     return PACK_STASH.find((s) => !s.got && Math.hypot(walker.x - s.x, walker.y - s.y) < 90) || null;
   }
   function packPickup(s) {
@@ -20106,7 +20403,7 @@ const RUNNER_API = (function () {
     augments,
     augmentAt,
     takeDismount,
-    wake, hunterTick, worldHud, hunterReset, hoverSoundTick, setVest, soakHit, vestBar, setPhone, setLaserChip, setCash: (c) => { runnerCash = +c || 0; }, jobLog, huntDbg, fire, laserItems, laserPick, gearItems, gearPick, setSleepHook: (h) => { sleepHook = h; }, sleepWheelClosed, takeCash,
+    wake, hunterTick, worldHud, hunterReset, hoverSoundTick, setVest, soakHit, vestBar, setPhone, setIndoors, talking: () => !!(yMenu.open && yMenu.mode === 'talk'), setLaserChip, setCash: (c) => { runnerCash = +c || 0; }, jobLog, huntDbg, fire, laserItems, laserPick, gearItems, gearPick, setSleepHook: (h) => { sleepHook = h; }, sleepWheelClosed, takeCash,
     groundTrash, groundStash, onFoot: () => walker.on, armed: () => LASER.has,
     setPeople: (p, groups) => { PEOPLE = (p || []).concat(...(groups || [])); },
     hoverKid,
@@ -20122,7 +20419,7 @@ const RUNNER_API = (function () {
     alertHere: (x, y) => canAlert(x, y),   // the C.A.N. call-in, at the hunters' own distance (used by the tests)
     // LAYER 690: where the runner's objective is, for the minimap's blue star (the pistol stash, then the teammate)
     // TEST ONLY: lets the headless checks put the mission and the walker where they need to be
-    dbg: { setMission: (st) => { MISSION.stage = st; }, placeWalker: (x, y) => { walker.x = x; walker.y = y; walker.on = true; }, stage: () => MISSION.stage, bar: () => barSpot, pos: () => [walker.x, walker.y, walker.on], near: () => bartenderNear(), menuOpen: () => yMenu.open },
+    dbg: { setMission: (st) => { MISSION.stage = st; }, placeWalker: (x, y) => { walker.x = x; walker.y = y; walker.on = true; }, stage: () => MISSION.stage, bar: () => barSpot, pos: () => [walker.x, walker.y, walker.on], near: () => bartenderNear(), menuOpen: () => yMenu.open, houseInfo: () => ({ spot: houseSpot, bldg: houseBldg ? { x: houseBldg.x, y: houseBldg.y, w: houseBldg.w, h: houseBldg.h, kind: houseBldg.kind } : null, seen: houseSeen, inside: runnerInside ? { x: runnerInside.x, y: runnerInside.y, kind: runnerInside.kind } : null, barSpot: barSpot }), gateInfo: () => ({ stash: !!stashNear(), pack: !!packStashNear(), bag: !!nearBag(), bartender: !!bartenderNear(), story: !!storyNear(), caseN: !!caseNear(), inside: !!runnerInside }) },
     missionPip: () => (missionOn()) ? { x: MISSION.x, y: MISSION.y } : null,
     // LAYER 690: the world's action (its doAction), which the pad's A runs on foot when no bike is beside him
     setWorldAct: (f) => { worldActHook = f; },
@@ -22146,7 +22443,7 @@ export default function IronLionLayer004() {
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
       if (k === "b" && G.turboFn) G.turboFn();
       if (G.cwFn) { if (k === "z") G.cwFn("oil"); else if (k === "x") G.cwFn("cal"); else if (k === "v") G.cwFn("smoke"); else if (k === "m") G.cwFn("missile"); else if (k === "g") G.cwFn("auto"); }   // layer 471                                         // nitrous (layer 468)
-      if (k === "e") doAction();
+      if (k === "e" && !(RUNNER_API.isOn() && RUNNER_API.talking())) doAction();   // LAYER 748: E moves a talk on; it does not also take the door (the talk is at the house door)
       if (k === "f" && G.strikeFn) G.strikeFn();
       if (k === "t" && G.current.studentMode && G.pickOpen) G.pickOpen("stuskip");   // fast forward (student mode)
       if (k === "c" && G.coverFn) G.coverFn();                                         // cover (layer 490)
@@ -23524,6 +23821,7 @@ export default function IronLionLayer004() {
         no: "RH" + String((rr() * 9000000 + 1000000) | 0),
         face: rr(),                       // resolved against the sheets when the card is drawn
         castFace: p.cast ? p.cast.face : null, // a cast member's own photograph, off his own page
+        castPair: p.cast && CIV_FACE_PAIR[p.cast.k] ? CIV_FACE_PAIR[p.cast.k] : null, // a page-2 body's ID face
         skin: skin || [196, 150, 112],
       });
     }
@@ -23532,6 +23830,7 @@ export default function IronLionLayer004() {
        draw a silhouette. `id.face` is the roll, kept so the same man keeps the same photograph
        even after another page is added. */
     function faceOf(id) {
+      if (id.castPair) { const [pk, pi] = id.castPair; const psh = ID_SHEETS.find((q) => q.key === pk); const pim = imgs.current[pk]; if (psh && pim && pim.width) return [psh, pi]; }
       if (id.castFace) { const im = imgs.current[id.castFace]; if (im && im.width) return [{ key: id.castFace, cols: 1, rows: 1 }, 0]; }
       const gg = !!id.gang;
       let pool = facesFor(id.sex, id.tone, gg);
@@ -23550,7 +23849,7 @@ export default function IronLionLayer004() {
       if (g.book.people.some((q) => q.no === id.no)) return;
       g.book.people.unshift({
         at: Date.now(), gang: id.gang,
-        no: id.no, name: id.name, sex: id.sex, tone: id.tone, face: id.face, castFace: id.castFace,
+        no: id.no, name: id.name, sex: id.sex, tone: id.tone, face: id.face, castFace: id.castFace, castPair: id.castPair,
         addr: id.addr, dob: id.dob, age: id.age, hgt: id.hgt,
         where: crossStreet(g.p.x, g.p.y), night: (g.night || 0) > 0.45,
       });
@@ -28544,8 +28843,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       // legs first, so the torso plate overlaps the hips -- the staff are drawn the same way
       const stride = sp > 10 && !p.lying ? Math.sin((p.anim || 0) * 1.1) * h * 0.09 : 0;
       /* layer 549: a WALKING set (p.legSet -> lg_walk_<set>_0/1/2): 1 is feet together (standing), 0 / 2 a stride each way */
-      const seated551 = !!(p.carSeat || g.convSeat); let lk = seated551 ? null : p.legK; if (!lk && !seated551 && p.legSet && !p.lying) { const s5 = Math.sin((p.anim || 0) * 1.1); lk = "lg_walk_" + p.legSet + "_" + (sp > 10 ? (s5 > 0.3 ? 0 : s5 < -0.3 ? 2 : 1) : 1); }
-      const LD = lk ? LEG547[lk] || (p.legSet ? LEGW549 : null) : null, LGI = LD ? imgs.current[lk] : null; let legImg = !!(LGI && LGI.width);      // layer 547: a leg plate (lying, sitting)
+      const LSET751 = p.legSet || civLegSet751(p);
+      const seated551 = !!(p.carSeat || g.convSeat); let lk = seated551 ? null : p.legK; if (!lk && !seated551 && LSET751 && !p.lying) { const s5 = Math.sin((p.anim || 0) * 1.1); lk = "lg_walk_" + LSET751 + "_" + (sp > 10 ? (s5 > 0.3 ? 0 : s5 < -0.3 ? 2 : 1) : 1); }
+      const LD = lk ? LEG547[lk] || (LSET751 ? (!p.legSet && CIV_LEGTOP751[p.yt] !== undefined ? [0.44, CIV_LEGTOP751[p.yt]] : LEGW549) : null) : null, LGI = LD ? imgs.current[lk] : null; let legImg = !!(LGI && LGI.width);      // layer 547: a leg plate (lying, sitting)
       if (legImg) { const lw3 = w * LD[0], lh3 = lw3 * LGI.height / LGI.width, sk = AP && AP.skin ? (AP.wid ? AP.skin.map((v) => Math.round(v / 0.78)) : AP.skin) : null;      // the wearer's skin on bare legs (layer 550)
         ctx.drawImage(sk && /boxers|skirt|ripped/.test(lk) ? legTint550(lk, sk) : LGI, -lw3 / 2, h * LD[1] - h / 2 + h * (/^lg_walk_/.test(lk) ? 0.06 : 0.2), lw3, lh3); }   /* walking legs tucked further under the torso (layer 567) */
       if (p.carSeat || g.convSeat) legImg = true;      // sat in the open car: the door hides the legs (layer 551)
@@ -57831,7 +58131,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           return { x, y, here: g.floor === hit.fi && Math.hypot(g.p.x - x, g.p.y - y) < 120 };
         })() });
         if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; if (g.runnerCopsOut) { g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; g.detectives = null; g.runnerCopsOut = 0; } } frameBody(now); RUNNER_API.arrestHold(g.p); if (RUNNER_API.isOn() && !g.title) RUNNER_API.hazeTick(!g.inside && !g.sewer); if (RUNNER_API.isOn() && !g.title && g.peds) RUNNER_API.keepYouthOut(g.peds); if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { const hz = RUNNER_API.hazeLevel(); if (hz > 0 && g.p.hp > (g.p.maxHp || 100) * (1 - hz)) g.p.hp = (g.p.maxHp || 100) * (1 - hz); } /* LAYER 648: the haze caps health, like a debuff */ if (RUNNER_API.isOn() && !g.title && RUNNER_API.riding()) { g.grap = null; g.jump = null; g.roof = null; RUNNER_API.keepOut(g.p); } else if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.keepOut(g.p); RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); /* LAYER 669: the hunters' alert and the hover sounds */ if (RUNNER_API.isOn() && !g.title) { const inHosp = !!(g.inside && g.inside.kind === "hospital"); const tg = g.inside ? doorPoint(g.inside) : [g.p.x, g.p.y]; RUNNER_API.hunterTick(tg[0], tg[1], inHosp); RUNNER_API.worldHud(canvasRef.current, g.cam, !g.inside); } else RUNNER_API.hunterReset(); RUNNER_API.hoverSoundTick(RUNNER_API.isOn() && !g.title && !g.inside, g.traffic); RUNNER_API.setVest(!!g.vestHave, !!g.vestOn, (patch) => Object.assign(g, patch));
-        RUNNER_API.setPhone(!!g.phoneOwned, () => setTimeout(() => { if (G.phoneWheel) G.phoneWheel(); }, 60));
+        RUNNER_API.setIndoors(g.inside || null, g.floor, (t) => !!SOLID_PROP[t]); RUNNER_API.setPhone(!!g.phoneOwned, () => setTimeout(() => { if (G.phoneWheel) G.phoneWheel(); }, 60));
         RUNNER_API.setLaserChip(!!g.laserChip); RUNNER_API.setCash(g.p ? (g.p.cash || 0) : 0); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setAudio(() => audio.current); { const rc = RUNNER_API.rideCam(); if (rc) { g.cam.x = rc.x; g.cam.y = rc.y; } } RUNNER_API.arrestDraw(canvasRef.current); RUNNER_API.tvDraw(canvasRef.current); /* LAYER 730: the TV, over everything */ RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
