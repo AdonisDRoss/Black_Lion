@@ -2830,7 +2830,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 739";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 745";   // the notes for each layer are in the chat, not on screen
 // LAYER 737: DEBUG -- the first few errors are printed on the screen (the TV has no console). Remove once the red-screen bug is found.
 (function () {
   const shown = [];
@@ -2851,6 +2851,7 @@ const BUILD_TAG = "LAYER 739";   // the notes for each layer are in the chat, no
   console.error = function (...a) { box('CONSOLE ' + a.map((x) => (x && x.stack) || String(x)).join(' ')); return ce.apply(this, a); };
 })();
    // the notes for each layer are in the chat, not on screen
+(function () { const s = document.createElement('style'); s.textContent = '@keyframes ntAlertFlash { 0%, 100% { background: rgba(12,13,17,0.93); } 50% { background: #b3261e; } }'; document.head.appendChild(s); })();   // LAYER 743: the NEWS button flashes red on an alert
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -15925,20 +15926,21 @@ const RUNNER_API = (function () {
   for (let k = 1; k <= 6; k++) loadTV('tv_girl_' + k, 'tv/tvgirl_mood_0' + k + '.png');
   loadTV('tv_cohost', 'tv/cohost_front_bun.png');
   loadTV('tv_logo', 'tv/logo_can.png');
+  loadTV('tv_opener_bg', 'tv/opener_bg.png');   // LAYER 745: the news opener's backdrop (optional: black until the file is in the folder)
   for (let k = 1; k <= 8; k++) loadTV('zone_0' + k, 'tv/zone_0' + k + '.jpg');
   for (const s of ['m1', 'm2', 'm3', 'm4', 'm5', 'f1', 'f2', 'f3', 'f4', 'f5']) loadTV('pose_' + s, 'tv/runner_pose_' + s + '.png');
   // a scene: its picture (a key of TV_ART), its lines (a string, or an array of lines), what runs after it, and the tag in the corner
-  function tvPlay(pic, lines, after, tag, rep) {
-    const s = { pic, full: Array.isArray(lines) ? lines.join('\n') : String(lines || ''), after: after || null, tag: tag || 'ON AIR', rep: rep || null };
+  function tvPlay(pic, lines, after, tag, rep, typeFrom) {
+    const s = { pic, full: Array.isArray(lines) ? lines.join('\n') : String(lines || ''), after: after || null, tag: tag || 'ON AIR', rep: rep || null, typeFrom: typeFrom || 0 };   // LAYER 745: typeFrom holds the typing until the logo has swept in
     if (TV.on) TV.queue.push(s); else tvStart(s);
   }
   function tvStart(s) {
-    Object.assign(TV, { on: true, gap: 0, next: null, pic: s.pic, full: s.full, after: s.after, tag: s.tag, t: 0, shown: 0, done: false, hold: TV_HOLD, rep: s.rep });
+    Object.assign(TV, { on: true, gap: 0, next: null, pic: s.pic, full: s.full, after: s.after, tag: s.tag, t: 0, shown: 0, done: false, hold: TV_HOLD, rep: s.rep, typeFrom: s.typeFrom || 0 });
   }
   // the scene is over: the next one in the queue comes after a burst of static, then the callback of this one runs
   function tvEnd() {
     const after = TV.after, nx = TV.queue.shift() || null;
-    Object.assign(TV, { on: !!nx, gap: nx ? TV_GAP : 0, next: nx, pic: null, full: '', after: null, tag: '', t: 0, shown: 0, done: false, hold: 0, rep: null });
+    Object.assign(TV, { on: !!nx, gap: nx ? TV_GAP : 0, next: nx, pic: null, full: '', after: null, tag: '', t: 0, shown: 0, done: false, hold: 0, rep: null, typeFrom: 0 });
     if (after) after();
   }
   // every frame: the typing, the hold, and the static between scenes
@@ -15948,7 +15950,7 @@ const RUNNER_API = (function () {
     if (TV.gap > 0) { TV.gap -= dt; if (TV.gap <= 0) { const s = TV.next; if (s) tvStart(s); else tvEnd(); } return; }
     TV.t += dt;
     if (!TV.done) {
-      TV.shown = Math.min(TV.full.length, Math.floor(TV.t * TV_CPS));
+      TV.shown = Math.min(TV.full.length, Math.floor(Math.max(0, TV.t - (TV.typeFrom || 0)) * TV_CPS));
       if (TV.shown >= TV.full.length) { TV.shown = TV.full.length; TV.done = true; TV.hold = TV_HOLD; }
     } else {
       TV.hold -= dt;
@@ -15998,10 +16000,14 @@ const RUNNER_API = (function () {
     g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
     if (!gap && TV.pic) {
       const pic = TV.rep ? null : TV_ART[TV.pic];
+      // LAYER 745: the C.A.N. opener: the backdrop behind everything, and the logo sweeps in from the left and settles
+      const opener = TV.pic === 'tv_logo', bgArt = opener ? TV_ART.tv_opener_bg : null;
+      if (bgArt && bgArt.width) { const s = Math.max(W / bgArt.width, H / bgArt.height), dw = bgArt.width * s, dh = bgArt.height * s; g.drawImage(bgArt, (W - dw) / 2, (H - dh) / 2, dw, dh); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, W, H); }
+      const k = Math.min(1, TV.t / 1.2), e = 1 - Math.pow(1 - k, 3), sweep = opener ? (1 - e) * -W * 0.7 : 0;
       if (TV.rep) tvDrawReporter(g);
       else if (pic && pic.width) {
         const s = Math.min(TV_PIC.w / pic.width, TV_PIC.h / pic.height), dw = pic.width * s, dh = pic.height * s;
-        g.drawImage(pic, TV_PIC.x + (TV_PIC.w - dw) / 2, TV_PIC.y + (TV_PIC.h - dh) / 2, dw, dh);
+        g.drawImage(pic, TV_PIC.x + (TV_PIC.w - dw) / 2 + sweep, TV_PIC.y + (TV_PIC.h - dh) / 2, dw, dh);
       } else {
         g.fillStyle = '#161616'; g.fillRect(TV_PIC.x, TV_PIC.y, TV_PIC.w, TV_PIC.h);
         const ns = TV.pic === 'nosignal';   // LAYER 733: under the street the picture is snow
@@ -16062,6 +16068,34 @@ const RUNNER_API = (function () {
       .split('{place}').join(RZONE_NAME[e.zone]).split('{time}').join(clockText(e.min));
     return rFemale(e.who) ? out.replace(/\bHe\b/g, 'She').replace(/\bhe\b/g, 'she').replace(/\bHis\b/g, 'Her').replace(/\bhis\b/g, 'her').replace(/\bHim\b/g, 'Her').replace(/\bhim\b/g, 'her') : out;
   }
+  // LAYER 743: the phone. A new line of news sets the alert: the phone buzzes now and then every two minutes until it is checked.
+  let phoneAlert = false, phoneShowT = 0, phoneNextT = 0;
+  function phoneBuzz() {
+    try { const ac = audioGet && audioGet(); if (!ac) return;
+      [0, 0.18].forEach((t) => { const o = ac.createOscillator(), gn = ac.createGain(); o.type = 'square'; o.frequency.value = 170;
+        gn.gain.setValueAtTime(0.0001, ac.currentTime + t); gn.gain.exponentialRampToValueAtTime(0.1, ac.currentTime + t + 0.01); gn.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + t + 0.12);
+        o.connect(gn); gn.connect(ac.destination); o.start(ac.currentTime + t); o.stop(ac.currentTime + t + 0.14); }); } catch (e) {}
+  }
+  function phoneTick(dt) {
+    if (!phoneAlert) { phoneNextT = 0; return; }   // LAYER 744: the NEWS phone is always his (the holophone flag is a different thing)
+    if (phoneShowT > 0) phoneShowT -= dt;
+    phoneNextT -= dt;
+    if (phoneNextT <= 0) { phoneNextT = 120; const p = walker.on ? walker : car; if (!inSewerNet(p.x, p.y)) { phoneShowT = 4; phoneBuzz(); } }
+  }
+  // the buzz bubble over his head, while it is up
+  function drawPhoneBuzz(c, cam, W, H) {
+    if (!(phoneAlert && phoneShowT > 0)) return;
+    const p = walker.on ? walker : car; if (inSewerNet(p.x, p.y)) return;
+    const sx = W / 2 + (p.x - cam.x) * cam.z, sy = H / 2 + (p.y - cam.y) * cam.z - (walker.on ? 60 : 90);
+    const lines = ['BZZT BZZT', 'NEW ON C.A.N.'], fs = 13, lh = 16;
+    c.save(); c.font = 'bold ' + fs + 'px monospace'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    const tw = Math.max.apply(null, lines.map((l) => c.measureText(l).width)), bw = tw + 22, bh = lines.length * lh + 12, bx = sx - bw / 2, by = sy - bh - 10;
+    c.fillStyle = 'rgba(240,250,255,0.96)'; c.strokeStyle = '#111'; c.lineWidth = 2;
+    c.fillRect(bx, by, bw, bh); c.strokeRect(bx, by, bw, bh);
+    c.beginPath(); c.moveTo(sx - 6, by + bh); c.lineTo(sx, sy - 4); c.lineTo(sx + 6, by + bh); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = '#b3261e'; lines.forEach((l, i) => c.fillText(l, sx, by + 6 + lh / 2 + i * lh));
+    c.restore();
+  }
   // one line of the record: what happened, where and when, and its line of news
   function rlog(kind, o) {
     const pool = RREP[kind] || [kind];
@@ -16069,6 +16103,7 @@ const RUNNER_API = (function () {
       kind, weight: RWEIGHT[kind] || 1, text: '' };
     e.text = rFill(pool[(Math.random() * pool.length) | 0], e);
     RLOG.push(e); if (RLOG.length > 600) RLOG.shift();
+    if (!phoneAlert) { phoneAlert = true; phoneNextT = 0; }   // LAYER 743: a new line of news: the phone is on the alert
     return e;
   }
   // the lines of news: each event has two or three, and {who}, {team}, {place} and {time} are filled in when it happens
@@ -16154,6 +16189,7 @@ const RUNNER_API = (function () {
     const fresh = RLOG.filter((e) => e.abs > RCAST_ABS);
     RCAST_ABS = rAbs();
     fresh.sort((a, b) => b.weight - a.weight || b.id - a.id);
+    if (fresh.length) rOpener();   // LAYER 743
     fresh.slice(0, 4).forEach((e) => {
       const figs = [{ pose: rPoseFor(e), col: e.team ? rTeamCol(e.team) : '#8a8f98', name: e.who }];
       tvPlay('rep', ['REPORTING FROM ' + RZONE_NAME[e.zone] + '. ZONE ' + e.zone + '.', e.text], null, 'MORNING NEWS', { zone: e.zone, figs });
@@ -16222,7 +16258,8 @@ const RUNNER_API = (function () {
   const RUNNER_NEWS = { clockTick: rClockTick, clock: () => RCLK, record: () => RLOG, simHour: rSimHour, broadcast: rBroadcast,
     newGame: rNewGame, roster: () => RAI, zoneAt: rZoneAt, teamName: (c) => { const q = RTEAMS.find((z) => z.col === c); return q ? RTEAM_NAME[q.k] : ''; },
     teams: () => RTEAMS.slice(), lines: () => RREP,
-    phone: rPhone, watchTV: () => rLatest(4), newsIcon: rNewsIcon };   // LAYER 733: the phone and the TV's news
+    phone: rPhone, watchTV: () => rLatest(4), newsIcon: rNewsIcon,
+    checked: () => { phoneAlert = false; phoneShowT = 0; }, alerting: () => !!phoneAlert };   // LAYER 743   // LAYER 733: the phone and the TV's news
   // the evidence room: the pistol is bought back here, at half its price
   function evidenceOK() { return !!(RPOL.evidence && RPOL.evHere); }
   function evidencePrice() { return Math.round(RPOL_PISTOL / 2); }
@@ -16243,7 +16280,7 @@ const RUNNER_API = (function () {
     teamDriveTick(dt);   // LAYER 726
     hotwireTick(dt);     // LAYER 727
     arrestTick(dt);      // LAYER 729: the arrest, the ride, the desk
-    tvTick(dt); RUNNER_API.news.clockTick(dt);          // LAYER 730: the TV scenes
+    tvTick(dt); phoneTick(dt); RUNNER_API.news.clockTick(dt);          // LAYER 730: the TV scenes
     held = (LASER.has && LASER.drawn && walker.on && RUN_ON) ? 'laser' : null;   // LAYER 731: the pistol is in his hand while it is drawn (aim and shoot)
     turretTick(dt);   // LAYER 709: the roof guns
     canTick(dt);   // LAYER 680: the C.A.N. drone
@@ -17908,7 +17945,7 @@ const RUNNER_API = (function () {
   }
   // the countdown ran out: the hunters come in from the ring, close enough that the trail holds
   function canAlert(x, y) {
-    if (alertOn) return;
+    if (alertOn || !canUp()) return;   // LAYER 741: no hunters by day, or before the partner is found
     alertOn = true; hunters = []; const arts = huntArts();
     for (let k = 0; k < HUNT.n; k++) {
       const a = (k / HUNT.n) * Math.PI * 2 + rnd(-0.4, 0.4);
@@ -17916,8 +17953,11 @@ const RUNNER_API = (function () {
     }
     say('C.A.N. HAS YOU. THE HUNTERS ARE COMING.', 5);
   }
+  // LAYER 741: the C.A.N. is out only once the partner is found, and only at night (9:30 PM to 6 AM)
+  function canUp() { return houseSeen && (RCLK.min >= 21 * 60 + 30 || RCLK.min < 6 * 60); }
   function canTick(dt) {
     if (!RUN_ON || lobby) return;
+    if (!canUp()) { canDrones.length = 0; return; }
     if (canBoom.length) { for (const e of canBoom) e.t += dt; canBoom = canBoom.filter((e) => e.t < 1.2); }
     if (!canDrones.length) { if (canRespawnT > 0) { canRespawnT -= dt; return; } canDroneSpawn(); }
     const d = canDrones[0], pl = playerXY(), now = performance.now();
@@ -18346,7 +18386,10 @@ const RUNNER_API = (function () {
      TV screen, newest first, each one a reporter from the zone it happened in. An apartment TV shows the same. */
   function rNewsIcon() { return (window.ASSET_DATA && window.ASSET_DATA['tv/logo_can.png']) || A('tv/logo_can.png'); }
   function rNoSignal() { tvPlay('nosignal', ['NO SIGNAL.', 'C.A.N. does not reach down here. Come up to the street and check again.'], null, 'C.A.N. LIVE'); }
+  // LAYER 743: the card that comes on before any Runner News
+  function rOpener() { tvPlay('tv_logo', ['WELCOME TO C.A.N. NEWS.', 'NEWS YOU CAN TRUST...', 'RUNNER UPDATES!'], null, 'C.A.N. LIVE', null, 1.2); }   // LAYER 745: the logo sweeps in first, then the lines type out under it
   function rLatest(n) {
+    rOpener();
     if (!RLOG.length) { tvPlay('tv_logo', ['NOTHING NEW ON THE C.A.N. WIRE YET. THE MORNING NEWS GOES OUT AT EIGHT.'], null, 'C.A.N. LIVE'); return; }
     RLOG.slice(-n).reverse().forEach((e) => {
       const figs = [{ pose: rPoseFor(e), col: e.team ? rTeamCol(e.team) : '#8a8f98', name: e.who }];
@@ -18427,9 +18470,33 @@ const RUNNER_API = (function () {
      teammate's spot is refused, and the bike lifts again. Both spots are on open ground (clearSpot), never inside a building. */
   const LOT_SPOT = { w: 110, h: 62 };     // long side along x, the car nose-on to the east
   let lotSpots = null;
+  // LAYER 740: the lot's box must sit on open ground: no building, no road, nothing that is not landable
+  function lotRectClear(cx, cy) {
+    const x0 = cx - 130, x1 = cx + 130, y0 = cy - LOT_SPOT.h - 40, y1 = cy + LOT_SPOT.h + 40;
+    for (let x = x0; x <= x1; x += 40) for (let y = y0; y <= y1; y += 40) if (inBuilding(x, y) || !landable(x, y) || onRoad(x, y)) return false;
+    return true;
+  }
+  // LAYER 740: the back yard. Find the house this door belongs to, then the open grass behind it (away from the door), nearest the door first.
+  function lotBackYard(door) {
+    let hb = null;
+    for (let di = -1; di <= 1 && !hb; di++) for (let dj = -1; dj <= 1 && !hb; dj++) {
+      const c = cellOf(door.x + di * PITCH, door.y + dj * PITCH);
+      for (const b of (c && c.blds) || []) if (b.door) { const s = doorSpotOf(b); if (Math.abs(s.x - door.x) < 2 && Math.abs(s.y - door.y) < 2) { hb = b; break; } }
+    }
+    const hx = hb ? hb.x + hb.w / 2 : door.x, hy = hb ? hb.y + hb.h / 2 : door.y;
+    const dx = door.x - hx, dy = door.y - hy, reach = hb ? Math.max(hb.w, hb.h) / 2 + 40 : 60;
+    let best = null, bd = Infinity;
+    for (let r = reach; r <= reach + 300; r += 30) for (let k = 0; k < 36; k++) {
+      const a = (k / 36) * Math.PI * 2, px = hx + Math.cos(a) * r, py = hy + Math.sin(a) * r;
+      if ((px - hx) * dx + (py - hy) * dy >= 0) continue;   // the front half, by the door: not the back yard
+      const d = Math.hypot(px - door.x, py - door.y);
+      if (d < bd && lotRectClear(px, py)) { bd = d; best = { x: px, y: py }; }
+    }
+    return best;
+  }
   function makeLot() {
     if (lotSpots || !houseSpot) return;
-    const at = clearSpot(houseSpot.x, houseSpot.y + 150, null) || { x: houseSpot.x, y: houseSpot.y + 150 };
+    const at = lotBackYard(houseSpot) || clearSpot(houseSpot.x, houseSpot.y + 150, null) || { x: houseSpot.x, y: houseSpot.y + 150 };
     const cx = at.x, cy = at.y, w = LOT_SPOT.w, h = LOT_SPOT.h;
     lotSpots = {
       box: { x: cx - 122, y: cy - h - 26, w: 244, h: 2 * h + 52 },
@@ -19205,11 +19272,22 @@ const RUNNER_API = (function () {
   }
   function jobLog() { return RJ.log; }
   function bartenderNear() { return MISSION.stage === 'teammate' && barSpot && walker.on && Math.hypot(walker.x - barSpot.x, walker.y - barSpot.y) < 150; }
+  // LAYER 742: the bar's regulars. Each has a few lines of their own. One of them, picked at random once the teammate stage starts, knows about the partner.
+  const BAR_REGS = [
+    { label: 'ASK THE BARTENDER', speaker: 'BARTENDER', lines: ["Bar's open till four. Keep your hands on the bar.", "Nobody sits in the booth but Walt. He pays cash and never looks up."] },
+    { label: 'ASK THE MAN AT THE END OF THE BAR', speaker: 'THE MAN AT THE END', lines: ["I don't see anything. I don't look at anything.", 'Buy a drink or move down the bar.'] },
+    { label: 'ASK THE WOMAN BY THE JUKEBOX', speaker: 'THE WOMAN BY THE JUKEBOX', lines: ['Play something or get out of the light.', "Everybody in here has a story. Mine's the one on the jukebox."] },
+    { label: 'ASK THE OLD MAN IN THE BOOTH', speaker: 'THE OLD MAN IN THE BOOTH', lines: ["Sit down, you're blocking my cards.", 'I used to be a cop. Now I just play cards and lose.'] },
+    { label: 'ASK THE KID AT THE POOL TABLE', speaker: 'THE KID AT THE POOL TABLE', lines: ['Wanna play? Winner stays on the table.', 'My cousin says the cops came through here like a fire drill.'] },
+  ];
+  let barTipper = null;
+  function barAsks() { return BAR_REGS.map((r, i) => (i === barTipper ? Object.assign({ tip: true }, r) : r)); }
   function openYMenu() {
     if (!walker.on) { say('GET OFF THE BIKE TO TALK TO PEOPLE', 3); return; }
     if (!bartenderNear()) { say('NOBODY HERE WANTS TO TALK', 2.5); return; }
-    Object.assign(yMenu, { open: true, mode: 'menu', sel: 0, li: 0, lines: [], title: BAR_NAME, speaker: 'BARTENDER', face: null, done: null, onPick: null,
-      opts: ['ASK ABOUT YOUR TEAMMATE', 'ORDER A DRINK', 'LEAVE'] });
+    if (barTipper == null) barTipper = (Math.random() * BAR_REGS.length) | 0;
+    Object.assign(yMenu, { open: true, mode: 'menu', sel: 0, li: 0, lines: [], title: BAR_NAME, speaker: 'BARTENDER', face: null, done: null, onPick: null, bar: true,
+      opts: barAsks().map((a) => a.label).concat(['ORDER A DRINK', 'LEAVE']) });
   }
   const TALK_TEAMMATE = [
     'Your partner came through about an hour ago. Bleeding from the arm, but walking.',
@@ -19221,7 +19299,8 @@ const RUNNER_API = (function () {
     if (yMenu.mode === 'talk') {
       yMenu.li++;
       if (yMenu.li >= yMenu.lines.length) {
-        yMenu.open = false; yMenu.mode = 'menu';
+        if (yMenu.bar && !yMenu.tipNow) { yMenu.mode = 'menu'; return; }   // LAYER 742: a regular with nothing on the partner: back to the bar's menu
+        yMenu.open = false; yMenu.mode = 'menu'; yMenu.bar = false; yMenu.tipNow = false;
         if (yMenu.done) { const d = yMenu.done; yMenu.done = null; yMenu.face = null; d(); return; }   // LAYER 705: a talk with its own ending
         MISSION.stage = 'house'; missionHouse();
         say('TIP: ' + TIP_ADDRESS + '. THE ARROW IS ON THE HOUSE.', 6); runBanner('NEW LEAD', 2.2);
@@ -19229,10 +19308,10 @@ const RUNNER_API = (function () {
       return;
     }
     if (yMenu.onPick) { const f = yMenu.onPick; yMenu.onPick = null; yMenu.open = false; f(yMenu.opts[yMenu.sel]); return; }   // LAYER 705: the doctor's menu
-    const o = yMenu.opts[yMenu.sel];
-    if (o === 'ASK ABOUT YOUR TEAMMATE') { yMenu.mode = 'talk'; yMenu.lines = TALK_TEAMMATE; yMenu.li = 0; }
-    else if (o === 'ORDER A DRINK') { yMenu.open = false; say('HE POURS IT. ON THE HOUSE. "YOU LOOK LIKE YOU NEED IT."', 4); }
-    else yMenu.open = false;
+    const o = yMenu.opts[yMenu.sel], ask = yMenu.bar ? barAsks().find((a) => a.label === o) : null;
+    if (ask) { yMenu.mode = 'talk'; yMenu.speaker = ask.speaker; yMenu.lines = ask.tip ? TALK_TEAMMATE : ask.lines; yMenu.li = 0; yMenu.tipNow = !!ask.tip; }
+    else if (o === 'ORDER A DRINK') { yMenu.open = false; yMenu.bar = false; say('HE POURS IT. ON THE HOUSE. "YOU LOOK LIKE YOU NEED IT."', 4); }
+    else { yMenu.open = false; yMenu.bar = false; }
   }
   function drawYMenu(c, W, H) {
     if (!yMenu.open) return;
@@ -19291,7 +19370,7 @@ const RUNNER_API = (function () {
     if (MISSION.stage === 'teammate') missionBar(); else if (MISSION.stage === 'house') missionHouse(); else missionStoryTick();   // the bar, then the house (the Y menu)
     rjFrame(now);   // LAYER 707: the jobs (givers, the timer, the arrivals)
     if (outdoors && cam && !PMB.inside && (missionOn())) drawMissionArrow(c, cam, W, H, now);
-    if (cam && !PMB.inside) drawWaypoint(c, cam, W, H);   // LAYER 733: the waypoint, the black dot and its arrow (indoors too: it is a place in the city)   // LAYER 683: the arrow to the pistol, then to the teammate
+    if (cam && !PMB.inside) { drawWaypoint(c, cam, W, H); drawPhoneBuzz(c, cam, W, H); }   // LAYER 733: the waypoint, the black dot and its arrow (indoors too: it is a place in the city)   // LAYER 683: the arrow to the pistol, then to the teammate
     if (outdoors && cam && !PMB.inside) {
       c.save(); c.translate(W / 2, H / 2); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y);
       for (const h of hunters) drawHunter(c, h);
@@ -19540,7 +19619,7 @@ const RUNNER_API = (function () {
   // is facing, if that spot is clear of buildings. Pick it up again from close by.
   function bagSpot() { const h = walker.heading || 0, d = 46; return { x: walker.x + Math.cos(h) * d, y: walker.y + Math.sin(h) * d, h }; }
   function bagFits(x, y) {
-    for (const [dx, dy] of [[0, 0], [-30, -18], [30, -18], [-30, 18], [30, 18]]) if (inBuilding(x + dx, y + dy)) return false;
+    for (const [dx, dy] of [[0, 0], [-12, -28], [12, -28], [-12, 28], [12, 28]]) if (inBuilding(x + dx, y + dy)) return false;   // LAYER 745: the bag's real footprint (about 26 by 64), so a narrow room still takes it
     return x > 40 && y > 40 && x < SX(N) - 40 && y < SX(N) - 40;
   }
   function putBag() {
@@ -19563,7 +19642,7 @@ const RUNNER_API = (function () {
   }
   function drawSleepBag(c) {
     const im = img.sleep_bag; if (!im || !(im.naturalWidth || im.width)) return;
-    const W = 60, H = W * (im.naturalHeight || im.height) / (im.naturalWidth || im.width);
+    const H = 64, W = H * (im.naturalWidth || im.width) / (im.naturalHeight || im.height);   // LAYER 741: sized by height, so a narrow bag fits
     c.drawImage(im, sleepDown.x - W / 2, sleepDown.y - H / 2, W, H);
   }
   // LAYER 692: lying on the bag. He lies down with his head out, the screen fades to black, and the wheel asks NOON, EVENING or
@@ -21884,7 +21963,7 @@ export default function IronLionLayer004() {
       const dc = !RW && G.driverCard && G.driverCard(); if (dc) list.push({ label: "DRIVER", sub: dc.name + (dc.driving ? " \u00b7 driving" : " \u00b7 orders"), icon: dc.face });
       for (const l of live()) if (A[l] && l !== "E" && l !== "DRIVER" && (!RW || RUNNER_WHEEL.indexOf(l) >= 0)) list.push({ label: l, sub: A[l].sub || "", icon: l === "BOOK" ? PD_ART.hud_book : l === "MAP" ? PD_ART.hud_map : null });
       if (RW) { const cg = G.current, down = !!(cg && cg.p && inSewerNet(cg.p.x, cg.p.y));   // LAYER 733: the phone's NEWS
-        list.push({ label: "NEWS", sub: down ? "NO SIGNAL" : "C.A.N. LIVE", icon: RUNNER_API.news.newsIcon(), id: "news:phone" }); }
+        list.push({ label: "NEWS", sub: down ? "NO SIGNAL" : "C.A.N. LIVE", icon: RUNNER_API.news.newsIcon(), id: "news:phone", alert: !down && RUNNER_API.news.alerting() }); }
       if (RW && RUNNER_API.teamCarOK()) list.push({ label: "TEAM CAR", sub: RUNNER_API.teamCarSub(), icon: PD_ART.hud_teamcar });   // LAYER 726: your teammate drives it
       if (RW && RUNNER_API.evidenceOK()) list.push({ label: "EVIDENCE ROOM", sub: RUNNER_API.evidenceSub(), icon: PD_ART.hud_evidence });   // LAYER 728: his pistol is in evidence, and he is in the room
       list.push({ label: "FAST TRAVEL", sub: "airport \u00b7 train \u00b7 port \u00b7 home", icon: PD_ART.ac_fasttravel });     // always there (layer 514)
@@ -26991,7 +27070,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.pickOpen = (kind) => { if (!(kind || "").startsWith("gomez:")) g.gzSaid = null;
       if (!(kind || "").startsWith("det:")) g.detSaid = null; g.pickOpen = kind; setHud((h) => ({ ...h, pick: pickPanel(kind) })); };
     G.pickFn = (id) => {
-      if (id === "news:phone") { const cg = G.current; RUNNER_API.news.phone(!!(cg && cg.p && inSewerNet(cg.p.x, cg.p.y))); return; }   // LAYER 733: the phone's NEWS
+      if (id === "news:phone") { const cg = G.current; RUNNER_API.news.checked(); RUNNER_API.news.phone(!!(cg && cg.p && inSewerNet(cg.p.x, cg.p.y))); return; }   // LAYER 733: the phone's NEWS
       if (id.startsWith("tc:")) { RUNNER_API.teamOrder(id.slice(3)); return; }   // LAYER 726: the TEAM CAR places
       if (id.startsWith("ev:")) { RUNNER_API.buyBack(id.slice(3)); return; }   // LAYER 728: buy a thing back from the evidence room
       if (id.startsWith("laser:")) { RUNNER_API.laserPick(id.slice(6)); return; }   // LAYER 670
@@ -52621,7 +52700,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (f.seated && f.seatA != null) { drawSeat556(f.x, f.y, f.seatA, f.seatK);      // SAT DOWN (layer 556): the chair under him, facing the table, not walking
           if (f.civ) { const c = f.civ; if (c.top) c.ang = f.seatA + Math.PI / 2 + (c.face || 0); else if (c.eight) c.dir8 = civDir8(Math.cos(f.seatA), Math.sin(f.seatA));
             ctx.save(); ctx.translate(f.x, f.y); ctx.scale(0.9, 0.9); ctx.translate(-f.x, -f.y); const ok = drawCivilian(c, f.x - Math.cos(f.seatA) * 3, f.y - Math.sin(f.seatA) * 3, 0, 0, 0); ctx.restore(); if (ok) continue; } }
-        if (f.civ && drawCivilian(f.civ, f.x, f.y, f.vx, f.vy, f.anim * 0.16)) continue;
+        if (f.civ) { ctx.save(); ctx.translate(f.x, f.y); ctx.scale(1.6, 1.6); ctx.translate(-f.x, -f.y); const okF = drawCivilian(f.civ, f.x, f.y, f.vx, f.vy, f.anim * 0.16); ctx.restore(); if (okF) continue; }   // LAYER 741: the people in a shop, bigger
         drawShadow(f.x, f.y + 2, 9, 5, 0.3);
       }
       if (S.rob) for (const t of S.rob.thugs) drawGangTop(t, "hostile");
@@ -66582,7 +66661,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               return (
               <div key={o.id + "_" + i} data-pickopt="1" data-info={o.label} onClick={() => pick(o)} onMouseEnter={() => setInfo(o.label)}
                 style={{ position: "absolute", left: x + "%", top: y + "%", width: pw * 100 + "%", minHeight: im ? "17%" : "9%", transform: "translate(-50%,-50%)", borderRadius: im ? 10 : 18,
-                  border: "1px solid rgba(217,164,65,0.55)", background: "rgba(12,13,17,0.93)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  border: "1px solid rgba(217,164,65,0.55)", background: o.alert ? undefined : "rgba(12,13,17,0.93)", animation: o.alert ? "ntAlertFlash 1s ease-in-out infinite" : undefined, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                   textAlign: "center", boxSizing: "border-box", padding: "5px 7px", opacity: o.dim ? 0.5 : 1, fontSize: n > 10 ? 8 : 9, lineHeight: 1.25, letterSpacing: "0.05em" }}>
                 {im && <img src={im} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: "54%", aspectRatio: "1", objectFit: "cover", imageRendering: "pixelated", borderRadius: 6, marginBottom: 3 }} />}
                 <span style={{ display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{o.label}</span>
@@ -67201,7 +67280,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               return (
               <div key={o.label + i} data-pickopt="1" data-info={info(o)} onClick={() => pick(o)} onMouseEnter={() => setInfo(info(o))}
                 style={{ position: "absolute", left: x + "%", top: y + "%", width: chip * 100 + "%", height: chip * 100 + "%", transform: "translate(-50%,-50%)", borderRadius: "50%",
-                  border: "1px solid rgba(217,164,65,0.5)", background: "rgba(12,13,17,0.9)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  border: "1px solid rgba(217,164,65,0.5)", background: o.alert ? undefined : "rgba(12,13,17,0.9)", animation: o.alert ? "ntAlertFlash 1s ease-in-out infinite" : undefined, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                   textAlign: "center", overflow: "hidden", boxSizing: "border-box", padding: 4, opacity: o.dim ? 0.45 : 1 }}>
                 {o.icon && <img src={o.icon} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: "62%", height: "44%", objectFit: "contain", imageRendering: "pixelated" }} />}
                 <b style={{ fontSize: n > 14 ? 8 : 10, lineHeight: 1.1, letterSpacing: "0.04em" }}>{o.short || o.label}</b>
