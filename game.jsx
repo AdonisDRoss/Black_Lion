@@ -2830,7 +2830,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 730";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 735";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -11019,6 +11019,10 @@ for (const a of ["grocery", "bar", "liquor", "diner", "pawn"]) for (const v of [
 PD_ART.ar_vest_kevlar = "assets/arms/ar_vest_kevlar.png";   // the manor roof came in with layer 477
 PD_ART.hud_holophone = "assets/runner/hud/icon_holophone.png";   // LAYER 702: the holophone's icon on the Y wheel (only shows once he has one)
 OPTIONAL_ART.add("hud_holophone");
+PD_ART.hud_lasermode = "assets/runner/hud/icon_lasermode.png"; OPTIONAL_ART.add("hud_lasermode");   // LAYER 735: the MODE (STUN / HARM) item on the laser wheel
+// LAYER 734: the menu icons, all in one folder, assets/runner/hud (the holophone and the collar are in it too). Each shows once its file is there.
+for (const k of ["book", "map", "teamcar", "evidence", "objective", "home", "bar", "house", "stop", "equipment", "items", "cyberwear", "vest", "gasmask", "back", "character", "system", "missions"]) { PD_ART["hud_" + k] = "assets/runner/hud/icon_" + k + ".png"; OPTIONAL_ART.add("hud_" + k); }
+const PAUSE_TAB_ICON = { MAP: "hud_map", CHARACTER: "hud_character", INVENTORY: "ac_pockets", SYSTEM: "hud_system", MISSIONS: "hud_missions" };
 /* LAYER 476 ART (art_476.zip): the Boznov fronts' roofs, the painted interiors, the brothers' faces, the utility crew. */
 for (const k of ["rf_raven_auto", "rf_ravens_nest", "rf_rusty_nail", "rf_happy_hippy", "rf_bozni_manor", "pl_pole_top", "pl_pole_arms", "pl_pole_shaft"]) PD_ART[k] = "assets/city/" + k + ".png";
 for (const k of ["int_strip_club", "int_raven_auto", "int_bozni_f0", "int_bozni_f1", "int_bar_long"]) PD_ART[k] = "assets/interiors/" + k + ".png";
@@ -14841,8 +14845,10 @@ const RUNNER_API = (function () {
   for (const k of ['torso', 'arm_L', 'arm_R', 'leg_L', 'leg_R']) load('fem_' + k, 'body/fem_' + k + '.png');   // LAYER 688: the female body in five cut pieces
   load('cop_leg_L', 'cops/gas_leg_L.png'); load('cop_leg_R', 'cops/gas_leg_R.png');   // LAYER 660: the cops' cut legs
   const BODY_ARMS = {"slim": {"L": {"E": [23.0, 121.5], "H": [19.2, 159.6]}, "R": {"E": [193.5, 121.5], "H": [197.3, 159.6]}, "W": 31}, "athletic": {"L": {"E": [26.0, 108.4], "H": [26.0, 151.8]}, "R": {"E": [198.0, 108.4], "H": [198.0, 151.8]}, "W": 22}, "heavy": {"L": {"E": [24, 58], "H": [14, 106]}, "R": {"E": [200, 58], "H": [210, 106]}, "W": 26}, "average": {"L": {"E": [18.8, 86.6], "H": [-6.4, 117.5]}, "R": {"E": [204.9, 86.6], "H": [230.2, 117.5]}, "W": 15}, "cop_gas": {"L": {"E": [46.7, 110.8], "H": [52.0, 128.0]}, "R": {"E": [184.0, 108.0], "H": [168.0, 134.0]}, "W": 36}};                   // LAYER 587: the skater kids' hoverboard art
-  const RSUITS = ['#6ef0ff', '#ff5ad0', '#ffd23a', '#7dff6a', '#ff7a2a', '#b98cff'];
-  const RUNNER_LOOK = { head: 'mhead_curly', suit: '#6ef0ff', body: 'big', bodyK: 1, name: 'RUNNER', stats: null, chosen: false, skin: null, hair: null };   // LAYER 690: hair = the hair colour (null: black)
+  // LAYER 732: the four team colours. The suit you wear is your team; the other three teams are the background teams.
+  const RTEAMS = [{ k: 'red', col: '#d6453d' }, { k: 'yellow', col: '#e8c46a' }, { k: 'blue', col: '#3d7ee8' }, { k: 'green', col: '#3fbf6a' }];
+  const RSUITS = RTEAMS.map((q) => q.col);
+  const RUNNER_LOOK = { head: 'mhead_curly', suit: RSUITS[0], body: 'big', bodyK: 1, name: 'RUNNER', stats: null, chosen: false, skin: null, hair: null };   // LAYER 690: hair = the hair colour (null: black)
   const BODY_TYPES = { slim: 1, average: 1, athletic: 1, heavy: 1, big: 1, female: 1 };
   /* LAYER 704: EVERY RUNNER HAS A PROFILE PICTURE, a random face from the portrait set that matches his build. The pools are
      the forward-facing portraits in assets/runner/portraits (female_01..10, male_01..10), picked by eye: slim for the lean
@@ -15589,11 +15595,11 @@ const RUNNER_API = (function () {
   function teamOrderItems() {
     const c = teamCarV, out = [];
     if (!c) return out;
-    if (MISSION.stage !== 'none' && MISSION.stage !== 'done') out.push({ label: 'OBJECTIVE', sub: MISSION.label || 'the arrow', id: 'tc:objective' });
-    out.push({ label: 'HOME', sub: 'the lot', id: 'tc:home' });
-    if (barSpot) out.push({ label: 'BAR', sub: 'the bar', id: 'tc:bar' });
-    if (houseSpot) out.push({ label: 'HOUSE', sub: 'the house', id: 'tc:house' });
-    if (c.route) out.push({ label: 'STOP', sub: 'pull over where she is', id: 'tc:stop' });
+    if (MISSION.stage !== 'none' && MISSION.stage !== 'done') out.push({ label: 'OBJECTIVE', sub: MISSION.label || 'the arrow', id: 'tc:objective', icon: PD_ART.hud_objective });
+    out.push({ label: 'HOME', sub: 'the lot', id: 'tc:home', icon: PD_ART.hud_home });
+    if (barSpot) out.push({ label: 'BAR', sub: 'the bar', id: 'tc:bar', icon: PD_ART.hud_bar });
+    if (houseSpot) out.push({ label: 'HOUSE', sub: 'the house', id: 'tc:house', icon: PD_ART.hud_house });
+    if (c.route) out.push({ label: 'STOP', sub: 'pull over where she is', id: 'tc:stop', icon: PD_ART.hud_stop });
     return out;
   }
   // the driver steps out beside the car, where he will wander from now on
@@ -15795,6 +15801,7 @@ const RUNNER_API = (function () {
   // a cop has taken him in (the main game's arrest, in Runner Mode). Nothing is taken here but the pistol; the fine is at the desk.
   function policeArrest() {
     if (ARR.on) return;
+    rlog('police_arrest', { who: RUNNER_LOOK.name, zone: rZoneAt(walker.x, walker.y) });   // LAYER 732
     let gun = false;
     if (LASER.has) { RPOL.evidence = { mode: LASER.mode, locked: LASER.locked, chip: LASER.chip }; LASER.has = false; LASER.drawn = false; LASER.beams = []; gun = true; }
     const pc = cellOf(SX(8) + PITCH / 2, SX(11) + PITCH / 2), prec = pc && pc.blds ? pc.blds.find((q) => q.kind === 'precinct') : null;
@@ -15882,7 +15889,7 @@ const RUNNER_API = (function () {
      text that types out like a caption. The screen has the football replay look (scanlines, a tracking band, snow) and the C.A.N.
      logo in the bottom corner. A press of A (or Enter or Space) finishes the text; a second press closes the scene. If nobody
      presses, it closes itself after TV_HOLD seconds. Scenes queue, with a burst of static between them. */
-  const TV = { on: false, gap: 0, next: null, pic: null, full: '', tag: '', after: null, t: 0, shown: 0, done: false, hold: 0, queue: [] };
+  const TV = { on: false, gap: 0, next: null, pic: null, full: '', tag: '', after: null, t: 0, shown: 0, done: false, hold: 0, queue: [], rep: null };
   const TV_HOLD = 20, TV_CPS = 40, TV_GAP = 0.6, TV_LOGO = 72;
   const TV_PIC = { x: 64, y: 16, w: 832, h: 340 }, TV_BOX = { x: 64, y: 372, w: 760, h: 128 };
   const TV_ART = {};   // the pictures as they are, with no keying: a card keeps every colour it has
@@ -15898,18 +15905,20 @@ const RUNNER_API = (function () {
   for (let k = 1; k <= 6; k++) loadTV('tv_girl_' + k, 'tv/tvgirl_mood_0' + k + '.png');
   loadTV('tv_cohost', 'tv/cohost_front_bun.png');
   loadTV('tv_logo', 'tv/logo_can.png');
+  for (let k = 1; k <= 8; k++) loadTV('zone_0' + k, 'tv/zone_0' + k + '.jpg');
+  for (const s of ['m1', 'm2', 'm3', 'm4', 'm5', 'f1', 'f2', 'f3', 'f4', 'f5']) loadTV('pose_' + s, 'tv/runner_pose_' + s + '.png');
   // a scene: its picture (a key of TV_ART), its lines (a string, or an array of lines), what runs after it, and the tag in the corner
-  function tvPlay(pic, lines, after, tag) {
-    const s = { pic, full: Array.isArray(lines) ? lines.join('\n') : String(lines || ''), after: after || null, tag: tag || 'ON AIR' };
+  function tvPlay(pic, lines, after, tag, rep) {
+    const s = { pic, full: Array.isArray(lines) ? lines.join('\n') : String(lines || ''), after: after || null, tag: tag || 'ON AIR', rep: rep || null };
     if (TV.on) TV.queue.push(s); else tvStart(s);
   }
   function tvStart(s) {
-    Object.assign(TV, { on: true, gap: 0, next: null, pic: s.pic, full: s.full, after: s.after, tag: s.tag, t: 0, shown: 0, done: false, hold: TV_HOLD });
+    Object.assign(TV, { on: true, gap: 0, next: null, pic: s.pic, full: s.full, after: s.after, tag: s.tag, t: 0, shown: 0, done: false, hold: TV_HOLD, rep: s.rep });
   }
   // the scene is over: the next one in the queue comes after a burst of static, then the callback of this one runs
   function tvEnd() {
     const after = TV.after, nx = TV.queue.shift() || null;
-    Object.assign(TV, { on: !!nx, gap: nx ? TV_GAP : 0, next: nx, pic: null, full: '', after: null, tag: '', t: 0, shown: 0, done: false, hold: 0 });
+    Object.assign(TV, { on: !!nx, gap: nx ? TV_GAP : 0, next: nx, pic: null, full: '', after: null, tag: '', t: 0, shown: 0, done: false, hold: 0, rep: null });
     if (after) after();
   }
   // every frame: the typing, the hold, and the static between scenes
@@ -15967,13 +15976,16 @@ const RUNNER_API = (function () {
     g.save(); g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
     if (!gap && TV.pic) {
-      const pic = TV_ART[TV.pic];
-      if (pic && pic.width) {
+      const pic = TV.rep ? null : TV_ART[TV.pic];
+      if (TV.rep) tvDrawReporter(g);
+      else if (pic && pic.width) {
         const s = Math.min(TV_PIC.w / pic.width, TV_PIC.h / pic.height), dw = pic.width * s, dh = pic.height * s;
         g.drawImage(pic, TV_PIC.x + (TV_PIC.w - dw) / 2, TV_PIC.y + (TV_PIC.h - dh) / 2, dw, dh);
       } else {
         g.fillStyle = '#161616'; g.fillRect(TV_PIC.x, TV_PIC.y, TV_PIC.w, TV_PIC.h);
-        g.font = 'bold 16px monospace'; g.textAlign = 'center'; g.fillStyle = '#777'; g.fillText('NO PICTURE', W / 2, TV_PIC.y + TV_PIC.h / 2 + 6);
+        const ns = TV.pic === 'nosignal';   // LAYER 733: under the street the picture is snow
+        if (ns) { g.fillStyle = 'rgba(255,255,255,.25)'; for (let i = 0; i < 500; i++) g.fillRect(TV_PIC.x + Math.random() * TV_PIC.w, TV_PIC.y + Math.random() * TV_PIC.h, 2, 2); }
+        g.font = 'bold 22px monospace'; g.textAlign = 'center'; g.fillStyle = ns ? '#e8d9b5' : '#777'; g.fillText(ns ? 'NO SIGNAL' : 'NO PICTURE', W / 2, TV_PIC.y + TV_PIC.h / 2 + 8);
       }
       g.fillStyle = 'rgba(0,0,0,.85)'; g.fillRect(TV_BOX.x, TV_BOX.y, TV_BOX.w, TV_BOX.h);
       g.strokeStyle = 'rgba(240,230,200,.45)'; g.lineWidth = 1; g.strokeRect(TV_BOX.x + .5, TV_BOX.y + .5, TV_BOX.w - 1, TV_BOX.h - 1);
@@ -16002,11 +16014,194 @@ const RUNNER_API = (function () {
     if (logo && logo.width) { g.globalAlpha = 0.9; g.drawImage(logo, W - 84, H - 84, TV_LOGO, TV_LOGO); g.globalAlpha = 1; }
     g.restore();
   }
+  /* ============ LAYER 732: THE CLOCK, THE RECORD, THE BACKGROUND TEAMS AND THE NEWS ============
+     A game clock runs while Runner Mode is on. Every game hour the teams that are not the player's act in the background,
+     and every event that matters (a shot, a robbery, a stun, an arrest) goes into RLOG with its line of news. At eight each
+     morning the news goes out: a reporter for each of the biggest stories, from the zone it happened in. */
+  // the patrol zone a point of the city is in, 1 to 8: four columns by two rows
+  function rZoneAt(x, y) {
+    const ci = clamp(Math.floor(x / PITCH), 0, N - 1), cj = clamp(Math.floor(y / PITCH), 0, N - 1);
+    const col = ci < 8 ? 0 : ci < 15 ? 1 : ci < 23 ? 2 : 3, row = cj < 15 ? 0 : 1;
+    return row * 4 + col + 1;
+  }
+  const RZONE_NAME = ['', 'NORTH-WEST', 'NORTH-CENTRE-WEST', 'NORTH-CENTRE-EAST', 'NORTH-EAST', 'SOUTH-WEST', 'SOUTH-CENTRE-WEST', 'SOUTH-CENTRE-EAST', 'SOUTH-EAST'];
+  const RTEAM_NAME = { red: 'RED', yellow: 'YELLOW', blue: 'BLUE', green: 'GREEN' };
+  const RCLK = { day: 1, min: 6 * 60, rate: 2, lastHour: 6, castDay: 0 };   // 2 game minutes a real second: an hour is 30 s, a day is 12 minutes
+  const RLOG = [];                  // the record: { id, abs, day, min, zone, team, who, kind, weight, text }
+  let RLOG_ID = 0, RCAST_ABS = 0;   // the last moment the news went out, in game minutes from day 1
+  const RAI = [];                   // the background teams: two runners each, all but the player's own team
+  const rAbs = () => (RCLK.day - 1) * 1440 + RCLK.min;
+  const rTeamOf = (col) => { const q = RTEAMS.find((z) => z.col === col); return q ? q.k : 'you'; };
+  const rTeamCol = (k) => { const q = RTEAMS.find((z) => z.k === k); return q ? q.col : '#8a8f98'; };
+  function rFill(s, e) {
+    return s.split('{who}').join(e.who).split('{team}').join(RTEAM_NAME[e.team] || 'THE TEAM')
+      .split('{place}').join(RZONE_NAME[e.zone]).split('{time}').join(clockText(e.min));
+  }
+  // one line of the record: what happened, where and when, and its line of news
+  function rlog(kind, o) {
+    const pool = RREP[kind] || [kind];
+    const e = { id: ++RLOG_ID, abs: rAbs(), day: RCLK.day, min: RCLK.min, zone: o.zone || 1, team: o.team || '', who: o.who || '',
+      kind, weight: RWEIGHT[kind] || 1, text: '' };
+    e.text = rFill(pool[(Math.random() * pool.length) | 0], e);
+    RLOG.push(e); if (RLOG.length > 600) RLOG.shift();
+    return e;
+  }
+  // the lines of news: each event has two or three, and {who}, {team}, {place} and {time} are filled in when it happens
+  const RREP = {
+    ai_scout: ["{who} of team {team} was seen working the {place} streets all night.", "Team {team} has eyes on {place}. {who} was counting cars and cops on the block at {time}.", "{who} rode the {place} lanes for hours with nothing to show for it."],
+    ai_steal_car: ["{who} boosted a car on {place} and was gone by {time}.", "A car went missing on {place}. Team {team} is the name the street gives.", "{who} took a patrol car off a lot in {place}. Nobody saw the plates."],
+    ai_stake_out: ["{who} staked out a drop in {place} until {time}.", "Team {team} sat on a building in {place} for three hours. {who} did not move.", "{who} watched the {place} door at {time} and wrote down every face."],
+    ai_buy_gear: ["{who} bought a jacket and a rig from a fixer on {place}.", "Gear changed hands on {place}. {who} paid cash and left by {time}.", "Team {team} stocked up in {place}. {who} is carrying more than he was."],
+    ai_lay_low: ["{who} went to ground on {place} and has not been seen since.", "Team {team} is keeping its head down. {who} is out of sight in {place}.", "{who} slept in a basement in {place} and came up at {time}."],
+    ai_recruit: ["{who} brought a new runner into team {team} on {place}.", "Team {team} has a new face. {who} found him in {place}.", "{who} made an offer in {place}, and somebody said yes."],
+    ai_bounty: ["{who} collected a bounty in {place} and paid the crew.", "A hunter bounty was paid out on {place}. Team {team} is short of cash no longer.", "{who} cashed a tip on {place} at {time}."],
+    ai_raid: ["{who} hit a runner's hideout on {place} and took what was there.", "A stash on {place} was cleaned out. Team {team} did it, and {who} was in the room.", "{who} went through a hideout in {place} before the owner got home."],
+    ai_ambush: ["{who} set an ambush on {place}. The runner it was for never came by.", "Team {team} waited on {place} for an hour. {who} made the call and backed off.", "{who} ran a trap on {place} at {time}. Nobody was caught in it."],
+    ai_hack: ["{who} hacked a holophone in {place}. The call list is in team {team}'s hands.", "A holophone on {place} went dead at {time}. Team {team} says it was not them.", "{who} spoofed a C.A.N. line from {place}."],
+    ai_drone_spot: ["{who} spotted a hover drone over {place} and dropped out of sight.", "Team {team} called in a drone sighting on {place}. The drone is still looking.", "{who} tracked the FIS drone across {place} for twenty minutes."],
+    ai_sewer: ["{who} went down the sewer under {place}. He came up somewhere else.", "Team {team} is using the tunnels on {place}. {who} was seen at a grate.", "{who} was in the drains under {place} at {time}."],
+    ai_bribe: ["{who} paid off a cop on {place}. The cop looked the other way.", "A patrol car stopped on {place} and drove on. Team {team} paid for that.", "{who} bought a cop in {place} for one night."],
+    ai_rooftops: ["{who} ran the rooftops of {place} faster than the drones could follow.", "Team {team} went over the roofs on {place}. {who} came down at {time}.", "{who} made the jump between two towers on {place}."],
+    ai_cash_grab: ["{who} grabbed a dealer's cash on {place} and was gone in a minute.", "Cash went out of a shop on {place}. Team {team} is counting it.", "{who} took the till on {place} at {time}."],
+    ai_sold_info: ["{who} sold a runner's route on {place}. The buyer has not been named.", "Team {team} sold a tip on {place}. {who} took the money.", "{who} is selling what he knows about {place}."],
+    ai_dead_drop: ["{who} left a package in a dead drop on {place} and walked away.", "Team {team} moved a package through {place}. {who} made the handoff at {time}.", "{who} was at the drop on {place} and nobody came."],
+    ai_tip_fis: ["{who} tipped the FIS about a runner on {place}. Team {team} denies it.", "A call went to the FIS from {place}. {who}'s voice is on the tape.", "{who} gave the FIS a runner on {place} to keep his own name clean."],
+    ai_hideout: ["{who} is hiding out in a flat on {place}. The hideout was not on the list.", "Team {team} took a flat on {place} for the night. {who} is inside.", "{who} found a new hideout on {place} and moved in at {time}."],
+    ai_lost_hunter: ["{who} lost a hunter on {place} and is still looking for him.", "A hunter stopped following team {team} on {place}. {who} does not say why.", "{who} ran a hunter off on {place} at {time}."],
+    ai_caught_fis: ["FIS caught {who} on {place} at {time}. Team {team} is short one runner.", "{who} was taken by the FIS on {place}. The hover drone did the work.", "A drone dropped on {who} on {place}. He is in a cell tonight."],
+    ai_caught_police: ["Police arrested {who} on {place} at {time}. Team {team} has lost a runner.", "{who} was picked up on {place} by a patrol car. He is in the back of it now.", "A cop stopped {who} on {place}. The cuffs were on before he could run."],
+    ai_stunned: ["{who} was stunned on {place} and lay in the street until {time}.", "Team {team} took a hit on {place}. {who} is down.", "{who} was knocked out on {place}. A hunter stood over him."],
+    ai_knocked: ["{who} lost a fight on {place}. Team {team} is licking its wounds.", "Somebody put {who} down on {place} and left him there.", "{who} was beaten off a roof on {place} and taken to the clinic."],
+    hunter_hit: ["{who} put a shot into the runner on {place} at {time}.", "The runner took a hit on {place}. {who} fired from the street.", "{who} stunned the runner on {place}. The hunt is on."],
+    hunter_miss: ["{who} fired on {place} and missed by a yard.", "A shot went wide on {place}. {who} is still shooting.", "{who} missed the runner on {place} at {time}."],
+    hunter_rob: ["{who} went through the runner's gear on {place} and ran.", "A hunter robbed a runner on {place}. {who} is gone with the loot.", "{who} took a piece of the runner's kit on {place} at {time}."],
+    hunter_rob_nothing: ["{who} searched a runner on {place}, found nothing, and walked off.", "A hunter took nothing from a runner on {place}. {who} is angry about it."],
+    hunter_stun: ["{who} was stunned by the runner on {place} and is down.", "The runner put {who} on the ground on {place}.", "{who} took a blue beam on {place} and went down at {time}."],
+    hunter_down: ["{who} went down for good on {place} at {time}.", "The runner killed {who} on {place}. The hunt has lost a man.", "{who} is dead on {place}. His crew is still out there."],
+    runner_stunned: ["{who} stunned the runner on {place}. He sat still for four seconds.", "The runner was stunned on {place} at {time} by {who}.", "{who} put the runner down on {place} and went through his pockets."],
+    police_arrest: ["Police took the runner in on {place} at {time}. The runner is in the back of a car.", "An arrest on {place}: the runner was cuffed on the street by a cop.", "The runner was picked up on {place}. The pistol went to evidence."],
+  };
+  // how much a line of news weighs: the morning news reads the biggest of the day first
+  const RWEIGHT = { police_arrest: 6, hunter_down: 5, hunter_rob: 4, runner_stunned: 4, ai_caught_fis: 4, ai_caught_police: 4,
+    hunter_stun: 3, ai_stunned: 3, ai_knocked: 3, ai_tip_fis: 3, ai_raid: 3, hunter_hit: 2, ai_ambush: 2, ai_lost_hunter: 2, ai_sold_info: 2 };
+  // what a background runner can do in an hour: some leave him caught or down for a while
+  const RAI_ACTS = [
+    { kind: 'ai_scout' }, { kind: 'ai_steal_car' }, { kind: 'ai_stake_out' }, { kind: 'ai_buy_gear' }, { kind: 'ai_lay_low' },
+    { kind: 'ai_recruit' }, { kind: 'ai_bounty' }, { kind: 'ai_raid' }, { kind: 'ai_ambush' }, { kind: 'ai_hack' },
+    { kind: 'ai_drone_spot' }, { kind: 'ai_sewer' }, { kind: 'ai_bribe' }, { kind: 'ai_rooftops' }, { kind: 'ai_cash_grab' },
+    { kind: 'ai_sold_info' }, { kind: 'ai_dead_drop' }, { kind: 'ai_tip_fis' }, { kind: 'ai_hideout' }, { kind: 'ai_lost_hunter' },
+    { kind: 'ai_caught_fis', st: 'caught', hours: 2 }, { kind: 'ai_caught_police', st: 'caught', hours: 2 },
+    { kind: 'ai_stunned', st: 'down', hours: 1 }, { kind: 'ai_knocked', st: 'down', hours: 1 },
+  ];
+  // the background teams: the three that are not the player's, two runners each, each with a place and a state
+  function rAIReset() {
+    RAI.length = 0;
+    const me = rTeamOf(RUNNER_LOOK.suit);
+    for (const q of RTEAMS) if (q.k !== me) for (const n of MATE_NAMES[q.k]) RAI.push({ name: n, team: q.k, status: 'free', until: 0, zone: 1 + ((Math.random() * 8) | 0) });
+  }
+  // each game hour: every runner who is not caught or down does one thing, and it is written up
+  function rSimHour() {
+    const now = rAbs();
+    for (const a of RAI) {
+      if (a.status !== 'free') { if (now < a.until) continue; a.status = 'free'; }
+      if (Math.random() < 0.34) a.zone = 1 + ((Math.random() * 8) | 0);
+      const act = RAI_ACTS[(Math.random() * RAI_ACTS.length) | 0];
+      if (act.st) { a.status = act.st; a.until = now + act.hours * 60; }
+      rlog(act.kind, { who: a.name, team: a.team, zone: a.zone });
+    }
+  }
+  // the clock: while Runner Mode is on, the hours pass, the background teams act each hour, and the news goes out at eight
+  function rClockTick(dt) {
+    if (!RUN_ON) return;
+    RCLK.min += dt * RCLK.rate;
+    if (RCLK.min >= 1440) { RCLK.min -= 1440; RCLK.day++; }
+    const hour = Math.floor(RCLK.min / 60);
+    if (hour !== RCLK.lastHour) { RCLK.lastHour = hour; rSimHour(); }
+    if (RCLK.min >= 480 && RCLK.castDay !== RCLK.day) { RCLK.castDay = RCLK.day; rBroadcast(); }
+  }
+  // a new run: the clock starts at six in the morning on day one, the record is empty, and the background teams are set
+  function rNewGame() {
+    RCLK.day = 1; RCLK.min = 6 * 60; RCLK.lastHour = 6; RCLK.castDay = 0;
+    RLOG.length = 0; RCAST_ABS = 0; rAIReset();
+  }
+  // the morning news at eight: up to four stories since the last one, the biggest first, each read from the zone it happened in
+  function rBroadcast() {
+    const fresh = RLOG.filter((e) => e.abs > RCAST_ABS);
+    RCAST_ABS = rAbs();
+    fresh.sort((a, b) => b.weight - a.weight || b.id - a.id);
+    fresh.slice(0, 4).forEach((e) => {
+      const figs = [{ pose: RPOSES[e.id % RPOSES.length], col: e.team ? rTeamCol(e.team) : '#8a8f98', name: e.who }];
+      tvPlay('rep', ['REPORTING FROM ' + RZONE_NAME[e.zone] + '. ZONE ' + e.zone + '.', e.text], null, 'MORNING NEWS', { zone: e.zone, figs });
+    });
+  }
+  // THE REPORTER. The zone's picture behind her, the zone's name on the screen, and the cohost at full length; then she
+  // shrinks into a head in a box, and the runners in the story stand in the zone in their team's colour, names under them.
+  const REP_HEAD = { x: 400, y: 22, w: 220, h: 220 };   // her head in the front picture, in that picture's own pixels
+  const RPOSES = ['pose_m1', 'pose_m2', 'pose_m3', 'pose_m4', 'pose_m5', 'pose_f1', 'pose_f2', 'pose_f3', 'pose_f4', 'pose_f5'];
+  const TV_TINT = {};
+  // a runner's pose in a team colour: the grey art multiplied by the colour, its own shape kept
+  function tvFigure(key, col) {
+    const id = key + col;
+    if (TV_TINT[id]) return TV_TINT[id];
+    const src = TV_ART[key];
+    if (!src || !src.width) return null;
+    const c = document.createElement('canvas');
+    c.width = src.width; c.height = src.height;
+    const x = c.getContext('2d');
+    x.drawImage(src, 0, 0);
+    x.globalCompositeOperation = 'multiply'; x.fillStyle = col; x.fillRect(0, 0, c.width, c.height);
+    x.globalCompositeOperation = 'destination-in'; x.drawImage(src, 0, 0);
+    return (TV_TINT[id] = c);
+  }
+  function tvDrawReporter(g) {
+    const R = TV.rep, st = TV.t, P = TV_PIC;
+    g.save();
+    g.beginPath(); g.rect(P.x, P.y, P.w, P.h); g.clip();
+    g.fillStyle = '#0d0d12'; g.fillRect(P.x, P.y, P.w, P.h);
+    const bg = TV_ART['zone_' + String(R.zone).padStart(2, '0')];
+    if (bg && bg.width) {
+      const s = Math.max(P.w / bg.width, P.h / bg.height), dw = bg.width * s, dh = bg.height * s;
+      g.drawImage(bg, P.x + (P.w - dw) / 2, P.y + (P.h - dh) / 2, dw, dh);
+    }
+    g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(P.x, P.y, P.w, P.h);
+    const tag = 'ZONE ' + R.zone + '  ' + RZONE_NAME[R.zone];
+    g.font = 'bold 15px monospace'; g.textAlign = 'left';
+    g.fillStyle = 'rgba(0,0,0,.7)'; g.fillRect(P.x + 14, P.y + 12, g.measureText(tag).width + 16, 24);
+    g.fillStyle = '#f4efe0'; g.fillText(tag, P.x + 22, P.y + 29);
+    const co = TV_ART.tv_cohost;
+    if (co && co.width) {
+      const k = Math.min(1, Math.max(0, (st - 1.8) / 0.9)), e = k * k * (3 - 2 * k);
+      const full = { x: P.x + 90, y: P.y + 6, w: 330, h: 330 }, head = { x: P.x + 14, y: P.y + P.h - 134, w: 120, h: 120 };
+      const L = (a, b) => a + (b - a) * e;
+      if (e > 0.02) { g.fillStyle = 'rgba(0,0,0,' + (0.75 * e).toFixed(3) + ')'; g.fillRect(head.x, head.y, head.w, head.h); }
+      g.drawImage(co, L(0, REP_HEAD.x), L(0, REP_HEAD.y), L(co.width, REP_HEAD.w), L(co.height, REP_HEAD.h),
+        L(full.x, head.x), L(full.y, head.y), L(full.w, head.w), L(full.h, head.h));
+      if (e > 0.5) { g.strokeStyle = '#d9a441'; g.lineWidth = 2; g.strokeRect(head.x + 1, head.y + 1, head.w - 2, head.h - 2); }
+    }
+    (R.figs || []).forEach((f, i) => {
+      if (st < 2.9 + i * 1.3) return;
+      const im = tvFigure(f.pose, f.col);
+      if (!im) return;
+      const h = 230, w = h * im.width / im.height, x = P.x + 360 + i * 150, y = P.y + P.h - h - 6;
+      g.drawImage(im, x, y, w, h);
+      const nm = f.name || '';
+      g.font = 'bold 13px monospace'; g.textAlign = 'center';
+      const nw = g.measureText(nm).width;
+      g.fillStyle = 'rgba(0,0,0,.7)'; g.fillRect(x + w / 2 - nw / 2 - 5, y - 22, nw + 10, 18);
+      g.fillStyle = '#f4efe0'; g.fillText(nm, x + w / 2, y - 8);
+    });
+    g.restore();
+  }
+  // what the record and the clock look like to the rest of the game, and to the tests
+  const RUNNER_NEWS = { clockTick: rClockTick, clock: () => RCLK, record: () => RLOG, simHour: rSimHour, broadcast: rBroadcast,
+    newGame: rNewGame, roster: () => RAI, zoneAt: rZoneAt, teamName: (c) => { const q = RTEAMS.find((z) => z.col === c); return q ? RTEAM_NAME[q.k] : ''; },
+    teams: () => RTEAMS.slice(), lines: () => RREP,
+    phone: rPhone, watchTV: () => rLatest(4), newsIcon: rNewsIcon };   // LAYER 733: the phone and the TV's news
   // the evidence room: the pistol is bought back here, at half its price
   function evidenceOK() { return !!(RPOL.evidence && RPOL.evHere); }
   function evidencePrice() { return Math.round(RPOL_PISTOL / 2); }
   function evidenceSub() { return 'YOUR LASER PISTOL · $' + evidencePrice(); }
-  function evidenceItems() { return RPOL.evidence ? [{ label: 'LASER PISTOL', sub: 'BUY BACK · $' + evidencePrice(), id: 'ev:pistol' }] : []; }
+  function evidenceItems() { return RPOL.evidence ? [{ label: 'LASER PISTOL', sub: 'BUY BACK · $' + evidencePrice(), icon: PD_ART.wi_laser, id: 'ev:pistol' }] : []; }
   function buyBack(id) {
     const p = RPOL.evidence;
     if (!p || id !== 'pistol') return;
@@ -16022,7 +16217,8 @@ const RUNNER_API = (function () {
     teamDriveTick(dt);   // LAYER 726
     hotwireTick(dt);     // LAYER 727
     arrestTick(dt);      // LAYER 729: the arrest, the ride, the desk
-    tvTick(dt);          // LAYER 730: the TV scenes
+    tvTick(dt); RUNNER_API.news.clockTick(dt);          // LAYER 730: the TV scenes
+    held = (LASER.has && LASER.drawn && walker.on && RUN_ON) ? 'laser' : null;   // LAYER 731: the pistol is in his hand while it is drawn (aim and shoot)
     turretTick(dt);   // LAYER 709: the roof guns
     canTick(dt);   // LAYER 680: the C.A.N. drone
     const pad = readPad();
@@ -16316,10 +16512,11 @@ const RUNNER_API = (function () {
   // LAYER 603: the weapon in the right hand. Art loads as img['wpn_' + key]; until it does, a placeholder bar.
   function drawHeld(hx, hy, ang, sc) {
     const im = img['wpn_' + held];
+    const kick = performance.now() - LASER.lastFire < 140 ? 2.5 * sc : 0;   // LAYER 731: the pistol kicks back for a moment after a shot
     ctx.save(); ctx.translate(hx, hy); ctx.rotate(ang);
     if (im && im.width) {
-      const w = 16 * sc, h = w * (im.height / im.width);
-      ctx.drawImage(im, 0, -h / 2, w, h);
+      const w = 30 * sc, h = w * (im.height / im.width);
+      ctx.drawImage(im, -kick, -h / 2, w, h);
     } else {
       ctx.fillStyle = '#2b2f3a'; ctx.fillRect(0, -1.3 * sc, 14 * sc, 2.6 * sc);
       ctx.fillStyle = '#6ef0ff'; ctx.fillRect(10 * sc, -0.5 * sc, 4 * sc, 1 * sc);
@@ -16468,8 +16665,9 @@ const RUNNER_API = (function () {
         drawArm(ex, ey, hx, hy, arms.W * sx, sk, RUNNER_LOOK.suit, copL ? copL.sleeve : (RUNNER_LOOK.body === 'heavy' ? sleeveTone(bs) : null));
         if (side === 'R') rHand = { hx, hy, ang: Math.atan2(hy - ey, hx - ex) };
       }
-      if (holding && rHand) drawHeld(rHand.hx, rHand.hy, rHand.ang, bw / 40);
+      if (holding && rHand) drawHeld(rHand.hx, rHand.hy, aimAngle() - hdg + Math.PI / 2, bw / 40)   // the body is turned by hdg - PI/2 here, so the barrel is turned back by the same;   // LAYER 731: the barrel points where he aims
     }
+    else if (holding && bs) drawHeld(x + 0.3 * bw, y + 0.05 * bh, aimAngle() - hdg + Math.PI / 2, bw / 40);   // LAYER 731: a baked body with no arm table (the big one): the pistol sits at its right side
     else if (!bs) {
       ctx.fillStyle = '#2a2d3a'; ctx.beginPath(); ctx.ellipse(x, y, bw / 2, bh / 2, 0, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = RUNNER_LOOK.suit; ctx.lineWidth = 3; ctx.stroke();
@@ -16956,7 +17154,8 @@ const RUNNER_API = (function () {
     // the shock stays on the car and the drone while it lasts
     if (inc.stage === 'shock') d.alert = 1;
   }
-  load('cuffs', 'badges/cuffs.png');                       // LAYER 658: the game's own handcuff icon (runner/badges/cuffs.png)
+  load('cuffs', 'badges/cuffs.png');
+  load('wpn_laser', 'weapons/topdown/w1_laser_pistol.png');   // LAYER 731: the laser pistol in hand (top-down art, barrel to the right)                       // LAYER 658: the game's own handcuff icon (runner/badges/cuffs.png)
   load('cop_air_stand', 'cops/cop_air_suit_keyed.png');    // LAYER 658: the air cop, uncut, stands by the cruiser
   // LAYER 656: the badges and the cuffs over an arrest. Drawn in screen pixels through dZ, like the scan labels.
   function drawBadgeIcon(im, x, y, w) {
@@ -16967,11 +17166,23 @@ const RUNNER_API = (function () {
   // LAYER 658: the handcuff icon, the game's own (ui/ui_cuffs.png), centred on the point
   function drawCuffs(x, y) { drawBadgeIcon(img.cuffs, x, y, 16 / dZ); }
   // LAYER 658: the air-unit cop, uncut, stood by the cruiser for the arrest (world units; her feet at the point)
+  /* LAYER 731: any armed figure carries its weapon's sprite in hand. (hx, hy) is the hand, in the figure's units; ang is
+     the way the barrel points; len is the gun's length in the same units. The art has the barrel on the left, so it is
+     flipped to point along ang, and the hand sits 70% of the way along from the barrel (as the hunters' grip does). */
+  function carryWeapon(w, hx, hy, ang, len) {
+    const im = kitImg(w);
+    if (!im || !im.complete || !im.naturalWidth) return;
+    const H = len * im.naturalHeight / im.naturalWidth;
+    ctx.save(); ctx.translate(hx, hy); ctx.rotate(ang); ctx.scale(-1, 1);
+    ctx.drawImage(im, -0.7 * len, -H / 2, len, H);
+    ctx.restore();
+  }
   function drawAirCop(st) {
     const im = img.cop_air_stand; if (!im || !im.width) return;
     const w = 44, h = w * im.height / im.width;
     ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(st.x, st.y + 3, 13, 6, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.drawImage(im, st.x - w / 2, st.y - h * 0.9, w, h); ctx.restore();
+    ctx.drawImage(im, st.x - w / 2, st.y - h * 0.9, w, h);
+    ctx.restore();
   }
   function drawIncident(inc, now) {
     const cr = inc.cr, f = inc.f;
@@ -17452,6 +17663,7 @@ const RUNNER_API = (function () {
     h.hostileT = performance.now();   // LAYER 709: a shot at the runner, for the roof guns
     h.hd = Math.atan2(walker.y - h.y, walker.x - h.x);
     const hit = Math.random() < k.hit;
+    rlog(hit ? 'hunter_hit' : 'hunter_miss', { who: h.name, zone: rZoneAt(h.x, h.y) });   // LAYER 732
     if (k.role === 'gun') {
       const ang = h.hd + (hit ? 0 : (Math.random() < 0.5 ? -1 : 1) * (0.16 + Math.random() * 0.14)), far = hit ? dp : k.range;
       LASER.beams.push({ x0: h.x, y0: h.y, x1: h.x + Math.cos(ang) * far, y1: h.y + Math.sin(ang) * far, kill: false, until: performance.now() + 260 });
@@ -17493,6 +17705,7 @@ const RUNNER_API = (function () {
     ROB.t += dt; ROB.lx = walker.x; ROB.ly = walker.y;   // stunned, or standing still: the ticker runs
     if (ROB.t >= ROB_NEED) {
       const L = robItems(), pick = L.length ? L[(Math.random() * L.length) | 0] : null;
+      rlog(pick ? 'hunter_rob' : 'hunter_rob_nothing', { who: h.name, zone: rZoneAt(walker.x, walker.y) });   // LAYER 732
       if (pick === 'pistol') { LASER.has = false; LASER.drawn = false; say(h.name + ' TOOK YOUR LASER PISTOL AND RAN.', 5); }
       else if (pick === 'pack') { packOn = null; packOff = false; say(h.name + ' TOOK YOUR BACKPACK AND RAN.', 5); }
       else if (pick === 'mask') { gasOwned = false; mask = false; say(h.name + ' TOOK YOUR GAS MASK AND RAN.', 5); }
@@ -17507,7 +17720,7 @@ const RUNNER_API = (function () {
     if (!im.complete || !im.naturalWidth) return;
     const S = HUNT_SCALE, L = h.kit.len || (h.kit.role === 'melee' ? 30 : 42), H = L * im.naturalHeight / im.naturalWidth;
     const kick = h.rec > 0 ? 2 * (h.rec / 0.12) : 0;
-    c.save(); c.translate((rig.hand[0] - cen[0]) * S, (rig.hand[1] - cen[1]) * S); c.rotate(-Math.PI / 2);   // the art has the barrel on the left and the grip on the right: turned so the barrel points forward (+y)
+    c.save(); c.translate((rig.hand[0] - cen[0]) * S * 0.45, 25 * S); c.rotate(-Math.PI / 2);   // LAYER 731: the grip is brought in from the arm's end to his front, so the gun sits across the chest   // the art has the barrel on the left and the grip on the right: turned so the barrel points forward (+y)
     c.drawImage(im, -0.7 * L + kick, -H / 2, L, H);   // the hand holds the grip, 70% of the way along from the barrel
     c.restore();
   }
@@ -17883,7 +18096,7 @@ const RUNNER_API = (function () {
     }
   }
   // ---------- LAYER 679: one random runner per team in the city, the case, and the stun ----------
-  const MATE_TEAMS = [{ k: 'red', col: '#d6453d' }, { k: 'yellow', col: '#e8c46a' }, { k: 'blue', col: '#3d7ee8' }, { k: 'green', col: '#3fbf6a' }];
+  const MATE_TEAMS = RTEAMS;   // LAYER 732: the same four colours as the suits
   const MATE_SIGHT = 640, MATE_SHOT_CD = 1.8, MATE_HIT = 0.4, MATE_SPD = 105, MATE_HOME = 650;
   const STUN_PLAYER = 4;                                   // seconds the Lion sits still after a stun
   const PSTUN = { t: 0, x: 0, y: 0 };                      // the Lion's stun: time left, and where he was stunned
@@ -17918,12 +18131,13 @@ const RUNNER_API = (function () {
   // teammate (the friend), in his suit colour. The friend never shoots at him; finding him is the second mission.
   function spawnTeam() {
     mates = []; PSTUN.t = 0;
+    rNewGame();   // LAYER 732: a new run starts its clock and its record
     const put = (team, name, col, friend) => {
       const sp = randomSpot(900, 2400);
       mates.push({ team, friend: !!friend, name, last: zoneLabel(sp.x, sp.y), col, x: sp.x, y: sp.y, hx: sp.x, hy: sp.y, heading: Math.random() * 6.283,
         step: 0, stunT: 0, cd: 1 + Math.random() * 2, target: null, retarget: 0, look: mateLook(col) });
     };
-    for (const t of MATE_TEAMS) for (let k = 0; k < 2; k++) put(t.k, MATE_NAMES[t.k][k], t.col, false);
+    for (const t of MATE_TEAMS) if (t.col !== RUNNER_LOOK.suit) for (let k = 0; k < 2; k++) put(t.k, MATE_NAMES[t.k][k], t.col, false);   // LAYER 732: the player's own team is his friend, not a background team
     put('you', MATE_NAMES.you, RUNNER_LOOK.suit, true);
     const cs = randomSpot(800, 1800);
     LOOSE.x = cs.x; LOOSE.y = cs.y; LOOSE.on = true; LOOSE.holder = null;
@@ -17936,6 +18150,7 @@ const RUNNER_API = (function () {
   function dropCaseAt(x, y) { LOOSE.holder = null; LOOSE.x = x; LOOSE.y = y; LOOSE.on = true; }
   // a teammate's shot lands on the Lion: he sits still for a while, and drops the case if he has it
   function stunPlayer(m) {
+    rlog('runner_stunned', { who: m.name, zone: rZoneAt(walker.x, walker.y) });   // LAYER 732
     PSTUN.t = STUN_PLAYER; PSTUN.x = walker.x; PSTUN.y = walker.y;
     if (LOOSE.holder === 'player') { dropCaseAt(walker.x, walker.y); say(m.name + ' STUNNED YOU. THE CASE IS ON THE GROUND.', 4); }
     else say(m.name + ' STUNNED YOU. SITTING STILL FOR ' + STUN_PLAYER + ' SECONDS.', 3);
@@ -18068,6 +18283,49 @@ const RUNNER_API = (function () {
     c.fillText(MISSION.label, ex - ux * 62, ey - uy * 62 + 3);
     c.restore();
   }
+  /* LAYER 733: THE WAYPOINT. A click on the pause map puts a black dot down, with a white ring, where the map point is. On the
+     ground it stays put; off the screen a black arrow on the edge of the screen points the way. Getting there clears it. */
+  let WAYPT = null;
+  function setWaypoint(x, y) { WAYPT = { x, y }; }
+  function clearWaypoint() { WAYPT = null; }
+  function drawWaypoint(c, cam, W, H) {
+    if (!WAYPT) return;
+    const dxw = WAYPT.x - cam.x, dyw = WAYPT.y - cam.y;
+    if (Math.hypot(dxw, dyw) < 60) { WAYPT = null; return; }   // he is at it
+    const sx = W / 2 + dxw * cam.z, sy = H / 2 + dyw * cam.z;
+    c.save();
+    c.fillStyle = '#000'; c.strokeStyle = '#fff'; c.lineWidth = 2;
+    if (sx > 24 && sx < W - 24 && sy > 80 && sy < H - 240) {   // on the screen: the dot itself
+      c.beginPath(); c.arc(sx, sy, 7, 0, Math.PI * 2); c.fill(); c.stroke();
+      c.restore(); return;
+    }
+    // off the screen: the arrow on the edge, the way the mission arrow points, in black with a white rim
+    const cx = W / 2, cy = H / 2, L = Math.hypot(sx - cx, sy - cy) || 1, ux = (sx - cx) / L, uy = (sy - cy) / L;
+    const x0 = 24, x1 = W - 24, y0 = 80, y1 = H - 240;
+    const tX = ux > 0 ? (x1 - cx) / ux : ux < 0 ? (x0 - cx) / ux : Infinity;
+    const tY = uy > 0 ? (y1 - cy) / uy : uy < 0 ? (y0 - cy) / uy : Infinity;
+    const t = Math.min(tX, tY), ex = cx + ux * t, ey = cy + uy * t;
+    const bx = ex - ux * 14, by = ey - uy * 14, px = -uy, py = ux, tx = ex - ux * 40, ty = ey - uy * 40;
+    c.beginPath();
+    c.moveTo(tx + px * 3.5, ty + py * 3.5); c.lineTo(bx + px * 3.5, by + py * 3.5); c.lineTo(bx + px * 10, by + py * 10);
+    c.lineTo(ex, ey); c.lineTo(bx - px * 10, by - py * 10); c.lineTo(bx - px * 3.5, by - py * 3.5); c.lineTo(tx - px * 3.5, ty - py * 3.5);
+    c.closePath(); c.fill(); c.stroke();
+    c.font = 'bold 10px monospace'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = '#000'; c.fillStyle = '#fff';
+    c.strokeText('WAYPOINT', ex - ux * 62, ey - uy * 62 + 3); c.fillText('WAYPOINT', ex - ux * 62, ey - uy * 62 + 3);
+    c.restore();
+  }
+  /* LAYER 733: THE PHONE'S NEWS. Under the street there is no C.A.N. signal. Up top, the latest of the record comes on the
+     TV screen, newest first, each one a reporter from the zone it happened in. An apartment TV shows the same. */
+  function rNewsIcon() { return (window.ASSET_DATA && window.ASSET_DATA['tv/logo_can.png']) || A('tv/logo_can.png'); }
+  function rNoSignal() { tvPlay('nosignal', ['NO SIGNAL.', 'C.A.N. does not reach down here. Come up to the street and check again.'], null, 'C.A.N. LIVE'); }
+  function rLatest(n) {
+    if (!RLOG.length) { tvPlay('tv_logo', ['NOTHING NEW ON THE C.A.N. WIRE YET. THE MORNING NEWS GOES OUT AT EIGHT.'], null, 'C.A.N. LIVE'); return; }
+    RLOG.slice(-n).reverse().forEach((e) => {
+      const figs = [{ pose: RPOSES[e.id % RPOSES.length], col: e.team ? rTeamCol(e.team) : '#8a8f98', name: e.who }];
+      tvPlay('rep', ['REPORTING FROM ' + RZONE_NAME[e.zone] + '. ZONE ' + e.zone + '.', e.text], null, 'LIVE  ' + clockText(e.min), { zone: e.zone, figs });
+    });
+  }
+  function rPhone(sewer) { if (sewer) rNoSignal(); else rLatest(4); }
   // on screen: a downward arrow bobbing just above the stash. Drawn in the world, so it sits on the dumpster; it keeps its size at any zoom.
   function drawMissionStashArrow(c, cam, W, H, now) {
     const m = missionScreen(cam, W, H);
@@ -19003,7 +19261,8 @@ const RUNNER_API = (function () {
     drawCanBulletin(c);  // LAYER 680: the C.A.N. lookout bulletin, in screen space
     if (MISSION.stage === 'teammate') missionBar(); else if (MISSION.stage === 'house') missionHouse(); else missionStoryTick();   // the bar, then the house (the Y menu)
     rjFrame(now);   // LAYER 707: the jobs (givers, the timer, the arrivals)
-    if (outdoors && cam && !PMB.inside && (missionOn())) drawMissionArrow(c, cam, W, H, now);   // LAYER 683: the arrow to the pistol, then to the teammate
+    if (outdoors && cam && !PMB.inside && (missionOn())) drawMissionArrow(c, cam, W, H, now);
+    if (cam && !PMB.inside) drawWaypoint(c, cam, W, H);   // LAYER 733: the waypoint, the black dot and its arrow (indoors too: it is a place in the city)   // LAYER 683: the arrow to the pistol, then to the teammate
     if (outdoors && cam && !PMB.inside) {
       c.save(); c.translate(W / 2, H / 2); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y);
       for (const h of hunters) drawHunter(c, h);
@@ -19171,8 +19430,8 @@ const RUNNER_API = (function () {
       ex = ox + dx * bt; ey = oy + dy * bt;
       if (mates.includes(hit)) mateHit(hit);   // LAYER 679: a teammate is stunned, not killed
       else if (!hunters.includes(hit)) { if (kill) harmHit(hit); else { hit.stunT = HUNT.stun; say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); } }   // LAYER 683: a civilian, gang member or cop; LAYER 703: HARM hurts them
-      else if (kill) { hit.dead = true; hit.dying = HUNT.dyingT; puff(hit.x, hit.y, 'medium'); neutralize(hit); say('HUNTER DOWN.', 2); }
-      else { hit.stunT = HUNT.stun; neutralize(hit); say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); }
+      else if (kill) { rlog('hunter_down', { who: hit.name, zone: rZoneAt(hit.x, hit.y) }); hit.dead = true; hit.dying = HUNT.dyingT; puff(hit.x, hit.y, 'medium'); neutralize(hit); say('HUNTER DOWN.', 2); }
+      else { rlog('hunter_stun', { who: hit.name, zone: rZoneAt(hit.x, hit.y) }); hit.stunT = HUNT.stun; neutralize(hit); say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); }
     }
     LASER.beams.push({ x0: ox, y0: oy, x1: ex, y1: ey, kill, until: now + 180 });
     return true;
@@ -19195,7 +19454,7 @@ const RUNNER_API = (function () {
     const mode = LASER.mode.toUpperCase();
     return [
       { label: 'LASER PISTOL', sub: LASER.drawn ? 'IN HAND · F FIRES · PICK TO PUT AWAY' : 'PUT AWAY · PICK TO DRAW', icon: PD_ART.wi_laser, id: 'laser:draw' },
-      { label: 'MODE: ' + (LASER.mode === 'kill' ? 'HARM' : 'STUN'), sub: !LASER.chip ? 'LOCKED ON STUN · NEEDS A CHIP' : (LASER.mode === 'kill' ? 'HARM · RED BEAM · PICK TO SWITCH' : 'STUN · PICK TO SWITCH TO HARM'), icon: null, id: 'laser:mode' },
+      { label: 'MODE: ' + (LASER.mode === 'kill' ? 'HARM' : 'STUN'), sub: !LASER.chip ? 'LOCKED ON STUN · NEEDS A CHIP' : (LASER.mode === 'kill' ? 'HARM · RED BEAM · PICK TO SWITCH' : 'STUN · PICK TO SWITCH TO HARM'), icon: PD_ART.hud_lasermode || null, id: 'laser:mode' },
     ];
   }
   function laserPick(k) {
@@ -19210,23 +19469,23 @@ const RUNNER_API = (function () {
      WEAPONS: the pistol. EQUIPMENT: the backpack and the gas mask. ITEMS: FOOD, MEDS, DRUGS (empty until they are built).
      CYBERWEAR: what he has fitted, to view. Equipping it needs a cybersurgeon; surgeons come later (see the notes). */
   function gearItems(cat) {
-    const back = (to) => ({ label: 'BACK', sub: 'UP ONE LEVEL', icon: null, id: 'cat:' + to });
+    const back = (to) => ({ label: 'BACK', sub: 'UP ONE LEVEL', icon: PD_ART.hud_back, id: 'cat:' + to });
     if (!cat || cat === 'top') {
       const kit = (packOn ? 1 : 0) + (gasOwned ? 1 : 0) + (sleepOwned ? 1 : 0) + (vestHave ? 1 : 0);
       return [
         { label: 'WEAPONS', sub: LASER.has ? 'LASER PISTOL' : 'NONE YET', icon: PD_ART.wi_laser || null, id: 'cat:weapons' },
-        { label: 'EQUIPMENT', sub: kit ? kit + ' ON YOU' : 'NONE YET', icon: null, id: 'cat:equipment' },
-        { label: 'ITEMS', sub: 'FOOD · MEDS · DRUGS', icon: null, id: 'cat:items' },
+        { label: 'EQUIPMENT', sub: kit ? kit + ' ON YOU' : 'NONE YET', icon: PD_ART.hud_equipment, id: 'cat:equipment' },
+        { label: 'ITEMS', sub: 'FOOD · MEDS · DRUGS', icon: PD_ART.hud_items, id: 'cat:items' },
         ...(phoneOwned ? [{ label: 'PHONE', sub: 'HOLO · THE CONTACTS', icon: PD_ART.hud_holophone || null, id: 'gear:phone' }] : []),
-        { label: 'CYBERWEAR', sub: RUNNER_CYBER.length ? RUNNER_CYBER.length + ' FITTED' : 'NONE FITTED', icon: null, id: 'cat:cyber' },
+        { label: 'CYBERWEAR', sub: RUNNER_CYBER.length ? RUNNER_CYBER.length + ' FITTED' : 'NONE FITTED', icon: PD_ART.hud_cyberwear, id: 'cat:cyber' },
       ];
     }
     if (cat === 'weapons') return [...laserItems(), back('top')];
     if (cat === 'equipment') {
       const out = [];
       if (packOn) out.push({ label: packOff ? 'PUT ON BACKPACK' : 'TAKE OFF BACKPACK', sub: PACK_KIND[packOn].name + (packOff ? ' · OFF, NOT SHOWING' : ' · ON YOUR BACK'), icon: PD_ART['pk_' + packOn] || null, id: 'gear:pack' });
-      if (vestHave) out.push({ label: vestWorn ? 'TAKE OFF THE VEST' : 'PUT ON THE VEST', sub: vestWorn ? 'ON · ' + Math.ceil(vestHp == null ? VEST_MAX : vestHp) + ' OF ' + VEST_MAX + ' VEST' : 'OFF · PICK TO PUT IT ON', icon: null, id: 'gear:vest' });
-      if (gasOwned) out.push({ label: mask ? 'TAKE OFF GAS MASK' : 'PUT ON GAS MASK', sub: mask ? 'ON · PICK TO HIDE IT' : 'OFF · PICK TO PUT IT ON', icon: null, id: 'gear:mask' });
+      if (vestHave) out.push({ label: vestWorn ? 'TAKE OFF THE VEST' : 'PUT ON THE VEST', sub: vestWorn ? 'ON · ' + Math.ceil(vestHp == null ? VEST_MAX : vestHp) + ' OF ' + VEST_MAX + ' VEST' : 'OFF · PICK TO PUT IT ON', icon: PD_ART.hud_vest, id: 'gear:vest' });
+      if (gasOwned) out.push({ label: mask ? 'TAKE OFF GAS MASK' : 'PUT ON GAS MASK', sub: mask ? 'ON · PICK TO HIDE IT' : 'OFF · PICK TO PUT IT ON', icon: PD_ART.hud_gasmask, id: 'gear:mask' });
       if (sleepOwned && sleepDown && nearBag()) out.push({ label: 'LIE DOWN ON THE SLEEPING BAG', sub: 'HEAD OUT · SLEEP UNTIL', icon: PD_ART.eq_bedroll, id: 'gear:lie' });
       if (sleepOwned) out.push(sleepDown
         ? { label: 'PICK UP SLEEPING BAG', sub: 'LAID OUT · PICK TO ROLL IT UP', icon: PD_ART.eq_bedroll, id: 'gear:bag' }
@@ -19242,7 +19501,7 @@ const RUNNER_API = (function () {
     if (cat === 'food' || cat === 'meds' || cat === 'drugs') return [{ label: 'NOTHING YET', sub: 'THIS KIND IS NOT BUILT YET', icon: null, id: 'gear:none' }, back('items')];
     if (cat === 'cyber') {
       const out = RUNNER_CYBER.length
-        ? RUNNER_CYBER.map((c, i) => ({ label: c.name || 'CYBERWEAR', sub: 'VIEW · EQUIP NEEDS A CYBERSURGEON', icon: null, id: 'gear:cyber' + i }))
+        ? RUNNER_CYBER.map((c, i) => ({ label: c.name || 'CYBERWEAR', sub: 'VIEW · EQUIP NEEDS A CYBERSURGEON', icon: PD_ART.hud_cyberwear, id: 'gear:cyber' + i }))
         : [{ label: 'NO CYBERWEAR', sub: 'A CYBERSURGEON FITS IT', icon: null, id: 'gear:none' }];
       return [...out, back('top')];
     }
@@ -19729,9 +19988,10 @@ const RUNNER_API = (function () {
     setArt: (a) => { ART = a || {}; },
     setAudio: (get) => { audioGet = get; },
     arrestBooked, arrestHold, rideCam, takeLeave, arrestDraw,
-    tvPlay, tvOn: () => TV.on, tvDraw,   // LAYER 730: the TV scenes
+    tvPlay, tvOn: () => TV.on, tvDraw, news: RUNNER_NEWS,   // LAYER 730: the TV scenes
+    waypoint: () => WAYPT, setWaypoint, clearWaypoint,   // LAYER 733: the waypoint the pause map sets
     setCivs: (c) => { CIV = c || null; },
-    setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); startSong(); } else { stopSong(); lobby = false; tvStop(); } { const G0 = (window.__ironlion = window.__ironlion || {}); G0.runOn698 = RUN_ON; if (G0.hqSync) G0.hqSync(RUN_ON); } },   // LAYER 698: the headquarters follow Runner Mode
+    setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); WAYPT = null; startSong(); } else { stopSong(); lobby = false; tvStop(); } { const G0 = (window.__ironlion = window.__ironlion || {}); G0.runOn698 = RUN_ON; if (G0.hqSync) G0.hqSync(RUN_ON); } },   // LAYER 698: the headquarters follow Runner Mode
     lockCam,
     keepOut, canSpawn, windTrash,
     overlay,
@@ -20009,7 +20269,7 @@ function RunnerBuilder({ onStart, onCancel }) {
   const steps = ['SEX', 'HEAD', 'BODY', 'COLOURS', 'FACE', 'STATS', 'NAME'];
   const go = (n) => setStep(Math.max(0, Math.min(6, n)));
   const finish = () => {
-    RUNNER_API.setLook({ profile: face || null, head: headKey || (sex === 'female' ? 'head_swirl' : 'mhead_curly'), body, suit: suit || '#6ef0ff', skin: skin || null, hair: headKey && RUNNER_API.hasHair(headKey) ? hair : null, name: (name || 'RUNNER').trim() || 'RUNNER',
+    RUNNER_API.setLook({ profile: face || null, head: headKey || (sex === 'female' ? 'head_swirl' : 'mhead_curly'), body, suit: suit || RSUITS[0], skin: skin || null, hair: headKey && RUNNER_API.hasHair(headKey) ? hair : null, name: (name || 'RUNNER').trim() || 'RUNNER',
       stats: Object.fromEntries(RB_STATS.map((k) => [k, stats[k]])) });
     onStart();
   };
@@ -20081,9 +20341,11 @@ function RunnerBuilder({ onStart, onCancel }) {
         <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick your suit colour</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
           {suits.map((c) => (
-            <div key={c} onClick={() => setSuit(c)}
-              style={{ width: 48, height: 48, borderRadius: 24, background: c, cursor: 'pointer',
-                border: (suit || '#6ef0ff') === c ? '3px solid #fff' : '2px solid rgba(0,0,0,0.5)' }} />
+            <div key={c} onClick={() => setSuit(c)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+              <div style={{ width: 48, height: 48, borderRadius: 24, background: c,
+                border: (suit || RSUITS[0]) === c ? '3px solid #fff' : '2px solid rgba(0,0,0,0.5)' }} />
+              <div style={{ fontSize: 10, letterSpacing: '0.14em', opacity: 0.85 }}>{RUNNER_API.news.teamName(c)}</div>
+            </div>
           ))}
         </div>
       </div>)}
@@ -20645,6 +20907,48 @@ export default function IronLionLayer004() {
   const mentorWaitRef = useRef(false);
   const [tableErr, setTableErr] = useState(null);
   const mapCv = useRef(null);
+  /* LAYER 731: the pause map's zoom and pan. z is the zoom (1 = the whole city fits the canvas); x and y move the
+     map away from the middle of the canvas, in pixels. Each opening of the map starts again at the whole city. */
+  const mapView = useRef({ z: 1, x: 0, y: 0 });
+  const MAP_ZOOM = { min: 1, max: 6 };
+  const MAP_BTNS = [["+", "in"], ["−", "out"], ["FIT", "reset"]];
+  // the scale, and where the city's top-left corner sits on the canvas, for a zoom and pan
+  const mapLayout = (W2, H2, V) => {
+    const span = SX(N), k = (Math.min(W2 - 20, H2 - 20) / span) * V.z;
+    return { k, span, ox: (W2 - span * k) / 2 + V.x, oy: (H2 - span * k) / 2 + V.y };
+  };
+  // the city cannot be panned past its own edges, and the zoom stays in range
+  const mapClamp = (W2, H2, V) => {
+    V.z = Math.max(MAP_ZOOM.min, Math.min(MAP_ZOOM.max, V.z));
+    const bw = Math.min(W2 - 20, H2 - 20) * V.z;
+    const mx = Math.max(0, (bw - W2) / 2 + 20), my = Math.max(0, (bw - H2) / 2 + 20);
+    V.x = Math.max(-mx, Math.min(mx, V.x)); V.y = Math.max(-my, Math.min(my, V.y));
+    return V;
+  };
+  // zoom by f, keeping the map point under (mx, my) where it is
+  const mapZoomAt = (cv, mx, my, f) => {
+    const W2 = cv.clientWidth, H2 = cv.clientHeight;
+    if (W2 < 40 || H2 < 40) return;
+    const V = mapView.current, L0 = mapLayout(W2, H2, V);
+    const wx = (mx - L0.ox) / L0.k, wy = (my - L0.oy) / L0.k;
+    V.z = Math.max(MAP_ZOOM.min, Math.min(MAP_ZOOM.max, V.z * f));
+    const span = SX(N), k1 = (Math.min(W2 - 20, H2 - 20) / span) * V.z;
+    V.x = mx - wx * k1 - (W2 - span * k1) / 2;
+    V.y = my - wy * k1 - (H2 - span * k1) / 2;
+    mapClamp(W2, H2, V);
+  };
+  // the zoom buttons on the top right of the map: which one is under (mx, my), if any
+  const mapBtnAt = (W2, mx, my) => {
+    for (let i = 0; i < MAP_BTNS.length; i++) {
+      const bx = W2 - 46, by = 10 + i * 28;
+      if (mx >= bx && mx <= bx + 36 && my >= by && my <= by + 22) return MAP_BTNS[i][1];
+    }
+    return null;
+  };
+  const mapButton = (cv, id) => {
+    if (id === "reset") { mapView.current = { z: 1, x: 0, y: 0 }; return; }
+    mapZoomAt(cv, cv.clientWidth / 2, cv.clientHeight / 2, id === "in" ? 1.25 : 0.8);
+  };
 
   /* ---------- pause map ----------
      Draws the whole city to its own canvas on demand: zones, both expressway legs and every
@@ -20653,6 +20957,7 @@ export default function IronLionLayer004() {
      only renders when opened and wants the exact position, not a 0.15s-old copy. */
   useEffect(() => {
     if (!mapOpen) return;
+    mapView.current = { z: 1, x: 0, y: 0 };   // LAYER 731: each opening starts at the whole city
     setMapErr(null);
     const g = G.current;
     // mirror onto the game object: the pause watchdog reads g.*, not React state, and without
@@ -20681,10 +20986,8 @@ export default function IronLionLayer004() {
       x.setTransform(dpr, 0, 0, dpr, 0, 0);
       x.clearRect(0, 0, W2, H2);
 
-      const pad = 10;
-      const span = SX(N);
-      const k = Math.min(W2 - pad * 2, H2 - pad * 2) / span;
-      const ox = (W2 - span * k) / 2, oy = (H2 - span * k) / 2;
+      // LAYER 731: the zoom and pan decide the scale and where the city sits (mapLayout, above)
+      const { k, span, ox, oy } = mapLayout(W2, H2, mapView.current);
       const P = (wx, wy) => [ox + wx * k, oy + wy * k];
 
       x.fillStyle = "#15161a";
@@ -20705,43 +21008,8 @@ export default function IronLionLayer004() {
         x.restore();
         painted = true;
       }
-      /* WHO HOLDS WHAT. The war's turfs washed in their crew's colour, borders between owners,
-         and each crew's name once, on its largest holding. Open ground is left bare. */
-      const GW = g && g.gwar;
-      if (GW) {
-        const T = GW.turfs, side = WAR.side * PITCH;
-        const own = (ti, tj) => (T[ti + "," + tj] || {}).owner || null;   // turfKey lives in the game scope
-        const count = {};
-        for (const t of Object.values(T)) {
-          if (!t.owner) continue;
-          count[t.owner] = (count[t.owner] || 0) + 1;
-          const [ax, ay] = P(t.ti * side, t.tj * side), [bx, by] = P((t.ti + 1) * side, (t.tj + 1) * side);
-          x.fillStyle = (GANG_COL[t.owner] || "#999") + "2e";      // lighter (layer 564), so the city shows through
-          x.fillRect(ax, ay, bx - ax, by - ay);
-          x.strokeStyle = GANG_COL[t.owner] || "#999"; x.lineWidth = 2;
-          const edge = (dx, dy, x0, y0, x1, y1) => { if (own(t.ti + dx, t.tj + dy) !== t.owner) {
-            x.beginPath(); x.moveTo(x0, y0); x.lineTo(x1, y1); x.stroke(); } };
-          edge(0, -1, ax, ay, bx, ay); edge(0, 1, ax, by, bx, by); edge(-1, 0, ax, ay, ax, by); edge(1, 0, bx, ay, bx, by);
-          if (t.heat > (WAR.heat ? WAR.heat.bust : 1e9)) { x.fillStyle = "rgba(255,90,70,0.9)"; x.fillRect(bx - 7, ay + 3, 4, 4); }
-        }
-        // the name on each crew's turf nearest its HQ
-        x.font = "700 9px ui-monospace, monospace"; x.textAlign = "center";
-        for (const gk in count) {
-          const L = LEADERS[gk]; const hq = L ? [L.where.i, L.where.j] : null;
-          let best = null, bd = 1e9;
-          for (const t of Object.values(T)) if (t.owner === gk) {
-            const d = hq ? Math.hypot(t.ti - hq[0] / WAR.side, t.tj - hq[1] / WAR.side) : 0;
-            if (d < bd) { bd = d; best = t; }
-          }
-          if (!best) continue;
-          const [cx, cy] = P((best.ti + 0.5) * side, (best.tj + 0.5) * side);
-          const lab = (GANG_LABEL[gk] || gk).replace(/^THE /, "");
-          x.fillStyle = "rgba(0,0,0,0.65)"; const tw = x.measureText(lab).width;
-          x.fillRect(cx - tw / 2 - 3, cy - 8, tw + 6, 12);
-          x.fillStyle = GANG_COL[gk] || "#fff"; x.fillText(lab, cx, cy + 1);
-        }
-        x.textAlign = "start";
-        // the leadership Malcolm has placed: base, hideout, and where a boss drinks now
+      /* LAYER 731: no gang markers on the map. What is left is the places a detective drives to, the case, a race, and you. */
+      if (g) {
         const icon = (key, wx, wy, col, shape) => {
           const [px, py] = P(wx, wy), im = imgs.current[key];
           if (im && im.width) { x.drawImage(im, px - 8, py - 8, 16, 16); return; }
@@ -20751,18 +21019,8 @@ export default function IronLionLayer004() {
           else x.rect(px - 5, py - 5, 10, 10);
           x.closePath(); x.fill(); x.stroke();
         };
-        for (const gk in (g.ldSites || {})) for (const S of g.ldSites[gk]) {
-          if (!S || S.gone) continue;
-          const seat = GW.gangs[gk] && GW.gangs[gk].seats[S.seat];
-          if (S.seat !== 0 && !(seat && seat.known)) continue;       // a hideout nobody has given up
-          icon(S.seat === 0 ? (S.moved ? "mi_hangout" : "mi_base") : "mi_hideout", S.x, S.y,
-               GANG_COL[gk] || "#fff", S.seat === 0 ? "star" : "diamond");
-        }
-        // the places a detective drives to, the distros you have found, the case, a race, and you
         icon("mi_precinct", SX(8) + PITCH / 2, SX(11) + PITCH / 2, "#3f7cff", "box");
         icon("mi_court", SX(14) + PITCH / 2, SX(5) + PITCH / 2, "#b08850", "box");
-        for (const dk in (g.distroAt || {})) { const D = g.distroAt[dk];
-          if (D && D.found && !D.gone) icon("mi_distro", D.x, D.y, GANG_COL[dk] || "#fff", "diamond"); }
         if (g.race && g.race.x != null) icon("mi_race", g.race.x, g.race.y, "#fff", "box");
         if (g.case && g.case.stage !== "done" && g.case.scene) icon("mi_case", g.case.scene[0], g.case.scene[1], "#8fd0e0", "diamond");
         { const pv = g.mode !== "foot" ? (g.mode === "car" ? g.car : g.mode === "moto" ? g.moto : g.civ) || g.p : g.p;
@@ -20863,9 +21121,6 @@ export default function IronLionLayer004() {
         }
         for (const c of CIVIC)
           pip(SX(c.cell.i) + PITCH / 2, SX(c.cell.j) + PITCH / 2, 4.0, c.pip, "#fff");
-        // by faction, not by war side -- three colours for eight crews told you nothing
-        pip(SX(L.where.i) + PITCH / 2, SX(L.where.j) + PITCH / 2, 4.2,
-          GANG_COL[k] || "#8cf08c", "#fff");
       }
       if (g.engine) pip(g.engine.x, g.engine.y, 4.4, "#ef7a6c", "#fff");
       if (g.alarm2) pip(g.alarm2.x, g.alarm2.y, 5, "#ffb46a", "#fff");
@@ -20880,8 +21135,6 @@ export default function IronLionLayer004() {
       for (const c of GAS_CELLS) pip(SX(c.i) + PITCH / 2, SX(c.j) + PITCH / 2, 3, "#6cf06c", "#fff");
       for (const c of SHOP_CELLS) pip(SX(c.i) + PITCH / 2, SX(c.j) + PITCH / 2, 3, "#5abedc", "#fff");
       pip(SX(CLUB_CELL.i) + PITCH / 2, SX(CLUB_CELL.j) + PITCH / 2, 4.5, "#d46ff0", "#fff");
-      pip(SX(WOLVES_CELL.i) + PITCH / 2, SX(WOLVES_CELL.j) + PITCH / 2, 4, "#e9a842", "#fff");
-      pip(SX(DEN_CELL.i) + PITCH / 2, SX(DEN_CELL.j) + PITCH / 2, 5, "#ff6fc0", "#fff");
 
       // Hazelbrook and the county label
       {
@@ -20890,37 +21143,6 @@ export default function IronLionLayer004() {
         x.fillStyle = "#6a6250";
         x.fillRect(tx0, ty0, tx1 - tx0, ty1 - ty0);
       }
-      // gang turf, outlined not filled, so it reads over the district washes
-      const TURF = [
-        [ZONES.uptown, "212,168,90", "VESCARI"], [WOLVES_TURF, "233,168,66", "WOLVES"],
-        [ZONES.barrio, "224,158,72", "LA PERLA"], [ZONES.chinatown, "206,74,58", "SANHE"],
-        [ZONES.hood, "233,110,180", "KINGS"],
-        /* Chinatown was outlined as a DISTRICT and not as a holding -- the only turf box on
-           this map that named a place instead of the people in it. Sanhe hold it. */
-        [ZONES.irish, "90,168,106", "BRENNANS"],
-        [ZONES.county, "224,121,58", "PATRIOTS"],
-        [ZONES.kestrel, "232,166,58", "KESTREL"],
-        /* THE DEUCE, as they stand at the start: downtown and the Flats. They own where the
-           money is and where Friday night is, which is exactly what Sky sells -- and taking
-           the Flats off Kestrel costs one faction that was holding nothing anyway, rather than
-           retconning a single Kings spawn.
-           THE GROWTH PATH is DEUCE_RING below. They do not take the hood; they close AROUND
-           it, and the Kings stop being a gang that is losing and start being an island. That
-           is a thing you watch happen instead of a thing you are told. */
-        [ZONES.downtown, "63,154,99", "DEUCE"],
-        [ZONES.neonflats, "63,154,99", "DEUCE"],
-        ...DEUCE_RING.slice(0, g.deuceRing || 0).map((z) => [z, "63,154,99", "DEUCE"]),
-      ];
-      for (const [Z, col] of TURF) {
-        const [ax, ay] = P(SX(Z.i0), SX(Z.j0));
-        const [bx, by] = P(SX(Z.i1 + 1), SX(Z.j1 + 1));
-        x.strokeStyle = `rgba(${col},0.85)`;
-        x.lineWidth = 1.6;
-        x.setLineDash([4, 3]);
-        x.strokeRect(ax + 1, ay + 1, bx - ax - 2, by - ay - 2);
-        x.setLineDash([]);
-      }
-
       // zone labels on top of the washes
       x.font = "bold 8px ui-monospace, monospace";
       x.textAlign = "center";
@@ -20965,6 +21187,23 @@ export default function IronLionLayer004() {
         x.closePath(); x.fill();
         x.restore();
       }
+      // LAYER 731: the zoom buttons and the zoom level, drawn on the map so they take no room beside it
+      x.font = "700 11px ui-monospace, monospace"; x.textAlign = "center";
+      /* LAYER 733: the waypoint on the map, a black dot with a white ring */
+      if (RUNNER_API.isOn() && RUNNER_API.waypoint()) {
+        const wp = RUNNER_API.waypoint(), [wpx, wpy] = P(wp.x, wp.y);
+        x.beginPath(); x.arc(wpx, wpy, 5.5, 0, Math.PI * 2); x.fillStyle = "#000"; x.fill(); x.lineWidth = 1.8; x.strokeStyle = "#fff"; x.stroke();
+      }
+      MAP_BTNS.forEach(([lab], i) => {
+        const by = 10 + i * 28;
+        x.fillStyle = "rgba(12,12,14,0.82)"; x.fillRect(W2 - 46, by, 36, 22);
+        x.strokeStyle = "#d9a441"; x.lineWidth = 1; x.strokeRect(W2 - 45.5, by + 0.5, 35, 21);
+        x.fillStyle = "#f1ead8"; x.fillText(lab, W2 - 28, by + 15);
+      });
+      x.font = "700 9px ui-monospace, monospace"; x.textAlign = "left";
+      x.fillStyle = "rgba(12,12,14,0.82)"; x.fillRect(8, H2 - 24, 152, 16);
+      x.fillStyle = "#e8d9b5"; x.fillText("ZOOM " + mapView.current.z.toFixed(1) + "×   WHEEL / DRAG", 12, H2 - 12);
+      x.textAlign = "start";
       x.strokeStyle = "rgba(217,164,65,0.6)"; x.lineWidth = 1;
       x.strokeRect(ox + 0.5, oy + 0.5, span * k, span * k);
       x.textAlign = "start";
@@ -20976,6 +21215,61 @@ export default function IronLionLayer004() {
       alive = false;
       const gg = G.current;
       if (gg) { gg.paused = false; gg.mapOpen = false; }
+    };
+  }, [mapOpen]);
+
+  /* LAYER 731: the pause map's zoom and pan. The wheel zooms about the cursor, a drag pans, the + - FIT buttons and the
+     + and - keys zoom. The map takes its own pointer events, so a click on it never closes the pause menu. */
+  useEffect(() => {
+    if (!mapOpen) return;
+    const cv = mapCv.current;
+    if (!cv) return;
+    const at = (e) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    const onWheel = (e) => { e.preventDefault(); const [mx, my] = at(e); mapZoomAt(cv, mx, my, e.deltaY < 0 ? 1.15 : 1 / 1.15); };
+    let drag = null, press = null;
+    const onDown = (e) => {
+      const [mx, my] = at(e), hit = mapBtnAt(cv.clientWidth, mx, my);
+      if (hit) { mapButton(cv, hit); return; }
+      drag = { x: e.clientX, y: e.clientY };
+      press = { x: e.clientX, y: e.clientY, mx, my, moved: false };   // LAYER 733: a press that does not move is a click
+      try { cv.setPointerCapture(e.pointerId); } catch (err) { /* no capture: the drag still works while the pointer stays on the map */ }
+    };
+    const onMove = (e) => {
+      if (!drag) return;
+      if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 6) press.moved = true;
+      const V = mapView.current;
+      V.x += e.clientX - drag.x; V.y += e.clientY - drag.y;
+      drag = { x: e.clientX, y: e.clientY };
+      mapClamp(cv.clientWidth, cv.clientHeight, V);
+    };
+    const onUp = () => {
+      const was = press; drag = null; press = null;
+      if (!was || was.moved || !RUNNER_API.isOn()) return;
+      // LAYER 733: the click is a point in the city's own coordinates (the map's scale and offset undone); a click on the waypoint takes it away
+      const L = mapLayout(cv.clientWidth, cv.clientHeight, mapView.current);
+      const wx = Math.max(0, Math.min(L.span, (was.mx - L.ox) / L.k)), wy = Math.max(0, Math.min(L.span, (was.my - L.oy) / L.k));
+      const cur = RUNNER_API.waypoint();
+      if (cur && Math.hypot((cur.x - wx) * L.k, (cur.y - wy) * L.k) < 9) RUNNER_API.clearWaypoint();
+      else RUNNER_API.setWaypoint(wx, wy);
+    };
+    const onCancel = () => { drag = null; press = null; };
+    const onKey = (e) => {
+      if (e.key === "+" || e.key === "=") mapZoomAt(cv, cv.clientWidth / 2, cv.clientHeight / 2, 1.25);
+      else if (e.key === "-" || e.key === "_") mapZoomAt(cv, cv.clientWidth / 2, cv.clientHeight / 2, 0.8);
+    };
+    cv.addEventListener("wheel", onWheel, { passive: false });
+    cv.addEventListener("pointerdown", onDown);
+    cv.addEventListener("pointermove", onMove);
+    cv.addEventListener("pointerup", onUp);
+    cv.addEventListener("pointercancel", onCancel);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      cv.removeEventListener("wheel", onWheel);
+      cv.removeEventListener("pointerdown", onDown);
+      cv.removeEventListener("pointermove", onMove);
+      cv.removeEventListener("pointerup", onUp);
+      cv.removeEventListener("pointercancel", onCancel);
+      window.removeEventListener("keydown", onKey);
     };
   }, [mapOpen]);
 
@@ -21558,9 +21852,11 @@ export default function IronLionLayer004() {
       const RW = RUNNER_API.isOn(), RUNNER_WHEEL = ["BOOK", "MAP"];
       // in a car with your people: the DRIVER first, with his face (layer 517)
       const dc = !RW && G.driverCard && G.driverCard(); if (dc) list.push({ label: "DRIVER", sub: dc.name + (dc.driving ? " \u00b7 driving" : " \u00b7 orders"), icon: dc.face });
-      for (const l of live()) if (A[l] && l !== "E" && l !== "DRIVER" && (!RW || RUNNER_WHEEL.indexOf(l) >= 0)) list.push({ label: l, sub: A[l].sub || "" });
-      if (RW && RUNNER_API.teamCarOK()) list.push({ label: "TEAM CAR", sub: RUNNER_API.teamCarSub() });   // LAYER 726: your teammate drives it
-      if (RW && RUNNER_API.evidenceOK()) list.push({ label: "EVIDENCE ROOM", sub: RUNNER_API.evidenceSub() });   // LAYER 728: his pistol is in evidence, and he is in the room
+      for (const l of live()) if (A[l] && l !== "E" && l !== "DRIVER" && (!RW || RUNNER_WHEEL.indexOf(l) >= 0)) list.push({ label: l, sub: A[l].sub || "", icon: l === "BOOK" ? PD_ART.hud_book : l === "MAP" ? PD_ART.hud_map : null });
+      if (RW) { const cg = G.current, down = !!(cg && cg.p && inSewerNet(cg.p.x, cg.p.y));   // LAYER 733: the phone's NEWS
+        list.push({ label: "NEWS", sub: down ? "NO SIGNAL" : "C.A.N. LIVE", icon: RUNNER_API.news.newsIcon(), id: "news:phone" }); }
+      if (RW && RUNNER_API.teamCarOK()) list.push({ label: "TEAM CAR", sub: RUNNER_API.teamCarSub(), icon: PD_ART.hud_teamcar });   // LAYER 726: your teammate drives it
+      if (RW && RUNNER_API.evidenceOK()) list.push({ label: "EVIDENCE ROOM", sub: RUNNER_API.evidenceSub(), icon: PD_ART.hud_evidence });   // LAYER 728: his pistol is in evidence, and he is in the room
       list.push({ label: "FAST TRAVEL", sub: "airport \u00b7 train \u00b7 port \u00b7 home", icon: PD_ART.ac_fasttravel });     // always there (layer 514)
       const g0w = G.current; if (g0w && g0w.prisonMode && g0w.pescaped) { list.push({ label: "CREW RULES", sub: "who we fight", icon: PD_ART.ac_crewrules }, { label: "SIT-DOWN", sub: g0w.sit ? "set" : "call one", icon: PD_ART.ac_sitdown }); }   // layer 519
       if (!RW && g0w && G.convNear551 && G.convNear551()) { const M = G.convNear551(); list.push({ label: M.roofDown ? "ROOF UP" : "ROOF DOWN", sub: "the convertible", id: "conv:roof" }); }      // layer 551
@@ -26665,6 +26961,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.pickOpen = (kind) => { if (!(kind || "").startsWith("gomez:")) g.gzSaid = null;
       if (!(kind || "").startsWith("det:")) g.detSaid = null; g.pickOpen = kind; setHud((h) => ({ ...h, pick: pickPanel(kind) })); };
     G.pickFn = (id) => {
+      if (id === "news:phone") { const cg = G.current; RUNNER_API.news.phone(!!(cg && cg.p && inSewerNet(cg.p.x, cg.p.y))); return; }   // LAYER 733: the phone's NEWS
       if (id.startsWith("tc:")) { RUNNER_API.teamOrder(id.slice(3)); return; }   // LAYER 726: the TEAM CAR places
       if (id.startsWith("ev:")) { RUNNER_API.buyBack(id.slice(3)); return; }   // LAYER 728: buy a thing back from the evidence room
       if (id.startsWith("laser:")) { RUNNER_API.laserPick(id.slice(6)); return; }   // LAYER 670
@@ -47122,7 +47419,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (a === "shower") { g.p.stamina = g.p.maxStamina || g.p.stamina; g.clock = ((g.clock || 0) + 15) % 1440; say("A HOT SHOWER, AS LONG AS YOU WANT IT · STAMINA FULL"); }
       if (a === "eat") { g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 20); say("COLD CHICKEN AND A SODA · +20 HEALTH"); }
       if (a === "cook") { g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 35); g.clock = ((g.clock || 0) + 20) % 1440; say("EGGS, GRITS, HOT SAUCE · +35 HEALTH"); }
-      if (a === "tv") { later(() => G.pickOpen("sp_tv")); return; }                     // Channel 6: ad, ad, news (layer 512b)
+      if (a === "tv") { if (RUNNER_API.isOn()) { later(() => RUNNER_API.news.watchTV()); return; } later(() => G.pickOpen("sp_tv")); return; }   // LAYER 733: Runner Mode shows the C.A.N. news                     // Channel 6: ad, ad, news (layer 512b)
       if (a === "sit") { const s = seatsNear(80).find((q) => q.k !== "toilet"); if (s) sitAt(s); g.p.hp = Math.min(g.p.maxHp || 100, (g.p.hp || 0) + 5); g.clock = ((g.clock || 0) + 10) % 1440; say("YOU SIT. THE QUIET IS LOUD."); } };
     G.osPick = (id) => { const [, a, b] = id.split(":"), O = g.owNow; if (!O) return; const S = osGet(O);
       if (a === "take") { if (b === "cash") { g.p.cash = (g.p.cash || 0) + S.cash; g.pickupFlash = { nm: "lift:+$" + S.cash.toLocaleString(), t: 1.6 }; S.cash = 0; }
@@ -66948,7 +67245,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             <span style={{ fontSize: 10, color: "#9a9486", alignSelf: "center", marginRight: 6 }}>LB</span>
             {["MAP", "CHARACTER", "INVENTORY", "SYSTEM", "MISSIONS"].map((nm, i) => (
               <div key={nm} onClick={() => { if (G.current) { G.current.pauseTab = i; G.current.padRow = -1; } setPauseTab(i); setPadSel(-1); }}
-                style={{ cursor: "pointer", padding: "6px 12px", fontSize: 11, letterSpacing: "0.16em", border: "1px solid " + (pauseTab === i ? C.gold : "#3a3a44"), color: pauseTab === i ? C.gold : "#9a9486", background: pauseTab === i ? "rgba(232,196,106,0.10)" : "transparent" }}>{nm}</div>
+                style={{ cursor: "pointer", padding: "6px 12px", fontSize: 11, letterSpacing: "0.16em", border: "1px solid " + (pauseTab === i ? C.gold : "#3a3a44"), color: pauseTab === i ? C.gold : "#9a9486", background: pauseTab === i ? "rgba(232,196,106,0.10)" : "transparent" }}>{PD_ART[PAUSE_TAB_ICON[nm]] && <img src={PD_ART[PAUSE_TAB_ICON[nm]]} alt="" style={{ width: 16, height: 16, verticalAlign: "middle", marginRight: 6, imageRendering: "pixelated" }} />}{nm}</div>
             ))}
             <span style={{ fontSize: 10, color: "#9a9486", alignSelf: "center", marginLeft: 6 }}>RB</span>
           </div>
@@ -66964,7 +67261,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           {/* studying the map should not dismiss it -- closing is the backdrop or the button */}
           <canvas ref={mapCv} onClick={(e) => e.stopPropagation()}
             style={{ display: pauseTab === 0 ? undefined : "none", width: "min(58vw, 92vh)", height: "min(58vw, 92vh)",
-              border: `1px solid ${C.gold}`, background: "#101116", flexShrink: 0 }} />
+              border: `1px solid ${C.gold}`, background: "#101116", flexShrink: 0, touchAction: "none", cursor: "grab" }} />
           {/* the reading column sits beside the map in landscape rather than under it */}
           <div style={{ display: pauseTab === 0 ? "flex" : "none", flexDirection: "column", alignItems: "flex-start",
             maxWidth: "34vw", maxHeight: "94vh", overflowY: "auto" }}>
