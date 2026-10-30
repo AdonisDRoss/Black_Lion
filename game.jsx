@@ -2830,7 +2830,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 735";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 736";   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -20248,6 +20248,7 @@ function RunnerBuilder({ onStart, onCancel }) {
   const [name, setName] = useState('RUNNER');
   const heads = RUNNER_API.heads();
   const suits = RUNNER_API.suits();
+  const RSUITS = suits;   // LAYER 736: RSUITS lives inside the runner's IIFE, so the builder takes its own copy (the colour step and START read it)
   const spent = RB_STATS.reduce((a, k) => a + stats[k] - 1, 0);
   const left = 20 - spent;
   const bump = (k, d) => setStats((o) => {
