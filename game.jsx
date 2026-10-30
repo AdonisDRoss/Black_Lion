@@ -2830,7 +2830,27 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 736";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 738";   // the notes for each layer are in the chat, not on screen
+// LAYER 737: DEBUG -- the first few errors are printed on the screen (the TV has no console). Remove once the red-screen bug is found.
+(function () {
+  const shown = [];
+  function box(msg) {
+    if (shown.length >= 4) return;
+    shown.push(String(msg).slice(0, 400));
+    let el = document.getElementById('dbg-errs');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'dbg-errs';
+      el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:45%;overflow:hidden;z-index:99999;background:rgba(0,0,0,0.88);color:#ff8a8a;font:12px monospace;padding:6px 10px;white-space:pre-wrap;pointer-events:none';
+      (document.body || document.documentElement).appendChild(el);
+    }
+    el.textContent = shown.join('\n\n');
+  }
+  window.addEventListener('error', (e) => box('ERROR ' + (e.message || '') + ' @' + (e.lineno || '') + ':' + (e.colno || '') + '\n' + (((e.error && e.error.stack) || '').split('\n').slice(0, 3).join('\n'))));
+  window.addEventListener('unhandledrejection', (e) => box('PROMISE ' + String((e.reason && (e.reason.stack || e.reason.message)) || e.reason)));
+  const ce = console.error;
+  console.error = function (...a) { box('CONSOLE ' + a.map((x) => (x && x.stack) || String(x)).join(' ')); return ce.apply(this, a); };
+})();
+   // the notes for each layer are in the chat, not on screen
 const assetURL = (p) =>
   (!p || p.slice(0, 5) === "data:" || p.indexOf("//") >= 0) ? p : ASSET_BASE + p;
 
@@ -15923,7 +15943,8 @@ const RUNNER_API = (function () {
   }
   // every frame: the typing, the hold, and the static between scenes
   function tvTick(dt) {
-    if (!TV.on) return;
+    if (!TV.on) { TV.clock = 0; return; }
+    const nowS = performance.now() / 1000; dt = TV.clock ? Math.min(0.5, nowS - TV.clock) : dt; TV.clock = nowS;   // LAYER 738: the scene runs on the clock, not on the frame rate
     if (TV.gap > 0) { TV.gap -= dt; if (TV.gap <= 0) { const s = TV.next; if (s) tvStart(s); else tvEnd(); } return; }
     TV.t += dt;
     if (!TV.done) {
@@ -16222,6 +16243,8 @@ const RUNNER_API = (function () {
     turretTick(dt);   // LAYER 709: the roof guns
     canTick(dt);   // LAYER 680: the C.A.N. drone
     const pad = readPad();
+    const tvOpen = TV.on;   // LAYER 738: a news scene is up: A or B closes it, and the other buttons wait
+    if (tvOpen && ((pad.a && !padPrev.a) || (pad.b && !padPrev.b))) tvKey();
     if (yMenu.open) {                                          // the menu has the pad while it is open: stick moves, A picks, B or Y closes
       if (yMenu.mode === 'menu') {
         if (pad.y > 0.6 && yMenu.stickY <= 0.6) yMenu.sel = (yMenu.sel + 1) % yMenu.opts.length;
@@ -16233,11 +16256,11 @@ const RUNNER_API = (function () {
       padPrev = { a: pad.a, b: pad.b, xb: pad.xb, yb: pad.yb, rb: pad.rb, lb: pad.lb, r3: pad.r3 };
       return;
     }
-    if (pad.a && !padPrev.a) { if (bartenderNear()) openYMenu(); else { pend.exit = true; pend.exitPad = true; } }   // A: talk to the person by you, else the stash or the bike (E)   // LAYER 683: A is the action (E): stash pickups, else board or get off
-    if (pad.b && !padPrev.b && !walker.on) pend.land = true;   // B takes off, or lands the bike (on foot, B punches)
-    if (pad.r3 && !padPrev.r3) pend.call = true;         // LAYER 690: R3 calls the bike down beside him (it was X, and X caught A's presses inside)
-    if (pad.lb && !padPrev.lb) pend.target = true;       // LAYER 683: LB locks the aim on the nearest target, again lets go
-    if (pad.rb && !padPrev.rb) pend.fire = true;         // LAYER 683: RB shoots with the pistol; without it, RB punches (the main pad poll)
+    if (!tvOpen && pad.a && !padPrev.a) { if (bartenderNear()) openYMenu(); else { pend.exit = true; pend.exitPad = true; } }   // A: talk to the person by you, else the stash or the bike (E)   // LAYER 683: A is the action (E): stash pickups, else board or get off
+    if (!tvOpen && pad.b && !padPrev.b && !walker.on) pend.land = true;   // B takes off, or lands the bike (on foot, B punches)
+    if (!tvOpen && pad.r3 && !padPrev.r3) pend.call = true;         // LAYER 690: R3 calls the bike down beside him (it was X, and X caught A's presses inside)
+    if (!tvOpen && pad.lb && !padPrev.lb) pend.target = true;       // LAYER 683: LB locks the aim on the nearest target, again lets go
+    if (!tvOpen && pad.rb && !padPrev.rb) pend.fire = true;         // LAYER 683: RB shoots with the pistol; without it, RB punches (the main pad poll)
     padPrev = { a: pad.a, b: pad.b, xb: pad.xb, yb: pad.yb, rb: pad.rb, lb: pad.lb, r3: pad.r3 };
     RUN_SNEAK = walker.on && (pad.lt > 0.5 || !!keys.Control) && !PMB.inside;   // LAYER 717: hold LT (L2) on foot to sneak. LAYER 721: hold Control on the keyboard too.
     coverTick(dt);
@@ -18442,7 +18465,8 @@ const RUNNER_API = (function () {
     c.fillStyle = '#ffd23a'; c.font = 'bold 13px monospace'; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.fillText("TEAMMATE'S", L.team.x, L.box.y + 14); c.fillText('YOUR SPOT', L.you.x, L.box.y + L.box.h - 14);
     c.restore();
-    if (L.team.car && !teamCarV) drawParkedCar(c, L.team.car, L.team.x, L.team.y, Math.PI);
+    if (L.team.car && (!teamCarV || (teamCarV.mode === 'ground' && Math.hypot(teamCarV.x - L.team.x, teamCarV.y - L.team.y) < 4)))
+      drawParkedCar(c, L.team.car, L.team.x, L.team.y, Math.PI);   // LAYER 738: in its spot on the lot, the teammate's car is drawn (once the car object exists it was never drawn)
   }
   /* LAYER 705: THE STORY ROUTE. The partner is rescued at the hideout (the house): he becomes the companion, walks with you, and
      fights whoever comes at you. Lying down on the bed roll and sleeping to midnight starts the mission for the doctor: go to
