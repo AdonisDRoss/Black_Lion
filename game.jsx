@@ -11189,6 +11189,18 @@ function makeBuildingUnused(lx0, ly0, lx1, ly1, rnd, i, j) {
    of its building. Doors are locked unless the building is open to the public or is a named landmark (those keep
    their story doors for now). Top level, so buildingPlans and the door code can both reach it. */
 const WIRE_SCALE = 30;                                       // world px per Wire map px
+/* THE JACK-IN CHAIR: the grey top-down chair (assets/wire/wire_chair.png), turned so its seat faces the computer.
+   The sprite's left end is the backrest, so its right end points at the desk. */
+function drawWireChair(ctx, c, comp, img) {
+  if (!c || !comp || !img || !img.width) return false;
+  const cx = c.x + c.w / 2, cy = c.y + c.h / 2;
+  const ang = Math.atan2(comp.y + comp.h / 2 - cy, comp.x + comp.w / 2 - cx);
+  const L = 26, H = L * img.height / img.width;
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
+  ctx.drawImage(img, -L / 2, -H / 2, L, H);
+  ctx.restore();
+  return true;
+}
 /* THE JACK-IN CHAIR sits on a patch of the Wire floor (the mirror-cut tile, assets/wire/floor_mirror_tile.png),
    not the carpet. Drawn before the props, so the chair lands on top of it. */
 function drawWireFloorPad(ctx, c, tile) {
@@ -11202,7 +11214,7 @@ function drawWireFloorPad(ctx, c, tile) {
   return true;
 }
 const WIRE_ART = { wire_computer: "assets/wire/wire_computer.png", wire_bike: "assets/wire/wire_bike.png",
-                   wire_node: "assets/wire/wire_pow_node.png", wire_floor: "assets/wire/floor_mirror_tile.png",
+                   wire_node: "assets/wire/wire_pow_node.png", wire_floor: "assets/wire/floor_mirror_tile.png", wire_chair: "assets/wire/wire_chair.png",
                    /* the orange future cop, in five pieces (the rig is in cop_orange_rig.json) */
                    cop_orange_torso: "assets/wire/cop_orange_torso.png", cop_orange_arm_L: "assets/wire/cop_orange_arm_L.png",
                    cop_orange_arm_R: "assets/wire/cop_orange_arm_R.png", cop_orange_leg_L: "assets/wire/cop_orange_leg_L.png",
@@ -11218,7 +11230,20 @@ const WIRE_TOP = { 20: ["sechq", "vance"],
 const WIRE_PAD_TIME = { 3: 2.0, 6: 1.4, 12: 1.0, 20: 0.7 };     // seconds per lit button
 const WIRE_PAYOUT = { 3: 40, 6: 150, 12: 600, 20: 2500 };        // debit, per host
 const WIRE_FURN_KEEP = /stair|elev|door|hatch|ladder|lift|escal/;
+/* THE DEBIT CARD: the Wire pays onto it. g.p.debit is the balance, g.p.ledger every move on it (a host opened, cash taken
+   off the card, cash put on it). It lives in the INVENTORY tab, where it is cashed out or topped up. */
+function debitLog(g, k, nm, amt) { const L = (g.p.ledger = g.p.ledger || []); L.push({ k, nm, amt }); if (L.length > 200) L.splice(0, L.length - 200); }
+function debitAct(g, a) {   // a: "out" (the whole balance to cash), "add100", "addall" (cash on you onto the card)
+  if (!g || !g.p) return "";
+  const p = g.p, bal = Math.round(p.debit || 0), cash = Math.round(p.cash || 0);
+  if (a === "out") { if (bal <= 0) return "THE CARD IS EMPTY."; p.cash = cash + bal; p.debit = 0; debitLog(g, "out", "CASH OUT TO YOUR CASH", -bal); return "CASHED OUT $" + bal.toLocaleString() + " TO YOUR CASH."; }
+  if (a === "add100" || a === "addall") { const n = a === "addall" ? cash : 100; if (n <= 0 || cash < n) return "NOT ENOUGH CASH ON YOU."; p.cash = cash - n; p.debit = bal + n; debitLog(g, "in", "ADDED FROM YOUR CASH", n); return "PUT $" + n.toLocaleString() + " ON THE CARD."; }
+  return "";
+}
 const WIRE_KEYS = new Set();
+/* the traces a caught program left on each host (by host id). Only these carry over a jack-out: each one makes that
+   host's pad a little quicker (see wirePadStart). Saved with the game. */
+const WIRE_TRACE = {};
 const WIRE_HEAT = { n: 0, cold: 0 };   // the Wire's own trace badges (0-3); kept apart from the street's heat          // host ids whose buildings the player can walk into
 const WIRE_HOSTS = [];                // every host, built once by wireBuildIndex
 const WIRE_CACHE = {};                // holo sprites, made once per size
@@ -11432,6 +11457,7 @@ for (const a of ["grocery", "bar", "liquor", "diner", "pawn"]) for (const v of [
 PD_ART.ar_vest_kevlar = "assets/arms/ar_vest_kevlar.png";   // the manor roof came in with layer 477
 PD_ART.hud_holophone = "assets/runner/hud/icon_holophone.png";   // LAYER 702: the holophone's icon on the Y wheel (only shows once he has one)
 OPTIONAL_ART.add("hud_holophone");
+PD_ART.hud_debit_card = "assets/runner/hud/icon_debit_card.png"; OPTIONAL_ART.add("hud_debit_card");   // the debit card, in the INVENTORY tab
 PD_ART.hud_lasermode = "assets/runner/hud/icon_lasermode.png"; OPTIONAL_ART.add("hud_lasermode");   // LAYER 735: the MODE (STUN / HARM) item on the laser wheel
 // LAYER 734: the menu icons, all in one folder, assets/runner/hud (the holophone and the collar are in it too). Each shows once its file is there.
 for (const k of ["book", "map", "teamcar", "evidence", "objective", "home", "bar", "house", "stop", "equipment", "items", "cyberwear", "vest", "gasmask", "back", "character", "system", "missions"]) { PD_ART["hud_" + k] = "assets/runner/hud/icon_" + k + ".png"; OPTIONAL_ART.add("hud_" + k); }
@@ -15105,6 +15131,8 @@ function FootballShell({ onExit }) {
 // on open ground, the hover bike with its alternative-fuel vents, roof decor, haze and ad beams.
 // Fly over anything. Land only on open ground: no buildings, water, expressway deck or ramps.
 // No collision yet, and the hunt is paused for this test.
+// the cutscene: from NEW GAME's intro to the handover in the city the runner takes no input (the stick, the keys, the buttons)
+let RUN_CUTSCENE = false;
 const RUNNER_API = (function () {
   let RUN_ON = false;
   let ctx = null, W = 960, H = 540;
@@ -15295,6 +15323,567 @@ const RUNNER_API = (function () {
   const FACE_POOL_FEMALE = ['f_ann_03', 'f_ann_07', 'f_denise_king', '@runner/pheromone/pm_d_profile', '@school/pt_stu_ch_16', '@school/pt_stu_ch_21', '@school/pt_stu_ch_23', '@school/pt_stu_ch_28', '@picker/f_A01', '@picker/f_A02', '@picker/f_A06', '@picker/f_A09', '@picker/f_A14', '@picker/f_A18', '@picker/f_B02', '@picker/f_B06', '@picker/f_B10', '@picker/f_B12', '@picker/f_B15', '@picker/f_B18', '@picker/f_B26', '@picker/f_B28', '@picker/f_B30', '@picker/f_C01', '@picker/f_C03', '@picker/f_C05', '@picker/f_C10', '@picker/f_C17', '@picker/f_C21', '@picker/f_C27', '@picker/f_C29', '@picker/f_C30', '@picker/f_C32', '@picker/f_D02', '@picker/f_D09', '@picker/f_D12', '@picker/f_D19', '@picker/f_D22', '@picker/f_D27', '@picker/f_D30', '@picker/f_E02', '@picker/f_E06', '@picker/f_E10', '@picker/f_E14', '@picker/f_E17', '@picker/f_E21', '@picker/f_E23', '@picker/f_E27', '@picker/f_F05', '@picker/f_F10', '@picker/f_F14', '@picker/f_F18', '@picker/f_F22', '@picker/f_F26'];
   const FACE_POOL_MALE = ['@picker/m_A03', '@picker/m_A04', '@picker/m_A05', '@picker/m_A11', '@picker/m_A13', '@picker/m_A16', '@picker/m_A19', '@picker/m_A20', '@picker/m_A26', '@picker/m_A28', '@picker/m_B01', '@picker/m_B03', '@picker/m_B04', '@picker/m_B05', '@picker/m_B08', '@picker/m_B09', '@picker/m_B13', '@picker/m_B20', '@picker/m_B27', '@picker/m_B32', '@picker/m_C02', '@picker/m_C07', '@picker/m_C08', '@picker/m_C09', '@picker/m_C11', '@picker/m_C15', '@picker/m_C18', '@picker/m_C31', '@picker/m_D01', '@picker/m_D04', '@picker/m_D05', '@picker/m_D07', '@picker/m_D08', '@picker/m_D10', '@picker/m_D11', '@picker/m_D14', '@picker/m_D16', '@picker/m_D20', '@picker/m_D24', '@picker/m_E01', '@picker/m_E04', '@picker/m_E05', '@picker/m_E08', '@picker/m_E09', '@picker/m_E12', '@picker/m_E15', '@picker/m_E19', '@picker/m_E22', '@picker/m_F01', '@picker/m_F04', '@picker/m_F06', '@picker/m_F08', '@picker/m_F12', '@picker/m_F13', '@picker/m_F15', '@picker/m_F17', '@picker/m_F19', '@picker/m_F24', '@picker/m_F27', '@crew/pt_rey', '@heroes/pt_sparky', 'f_deon'];   // LAYER 760: no detectives in the creator. Alonzo and Malcolm (DET. MALCOLM) are off the male list.
   for (const k of FACE_POOL_FEMALE.concat(FACE_POOL_MALE)) loadTop('prof_' + k, k.startsWith('@') ? k.slice(1) + '.png' : 'faces/' + k.slice(2) + '.png');
+  // LAYER 760: the skin and hair of each picture, measured from its own pixels (the face and the top of the head, background left out).
+  // The builder ranks the pictures by how close they are to the skin and hair the player picked, so the one he gets looks like his head.
+  const FACE_TONE = {
+"female_01":{
+"s":"#f5b897",
+"h":"#66361b"
+},
+"female_02":{
+"s":"#edba83",
+"h":"#1c1b21"
+},
+"female_03":{
+"s":"#f4bb9a",
+"h":"#c5672c"
+},
+"female_04":{
+"s":"#f1bb99",
+"h":"#924f31"
+},
+"female_05":{
+"s":"#bd8057",
+"h":"#603611"
+},
+"female_06":{
+"s":"#eacbb6",
+"h":"#ded7d3"
+},
+"female_07":{
+"s":"#aa6d5c",
+"h":"#8f4426"
+},
+"female_08":{
+"s":"#f1b794",
+"h":"#66331d"
+},
+"female_09":{
+"s":"#dd9a66",
+"h":"#1a1822"
+},
+"female_10":{
+"s":"#7a4230",
+"h":"#010101"
+},
+"f_ann_03":{
+"s":"#f7b98d",
+"h":"#4f424e"
+},
+"f_ann_07":{
+"s":"#f7b78b",
+"h":"#5c3226"
+},
+"f_denise_king":{
+"s":"#77422c",
+"h":null
+},
+"@runner/pheromone/pm_d_profile":{
+"s":"#ce7a4c",
+"h":"#020102"
+},
+"@school/pt_stu_ch_16":{
+"s":"#955d3d",
+"h":"#090006"
+},
+"@school/pt_stu_ch_21":{
+"s":"#8d5737",
+"h":"#241313"
+},
+"@school/pt_stu_ch_23":{
+"s":"#915939",
+"h":"#35241d"
+},
+"@school/pt_stu_ch_28":{
+"s":"#935b3a",
+"h":"#383836"
+},
+"@picker/f_A01":{
+"s":"#eaad87",
+"h":"#684435"
+},
+"@picker/f_A02":{
+"s":"#e7aa87",
+"h":"#8ea97b"
+},
+"@picker/f_A06":{
+"s":"#ebaf8b",
+"h":"#40292d"
+},
+"@picker/f_A09":{
+"s":"#d49f80",
+"h":"#8e966b"
+},
+"@picker/f_A14":{
+"s":"#91553b",
+"h":"#1f1e31"
+},
+"@picker/f_A18":{
+"s":"#d5a180",
+"h":"#8dc2dd"
+},
+"@picker/f_B02":{
+"s":"#e3a48b",
+"h":"#6e4939"
+},
+"@picker/f_B06":{
+"s":"#e9aa8c",
+"h":"#b59471"
+},
+"@picker/f_B10":{
+"s":"#915742",
+"h":"#332a3c"
+},
+"@picker/f_B12":{
+"s":"#ecae8b",
+"h":"#97cce3"
+},
+"@picker/f_B15":{
+"s":"#e8a78b",
+"h":"#9ac096"
+},
+"@picker/f_B18":{
+"s":"#ebab8b",
+"h":"#98cde3"
+},
+"@picker/f_B26":{
+"s":"#e9a78a",
+"h":"#7d4937"
+},
+"@picker/f_B28":{
+"s":"#a26047",
+"h":"#2f2634"
+},
+"@picker/f_B30":{
+"s":"#eba989",
+"h":"#68443a"
+},
+"@picker/f_C01":{
+"s":"#e8a990",
+"h":"#87644d"
+},
+"@picker/f_C03":{
+"s":"#a66046",
+"h":"#3d2224"
+},
+"@picker/f_C05":{
+"s":"#f2b598",
+"h":"#734c39"
+},
+"@picker/f_C10":{
+"s":"#eead93",
+"h":"#88a17d"
+},
+"@picker/f_C17":{
+"s":"#a15d43",
+"h":"#2b1621"
+},
+"@picker/f_C21":{
+"s":"#a05d43",
+"h":"#341e23"
+},
+"@picker/f_C27":{
+"s":"#f4b898",
+"h":"#603a31"
+},
+"@picker/f_C29":{
+"s":"#f4b899",
+"h":"#693f35"
+},
+"@picker/f_C30":{
+"s":"#eeae94",
+"h":"#986c50"
+},
+"@picker/f_C32":{
+"s":"#f4b79a",
+"h":"#935f48"
+},
+"@picker/f_D02":{
+"s":"#b87350",
+"h":"#7aadd8"
+},
+"@picker/f_D09":{
+"s":"#edad8b",
+"h":"#311c21"
+},
+"@picker/f_D12":{
+"s":"#e7a688",
+"h":"#785d45"
+},
+"@picker/f_D19":{
+"s":"#d18f65",
+"h":"#3c2927"
+},
+"@picker/f_D22":{
+"s":"#dd9a79",
+"h":"#3b211e"
+},
+"@picker/f_D27":{
+"s":"#a15f3f",
+"h":"#190e15"
+},
+"@picker/f_D30":{
+"s":"#ecac8a",
+"h":"#621933"
+},
+"@picker/f_E02":{
+"s":"#edac8d",
+"h":"#9ccfdf"
+},
+"@picker/f_E06":{
+"s":"#eeab8b",
+"h":"#9ed0e0"
+},
+"@picker/f_E10":{
+"s":"#8d4e3a",
+"h":"#30232f"
+},
+"@picker/f_E14":{
+"s":"#e4a388",
+"h":"#9ccfdf"
+},
+"@picker/f_E17":{
+"s":"#f0aa8a",
+"h":"#9bd0e2"
+},
+"@picker/f_E21":{
+"s":"#f2af8e",
+"h":"#9bd0e1"
+},
+"@picker/f_E23":{
+"s":"#eca686",
+"h":"#9bd1e1"
+},
+"@picker/f_E27":{
+"s":"#efab8b",
+"h":"#9ed1e1"
+},
+"@picker/f_F05":{
+"s":"#dda58b",
+"h":"#573e30"
+},
+"@picker/f_F10":{
+"s":"#dda182",
+"h":"#321f1e"
+},
+"@picker/f_F14":{
+"s":"#e2ab8b",
+"h":"#4b3729"
+},
+"@picker/f_F18":{
+"s":"#e7af8c",
+"h":"#694c42"
+},
+"@picker/f_F22":{
+"s":"#e3ad91",
+"h":"#63422f"
+},
+"@picker/f_F26":{
+"s":"#a1644b",
+"h":"#301f1f"
+},
+"male_01":{
+"s":"#f9b48e",
+"h":"#2a1912"
+},
+"male_02":{
+"s":"#eead85",
+"h":"#9a6f4f"
+},
+"male_03":{
+"s":"#f6b38d",
+"h":"#7e7e7c"
+},
+"male_04":{
+"s":"#f7b28b",
+"h":"#dd9881"
+},
+"male_05":{
+"s":"#f5ae87",
+"h":"#f9b48d"
+},
+"male_06":{
+"s":"#8c5237",
+"h":"#010101"
+},
+"male_07":{
+"s":"#c47555",
+"h":"#a60a08"
+},
+"male_08":{
+"s":"#eda076",
+"h":"#080202"
+},
+"male_09":{
+"s":"#f8b289",
+"h":"#60391b"
+},
+"male_10":{
+"s":"#f9b58c",
+"h":"#f9b58c"
+},
+"@picker/m_A03":{
+"s":"#ecaf89",
+"h":"#8bbcd1"
+},
+"@picker/m_A04":{
+"s":"#e5ae89",
+"h":"#8bb9ce"
+},
+"@picker/m_A05":{
+"s":"#8b523b",
+"h":"#8ec2dc"
+},
+"@picker/m_A11":{
+"s":"#edaf89",
+"h":"#8cc3dd"
+},
+"@picker/m_A13":{
+"s":"#dea384",
+"h":"#8cc2dc"
+},
+"@picker/m_A16":{
+"s":"#723f30",
+"h":"#8dc3dd"
+},
+"@picker/m_A19":{
+"s":"#e8ab84",
+"h":"#8cc2dd"
+},
+"@picker/m_A20":{
+"s":"#e9aa83",
+"h":"#8dc2dd"
+},
+"@picker/m_A26":{
+"s":"#895039",
+"h":"#8cc2dd"
+},
+"@picker/m_A28":{
+"s":"#e6a985",
+"h":"#8cc2de"
+},
+"@picker/m_B01":{
+"s":"#dba284",
+"h":"#98cfe7"
+},
+"@picker/m_B03":{
+"s":"#e3af8f",
+"h":"#97bb9b"
+},
+"@picker/m_B04":{
+"s":"#ebb08d",
+"h":"#392727"
+},
+"@picker/m_B05":{
+"s":"#e7a989",
+"h":"#98956e"
+},
+"@picker/m_B08":{
+"s":"#7a4837",
+"h":"#97cee7"
+},
+"@picker/m_B09":{
+"s":"#de9e7f",
+"h":"#95cde5"
+},
+"@picker/m_B13":{
+"s":"#e6aa89",
+"h":"#93cae0"
+},
+"@picker/m_B20":{
+"s":"#895340",
+"h":"#4e3e45"
+},
+"@picker/m_B27":{
+"s":"#80493a",
+"h":"#93cbe3"
+},
+"@picker/m_B32":{
+"s":"#eaa987",
+"h":"#5d4139"
+},
+"@picker/m_C02":{
+"s":"#e19f85",
+"h":"#836565"
+},
+"@picker/m_C07":{
+"s":"#f0af91",
+"h":"#8d6849"
+},
+"@picker/m_C08":{
+"s":"#884c3c",
+"h":"#473142"
+},
+"@picker/m_C09":{
+"s":"#f2b596",
+"h":"#57372b"
+},
+"@picker/m_C11":{
+"s":"#e6a289",
+"h":"#87b8d7"
+},
+"@picker/m_C15":{
+"s":"#884b3d",
+"h":"#86b8d7"
+},
+"@picker/m_C18":{
+"s":"#f1b292",
+"h":"#7b5238"
+},
+"@picker/m_C31":{
+"s":"#f4b897",
+"h":"#a07b55"
+},
+"@picker/m_D01":{
+"s":"#e1a588",
+"h":"#7aadd8"
+},
+"@picker/m_D04":{
+"s":"#e4a484",
+"h":"#718d98"
+},
+"@picker/m_D05":{
+"s":"#774231",
+"h":"#76a5c6"
+},
+"@picker/m_D07":{
+"s":"#da967c",
+"h":"#6c4d2f"
+},
+"@picker/m_D08":{
+"s":"#7b4a3a",
+"h":"#7aadd8"
+},
+"@picker/m_D10":{
+"s":"#d2937a",
+"h":"#79abcb"
+},
+"@picker/m_D11":{
+"s":"#864c36",
+"h":"#06050b"
+},
+"@picker/m_D14":{
+"s":"#c17f66",
+"h":"#78a9cf"
+},
+"@picker/m_D16":{
+"s":"#814a36",
+"h":"#201a22"
+},
+"@picker/m_D20":{
+"s":"#824d38",
+"h":"#78acd4"
+},
+"@picker/m_D24":{
+"s":"#864e38",
+"h":"#77abd4"
+},
+"@picker/m_E01":{
+"s":"#eeb08f",
+"h":"#9ccedb"
+},
+"@picker/m_E04":{
+"s":"#ca8059",
+"h":"#9cd0df"
+},
+"@picker/m_E05":{
+"s":"#dc916b",
+"h":"#9dd0e1"
+},
+"@picker/m_E08":{
+"s":"#eda986",
+"h":"#9acfdd"
+},
+"@picker/m_E09":{
+"s":"#eda987",
+"h":"#99cedc"
+},
+"@picker/m_E12":{
+"s":"#834734",
+"h":"#9bd0e2"
+},
+"@picker/m_E15":{
+"s":"#eca682",
+"h":"#9cd0e1"
+},
+"@picker/m_E19":{
+"s":"#7f4533",
+"h":"#9cd1e2"
+},
+"@picker/m_E22":{
+"s":"#df9b7b",
+"h":"#9dd2e4"
+},
+"@picker/m_F01":{
+"s":"#b98672",
+"h":"#58483f"
+},
+"@picker/m_F04":{
+"s":"#b8866d",
+"h":"#7d6f4e"
+},
+"@picker/m_F06":{
+"s":"#ca977d",
+"h":"#5b4438"
+},
+"@picker/m_F08":{
+"s":"#bd876e",
+"h":"#4e4a48"
+},
+"@picker/m_F12":{
+"s":"#c38f77",
+"h":"#95b59e"
+},
+"@picker/m_F13":{
+"s":"#c38d77",
+"h":"#7ca384"
+},
+"@picker/m_F15":{
+"s":"#c99278",
+"h":"#674f40"
+},
+"@picker/m_F17":{
+"s":"#ce967f",
+"h":"#50413c"
+},
+"@picker/m_F19":{
+"s":"#c38b74",
+"h":"#30353b"
+},
+"@picker/m_F24":{
+"s":"#cb957d",
+"h":"#7a664c"
+},
+"@picker/m_F27":{
+"s":"#be8b78",
+"h":"#68503f"
+},
+"@crew/pt_rey":{
+"s":"#734534",
+"h":"#633c32"
+},
+"@heroes/pt_sparky":{
+"s":"#e1a281",
+"h":"#635a5a"
+},
+"f_deon":{
+"s":"#b16c43",
+"h":"#010101"
+}
+};
+  // the pictures for a sex: the female pool, or the male runner portraits and the male picker faces (each once)
+  function faceListFor(sex) {
+    if (sex === 'female') return PROFILE_FACES.female.concat(FACE_POOL_FEMALE);
+    return [...new Set(['slim', 'average', 'athletic', 'heavy', 'big'].map((k) => PROFILE_FACES[k]).flat().concat(FACE_POOL_MALE))];
+  }
+  // closest first: the skin is the main match, the hair counts for less, and a picture with no measured tone goes last
+  function rankFaces(sex, skin, hair) {
+    const rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    const dist = (a, b) => { const p = rgb(a), q = rgb(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
+    const want = skin || '#ffffff';   // no skin picked: the head is drawn in the base colour
+    const score = (k) => { const t = FACE_TONE[k]; if (!t || !t.s) return 1e9; return dist(t.s, want) + (hair && t.h ? 0.6 * dist(t.h, hair) : 0); };
+    return faceListFor(sex).slice().sort((a, b) => score(a) - score(b));
+  }
   /* LAYER 709: D and Dex (assets/runner/pheromone/): talk-box faces and the top-down sprites in the street. */
   load('prof_pm_d', 'pheromone/pm_d_profile.png'); load('prof_pm_dex', 'pheromone/pm_dex_profile.png');
   load('pm_d_top_down', 'pheromone/pm_d_top_down.png'); load('pm_dex_top_down', 'pheromone/pm_dex_top_down.png');
@@ -15352,13 +15941,13 @@ const RUNNER_API = (function () {
     try { if (RUN_ON && runCur >= 0 && runPhase !== 'gap') { const a = runAudio(runCur); if (a.paused) a.play().catch(() => {}); } } catch (e) { /* no audio here */ }
   }
   function runPick() { return Math.floor(Math.random() * RUN_SONGS.length); }   // a plain random pick: the same track can come round twice
-  function runStart(i) {
+  function runStart(i, hold) {
     try {
       const a = runAudio(i);
       runCur = i; runPhase = 'in'; runT = 0;
       a.currentTime = 0; a.volume = 0;
       a.play().catch(() => { songGo(); });
-      runHold = RUN_HOLD[0] + Math.random() * (RUN_HOLD[1] - RUN_HOLD[0]);
+      runHold = hold || (RUN_HOLD[0] + Math.random() * (RUN_HOLD[1] - RUN_HOLD[0]));
     } catch (e) { /* no audio here */ }
   }
   function runStep() {   // every 100 ms while Runner Mode is on
@@ -15794,7 +16383,7 @@ const RUNNER_API = (function () {
   function resetRunner() {
     placed = false; camSmooth = null; car.speed = 0; car.lean = 0; walker.on = false; fliers.length = 0;
     if (!RUNNER_LOOK.chosen) rollRunnerLook();          // built in the builder: kept; otherwise a random look
-    RUNNER_LOOK.profile = profileFace(RUNNER_LOOK.body);   // LAYER 704: his profile picture, matched to his build, each run
+    if (!RUNNER_LOOK.profile) RUNNER_LOOK.profile = profileFace(RUNNER_LOOK.body);   // LAYER 704: his profile picture, matched to his build; the builder's pick (LAYER 760) is kept
   }
   // the first frame in Runner Mode: the bike starts where the game camera is
   function place() {
@@ -15848,7 +16437,7 @@ const RUNNER_API = (function () {
   // world's action itself, so only the pad's A asks for it here (fromPad).
   // LAYER 717: how near he must be to get into the bike or the car, and to the sleeping bag. Tight on purpose: from far away a press
   // must not hop him onto the bike. The dismount spot is 70 px from the bike, so GET_IN_R sits just past it.
-  const GET_IN_R = 110, BAG_R = 90;
+  const GET_IN_R = 110, BAG_R = 90, BAG_H = 84;   // LAYER 754: the laid-out bag's height on screen; its width follows the art (about 1 to 2.2)
   let runnerInside = null;   // LAYER 746: the building he is in (the game's g.inside), or null outdoors
   let runnerFloor = 0, solidTest = () => false;   // LAYER 749: the floor he is on, and the game's own solid-furniture test (SOLID_PROP)
   function setIndoors(b, f, solid) { runnerInside = b || null; runnerFloor = f || 0; if (solid) solidTest = solid; }
@@ -16163,6 +16752,7 @@ const RUNNER_API = (function () {
   // ---------- input ----------
   function readPad() {
     const out = { x: 0, y: 0, rt: 0, lt: 0, a: false, b: false, xb: false, yb: false, rb: false, lb: false, l3: false };
+    if (RUN_CUTSCENE) return out;
     const list = navigator.getGamepads ? navigator.getGamepads() : [];
     for (const g of list) {
       if (!g) continue;
@@ -16474,7 +17064,7 @@ const RUNNER_API = (function () {
   }
   const RZONE_NAME = ['', 'NORTH-WEST', 'NORTH-CENTRE-WEST', 'NORTH-CENTRE-EAST', 'NORTH-EAST', 'SOUTH-WEST', 'SOUTH-CENTRE-WEST', 'SOUTH-CENTRE-EAST', 'SOUTH-EAST'];
   const RTEAM_NAME = { red: 'RED', yellow: 'YELLOW', blue: 'BLUE', green: 'GREEN' };
-  const RCLK = { day: 1, min: 6 * 60, rate: 2, lastHour: 6, castDay: 0 };   // 2 game minutes a real second: an hour is 30 s, a day is 12 minutes
+  const RCLK = { day: 1, min: 13 * 60, rate: 2, lastHour: 13, castDay: 1 };   // 2 game minutes a real second: an hour is 30 s, a day is 12 minutes
   const RLOG = [];                  // the record: { id, abs, day, min, zone, team, who, kind, weight, text }
   let RLOG_ID = 0, RCAST_ABS = 0;   // the last moment the news went out, in game minutes from day 1
   const RAI = [];                   // the background teams: two runners each, all but the player's own team
@@ -16600,9 +17190,9 @@ const RUNNER_API = (function () {
     if (hour !== RCLK.lastHour) { RCLK.lastHour = hour; rSimHour(); }
     if (RCLK.min >= 480 && RCLK.castDay !== RCLK.day) { RCLK.castDay = RCLK.day; rBroadcast(); }
   }
-  // a new run: the clock starts at six in the morning on day one, the record is empty, and the background teams are set
+  // a new run: the clock starts at one in the afternoon on day one, when the runner lands in the city. Day one's eight o'clock news is skipped, because there has been no night yet.
   function rNewGame() {
-    RCLK.day = 1; RCLK.min = 6 * 60; RCLK.lastHour = 6; RCLK.castDay = 0;
+    RCLK.day = 1; RCLK.min = 13 * 60; RCLK.lastHour = 13; RCLK.castDay = 1;
     RLOG.length = 0; RCAST_ABS = 0; rAIReset();
   }
   // the morning news at eight: up to four stories since the last one, the biggest first, each read from the zone it happened in
@@ -18135,7 +18725,7 @@ const RUNNER_API = (function () {
     dana:    { sh: [[150, 172], [360, 172]], hip: [[205, 274], [300, 274]], o: { torso: [150, 67], arm_L: [129, 203], arm_R: [361, 197], leg_L: [150, 274], leg_R: [255, 274] }, hand: [371, 309] },
     gus:     { sh: [[150, 130], [362, 130]], hip: [[190, 345], [322, 345]], o: { torso: [136, 38], arm_L: [72, 129], arm_R: [377, 130], leg_L: [138, 282], leg_R: [256, 282] }, hand: [423, 319] },
     hollis:  { sh: [[152, 130], [362, 130]], hip: [[212, 304], [302, 304]], o: { torso: [157, 77], arm_L: [112, 127], arm_R: [358, 130], leg_L: [159, 304], leg_R: [266, 304] }, hand: [378, 290] },
-    lockjaw: { sh: [[138, 178], [366, 178]], hip: [[205, 292], [300, 292]], o: { torso: [1, 1], arm_L: [1, 140], arm_R: [365, 140], leg_L: [1, 292], leg_R: [252, 292] }, hand: [401, 336] },
+    lockjaw: { sh: [[160, 184], [388, 184]], hip: [[219, 328], [329, 328]], o: { torso: [124, 65], arm_L: [82, 142], arm_R: [390, 142], leg_L: [163, 328], leg_R: [274, 328] }, hand: [438, 353] },   // the new Lockjaw art (2026-10-31), cut at the other hunters' shoulder width
     ruth:    { sh: [[150, 180], [355, 180]], hip: [[205, 346], [300, 346]], o: { torso: [142, 45], arm_L: [81, 163], arm_R: [363, 159], leg_L: [146, 346], leg_R: [252, 346] }, hand: [364, 441] },
     silk:    { sh: [[160, 172], [350, 172]], hip: [[215, 275], [295, 275]], o: { torso: [158, 51], arm_L: [109, 150], arm_R: [353, 150], leg_L: [138, 275], leg_R: [255, 275] }, hand: [385, 290] },
     sully:   { sh: [[150, 150], [355, 150]], hip: [[205, 265], [300, 265]], o: { torso: [127, 45], arm_L: [97, 130], arm_R: [345, 130], leg_L: [148, 265], leg_R: [252, 265] }, hand: [383, 310] },
@@ -18267,6 +18857,8 @@ const RUNNER_API = (function () {
   function hunterReset() { alertOn = false; alertLvl = 0; hunters = []; canKnown = null; RUN_ESC.t = 0; RUN_ESC.search = 0; RUN_ESC.at = null; }
   // (tx, ty): where the runner is for the hunters (his place outdoors, the door of the building he is in). inHosp: he is in the hospital.
   function hunterTick(tx, ty, inHosp) {
+    // hunting is night work: at dawn the hunters stand down. canKnown (the C.A.N.'s last place for him) is kept for the next dusk call.
+    if (!runNight()) { if (alertOn || hunters.length) { alertOn = false; hunters = []; RUN_ESC.t = 0; RUN_ESC.search = 0; RUN_ESC.at = null; } ROB.h = null; ROB.t = 0; huntLast = 0; return; }
     const pRun = { x: tx, y: ty };   // LAYER 694: where he is, as the caller gives it
     if (canKnown && !inHosp) { tx = canKnown.x; ty = canKnown.y; }   // LAYER 680: they go to his last reported place
     if (RUN_ESC.search > 0 && RUN_ESC.at && !inHosp) { tx = RUN_ESC.at.x; ty = RUN_ESC.at.y; }   // LAYER 694: searching, they go to where they last saw him
@@ -18351,6 +18943,7 @@ const RUNNER_API = (function () {
   const canDrones = [];
   let canBroadcast = null, canIdx = 0;
   let canKnown = null, canBoom = [], canRespawnT = 0;   // canKnown: the runner's last reported place, which the hunters go to
+  let canNightCalled = false;                           // the dusk call has gone out for tonight
   const HOLO = document.createElement('canvas'); HOLO.width = 96; HOLO.height = 140;
   const HOLO_CTX = HOLO.getContext('2d');
   // LAYER 710: a face in hologram blue. paintHoloPortrait fits a portrait into a canvas, turns it blue, and lays scanlines on it.
@@ -18397,7 +18990,7 @@ const RUNNER_API = (function () {
   }
   // the countdown ran out: the hunters come in from the ring, close enough that the trail holds
   function canAlert(x, y) {
-    if (alertOn || !canUp()) return;   // LAYER 741: no hunters by day, or before the partner is found
+    if (alertOn || !houseSeen || !runNight()) return;   // hunting is night work: no hunters by day, and none before the partner is found
     alertOn = true; hunters = []; const arts = huntArts();
     for (let k = 0; k < HUNT.n; k++) {
       const a = (k / HUNT.n) * Math.PI * 2 + rnd(-0.4, 0.4);
@@ -18405,10 +18998,15 @@ const RUNNER_API = (function () {
     }
     say('C.A.N. HAS YOU. THE HUNTERS ARE COMING.', 5);
   }
-  // LAYER 741: the C.A.N. is out only once the partner is found, and only at night (9:30 PM to 6 AM)
-  function canUp() { return houseSeen && (RCLK.min >= 21 * 60 + 30 || RCLK.min < 6 * 60); }
+  // the hunting window: 8 PM to 6 AM, sunset to dawn (the design's clock, claude/running-man-mode-design.md)
+  function runNight() { return RCLK.min >= 20 * 60 || RCLK.min < 6 * 60; }
+  // the C.A.N. drone works by day, once the partner is found. It knows where he is by day only: at night it is gone.
+  function canUp() { return houseSeen && !runNight(); }
   function canTick(dt) {
     if (!RUN_ON || lobby) return;
+    // at dusk the C.A.N. calls the hunters, once a night, to the place it last had him by day
+    if (!runNight()) canNightCalled = false;
+    else if (houseSeen && canKnown && !alertOn && !canNightCalled) { canNightCalled = true; canAlert(canKnown.x, canKnown.y); }
     if (!canUp()) { canDrones.length = 0; return; }
     if (canBoom.length) { for (const e of canBoom) e.t += dt; canBoom = canBoom.filter((e) => e.t < 1.2); }
     if (!canDrones.length) { if (canRespawnT > 0) { canRespawnT -= dt; return; } canDroneSpawn(); }
@@ -18498,6 +19096,26 @@ const RUNNER_API = (function () {
       mateDrawing = false; packOn = P0.packOn; mask = P0.mask; held = P0.held; ctx = prevCtx;
       Object.assign(RUNNER_LOOK, L0); walker.on = W0.on; walker.step = W0.step; walker.heading = W0.heading; walker.amp = W0.amp;
     }
+  }
+  // LAYER 761: the holding tank's runners. Each is built the way the player is (random sex, head, body, skin and hair), in one of the
+  // team colours, and drawn top-down by the same figure code the street uses. Two per team, the teams in the order given.
+  function holdingFigure(look, heading) {
+    const c = document.createElement('canvas'); c.width = 120; c.height = 120;
+    drawLookFigure(c.getContext('2d'), 60, 70, look, 0.5, heading);
+    return c.toDataURL('image/png');
+  }
+  function holdingCrew(suits) {
+    const crew = [];
+    for (const suit of suits) for (let k = 0; k < 2; k++) {
+      const sex = Math.random() < 0.5 ? 'male' : 'female';
+      const pool = PHEADS.filter((h) => (h[0] === 'female') === (sex === 'female'));
+      const h = pool[(Math.random() * pool.length) | 0];
+      const body = sex === 'female' ? 'female' : 'big';
+      const look = { head: h[1], suit, body, bodyK: BODY_TYPES[body], skin: RUNNER_SKIN_PICK[(Math.random() * RUNNER_SKIN_PICK.length) | 0],
+        hair: HAIR_MASK_FILES[h[1]] ? RUNNER_HAIR[(Math.random() * RUNNER_HAIR.length) | 0] : null };
+      crew.push({ src: holdingFigure(look, Math.PI / 2) });   // facing the room
+    }
+    return crew;
   }
   // the hologram: the wanted runner, drawn on its own canvas, turned all blue, then laid over the street, see-through
   function drawHologram(c, d, now) {
@@ -19007,10 +19625,11 @@ const RUNNER_API = (function () {
   const DOC_FACE = 'male_03';
   let storeSpot = null, docSpot = null, docMan = null, informants = [], chain = [], chainLink = 0, runnerCash = 0, bedHint = 0;
   const STORY_STAGES = ['pistol', 'teammate', 'house', 'bed', 'store', 'ask', 'informant', 'doctor', 'mission'];
-  function missionOn() { return STORY_STAGES.includes(MISSION.stage); }
+  let missionHidden = false;   // the opening: the mission's line, arrows and minimap pip stay off until the first mission starts
+  function missionOn() { return !missionHidden && STORY_STAGES.includes(MISSION.stage); }
   function missionTitle() {
     if (MISSION.stage === 'mission') return rjTitle();   // LAYER 707: the current job step
-    return { pistol: 'FIRST MISSION: GET YOUR PISTOL', teammate: 'SECOND MISSION: FIND YOUR TEAMMATE', house: 'SECOND MISSION: THE HOUSE ON SAUNDERS',
+    return { pistol: 'FIRST MISSION: GET YOUR PISTOL', teammate: 'FIRST MISSION: FIND YOUR TEAMMATE', house: 'SECOND MISSION: THE HOUSE ON SAUNDERS',
       bed: 'THE PARTNER: LIE DOWN ON THE BAG', store: 'FIND THE DOCTOR: GO TO THE STORE', ask: 'FIND THE DOCTOR: ASK AROUND',
       informant: 'FIND THE DOCTOR: FOLLOW THE LEAD', doctor: 'FIND THE DOCTOR: THE DOCTOR' }[MISSION.stage] || '';
   }
@@ -19035,18 +19654,21 @@ const RUNNER_API = (function () {
       t.cd = Math.max(0, t.cd - dt);
       if (t.stunT > 0) { t.stunT -= dt; continue; }
       const dx = walker.x - t.x, dy = walker.y - t.y, d = Math.hypot(dx, dy) || 1;
-      if (d > 34) {
+      // in reach AND no wall between: stop and face him. Otherwise he walks the route round the walls.
+      const seen = d <= 34 && thugClear(t, walker.x, walker.y);
+      if (!seen) {
         // round the walls: the route is re-found every 0.3s, and the thug walks to the next cell on it
         t.routeT = (t.routeT || 0) - dt;
         if (!t.route || t.routeT <= 0) { t.route = thugRoute(t); t.routeT = 0.3; }
         const r = t.route;
         while (r.length > 1 && Math.hypot(r[0].x - t.x, r[0].y - t.y) < 6) r.shift();
-        let tx = walker.x, ty = walker.y;
-        if (r.length > 1 || Math.hypot(r[0].x - t.x, r[0].y - t.y) >= 6) { tx = r[0].x; ty = r[0].y; }
+        // only ever walk to route cells, never straight at him: a straight line from the last cell is what cut the walls
+        let tx = t.x, ty = t.y;
+        if (r.length) { tx = r[0].x; ty = r[0].y; }
         const ex = tx - t.x, ey = ty - t.y, ed = Math.hypot(ex, ey) || 1, step = Math.min(THUG_SPD * dt, ed);
-        t.x += ex / ed * step; t.y += ey / ed * step; t.heading = Math.atan2(ey, ex); t.step += dt * 8;
+        thugMove(t, t.x + ex / ed * step, t.y + ey / ed * step); t.heading = Math.atan2(ey, ex); t.step += dt * 8;
       } else t.heading = Math.atan2(dy, dx);
-      if (d <= 40 && t.cd <= 0 && walker.on && PSTUN.t <= 0) {
+      if (d <= 40 && t.cd <= 0 && walker.on && PSTUN.t <= 0 && thugClear(t, walker.x, walker.y)) {
         t.cd = 3.5 + Math.random() * 1.0;
         if (Math.random() < 0.2) stunPlayer(t);                  // an everyday thug lands one swing in five: a few seconds, not a lock
         else say(t.name + ' SWINGS AND MISSES.', 1.2);
@@ -19087,6 +19709,37 @@ const RUNNER_API = (function () {
       return { x: b.x + (i + 0.5) * THUG_CS, y: b.y + (j + 0.5) * THUG_CS };
     }
     return { x, y };
+  }
+  // a straight line from the thug to a point, sampled through the grid: true only if no blocked cell lies between them.
+  // The end cell is not tested, so a thug next to him in a doorway cell still counts as in reach.
+  function thugClear(t, x2, y2) {
+    const N = thugNavFor(houseBldg), b = N.b;
+    const L = Math.hypot(x2 - t.x, y2 - t.y), n = Math.max(1, Math.ceil(L / 4));
+    for (let k = 0; k < n; k++) {
+      const x = t.x + (x2 - t.x) * k / n, y = t.y + (y2 - t.y) * k / n;
+      const i = Math.floor((x - b.x) / THUG_CS), j = Math.floor((y - b.y) / THUG_CS);
+      if (i < 0 || j < 0 || i >= N.nx || j >= N.ny) return false;
+      if (N.blocked[j * N.nx + i]) return false;
+    }
+    return true;
+  }
+  // LAYER 754: a thug's step is checked against the wall grid before he takes it. A step into a wall is cut short: he slides
+  // along the wall on the axis that is still clear. A thug who is somehow inside a wall cell is first moved to the nearest free cell.
+  function thugFreeAt(x, y) {
+    const N = thugNavFor(houseBldg), b = N.b;
+    const i = Math.floor((x - b.x) / THUG_CS), j = Math.floor((y - b.y) / THUG_CS);
+    return !(i < 0 || j < 0 || i >= N.nx || j >= N.ny) && !N.blocked[j * N.nx + i];
+  }
+  function thugPathFree(x1, y1, x2, y2) {
+    const L = Math.hypot(x2 - x1, y2 - y1), n = Math.max(1, Math.ceil(L / 2));
+    for (let k = 1; k <= n; k++) if (!thugFreeAt(x1 + (x2 - x1) * k / n, y1 + (y2 - y1) * k / n)) return false;
+    return true;
+  }
+  function thugMove(t, nx, ny) {
+    if (!thugFreeAt(t.x, t.y)) { const p = thugFreeSpot(houseBldg, t.x, t.y); t.x = p.x; t.y = p.y; }
+    if (thugPathFree(t.x, t.y, nx, ny)) { t.x = nx; t.y = ny; return; }
+    if (thugPathFree(t.x, t.y, nx, t.y)) t.x = nx;
+    else if (thugPathFree(t.x, t.y, t.x, ny)) t.y = ny;
   }
   // the route to the free cell nearest him: breadth-first over the free cells, starting from where the thug stands
   function thugRoute(t) {
@@ -19552,7 +20205,7 @@ const RUNNER_API = (function () {
     // outside: a pink label by the door, so the way in shows from the street
   function pmDrawWorld(c, now) {
     const dr = pmDoor();
-    if (!dr || PMB.inside) return;
+    if (!dr || PMB.inside || runnerInside) return;   // LAYER 754: indoors, an outside label does not show
     const lab = 'THE PHEROMONE · E';
     c.save(); c.font = 'bold 11px monospace'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = '#000'; c.fillStyle = '#ff5ad0';
     c.strokeText(lab, dr.x, dr.y - 22); c.fillText(lab, dr.x, dr.y - 22); c.restore();
@@ -20283,7 +20936,7 @@ const RUNNER_API = (function () {
   }
   function drawSleepBag(c) {
     const im = img.sleep_bag; if (!im || !(im.naturalWidth || im.width)) return;
-    const H = 64, W = H * (im.naturalWidth || im.width) / (im.naturalHeight || im.height);   // LAYER 741: sized by height, so a narrow bag fits
+    const H = BAG_H, W = H * (im.naturalWidth || im.width) / (im.naturalHeight || im.height);   // LAYER 741: sized by height, so a narrow bag fits
     c.drawImage(im, sleepDown.x - W / 2, sleepDown.y - H / 2, W, H);
   }
   // LAYER 692: lying on the bag. He lies down with his head out, the screen fades to black, and the wheel asks NOON, EVENING or
@@ -20334,8 +20987,8 @@ const RUNNER_API = (function () {
     drawSleepBag(ctx);
     const im = img.sleep_bag, hs = headSprite(RUNNER_LOOK.head);
     if (!im || !hs || !hs.width) return;
-    const W = 60, H = W * (im.naturalHeight || im.height) / (im.naturalWidth || im.width);
-    const w = 30, h = w * hs.height / hs.width;
+    const H = BAG_H, W = H * (im.naturalWidth || im.width) / (im.naturalHeight || im.height);   // the same bag as on the ground
+    const w = W * 0.5, h = w * hs.height / hs.width;
     ctx.drawImage(hs, sleepDown.x - w / 2, sleepDown.y - H / 2 - h / 2, w, h);
   }
   function gearPick(k) {
@@ -20716,6 +21369,7 @@ const RUNNER_API = (function () {
   window.addEventListener('keydown', (e) => {
     if (e.target && e.target.tagName === 'INPUT') return;   // typing a name in the builder
     if (TV.on) { if (e.key === 'a' || e.key === 'A' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tvKey(); } return; }   // LAYER 730: the TV scene takes these keys
+    if (RUN_CUTSCENE) return;   // the cutscene: no runner keys until the city
     keys[e.key] = true;
     if ((e.key === 'g' || e.key === 'G') && !RUN_ON) dismountWanted = true;
     if (!RUN_ON) return;
@@ -20740,7 +21394,8 @@ const RUNNER_API = (function () {
     tvPlay, tvOn: () => TV.on, tvDraw, news: RUNNER_NEWS,   // LAYER 730: the TV scenes
     waypoint: () => WAYPT, setWaypoint, clearWaypoint,   // LAYER 733: the waypoint the pause map sets
     setCivs: (c) => { CIV = c || null; },
-    setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); WAYPT = null; startSong(); } else { stopSong(); lobby = false; tvStop(); } { const G0 = (window.__ironlion = window.__ironlion || {}); G0.runOn698 = RUN_ON; if (G0.hqSync) G0.hqSync(RUN_ON); } },   // LAYER 698: the headquarters follow Runner Mode
+    setCutscene: (on) => { RUN_CUTSCENE = !!on; },
+    setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); WAYPT = null; startSong(); } else { stopSong(); lobby = false; tvStop(); missionHidden = false; } { const G0 = (window.__ironlion = window.__ironlion || {}); G0.runOn698 = RUN_ON; if (G0.hqSync) G0.hqSync(RUN_ON); } },   // LAYER 698: the headquarters follow Runner Mode
     lockCam,
     keepOut, canSpawn, windTrash,
     overlay,
@@ -20763,10 +21418,26 @@ const RUNNER_API = (function () {
     alertHere: (x, y) => canAlert(x, y),   // the C.A.N. call-in, at the hunters' own distance (used by the tests)
     // LAYER 690: where the runner's objective is, for the minimap's blue star (the pistol stash, then the teammate)
     // TEST ONLY: lets the headless checks put the mission and the walker where they need to be
-    dbg: { setMission: (st) => { MISSION.stage = st; }, placeWalker: (x, y) => { walker.x = x; walker.y = y; walker.on = true; }, stage: () => MISSION.stage, bar: () => barSpot, pos: () => [walker.x, walker.y, walker.on], near: () => bartenderNear(), menuOpen: () => yMenu.open, houseInfo: () => ({ spot: houseSpot, bldg: houseBldg ? { x: houseBldg.x, y: houseBldg.y, w: houseBldg.w, h: houseBldg.h, kind: houseBldg.kind } : null, seen: houseSeen, inside: runnerInside ? { x: runnerInside.x, y: runnerInside.y, kind: runnerInside.kind } : null, barSpot: barSpot }), gateInfo: () => ({ stash: !!stashNear(), pack: !!packStashNear(), bag: !!nearBag(), bartender: !!bartenderNear(), story: !!storyNear(), caseN: !!caseNear(), inside: !!runnerInside }) },
+    dbg: { setMission: (st) => { MISSION.stage = st; }, placeWalker: (x, y) => { walker.x = x; walker.y = y; walker.on = true; }, stage: () => MISSION.stage, bar: () => barSpot, pos: () => [walker.x, walker.y, walker.on], near: () => bartenderNear(), menuOpen: () => yMenu.open, houseInfo: () => ({ spot: houseSpot, bldg: houseBldg ? { x: houseBldg.x, y: houseBldg.y, w: houseBldg.w, h: houseBldg.h, kind: houseBldg.kind } : null, seen: houseSeen, inside: runnerInside ? { x: runnerInside.x, y: runnerInside.y, kind: runnerInside.kind } : null, barSpot: barSpot }), gateInfo: () => ({ stash: !!stashNear(), pack: !!packStashNear(), bag: !!nearBag(), bartender: !!bartenderNear(), story: !!storyNear(), caseN: !!caseNear(), inside: !!runnerInside }),
+    // THUG TEST ONLY: puts him in the house, ground floor, with the three thugs; reports the thugs and the house's wall grid
+    thugEnter: () => { if (!houseBldg) missionHouse(); if (!houseBldg) return null; houseSeen = true; const G0 = window.__G && window.__G.current; if (G0) { G0.inside = houseBldg; G0.floor = 0; } setIndoors(houseBldg, 0); houseThugsStart(); return { x: houseBldg.x + houseBldg.w / 2, y: houseBldg.y + houseBldg.h / 2 }; },
+    thugs: () => (houseThugs || []).map((t) => ({ x: t.x, y: t.y, dead: !!t.dead })),
+    thugNav: () => { if (!houseBldg) return null; const N = thugNavFor(houseBldg); return { bx: N.b.x, by: N.b.y, cs: THUG_CS, nx: N.nx, ny: N.ny, blocked: Array.from(N.blocked) }; },
+    // BAG TEST ONLY: lays the bag out under him (and, with lie, has him lying on it)
+    bagTest: (lie) => { sleepOwned = true; sleepDown = { x: walker.x, y: walker.y + 30, h: BAG_H }; if (lie) lying = { phase: 'rest', t: 0 }; return true; } },
     missionPip: () => (missionOn()) ? { x: MISSION.x, y: MISSION.y } : null,
     // LAYER 690: the world's action (its doAction), which the pad's A runs on foot when no bike is beside him
     setWorldAct: (f) => { worldActHook = f; },
+    // RUNNER SAVES: the look, the cash and the mission stage. The streets and the hunters start fresh on a load.
+    saveData: () => ({ v: 1, t: Date.now(), name: RUNNER_LOOK.name, look: Object.assign({}, RUNNER_LOOK), cash: runnerCash, mission: MISSION.stage }),
+    loadData: (d) => {
+      if (!d || !d.look) return false;
+      RUNNER_API.setLook(d.look);
+      runnerCash = +d.cash || 0;
+      if (d.mission) MISSION.stage = d.mission;
+      missionHidden = false;
+      return true;
+    },
     setLook: (l) => {
       const o = Object.assign({}, l);
       if (o.body && BODY_TYPES[o.body] != null) { RUNNER_LOOK.body = o.body; RUNNER_LOOK.bodyK = BODY_TYPES[o.body]; RUNNER_LOOK.profile = profileFace(o.body); }   // LAYER 704: a new face for the new build
@@ -20780,7 +21451,31 @@ const RUNNER_API = (function () {
       RUNNER_LOOK.chosen = true;
     },
     getLook: () => Object.assign({}, RUNNER_LOOK),
-    faceList: (sex) => (sex === 'female' ? PROFILE_FACES.female.concat(FACE_POOL_FEMALE) : FACE_POOL_MALE),
+    // THE OPENING (v2): the music the opening calls. The named track starts with its own fade; the shuffle picks up after it
+    playTrack: (file) => {
+      try {
+        if (!RUN_ON) return;
+        const i = RUN_SONGS.findIndex((q) => q[0].indexOf(file) >= 0);
+        if (i < 0) return;
+        if (runCur === i && runPhase !== 'gap' && runPhase !== 'idle') return;   // already on it
+        stopSong();
+        runStart(i, 9999);   // the whole track, not a random stretch
+        if (!runTick) runTick = setInterval(runStep, 100);
+      } catch (e) { /* no audio here */ }
+    },
+    songStop: () => { stopSong(); },
+    // THE OPENING (v2): the kit's laser (on stun) and gas mask are in hand, and the first mission is the teammate's
+    // the opening hides the mission's HUD; the lobby shows it. Set by the opening's hideMission, undone by the first mission and by a load
+    hideMission: () => { missionHidden = true; },
+    startFirstMission: () => {
+      missionHidden = false;
+      LASER.has = true; LASER.drawn = false; LASER.mode = 'stun'; LASER.locked = true;
+      gasOwned = true;
+      MISSION.stage = 'teammate'; MISSION.label = 'TEAMMATE';
+    },
+    faceList: (sex) => faceListFor(sex),
+    rankFaces: (sex, skin, hair) => rankFaces(sex, skin, hair),   // LAYER 760: closest first to the skin and hair picked
+    holdingCrew: (suits) => holdingCrew(suits),   // LAYER 761: the runners for the holding tank
     profileSrc: (n) => (n.startsWith('@') ? 'assets/' + n.slice(1) + '.png' : n.startsWith('f_') ? 'assets/faces/' + n.slice(2) + '.png' : 'assets/runner/portraits/' + n + '.png'),   // LAYER 717: the picture file for a face key
     enterLobby: (bx, by) => {
       lobby = true; lobbyBike = streetSpot(bx, by); walker.on = false; pend.exit = false; pend.land = false;
@@ -20826,9 +21521,9 @@ const RB_STATS = ['Speed', 'Strength', 'Stamina', 'Agility', 'Awareness', 'Steal
 const RB_SKINS = ['#ffffff', '#f1d2b3', '#e0b48c', '#c58c5e', '#8d5a3a', '#5c3a24'];
 const RB_BODY = { slim: 'Slim', average: 'Average', athletic: 'Athletic', heavy: 'Heavy', heavy_b: 'Heavy B' };
 // LAYER 694: the pause menu's CHARACTER, INVENTORY and SYSTEM tabs (MAP is the canvas, drawn by the App)
-const RUN_CAT_ORDER = ['weapons', 'equipment', 'food', 'meds', 'drugs', 'cyber'];
-const RUN_CAT_LABEL = { weapons: 'WEAPONS', equipment: 'EQUIPMENT', food: 'FOOD', meds: 'MEDICINE', drugs: 'DRUGS', cyber: 'CYBERWEAR' };
-const RUN_CAT_DESC = { weapons: 'Guns and the like. Drawn from the wheel.', equipment: 'Kit worn or carried: the pack, the mask, the bag.',
+const RUN_CAT_ORDER = ['card', 'weapons', 'equipment', 'food', 'meds', 'drugs', 'cyber'];
+const RUN_CAT_LABEL = { card: 'MONEY', weapons: 'WEAPONS', equipment: 'EQUIPMENT', food: 'FOOD', meds: 'MEDICINE', drugs: 'DRUGS', cyber: 'CYBERWEAR' };
+const RUN_CAT_DESC = { card: 'Your debit card. The Wire pays onto it, and you cash it out or top it up here.', weapons: 'Guns and the like. Drawn from the wheel.', equipment: 'Kit worn or carried: the pack, the mask, the bag.',
   food: 'Eaten to restore a little stamina and health. Not in the world yet.', meds: 'Taken to heal hits and sickness. Not in the world yet.',
   drugs: 'Taken for a while, good and bad. Not in the world yet.', cyber: 'Fitted parts. Installed by a surgeon, not carried.' };
 const CYBER_SLOTS = [['head', 'HEAD', 50, 9], ['chest', 'CHEST', 50, 32], ['spine', 'SPINE', 50, 46], ['armL', 'L ARM', 10, 36], ['armR', 'R ARM', 90, 36],
@@ -20901,7 +21596,34 @@ function MissionLogTab() {
     </div>
   );
 }
-function PauseTabBody({ tab, padSel, acts }) {
+/* the debit card's detail pane: the balance, the two moves (cash out, put cash on), and every transaction on the card */
+function DebitCardPane({ card, acts }) {
+  const btn = (on) => ({ cursor: on ? 'pointer' : 'default', padding: '8px 10px', border: '1px solid ' + (on ? '#e8c46a' : '#2a2a33'),
+    color: on ? '#e8c46a' : '#55555f', background: on ? 'rgba(232,196,106,0.08)' : 'transparent', fontSize: 12, letterSpacing: '0.08em',
+    display: 'flex', justifyContent: 'space-between', gap: 10 });
+  const money = (n) => '$' + Math.round(n).toLocaleString();
+  const L = card.ledger || [];
+  return (
+    <>
+      <div style={{ color: '#e8c46a', fontSize: 15, letterSpacing: '0.12em' }}>DEBIT CARD</div>
+      <div style={{ fontSize: 11, color: '#9a9486', marginTop: 4 }}>MONEY · THE WIRE PAYS ONTO IT</div>
+      <div style={{ fontSize: 24, marginTop: 12, color: '#f1ead8' }}>{money(card.bal)}</div>
+      <div style={{ fontSize: 11, color: '#9a9486', marginBottom: 10 }}>ON THE CARD · CASH ON YOU {money(card.cash)}</div>
+      <div data-padrow="1" onClick={() => { if (card.bal > 0) acts.card('out'); }} style={btn(card.bal > 0)}><span>CASH OUT</span><span>{money(card.bal)}</span></div>
+      <div data-padrow="1" onClick={() => { if (card.cash >= 100) acts.card('add100'); }} style={{ ...btn(card.cash >= 100), marginTop: 6 }}><span>ADD $100 FROM YOUR CASH</span><span>$100</span></div>
+      <div data-padrow="1" onClick={() => { if (card.cash > 0) acts.card('addall'); }} style={{ ...btn(card.cash > 0), marginTop: 6 }}><span>ADD ALL YOUR CASH</span><span>{money(card.cash)}</span></div>
+      {card.said ? <div style={{ fontSize: 11, color: '#e8c46a', marginTop: 8, lineHeight: 1.5 }}>{card.said}</div> : null}
+      <div style={{ fontSize: 10, letterSpacing: '0.2em', color: '#9a9486', marginTop: 16 }}>TRANSACTIONS</div>
+      {L.length ? L.slice(0, 16).map((e, i) => (
+        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12, padding: '5px 0', borderBottom: '1px solid #22222a' }}>
+          <span>{e.nm}</span>
+          <span style={{ color: e.amt >= 0 ? '#6ef0ff' : '#eb8a7a', whiteSpace: 'nowrap' }}>{(e.amt >= 0 ? '+' : '-') + money(Math.abs(e.amt))}</span>
+        </div>)) : (<div style={{ fontSize: 11, color: '#6b6b76', padding: '4px 0' }}>NO TRANSACTIONS YET. WHEN A WIRE HOST OPENS, THE PAY SHOWS UP HERE.</div>)}
+      {L.length > 16 ? <div style={{ fontSize: 10, color: '#6b6b76', marginTop: 6 }}>{L.length - 16} OLDER NOT SHOWN</div> : null}
+    </>
+  );
+}
+function PauseTabBody({ tab, padSel, acts, card }) {
   const frame = { position: 'relative', width: 'min(92vw, 1000px)', maxHeight: '86vh', overflowY: 'auto', display: 'flex', gap: 22, alignItems: 'flex-start',
     padding: '58px 16px 16px', boxSizing: 'border-box', fontFamily: 'ui-monospace, monospace', color: '#f1ead8' };
   const row = (active) => ({ cursor: 'pointer', padding: '7px 10px', border: '1px solid ' + (active ? '#e8c46a' : '#2a2a33'),
@@ -20935,7 +21657,9 @@ function PauseTabBody({ tab, padSel, acts }) {
     );
   }
   if (tab === 2) {
-    const items = RUNNER_API.inventory();
+    /* the debit card is always on you: card = { bal, cash, ledger, said } from the game */
+    const cardItem = card ? { cat: 'card', nm: 'DEBIT CARD', kg: 0, isCard: true, desc: '' } : null;
+    const items = (cardItem ? [cardItem] : []).concat(RUNNER_API.inventory());
     const total = items.reduce((a, it) => a + it.kg, 0);
     const cur = items[padSel];
     return (
@@ -20949,14 +21673,14 @@ function PauseTabBody({ tab, padSel, acts }) {
                 <div style={{ fontSize: 10, letterSpacing: '0.2em', color: '#9a9486' }}>{RUN_CAT_LABEL[cat]}</div>
                 {mine.length ? mine.map((it) => {
                   const i = items.indexOf(it);
-                  return (<div key={i} data-padrow="1" onClick={() => acts.pick(i)} style={row(padSel === i)}><span>{it.nm}</span><span>{it.kg.toFixed(1)} KG</span></div>);
+                  return (<div key={i} data-padrow="1" onClick={() => acts.pick(i)} style={row(padSel === i)}><span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{it.isCard && PD_ART.hud_debit_card && <img src={PD_ART.hud_debit_card} alt="" style={{ width: 22, height: 22, imageRendering: 'pixelated' }} />}<span>{it.nm}</span></span><span>{it.isCard ? '$' + Math.round(card.bal).toLocaleString() : it.kg.toFixed(1) + ' KG'}</span></div>);
                 }) : (<div style={{ fontSize: 11, color: '#6b6b76', padding: '4px 10px' }}>NONE ON YOU YET · {RUN_CAT_DESC[cat]}</div>)}
               </div>
             );
           })}
         </div>
         <div style={{ flex: 1, minWidth: 0, border: '1px solid #3a3a44', padding: 14, minHeight: 220, boxSizing: 'border-box' }}>
-          {cur ? (
+          {cur && cur.isCard ? <DebitCardPane card={card} acts={acts} /> : cur ? (
             <>
               <div style={{ color: '#e8c46a', fontSize: 15, letterSpacing: '0.12em' }}>{cur.nm}</div>
               <div style={{ fontSize: 11, color: '#9a9486', marginTop: 4 }}>{RUN_CAT_LABEL[cur.cat]} · {cur.kg.toFixed(1)} KG</div>
@@ -20984,28 +21708,32 @@ function PauseTabBody({ tab, padSel, acts }) {
     </div>
   );
 }
+/* LAYER 589: the runner builder (v2, Donny's walkthrough). It opens after the intro and runs SEX, HEAD (skin, head, hair), BODY,
+   FACE, NAME. The team colour and the stats moved into the opening (the team pick and the physical), so the builder has neither.
+   START hands over to the opening. Behind it, a random picture from the opening's own set. */
+const RB_BGS = ["title_bg.png", "night_haze_sky.png", "sky_view_raven_hook.png", "street_side_view.png"];
+// the name lists for the runner (the builder's last step): CUSTOM comes first, then these, by sex
+const RB_NAMES = {
+  female: ["ANGELA", "BRENDA", "CHERYL", "DEBRA", "DIANE", "ELAINE", "GAIL", "HOLLY", "JOAN", "KAREN", "LINDA", "MARTHA", "NORA", "PAULA", "RITA", "SANDRA", "TERRI", "VICKI", "WENDY", "ALICE", "BETTY", "CAROL", "DONNA", "EVELYN", "FAYE", "GRACE", "IVY", "JUNE", "LOIS", "MAUREEN", "NELL", "OPAL", "PEARL", "ROSE", "SHEILA", "TINA", "ALMA", "BARB", "CONNIE", "DARLENE", "ETHEL", "FLORA", "GWEN", "HAZEL", "INEZ", "JOYCE", "KIM", "LILLIAN", "MARLENE", "NINA", "ODETTE", "PENNY", "QUINN", "REGINA", "STELLA", "TRACY", "URSULA", "VALERIE", "WILMA", "ZELDA", "ANITA", "BONNIE", "COLLEEN", "DANA", "ERIN", "FRAN", "GENEVA", "HEIDI", "JOLENE", "KELLY", "LAURA", "MEGAN", "NICOLE", "PAMELA", "RENEE", "SHERRI", "TERESA", "VIVIAN", "AMBER", "CHLOE", "DELIA", "ESTHER", "GLENDA", "IRIS", "JANE", "LEAH", "MIRIAM", "NOELLE", "PRISCILLA", "ROXANNE", "SIMONE", "TAMMY", "VELMA", "YOLANDA", "ADRIENNE", "BELINDA", "CELESTE", "DEANNA", "LUCILLE", "DORIS"],
+  male: ["ANDY", "BOBBY", "CARL", "DARYL", "ELMER", "GLENN", "HAROLD", "IVAN", "JIMMY", "KENNY", "LEON", "MARTY", "NEIL", "ORVILLE", "PHIL", "RAY", "SAMMY", "TED", "WAYNE", "ALBERT", "BRUCE", "CHUCK", "DWIGHT", "EARL", "FELIX", "GUS", "HANK", "IRA", "JOEY", "LONNIE", "MITCH", "NICK", "PETE", "RUSS", "SAL", "TONY", "VIC", "WALT", "ARNIE", "BILLY", "CLYDE", "DON", "ERNIE", "GARY", "HUGO", "JOHNNY", "LARRY", "MIKE", "NATE", "OSWALD", "PAUL", "ROY", "STEVE", "TOMMY", "VINCE", "WILLIE", "ABE", "BENNY", "CURT", "DUANE", "EUGENE", "FRED", "GREG", "JEFF", "KEVIN", "LENNY", "MARVIN", "NORM", "PATRICK", "RUDY", "SONNY", "TERRY", "WARREN", "ALAN", "BARNEY", "CRAIG", "DALE", "EMMETT", "FRANKIE", "GIL", "HARVEY", "JACK", "KURT", "LOU", "MAX", "NED", "OLLIE", "PERRY", "REX", "SETH", "TREVOR", "WES", "ZACH", "AUGIE", "BRIAN", "CHRIS", "DANNY", "EDDIE", "GEORGE", "JOEL"],
+};
+const RB_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
 function RunnerBuilder({ onStart, onCancel }) {
   const [step, setStep] = useState(0);
   const [head, setHead] = useState(null);
   const [sex, setSex] = useState(null);   // LAYER 684: male or female, chosen first
   const [body, setBody] = useState('big');
-  const [suit, setSuit] = useState(null);
   const [skin, setSkin] = useState(null);
   const [hair, setHair] = useState(null);   // LAYER 690: the hair colour, picked after the head (heads with hair only)
   const [face, setFace] = useState(null);   // LAYER 710: the portrait for the pause screen and the talk boxes; null = a random one for the build
-  const [stats, setStats] = useState(() => Object.fromEntries(RB_STATS.map((k) => [k, 1])));
   const [name, setName] = useState('RUNNER');
+  const [lettering, setLettering] = useState(false);   // the CUSTOM letter picker is open (the name step)
+  const [custom, setCustom] = useState('');             // the name spelled on the letter picker, 14 letters at most
+  const customNow = useRef('');
+  customNow.current = custom;
+  const [bg] = useState(() => RB_BGS[Math.floor(Math.random() * RB_BGS.length)]);   // the builder's random scene
   const heads = RUNNER_API.heads();
-  const suits = RUNNER_API.suits();
-  const RSUITS = suits;   // LAYER 736: RSUITS lives inside the runner's IIFE, so the builder takes its own copy (the colour step and START read it)
-  const spent = RB_STATS.reduce((a, k) => a + stats[k] - 1, 0);
-  const left = 20 - spent;
-  const bump = (k, d) => setStats((o) => {
-    const v = o[k] + d;
-    if (v < 1 || v > 10) return o;
-    if (d > 0 && left <= 0) return o;
-    return { ...o, [k]: v };
-  });
   const headKey = head ? head[1] : null;
   const btn = (on) => ({ padding: '8px 14px', border: '1px solid #6ef0ff', background: on ? 'rgba(110,240,255,0.18)' : 'rgba(10,11,14,0.72)',
     color: '#6ef0ff', fontSize: 12, letterSpacing: '0.2em', cursor: 'pointer', userSelect: 'none', opacity: on === false ? 0.35 : 1 });
@@ -21015,149 +21743,814 @@ function RunnerBuilder({ onStart, onCancel }) {
     setBody(v === 'female' ? 'female' : (body === 'female' ? 'big' : body));
     if (head && (head[0] === 'female') !== (v === 'female')) setHead(null);
   };
-  const canNext = step === 0 ? !!sex : step === 5 ? left === 0 : true;
-  const steps = ['SEX', 'HEAD', 'BODY', 'COLOURS', 'FACE', 'STATS', 'NAME'];
-  const go = (n) => setStep(Math.max(0, Math.min(6, n)));
+  const steps = ['SEX', 'HEAD', 'BODY', 'FACE', 'NAME'];
+  const last = steps.length - 1;
+  const canNext = step === 0 ? !!sex : true;
+  const go = (n) => setStep(Math.max(0, Math.min(last, n)));
+  // the pad: the D-pad or the left stick moves a focus ring over the panel's buttons, A presses the one in focus, B goes back.
+  // The buttons are the ones the panel draws with a pointer cursor. A button already down when the builder opens does not count.
+  // the letter picker: a letter adds to the name (14 at most; no leading or double spaces), DEL takes one away, DONE keeps it
+  const addChar = (c) => setCustom((p) => (p.length >= 14 || (c === ' ' && (p === '' || p.endsWith(' '))) ? p : p + c));
+  const doneLetters = () => { const v = customNow.current.trim(); if (v) setName(v); setLettering(false); };
+  const nameTile = (on, isCustom) => ({ padding: '7px 4px', textAlign: 'center', fontSize: 12, letterSpacing: '0.08em', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+    border: `1px ${isCustom ? 'dashed' : 'solid'} ${on ? '#fff' : '#6ef0ff'}`, background: on ? 'rgba(110,240,255,0.18)' : 'rgba(10,11,14,0.72)',
+    color: on ? '#fff' : '#6ef0ff', cursor: 'pointer', userSelect: 'none' });
+  const letterKey = { padding: '8px 0', textAlign: 'center', fontSize: 14, border: '1px solid #6ef0ff', background: 'rgba(10,11,14,0.72)', color: '#6ef0ff', cursor: 'pointer', userSelect: 'none' };
+  const panelRef = useRef(null);
+  const padFocus = useRef(null);
+  const padNow = useRef({});
+  padNow.current = { go, onCancel, step, last, lettering, closeLetters: () => setLettering(false) };
+  useEffect(() => {
+    const items = () => (panelRef.current ? [...panelRef.current.querySelectorAll('[style*="cursor: pointer"]')] : []);
+    const focus = (el) => {
+      if (padFocus.current && padFocus.current !== el) padFocus.current.style.outline = '';
+      padFocus.current = el;
+      if (el) { el.style.outline = '2px solid #fff'; el.style.outlineOffset = '2px'; el.scrollIntoView({ block: 'nearest' }); }
+    };
+    // the next button that way: the nearest one in the same row (left/right) or column (up/down); if there is none, the nearest that way
+    const near = (dir, cur, els) => {
+      const r = cur.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const horiz = dir === 'left' || dir === 'right';
+      let band = null, bandS = Infinity, any = null, anyS = Infinity;
+      for (const e of els) {
+        if (e === cur) continue;
+        const q = e.getBoundingClientRect(), dx = q.left + q.width / 2 - cx, dy = q.top + q.height / 2 - cy;
+        const along = dir === 'left' ? -dx : dir === 'right' ? dx : dir === 'up' ? -dy : dy;
+        if (along <= 1) continue;
+        const across = horiz ? Math.abs(dy) : Math.abs(dx);
+        const inBand = horiz ? (q.top < r.bottom - 2 && q.bottom > r.top + 2) : (q.left < r.right - 2 && q.right > r.left + 2);
+        if (inBand && along < bandS) { bandS = along; band = e; }
+        const s = along + 2 * across;
+        if (s < anyS) { anyS = s; any = e; }
+      }
+      return band || any;
+    };
+    const act = (a) => {
+      const s = padNow.current;
+      if (a === 'back') { if (s.lettering) { s.closeLetters(); return; } if (s.step === 0) s.onCancel(); else s.go(s.step - 1); return; }
+      const els = items();
+      if (!els.length) return;
+      if (!padFocus.current || !padFocus.current.isConnected) { focus(els[0]); return; }   // the first press shows the focus ring
+      if (a === 'ok') { padFocus.current.click(); return; }
+      const n = near(a, padFocus.current, els);
+      if (n) focus(n);
+    };
+    const held = (gp) => {
+      const h = { ok: false, back: false, up: false, down: false, left: false, right: false };
+      if (!gp) return h;
+      h.ok = !!(gp.buttons[0] && gp.buttons[0].pressed);
+      h.back = !!(gp.buttons[1] && gp.buttons[1].pressed);
+      h.up = !!(gp.buttons[12] && gp.buttons[12].pressed) || gp.axes[1] < -0.6;
+      h.down = !!(gp.buttons[13] && gp.buttons[13].pressed) || gp.axes[1] > 0.6;
+      h.left = !!(gp.buttons[14] && gp.buttons[14].pressed) || gp.axes[0] < -0.6;
+      h.right = !!(gp.buttons[15] && gp.buttons[15].pressed) || gp.axes[0] > 0.6;
+      return h;
+    };
+    const padOf = () => [...(navigator.getGamepads ? navigator.getGamepads() : [])].find((q) => q && q.connected) || null;
+    let prevH = held(padOf());
+    const id = setInterval(() => {
+      const h = held(padOf());
+      for (const a of Object.keys(h)) if (h[a] && !prevH[a]) act(a);
+      prevH = h;
+    }, 30);   // 30 ms, not 80: a short press between two polls was being missed
+    return () => { clearInterval(id); if (padFocus.current) padFocus.current.style.outline = ''; };
+  }, []);
+  // the letter picker takes the keyboard too (captured, so the letters do not walk the runner): letters, SPACE, BACKSPACE, ENTER = done, ESCAPE = leave
+  useEffect(() => {
+    if (!lettering) return;
+    const onKey = (e) => {
+      const k = e.key;
+      if (/^[a-zA-Z]$/.test(k)) addChar(k.toUpperCase());
+      else if (k === ' ') addChar(' ');
+      else if (k === 'Backspace') setCustom((p) => p.slice(0, -1));
+      else if (k === 'Enter') doneLetters();
+      else if (k === 'Escape') setLettering(false);
+      else return;
+      e.preventDefault(); e.stopPropagation();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [lettering]);
+  // LAYER 760: the pictures closest to the head as it is now (the hair counts only when this head has hair)
+  const faceRanked = () => RUNNER_API.rankFaces(sex || 'male', skin, headKey && RUNNER_API.hasHair(headKey) ? hair : null);
+  const rankedNow = step === 3 ? faceRanked() : [];   // once per render, not once per tile
+  // the look the builder owns; the team colour and the stats come in the opening
   const finish = () => {
-    RUNNER_API.setLook({ profile: face || null, head: headKey || (sex === 'female' ? 'head_swirl' : 'mhead_curly'), body, suit: suit || RSUITS[0], skin: skin || null, hair: headKey && RUNNER_API.hasHair(headKey) ? hair : null, name: (name || 'RUNNER').trim() || 'RUNNER',
-      stats: Object.fromEntries(RB_STATS.map((k) => [k, stats[k]])) });
+    RUNNER_API.setLook({ profile: face || faceRanked()[0], head: headKey || (sex === 'female' ? 'head_swirl' : 'mhead_curly'), body, skin: skin || null,
+      hair: headKey && RUNNER_API.hasHair(headKey) ? hair : null, name: (name || 'RUNNER').trim() || 'RUNNER' });
     onStart();
   };
   return (
-    <div style={{ pointerEvents: 'auto', position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
-      width: 'min(92vw, 520px)', maxHeight: '90vh', overflowY: 'auto', padding: 18, background: 'rgba(10,11,14,0.86)',
-      border: '1px solid #6ef0ff', color: '#e6fbff', fontFamily: 'inherit' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div style={{ fontSize: 13, letterSpacing: '0.3em', color: '#6ef0ff' }}>RUNNER BUILDER</div>
-        <div style={{ fontSize: 11, letterSpacing: '0.2em', opacity: 0.8 }}>{step + 1} / 7 · {steps[step]}</div>
-      </div>
+    <>
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', backgroundImage: `url(${RO_DIR + bg})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.6 }} />
+      <div ref={panelRef} style={{ pointerEvents: 'auto', position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
+        width: 'min(92vw, 520px)', maxHeight: '90vh', overflowY: 'auto', padding: 18, background: 'rgba(10,11,14,0.86)',
+        border: '1px solid #6ef0ff', color: '#e6fbff', fontFamily: 'inherit' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 13, letterSpacing: '0.3em', color: '#6ef0ff' }}>RUNNER BUILDER</div>
+          <div style={{ fontSize: 11, letterSpacing: '0.2em', opacity: 0.8 }}>{step + 1} / {steps.length} · {steps[step]}</div>
+        </div>
 
-      {step === 0 && (<div>
-        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Male or female</div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          {[['male', 'MALE'], ['female', 'FEMALE']].map(([v, lab]) => (
-            <div key={v} onClick={() => chooseSex(v)}
-              style={{ ...btn(true), flex: 1, textAlign: 'center', padding: '18px 10px', border: sex === v ? '2px solid #fff' : '1px solid #6ef0ff', background: sex === v ? 'rgba(110,240,255,0.28)' : 'rgba(110,240,255,0.08)' }}>{lab}</div>
-          ))}
-        </div>
-      </div>)}
-
-      {step === 1 && (<div>
-        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Skin tone</div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          {RB_SKINS.map((c) => (
-            <div key={c} onClick={() => setSkin(c)}
-              style={{ width: 34, height: 34, background: c, cursor: 'pointer',
-                border: skin === c ? '3px solid #fff' : '2px solid rgba(0,0,0,0.5)' }} />
-          ))}
-        </div>
-        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick a head</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 8 }}>
-          {heads.filter(([s]) => (s === 'female') === (sex === 'female')).map(([s, nm]) => {
-            const on = headKey === nm;
-            return (<div key={nm} onClick={() => setHead([s, nm])}
-              style={{ border: on ? '2px solid #6ef0ff' : '1px solid rgba(110,240,255,0.35)', background: 'rgba(255,255,255,0.04)',
-                padding: 4, cursor: 'pointer', textAlign: 'center' }}>
-              <img src={RUNNER_API.headPreview(nm, skin || '#ffffff', hair) || ''} alt="" style={{ width: '100%', imageRendering: 'auto' }} />
-            </div>);
-          })}
-        </div>
-        {headKey && RUNNER_API.hasHair(headKey) && (<div>
-          <div style={{ fontSize: 12, opacity: 0.8, margin: '12px 0 8px' }}>Hair colour</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {RUNNER_API.hairs().map((c) => (
-              <div key={c} onClick={() => setHair(c)}
-                style={{ width: 34, height: 34, background: c, cursor: 'pointer', border: (hair || RUNNER_API.hairs()[0]) === c ? '3px solid #fff' : '2px solid rgba(0,0,0,0.5)' }} />
+        {step === 0 && (<div>
+          <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Male or female</div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            {[['male', 'MALE'], ['female', 'FEMALE']].map(([v, lab]) => (
+              <div key={v} onClick={() => chooseSex(v)}
+                style={{ ...btn(true), flex: 1, textAlign: 'center', padding: '18px 10px', border: sex === v ? '2px solid #fff' : '1px solid #6ef0ff', background: sex === v ? 'rgba(110,240,255,0.28)' : 'rgba(110,240,255,0.08)' }}>{lab}</div>
             ))}
           </div>
         </div>)}
-      </div>)}
 
-      {step === 2 && (<div>
-        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>{sex === 'female' ? 'Female build' : 'Male build'}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 8 }}>
-          {RUNNER_API.bodyList(sex).map((k) => {
-            const on = body === k;
-            return (<div key={k} onClick={() => setBody(k)}
-              style={{ border: on ? '2px solid #6ef0ff' : '1px solid rgba(110,240,255,0.35)', background: 'rgba(255,255,255,0.04)', padding: 4, cursor: 'pointer', textAlign: 'center' }}>
-              <img src={'assets/runner/' + RUNNER_API.bodyFile(k)} alt="" style={{ width: '100%', imageRendering: 'auto' }} />
-              <div style={{ fontSize: 11, letterSpacing: '0.16em', marginTop: 4 }}>{k.toUpperCase()}</div>
-            </div>);
-          })}
-        </div>
-      </div>)}
-
-      {step === 3 && (<div>
-        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick your suit colour</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          {suits.map((c) => (
-            <div key={c} onClick={() => setSuit(c)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
-              <div style={{ width: 48, height: 48, borderRadius: 24, background: c,
-                border: (suit || RSUITS[0]) === c ? '3px solid #fff' : '2px solid rgba(0,0,0,0.5)' }} />
-              <div style={{ fontSize: 10, letterSpacing: '0.14em', opacity: 0.85 }}>{RUNNER_API.news.teamName(c)}</div>
-            </div>
-          ))}
-        </div>
-      </div>)}
-
-      {step === 4 && (<div>
-        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick your face: it is the one on the pause screen and in the talk boxes</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: 8, maxHeight: '52vh', overflowY: 'auto', paddingRight: 4 }}>
-          {RUNNER_API.faceList(sex).map((f) => { const on = face === f; return (<div key={f} onClick={() => setFace(f)}
-            style={{ border: on ? '2px solid #6ef0ff' : '1px solid rgba(110,240,255,0.35)', background: 'rgba(255,255,255,0.04)', padding: 4, cursor: 'pointer', textAlign: 'center', boxShadow: on ? '0 0 10px #6ef0ff' : 'none' }}>
-            <img src={RUNNER_API.profileSrc(f)} alt="" style={{ width: '100%', aspectRatio: '3 / 4', objectFit: 'cover', imageRendering: 'auto' }} />
-            <div style={{ fontSize: 10, letterSpacing: '0.12em', marginTop: 4 }}>{(f.startsWith('@') ? (f.includes('pm_d_') ? 'D' : f.split('/').pop().replace(/^pt_/, '').replace(/_/g, ' ')) : f.startsWith('f_') ? f.slice(2).replace(/_/g, ' ') : f.replace('_', ' ')).toUpperCase()}</div>
-          </div>); })}
-        </div>
-        <div onClick={() => setFace(null)} style={{ ...btn(true), marginTop: 10, padding: '4px 10px' }}>RANDOM</div>
-      </div>)}
-
-      {step === 5 && (<div>
-        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Spend 20 points · {left} left</div>
-        {RB_STATS.map((k) => (
-          <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0' }}>
-            <div style={{ fontSize: 13, letterSpacing: '0.12em' }}>{k.toUpperCase()}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div onClick={() => bump(k, -1)} style={{ ...btn(stats[k] > 1), padding: '2px 10px' }}>−</div>
-              <div style={{ width: 24, textAlign: 'center' }}>{stats[k]}</div>
-              <div onClick={() => bump(k, 1)} style={{ ...btn(stats[k] < 10 && left > 0), padding: '2px 10px' }}>+</div>
-            </div>
+        {step === 1 && (<div>
+          <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Skin tone</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            {RB_SKINS.map((c) => (
+              <div key={c} onClick={() => setSkin(c)}
+                style={{ width: 34, height: 34, background: c, cursor: 'pointer',
+                  border: skin === c ? '3px solid #fff' : '2px solid rgba(0,0,0,0.5)' }} />
+            ))}
           </div>
-        ))}
-      </div>)}
+          <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick a head</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 8 }}>
+            {heads.filter(([s]) => (s === 'female') === (sex === 'female')).map(([s, nm]) => {
+              const on = headKey === nm;
+              return (<div key={nm} onClick={() => setHead([s, nm])}
+                style={{ border: on ? '2px solid #6ef0ff' : '1px solid rgba(110,240,255,0.35)', background: 'rgba(255,255,255,0.04)',
+                  padding: 4, cursor: 'pointer', textAlign: 'center' }}>
+                <img src={RUNNER_API.headPreview(nm, skin || '#ffffff', hair) || ''} alt="" style={{ width: '100%', imageRendering: 'auto' }} />
+              </div>);
+            })}
+          </div>
+          {headKey && RUNNER_API.hasHair(headKey) && (<div>
+            <div style={{ fontSize: 12, opacity: 0.8, margin: '12px 0 8px' }}>Hair colour</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {RUNNER_API.hairs().map((c) => (
+                <div key={c} onClick={() => setHair(c)}
+                  style={{ width: 34, height: 34, background: c, cursor: 'pointer', border: (hair || RUNNER_API.hairs()[0]) === c ? '3px solid #fff' : '2px solid rgba(0,0,0,0.5)' }} />
+              ))}
+            </div>
+          </div>)}
+        </div>)}
 
-      {step === 6 && (<div>
-        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Name yourself</div>
-        <input value={name} maxLength={14} onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.stopPropagation()} onKeyUp={(e) => e.stopPropagation()}
-          style={{ width: '100%', boxSizing: 'border-box', padding: 10, background: 'rgba(0,0,0,0.5)', color: '#6ef0ff',
-            border: '1px solid #6ef0ff', fontSize: 16, letterSpacing: '0.2em' }} />
-      </div>)}
+        {step === 2 && (<div>
+          <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>{sex === 'female' ? 'Female build' : 'Male build'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 8 }}>
+            {RUNNER_API.bodyList(sex).map((k) => {
+              const on = body === k;
+              return (<div key={k} onClick={() => setBody(k)}
+                style={{ border: on ? '2px solid #6ef0ff' : '1px solid rgba(110,240,255,0.35)', background: 'rgba(255,255,255,0.04)', padding: 4, cursor: 'pointer', textAlign: 'center' }}>
+                <img src={'assets/runner/' + RUNNER_API.bodyFile(k)} alt="" style={{ width: '100%', imageRendering: 'auto' }} />
+                <div style={{ fontSize: 11, letterSpacing: '0.16em', marginTop: 4 }}>{k.toUpperCase()}</div>
+              </div>);
+            })}
+          </div>
+        </div>)}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, gap: 10, flexWrap: 'wrap' }}>
-        <div onClick={() => (step === 0 ? onCancel() : go(step - 1))} style={btn(true)}>{step === 0 ? 'EXIT' : 'BACK'}</div>
-        {step < 6 && <div onClick={() => { if (canNext) go(step + 1); }} style={btn(canNext)}>NEXT</div>}
-        {step === 6 && <div onClick={finish} style={btn(true)}>START</div>}
+        {step === 3 && (<div>
+          <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick your face: it is the one on the pause screen and in the talk boxes. Closest to your skin and hair first.</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: 8, maxHeight: '52vh', overflowY: 'auto', paddingRight: 4 }}>
+            {rankedNow.map((f, i) => { const on = (face || rankedNow[0]) === f; return (<div key={f} onClick={() => setFace(f)}
+              style={{ border: on ? '2px solid #6ef0ff' : '1px solid rgba(110,240,255,0.35)', background: 'rgba(255,255,255,0.04)', padding: 4, cursor: 'pointer', textAlign: 'center', boxShadow: on ? '0 0 10px #6ef0ff' : 'none' }}>
+              <img src={RUNNER_API.profileSrc(f)} alt="" style={{ width: '100%', aspectRatio: '3 / 4', objectFit: 'cover', imageRendering: 'auto' }} />
+              <div style={{ fontSize: 10, letterSpacing: '0.12em', marginTop: 4 }}>{i === 0 ? 'CLOSEST' : (f.startsWith('@') ? (f.includes('pm_d_') ? 'D' : f.split('/').pop().replace(/^pt_/, '').replace(/_/g, ' ')) : f.startsWith('f_') ? f.slice(2).replace(/_/g, ' ') : f.replace('_', ' ')).toUpperCase()}</div>
+            </div>); })}
+          </div>
+          <div onClick={() => setFace(null)} style={{ ...btn(true), marginTop: 10, padding: '4px 10px' }}>CLOSEST MATCH</div>
+        </div>)}
+
+        {step === 4 && !lettering && (<div>
+          <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Pick a name, or CUSTOM to spell your own · <span style={{ color: '#fff' }}>{name}</span></div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, maxHeight: '44vh', overflowY: 'auto', paddingRight: 4 }}>
+            <div onClick={() => setLettering(true)} style={nameTile(!!custom && name === custom, true)}>CUSTOM{custom ? <div style={{ fontSize: 10, opacity: 0.85, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis' }}>{custom}</div> : null}</div>
+            {(sex === 'female' ? RB_NAMES.female : RB_NAMES.male).map((n) => (<div key={n} onClick={() => setName(n)} style={nameTile(name === n, false)}>{n}</div>))}
+          </div>
+        </div>)}
+        {step === 4 && lettering && (<div>
+          <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>Spell your name · up to 14 letters</div>
+          <div style={{ minHeight: 22, padding: '10px 12px', marginBottom: 10, boxSizing: 'border-box', border: '1px solid #6ef0ff', background: 'rgba(0,0,0,0.5)', color: '#6ef0ff', fontSize: 16, letterSpacing: '0.2em' }}>
+            {custom}<span style={{ opacity: 0.5 }}>_</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: 6 }}>
+            {RB_LETTERS.map((L) => (<div key={L} onClick={() => addChar(L)} style={letterKey}>{L}</div>))}
+          </div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+            <div onClick={() => addChar(' ')} style={{ ...btn(true), flex: 1, textAlign: 'center' }}>SPACE</div>
+            <div onClick={() => setCustom((p) => p.slice(0, -1))} style={{ ...btn(true), flex: 1, textAlign: 'center' }}>DEL</div>
+            <div onClick={doneLetters} style={{ ...btn(true), flex: 1, textAlign: 'center' }}>DONE</div>
+          </div>
+        </div>)}
+
+        {!lettering && (<div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, gap: 10, flexWrap: 'wrap' }}>
+          <div onClick={() => (step === 0 ? onCancel() : go(step - 1))} style={btn(true)}>{step === 0 ? 'EXIT' : 'BACK'}</div>
+          {step < last && <div onClick={() => { if (canNext) go(step + 1); }} style={btn(canNext)}>NEXT</div>}
+          {step === last && <div onClick={finish} style={btn(true)}>START</div>}
+        </div>)}
+      </div>
+    </>
+  );
+}
+
+/* RUNNER SAVES: three slots of their own, apart from the story's four. A slot keeps the look, the cash and the mission
+   stage; the streets and the hunters start fresh on a load. */
+const RUN_SAVE_SLOTS = 3;
+let runSlot = 1;   // the slot the pause menu's SAVE GAME and LOAD GAME use (the title sets it too)
+const runSaveKey = (n) => "ironlion.runner.save.s" + n;
+function runSaveRead(n) { try { const raw = window.localStorage.getItem(runSaveKey(n)); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } }
+function runSaveWrite(n) { try { window.localStorage.setItem(runSaveKey(n), JSON.stringify(RUNNER_API.saveData())); runSlot = n; return true; } catch (e) { return false; } }
+function runSaveList() {
+  return Array.from({ length: RUN_SAVE_SLOTS }, (_, i) => {
+    const n = i + 1, o = runSaveRead(n), tm = o ? +o.t || 0 : 0;
+    return { n, on: n === runSlot, empty: !o, name: o ? o.name || "RUNNER" : "", cash: o ? Math.round(o.cash || 0) : 0, tm,
+      when: tm ? new Date(tm).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "" };
+  });
+}
+function runSaveNewest() { let best = 0, bt = -1; for (const q of runSaveList()) if (!q.empty && q.tm > bt) { bt = q.tm; best = q.n; } return best; }
+
+/* THE TITLE'S TV: the show, its host, its co-host and the eight hunters, looping behind the menu. The hunters are the
+   game's own eight (HUNT_ART and their names in the table above). */
+const RT_SHOW = "RAVEN CITY RUN";
+const RT_HOST = { name: "VERNON PIKE", role: "HOST", pic: "assets/runner/portraits/host_portrait.png" };
+const RO_COWALK = "assets/runner/tv/cohost_topdown_walk.png";   // the co-host, top-down: 8 walk frames in one strip (165 x 250 each)
+const RT_CO = { name: "NADINE CROSS", role: "CO-HOST", pic: "assets/runner/tv/cohost_front_bun.png", sprite: "assets/runner/tv/cohost_front_bun.png" };   // the TV girl's name is proposed; her mood set is assets/runner/opening_scene/
+const RT_HUNTERS = [["lockjaw", "MERCER DANE"], ["ruth", "RUTH OKONKWO-HALE"], ["vince", "VINCE TALLANT"], ["dana", "DANA QUILL"],
+  ["sully", "SULLY BRANDT"], ["silk", "SILK"], ["gus", "GUS PELTIER"], ["hollis", "HOLLIS WREN"]];
+const RT_SCENES = [["star", 2400], ["host", 3400], ["co", 3000], ["hunt", 5200], ["show", 4200]];   // [scene, ms]
+const RT_GOLD = "#e8c46a";
+const RT_CSS = "@keyframes rtFade{from{opacity:0}to{opacity:1}}"
+  + "@keyframes rtRise{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:none}}"
+  + "@keyframes rtFlick{0%,100%{opacity:1}6%{opacity:.3}9%{opacity:1}38%{opacity:.75}41%{opacity:1}71%{opacity:.6}74%{opacity:1}}"
+  + "@keyframes rtSweep{from{background-position:120% 0}to{background-position:-120% 0}}";
+
+function RunnerTitle({ onNew, onLoad, onBack }) {
+  const [scene, setScene] = useState(0);
+  const [menu, setMenu] = useState("main");   // "main", or "load" for the three slots
+  useEffect(() => {
+    const t = setTimeout(() => setScene((s) => (s + 1) % RT_SCENES.length), RT_SCENES[scene][1]);
+    return () => clearTimeout(t);
+  }, [scene]);
+  const saves = runSaveList();
+  const newest = runSaveNewest();
+  const key = RT_SCENES[scene][0];
+  const mb = (on) => ({ padding: "11px 18px", border: "1px solid " + (on === false ? "rgba(232,217,181,0.22)" : "#d9a441"),
+    background: "rgba(10,11,14,0.8)", color: on === false ? "rgba(232,217,181,0.3)" : "#f2dc9a", fontSize: 12,
+    letterSpacing: "0.28em", cursor: on === false ? "default" : "pointer", userSelect: "none", textAlign: "center",
+    boxShadow: on === false ? "none" : "0 0 18px rgba(217,164,65,0.16)" });
+  const sceneBody = (() => {
+    if (key === "star") return (
+      <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", animation: "rtRise .8s ease both" }}>
+        <div style={{ fontSize: "6cqw", letterSpacing: "0.5em", color: RT_GOLD, textShadow: "0 0 18px rgba(232,196,106,0.7)" }}>STARRING</div>
+      </div>);
+    if (key === "host") return (
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", animation: "rtRise .7s ease both" }}>
+        <img src={RT_HOST.pic} alt="" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} style={{ height: "62cqh", objectFit: "contain" }} />
+        <div style={{ marginTop: "2cqh", fontSize: "5.4cqw", letterSpacing: "0.2em", color: "#f2e6c4" }}>{RT_HOST.name}</div>
+        <div style={{ marginTop: "0.6cqh", fontSize: "3.2cqw", letterSpacing: "0.42em", color: RT_GOLD }}>{RT_HOST.role}</div>
+      </div>);
+    if (key === "co") return (
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", animation: "rtRise .7s ease both" }}>
+        <img src={RT_CO.pic} alt="" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} style={{ height: "62cqh", objectFit: "contain" }} />
+        <div style={{ marginTop: "2cqh", fontSize: "5.4cqw", letterSpacing: "0.2em", color: "#f2e6c4" }}>{RT_CO.name}</div>
+        <div style={{ marginTop: "0.6cqh", fontSize: "3.2cqw", letterSpacing: "0.42em", color: RT_GOLD }}>{RT_CO.role}</div>
+      </div>);
+    if (key === "hunt") return (
+      <div style={{ height: "100%", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridTemplateRows: "repeat(2, 1fr)", gap: "1.5cqw", padding: "4cqh 3cqw" }}>
+        {RT_HUNTERS.map(([k, nm], i) => (
+          <div key={k} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", minHeight: 0, animation: "rtRise .6s ease " + (i * 0.35) + "s both" }}>
+            <img src={"assets/runner/opening_scene/hunter_" + k + ".png"} alt="" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}
+              style={{ height: "30cqh", objectFit: "contain" }} />
+            <div style={{ marginTop: "1cqh", fontSize: "2.1cqw", letterSpacing: "0.06em", color: "#e8d9b5", textAlign: "center", lineHeight: 1.2 }}>{nm}</div>
+          </div>))}
+      </div>);
+    return (
+      <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3cqw" }}>
+        <div style={{ fontWeight: 800, fontSize: "8.4cqw", letterSpacing: "0.08em", textAlign: "center", lineHeight: 1.05, whiteSpace: "nowrap",
+          background: "linear-gradient(100deg, #9a5a14 36%, #fff0b8 50%, #9a5a14 64%)", backgroundSize: "260% 100%",
+          WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
+          filter: "drop-shadow(0 0 10px rgba(240,170,70,0.7))",
+          animation: "rtSweep 2.4s linear infinite, rtFlick 3.6s steps(1) infinite" }}>{RT_SHOW}</div>
+      </div>);
+  })();
+  return (
+    <div style={{ position: "absolute", inset: 0, background: "#050507", overflow: "hidden", pointerEvents: "auto" }}>
+      <style>{RT_CSS}</style>
+      <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
+        width: "max(100vw, calc(100vh * 1.8162))", height: "max(100vh, calc(100vw / 1.8162))" }}>
+        <img src="assets/runner/opening_scene/title_bg.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "fill" }} />
+        {/* the TV screen in the picture: the sequence plays inside it */}
+        <div style={{ position: "absolute", left: "35.6%", top: "12.2%", width: "28.7%", height: "45%", background: "#000", overflow: "hidden",
+          containerType: "size", boxShadow: "0 0 30px rgba(232,196,106,0.25)" }}>
+          <div key={scene} style={{ position: "absolute", inset: 0, animation: "rtFade .5s ease both" }}>{sceneBody}</div>
+          <div style={{ position: "absolute", inset: 0, pointerEvents: "none",
+            background: "repeating-linear-gradient(0deg, rgba(0,0,0,0.28) 0 1px, transparent 1px 3px)" }} />
+        </div>
+      </div>
+      {/* THE MENU: in the foreground, usable at any time while the TV plays behind it */}
+      <div style={{ position: "absolute", left: "50%", bottom: "7%", transform: "translateX(-50%)", width: "min(82vw, 300px)",
+        display: "flex", flexDirection: "column", gap: 10 }}>
+        {menu === "main" ? (<>
+          <div onClick={onNew} style={mb()}>NEW GAME</div>
+          <div onClick={() => { if (saves.some((q) => !q.empty)) setMenu("load"); }} style={mb(saves.some((q) => !q.empty))}>LOAD GAME</div>
+          <div onClick={() => { if (newest) onLoad(newest); }} style={mb(!!newest)}>{"CONTINUE" + (newest ? " · SLOT " + newest : "")}</div>
+          <div onClick={onBack} style={mb()}>BACK</div>
+        </>) : (<>
+          {saves.map((q) => (
+            <div key={q.n} onClick={() => { if (!q.empty) onLoad(q.n); }}
+              style={{ ...mb(q.empty ? false : true), padding: "9px 14px", textAlign: "left", letterSpacing: "0.12em", lineHeight: 1.5, fontSize: 11 }}>
+              <div style={{ fontWeight: 700 }}>{"SLOT " + q.n + (q.on && !q.empty ? " · LAST USED" : "")}</div>
+              <div>{q.empty ? "EMPTY" : q.name + " · $" + q.cash.toLocaleString() + " · " + q.when}</div>
+            </div>))}
+          <div onClick={() => setMenu("main")} style={mb()}>BACK</div>
+        </>)}
       </div>
     </div>
   );
 }
 
-function RunnerShell({ onExit, onStart }) {
-  const [built, setBuilt] = useState(false);
+/* THE RUNNER'S OPENING (v2, Donny's walkthrough). Order: the intro (welcome, the C.A.N. logo, the TV intro until its audio ends),
+   the builder, then START here: a letter in a hand, the plane over Raven Hook, the van on the street, the C.A.N. tower (the team
+   colour is picked here), the holding room and the doctor, the physical (the stats are spent here), the backstage, the white fade
+   with the game's music (Midnight In The Sprawl), the show's title with the crowd, the stage and the host, the kit, the eight
+   trapdoors (the player's is the last to open) and the wake in the city with the first mission.
+   Timed beats move on by themselves. The team pick and the stats wait for the player. A skip (Enter, Space, Escape, a click, A)
+   ends the sequence only during the timed beats; the defaults then apply. Placeholders: the holding room, the stage, the backstage
+   and the kit are drawn in code until their art is made. */
+const RO_DIR = "assets/runner/opening_scene/";
+const RO_TYPE = "You've been selected to be a part of our next run (Raven Hook) first class tickets included complements of CAN see you on the run";
+const RO_TUBE = "assets/runner/trapdoor/trapdoor_tube.png";
+const RO_DOCTOR = "assets/runner/cyber/doctor_grey_bun.png";   // the clinic's doctor, in the holding room and the physical
+const RO_STAT_DEF = Object.fromEntries(RB_STATS.map((k, i) => [k, i < 4 ? 4 : 3]));   // 20 points over the base 1s, if the physical is skipped
+const RI_AUDIO = "assets/runner/opening_scene/runner_tv_intro.mp3";
+const RO_CSS = `
+@keyframes roIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes roPlane { from { transform: translate(-20vw, 0) rotate(90deg); } to { transform: translate(120vw, 0) rotate(90deg); } }
+@keyframes roVan { from { transform: translateX(-75vw); } to { transform: translateX(60vw); } }
+@keyframes roPanZoom { 0% { transform: translateY(35vh) scale(1.5); } 60% { transform: translateY(-8vh) scale(1.5); } 100% { transform: translateY(0) scale(1); } }
+@keyframes roFloat { 0% { transform: translateY(0); } 50% { transform: translateY(-1.2vh); } 100% { transform: translateY(0); } }
+@keyframes roCap { from { opacity: 0; letter-spacing: 0.5em; } to { opacity: 1; letter-spacing: 0.22em; } }
+@keyframes roFlick { 0%,100% { opacity: 1; } 6% { opacity: .3; } 9% { opacity: 1; } 38% { opacity: .75; } 41% { opacity: 1; } 71% { opacity: .6; } 74% { opacity: 1; } }
+@keyframes roCollar { 0%,100% { opacity: .2; } 45% { opacity: 1; } }`;
+
+/* THE INTRO: NEW GAME's first beat. The welcome card, the C.A.N. logo, then the TV intro, which loops until its audio ends
+   (a long fallback ends it if the audio cannot play). Enter, Space, Escape, a click or A skips it, once the first second is past. */
+function RunnerIntro({ onDone }) {
+  const [phase, setPhase] = useState(0);   // 0 welcome, 1 C.A.N. logo, 2 the TV intro
+  const done = useRef(false), t0 = useRef(Date.now());
+  const finish = () => { if (done.current) return; done.current = true; onDone(); };
   useEffect(() => {
-    const esc = (e) => { if (e.key === 'Escape') onExit(); };
-    window.addEventListener('keydown', esc);
-    RUNNER_API.setOn(true);
-    return () => { RUNNER_API.setOn(false); window.removeEventListener('keydown', esc); };
+    if (phase > 1) return;
+    const tm = setTimeout(() => setPhase((p) => p + 1), phase === 0 ? 2600 : 2400);
+    return () => clearTimeout(tm);
+  }, [phase]);
+  useEffect(() => {
+    if (phase !== 2) return;
+    let a = null;
+    const fb = setTimeout(finish, 40000);
+    try { a = new Audio(RI_AUDIO); a.onended = () => finish(); a.onerror = () => finish(); a.play().catch(() => {}); } catch (e) { /* no audio: the fallback ends it */ }
+    return () => { clearTimeout(fb); if (a) { a.onended = null; a.onerror = null; a.pause(); } };
+  }, [phase]);
+  useEffect(() => {
+    const ok = () => Date.now() - t0.current > 1000;
+    const key = (e) => { if (ok() && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape')) finish(); };
+    const down = () => { if (ok()) finish(); };
+    const pad = setInterval(() => {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : []; const gp = [...pads].find((q) => q && q.connected);
+      if (gp && gp.buttons[0] && gp.buttons[0].pressed && ok()) finish();
+    }, 80);
+    window.addEventListener('keydown', key); window.addEventListener('pointerdown', down);
+    return () => { window.removeEventListener('keydown', key); window.removeEventListener('pointerdown', down); clearInterval(pad); };
   }, []);
   return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 955, pointerEvents: 'auto', background: '#07080b', overflow: 'hidden', fontFamily: 'ui-monospace, monospace' }}>
+      <style>{RO_CSS}</style>
+      {phase === 0 && (<div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#e8c46a',
+        fontSize: 'clamp(20px, 3.6vw, 44px)', letterSpacing: '0.3em', animation: 'roCap 2.2s ease-out both' }}>WELCOME</div>)}
+      {phase === 1 && (<div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'roIn 0.8s ease-out both' }}>
+        <div style={{ color: '#e8c46a', fontSize: 'clamp(40px, 9vw, 110px)', fontWeight: 900, letterSpacing: '0.12em', textShadow: '0 0 24px rgba(232,196,106,0.5)' }}>C.A.N.</div>
+        <div style={{ marginTop: 10, color: '#9a9486', fontSize: 'clamp(10px, 1.4vw, 14px)', letterSpacing: '0.3em' }}>RAVEN CITY</div>
+      </div>)}
+      {phase === 2 && (<div style={{ position: 'absolute', inset: 0, background: '#05060a', animation: 'roIn 0.6s ease-out both' }}>
+        <div style={{ position: 'absolute', inset: '8vh 8vw', border: '2px solid #2a2e36', borderRadius: 14, overflow: 'hidden', background: '#0b0d12', animation: 'roFlick 4s linear infinite' }}>
+          <img src={RT_HOST.pic} alt="" style={{ position: 'absolute', left: '50%', bottom: 0, height: '78%', transform: 'translateX(-50%)', imageRendering: 'auto' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, top: '8%', textAlign: 'center', color: '#e8c46a', fontSize: 'clamp(16px, 3vw, 34px)', letterSpacing: '0.24em', textShadow: '0 2px 10px #000' }}>{RT_SHOW}</div>
+          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0 2px, transparent 2px 4px)', pointerEvents: 'none' }} />
+        </div>
+      </div>)}
+      <div style={{ position: 'absolute', right: 14, bottom: 10, fontSize: 10, color: '#9a9486', letterSpacing: '0.2em', opacity: 0.7 }}>ENTER OR A TO SKIP</div>
+    </div>);
+}
+
+/* the letter's typewriter: the text reveals at one letter per 40 ms from when it mounts */
+function RoType({ text }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    const t0 = Date.now();
+    const id = setInterval(() => setN(Math.min(text.length, Math.floor((Date.now() - t0) / 40))), 40);
+    return () => clearInterval(id);
+  }, [text]);
+  return <span>{text.slice(0, n)}<span style={{ opacity: n < text.length ? 1 : 0 }}>|</span></span>;
+}
+
+/* the script: one beat per line of picture and text. ms is how long a timed beat runs; a beat with pick waits for the player.
+   scene keeps the picture on screen across its beats (so the plane, the van and the tower move once through the scene). */
+function roBeats(name) {
+  const B = [];
+  const add = (b) => B.push(Object.assign({ ms: null }, b));
+  add({ scene: 'letter', ms: RO_TYPE.length * 40 + 1800, type: RO_TYPE });
+  add({ scene: 'plane', ms: 6000, who: name, text: 'Raven Hook from up here. Looks like a circuit board somebody left out in the rain.' });   // DRAFT COPY
+  add({ scene: 'van', ms: 2600, who: 'C.A.N. EMPLOYEE', text: "You're in good hands. Everyone on this van has done a run before." });   // DRAFT COPY
+  add({ scene: 'van', ms: 2400, who: name, text: 'Before?' });   // DRAFT COPY
+  add({ scene: 'van', ms: 2600, who: 'C.A.N. EMPLOYEE', text: 'Most of them came back.' });   // DRAFT COPY
+  add({ scene: 'tower', ms: 2600, who: 'C.A.N. EMPLOYEE', text: 'Eight runners. Four teams. One city.' });   // DRAFT COPY
+  add({ scene: 'tower', ms: 2800, who: 'C.A.N. EMPLOYEE', text: 'Stay alive until morning. The hunters come out after dark.' });   // DRAFT COPY
+  add({ scene: 'tower', ms: 2600, who: 'C.A.N. EMPLOYEE', text: 'Pick your team colour. Your team is your way out.' });   // DRAFT COPY
+  add({ scene: 'tower', pick: 'team' });
+  add({ scene: 'black', ms: 900 });
+  add({ scene: 'holding', ms: 2800, text: 'HOLDING ROOM. The other teams are on the benches, stretching.' });   // DRAFT COPY
+  add({ scene: 'holding', ms: 2600, who: 'DOCTOR', text: "Looks like you're the last one." });
+  add({ scene: 'physical', ms: 2600, who: 'DOCTOR', text: "Let's see what you've got. Twenty points to spend, ten at most in any one stat." });   // DRAFT COPY
+  add({ scene: 'physical', pick: 'stats' });
+  add({ scene: 'backstage', ms: 2800, who: RT_CO.name, text: 'This way. OK, curtains in 3... 2...' });   // the co-host walks them to the curtains
+  add({ scene: 'white', ms: 1400, enter: 'music' });
+  add({ scene: 'title', ms: 4200, enter: 'cheer' });
+  add({ scene: 'stage', ms: 3000, who: 'VERNON PIKE', text: 'Welcome to RAVEN CITY RUNNER. Eight runners, four teams, one city.' });   // DRAFT COPY
+  add({ scene: 'stage', ms: 3000, who: 'VERNON PIKE', text: 'Red. Yellow. Blue. Green. Meet your teams.' });   // DRAFT COPY
+  add({ scene: 'kit', ms: 5200 });
+  add({ scene: 'drop', ms: 2800, who: 'VERNON PIKE', text: 'Teams, you are called. Step onto your trapdoors.' });   // DRAFT COPY
+  for (let k = 7; k >= 0; k--) add({ scene: 'drop', ms: k === 0 ? 1600 : 900, door: k });   // right to left; the player's (door 0) is last
+  add({ scene: 'black', ms: 900 });
+  add({ scene: 'wake', ms: 3400 });
+  return B;
+}
+
+/* THE C.A.N. STAGE SET (v4): the inside of the C.A.N. building, the studio and the backstage behind it. Textures and props are the
+   building's own: the ivory tile of its stage floor (tx_ivory_tile), the marble of its lobby (tx_marble), the blue carpet of its
+   studio (tx_studio_carpet) for the curtains, the tunnel ring of its trapdoors (trapdoor_tube.png), and the props in assets/runner/can: the
+   neon C.A.N. sign, the tunnel doors, the suit rail with the four team suits, and the transmission racks.
+   Group 'wings' is the backstage (the countdown): the back-of-house with the tunnel doors and the suit rail, no curtain.
+   Group 'stage' is the studio: the curtains close on it, then part a moment after it mounts, and it stays up through the host,
+   the kit and the trapdoors. The white fade and the title sit between the two, so the cut between them is covered. */
+const RO_TEX = { floor: "assets/tex/tx_ivory_tile.png", velvet: "assets/tex/tx_studio_carpet.png", marble: "assets/tex/tx_marble.png" };
+const RO_CAN = { sign: "assets/runner/can/facade_can_sign.png", doors: "assets/runner/can/tunnel_doors.png", suits: "assets/runner/can/suit_rail.png", racks: "assets/runner/can/transmission_racks.png" };
+const RO_GOLD = "linear-gradient(180deg, #f6e4a6 0%, #c9a24a 50%, #6e5118 100%)";
+const RO_KIT = ['BACKPACK', 'GAS MASK', 'HOLO PHONE', 'LASER PISTOL (ON STUN)', 'DEBIT CARD', 'BIKE', 'CALL REMOTE'];
+
+// the studio's curtains: blue carpet with folds and a gold edge at the seam; they part to the sides when shut is false
+function RoCurtains({ shut }) {
+  const folds = 'repeating-linear-gradient(90deg, rgba(0,0,0,0.55) 0px, rgba(0,0,0,0.55) 12px, rgba(255,255,255,0.07) 22px, rgba(0,0,0,0.25) 34px, rgba(0,0,0,0.55) 46px)';
+  const panel = (isLeft) => ({
+    position: 'absolute', top: 0, bottom: 0, left: isLeft ? 0 : '50%', width: '50%', overflow: 'hidden',
+    transform: shut ? 'translateX(0)' : `translateX(${isLeft ? '-101%' : '101%'})`,
+    transition: 'transform 2.6s cubic-bezier(.5,.05,.25,1)',
+  });
+  const cloth = { position: 'absolute', inset: 0, backgroundImage: `${folds}, url(${RO_TEX.velvet})`, backgroundSize: 'auto, 640px auto', backgroundColor: '#0d1733', boxShadow: 'inset 0 0 40px rgba(0,0,0,0.6)' };
+  return (<>
+    <div style={panel(true)}><div style={cloth} /><div style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 10, background: RO_GOLD }} /></div>
+    <div style={panel(false)}><div style={cloth} /><div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 10, background: RO_GOLD }} /></div>
+    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '9vh', backgroundImage: 'linear-gradient(180deg, #221a0a, #0b0905)', borderBottom: '3px solid #c9a24a', boxShadow: '0 6px 18px rgba(0,0,0,0.7)' }} />
+  </>);
+}
+
+// one trapdoor: the tunnel's ring (trapdoor_tube.png) on the floor. Its inside is white while the door is shut and black once it
+// opens; the runner drops into the black.
+function RoDoor({ open, label, colour, you }) {
+  const inside = { position: 'absolute', left: '22.5%', top: '22.5%', width: '55%', height: '55%', borderRadius: '50%',
+    background: open ? '#000' : '#fff', transition: 'background 900ms ease-in-out' };
+  // the team's label is printed on the white inside; it fades out with the black when the door opens
+  const text = { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
+    padding: '0 12%', boxSizing: 'border-box', fontSize: 'clamp(6px, 0.62vw, 9px)', lineHeight: 1.15, letterSpacing: '0.04em', fontWeight: you ? 700 : 400,
+    color: you ? '#5a3d00' : '#1a1a1a', opacity: open ? 0 : 1, transition: 'opacity 500ms ease-in' };
+  return (
+    <div style={{ position: 'relative', width: '9vw', height: '16vh' }}>
+      <div style={{ position: 'absolute', left: '50%', bottom: '8vh', width: '2.6vw', height: '9vh',
+        transform: `translateX(-50%) ${open ? 'translateY(6vh) scale(0.2)' : 'none'}`, opacity: open ? 0 : 1,
+        transition: 'transform 1000ms ease-in, opacity 1000ms ease-in 250ms', zIndex: 2 }}>
+        <div style={{ width: '100%', height: '34%', borderRadius: '50%', background: '#e6d3b3' }} />
+        <div style={{ width: '100%', height: '60%', marginTop: '6%', background: colour, borderRadius: 4 }} />
+      </div>
+      <div style={{ position: 'absolute', left: 0, bottom: 0, width: '100%', aspectRatio: '1 / 1' }}>
+        <div style={inside}><div style={text}>{label}</div></div>
+        <img src={RO_TUBE} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', imageRendering: 'auto', filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))' }} />
+      </div>
+    </div>);
+}
+
+// the co-host crossing the floor: the walk cycle steps while she moves from x0 to x1 (vw) over ms, then stands on frame 0
+function CoWalk({ x0, x1, ms, frames = 8 }) {
+  const [i, setI] = useState(0);
+  const [x, setX] = useState(x0);
+  const [moving, setMoving] = useState(true);
+  useEffect(() => { const t = setInterval(() => setI((k) => (k + 1) % frames), 110); return () => clearInterval(t); }, []);
+  useEffect(() => { const r = requestAnimationFrame(() => setX(x1)); const t = setTimeout(() => setMoving(false), ms); return () => { cancelAnimationFrame(r); clearTimeout(t); }; }, []);
+  return (<div style={{ position: 'absolute', bottom: '16vh', left: `${x}vw`, height: '40vh', width: 'calc(40vh * 165 / 250)',   // 40vh: about 0.7 of the door's height, level with the suit bags on the rail
+    backgroundImage: `url(${RO_COWALK})`, backgroundSize: `${frames * 100}% 100%`, backgroundPosition: `${((moving ? i : 0) / (frames - 1)) * 100}% 0%`,
+    transition: `left ${ms}ms linear`, filter: 'drop-shadow(0 0 14px rgba(0,0,0,0.7))' }} />);
+}
+
+// the C.A.N. set: the backstage (group 'wings') or the studio (group 'stage')
+function RoSet({ group, beat, order, first }) {
+  const wings = group === 'wings';
+  const [shut, setShut] = useState(true);
+  useEffect(() => {
+    if (wings) return;
+    const t = setTimeout(() => setShut(false), 150);
+    return () => clearTimeout(t);
+  }, []);
+  const onStage = !!beat && beat.scene === 'stage';
+  const doorsOn = !onStage;   // the trapdoors come in after the host's first lines
+
+  const sign = (<img src={RO_CAN.sign} alt="" style={{ position: 'absolute', left: '3vw', top: '12vh', height: '56vh', width: 'auto', imageRendering: 'auto', filter: 'drop-shadow(0 0 14px rgba(255,80,80,0.35))' }} />);
+  const backstage = (<>
+    <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 30%, rgba(255,190,120,0.14), transparent 60%), linear-gradient(180deg, #0c0d12, #07080b)' }} />
+    <img src={RO_CAN.doors} alt="" style={{ position: 'absolute', left: '50%', top: '12vh', height: '56vh', width: 'auto', transform: 'translateX(-50%)', imageRendering: 'auto', filter: 'drop-shadow(0 0 22px rgba(0,0,0,0.9))' }} />
+    <img src={RO_CAN.suits} alt="" style={{ position: 'absolute', right: '3vw', top: '16vh', width: '26vw', imageRendering: 'auto' }} />
+    <img src={RO_CAN.racks} alt="" style={{ position: 'absolute', left: '2vw', bottom: '24vh', width: '24vw', imageRendering: 'auto' }} />
+    {sign}
+  </>);
+  const studio = (<>
+    <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% -15%, rgba(255,214,150,0.38), transparent 55%), linear-gradient(180deg, #04050a, #0a0c14 65%, #050608)' }} />
+    {[['6%', 0.2], ['36%', 0.26], ['64%', 0.2]].map(([l, o], i) => (<div key={i} style={{ position: 'absolute', top: 0, left: l, width: '30%', height: '82%',
+      clipPath: 'polygon(44% 0, 56% 0, 100% 100%, 0 100%)', background: `linear-gradient(180deg, rgba(255,236,200,${o}), rgba(255,236,200,0) 88%)`, mixBlendMode: 'screen' }} />))}
+    {['left', 'right'].map((s) => (<div key={s} style={{ position: 'absolute', top: 0, bottom: 0, [s]: 0, width: '13vw',
+      backgroundImage: `linear-gradient(90deg, rgba(4,5,8,0.5), rgba(4,5,8,0.9)), url(${RO_TEX.marble})`, backgroundSize: 'auto, 380px auto',
+      boxShadow: s === 'left' ? 'inset -4px 0 0 #c9a24a' : 'inset 4px 0 0 #c9a24a' }} />))}
+    <div style={{ position: 'absolute', top: '9vh', left: '13vw', right: '13vw', height: 4, background: RO_GOLD, boxShadow: '0 0 14px rgba(232,196,106,0.55)' }} />
+    {sign}
+  </>);
+
+  return (<>
+    <div style={{ position: 'absolute', inset: 0, background: '#05060a' }} />
+    {wings ? backstage : studio}
+    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '28vh', backgroundImage: `linear-gradient(180deg, rgba(4,5,8,0.15), rgba(4,5,8,0.65)), url(${RO_TEX.floor})`,
+      backgroundSize: 'auto, 96px 96px', boxShadow: 'inset 0 10px 24px rgba(0,0,0,0.7)', borderTop: '2px solid #c9a24a' }} />
+    {wings && <CoWalk x0={88} x1={66} ms={2600} />}   // after the floor, so her feet stand on it
+    {!wings && (<div style={{ position: 'absolute', left: 0, right: 0, bottom: '6vh', display: 'flex', justifyContent: 'center', gap: '1.2vw',
+      opacity: doorsOn ? 1 : 0, transition: 'opacity 900ms ease-in' }}>
+      {Array.from({ length: 8 }, (_, k) => {
+        const open = !!beat && beat.door != null && k >= beat.door;   // the doors open right to left; door 0 (the player's) goes last
+        const c = order[k >> 1] || first;
+        return <RoDoor key={k} open={open} you={k === 0} colour={c} label={(k === 0 ? 'YOU · ' : '') + RUNNER_API.news.teamName(c)} />;
+      })}
+    </div>)}
+    {!wings && onStage && (<img src={RT_HOST.pic} alt="" style={{ position: 'absolute', right: '5vw', bottom: 0, height: '70%', imageRendering: 'auto', filter: 'drop-shadow(0 0 18px rgba(0,0,0,0.8))' }} />)}
+    {!wings && <RoCurtains shut={shut} />}
+    <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.6))', pointerEvents: 'none' }} />
+  </>);
+}
+
+// the kit card, over the studio
+function RoKit() {
+  return (<div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(4,5,8,0.55)' }}>
+    <div style={{ width: 'min(90vw, 520px)', border: '1px solid #e8c46a', padding: 18, color: '#e8c46a', background: 'rgba(10,11,14,0.88)', boxSizing: 'border-box', boxShadow: '0 0 40px rgba(0,0,0,0.8)' }}>
+      <div style={{ fontSize: 12, letterSpacing: '0.3em', marginBottom: 12 }}>YOUR KIT</div>
+      {RO_KIT.map((k) => <div key={k} style={{ fontSize: 13, letterSpacing: '0.16em', padding: '6px 0', borderBottom: '1px solid rgba(232,196,106,0.2)' }}>{k}</div>)}
+    </div></div>);
+}
+
+/* THE OPENING: after the builder's START. Its own state: the beat (bi), the team pick (sel), the stats pick (row, stats). */
+function RunnerOpening({ onDone }) {
+  const B = useRef(null);
+  if (!B.current) B.current = roBeats(RUNNER_API.getLook().name || 'RUNNER');
+  const beats = B.current;
+  const [bi, setBi] = useState(0);
+  const [sel, setSel] = useState(0);
+  const [row, setRow] = useState(0);
+  const [stats, setStats] = useState(() => Object.fromEntries(RB_STATS.map((k) => [k, 1])));
+  const choice = useRef({ suit: null, stats: false });   // what the player chose; the skip reads it
+  const done = useRef(false), t0 = useRef(Date.now()), cheer = useRef(null);
+  const suits = RUNNER_API.suits();
+  const beat = beats[bi] || null;
+  const sc = beat ? beat.scene : 'wake';
+  const left = 20 - RB_STATS.reduce((a, k) => a + stats[k] - 1, 0);
+  const dur = {};
+  for (const b of beats) if (b.ms) dur[b.scene] = (dur[b.scene] || 0) + b.ms;   // a scene's timed beats: its pictures' motion runs this long
+
+  const finish = () => {
+    if (done.current) return; done.current = true;
+    if (!choice.current.stats) RUNNER_API.setLook({ stats: RO_STAT_DEF });   // the physical was skipped: the default spread, 20 points
+    RUNNER_API.startFirstMission();   // the first mission: find your partner. The kit (laser on stun, gas mask) is in hand
+    RUNNER_API.playTrack('Midnight_In_The_Sprawl');   // the game's music, the shorter track, if the white fade did not already start it
+    if (cheer.current) cheer.current.pause();
+    onDone();
+  };
+  const confirmTeam = () => {
+    const c = suits[sel];
+    choice.current.suit = c; RUNNER_API.setLook({ suit: c });
+    setBi((b) => b + 1);
+  };
+  const bumpAt = (i, d) => setStats((o) => {
+    const k = RB_STATS[i]; const v = o[k] + d;
+    const spent = RB_STATS.reduce((a, q) => a + o[q] - 1, 0);
+    if (v < 1 || v > 10) return o;
+    if (d > 0 && 20 - spent <= 0) return o;
+    return { ...o, [k]: v };
+  });
+  const confirmStats = () => {
+    choice.current.stats = true;
+    RUNNER_API.setLook({ stats: Object.fromEntries(RB_STATS.map((k) => [k, stats[k]])) });
+    setBi((b) => b + 1);
+  };
+  // one place for every key, click and pad press: a timed beat takes skip or ok, a pick takes its own arrows and ok
+  const press = (a) => {
+    const bt = beats[bi];
+    if (!bt) return;
+    if (!bt.pick) { if ((a === 'skip' || a === 'ok') && Date.now() - t0.current > 1000) finish(); return; }
+    if (bt.pick === 'team') {
+      if (a === 'left') setSel((s) => Math.max(0, s - 1));
+      else if (a === 'right') setSel((s) => Math.min(suits.length - 1, s + 1));
+      else if (a === 'ok') confirmTeam();
+    } else {
+      if (a === 'up') setRow((r) => (r + RB_STATS.length - 1) % RB_STATS.length);
+      else if (a === 'down') setRow((r) => (r + 1) % RB_STATS.length);
+      else if (a === 'left') bumpAt(row, -1);
+      else if (a === 'right') bumpAt(row, 1);
+      else if (a === 'ok' && left === 0) confirmStats();
+    }
+  };
+  const pressRef = useRef(press); pressRef.current = press;
+
+  // the sequence: a timed beat moves on by its own clock; the end of the script finishes the opening
+  useEffect(() => {
+    RUNNER_API.songStop();   // the title's shuffle stops; the white fade brings the game's music in
+    return () => { if (cheer.current) cheer.current.pause(); };
+  }, []);
+  useEffect(() => {
+    if (bi >= beats.length) { finish(); return; }
+    const bt = beats[bi];
+    if (bt.enter === 'music') RUNNER_API.playTrack('Midnight_In_The_Sprawl');
+    if (bt.enter === 'cheer') { try { const a = new Audio(RO_DIR + 'runner_crowd_cheer.mp3'); a.play().catch(() => {}); cheer.current = a; } catch (e) { /* no audio */ } }
+    if (!bt.ms) return;
+    const tm = setTimeout(() => setBi((b) => b + 1), bt.ms);
+    return () => clearTimeout(tm);
+  }, [bi]);
+  useEffect(() => {
+    const key = (e) => {
+      const m = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Enter: 'ok', ' ': 'ok', Escape: 'skip' }[e.key];
+      if (m) pressRef.current(m);
+    };
+    const down = () => pressRef.current('skip');   // a click skips a timed beat; the picks have their own buttons
+    window.addEventListener('keydown', key); window.addEventListener('pointerdown', down);
+    return () => { window.removeEventListener('keydown', key); window.removeEventListener('pointerdown', down); };
+  }, []);
+  useEffect(() => {
+    const prev = {};
+    const map = { 0: 'ok', 12: 'up', 13: 'down', 14: 'left', 15: 'right' };
+    const id = setInterval(() => {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const gp = [...pads].find((q) => q && q.connected);
+      if (!gp) return;
+      for (const b of Object.keys(map)) {
+        const on = !!(gp.buttons[b] && gp.buttons[b].pressed);
+        if (on && !prev[b]) pressRef.current(map[b]);
+        prev[b] = on;
+      }
+    }, 80);
+    return () => clearInterval(id);
+  }, []);
+
+  const crewRef = useRef(null);   // the holding tank's runners: built once, the same ones for the whole beat
+  const pic = (src, style) => <img src={RO_DIR + src} alt="" style={{ position: 'absolute', imageRendering: 'auto', ...style }} />;
+  const full = { inset: 0, width: '100%', height: '100%', objectFit: 'cover' };
+  const dark = { position: 'absolute', inset: 0, background: 'linear-gradient(180deg, #14161d, #07080b)' };
+  // the doctor wears the shock collar too: the same red light the runners wear, on the neck, blinking slowly (no hunters here)
+  const doctor = (<div style={{ position: 'absolute', left: '50%', bottom: '12vh', height: '46vh', transform: 'translateX(-50%)', lineHeight: 0 }}>
+    <img src={RO_DOCTOR} alt="" style={{ display: 'block', height: '100%', width: 'auto', imageRendering: 'pixelated', filter: 'drop-shadow(0 0 16px rgba(0,0,0,0.8))' }} />
+    <div style={{ position: 'absolute', left: '53%', top: '38.5%', width: '1.8vh', height: '1.8vh', transform: 'translate(-50%, -50%)', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,70,70,1) 0%, rgba(255,40,40,0.55) 40%, rgba(255,40,40,0) 70%)', animation: 'roCollar 1.43s ease-in-out infinite', pointerEvents: 'none' }} />
+  </div>);
+  const first = choice.current.suit || suits[0];
+  const order = [first, ...suits.filter((c) => c !== first)];   // the player's team first: its two doors are the first pair
+
+  // one set for the wings (the assistant's countdown) and one for the stage (the host, the kit and the trapdoors): the set stays up while the scene moves on
+  const group = sc === 'backstage' ? 'wings' : (sc === 'stage' || sc === 'kit' || sc === 'drop') ? 'stage' : sc;
+  let visual = null;
+  if (group === 'wings' || group === 'stage') visual = (<>
+    <RoSet group={group} beat={beat} order={order} first={first} />
+    {sc === 'kit' && <RoKit />}</>);
+  else if (sc === 'letter') visual = (<>
+    <div style={{ position: 'absolute', inset: 0, background: '#0b0c10' }} />
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', animation: 'roFloat 4s ease-in-out infinite' }}>
+      {pic('hand_paper_can.png', { position: 'relative', height: '62vh', width: 'auto' })}</div></>);
+  else if (sc === 'plane') visual = (<>
+    {pic('sky_view_raven_hook.png', full)}
+    <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 20% 100%, rgba(120,60,170,0.55), transparent 60%), radial-gradient(ellipse at 90% 0%, rgba(120,60,170,0.35), transparent 55%)' }} />
+    {pic('plane_topdown.png', { left: 0, top: '26%', width: '16vw', height: '16vw', animation: `roPlane ${dur.plane}ms linear both` })}</>);
+  else if (sc === 'van') visual = (<>
+    {pic('street_side_view.png', full)}
+    {pic('can_van_side.png', { left: '18%', bottom: '17%', width: '38vw', animation: `roVan ${dur.van}ms ease-in-out both` })}
+    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 55%, rgba(120,60,170,0.42))' }} /></>);
+  else if (sc === 'tower') visual = (<>
+    {pic('night_haze_sky.png', { ...full, opacity: 0.4 })}
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+      <div style={{ height: '84vh', animation: `roPanZoom ${dur.tower}ms ease-in-out both` }}>
+        <img src={RO_DIR + 'can_tower_front.png'} alt="" style={{ height: '100%', width: 'auto', display: 'block' }} /></div></div></>);
+  else if (sc === 'holding') {
+    if (!crewRef.current) crewRef.current = RUNNER_API.holdingCrew(order);   // the team pairs: order[0] (the player's) first
+    const crew = crewRef.current;
+    // the police bench is drawn long and thin (35 x 261): each piece is 19vw long and 4.5vh thick, so the proportions hold
+    const BENCH_T = '4.5vh';
+    const bench = (x, cy, L) => (<div key={'b' + x + ':' + cy} style={{ position: 'absolute', left: `${x}vw`, top: `calc(${cy}vh - 2.25vh)`, width: `${L}vw`, height: BENCH_T }}>
+      <img src="assets/police/pd_bench_long.png" alt="" style={{ position: 'absolute', left: '50%', top: '50%', width: BENCH_T, height: `${L}vw`, transform: 'translate(-50%, -50%) rotate(90deg)', imageRendering: 'auto' }} /></div>);
+    const seat = (c, x, y, i) => (<img key={'s' + i} src={c.src} alt="" style={{ position: 'absolute', left: `${x}vw`, top: `${y}vh`, width: '19vh', height: '19vh', transform: 'translate(-50%, -50%)', imageRendering: 'auto', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.7))' }} />);
+    const SEATS = [[24, 22], [40, 22], [56, 22], [72, 22], [12.5, 44], [22.5, 44], [77.5, 44], [87.5, 44]];   // team pairs: back bench, then the two side benches
+    visual = (<>
+      <div style={dark} />
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '17vh', background: 'linear-gradient(180deg, #2a2e38, #14161d)', borderBottom: '3px solid #3a3f4b' }} />
+      {[14, 33, 52, 71].map((x) => bench(x, 22, 19))}
+      {bench(8, 44, 19)}{bench(73, 44, 19)}
+      {crew.map((c, i) => seat(c, SEATS[i][0], SEATS[i][1], i))}
+      {doctor}</>);
+  }
+  else if (sc === 'physical') visual = (<>
+    <div style={dark} />
+    {doctor}</>);
+  else if (sc === 'white') visual = <div style={{ position: 'absolute', inset: 0, background: '#fff' }} />;
+  else if (sc === 'title') visual = (<div style={{ position: 'absolute', inset: 0, background: '#07080b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ color: '#e8c46a', fontSize: 'clamp(22px, 4.6vw, 56px)', textShadow: '0 3px 14px #000', animation: 'roCap 2.2s ease-out both' }}>RAVEN CITY RUNNER</div></div>);
+  else if (sc === 'wake') visual = (<div style={{ position: 'absolute', inset: 0, background: '#07080b', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+    <div style={{ color: '#e8c46a', fontSize: 'clamp(18px, 3.4vw, 40px)', letterSpacing: '0.3em', animation: 'roCap 2s ease-out both' }}>AWAKE IN THE CITY</div>
+    <div style={{ color: '#9a9486', fontSize: 'clamp(10px, 1.4vw, 14px)', letterSpacing: '0.2em' }}>FIRST MISSION: FIND YOUR TEAMMATE</div></div>);
+
+  const line = beat && (beat.text || beat.type) ? (
+    <div key={bi} style={{ position: 'absolute', left: '50%', bottom: '6vh', transform: 'translateX(-50%)', width: 'min(92vw, 720px)', boxSizing: 'border-box', padding: '14px 18px',
+      background: 'rgba(7,8,11,0.82)', border: '1px solid rgba(232,196,106,0.5)', color: '#f2ead8', fontSize: 'clamp(13px, 1.8vw, 17px)', lineHeight: 1.5, letterSpacing: '0.04em' }}>
+      {beat.who && <div style={{ color: '#e8c46a', fontSize: 11, letterSpacing: '0.24em', marginBottom: 6 }}>{beat.who}</div>}
+      <div>{beat.type ? <RoType text={beat.type} /> : beat.text}</div>
+    </div>) : null;
+
+  const panel = { position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 'min(92vw, 520px)', boxSizing: 'border-box', padding: 16,
+    background: 'rgba(7,8,11,0.9)', border: '1px solid #e8c46a', color: '#f2ead8' };
+  const head = { fontSize: 12, letterSpacing: '0.24em', color: '#e8c46a', marginBottom: 12, textAlign: 'center' };
+  const pbtn = (on) => ({ display: 'inline-block', padding: '8px 16px', border: '1px solid #e8c46a', color: '#e8c46a', fontSize: 12, letterSpacing: '0.2em',
+    cursor: on ? 'pointer' : 'default', opacity: on ? 1 : 0.35, userSelect: 'none' });
+  let pickUI = null;
+  if (beat && beat.pick === 'team') pickUI = (<div style={panel}>
+    <div style={head}>CHOOSE YOUR TEAM COLOUR</div>
+    <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+      {suits.map((c, i) => (<div key={c} onClick={() => setSel(i)} style={{ cursor: 'pointer', textAlign: 'center', padding: 8, border: sel === i ? '2px solid #fff' : '1px solid rgba(232,196,106,0.4)' }}>
+        <div style={{ width: 56, height: 56, borderRadius: 28, background: c }} />
+        <div style={{ fontSize: 11, letterSpacing: '0.16em', marginTop: 6, color: '#e8c46a' }}>{RUNNER_API.news.teamName(c)}</div>
+      </div>))}
+    </div>
+    <div style={{ textAlign: 'center', marginTop: 16 }}><div onClick={confirmTeam} style={pbtn(true)}>CONFIRM</div></div>
+  </div>);
+  if (beat && beat.pick === 'stats') pickUI = (<div style={panel}>
+    <div style={head}>PHYSICAL · SPEND 20 POINTS · {left} LEFT</div>
+    {RB_STATS.map((k, i) => (<div key={k} onClick={() => setRow(i)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px', cursor: 'pointer',
+      background: row === i ? 'rgba(232,196,106,0.14)' : 'transparent' }}>
+      <div style={{ fontSize: 13, letterSpacing: '0.12em' }}>{k.toUpperCase()}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div onClick={(e) => { e.stopPropagation(); setRow(i); bumpAt(i, -1); }} style={{ ...pbtn(stats[k] > 1), padding: '2px 10px' }}>−</div>
+        <div style={{ width: 24, textAlign: 'center' }}>{stats[k]}</div>
+        <div onClick={(e) => { e.stopPropagation(); setRow(i); bumpAt(i, 1); }} style={{ ...pbtn(stats[k] < 10 && left > 0), padding: '2px 10px' }}>+</div>
+      </div>
+    </div>))}
+    <div style={{ textAlign: 'center', marginTop: 16 }}><div onClick={() => { if (left === 0) confirmStats(); }} style={pbtn(left === 0)}>CONFIRM</div></div>
+  </div>);
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 955, pointerEvents: 'auto', background: '#07080b', overflow: 'hidden', fontFamily: 'ui-monospace, monospace' }}>
+      <style>{RO_CSS}</style>
+      <div key={group} style={{ position: 'absolute', inset: 0, animation: 'roIn 0.6s ease-out both' }}>{visual}</div>
+      {line}
+      {pickUI}
+      <div style={{ position: 'absolute', right: 14, bottom: 10, fontSize: 10, color: '#9a9486', letterSpacing: '0.2em', opacity: 0.7 }}>
+        {beat && beat.pick ? 'ARROWS TO CHOOSE · ENTER OR A TO CONFIRM' : 'ENTER OR A TO SKIP'}</div>
+    </div>);
+}
+
+/* THE RUNNER SHELL: the title, then NEW GAME runs the intro, the builder, and the opening; LOAD GAME and CONTINUE go straight in.
+   The lobby starts (onStart) when the opening hands over. */
+function RunnerShell({ onExit, onStart, onLoad }) {
+  const [intro, setIntro] = useState(false);       // NEW GAME's first beat: the welcome, the C.A.N. logo and the TV intro
+  const [opening, setOpening] = useState(false);   // the first run of a new game plays its opening (after the builder's START)
+  const [built, setBuilt] = useState(false);
+  const [titled, setTitled] = useState(false);     // the title's menu comes first; the intro then opens the builder
+  const seq = useRef(false); seq.current = intro || opening;   // Escape does not leave Runner Mode while a sequence plays
+  useEffect(() => {
+    const esc = (e) => { if (e.key === 'Escape' && !seq.current) onExit(); };
+    window.addEventListener('keydown', esc);
+    RUNNER_API.setOn(true);
+    RUNNER_API.hideMission();
+    return () => { RUNNER_API.setOn(false); window.removeEventListener('keydown', esc); };
+  }, []);
+  // the cutscene runs from the intro through the builder to the handover; the title's menu is not one
+  useEffect(() => { RUNNER_API.setCutscene(intro || (titled && !built) || opening); }, [intro, titled, built, opening]);
+  useEffect(() => () => RUNNER_API.setCutscene(false), []);
+  const beginNew = () => setOpening(true);   // START in the builder: the opening first
+  const finishOpening = () => { setOpening(false); setBuilt(true); if (onStart) onStart(); };
+  const begin = () => { setBuilt(true); if (onStart) onStart(); };
+  // LOAD GAME and CONTINUE: the slot's look, cash and mission go back in, then the run starts the way the builder's START does
+  const loadSlot = (n) => { const d = runSaveRead(n); if (!d || !RUNNER_API.loadData(d)) return; if (onLoad) onLoad(d); runSlot = n; begin(); };
+  const onTitle = !titled && !built && !intro;
+  return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 950, pointerEvents: 'none' }}>
-      {!built && <RunnerBuilder onStart={() => { setBuilt(true); if (onStart) onStart(); }} onCancel={onExit} />}
-      <div onClick={onExit}
+      {onTitle && <RunnerTitle onNew={() => setIntro(true)} onLoad={loadSlot} onBack={onExit} />}
+      {intro && <RunnerIntro onDone={() => { setIntro(false); setTitled(true); }} />}
+      {titled && !built && !opening && !intro && <RunnerBuilder onStart={beginNew} onCancel={() => setTitled(false)} />}
+      {opening && <RunnerOpening onDone={finishOpening} />}
+      {!onTitle && !opening && !intro && <div onClick={onExit}
         style={{ pointerEvents: 'auto', position: 'absolute', top: 14, right: 14, padding: '8px 14px',
           border: '1px solid #6ef0ff', background: 'rgba(10,11,14,0.72)', color: '#6ef0ff', fontSize: 11,
-          letterSpacing: '0.26em', cursor: 'pointer', userSelect: 'none' }}>BACK</div>
+          letterSpacing: '0.26em', cursor: 'pointer', userSelect: 'none' }}>BACK</div>}
     </div>
   );
 }
@@ -21658,6 +23051,7 @@ export default function IronLionLayer004() {
   const mentorWaitRef = useRef(false);
   const [tableErr, setTableErr] = useState(null);
   const mapCv = useRef(null);
+  const mapPtrRef = useRef(null);   // THE MAP POINTER: the arrow the left stick moves over the pause map (the MAP tab only)
   /* LAYER 731: the pause map's zoom and pan. z is the zoom (1 = the whole city fits the canvas); x and y move the
      map away from the middle of the canvas, in pixels. Each opening of the map starts again at the whole city. */
   const mapView = useRef({ z: 1, x: 0, y: 0 });
@@ -22648,6 +24042,7 @@ export default function IronLionLayer004() {
     const poll = () => {
       raf2 = requestAnimationFrame(poll);
       const pads = navigator.getGamepads ? navigator.getGamepads() : []; const gp = pads && [...pads].find((q) => q && q.connected); if (!gp) return;
+      if (RUN_CUTSCENE) { input.current.x = 0; input.current.y = 0; input.current.run = false; input.current.fire = false; input.current.pad = 0; return; }   // the cutscene: the pad moves nothing until the city
       const g = G.current, car = g && g.mode !== "foot";
       const B = (i) => !!(gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > 0.35));
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, dz = 0.18, ry = gp.axes[3] || 0, rx506 = gp.axes[2] || 0;
@@ -22748,6 +24143,23 @@ export default function IronLionLayer004() {
         if (opts.length && (press(12) || press(13))) { g.mapSel = g.mapSel == null || g.mapSel < 0 ? 0 : (g.mapSel + (press(13) ? 1 : -1) + opts.length) % opts.length;
           opts.forEach((el, i) => { el.style.outline = i === g.mapSel ? "2px solid #f2c45a" : ""; el.style.outlineOffset = "2px"; }); if (opts[g.mapSel].scrollIntoView) opts[g.mapSel].scrollIntoView({ block: "nearest" }); }
         if (press(0) && g.mapSel != null && g.mapSel >= 0 && opts[g.mapSel]) opts[g.mapSel].click();
+        /* THE MAP POINTER (Donny): the left stick moves the arrow over the map on the MAP tab, and A clicks where it points. The
+           click is sent to the map canvas as the mouse's own pointer events, so the + - FIT buttons zoom and a click places or
+           takes away a waypoint, exactly as with the mouse. A lit map button still gets A instead. */
+        const pe = mapPtrRef.current, mc = mapCv.current;
+        if (pe && mc) {
+          if (!g.mapPtr) g.mapPtr = { x: mc.clientWidth / 2, y: mc.clientHeight / 2 };
+          const sx = Math.abs(ax) > dz ? ax : 0, sy = Math.abs(ay) > dz ? ay : 0;
+          g.mapPtr.x = Math.max(0, Math.min(mc.clientWidth, g.mapPtr.x + sx * 5));
+          g.mapPtr.y = Math.max(0, Math.min(mc.clientHeight, g.mapPtr.y + sy * 5));
+          const mr = mc.getBoundingClientRect(), cx = mr.left + g.mapPtr.x, cy = mr.top + g.mapPtr.y;
+          pe.style.display = G.padOnNow ? "block" : "none"; pe.style.left = cx + "px"; pe.style.top = cy + "px";
+          if (press(0) && (g.mapSel == null || g.mapSel < 0)) {
+            const ev = { clientX: cx, clientY: cy, bubbles: true, cancelable: true, button: 0, pointerId: 77, pointerType: "mouse", isPrimary: true };
+            mc.dispatchEvent(new PointerEvent("pointerdown", { ...ev, buttons: 1 }));
+            mc.dispatchEvent(new PointerEvent("pointerup", { ...ev, buttons: 0 }));
+          }
+        } else g.mapPtr = null;
         for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i); return; }
       /* LAYER 675: in Runner Mode the runner reads the pad itself (A board, B take off or land, X get off, Y action,
          RB fire), so the world's A / B / X / Y / RB stand down here. LB still opens the wheel. */
@@ -22789,6 +24201,7 @@ export default function IronLionLayer004() {
   useEffect(() => {
     const dn = (e) => {
       const k = e.key.toLowerCase();
+      if (RUN_CUTSCENE) return;   // the cutscene: the world takes no keys until the city
       input.current.keys[k] = true;
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
       if (G.wireKey && G.wireKey(k)) return;
@@ -31622,6 +33035,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         v: 2, t: Date.now(),
         slotTag: g.prisonMode ? (g.story && typeof STORY !== "undefined" && STORY[g.story.id] ? "REY · " + STORY[g.story.id].nm : g.preleased ? "REY · OUT" : "REY · KESTREL") : g.detMode ? "DETECTIVE" : g.studentMode ? "STUDENT" : "THE LION",
         cash: p.cash, hp: p.hp, wpn: p.wpn, ammo: p.ammo, rack: (g.rack || []).slice(),
+        debit: p.debit || 0, ledger: (p.ledger || []).slice(-200),
         outfits: (g.outfits || []).slice(), plain: !!g.plain,
         x: p.x, y: p.y,
         saved: g.saved || 0, lost: g.lost || 0, pulled: g.pulled || 0,
@@ -31724,9 +33138,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       return out; }
     function collectSnap() { const bmap = bldIndex(), ids = new Map();
       const state = snapEncode(g, bmap, ids), blds = bldDiff(bmap, ids);
-      return { v: SNAP_V, t: Date.now(), zoom: zoomRef.current, state, blds, wireKeys: [...WIRE_KEYS], wireHeat: WIRE_HEAT.n }; }
+      return { v: SNAP_V, t: Date.now(), zoom: zoomRef.current, state, blds, wireKeys: [...WIRE_KEYS], wireTrace: { ...WIRE_TRACE }, wireHeat: WIRE_HEAT.n }; }
     function applySnap(o) { if (!o || o.v !== SNAP_V) return false;
       WIRE_KEYS.clear(); for (const k of (o.wireKeys || [])) WIRE_KEYS.add(k);
+      Object.keys(WIRE_TRACE).forEach((k) => delete WIRE_TRACE[k]); Object.assign(WIRE_TRACE, o.wireTrace || {});
       WIRE_HEAT.n = o.wireHeat || 0; WIRE_HEAT.cold = 0;
       const S = snapDecode({ $id: -1, s: o.state, b: { $a: o.blds.map((r) => ({ $a: [r[0], r[1], r[2], r[3]] })) } });
       for (const r of S.b || []) { const c = getCell(r[0], r[1]), b = c && c.blds && c.blds[r[2]]; if (!b) continue;
@@ -31799,6 +33214,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!o) return false;
       const p = g.p;
       p.cash = o.cash ?? p.cash;
+      p.debit = +o.debit || 0; p.ledger = Array.isArray(o.ledger) ? o.ledger : [];
       p.hp = o.hp ?? p.hp;
       p.wpn = o.wpn || null; p.ammo = o.ammo || 0;
       g.rack = (o.rack || []).slice();
@@ -31810,6 +33226,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       g.suspicion = o.suspicion || 0; g.heat = o.heat || 0;
       g.kingsTurfHeat = o.kingsTurfHeat || 0;
       WIRE_KEYS.clear(); for (const k of (o.wireKeys || [])) WIRE_KEYS.add(k);
+      Object.keys(WIRE_TRACE).forEach((k) => delete WIRE_TRACE[k]); Object.assign(WIRE_TRACE, o.wireTrace || {});
       WIRE_HEAT.n = o.wireHeat || 0; WIRE_HEAT.cold = 0;
       /* Carrying it is saved; RIDING it is not. Loading straight onto a moving board with no
          idea where you are is worse than starting on your feet next to it. */
@@ -36324,8 +37741,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          the tables read grey while the carpet and the staff were right. */
       const OWNED_BY_FLOOR = { slotbank: 1, cardtable: 1, wheeltable: 1 };
       /* THE JACK-IN CHAIR: every Wire terminal room puts a patch of the Wire floor under its chair */
-      { const WT = b.wireTerm && b.wireTerm.f === floor ? b.wireTerm : null; if (WT) drawWireFloorPad(ctx, WT.chair, imgs.current.wire_floor); }
+      { const WT = b.wireTerm && b.wireTerm.f === floor ? b.wireTerm : null;
+        if (WT) { drawWireFloorPad(ctx, WT.chair, imgs.current.wire_floor); drawWireChair(ctx, WT.chair, WT.comp, imgs.current.wire_chair); } }
       for (const p of plan.props) {
+        /* the jack-in chair is drawn above (wire_chair), not as the office chair -- once that sprite has loaded */
+        if (b.wireTerm && b.wireTerm.f === floor && p === b.wireTerm.chair && imgs.current.wire_chair && imgs.current.wire_chair.width) continue;
         if (p.flip) { ctx.save(); ctx.translate(p.x + p.w / 2, p.y + p.h / 2); ctx.rotate(Math.PI); const ok = propSprite(p.t, -p.w / 2, -p.h / 2, p.w, p.h); ctx.restore(); if (ok) continue; }   // turned round (layer 534)
         if (p.t === "toilet" && b.inPrison) { const im = imgs.current.pr_toilet_apt; if (im && im.width) {        // 1A's toilet, in Kestrel too (layer 531)
             const cx = p.x + p.w / 2, cy = p.y + p.h / 2, r = (plan.rooms || []).find((q) => cx >= q.x0 && cx <= q.x1 && cy >= q.y0 && cy <= q.y1) || { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
@@ -58817,9 +60237,13 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       window.removeEventListener("pointerdown", wireClick, true);
       if (wireCv.current) wireCv.current.style.display = "none";
       g.wire = null;
+      /* only the traces left on hosts carry over: the Wire's own trace badges go with you */
+      WIRE_HEAT.n = 0; WIRE_HEAT.cold = 0;
       setHud((h) => ({ ...h, wire: false }));
       g.p.x = W0.home.x; g.p.y = W0.home.y; g.p.vx = 0; g.p.vy = 0; g.cam.x = g.p.x; g.cam.y = g.p.y;
-      g.pickupFlash = { nm: "lift:JACKED OUT" + (W0.hacked ? " · " + W0.hacked + " HOST" + (W0.hacked > 1 ? "S" : "") + " OPEN" : ""), t: 2.2 };
+      /* the debit card keeps its balance: it is in the INVENTORY tab, where you cash it out or put cash on it */
+      const card = Math.round(g.p.debit || 0);
+      g.pickupFlash = { nm: "lift:JACKED OUT" + (W0.hacked ? " · " + W0.hacked + " HOST" + (W0.hacked > 1 ? "S" : "") + " OPEN" : "") + (card > 0 ? " · $" + card.toLocaleString() + " ON YOUR CARD" : ""), t: 2.2 };
     }
     function wireClick(e) {
       const g = G.current; const W0 = g && g.wire; if (!W0) return;
@@ -58838,8 +60262,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (const h of W0.hosts) { const d = Math.hypot(h.mx - W0.x, h.my - W0.y); if (d < bd) { bd = d; best = h; } }
       if (!best) { W0.note = "NO HOST HERE. RIDE CLOSER."; W0.noteT = 2.5; return; }
       if (best.hacked) { W0.note = best.label + " · ALREADY OPEN."; W0.noteT = 2.5; return; }
-      const n = best.tier;
-      W0.pad = { h: best, n, dur: WIRE_PAD_TIME[n], t: 0, lit: 1, pressed: new Set(), mist: 0, res: null, resT: 0,
+      const n = best.tier, tr = WIRE_TRACE[best.id] || 0;
+      /* each trace this host remembers shortens its lit window, down to half */
+      W0.pad = { h: best, n, dur: WIRE_PAD_TIME[n] * Math.max(0.5, 1 - 0.2 * tr), t: 0, lit: 1, pressed: new Set(), mist: 0, res: null, resT: 0,
                  rects: [], flash: 0, bad: 0, pay: 0 };
       wirePadLight(W0.pad);
     }
@@ -58863,6 +60288,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       P.mist++; P.bad = 0.35; W0.trace = P.mist;
       if (P.mist >= 4) {
         P.res = "fail"; P.resT = 2.8;
+        WIRE_TRACE[P.h.id] = (WIRE_TRACE[P.h.id] || 0) + 1;   // a caught program leaves its trace on this host
         wireHeatAdd(1);
         W0.note = "KICKED OUT. THE PROGRAMS HAVE YOUR TRACE."; W0.noteT = 4;
         return;
@@ -58873,7 +60299,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function wirePadWin(W0, P) {
       const g = G.current;
       P.res = "win"; P.resT = 2.8; P.pay = WIRE_PAYOUT[P.n];
-      g.p.cash = (g.p.cash || 0) + P.pay;
+      g.p.debit = (g.p.debit || 0) + P.pay; debitLog(g, "wire", "WIRE HACK · " + P.h.label, P.pay);     // the Wire pays onto the debit card; it cashes out when you jack out
       WIRE_KEYS.add(P.h.id); P.h.hacked = true; W0.hacked = (W0.hacked || 0) + 1;
       W0.note = "OPEN · " + P.h.label + " · KEY ON YOUR RING · DEBIT +$" + P.pay; W0.noteT = 4.5;
     }
@@ -59225,7 +60651,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.fillRect(0, 0, W, 12 + hudLines * 22 + 6);
       ctx.fillRect(0, H - 34, W, 34);
       ctx.fillStyle = "#8dffc0";
-      ctx.fillText("THE WIRE · " + W0.hosts.length + " HOSTS · " + (W0.hacked || 0) + " OPEN · CASH $" + Math.round(g.p.cash || 0).toLocaleString(), 14, 12);
+      ctx.fillText("THE WIRE · " + W0.hosts.length + " HOSTS · " + (W0.hacked || 0) + " OPEN · DEBIT CARD $" + Math.round(g.p.debit || 0).toLocaleString(), 14, 12);
       ctx.fillStyle = "rgba(141,255,192,0.8)";
       ctx.fillText("ARROWS RIDE · E HACK · F PULSE · G MINE · Q TWICE JACKS OUT", 14, H - 26);
       if (hudNear) {
@@ -66816,7 +68242,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     input.current.x = dx / R; input.current.y = dy / R;
     setKnob({ x: dx, y: dy, on: true });
   };
-  const stickMove = (e) => { if (stickOn.current) { e.preventDefault(); move(e); } };
+  const stickMove = (e) => { if (stickOn.current && !RUN_CUTSCENE) { e.preventDefault(); move(e); } };
   const stickEnd = (e) => {
     input.current.x = 0; input.current.y = 0;
     setKnob({ x: 0, y: 0, on: false });
@@ -67267,7 +68693,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         </div>
       ) : null}
       {fbOn && <FootballShell onExit={() => setFbOn(false)} />}
-      {rnOn && <RunnerShell onStart={() => G.runnerEnterCan && G.runnerEnterCan()} onExit={() => { setRnOn(false); if (G.current) G.current.title = true; setHud((h) => ({ ...h, title: true })); }} />}
+      {rnOn && <RunnerShell onStart={() => G.runnerEnterCan && G.runnerEnterCan()} onLoad={(d) => { if (G.current && G.current.p) G.current.p.cash = +d.cash || 0; }} onExit={() => { setRnOn(false); if (G.current) G.current.title = true; setHud((h) => ({ ...h, title: true })); }} />}
       {/* ---------- title ----------
           Drawn over the live attract-mode flyover, so the background is the actual city with
           its actual traffic and lights rather than a still. */}
@@ -68826,25 +70252,31 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             ))}
             <span style={{ fontSize: 10, color: "#9a9486", alignSelf: "center", marginLeft: 6 }}>RB</span>
           </div>
-          {pauseTab !== 0 && <PauseTabBody tab={pauseTab} padSel={padSel} acts={{
+          {pauseTab !== 0 && <PauseTabBody tab={pauseTab} padSel={padSel} card={G.current && G.current.p ? { bal: Math.round(G.current.p.debit || 0), cash: Math.round(G.current.p.cash || 0), ledger: (G.current.p.ledger || []).slice().reverse(), said: G.current.cardSaid || "" } : null} acts={{
+            card: (a) => { const g = G.current; if (g) g.cardSaid = debitAct(g, a); setPadTick((x) => x + 1); },
             spend: (k) => { if (RUNNER_API.spendStat(k)) setPadTick((x) => x + 1); },
             pick: (i) => { if (G.current) G.current.padRow = i; setPadSel(i); },
             sys: (id) => {
               if (id === "recon") { setMapOpen(false); RUNNER_API.toggleLog(); }
-              else if (id === "save") { G.saveFn && G.saveFn(); setMapOpen(false); }   // LAYER 717: the flash says it, and the pause menu closes back to the game
-              else if (id === "load") { G.loadFn && G.loadFn(); }
+              else if (id === "save") { const ok = runSaveWrite(runSlot); if (G.current) G.current.pickupFlash = { nm: ok ? "lift:GAME SAVED" : "lift:COULDN'T SAVE · THE BROWSER SAID NO", t: 2 }; setMapOpen(false); }   // RUNNER SAVES: the slot the title last used
+              else if (id === "load") { const d = runSaveRead(runSlot); const ok = !!d && RUNNER_API.loadData(d); if (ok && G.current && G.current.p) G.current.p.cash = +d.cash || 0; if (G.current) G.current.pickupFlash = { nm: ok ? "lift:GAME LOADED" : "lift:NOTHING SAVED IN THIS SLOT", t: 2 }; }
               else if (id === "quit") { setMapOpen(false); setRnOn(false); if (G.current) G.current.title = true; setHud((h) => ({ ...h, title: true })); }
             } }} />}
           {/* studying the map should not dismiss it -- closing is the backdrop or the button */}
           <canvas ref={mapCv} onClick={(e) => e.stopPropagation()}
             style={{ display: pauseTab === 0 ? undefined : "none", width: "min(58vw, 92vh)", height: "min(58vw, 92vh)",
               border: `1px solid ${C.gold}`, background: "#101116", flexShrink: 0, touchAction: "none", cursor: "grab" }} />
+          {/* THE MAP POINTER (Donny): on the MAP tab only, the left stick moves this arrow over the map and A clicks it. It is
+              drawn only once a pad is the input, and the poll in the game loop moves it and sends the click. */}
+          {pauseTab === 0 && (<div ref={mapPtrRef} aria-hidden="true" style={{ position: "fixed", left: 0, top: 0, width: 22, height: 22, pointerEvents: "none", zIndex: 70, display: "none" }}
+            dangerouslySetInnerHTML={{ __html: '<svg width="22" height="22" viewBox="0 0 22 22"><path d="M3 2 L3 18 L7.5 14 L10.5 20.5 L13 19.5 L10 13 L16 13 Z" fill="#f2c45a" stroke="#101116" stroke-width="1.6" stroke-linejoin="round"/></svg>' }} />)}
           {/* the reading column sits beside the map in landscape rather than under it */}
           <div style={{ display: pauseTab === 0 ? "flex" : "none", flexDirection: "column", alignItems: "flex-start",
             maxWidth: "34vw", maxHeight: "94vh", overflowY: "auto" }}>
           <div style={{ fontSize: 11, letterSpacing: "0.24em", color: C.gold }}>
             {hud.flash76 ? "RAVEN HOOK \u00b7 1976" : "RAVEN HOOK \u00b7 1986"}
           </div>
+          {!RUNNER_API.isOn() && (<>
           {/* Call a job from the map instead of waiting out the cooldown. It closes the map on
               its way, because the point of the button is to go now. */}
           <div data-mapopt="1" onClick={(e) => { e.stopPropagation();
@@ -68891,6 +70323,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               letterSpacing: "0.16em", background: "rgba(232,196,106,0.08)" }}>
             FIND ME A STREET RACE
           </div>
+          </>)}
           <div style={{ fontSize: 9, letterSpacing: "0.14em", opacity: 0.6, marginBottom: 8 }}>
             {hud.place}
           </div>
@@ -68901,7 +70334,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               ["#6cf06c", "GAS"], ["#5abedc", "SHOP"],
               ["#eb4638", "INCIDENT"], ["#f2c24e", "MISSION"], ["#f0d26a", "THE KESTREL"],
               ["#cfe0f0", "CITY HALL"], ["#7fb0ef", "PRECINCT"],
-              ...Object.keys(GANG_COL).map((k) => [GANG_COL[k], GANG_LABEL[k]])]
+              ...(RUNNER_API.isOn() ? [] : Object.keys(GANG_COL).map((k) => [GANG_COL[k], GANG_LABEL[k]]))]
               .map(([col, lbl]) => (
                 <span key={lbl} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                   <span style={{ width: 7, height: 7, borderRadius: 7, background: col,
@@ -68930,7 +70363,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                 GARAGE {(hud.garage || []).length} / 4
               </div>
             </div>
-            <div style={{ textAlign: "left" }}>
+            {!RUNNER_API.isOn() && <div style={{ textAlign: "left" }}>
               <div style={{ fontSize: 8, letterSpacing: "0.2em", color: C.gold }}>ON SCREEN</div>
               {[["stats", "RUN STATS"], ["scanner", "SCANNER CALLS"], ["debug", "DEBUG LINE"],
                 ["topDown", "ROTATING LION"], ["fisHunt", "FIS HUNT"]]
@@ -68956,9 +70389,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                       : hud.show && hud.show[k]) ? "◼" : "◻"}  {nm}
                   </div>
                 ))}
-            </div>
+            </div>}
           </div>
           {/* "tap outside" is not obvious when the map fills the screen on a phone */}
+          {!RUNNER_API.isOn() && (<>
           {/* --- what he is carrying ------------------------------------------------ */}
           <div style={{ fontSize: 9, letterSpacing: "0.22em", color: C.gold, marginTop: 18 }}>
             WHAT HE IS CARRYING
@@ -69023,6 +70457,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           <div style={{ fontSize: 8, opacity: 0.45, marginTop: 6, letterSpacing: "0.10em" }}>
             SAVES EVERY 25 SECONDS ON ITS OWN
           </div>
+          </>)}
           <div onClick={(e) => { e.stopPropagation(); setMapOpen(false); }}
             style={{ marginTop: 14, alignSelf: "stretch", textAlign: "center",
               padding: "10px 14px", border: `1px solid ${C.gold}`, borderRadius: 6,
