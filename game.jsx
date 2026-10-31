@@ -15280,7 +15280,7 @@ const RUNNER_API = (function () {
     head_f_pixie: 'female_head_f_pixie_hair.png', head_f_sidebob: 'female_head_f_sidebob_hair.png', head_f_shaggy: 'female_head_f_shaggy_hair.png', head_f_wavy: 'female_head_f_wavy_hair.png',
     head_f_pigtails: 'female_head_f_pigtails_hair.png', head_f_topknot: 'female_head_f_topknot_hair.png', head_f_scarf: 'female_head_f_scarf_hair.png' };   // LAYER 695: the new heads' hair masks (the beret has none)
   const HAIR_MASKS = {};
-  for (const nm of Object.keys(HAIR_MASK_FILES)) { const mi = new Image(); mi.onload = () => { HAIR_MASKS[nm] = mi; }; const mp = 'heads/masks/' + HAIR_MASK_FILES[nm]; mi.src = (window.ASSET_DATA && window.ASSET_DATA[mp]) || A(mp); }
+  for (const nm of Object.keys(HAIR_MASK_FILES)) { const mi = new Image(); mi.onload = () => { HAIR_MASKS[nm] = mi; }; const mp = 'heads/mask/' + HAIR_MASK_FILES[nm]; mi.src = (window.ASSET_DATA && window.ASSET_DATA[mp]) || A(mp); }
   // the hair colours the player can pick (black, dark brown, brown, auburn, red, blonde, platinum, grey) and the skin tones
   const RUNNER_HAIR = ['#1c1714', '#4a2f1d', '#7a5232', '#8c3b22', '#b8432a', '#d9b26a', '#eadfbf', '#8a8a8a'];
   const RUNNER_SKIN_PICK = ['#8d5a3a', '#c58c5e', '#e0b48c', '#f1d2b3', '#5c3a24', '#ffffff'];
