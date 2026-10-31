@@ -1,0 +1,18 @@
+{
+ "canvas": [
+  338,
+  452
+ ],
+ "hip_L": [
+  92,
+  362
+ ],
+ "hip_R": [
+  240,
+  358
+ ],
+ "leg_L": "det_leg_L.png",
+ "leg_R": "det_leg_R.png",
+ "body": "det_body.png",
+ "note": "legs only; coat and everything above the hem stay in the body"
+}
