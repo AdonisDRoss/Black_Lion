@@ -16277,6 +16277,21 @@ const RUNNER_API = (function () {
     }));
     f.riders = [];
   }
+  // LAYER 757: the car is parked. Its passengers walk up from the kerb and get in, and show in their seats once aboard; then it lifts off
+  function startBoarding(f) {
+    const arts = f.sprite === 'car_cars_43a7a337_1' ? [] : passengerArts();
+    if (!arts.length) { f.mode = 'asc'; puff(f.x, f.y, 'small'); return; }
+    const M = carMeta(f.sprite), len = M.len, seatsOf = M.seats || OPEN_SEATS, halfW = M.half || OPEN_HALF;
+    const a = f.heading + M.nose, ca = Math.cos(a), sa = Math.sin(a);
+    const at = (lx, ly) => ({ x: f.x + lx * ca - ly * sa, y: f.y + lx * sa + ly * ca });
+    f.boarding = true; f.boardT = 0;
+    arts.forEach((art, i) => {
+      const seat = seatsOf[i % 4], side = seat[1] < 0 ? -1 : 1;
+      const tgt = at(seat[0] * len, seat[1] * len), st = at(seat[0] * len, side * (halfW * len + 60));   // starts on the kerb side, 60 px out
+      f.outs.push({ x: st.x, y: st.y, hd: Math.atan2(tgt.y - st.y, tgt.x - st.x), art, kit: null, ph: Math.random() * 6, mv: true,
+        stunT: 0, dead: false, dying: 0, rec: 0, t: 99, board: true, tx: tgt.x, ty: tgt.y, arrive: false });
+    });
+  }
   function drawOuts(c, f) { for (const o of f.outs) drawHunter(c, o); }
   function newFlier(cx, cy) {
     // a junction near the camera, kept with a chance that follows the zone's density
@@ -16344,7 +16359,17 @@ const RUNNER_API = (function () {
   }
   function updateFlier(f, dt, cx, cy) {
     if (f.drHeld) return;
-    if (f.outs && f.outs.length) { for (const o of f.outs) { o.t -= dt; o.x += Math.cos(o.hd) * 22 * dt; o.y += Math.sin(o.hd) * 22 * dt; o.ph += dt * 8; } f.outs = f.outs.filter((o) => o.t > 0); }                                   // LAYER 609: held by a traffic drone
+    if (f.outs && f.outs.length) {   // LAYER 609: held by a traffic drone
+      for (const o of f.outs) {
+        if (o.board) {   // LAYER 757: a boarding passenger walks up to his seat, and stops there
+          const dx = o.tx - o.x, dy = o.ty - o.y, d = Math.hypot(dx, dy);
+          if (d < 3) o.arrive = true; else { const s = Math.min(d, 30 * dt); o.x += dx / d * s; o.y += dy / d * s; o.hd = Math.atan2(dy, dx); }
+          o.ph += dt * 8;
+        } else { o.t -= dt; o.x += Math.cos(o.hd) * 22 * dt; o.y += Math.sin(o.hd) * 22 * dt; o.ph += dt * 8; }
+      }
+      for (const o of f.outs) if (o.board && o.arrive) f.riders.push(o.art);   // LAYER 757: aboard, so he shows in his seat
+      f.outs = f.outs.filter((o) => (o.board ? !o.arrive : o.t > 0));
+    }
     if (Math.hypot(f.x - cx, f.y - cy) > 4200) { Object.assign(f, newFlier(cx, cy)); return; }
     if (f.mode === 'fly') {
       // LAYER 620: a bike inside a hovering drone's cone slows right down, so the scan has time to read it
@@ -16365,7 +16390,15 @@ const RUNNER_API = (function () {
       f.z -= 80 * dt;
       if (f.z <= 0) { f.z = 0; f.mode = 'rest'; f.wait = rnd(5, 12); disembark(f); }
     } else if (f.mode === 'rest') {
-      f.wait -= dt; if (f.wait <= 0) { f.mode = 'asc'; f.riders = f.sprite === 'car_cars_43a7a337_1' ? [] : passengerArts(); puff(f.x, f.y, f.sprite === 'car_cars_43a7a337_1' ? 'small' : 'medium'); }   // LAYER 622
+      if (!f.boarding) { f.wait -= dt; if (f.wait <= 0) startBoarding(f); }   // LAYER 622
+      else {
+        f.boardT = (f.boardT || 0) + dt;
+        if (!f.outs.some((o) => o.board) || f.boardT > 14) {   // all aboard (or the last one is put in after 14 s): lift off
+          for (const o of f.outs) if (o.board) f.riders.push(o.art);
+          f.outs = f.outs.filter((o) => !o.board);
+          f.boarding = false; f.mode = 'asc'; puff(f.x, f.y, f.sprite === 'car_cars_43a7a337_1' ? 'small' : 'medium');
+        }
+      }
     } else if (f.mode === 'asc') {
       f.z += 80 * dt;
       if (f.z >= f.cruise) { f.z = f.cruise; f.mode = 'fly'; f.ci = jIdx(f.x); f.cj = jIdx(f.y); nextJunction(f); }
@@ -19099,10 +19132,19 @@ const RUNNER_API = (function () {
   }
   // LAYER 761: the holding tank's runners. Each is built the way the player is (random sex, head, body, skin and hair), in one of the
   // team colours, and drawn top-down by the same figure code the street uses. Two per team, the teams in the order given.
-  function holdingFigure(look, heading) {
-    const c = document.createElement('canvas'); c.width = 120; c.height = 120;
-    drawLookFigure(c.getContext('2d'), 60, 70, look, 0.5, heading);
-    return c.toDataURL('image/png');
+  function holdingFigure(look, heading, s = 1) {
+    const c = document.createElement('canvas'); c.width = 120 * s; c.height = 120 * s;
+    const g = c.getContext('2d'); g.scale(s, s); g.imageSmoothingEnabled = false;
+    drawLookFigure(g, 60, 70, look, 0.5, heading);
+    if (s === 1) return c.toDataURL('image/png');
+    // LAYER 763: a bigger picture is cut to the figure itself, so it can be centred on its trapdoor
+    const d = g.getImageData(0, 0, c.width, c.height).data;
+    let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 8) { const q = (i - 3) / 4, x = q % c.width, y = (q - x) / c.width; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0) return c.toDataURL('image/png');
+    const t = document.createElement('canvas'); t.width = x1 - x0 + 1; t.height = y1 - y0 + 1;
+    t.getContext('2d').drawImage(c, x0, y0, t.width, t.height, 0, 0, t.width, t.height);
+    return t.toDataURL('image/png');
   }
   function holdingCrew(suits) {
     const crew = [];
@@ -19113,7 +19155,7 @@ const RUNNER_API = (function () {
       const body = sex === 'female' ? 'female' : 'big';
       const look = { head: h[1], suit, body, bodyK: BODY_TYPES[body], skin: RUNNER_SKIN_PICK[(Math.random() * RUNNER_SKIN_PICK.length) | 0],
         hair: HAIR_MASK_FILES[h[1]] ? RUNNER_HAIR[(Math.random() * RUNNER_HAIR.length) | 0] : null };
-      crew.push({ src: holdingFigure(look, Math.PI / 2) });   // facing the room
+      crew.push({ src: holdingFigure(look, Math.PI / 2), look });   // facing the room (LAYER 763: the look too, for the trapdoors)
     }
     return crew;
   }
@@ -20566,7 +20608,7 @@ const RUNNER_API = (function () {
     ctx = c; c.save();
     c.setTransform(dpr, 0, 0, dpr, 0, 0); c.translate(cssW / 2, cssH / 2); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y);
     for (const p of crowd) {
-      if (!p.civ && CIV.pick) { p.civ = CIV.pick(); if (p.civ) p.civ.scale = 1.9; }   // bigger than the street crowd: the room is small and they are the people you talk to
+      if (!p.civ && CIV.pick) { p.civ = CIV.pick(); if (p.civ) p.civ.scale = (p.civ.scale || 1) * 1.9; }   // LAYER 767: bigger than the street crowd, but keeping each sheet's own calibrated scale (the flat 1.9 made them vary)
       if (!p.civ) continue;
       const dx = walker.x - p.x, dy = walker.y - p.y, d = Math.hypot(dx, dy) || 1, k = d < 220 ? 0.8 / d : 0;
       CIV.draw(p.civ, p.x, p.y, dx * k, dy * k, 0);
@@ -21476,6 +21518,7 @@ const RUNNER_API = (function () {
     faceList: (sex) => faceListFor(sex),
     rankFaces: (sex, skin, hair) => rankFaces(sex, skin, hair),   // LAYER 760: closest first to the skin and hair picked
     holdingCrew: (suits) => holdingCrew(suits),   // LAYER 761: the runners for the holding tank
+    holdingFigure: (look, heading, s) => holdingFigure(look, heading, s),   // LAYER 762: one built runner, top-down, for a trapdoor
     profileSrc: (n) => (n.startsWith('@') ? 'assets/' + n.slice(1) + '.png' : n.startsWith('f_') ? 'assets/faces/' + n.slice(2) + '.png' : 'assets/runner/portraits/' + n + '.png'),   // LAYER 717: the picture file for a face key
     enterLobby: (bx, by) => {
       lobby = true; lobbyBike = streetSpot(bx, by); walker.on = false; pend.exit = false; pend.land = false;
@@ -22212,25 +22255,24 @@ function RoCurtains({ shut }) {
 
 // one trapdoor: the tunnel's ring (trapdoor_tube.png) on the floor. Its inside is white while the door is shut and black once it
 // opens; the runner drops into the black.
-function RoDoor({ open, label, colour, you }) {
+function RoDoor({ open, label, you, figure }) {
   const inside = { position: 'absolute', left: '22.5%', top: '22.5%', width: '55%', height: '55%', borderRadius: '50%',
     background: open ? '#000' : '#fff', transition: 'background 900ms ease-in-out' };
-  // the team's label is printed on the white inside; it fades out with the black when the door opens
-  const text = { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-    padding: '0 12%', boxSizing: 'border-box', fontSize: 'clamp(6px, 0.62vw, 9px)', lineHeight: 1.15, letterSpacing: '0.04em', fontWeight: you ? 700 : 400,
-    color: you ? '#5a3d00' : '#1a1a1a', opacity: open ? 0 : 1, transition: 'opacity 500ms ease-in' };
+  // LAYER 766: the team's label sits on the floor under the ring, since the runner now stands over the white inside.
+  // It fades out with the black when the door opens.
+  const plate = { position: 'absolute', left: '-30%', right: '-30%', bottom: '-5.5vh', textAlign: 'center', whiteSpace: 'nowrap',
+    fontSize: 'clamp(6px, 0.62vw, 9px)', letterSpacing: '0.04em', fontWeight: you ? 700 : 400, color: you ? '#e8c46a' : '#bdbdbd',
+    opacity: open ? 0 : 1, transition: 'opacity 500ms ease-in' };
   return (
     <div style={{ position: 'relative', width: '9vw', height: '16vh' }}>
-      <div style={{ position: 'absolute', left: '50%', bottom: '8vh', width: '2.6vw', height: '9vh',
-        transform: `translateX(-50%) ${open ? 'translateY(6vh) scale(0.2)' : 'none'}`, opacity: open ? 0 : 1,
-        transition: 'transform 1000ms ease-in, opacity 1000ms ease-in 250ms', zIndex: 2 }}>
-        <div style={{ width: '100%', height: '34%', borderRadius: '50%', background: '#e6d3b3' }} />
-        <div style={{ width: '100%', height: '60%', marginTop: '6%', background: colour, borderRadius: 4 }} />
-      </div>
+      {figure && <img src={figure} alt="" style={{ position: 'absolute', left: '50%', bottom: 'calc(4.5vw - 5.5vh)', height: '11vh', width: 'auto',   // LAYER 766: centred on the white inside (its middle is 4.5vw up the 9vw door)   // LAYER 762: the runner stands on his door, built from body and head; his feet are on the door's top half, so the team label shows
+        transform: `translateX(-50%) ${open ? 'translateY(6vh) scale(0.2)' : ''}`, opacity: open ? 0 : 1, imageRendering: 'auto',   // LAYER 766: 'none' is not a transform, so the centring translate was being dropped
+        transition: 'transform 1000ms ease-in, opacity 1000ms ease-in 250ms', zIndex: 2, pointerEvents: 'none' }} />}
       <div style={{ position: 'absolute', left: 0, bottom: 0, width: '100%', aspectRatio: '1 / 1' }}>
-        <div style={inside}><div style={text}>{label}</div></div>
+        <div style={inside} />
         <img src={RO_TUBE} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', imageRendering: 'auto', filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))' }} />
       </div>
+      <div style={plate}>{label}</div>
     </div>);
 }
 
@@ -22247,7 +22289,7 @@ function CoWalk({ x0, x1, ms, frames = 8 }) {
 }
 
 // the C.A.N. set: the backstage (group 'wings') or the studio (group 'stage')
-function RoSet({ group, beat, order, first }) {
+function RoSet({ group, beat, order, first, doorsOf }) {
   const wings = group === 'wings';
   const [shut, setShut] = useState(true);
   useEffect(() => {
@@ -22257,6 +22299,8 @@ function RoSet({ group, beat, order, first }) {
   }, []);
   const onStage = !!beat && beat.scene === 'stage';
   const doorsOn = !onStage;   // the trapdoors come in after the host's first lines
+  const dropScene = !!beat && beat.scene === 'drop';   // LAYER 758: the host stays on the stage while the doors open
+  const figs = !wings && doorsOf ? doorsOf() : null;   // LAYER 762: the runners on the doors (the holding tank's crew, door 0 the player)
 
   const sign = (<img src={RO_CAN.sign} alt="" style={{ position: 'absolute', left: '3vw', top: '12vh', height: '56vh', width: 'auto', imageRendering: 'auto', filter: 'drop-shadow(0 0 14px rgba(255,80,80,0.35))' }} />);
   const backstage = (<>
@@ -22283,15 +22327,16 @@ function RoSet({ group, beat, order, first }) {
     <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '28vh', backgroundImage: `linear-gradient(180deg, rgba(4,5,8,0.15), rgba(4,5,8,0.65)), url(${RO_TEX.floor})`,
       backgroundSize: 'auto, 96px 96px', boxShadow: 'inset 0 10px 24px rgba(0,0,0,0.7)', borderTop: '2px solid #c9a24a' }} />
     {wings && <CoWalk x0={88} x1={66} ms={2600} />}   // after the floor, so her feet stand on it
+    {/* LAYER 759: the host sits behind the door row so every runner on a door stays visible */}
+    {!wings && (onStage || dropScene) && (<img src={RT_HOST.pic} alt="" style={{ position: 'absolute', right: '5vw', bottom: 0, height: '70%', imageRendering: 'auto', filter: 'drop-shadow(0 0 18px rgba(0,0,0,0.8))' }} />)}
     {!wings && (<div style={{ position: 'absolute', left: 0, right: 0, bottom: '6vh', display: 'flex', justifyContent: 'center', gap: '1.2vw',
       opacity: doorsOn ? 1 : 0, transition: 'opacity 900ms ease-in' }}>
       {Array.from({ length: 8 }, (_, k) => {
         const open = !!beat && beat.door != null && k >= beat.door;   // the doors open right to left; door 0 (the player's) goes last
         const c = order[k >> 1] || first;
-        return <RoDoor key={k} open={open} you={k === 0} colour={c} label={(k === 0 ? 'YOU · ' : '') + RUNNER_API.news.teamName(c)} />;
+        return <RoDoor key={k} open={open} you={k === 0} figure={figs ? figs[k] : null} label={(k === 0 ? 'YOU · ' : '') + RUNNER_API.news.teamName(c)} />;
       })}
     </div>)}
-    {!wings && onStage && (<img src={RT_HOST.pic} alt="" style={{ position: 'absolute', right: '5vw', bottom: 0, height: '70%', imageRendering: 'auto', filter: 'drop-shadow(0 0 18px rgba(0,0,0,0.8))' }} />)}
     {!wings && <RoCurtains shut={shut} />}
     <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.6))', pointerEvents: 'none' }} />
   </>);
@@ -22408,6 +22453,7 @@ function RunnerOpening({ onDone }) {
   }, []);
 
   const crewRef = useRef(null);   // the holding tank's runners: built once, the same ones for the whole beat
+  const doorsRef = useRef(null);  // LAYER 762: the runners on the trapdoors, built once from that crew
   const pic = (src, style) => <img src={RO_DIR + src} alt="" style={{ position: 'absolute', imageRendering: 'auto', ...style }} />;
   const full = { inset: 0, width: '100%', height: '100%', objectFit: 'cover' };
   const dark = { position: 'absolute', inset: 0, background: 'linear-gradient(180deg, #14161d, #07080b)' };
@@ -22418,12 +22464,20 @@ function RunnerOpening({ onDone }) {
   </div>);
   const first = choice.current.suit || suits[0];
   const order = [first, ...suits.filter((c) => c !== first)];   // the player's team first: its two doors are the first pair
+  // LAYER 762: door 0 is the player, built the way he is; doors 1 to 7 take the other seven runners of the holding tank's crew
+  // (the crew is two per team, so the colours line up with the doors). The crew's first runner is the one left out.
+  const doorRunners = () => {
+    if (!crewRef.current) crewRef.current = RUNNER_API.holdingCrew(order);
+    if (!doorsRef.current) doorsRef.current = [RUNNER_API.holdingFigure(Object.assign({}, RUNNER_API.getLook(), { suit: order[0] }), Math.PI / 2, 3),
+      ...crewRef.current.slice(1).map((c) => RUNNER_API.holdingFigure(c.look, Math.PI / 2, 3))];
+    return doorsRef.current;
+  };
 
   // one set for the wings (the assistant's countdown) and one for the stage (the host, the kit and the trapdoors): the set stays up while the scene moves on
   const group = sc === 'backstage' ? 'wings' : (sc === 'stage' || sc === 'kit' || sc === 'drop') ? 'stage' : sc;
   let visual = null;
   if (group === 'wings' || group === 'stage') visual = (<>
-    <RoSet group={group} beat={beat} order={order} first={first} />
+    <RoSet group={group} beat={beat} order={order} first={first} doorsOf={doorRunners} />
     {sc === 'kit' && <RoKit />}</>);
   else if (sc === 'letter') visual = (<>
     <div style={{ position: 'absolute', inset: 0, background: '#0b0c10' }} />
