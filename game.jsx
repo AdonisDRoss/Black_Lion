@@ -973,6 +973,7 @@ const CT = {
   ct_roof: "assets/ct_roof.webp",
   ct_lion: "assets/ct_lion.webp",
   ct_neon: "assets/ct_neon.webp",
+  wolf_chopper: "assets/wolves/wolf_chopper.png",   // LAYER 788: the Wolves' chopper, their ground bike
 };
 const FC = {
   mob_suv: "assets/mob_suv.webp",
@@ -2927,7 +2928,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 784";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 788";   // the notes for each layer are in the chat, not on screen
 // LAYER 737: DEBUG -- the first few errors are printed on the screen (the TV has no console). Remove once the red-screen bug is found.
 (function () {
   const shown = [];
@@ -4972,10 +4973,8 @@ const WOLVES_CELL = { i: 19, j: 5 };
    wrong however the sizes were tuned, and why "the Wolves' bike was never fixed" was true in a
    more literal way than anyone realised.
 
-   They ride `motorcycle` now -- the Lion's old plate, a plain street bike, which is exactly what
-   a Wolf rides. `ct_dirtbike` gives the crew a second machine so they are not all identical. */
-const WF_RIDES = [{ k: "motorcycle", len: 62, w: 24 },
-                  { k: "ct_dirtbike", len: 58, w: 22 }];
+   They ride choppers now (LAYER 788): wolf_chopper, the Wolves' own bike. The dirt bikes are the runners' own, in their team colours. */
+const WF_RIDES = [{ k: "wolf_chopper", len: 62, w: 24 }];   // LAYER 788: the Wolves ride their own chopper
 const WF_BIKES = WF_RIDES.filter((r) => r.len < 90);
 // the garage was the only thing on record for them -- the crew needs ground it holds, so the
 // blocks around the shop read as claimed. Kept inside the industrial belt (i17-21, j2-8).
@@ -15149,6 +15148,11 @@ function FootballShell({ onExit }) {
 // No collision yet, and the hunt is paused for this test.
 // the cutscene: from NEW GAME's intro to the handover in the city the runner takes no input (the stick, the keys, the buttons)
 let RUN_CUTSCENE = false;
+// LAYER 787: W or up arrow held, read by the runner's bike flame. A plain listener, so the draw code does not need the input ref.
+window.__bikeGas = false;
+window.addEventListener('keydown', (e) => { const k = (e.key || '').toLowerCase(); if (k === 'w' || k === 'arrowup') window.__bikeGas = true; });
+window.addEventListener('keyup', (e) => { const k = (e.key || '').toLowerCase(); if (k === 'w' || k === 'arrowup') window.__bikeGas = false; });
+window.addEventListener('blur', () => { window.__bikeGas = false; });
 const RUNNER_API = (function () {
   let RUN_ON = false;
   let ctx = null, W = 960, H = 540;
@@ -15176,6 +15180,9 @@ const RUNNER_API = (function () {
     cars_topless_1: { len: 100, nose: Math.PI / 2, dark: [80, 20, 30], light: [230, 90, 100], glow: '#ff5a6a', open: true, half: 0.18,
       seats: [[0.013, -0.09], [0.013, 0.09], [-0.10, -0.10], [-0.10, 0.10]] },
   };
+  // LAYER 786: the runner's dirt bikes, one per team colour: the hover bike's handling and rider, no hover palette.
+  // LAYER 787: the art is nose-up, so nose is a quarter turn (the hover art is nose-right, nose 0).
+  for (const t of ['red', 'yellow', 'blue', 'green']) CAR_META['rtbike_' + t] = { len: 62, nose: Math.PI / 2, glow: '#3a9bff', rider: true, handling: CAR_META.cars_43a7a337_1.handling };
   const A = (p) => 'assets/runner/' + p;
 
   const img = {};
@@ -15238,13 +15245,14 @@ const RUNNER_API = (function () {
 
   const CAR_FILES = ['cars_b714ecba_1', 'cars_87f02ce2_1', 'cars_39e0f112_1', 'cars_4eb54de1_1',
     'cars_6093fd94_1', 'cars_a9a16625_1', 'cars_d049053c_1', 'cars_f238fa36_1', 'cars_6775c1f3_1',
-    'cars_8e80b993_1', 'cars_43a7a337_1', 'cars_hover_jeep_1', 'cars_topless_1'];   // LAYER 756: the hover jeep and the topless car (riders on both)
+    'cars_8e80b993_1', 'cars_43a7a337_1', 'cars_hover_jeep_1', 'cars_topless_1', 'rtbike_red', 'rtbike_yellow', 'rtbike_blue', 'rtbike_green'];   // LAYER 756: the hover jeep and the topless car (riders on both)
   const CAR_NAMES = ['Vortex sports', 'Vortex pursuit', 'Halcyon sedan', 'Halcyon taxi', 'Meridian cargo',
-    'Meridian news', 'Kestrel patrol', 'Kestrel camera', 'Rook armoured', 'Rook transport', 'Hover bike', 'Hover jeep', 'Topless car'];
+    'Meridian news', 'Kestrel patrol', 'Kestrel camera', 'Rook armoured', 'Rook transport', 'Hover bike', 'Hover jeep', 'Topless car', 'Runner dirt bike red', 'Runner dirt bike yellow', 'Runner dirt bike blue', 'Runner dirt bike green'];
   const BIKE_INDEX = CAR_FILES.indexOf('cars_43a7a337_1');
-  CAR_FILES.forEach((f) => load('car_' + f, 'cars/' + f + '.png', { lazy: f }));
+  CAR_FILES.forEach((f) => load('car_' + f, 'cars/' + f + '.png', /^rtbike_/.test(f) ? null : { lazy: f }));   // LAYER 786: the dirt bikes keep their own colours (no hover palette)
+  load('rtbike_flame', 'cars/rtbike_flame.png');   // LAYER 787: the jet flame, drawn over the dirt bike only while W / up is held
   // LAYER 704: the windows of each hover car (glass_<car>) and the bike's saddle (seat_bike), as alpha masks cut to the art
-  CAR_FILES.forEach((f) => loadMask('glass_' + f, 'cars/' + f + '_glass.png'));
+  CAR_FILES.filter((f) => !/^rtbike_/.test(f)).forEach((f) => loadMask('glass_' + f, 'cars/' + f + '_glass.png'));
   loadMask('seat_bike', 'cars/cars_43a7a337_1_seat.png');
 
   const ROOF_FILES = ['roofs_4da2db28_1', 'roofs_4da2db28_2', 'roofs_4da2db28_3', 'roofs_4da2db28_4',
@@ -15332,6 +15340,8 @@ const RUNNER_API = (function () {
   // LAYER 732: the four team colours. The suit you wear is your team; the other three teams are the background teams.
   const RTEAMS = [{ k: 'red', col: '#d6453d' }, { k: 'yellow', col: '#e8c46a' }, { k: 'blue', col: '#3d7ee8' }, { k: 'green', col: '#3fbf6a' }];
   const RSUITS = RTEAMS.map((q) => q.col);
+  // LAYER 786: the runner's own bike is the dirt bike in his team colour (the suit he wears picks the team). Off the runner, the hover bike.
+  function runnerBikeIdx() { if (!RUN_ON) return CAR_FILES.indexOf('cars_43a7a337_1'); const t = RTEAMS.find((q) => q.col === RUNNER_LOOK.suit); const i = t ? CAR_FILES.indexOf('rtbike_' + t.k) : -1; return i >= 0 ? i : CAR_FILES.indexOf('cars_43a7a337_1'); }
   const RUNNER_LOOK = { head: 'mhead_curly', suit: RSUITS[0], body: 'big', bodyK: 1, name: 'RUNNER', stats: null, chosen: false, skin: null, hair: null };   // LAYER 690: hair = the hair colour (null: black)
   const BODY_TYPES = { slim: 1, average: 1, athletic: 1, heavy: 1, big: 1, female: 1, mmagenta: 1, mdark: 1, bgrey: 1, fgrey: 1 };   // LAYER 784: the four cut bodies (builder only; teammates keep BODY_KEYS)
   /* LAYER 704: EVERY RUNNER HAS A PROFILE PICTURE, a random face from the portrait set that matches his build. The pools are
@@ -15920,7 +15930,9 @@ const RUNNER_API = (function () {
   for (const k of ['mb_booth_l', 'mb_booth_r', 'mb_cigmachine', 'mb_counter', 'mb_crates', 'mb_dartboard', 'mb_jukebox', 'mb_neon', 'mb_pool', 'mb_shelf_a', 'mb_shelf_b', 'mb_stool', 'mb_stool_b', 'mb_stool_c', 'mb_stool_d', 'mb_table']) loadTop(k, 'bar/' + k + '.png');   // LAYER 709: the bar's furniture
   // LAYER 710: an asset at the top of assets/ (the runner loader adds assets/runner/ to its paths, so these are loaded direct)
   function loadTop(key, path) { const i = new Image(); i.onload = () => { img[key] = i; }; i.src = (window.ASSET_DATA && window.ASSET_DATA[path]) || ('assets/' + path); }
-  function profileFace(body) { const pool = PROFILE_FACES[body] || PROFILE_FACES.average; return pool[(Math.random() * pool.length) | 0]; }
+  // LAYER 785: the two female builds draw from the female faces; the new male builds take the pools closest to their build
+  const PROFILE_KEY = { fgrey: 'female', bgrey: 'female', mdark: 'big', mmagenta: 'average' };
+  function profileFace(body) { const pool = PROFILE_FACES[PROFILE_KEY[body] || body] || PROFILE_FACES.average; return pool[(Math.random() * pool.length) | 0]; }
   const BAKED_BODY = { big: 1, female: 1, heavy_b: 1 };   // LAYER 684: the bodies with the legs and arms in the art, drawn whole
   function rollRunnerLook() {
     const h = PHEADS[(Math.random() * PHEADS.length) | 0];
@@ -16154,7 +16166,9 @@ const RUNNER_API = (function () {
     drawGreenWater(cam);
     drawHideoutLot(ctx);   // LAYER 704: the lot behind the hideout, under the bike and the parked car
     if (!lobby) drawCar('car_' + CAR_FILES[car.sprite], car.x, car.y, car.z, car.heading || 0, car.lean || 0);   // LAYER 631: the bike, with its rider, in every mode
+    if (!lobby) kitOnCar(CAR_FILES[car.sprite], car.x, car.y, car.z, car.heading || 0, car.lean || 0);   // LAYER 785: the car you drive keeps its kit
     if (!lobby && ownCar && car !== ownCar) drawCar('car_' + CAR_FILES[ownCar.sprite], ownCar.x, ownCar.y, 0, ownCar.heading || 0, 0);   // LAYER 727
+    if (!lobby && ownCar && car !== ownCar) kitOnCar(CAR_FILES[ownCar.sprite], ownCar.x, ownCar.y, 0, ownCar.heading || 0, 0);   // LAYER 785
     if (!lobby && teamCarV && car !== teamCarV) drawCar('car_' + CAR_FILES[teamCarV.sprite], teamCarV.x, teamCarV.y, 0, teamCarV.heading || 0, 0);   // LAYER 723
     if (!lobby && parkedHover) drawCar('car_' + CAR_FILES[parkedHover.sprite], parkedHover.x, parkedHover.y, parkedHover.z, parkedHover.heading || 0, 0);   // LAYER 723: the hover bike, parked
     if (walker.on) drawSneakWalker(x, y);
@@ -16213,7 +16227,7 @@ const RUNNER_API = (function () {
     farm: 0.08, projects: 0.04, cemetery: 0.05, prison: 0.03, mountain: 0, water: 0, edge: 0 };
   function jIdx(v) { return clamp(Math.round(v / PITCH), 1, N - 1); }
   function densAt(x, y) { const z = zoneOf(jIdx(x), jIdx(y)); return DENS[z] != null ? DENS[z] : 0.35; }
-  const CAR_POOL = CAR_FILES.filter((f) => f !== 'cars_43a7a337_1').map((f) => 'car_' + f);   // the hover cars: the car art, no kit
+  const CAR_POOL = CAR_FILES.filter((f) => f !== 'cars_43a7a337_1' && !/^rtbike_/.test(f)).map((f) => 'car_' + f);   // traffic never gets a runner's dirt bike   // the hover cars: the car art, no kit
   // LAYER 680: bike colours. The bike art is one blue sheet; a tint recolours it, keeping its shading. null = the art as drawn (blue).
   const PLAYER_BIKE_TINT = '#d4102a';                                              // Donny's: cherry red
   const BIKE_TINTS = ['#e8c46a', '#3fbf6a', '#ff7a1a', '#8e4fd8', '#8a8d96', '#d8d8e0', null];
@@ -16466,7 +16480,7 @@ const RUNNER_API = (function () {
       if (!spotClear(car.x, car.y, true, null)) return say('NO CLEAR SPOT. LAND IN A LOT OR ON GRASS, CLEAR OF PEOPLE');   // LAYER 630
       car.mode = 'down'; say('LANDING');
     } else if (car.mode === 'down') { car.mode = 'up'; say('LIFTING OFF'); }
-    else if (car.mode === 'landed') { car.mode = 'up'; puff(car.x, car.y, car.sprite === BIKE_INDEX ? 'small' : 'medium'); say('LIFTING OFF'); }   // LAYER 622
+    else if (car.mode === 'landed') { car.mode = 'up'; puff(car.x, car.y, (car.sprite === BIKE_INDEX || /^rtbike_/.test(CAR_FILES[car.sprite] || '')) ? 'small' : 'medium'); say('LIFTING OFF'); }   // LAYER 622
     else if (car.mode === 'up') { car.mode = 'down'; say('LANDING'); }
   }
   // LAYER 722: how far from the bike you can be and still call it. Beyond this the call is refused.
@@ -17446,9 +17460,18 @@ const RUNNER_API = (function () {
       const onIt = !walker.on;         // the rider is only on the bike when he is ON it -- parked, he is on foot beside it
       if (m.rider && onIt) riderPart(-1);      // LAYER 690: the legs go under the bike
       ctx.drawImage(sp, -w / 2, -h / 2, w, h);
+      // LAYER 787: the jet flame on the team dirt bike: only while he is on it and holds W / up
+      if (onIt && /^car_rtbike_/.test(sprite) && img.rtbike_flame && window.__bikeGas) { ctx.globalAlpha = 0.8 + 0.2 * Math.sin(performance.now() / 40); ctx.drawImage(img.rtbike_flame, -w / 2, -h / 2, w, h); ctx.globalAlpha = 1; }
       if (m.rider && onIt) riderPart(1);       // the torso, arms and head go over it
     } else { ctx.fillStyle = '#9aa'; ctx.fillRect(-m.len / 2, -20, m.len, 40); }
     ctx.restore();
+  }
+  // LAYER 785: the kit on any ground car you can see -- the one you drive, your own and the team's. Traffic had it already; these did not.
+  // A bike, the air craft and the detectives' car carry none (the same test drawTraffic uses). The kit turns with the car's nose.
+  function kitOnCar(name, x, y, z, heading, lean) {
+    const m = carMeta('car_' + name);
+    if (!m || m.rider || m.noKit || !(m.len >= 90)) return;
+    drawKit(x, y - z, heading + (m.nose || 0) + (lean || 0) * 0.12, m.len, x);
   }
   // the alt-fuel kit on a ground car: twin ion pods at the tail, a fuel-cell canister on the flank, a plasma grille at the nose
   function drawKit(x, y, fwd, L, seed) {
@@ -17886,7 +17909,7 @@ const RUNNER_API = (function () {
       if (spawnMode === 'foot') { walker.x = sp.x; walker.y = sp.y; place(); walker.on = true; }
       else {
         // LAYER 585: on the bike you come in on the hover bike, not whatever car was last picked
-        if (spawnMode === 'moto') { const hb = CAR_FILES.indexOf('cars_43a7a337_1'); if (hb >= 0) car.sprite = hb; }
+        if (spawnMode === 'moto') { const hb = runnerBikeIdx(); if (hb >= 0) car.sprite = hb; }
         car.x = sp.x; car.y = sp.y; place();
       }
     }
@@ -21225,7 +21248,7 @@ const RUNNER_API = (function () {
   // Each class is one loop. Its loudness is the nearest moving vehicle of that class, falling off with distance from the runner.
   const HOVER_SND = { bike: 'assets/audio/hover_bike.wav', truck: 'assets/audio/hover_truck.wav', car: 'assets/audio/hover_car.wav', sports: 'assets/audio/hover_sports.wav', muscle: 'assets/audio/hover_muscle.wav' };
   const HOVER_CLASS = { cars_b714ecba_1: 'sports', cars_87f02ce2_1: 'sports', cars_6093fd94_1: 'truck',
-    cars_6775c1f3_1: 'truck', cars_8e80b993_1: 'truck', cars_43a7a337_1: 'bike' };   // the rest (sedans, taxi, the news jeep, camera car) are average cars
+    cars_6775c1f3_1: 'truck', cars_8e80b993_1: 'truck', cars_43a7a337_1: 'bike', rtbike_red: 'bike', rtbike_yellow: 'bike', rtbike_blue: 'bike', rtbike_green: 'bike' };   // the rest (sedans, taxi, the news jeep, camera car) are average cars
   /* LAYER 700: THE STREET CARS. These five loops (street_*.wav) are the engines of the ground traffic on the road, not the hover
      ones (those stay as they were). Each moving car is heard from its class, worked out from its make and model; the nearest car
      of each class sets that loop, falling off with distance. Its rev follows its speed by the same rule as every engine (REVS):
@@ -21239,7 +21262,7 @@ const RUNNER_API = (function () {
     if (/bike_player|bmx|bicycle/.test(k)) return null;          // a push bike has no engine
     const ent = (m && (MODELS[m.k] || MODELS[k])) || null;
     const mk = ent ? ent[0] : '';
-    if (/moto|chopper|kuru_bike|luna|scooter/.test(k)) return 'bike';    // the motorcycles, the scooter and the bike-shaped ones
+    if (/moto|chopper|kuru_bike|luna|scooter|rtbike/.test(k)) return 'bike';    // the motorcycles, the scooter and the bike-shaped ones
     if (mk === 'ossian' || /truck|van|bus|hauler/.test(k)) return 'truck';   // Ossian builds the trucks and vans
     if (mk === 'iron') return 'muscle';                           // Iron is the American muscle
     if (/sedan|wagon|hatch|salo|pd_|hp_/.test(k)) return 'car';  // the family saloons, wagons and the police cars, whatever the make
@@ -21586,7 +21609,7 @@ const RUNNER_API = (function () {
     headPreview: (nm, skin, hair) => headPreview(nm, skin, hair),
     suits: () => RSUITS.slice(),
     bodies: () => Object.keys(BODY_TYPES),
-    bodyList: (sex) => (sex === 'female' ? ['female'] : ['big']),   // LAYER 694: for now the runners have two bodies, big (male) and female; the other male bodies stay in BODY_FILES
+    bodyList: (sex) => (sex === 'female' ? ['fgrey', 'bgrey'] : ['mdark', 'mmagenta']),   // LAYER 785: two builds per sex, the four cut bodies (big and female stay in BODY_FILES)
     bodyFile: (k) => BODY_FILES[k],
     alertHere: (x, y) => canAlert(x, y),   // the C.A.N. call-in, at the hunters' own distance (used by the tests)
     // LAYER 690: where the runner's objective is, for the minimap's blue star (the pistol stash, then the teammate)
@@ -21658,7 +21681,7 @@ const RUNNER_API = (function () {
       if (!lobby) return;
       lobby = false;
       const b = lobbyBike || { x: sx, y: sy };
-      const hb = CAR_FILES.indexOf('cars_43a7a337_1'); if (hb >= 0) car.sprite = hb;
+      const hb = runnerBikeIdx(); if (hb >= 0) car.sprite = hb;
       car.x = b.x; car.y = b.y; car.z = 0; car.mode = 'landed'; car.speed = 0; car.lean = 0;
       const dd = Math.hypot(sx - b.x, sy - b.y);
       if (dd > 100) { walker.x = b.x + ((sx - b.x) / dd) * 90; walker.y = b.y + ((sy - b.y) / dd) * 90; }   // in reach of the bike to get on
@@ -21679,7 +21702,7 @@ const RUNNER_API = (function () {
     // LAYER 618: no C.A.N. tower, so the start is on foot in the plaza, with the hover bike parked beside him
     placeInPlaza: (x, y) => {
       lobby = false; placed = true; pend.exit = false; pend.land = false;
-      const hb = CAR_FILES.indexOf('cars_43a7a337_1'); if (hb >= 0) car.sprite = hb;
+      const hb = runnerBikeIdx(); if (hb >= 0) car.sprite = hb;
       const bk = canBike(); car.x = bk[0]; car.y = bk[1]; car.z = 0; car.mode = 'landed'; car.speed = 0; car.lean = 0; car.heading = -Math.PI / 2;
       walker.x = x; walker.y = y; walker.heading = 0; walker.on = true;
       say('YOUR BIKE IS PARKED IN THE LOT. YOU ARE ON THE ROOF.', 5);
@@ -21914,7 +21937,8 @@ function RunnerBuilder({ onStart, onCancel }) {
   // LAYER 684: male or female first. It picks the heads and the builds; changing it resets a head that does not fit.
   const chooseSex = (v) => {
     setSex(v);
-    setBody(v === 'female' ? 'female' : (body === 'female' ? 'big' : body));
+    const list = RUNNER_API.bodyList(v);   // LAYER 785: keep the build he had if it is one of this sex's, else the first of them
+    setBody(list.includes(body) ? body : list[0]);
     if (head && (head[0] === 'female') !== (v === 'female')) setHead(null);
   };
   const steps = ['SEX', 'HEAD', 'BODY', 'FACE', 'NAME'];
