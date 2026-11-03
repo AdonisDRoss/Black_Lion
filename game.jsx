@@ -2923,7 +2923,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 775";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 778";   // the notes for each layer are in the chat, not on screen
 // LAYER 737: DEBUG -- the first few errors are printed on the screen (the TV has no console). Remove once the red-screen bug is found.
 (function () {
   const shown = [];
@@ -11188,6 +11188,7 @@ function buildingPlans(b) {
     const rnd = mulberry(b.key * 7919 + 13);
     b.plans = [];
     for (let f = 0; f < b.floors; f++) b.plans.push(makeFloor(b, f, rnd));
+    wirePlaceTerminal(b);   // the Wire's terminal goes in with the floors (its chair, desk and computer)
   }
   return b.plans;
 }
@@ -15163,6 +15164,7 @@ const RUNNER_API = (function () {
   /* LAYER 709: D and Dex (assets/runner/pheromone/): talk-box faces and the top-down sprites in the street. */
   load('prof_pm_d', 'pheromone/pm_d_profile.png'); load('prof_pm_dex', 'pheromone/pm_dex_profile.png');
   load('pm_d_top_down', 'pheromone/pm_d_top_down.png'); load('pm_dex_top_down', 'pheromone/pm_dex_top_down.png');
+  load('micah_top_down', 'contacts/rig/micah_top_down.png'); load('prof_micah', 'contacts/rig/micah_portrait.png');   // LAYER 778: Micah, in the Pheromone's back booth and in the talk box
   loadTop('tur_mg', 'carwpn/wx_mg.png');   // LAYER 709: the roof gun (the car shop's machine gun, when it is on the disk)
   for (const k of ['mb_booth_l', 'mb_booth_r', 'mb_cigmachine', 'mb_counter', 'mb_crates', 'mb_dartboard', 'mb_jukebox', 'mb_neon', 'mb_pool', 'mb_shelf_a', 'mb_shelf_b', 'mb_stool', 'mb_stool_b', 'mb_stool_c', 'mb_stool_d', 'mb_table']) loadTop(k, 'bar/' + k + '.png');   // LAYER 709: the bar's furniture
   // LAYER 710: an asset at the top of assets/ (the runner loader adds assets/runner/ to its paths, so these are loaded direct)
@@ -15610,6 +15612,7 @@ const RUNNER_API = (function () {
   }
   function updateFlier(f, dt, cx, cy) {
     if (f.drHeld) return;
+    if (f.chase) { chaseStep(f, dt); return; }   // LAYER 779: the exec's car after the Vortex (see the armed chase, by the cooler)
     if (f.outs && f.outs.length) { for (const o of f.outs) { o.t -= dt; o.x += Math.cos(o.hd) * 22 * dt; o.y += Math.sin(o.hd) * 22 * dt; o.ph += dt * 8; } f.outs = f.outs.filter((o) => o.t > 0); }                                   // LAYER 609: held by a traffic drone
     if (Math.hypot(f.x - cx, f.y - cy) > 4200) { Object.assign(f, newFlier(cx, cy)); return; }
     if (f.mode === 'fly') {
@@ -16193,6 +16196,7 @@ const RUNNER_API = (function () {
   function arrestDeskNear() { return !!(ARR.on && ARR.phase === 'desk' && ARR.hold && !yMenu.open && Math.hypot(walker.x - ARR.hold.x, walker.y - ARR.hold.y) < 170); }
   // E at the desk: the sergeant talks, then takes the fine
   function arrestDesk() {
+    if (WM.step === 'arrest') return wmDesk();   // LAYER 778: the first WINDI mission: WINDI breaks in at the desk
     ARR.fine = Math.floor(Math.max(0, runnerCash) * RPOL_FINE);
     openTalk('DESK SERGEANT', null, [
       'SERGEANT: You are the runner from the show. The show has you, so you are released.',
@@ -17641,7 +17645,8 @@ const RUNNER_API = (function () {
     const want = Math.max(2, Math.round(DRONE.fliers * densAt(cam.x, cam.y)));
     while (fliers.length < want) fliers.push(newFlier(cam.x, cam.y));
     while (fliers.length > want + 3) {
-      let far = 0; for (let q = 1; q < fliers.length; q++) if (Math.hypot(fliers[q].x - cam.x, fliers[q].y - cam.y) > Math.hypot(fliers[far].x - cam.x, fliers[far].y - cam.y)) far = q;
+      let far = -1; for (let q = 0; q < fliers.length; q++) { if (fliers[q].chase) continue; if (far < 0 || Math.hypot(fliers[q].x - cam.x, fliers[q].y - cam.y) > Math.hypot(fliers[far].x - cam.x, fliers[far].y - cam.y)) far = q; }
+      if (far < 0) break;   // LAYER 779: the chasing car is never trimmed away
       fliers.splice(far, 1);
     }
     for (const d of drones) {
@@ -18872,15 +18877,16 @@ const RUNNER_API = (function () {
     if (!houseSeen && inHouse()) { houseSeen = true; houseThugsStart(); }   // LAYER 746: inside the house, the thugs come first (LAYER 748)
     if (houseSeen && !houseTalked && inHouse() && (!houseThugs || houseThugsDone)) { houseTalked = true; partnerSaved(); }   // LAYER 748: the partner's text waits until the last thug is down
   }
-  /* LAYER 704: THE HIDEOUT LOT. Behind the hideout (houseSpot) there is a lot with two yellow-outlined spots, side by side on
-     the lot's long side. The teammate's car is parked in the north spot and stays there. The runner's bike lands in the south
+  /* LAYER 704: THE HIDEOUT LOT. Behind the hideout (houseSpot) there is a lot with yellow-outlined spots (LAYER 780: four, in one big
+     yellow square, two by two). The teammate's car is parked in the top-left spot and stays there. The runner's bike lands in the south
      spot and is kept there: landing in it snaps the bike to the spot, and it waits there when he walks away. A landing in the
      teammate's spot is refused, and the bike lifts again. Both spots are on open ground (clearSpot), never inside a building. */
   const LOT_SPOT = { w: 110, h: 62 };     // long side along x, the car nose-on to the east
+  const LOT_GAP = 10;                     // LAYER 780: the gap between the four spots (the big square holds them two by two)
   let lotSpots = null;
   // LAYER 740: the lot's box must sit on open ground: no building, no road, nothing that is not landable
   function lotRectClear(cx, cy) {
-    const x0 = cx - 130, x1 = cx + 130, y0 = cy - LOT_SPOT.h - 40, y1 = cy + LOT_SPOT.h + 40;
+    const x0 = cx - 150, x1 = cx + 150, y0 = cy - LOT_SPOT.h - 40, y1 = cy + LOT_SPOT.h + 40;   // LAYER 780: the square is wider now (four spots)
     for (let x = x0; x <= x1; x += 40) for (let y = y0; y <= y1; y += 40) if (inBuilding(x, y) || !landable(x, y) || onRoad(x, y)) return false;
     return true;
   }
@@ -18906,23 +18912,30 @@ const RUNNER_API = (function () {
     if (lotSpots || !houseSpot) return;
     const at = lotBackYard(houseSpot) || clearSpot(houseSpot.x, houseSpot.y + 150, null) || { x: houseSpot.x, y: houseSpot.y + 150 };
     const cx = at.x, cy = at.y, w = LOT_SPOT.w, h = LOT_SPOT.h;
+    // LAYER 780: ONE big yellow square with four spots, two by two (claude/runner-opening-main-missions.md, main 2): up to four cars.
+    // The teammate's car is top-left, the runner's spot is bottom-left, and the two on the right are free.
+    const dx = w / 2 + LOT_GAP, dy = h / 2 + LOT_GAP;
     lotSpots = {
-      box: { x: cx - 122, y: cy - h - 26, w: 244, h: 2 * h + 52 },
-      team: { x: cx, y: cy - h / 2, w, h, car: 'car_cars_39e0f112_1' },   // the teammate's car, parked
-      you: { x: cx, y: cy + h / 2, w, h, car: null },                      // the runner's spot
+      box: { x: cx - dx - w / 2 - 12, y: cy - dy - h / 2 - 12, w: 2 * (dx + w / 2) + 24, h: 2 * (dy + h / 2) + 24 },
+      team: { x: cx - dx, y: cy - dy, w, h, car: 'car_cars_39e0f112_1' },   // the teammate's car, parked
+      you: { x: cx - dx, y: cy + dy, w, h, car: null },                      // the runner's spot
+      free: [{ x: cx + dx, y: cy - dy, w, h, car: null }, { x: cx + dx, y: cy + dy, w, h, car: null }],   // the other two: free
     };
     if (!teamCarV) teamCarV = { home: { x: lotSpots.team.x, y: lotSpots.team.y }, x: lotSpots.team.x, y: lotSpots.team.y, z: 0, heading: Math.PI, speed: 0, lean: 0, mode: 'ground', sprite: CAR_FILES.indexOf('cars_39e0f112_1') };   // LAYER 723
   }
+  // LAYER 780: the spot under (x, y): { k, s } for the teammate's, the runner's, or one of the two free spots
   function lotSpotAt(x, y) {
     if (!lotSpots) return null;
-    for (const k of ['team', 'you']) { const s = lotSpots[k]; if (Math.abs(x - s.x) <= s.w / 2 + 8 && Math.abs(y - s.y) <= s.h / 2 + 8) return k; }
+    const all = [['team', lotSpots.team], ['you', lotSpots.you], ['free', lotSpots.free[0]], ['free', lotSpots.free[1]]];
+    for (const [k, s] of all) if (Math.abs(x - s.x) <= s.w / 2 + 8 && Math.abs(y - s.y) <= s.h / 2 + 8) return { k, s };
     return null;
   }
-  // landed: his spot takes the bike; the teammate's spot sends it back up
+  // landed: his spot or a free one takes the bike; the teammate's spot sends it back up
   function lotLanded() {
-    const k = lotSpotAt(car.x, car.y);
-    if (k === 'you') { car.x = lotSpots.you.x; car.y = lotSpots.you.y; car.heading = 0; say('PARKED IN YOUR SPOT. IT WAITS HERE.', 3); }
-    else if (k === 'team') { car.mode = 'up'; say("THAT SPOT IS YOUR TEAMMATE'S. LAND IN THE OTHER ONE.", 3); }
+    const hit = lotSpotAt(car.x, car.y); if (!hit) return;
+    if (hit.k === 'team') { car.mode = 'up'; say("THAT SPOT IS YOUR TEAMMATE'S. LAND IN ANOTHER ONE.", 3); return; }
+    car.x = hit.s.x; car.y = hit.s.y; car.heading = 0;
+    say(hit.k === 'you' ? 'PARKED IN YOUR SPOT. IT WAITS HERE.' : 'PARKED IN A FREE SPOT. IT WAITS HERE.', 3);
   }
   // a car parked on the ground: the art nose-on, black windows, no engine
   function drawParkedCar(c, sprite, x, y, heading) {
@@ -18938,9 +18951,10 @@ const RUNNER_API = (function () {
     c.save();
     c.fillStyle = 'rgba(30,32,38,0.9)'; c.fillRect(L.box.x, L.box.y, L.box.w, L.box.h);
     c.strokeStyle = 'rgba(255,255,255,0.12)'; c.lineWidth = 1; c.strokeRect(L.box.x + 3, L.box.y + 3, L.box.w - 6, L.box.h - 6);
-    for (const k of ['team', 'you']) {
-      const s = L[k];
-      c.strokeStyle = '#ffd23a'; c.lineWidth = 4; c.strokeRect(s.x - s.w / 2, s.y - s.h / 2, s.w, s.h);
+    // LAYER 780: the big yellow square, then the four spots inside it
+    c.strokeStyle = '#ffd23a'; c.lineWidth = 6; c.strokeRect(L.box.x + 3, L.box.y + 3, L.box.w - 6, L.box.h - 6);
+    for (const s of [L.team, L.you, L.free[0], L.free[1]]) {
+      c.strokeStyle = '#ffd23a'; c.lineWidth = 3; c.strokeRect(s.x - s.w / 2, s.y - s.h / 2, s.w, s.h);
     }
     c.fillStyle = '#ffd23a'; c.font = 'bold 13px monospace'; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.fillText("TEAMMATE'S", L.team.x, L.box.y + 14); c.fillText('YOUR SPOT', L.you.x, L.box.y + L.box.h - 14);
@@ -18962,13 +18976,15 @@ const RUNNER_API = (function () {
   const INF_NAMES = ['MARCUS TULL', 'LUIS ORTEGA', 'NELL HARROW', 'TOMMY VASQUEZ', 'OTIS BLANK', 'RUBY SALAS', 'FRANK DOYLE', 'CHINA LEE', 'DEV PATEL', 'KAI MORROW', 'JOSIE FAY', 'RONNIE BELL'];
   const DOC_FACE = 'male_03';
   let storeSpot = null, docSpot = null, docMan = null, informants = [], chain = [], chainLink = 0, runnerCash = 0, bedHint = 0;
-  const STORY_STAGES = ['pistol', 'teammate', 'house', 'bed', 'store', 'ask', 'informant', 'doctor', 'mission'];
+  const STORY_STAGES = ['pistol', 'teammate', 'house', 'bed', 'store', 'ask', 'informant', 'doctor', 'mission', 'micah', 'arrest', 'back', 'wire', 'rescue'];   // LAYER 778: the first WINDI mission's steps
   function missionOn() { return STORY_STAGES.includes(MISSION.stage); }
   function missionTitle() {
     if (MISSION.stage === 'mission') return rjTitle();   // LAYER 707: the current job step
     return { pistol: 'FIRST MISSION: GET YOUR PISTOL', teammate: 'SECOND MISSION: FIND YOUR TEAMMATE', house: 'SECOND MISSION: THE HOUSE ON SAUNDERS',
       bed: 'THE PARTNER: LIE DOWN ON THE BAG', store: 'FIND THE DOCTOR: GO TO THE STORE', ask: 'FIND THE DOCTOR: ASK AROUND',
-      informant: 'FIND THE DOCTOR: FOLLOW THE LEAD', doctor: 'FIND THE DOCTOR: THE DOCTOR' }[MISSION.stage] || '';
+      informant: 'FIND THE DOCTOR: FOLLOW THE LEAD', doctor: 'FIND THE DOCTOR: THE DOCTOR',
+      micah: 'WINDI: MEET MICAH AT THE PHEROMONE', arrest: 'WINDI: THE PRECINCT DESK', back: 'WINDI: SIT AT THE TERMINAL IN THE BACK OFFICE',
+      wire: 'WINDI: GET OUT OF THE PROGRAMS', rescue: 'WINDI: WINDI' }[MISSION.stage] || '';   // LAYER 778
   }
   function pickName(taken) { const pool = INF_NAMES.filter((n) => !taken.includes(n)); return pool[(Math.random() * pool.length) | 0]; }
   // the partner: rescued at the hideout, he sits down, and the bed roll lesson starts
@@ -19156,6 +19172,89 @@ const RUNNER_API = (function () {
     MISSION.stage = 'done';
     setLaserChip(true);
     runBanner('THE CHIP IS IN', 2.6);
+  }
+  /* LAYER 778: THE FIRST WINDI MISSION (claude/windi-first-mission.md, draft 4). One mission, two roads. When the chip is in
+     (buyChip) Micah texts the runner to meet him at the Pheromone: the fake objective. Micah is in the back booth. He takes his
+     holophone out and calls, while the runner is still talking to him (the runner sees it). The talk ends and the patrol takes
+     the runner (the arrest, LAYER 729). At the desk WINDI breaks in over the sergeant (static, a car alarm, "not that desk") and
+     sends him to the terminal in the precinct's back office; the cuffs come off when she speaks. Jacked in, the Wire's orange
+     programs hunt him. One hit, or 25 seconds, and WINDI cuts him out (wireWindiRescue, in the Wire). Her talk after the rescue
+     gives the permissions: the precinct's door key on his ring, and her pop-ups on the holophone. WM.step is the step; while no
+     job is on, MISSION.stage follows it (wmFrame). PROPOSED defaults (open in the doc): the Pheromone, the $200 desk price (not
+     charged: WINDI takes him first), the programs run, the key is the precinct's door. */
+  const WM = { started: false, step: null, done: false, linked: false };
+  function wmStart() {
+    if (WM.started) return;
+    WM.started = true; WM.step = 'micah';
+    runFlash({ title: 'NEW TEXT', sub: 'MICAH: COME MEET ME AT THE PHEROMONE.', life: 4 });
+    say('MICAH TEXTS YOU: COME MEET ME AT THE PHEROMONE. THE ARROW IS ON THE DOOR.', 6);
+  }
+  // the precinct (the building in its civic cell 8,11): where the desk, the back office and the Wire's terminal are
+  function wmPrecinct() {
+    const pc = cellOf(SX(8) + PITCH / 2, SX(11) + PITCH / 2), prec = pc && pc.blds ? pc.blds.find((q) => q.kind === 'precinct') : null;
+    return prec ? { x: prec.x + prec.w / 2, y: prec.y + prec.h / 2, b: prec } : null;
+  }
+  // each frame: while no job is on, the story's stage is the WINDI step, and the arrow points where that step needs
+  function wmFrame() {
+    if (!WM.step || RJ.active) return;
+    MISSION.stage = WM.step; MISSION.kind = 'story';
+    if (WM.step === 'micah') { const d = pmDoor(); if (d) { MISSION.label = 'THE PHEROMONE'; MISSION.x = d.ox; MISSION.y = d.oy; } }
+    else { const p = wmPrecinct(); if (p) { MISSION.label = WM.step === 'arrest' ? 'PRECINCT' : 'TERMINAL'; MISSION.x = p.x; MISSION.y = p.y; } }
+  }
+  function wmMicahNear() { return WM.step === 'micah' && PMB.inside && Math.hypot(PMB.x - PMB_CREW.micah.x, PMB.y - PMB_CREW.micah.y) < PMB_TALK; }
+  function wmMeet() {
+    openTalk('MICAH', 'micah', [
+      'There he is. Sit down. The drink is on me, you look like you need one.',
+      'I have work for you. The kind that pays. Not tonight. Tonight you just listen.',
+      'Hang on. (HE TAKES THE HOLOPHONE OUT.) Yeah. He is here, in the back. Come on in. No, he is not going to run.'
+    ], () => wmCatch(), 'THE PHEROMONE');
+  }
+  // the patrol is at the door: the runner is taken out of the room, and cuffed (the arrest, LAYER 729)
+  function wmCatch() {
+    if (WM.step !== 'micah') return;
+    WM.step = 'arrest';
+    pmLeaveBar();
+    say('THE DOOR OPENS. TWO COPS. MICAH IS NOT LOOKING AT YOU.', 4);
+    policeArrest();
+  }
+  // E at the desk, under this arrest: the sergeant names the price, and the static breaks in (arrestDesk hands over here)
+  function wmDesk() {
+    openTalk('DESK SERGEANT', null, [
+      'SERGEANT: You are the runner from the show. The show has you.',
+      'SERGEANT: The release is $200 cash. Everybody pays the desk. Everybody.'
+    ], () => wmBreak(), 'THE PRECINCT DESK');
+  }
+  function wmBreak() {
+    openTalk('WINDI', null, [
+      'STATIC. A CAR ALARM CHIRPS TWICE IN THE HOLOPHONE. NOBODY IS THERE.',
+      'WINDI (HOLOPHONE): Not that desk. The back office. The terminal is open.',
+      ...(MICAH_ST.wendy ? ['WINDI (HOLOPHONE): The note in the cooler said Wendy. That is the name nobody uses for me. Now you know it is me.'] : []),   // the Wendy clue pays off here
+      'WINDI (HOLOPHONE): You know the alarm. Walk. Do not stop to pay him.'
+    ], () => wmBackOffice(), 'THE PRECINCT');
+  }
+  function wmBackOffice() {
+    WM.step = 'back';
+    ARR.on = false; ARR.phase = ''; ARR.hold = null; ARR.from = null; ARR.to = null; ARR.leaveReq = false;   // the cuffs come off when she speaks
+    say('THE CUFFS ARE OFF. THE BACK OFFICE TERMINAL IS IN THE PRECINCT. SIT DOWN AT IT: E IN THE CHAIR.', 6);
+  }
+  // the Wire (App scope): sitting at the back-office terminal in this step is the first WINDI run
+  function wmJackIn() { if (WM.step !== 'back') return false; WM.step = 'wire'; return true; }
+  function wmJackOut() { if (WM.step === 'wire') WM.step = 'back'; }
+  // WINDI cuts him out of the Wire. Her talk waits for him on the holophone; her permissions follow it
+  function wmRescue() {
+    WM.step = 'rescue';
+    openTalk('WINDI', null, [
+      'WINDI (HOLOPHONE): That was the orange ones. They do not stop until the trace is clean.',
+      'WINDI (HOLOPHONE): I cut you out. Do not sit in a chair you did not check first.',
+      'WINDI (HOLOPHONE): The cops are on a clock, and that desk takes cash from everybody. Remember that.',
+      'WINDI (HOLOPHONE): Keep the key. The precinct door opens for you now, and I will talk to you on this holophone.'
+    ], () => wmPermissions(), 'THE PRECINCT');
+  }
+  function wmPermissions() {
+    WM.step = null; WM.done = true; WM.linked = true;
+    MISSION.stage = 'done'; MISSION.kind = 'story';
+    const p = wmPrecinct(); if (p) WIRE_KEYS.add(wireId(p.b));   // her key: the precinct's door opens to the Wire from now on
+    runFlash({ title: 'WINDI', sub: 'HER PERMISSIONS ARE ON YOUR HOLOPHONE. THE PRECINCT DOOR IS OPEN TO YOU.', life: 4 });
   }
   // the one he is next to on foot, if any: an informant or, at the doctor's spot, the doctor
   function storyNear() {
@@ -19912,6 +20011,176 @@ const RUNNER_API = (function () {
     if (d.windi === 'disguise') { WINDI_ST.disguise = true; WINDI_ST.asset = true; runFlash({ title: 'WINDI', sub: 'SHE IS IN THE BODY. SHE IS AN ASSET NOW.', life: 3.4 }); }
   }
   function keepGiver(id, def, p, name) { const g = makeInformant(p, name); g.job = def; g.keepId = id; RJ.givers.push(g); return g; }
+  /* LAYER 779: MICAH'S MISSIONS (claude/micah-missions.md, draft 2, and Donny's notes of 2026-11-03). Built on the job engine above.
+     Main 2 is the partner's car job: a Raven Studios exec's Vortex on the heights (the exec is a placeholder name). Main 3 to 5 are
+     Micah's: the friend (M3), the cold delivery (M4, with its open road: half pay, trust down, cred up, the chip and the Wendy
+     clue, a Wire passcode), and the pound (M5). Commissions C1 to C4 open at trust 2 once M5 is done; their pay is base x trust x cred.
+     One night after M5, Micah's betrayal starts (wmStart, the first WINDI mission) and his jobs end.
+     PROPOSED, not agreed: the zones, odds, pay, cred and the open-road numbers. The passcode is stored (MICAH_ST.pass); it does not
+     yet skip a Wire pad, because the host it opens is not chosen. */
+  const MICAH_ST = { trust: 0, m: { 2: false, 3: false, 4: false, 5: false }, next: {}, m5At: 0, code: false, pass: false, intel: false, wendy: false, lastComm: -1 };
+  const MIC_M2 = { id: 'M2', micah: 'm2', kind: 'MISSION', title: 'THE VORTEX ON THE HEIGHTS', pay: 0, keep: true, giver: 'PARTNER', zone: 4,
+    offer: ['A Raven Studios exec keeps a Vortex in his drive on the heights. The drive has one guard, and he is bored.', 'Take the car. It is yours to keep.'],
+    steps: [
+      sGo('THE RAVEN EXEC\'S DRIVE ON THE HEIGHTS', 'GO UP THE HEIGHTS. THE ARROW IS ON THE DRIVE.', 'AT THE DRIVE. ONE GUARD ON IT.', { z: 4 }),
+      sJob(0.6, 'DEAL WITH THE GUARD', 'PRESS A TO DEAL WITH THE GUARD. STUN HIM, OR GO ROUND.'),
+      { k: 'car', hud: 'HOT-WIRE THE VORTEX', say: 'HOT-WIRE THE VORTEX IN THE DRIVE. PRESS E BY IT, AND STAY BY IT.', same: true },
+      { k: 'park', hud: 'PARK IT IN YOUR SPOT', say: 'TAKE IT HOME. PARK IT IN YOUR SPOT IN THE YELLOW SQUARE, AND GET OUT.' } ] };
+  const MIC_M3 = { id: 'M3', micah: 'm3', kind: 'MISSION', title: 'THE FRIEND', pay: 100, keep: true, giver: 'PARTNER',
+    offer: ['The friend I told you about drinks at the Pheromone. His name is Micah.', 'Go and meet him. Tell him I sent you.'],
+    steps: [
+      sGo('THE PHEROMONE', 'GO TO THE PHEROMONE. THE ARROW IS ON THE DOOR.', 'AT THE PHEROMONE.', { at: 'pm' }),
+      sTalk('MICAH', 'TALK TO MICAH AT THE BAR', 'FIND MICAH IN THE PHEROMONE. PRESS A TO TALK.', ['Not tonight. I have work, and it is not for you yet. Come back when you have a name.'], { same: true }) ] };
+  const MIC_M4 = { id: 'M4', micah: 'm4', kind: 'MISSION', title: 'COLD DELIVERY', pay: 300, payOf: (A) => (A && A.choice === 'open' ? 150 : 300), keep: true, giver: 'MICAH', zone: 3,
+    offer: ['A sealed cooler is waiting at the motel desk in zone one. Take it to the cold store at the Halcyon works.', 'Hand it over. Do not ask what is in it.'],
+    steps: [
+      sGo('THE MOTEL DESK IN ZONE 1', 'GO TO THE MOTEL DESK IN ZONE 1. THE ARROW IS ON IT.', 'AT THE DESK.', { z: 1 }),
+      sPick('COOLER', 'TAKE THE COOLER FROM THE DESK', 'PRESS A AT THE DESK TO TAKE THE COOLER.'),
+      sPick('CODE', 'SEARCH THE DESK FOR THE CODE', 'PRESS A AT THE DESK TO SEARCH IT. THE CODE IS HIDDEN IN IT.', { got: () => { MICAH_ST.code = true; } }),
+      sGo('THE COLD STORE AT THE HALCYON WORKS', 'TAKE THE COOLER TO THE HALCYON WORKS. THE ARROW IS ON IT.', 'AT THE COLD STORE.', { z: 3 }),
+      { k: 'drop', who: 'COLD STORE CLERK', hud: 'HAND THE COOLER OVER', say: 'HAND THE COOLER OVER. PRESS A TO TALK.', same: true,
+        lines: ["Micah sent it? Good. Sign here, and don't come back for the receipt."],
+        openLines: ['You opened it. Micah is going to hear about that.', 'Here is your half. Keep the rest of the cold out of my books.'] } ] };
+  const MIC_M5 = { id: 'M5', micah: 'm5', kind: 'MISSION', title: 'THE HOLD', pay: 500, keep: true, giver: 'MICAH', zone: 4,
+    offer: ['The cops impounded my car from the lot behind the Pheromone. It is in the pound in zone four.', 'Get it out before they crush it.'],
+    steps: [
+      sGo('THE POUND IN ZONE 4', 'GO TO THE POUND IN ZONE 4. THE ARROW IS ON IT.', 'AT THE POUND.', { z: 4 }),
+      sTalk('POUND CLERK', 'ASK THE CLERK ABOUT MICAH\'S CAR', 'FIND THE CLERK AT THE POUND. PRESS A TO TALK.', ["Micah's car? We were told to hold this one for the friend.", "Sign here. And don't ask who told us."], { same: true }),
+      sJob(0.7, 'GET THE CAR OUT OF THE GATE', 'PRESS A AT THE GATE TO GET THE CAR OUT.', { same: true }),
+      sGo('THE PHEROMONE', 'TAKE THE CAR BACK TO THE PHEROMONE. THE ARROW IS ON THE DOOR.', 'AT THE PHEROMONE.', { at: 'pm' }) ] };
+  // the commissions: Micah's paid jobs. Base pay is scaled by trust and cred when they are taken (commissionPay)
+  const micahComm = (id, title, base, zone, offer, steps) => ({ id, micah: 'comm', commission: true, title, pay: base, payOf: () => commissionPay(base), keep: true, giver: 'MICAH', zone, offer, steps });
+  const MIC_COMM = [
+    micahComm('C1', 'THE COURIER RUN', 250, 2, ["A parcel has to cross two zones before dawn. Don't open it."], [
+      sGo('THE PARCEL IN ZONE 2', 'GO TO THE PARCEL IN ZONE 2. THE ARROW IS ON IT.', 'AT THE PARCEL.', { z: 2 }),
+      sPick('PARCEL', 'TAKE THE PARCEL', 'PRESS A TO TAKE THE PARCEL.'),
+      sGo('THE DROP IN ZONE 3', 'TAKE THE PARCEL TO THE DROP IN ZONE 3. THE ARROW IS ON IT.', 'AT THE DROP.', { z: 3, limit: 300 }),
+      sGo('THE PHEROMONE', 'BRING THE PARCEL BACK TO THE PHEROMONE. THE ARROW IS ON THE DOOR.', 'AT THE PHEROMONE.', { at: 'pm' }) ]),
+    micahComm('C2', 'THE WATCH', 400, 4, ['A Halcyon exec is throwing a party on the heights. He has a watch Micah wants.'], [
+      sGo('THE PARTY ON THE HEIGHTS', 'GO UP TO THE PARTY ON THE HEIGHTS. THE ARROW IS ON IT.', 'AT THE PARTY.', { z: 4 }),
+      sJob(0.5, 'TAKE THE WATCH WITHOUT A FIGHT', 'PRESS A TO TAKE A WATCH OFF THE EXEC. NO FIGHT.'),
+      sGo('THE PHEROMONE', 'BRING THE WATCH TO THE PHEROMONE. THE ARROW IS ON THE DOOR.', 'AT THE PHEROMONE.', { at: 'pm' }) ]),
+    micahComm('C3', 'THE LOOKOUT', 200, 1, ["Sit on the Pheromone's door and tell me when the patrol goes by."], [
+      sGo('THE PHEROMONE DOOR', 'GO TO THE PHEROMONE DOOR. THE ARROW IS ON IT.', 'AT THE DOOR.', { at: 'pm' }),
+      sJob(0.7, 'WATCH THE PATROL', 'PRESS A TO WATCH THE PATROL PASS.', { same: true }),
+      sTalk('MICAH', 'TELL MICAH THE PATROL HAS PASSED', 'TELL MICAH. PRESS A TO TALK.', ['Good. Keep your eyes on the corner.'], { same: true }) ]),
+    micahComm('C4', 'THE DEBTOR', 600, 2, ['A man in zone two owes Micah six hundred. Collect it without breaking him.'], [
+      sGo('THE DEBTOR IN ZONE 2', 'GO TO THE DEBTOR IN ZONE 2. THE ARROW IS ON IT.', 'AT THE DEBTOR.', { z: 2 }),
+      sTalk('THE DEBTOR', 'ASK THE DEBTOR FOR THE MONEY', 'FIND THE DEBTOR. PRESS A TO TALK.', ["I don't have it. Ask me again tomorrow."], { same: true }),
+      sJob(0.6, 'COLLECT WITHOUT HURTING HIM', 'PRESS A TO COLLECT THE MONEY. NO FIGHT.', { same: true }),
+      sGo('THE PHEROMONE', 'TAKE THE MONEY TO THE PHEROMONE. THE ARROW IS ON THE DOOR.', 'AT THE PHEROMONE.', { at: 'pm' }) ]),
+  ];
+  // trust is 0 to 3; commissions need 2. Commission pay: base x (1.25 at trust 3) x (1 + cred / 500, at most 1.5) (proposed)
+  function micahTrust(d) { MICAH_ST.trust = Math.max(0, Math.min(3, MICAH_ST.trust + d)); }
+  function commissionPay(base) { return Math.round(base * (MICAH_ST.trust >= 3 ? 1.25 : 1) * Math.min(1.5, 1 + credTotal() / 500)); }
+  // a job's pay: a job can have its own pay (payOf, given the active job, for the open-cooler road and the commissions)
+  function rjPayOf(def, A) { return def.payOf ? def.payOf(A) : def.pay; }
+  // the car the partner's job wants: a parked Vortex in the drive, one that the hot-wire takes (startHotwire / takeLooseCar)
+  function spawnHeistCar(p) {
+    if (!p || fliers.some((f) => f && f.heist)) return;
+    const f = newFlier(p.x, p.y);
+    Object.assign(f, { x: p.x, y: p.y, z: 0, mode: 'rest', wait: 1e9, sprite: 'car_cars_b714ecba_1', riders: [], outs: [], head: null, heist: true });
+    fliers.push(f);
+  }
+  // LAYER 779: THE ARMED CHASE. Once the Vortex is taken, the Raven exec's men come after it in a car, armed, for one block. The chasing car is a
+  // flier flagged chase (it sits in fliers, so it draws like the rest). It steers at the Vortex a little under a car flat out, shoots when in range
+  // (a hit slows the Vortex), and gives up when it loses him for a few seconds or after the block. The partner covering the turn is not built.
+  const CHASE = { spd: 330, range: 520, hit: 0.3, cd: 2.4, lose: 1100, loseT: 3, life: 28, hurt: 0.6 };
+  let chaseCar = null, chaseT = 0, chaseLost = 0;
+  function startChase() {
+    if (!ownCar) return;
+    endChase();
+    const a = ownCar.heading || 0, cx = ownCar.x - Math.cos(a) * 520, cy = ownCar.y - Math.sin(a) * 520;
+    const f = newFlier(cx, cy);
+    Object.assign(f, { x: cx, y: cy, z: 0, mode: 'chase', chase: true, sprite: 'car_cars_87f02ce2_1', riders: [], outs: [], head: null, tint: null, cd: 1.2 });
+    fliers.push(f); chaseCar = f; chaseT = 0; chaseLost = 0;
+  }
+  function endChase() {
+    if (chaseCar) { const k = fliers.indexOf(chaseCar); if (k >= 0) fliers.splice(k, 1); }
+    chaseCar = null; chaseT = 0; chaseLost = 0;
+  }
+  function chaseStep(f, dt) {
+    if (!ownCar) { endChase(); return; }
+    chaseT += dt; f.cd = Math.max(0, (f.cd || 0) - dt);
+    const d = Math.hypot(ownCar.x - f.x, ownCar.y - f.y);
+    steerTo(f, ownCar.x, ownCar.y, CHASE.spd, dt);
+    chaseLost = d > CHASE.lose ? chaseLost + dt : 0;
+    if (chaseLost > CHASE.loseT) { say('THEY LOST YOU IN THE TRAFFIC.', 4); endChase(); return; }
+    if (chaseT > CHASE.life) { say("THE EXEC'S MEN BREAK OFF. ONE BLOCK IS ALL THEY WANTED.", 4); endChase(); return; }
+    if (d < CHASE.range && f.cd <= 0) {
+      f.cd = CHASE.cd + Math.random() * 0.6;
+      const hit = Math.random() < CHASE.hit;
+      const ang = Math.atan2(ownCar.y - f.y, ownCar.x - f.x) + (hit ? 0 : (Math.random() < 0.5 ? -1 : 1) * (0.16 + Math.random() * 0.14));
+      const far = hit ? d : CHASE.range;
+      LASER.beams.push({ x0: f.x, y0: f.y, x1: f.x + Math.cos(ang) * far, y1: f.y + Math.sin(ang) * far, kill: false, until: performance.now() + 260 });
+      playLaserShot();
+      if (hit) { ownCar.speed = (ownCar.speed || 0) * CHASE.hurt; say('THEY HIT THE VORTEX. IT IS SLOWER NOW.', 2); }
+    }
+  }
+  // the cold store's Wire host: the nearest building the Wire can open, to the drop (the Halcyon works is the building it stands in)
+  function nearestWireBuilding(p) {
+    const ci = Math.floor(p.x / PITCH), cj = Math.floor(p.y / PITCH);
+    let best = null, bd = Infinity;
+    for (let i = ci - 6; i <= ci + 6; i++) for (let j = cj - 6; j <= cj + 6; j++) {
+      const c = cellAt(i, j); if (!c || !c.blds) continue;
+      for (const b of c.blds) { if (!wireEligible(b)) continue; const d = Math.hypot(b.x + b.w / 2 - p.x, b.y + b.h / 2 - p.y); if (d < bd) { bd = d; best = b; } }
+    }
+    return best;
+  }
+  // the cooler at the cold store: hand it over (full pay), or open it with the code (half pay, trust down, cred up, the clue)
+  function rjDrop(c) {
+    const A = RJ.active, s = A.def.steps[A.step];
+    const opts = MICAH_ST.code ? ['HAND IT OVER · $300', 'OPEN IT WITH THE CODE · $150'] : ['HAND IT OVER · $300'];
+    Object.assign(yMenu, { open: true, mode: 'menu', sel: 0, li: 0, lines: [], title: 'THE COOLER', speaker: c.name, face: null, done: null, opts,
+      onPick: (o) => {
+        A.choice = o.indexOf('OPEN') === 0 ? 'open' : 'clean';
+        const lines = A.choice === 'open' ? s.openLines : s.lines;
+        for (const l of lines) A.entry.talk.push({ who: c.name, line: l });
+        openTalk(c.name, c.look.profile, lines, () => rjNext(), s.hud);
+      } });
+  }
+  // the next thing Micah's line offers: the five in order (the partner's two, Micah's two and the pound), one at a time
+  function micahFrame() {
+    if (!LASER.chip || WM.started) return;
+    const partner = teamDriverName();
+    const seq = [[2, MIC_M2, () => houseSpot, partner], [3, MIC_M3, () => houseSpot, partner], [4, MIC_M4, pmArrive, 'MICAH'], [5, MIC_M5, pmArrive, 'MICAH']];
+    for (const [n, def, at, who] of seq) {
+      if (MICAH_ST.m[n]) continue;
+      const key = 'micah' + def.id;
+      if (!hasKeep(key) && !activeIs((a) => a.id === def.id) && rAbs() >= (MICAH_ST.next[def.micah] || 0)) { const p = at(); if (p) keepGiver(key, def, p, who); }
+      return;   // one at a time, in order
+    }
+    // main 5 is done: after one night, Micah's betrayal starts (the first WINDI mission); until then his commissions run at trust 2
+    if (rAbs() >= MICAH_ST.m5At + TS_NIGHT) { if (!RJ.active) micahBetray(); return; }
+    if (MICAH_ST.trust >= 2 && !hasKeep('micahComm') && !activeIs((a) => a.commission)) {
+      const pick = MIC_COMM.map((d, i) => i).filter((i) => i !== MICAH_ST.lastComm);
+      const i = pick[(Math.random() * pick.length) | 0]; MICAH_ST.lastComm = i;
+      keepGiver('micahComm', MIC_COMM[i], pmArrive(), 'MICAH');
+    }
+  }
+  // Micah's betrayal: his givers leave the street, and the first WINDI mission starts (claude/windi-first-mission.md)
+  function micahBetray() {
+    RJ.givers = RJ.givers.filter((q) => !(q.job && q.job.micah));
+    wmStart();
+  }
+  // a Micah job is over: its trust, cred, flags and the open-cooler road (a blown job waits a night, a commission does not)
+  function micahDone(A) {
+    const k = A.def.micah;
+    if (!k || k === 'comm') return;
+    if (k === 'm2') MICAH_ST.m[2] = true;
+    if (k === 'm3') { MICAH_ST.m[3] = true; micahTrust(1); }
+    if (k === 'm4') {
+      MICAH_ST.m[4] = true;
+      if (A.choice === 'open') {
+        micahTrust(-1); CRED_ST.zone[3] = (CRED_ST.zone[3] || 0) + 40;
+        if (A.host) WIRE_KEYS.add(wireId(A.host));   // the passcode opens the cold store's host without the pad (her key, as the precinct's)
+        MICAH_ST.intel = true; MICAH_ST.wendy = true; MICAH_ST.pass = true;
+        runFlash({ title: 'THE COOLER', sub: 'A CHIP: RHJS ESPIONAGE. A NOTE: WENDY IS WINDI. A WIRE PASSCODE.', life: 4.5 });
+      } else micahTrust(1);
+    }
+    if (k === 'm5') { MICAH_ST.m[5] = true; MICAH_ST.m5At = rAbs(); micahTrust(1); }
+  }
+  function micahFail(A) { endChase(); const k = A.def.micah; if (k && k !== 'comm') MICAH_ST.next[k] = rAbs() + TS_NIGHT; }
   function chainsDone() { return CHAIN_ORDER.every((k) => CHAINS_ST[k].i >= 4); }
   // Tess's next job: the meet, then her four supplies in order, then (after the trust and all four chains) her last four
   function nextTessDef() {
@@ -19959,7 +20228,7 @@ const RUNNER_API = (function () {
       }
     }
   }
-  function sideFrame() { windiFrame(); tessFrame(); chainFrame(); poolFrame(); }
+  function sideFrame() { windiFrame(); tessFrame(); chainFrame(); poolFrame(); micahFrame(); }   // LAYER 779: Micah's jobs too
   // a job is over, one way or the other: its slot (if it had one) refills at the next dawn or dusk; a rail moves its zone on;
   // the meet and Tess's supplies and finals are booked; a chain's job moves the chain on (a blown one waits a night and retries)
   function sideEnd(A, ok) {
@@ -19974,15 +20243,20 @@ const RUNNER_API = (function () {
     if (d.tess === 'F' && ok) TESS_ST.fin[d.n] = true;
     if (d.chain) { const c = CHAINS_ST[d.chain]; if (ok) c.i++; c.avail = rAbs() + TS_NIGHT; }
     if (d.windi && ok) windiDone(d);   // LAYER 775: a WINDI mission moves the WINDI arc on
+    if (d.micah) { if (ok) micahDone(A); else micahFail(A); }   // LAYER 779: Micah's trust, cred, the cooler's road, and the pound
   }
   // a new run: the meet, Tess, the chains and the slots start again (the record of the job log is kept, as it is)
   function sideReset() {
     TESS_ST.met = false; TESS_ST.sup = [false, false, false, false]; TESS_ST.trust = false; TESS_ST.tracker = true; TESS_ST.fin = [false, false, false, false];
     WINDI_ST.info = [false, false, false]; WINDI_ST.truck = false; WINDI_ST.disguise = false; WINDI_ST.asset = false;   // LAYER 775
     CRED_ST.zone = {};   // LAYER 777: a new run starts with no cred
+    WM.started = false; WM.step = null; WM.done = false; WM.linked = false;   // LAYER 778: the first WINDI mission starts again
     for (const k of CHAIN_ORDER) { CHAINS_ST[k].i = 0; CHAINS_ST[k].avail = 0; }
     SIDE_ST.slots = {}; SIDE_ST.recent = {};
+    MICAH_ST.trust = 0; MICAH_ST.m = { 2: false, 3: false, 4: false, 5: false }; MICAH_ST.next = {}; MICAH_ST.m5At = 0;   // LAYER 779: Micah starts again
+    MICAH_ST.code = false; MICAH_ST.pass = false; MICAH_ST.intel = false; MICAH_ST.wendy = false; MICAH_ST.lastComm = -1;
     RJ.givers = RJ.givers.filter((q) => !q.keepId && !(q.job && q.job.pool));
+    endChase();
   }
   // a flash across the screen: the title, a line under it, and the pay (the same banner as the rest of Runner Mode)
   function runFlash(o) { RUN_BANNERS.push({ text: o.title, sub: o.sub || '', pay: o.pay || 0, fail: !!o.fail, life: o.life || 2.6, start: null }); }
@@ -20030,6 +20304,9 @@ const RUNNER_API = (function () {
     if (A.timer > 0) { A.timer -= dt; if (A.timer <= 0) { A.timer = 0; rjFail('TOO LATE'); return; } }
     const s = A.def.steps[A.step], p = jobPos();
     if (s && s.k === 'goto' && A.spot && Math.hypot(p.x - A.spot.x, p.y - A.spot.y) < 130) { say(s.arrive || 'GOT THERE.', 3); rjNext(); }
+    // LAYER 779: the heist car is ours once it is hot-wired; it is parked once it sits still in the player's own spot
+    if (s && s.k === 'car' && ownCar && ownCar.sprite === CAR_FILES.indexOf('cars_b714ecba_1')) { startChase(); say("IT IS OURS. THE EXEC'S MEN ARE AFTER IT. GET IT TO YOUR SPOT.", 4); rjNext(); }
+    if (s && s.k === 'park' && ownCar && lotSpots) { const hit = lotSpotAt(ownCar.x, ownCar.y); if (hit && hit.k === 'you' && Math.abs(ownCar.speed || 0) < TEAM_CAR_STOP) { ownCar.x = hit.s.x; ownCar.y = hit.s.y; ownCar.heading = 0; endChase(); say('PARKED IN YOUR SPOT.', 3); rjNext(); } }
   }
   // the gold ! over each giver's head, the contacts, and the ring on the spot the job is at
   function rjDrawWorld(c, now) {
@@ -20283,7 +20560,7 @@ const RUNNER_API = (function () {
   const PMB = { inside: false, x: 500, y: 585, heading: -Math.PI / 2, step: 0, W: 1000, H: 640, b: null };
   const PMB_TALK = 200;                                                   // how near D or Dex must be to talk, in the room
   const PMB_SHRINK = 0.7;   // LAYER 711: the furniture is drawn at this share of its art size, to match D and Dex (their figures are 84 px tall)
-  const PMB_CREW = { d: { x: 400, y: 200 }, dex: { x: 600, y: 200 } };   // behind the counter (the counter is shorter now)
+  const PMB_CREW = { d: { x: 400, y: 200 }, dex: { x: 600, y: 200 }, micah: { x: 790, y: 455 } };   // LAYER 778: Micah's place is the back booth's side, in front of the pool table (shown only in the WINDI meet)   // behind the counter (the counter is shorter now)
   const PMB_ITEMS_FULL = [   // [key, x, y, w, h, solid]: drawn in order of the bottom edge; a solid one stops him
     ['mb_shelf_a', 30, 8, 300, 99, false], ['mb_neon', 425, 10, 150, 102, false], ['mb_shelf_b', 690, 8, 280, 96, false],
     ['mb_jukebox', 40, 150, 90, 143, true], ['mb_cigmachine', 870, 150, 90, 122, true],
@@ -20319,6 +20596,7 @@ const RUNNER_API = (function () {
   }
   // inside: beside D or Dex, E opens their menu
   function pmInsideAction() {
+    if (wmMicahNear()) { wmMeet(); return true; }   // LAYER 778: Micah, in the back booth, while the WINDI mission waits on him
     for (const k of ['d', 'dex']) { const p = PMB_CREW[k]; if (Math.hypot(PMB.x - p.x, PMB.y - p.y) < PMB_TALK) { openPmMenu(k); return true; } }
     return false;
   }
@@ -20350,9 +20628,9 @@ const RUNNER_API = (function () {
     c.fillStyle = '#fff'; c.font = '10px monospace'; c.textAlign = 'left'; c.fillText(k, x + 4, y + 12);
   }
   function pmRoomCrew(c, k, x, y) {
-    const im = img[k === 'd' ? 'pm_d_top_down' : 'pm_dex_top_down'], h = 84, top = y - h * 0.8;
+    const im = img[k === 'd' ? 'pm_d_top_down' : k === 'micah' ? 'micah_top_down' : 'pm_dex_top_down'], h = 84, top = y - h * 0.8;
     if (im && (im.width || im.naturalWidth)) { const w = h * (im.width || im.naturalWidth) / (im.height || im.naturalHeight); c.drawImage(im, x - w / 2, top, w, h); }
-    const lab = k === 'd' ? 'D' : 'DEX';
+    const lab = k === 'd' ? 'D' : k === 'micah' ? 'MICAH' : 'DEX';
     c.save(); c.font = 'bold 11px monospace'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = '#000'; c.fillStyle = '#ff5ad0';
     c.strokeText(lab, x, top - 6); c.fillText(lab, x, top - 6); c.restore();
   }
@@ -20377,6 +20655,7 @@ const RUNNER_API = (function () {
     // the things in the room, the two behind the counter, and him: in order of their bottom edges
     const list = PMB_ITEMS.map((q) => ({ k: q[0], x: q[1], y: q[2], w: q[3], h: q[4], bot: q[2] + q[4] }));
     list.push({ crew: 'd', x: PMB_CREW.d.x, y: PMB_CREW.d.y, bot: PMB_CREW.d.y + 17 }, { crew: 'dex', x: PMB_CREW.dex.x, y: PMB_CREW.dex.y, bot: PMB_CREW.dex.y + 17 }, { walker: true, bot: PMB.y + 6 });
+    if (WM.step === 'micah') list.push({ crew: 'micah', x: PMB_CREW.micah.x, y: PMB_CREW.micah.y, bot: PMB_CREW.micah.y + 17 });   // LAYER 778
     list.sort((a, b) => a.bot - b.bot);
     for (const q of list) {
       if (q.walker) drawMate(c, { x: PMB.x, y: PMB.y, heading: PMB.heading, step: PMB.step, stunT: 0, friend: true, col: 'rgba(0,0,0,0)', look: pmRoomLook() });
@@ -20399,8 +20678,9 @@ const RUNNER_API = (function () {
     if (!A) { const g = rjNearest(RJ.givers); if (!g) return false; rjOffer(g); return true; }
     const s = A.def.steps[A.step]; if (!s) return false;
     if (s.k === 'talk') { const c = rjNearest(RJ.contacts); if (c && c === A.contact) { rjTalk(c); return true; } return false; }
+    if (s.k === 'drop') { const c = rjNearest(RJ.contacts); if (c && c === A.contact) { rjDrop(c); return true; } return false; }   // LAYER 779: the cooler is handed over (or opened)
     if ((s.k === 'pick' || s.k === 'job') && A.spot && Math.hypot(walker.x - A.spot.x, walker.y - A.spot.y) < 110) {
-      if (s.k === 'pick') { A.carry = s.item; say('GOT ' + s.item + '.', 3); rjNext(); return true; }
+      if (s.k === 'pick') { A.carry = s.item; say('GOT ' + s.item + '.', 3); if (s.got) s.got(A); rjNext(); return true; }
       if (Math.random() < s.odds) { say('IT WORKED. NOBODY SAW.', 3); rjNext(); }
       else rjFail('BLOWN: ' + s.hud);
       return true;
@@ -20410,13 +20690,13 @@ const RUNNER_API = (function () {
   function rjOffer(g) { openTalk(g.name, g.look.profile, g.job.offer, () => openJobMenu(g), 'JOB OFFER'); }
   function openJobMenu(g) {
     Object.assign(yMenu, { open: true, mode: 'menu', sel: 0, li: 0, lines: [], title: 'THE JOB', speaker: g.name, face: null, done: null,
-      opts: ['TAKE THE JOB · $' + g.job.pay.toLocaleString(), 'NOT NOW'], onPick: (o) => { if (o.indexOf('TAKE') === 0) rjStart(g); } });
+      opts: [(rjPayOf(g.job, null) ? 'TAKE THE JOB · $' + rjPayOf(g.job, null).toLocaleString() : 'TAKE THE JOB'), 'NOT NOW'], onPick: (o) => { if (o.indexOf('TAKE') === 0) rjStart(g); } });
   }
   function rjStart(g) {
     if (RJ.active) { say('FINISH THE JOB YOU HAVE FIRST.', 3); return; }
     const def = g.job;
     RJ.givers = RJ.givers.filter((q) => q !== g);
-    const entry = { id: def.id, title: def.title, kind: def.kind, giver: g.name, status: 'ACTIVE', pay: def.pay, paid: 0, why: '',
+    const entry = { id: def.id, title: def.title, kind: def.kind, giver: g.name, status: 'ACTIVE', pay: rjPayOf(def, null), paid: 0, why: '',
       talk: def.offer.map((l) => ({ who: g.name, line: l })), objectives: [] };
     RJ.log.unshift(entry);
     RJ.active = { def, entry, step: 0, spot: null, contact: null, timer: 0, carry: null, slot: null };
@@ -20430,10 +20710,13 @@ const RUNNER_API = (function () {
     const s = A.def.steps[A.step];
     if (!s) { rjFinish(); return; }
     if (s.at === 'pm') { const q = pmArrive(); A.spot = { x: q.x, y: q.y }; }   // LAYER 708: back to the motel
+    else if (s.k === 'park' && lotSpots) { A.spot = { x: lotSpots.you.x, y: lotSpots.you.y }; }   // LAYER 779: the car is parked in the player's own spot
     else if (!(s.same && A.spot)) { const p = s.sew ? sewPos(s.sew) : s.z ? rjSpotIn(s.z) : A.def.zone ? rjSpotIn(A.def.zone) : randomSpot(420, 1300); A.spot = { x: p.x, y: p.y }; }   // LAYER 760: sewer junctions and per-step zones
     A.timer = s.limit || 0;
     A.contact = null;
-    if (s.k === 'talk') { A.contact = makeInformant(A.spot, s.who); RJ.contacts.push(A.contact); }
+    if (s.k === 'talk' || s.k === 'drop') { A.contact = makeInformant(A.spot, s.who); RJ.contacts.push(A.contact); }
+    if (s.k === 'car') spawnHeistCar(A.spot);   // LAYER 779: the heist car is left on the spot for the player to hot-wire
+    if (s.k === 'drop') A.host = nearestWireBuilding(A.spot);   // LAYER 779: the cold store's Wire host, the building nearest the drop
     MISSION.stage = 'mission'; MISSION.kind = A.def.short ? 'short' : 'side'; MISSION.label = s.hud;   // LAYER 775: the WINDI missions are the short white kind MISSION.x = A.spot.x; MISSION.y = A.spot.y;
     A.entry.objectives.push({ text: s.say, done: false });
     say(s.say, 6);
@@ -20452,12 +20735,14 @@ const RUNNER_API = (function () {
   }
   function rjFinish() {
     const A = RJ.active; if (!A) return;
-    A.entry.status = 'DONE'; A.entry.paid = A.def.pay;
+    const pay = rjPayOf(A.def, A);   // LAYER 779: the pay can depend on the job's own choice (the cooler) or on trust and cred
+    A.entry.status = 'DONE'; A.entry.paid = pay;
     RJ.active = null; RJ.contacts = [];
-    cashOwed += A.def.pay; pmDone(A.def);   // LAYER 708: an act's part moves the act on
-    sideEnd(A, true);   // LAYER 777: the job's cred goes to its zone; LAYER 760: a rail is done (its zone's next one is offered); a Tess, chain or side job is booked
+    cashOwed += pay; pmDone(A.def);   // LAYER 708: an act's part moves the act on
+    credEarn({ zone: A.def.zone, pay });    // LAYER 777: the job's cred goes to its zone (pay / 20); without this call the second way never opens
+    sideEnd(A, true);   // LAYER 760: a rail is done (its zone's next one is offered); a Tess, chain or side job is booked
     MISSION.stage = 'done'; MISSION.kind = 'story';
-    runFlash({ title: 'MISSION COMPLETE', sub: A.def.title, pay: A.def.pay, life: 3.4 });
+    runFlash({ title: 'MISSION COMPLETE', sub: A.def.title, pay, life: 3.4 });
     say('PAID. THE NEXT JOB IS ON THE STREET.', 5);
   }
   function rjFail(why) {
@@ -20622,6 +20907,7 @@ const RUNNER_API = (function () {
     if (cam && thugsHere()) drawHouseThugs(cam, c);   // LAYER 748: the house's thugs, under the talk box
     drawYMenu(c, W, H);  // the Y menu and the talk, over the banners
     drawCanBulletin(c);  // LAYER 680: the C.A.N. lookout bulletin, in screen space
+    wmFrame();   // LAYER 778: the first WINDI mission's step, when no job is on
     if (MISSION.stage === 'teammate') missionBar(); else if (MISSION.stage === 'house') missionHouse(); else missionStoryTick();   // the bar, then the house (the Y menu)
     rjFrame(now);   // LAYER 707: the jobs (givers, the timer, the arrivals)
     if (outdoors && cam && !PMB.inside && (missionOn())) drawMissionArrow(c, cam, W, H, now);
@@ -21422,6 +21708,8 @@ const RUNNER_API = (function () {
     // TEST ONLY: lets the headless checks put the mission and the walker where they need to be
     dbg: { setMission: (st) => { MISSION.stage = st; }, placeWalker: (x, y) => { walker.x = x; walker.y = y; walker.on = true; }, stage: () => MISSION.stage, bar: () => barSpot, pos: () => [walker.x, walker.y, walker.on], near: () => bartenderNear(), menuOpen: () => yMenu.open, houseInfo: () => ({ spot: houseSpot, bldg: houseBldg ? { x: houseBldg.x, y: houseBldg.y, w: houseBldg.w, h: houseBldg.h, kind: houseBldg.kind } : null, seen: houseSeen, inside: runnerInside ? { x: runnerInside.x, y: runnerInside.y, kind: runnerInside.kind } : null, barSpot: barSpot }), gateInfo: () => ({ stash: !!stashNear(), pack: !!packStashNear(), bag: !!nearBag(), bartender: !!bartenderNear(), story: !!storyNear(), caseN: !!caseNear(), inside: !!runnerInside }) },
     missionPip: () => (missionOn()) ? { x: MISSION.x, y: MISSION.y, tone: missionTone() } : null,
+    // LAYER 778: the first WINDI mission's hooks for the Wire (App scope)
+    wmJackIn: () => wmJackIn(), wmJackOut: () => wmJackOut(), wmRescue: () => wmRescue(),
     // LAYER 690: the world's action (its doAction), which the pad's A runs on foot when no bike is beside him
     setWorldAct: (f) => { worldActHook = f; },
     setLook: (l) => {
@@ -21483,8 +21771,8 @@ const RB_STATS = ['Speed', 'Strength', 'Stamina', 'Agility', 'Awareness', 'Steal
 const RB_SKINS = ['#ffffff', '#f1d2b3', '#e0b48c', '#c58c5e', '#8d5a3a', '#5c3a24'];
 const RB_BODY = { slim: 'Slim', average: 'Average', athletic: 'Athletic', heavy: 'Heavy', heavy_b: 'Heavy B' };
 // LAYER 694: the pause menu's CHARACTER, INVENTORY and SYSTEM tabs (MAP is the canvas, drawn by the App)
-const RUN_CAT_ORDER = ['weapons', 'equipment', 'food', 'meds', 'drugs', 'cyber'];
-const RUN_CAT_LABEL = { weapons: 'WEAPONS', equipment: 'EQUIPMENT', food: 'FOOD', meds: 'MEDICINE', drugs: 'DRUGS', cyber: 'CYBERWEAR' };
+const RUN_CAT_ORDER = ['card', 'weapons', 'equipment', 'food', 'meds', 'drugs', 'cyber'];
+const RUN_CAT_LABEL = { card: 'MONEY', weapons: 'WEAPONS', equipment: 'EQUIPMENT', food: 'FOOD', meds: 'MEDICINE', drugs: 'DRUGS', cyber: 'CYBERWEAR' };
 const RUN_CAT_DESC = { weapons: 'Guns and the like. Drawn from the wheel.', equipment: 'Kit worn or carried: the pack, the mask, the bag.',
   food: 'Eaten to restore a little stamina and health. Not in the world yet.', meds: 'Taken to heal hits and sickness. Not in the world yet.',
   drugs: 'Taken for a while, good and bad. Not in the world yet.', cyber: 'Fitted parts. Installed by a surgeon, not carried.' };
@@ -21558,7 +21846,35 @@ function MissionLogTab() {
     </div>
   );
 }
-function PauseTabBody({ tab, padSel, acts }) {
+/* THE DEBIT CARD: the Wire pays onto it, and the inventory tab cashes it out or tops it up. */
+PD_ART.hud_debit_card = "assets/runner/hud/icon_debit_card.png"; OPTIONAL_ART.add("hud_debit_card");
+function DebitCardPane({ card, acts }) {
+  const btn = (on) => ({ cursor: on ? 'pointer' : 'default', padding: '8px 10px', border: '1px solid ' + (on ? '#e8c46a' : '#2a2a33'),
+    color: on ? '#e8c46a' : '#55555f', background: on ? 'rgba(232,196,106,0.08)' : 'transparent', fontSize: 12, letterSpacing: '0.08em',
+    display: 'flex', justifyContent: 'space-between', gap: 10 });
+  const money = (n) => '$' + Math.round(n).toLocaleString();
+  const L = card.ledger || [];
+  return (
+    <>
+      <div style={{ color: '#e8c46a', fontSize: 15, letterSpacing: '0.12em' }}>DEBIT CARD</div>
+      <div style={{ fontSize: 11, color: '#9a9486', marginTop: 4 }}>MONEY · THE WIRE PAYS ONTO IT</div>
+      <div style={{ fontSize: 24, marginTop: 12, color: '#f1ead8' }}>{money(card.bal)}</div>
+      <div style={{ fontSize: 11, color: '#9a9486', marginBottom: 10 }}>ON THE CARD · CASH ON YOU {money(card.cash)}</div>
+      <div data-padrow="1" onClick={() => { if (card.bal > 0) acts.card('out'); }} style={btn(card.bal > 0)}><span>CASH OUT</span><span>{money(card.bal)}</span></div>
+      <div data-padrow="1" onClick={() => { if (card.cash >= 100) acts.card('add100'); }} style={{ ...btn(card.cash >= 100), marginTop: 6 }}><span>ADD $100 FROM YOUR CASH</span><span>$100</span></div>
+      <div data-padrow="1" onClick={() => { if (card.cash > 0) acts.card('addall'); }} style={{ ...btn(card.cash > 0), marginTop: 6 }}><span>ADD ALL YOUR CASH</span><span>{money(card.cash)}</span></div>
+      {card.said ? <div style={{ fontSize: 11, color: '#e8c46a', marginTop: 8, lineHeight: 1.5 }}>{card.said}</div> : null}
+      <div style={{ fontSize: 10, letterSpacing: '0.2em', color: '#9a9486', marginTop: 16 }}>TRANSACTIONS</div>
+      {L.length ? L.slice(0, 16).map((e, i) => (
+        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12, padding: '5px 0', borderBottom: '1px solid #22222a' }}>
+          <span>{e.nm}</span>
+          <span style={{ color: e.amt >= 0 ? '#6ef0ff' : '#eb8a7a', whiteSpace: 'nowrap' }}>{(e.amt >= 0 ? '+' : '-') + money(Math.abs(e.amt))}</span>
+        </div>)) : (<div style={{ fontSize: 11, color: '#6b6b76', padding: '4px 0' }}>NO TRANSACTIONS YET. WHEN A WIRE HOST OPENS, THE PAY SHOWS UP HERE.</div>)}
+      {L.length > 16 ? <div style={{ fontSize: 10, color: '#6b6b76', marginTop: 6 }}>{L.length - 16} OLDER NOT SHOWN</div> : null}
+    </>
+  );
+}
+function PauseTabBody({ tab, padSel, acts, card }) {
   const frame = { position: 'relative', width: 'min(92vw, 1000px)', maxHeight: '86vh', overflowY: 'auto', display: 'flex', gap: 22, alignItems: 'flex-start',
     padding: '58px 16px 16px', boxSizing: 'border-box', fontFamily: 'ui-monospace, monospace', color: '#f1ead8' };
   const row = (active) => ({ cursor: 'pointer', padding: '7px 10px', border: '1px solid ' + (active ? '#e8c46a' : '#2a2a33'),
@@ -21592,7 +21908,9 @@ function PauseTabBody({ tab, padSel, acts }) {
     );
   }
   if (tab === 2) {
-    const items = RUNNER_API.inventory();
+    /* the debit card is always on you: card = { bal, cash, ledger, said } from the game */
+    const cardItem = card ? { cat: 'card', nm: 'DEBIT CARD', kg: 0, isCard: true, desc: '' } : null;
+    const items = (cardItem ? [cardItem] : []).concat(RUNNER_API.inventory());
     const total = items.reduce((a, it) => a + it.kg, 0);
     const cur = items[padSel];
     return (
@@ -21606,14 +21924,14 @@ function PauseTabBody({ tab, padSel, acts }) {
                 <div style={{ fontSize: 10, letterSpacing: '0.2em', color: '#9a9486' }}>{RUN_CAT_LABEL[cat]}</div>
                 {mine.length ? mine.map((it) => {
                   const i = items.indexOf(it);
-                  return (<div key={i} data-padrow="1" onClick={() => acts.pick(i)} style={row(padSel === i)}><span>{it.nm}</span><span>{it.kg.toFixed(1)} KG</span></div>);
+                  return (<div key={i} data-padrow="1" onClick={() => acts.pick(i)} style={row(padSel === i)}><span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{it.isCard && PD_ART.hud_debit_card && <img src={PD_ART.hud_debit_card} alt="" style={{ width: 22, height: 22, imageRendering: 'pixelated' }} />}<span>{it.nm}</span></span><span>{it.isCard ? '$' + Math.round(card.bal).toLocaleString() : it.kg.toFixed(1) + ' KG'}</span></div>);
                 }) : (<div style={{ fontSize: 11, color: '#6b6b76', padding: '4px 10px' }}>NONE ON YOU YET · {RUN_CAT_DESC[cat]}</div>)}
               </div>
             );
           })}
         </div>
         <div style={{ flex: 1, minWidth: 0, border: '1px solid #3a3a44', padding: 14, minHeight: 220, boxSizing: 'border-box' }}>
-          {cur ? (
+          {cur && cur.isCard ? <DebitCardPane card={card} acts={acts} /> : cur ? (
             <>
               <div style={{ color: '#e8c46a', fontSize: 15, letterSpacing: '0.12em' }}>{cur.nm}</div>
               <div style={{ fontSize: 11, color: '#9a9486', marginTop: 4 }}>{RUN_CAT_LABEL[cur.cat]} · {cur.kg.toFixed(1)} KG</div>
@@ -22314,6 +22632,7 @@ export default function IronLionLayer004() {
   const mentorWaitRef = useRef(false);
   const [tableErr, setTableErr] = useState(null);
   const mapCv = useRef(null);
+  const wireCv = useRef(null);            // the Wire's own canvas, above the HUD
   /* LAYER 731: the pause map's zoom and pan. z is the zoom (1 = the whole city fits the canvas); x and y move the
      map away from the middle of the canvas, in pixels. Each opening of the map starts again at the whole city. */
   const mapView = useRef({ z: 1, x: 0, y: 0 });
@@ -22719,7 +23038,7 @@ export default function IronLionLayer004() {
                         "vn_drumkit_flip"];
 // (pd_counter came OFF this list: Donny wants the desk the way it was drawn, the sergeant behind it)
 
-    const all = { ...GANGTOP_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX, ...CITY2, ...DECO, ...CLUB, ...GYM_ART, ...SKY_ART, ...DW_ART, ...SC_ART, ...NF_ART, ...ANIM_ART, ...ID_ART, ...PD_ART };
+    const all = { ...GANGTOP_ART, ...WIRE_ART, ...A, ...PA, ...CA, ...KA, ...TX, ...PR, ...QA, ...MT, ...FU, ...IT, ...WP, ...DA, ...DC, ...PL, ...MN, ...DP, ...DT, ...MR, ...AN, ...SG, ...RF, ...AB, ...RD, ...GS, ...RB, ...RR, ...KG, ...EX, ...CT, ...FC, ...TK, ...SP, ...VH, ...HV, ...WP2, ...NPCA, ...MAPART, ...DKP, ...LK, ...CV, ...MNT, ...DNC, ...PNL, ...PN2, ...LNA, ...SWR, ...CZ, ...WHB, ...WH2, ...FDV, ...FFC, ...FCH, ...MKM, ...LNT, ...CIV, ...SK, ...YT, ...ST, ...BD, ...VN, ...AR2, ...CVX, ...HP, ...VIL, ...RACE_A, ...ROOF_A, ...BK, ...FF, ...HOME_ART, ...TRADE_ART, ...SOV_ART, ...SHOP_ART, ...KO_ART, ...BOMB_ART, ...FIS_ART, ...TC_ART, ...ROOF_ART, ...CITY_ART, ...SOV2_ART, ...YARD_ART, ...WATER_ART, ...SEW_ART, ...PORT_ART, ...HERO_ART, ...TEX, ...CITY2, ...DECO, ...CLUB, ...GYM_ART, ...SKY_ART, ...DW_ART, ...SC_ART, ...NF_ART, ...ANIM_ART, ...ID_ART, ...PD_ART };
     /* ---------- CUT_MAP ----------
        The cut sheets land in ONE flat folder, assets/cuts/, under the names they were cut
        with -- IMG_3379_01.png and so on. Renaming 866 files by hand on a phone is not a real
@@ -23311,6 +23630,7 @@ export default function IronLionLayer004() {
       const moving = Math.hypot(ax, ay) > dz;
       if (!G.padOnNow && (moving || gp.buttons.some((q) => q && (q.pressed || q.value > 0.35)))) { G.padOnNow = 1; setPadOn(true); }
       if (moving) { input.current.x = ax; input.current.y = ay; input.current.pad = 1; } else if (input.current.pad) { input.current.x = 0; input.current.y = 0; input.current.pad = 0; sprint = 0; }
+      if (g && g.wire && G.wirePadGamepad) { G.wirePadGamepad(B, was); for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i); return; }
       /* XBOX: THE TABLE (craps, slots, roulette, blackjack, poker). Stick / D-pad walk the buttons on screen, A presses the lit one,
          X presses the main action (ROLL / DEAL / PULL / DRAW), B walks away. The world is paused while a table is up, so nothing
          else on this pad runs. */
@@ -23441,6 +23761,7 @@ export default function IronLionLayer004() {
     const dn = (e) => {
       const k = e.key.toLowerCase();
       input.current.keys[k] = true;
+      if (G.wireKey && G.wireKey(k)) return;   // jacked in, the Wire takes the keys
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
       if (k === "b" && G.turboFn) G.turboFn();
       if (G.cwFn) { if (k === "z") G.cwFn("oil"); else if (k === "x") G.cwFn("cal"); else if (k === "v") G.cwFn("smoke"); else if (k === "m") G.cwFn("missile"); else if (k === "g") G.cwFn("auto"); }   // layer 471                                         // nitrous (layer 468)
@@ -23566,6 +23887,7 @@ export default function IronLionLayer004() {
 
   function doAction() {
     const g = G.current;
+    if (g && g.wire) { if (G.wireAct) G.wireAct(); return; }
     if (g.pintro) { G.introSkip && G.introSkip(); return; }             // E skips the bus
     if (G.setupEFn && G.setupEFn()) return;                               // Mission 0: the gun, the bunk (layer 497)
     if (G.storyEFn && G.storyEFn()) return;                               // Missions 11-16 (layer 498)
@@ -23693,6 +24015,7 @@ export default function IronLionLayer004() {
        facing outranks a door handle. */
     // the leadership sit indoors now: E at a seated man talks to him wherever he is
     if (g.mode === "foot" && g.inside && G.leaderFn && G.leaderFn()) return;
+    if (g.mode === "foot" && g.inside && G.wireSitFn && G.wireSitFn()) return;
     if (g.mode === "foot" && g.inside && G.wardenPcFn && G.wardenPcFn()) return;     // the warden's terminal beats the warden himself
     if (g.mode === "foot" && g.inside && g.inside.inPrison && g.prisonMode) {
       const F = (G.prisonFolkFn && G.prisonFolkFn()) || [];
@@ -23825,7 +24148,7 @@ export default function IronLionLayer004() {
        building he was nowhere near -- and it is checked before the train. */
     if (g.mode === "foot" && g.onPlat == null && G.doorFn) {
       const b = G.doorFn();
-      if (b) { g.inside = b; g.floor = b.entry || 0; return; }
+      if (b) { if (G.wireDoorFn && G.wireDoorFn(b)) return; g.inside = b; g.floor = b.entry || 0; return; }
     }
     // (E still works; autoDoor below means you rarely need it)
     /* After the door, for the same reason the table is: a truck parked near an entrance should
@@ -48777,7 +49100,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         else propSprite(p.t, p.x, p.y, p.w, p.h); } }
     function sitAt(s) { if (!s) return false; g.p.sit = { x: s.x, y: s.y, ang: s.ang, k: s.k, b: g.inside, f: g.floor }; g.p.x = s.x; g.p.y = s.y; g.p.vx = 0; g.p.vy = 0; g.p.face = s.ang;
       g.pickupFlash = { nm: "lift:" + (s.k === "toilet" ? "YOU SIT. NOBODY WATCHING." : s.k === "bed" ? "YOU LIE DOWN" : "YOU SIT DOWN") + " \u00b7 MOVE TO GET UP", t: 1.6 }; return true; }
-    G.sitFn = () => { if (g.p.sit || g.mode !== "foot") return false;
+    G.sitFn = () => { if (G.wireSitFn && G.wireSitFn()) return true;   // a terminal's chair jacks you in first
+      if (g.p.sit || g.mode !== "foot") return false;
       { const S = g.sit, T = S && !g.inside && sitTable(S); if (T && Math.hypot(T.yours.x - g.p.x, T.yours.y - g.p.y) < 70) return sitAt({ k: "sitdown", x: T.yours.x, y: T.yours.y, ang: T.yours.ang }); }   // the sit-down's chair (layer 533)
       if (!g.inside) return false; const s = seatsNear(56).find((q) => q.k !== "toilet"); return s ? sitAt(s) : false; };
     G.seatsT = () => seatsNear(400).map((s) => [s.k, Math.round(s.x), Math.round(s.y), +s.ang.toFixed(2)]);      // test hook
@@ -59147,7 +59471,531 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }
       }
     }
+    function wireJackIn() {
+      const g = G.current; if (!g || g.wire || !g.inside) return;
+      if (wireCv.current) wireCv.current.style.display = "block";
+      const hosts = wireBuildIndex();
+      const here = hosts.find((h) => h.b === g.inside) || null;
+      g.wire = { hosts, home: { x: g.p.x, y: g.p.y }, x: here ? here.mx : 0, y: here ? here.my : 0,
+        ang: -Math.PI / 2, pad: null, hacked: 0, t: 0, last: performance.now(), trace: 0,
+        note: "JACKED IN. RIDE TO A HOST, E TO HACK.", noteT: 4,
+        hp: 3, cops: [], mines: [], pulses: [], bits: [], trail: [], pulseCd: 0, mineCd: 0, respawnT: 0, kills: 0, confirmT: 0, hq: null };
+      if (RUNNER_API.wmJackIn()) { g.wire.windi = true; g.wire.hp = 1; WIRE_HEAT.n = Math.max(WIRE_HEAT.n, 2); WIRE_HEAT.cold = 0; g.wire.note = "THE PROGRAMS ARE ON YOU. WINDI IS SOMEWHERE IN HERE."; g.wire.noteT = 5; }   // LAYER 778: the first WINDI run: two programs, one hit and you are out
+      window.addEventListener("pointerdown", wireClick, true);
+      setHud((h) => ({ ...h, wire: true }));   // the touch buttons step aside: the Wire has its own keys
+    }
+    function wireExit() {
+      const g = G.current; const W0 = g && g.wire; if (!W0) return;
+      window.removeEventListener("pointerdown", wireClick, true);
+      RUNNER_API.wmJackOut();   // LAYER 778: a jack-out in the WINDI run leaves it to be done again from the terminal
+      if (wireCv.current) wireCv.current.style.display = "none";
+      g.wire = null;
+      /* only the traces left on hosts carry over: the Wire's own trace badges go with you */
+      WIRE_HEAT.n = 0; WIRE_HEAT.cold = 0;
+      setHud((h) => ({ ...h, wire: false }));
+      g.p.x = W0.home.x; g.p.y = W0.home.y; g.p.vx = 0; g.p.vy = 0; g.cam.x = g.p.x; g.cam.y = g.p.y;
+      /* the debit card keeps its balance: it is in the INVENTORY tab, where you cash it out or put cash on it */
+      const card = Math.round(g.p.debit || 0);
+      g.pickupFlash = { nm: "lift:JACKED OUT" + (W0.hacked ? " · " + W0.hacked + " HOST" + (W0.hacked > 1 ? "S" : "") + " OPEN" : "") + (card > 0 ? " · $" + card.toLocaleString() + " ON YOUR CARD" : ""), t: 2.2 };
+    }
+    function wireClick(e) {
+      const g = G.current; const W0 = g && g.wire; if (!W0) return;
+      const cv = wireCv.current; if (!cv) return;
+      const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      const P = W0.pad;
+      if (P) {
+        if (!P.res) for (const q of P.rects) if (x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h) { wirePadPress(q.k); e.stopPropagation(); return; }
+        e.stopPropagation(); return;
+      }
+      W0.goal = { x: x - W0.camX, y: y - W0.camY }; e.stopPropagation();
+    }
+    function wireHackNearest() {
+      const g = G.current; const W0 = g && g.wire; if (!W0 || W0.pad) return;
+      if (W0.windi) { W0.note = "THE HOSTS ARE LOCKED FROM IN HERE. GET OUT."; W0.noteT = 2.5; return; }   // LAYER 778
+      let best = null, bd = 26;
+      for (const h of W0.hosts) { const d = Math.hypot(h.mx - W0.x, h.my - W0.y); if (d < bd) { bd = d; best = h; } }
+      if (!best) { W0.note = "NO HOST HERE. RIDE CLOSER."; W0.noteT = 2.5; return; }
+      if (best.hacked) { W0.note = best.label + " · ALREADY OPEN."; W0.noteT = 2.5; return; }
+      const n = best.tier, tr = WIRE_TRACE[best.id] || 0;
+      /* each trace this host remembers shortens its lit window, down to half */
+      W0.pad = { h: best, n, dur: WIRE_PAD_TIME[n] * Math.max(0.5, 1 - 0.2 * tr), t: 0, lit: 1, pressed: new Set(), mist: 0, res: null, resT: 0,
+                 rects: [], flash: 0, bad: 0, pay: 0 };
+      wirePadLight(W0.pad);
+    }
+    function wirePadLight(P) {
+      const left = []; for (let k = 1; k <= P.n; k++) if (!P.pressed.has(k)) left.push(k);
+      P.lit = left[Math.floor(Math.random() * left.length)]; P.t = P.dur;
+    }
+    function wirePadPress(k) {
+      const g = G.current; const W0 = g && g.wire; const P = W0 && W0.pad;
+      if (!P || P.res) return;
+      if (k === P.lit) {
+        P.pressed.add(k); P.flash = 0.2;
+        if (P.pressed.size >= P.n) { wirePadWin(W0, P); return; }
+        wirePadLight(P);
+      } else wirePadMiss(W0, P, "WRONG BUTTON");
+    }
+    /* A wrong press or a timeout: one more trace, and the same round repeats. The fourth is the last chance: the
+       host kicks you out and the building's police get the trace (heat). */
+    function wirePadMiss(W0, P, why) {
+      const g = G.current;
+      P.mist++; P.bad = 0.35; W0.trace = P.mist;
+      if (P.mist >= 4) {
+        P.res = "fail"; P.resT = 2.8;
+        WIRE_TRACE[P.h.id] = (WIRE_TRACE[P.h.id] || 0) + 1;   // a caught program leaves its trace on this host
+        wireHeatAdd(1);
+        W0.note = "KICKED OUT. THE PROGRAMS HAVE YOUR TRACE."; W0.noteT = 4;
+        return;
+      }
+      P.t = P.dur;
+      W0.note = why + " · TRACE " + P.mist + "/4"; W0.noteT = 2;
+    }
+    function wirePadWin(W0, P) {
+      const g = G.current;
+      P.res = "win"; P.resT = 2.8; P.pay = WIRE_PAYOUT[P.n];
+      g.p.debit = (g.p.debit || 0) + P.pay; debitLog(g, "wire", "WIRE HACK · " + P.h.label, P.pay);     // the Wire pays onto the debit card; it cashes out when you jack out
+      WIRE_KEYS.add(P.h.id); P.h.hacked = true; W0.hacked = (W0.hacked || 0) + 1;
+      W0.note = "OPEN · " + P.h.label + " · KEY ON YOUR RING · DEBIT +$" + P.pay; W0.noteT = 4.5;
+    }
+    /* THE WIRE'S OWN TOOLS, AND ITS OWN HEAT.
+       PULSE (F, or the pad's B) blasts every program within a block and a half of the bike. MINE (G, or the pad's X) drops a
+       charge where the bike is, two at most. The bike's light trail breaks any program that runs through a wake at least half
+       a second old, for six seconds, so the wake behind the bike is the wall. Nothing from the real world works in here.
+       TRACE is the Wire's own meter, shown as orange badges. A kick-out, a derailment or a dropped pad adds one. Three is the
+       max: at three the trace reaches the street, RHPD heat goes on (the red badges, the street's meter) and the Wire's
+       badges clear. Below three they stay in the Wire and go cold one at a time, a minute clear each. */
+    const WTOOL = { copSpeed: 118, copH: 24, pulseR: 95, pulseCd: 4, mineCd: 3, mineMax: 2, mineLife: 12, trailLife: 6, trailMin: 0.5,
+                    respawn: 4, hpMax: 3, coldS: 60, badgesMax: 3, windiT: 25 };
+    function wireHQ(W0) {
+      const h = W0.hosts.find((q) => q.b && q.b.kind === "precinct");
+      if (h) return { x: h.mx, y: h.my };
+      const pc = getCell(8, 11), b = pc && (pc.blds || []).find((q) => q.kind === "precinct");
+      if (b) return { x: (b.x + b.w / 2 - WORLD_MIN) / WIRE_SCALE, y: (b.y + b.h / 2 - WORLD_MIN) / WIRE_SCALE };
+      return { x: 60, y: 60 };
+    }
+    /* one trace badge in the Wire. At the max the trace reaches the street: the red RHPD heat goes on, the Wire's clear. */
+    function wireHeatAdd(n) {
+      const g = G.current; if (!g) return;
+      WIRE_HEAT.n = Math.min(WTOOL.badgesMax, WIRE_HEAT.n + n); WIRE_HEAT.cold = 0;
+      if (WIRE_HEAT.n >= WTOOL.badgesMax) {
+        WIRE_HEAT.n = 0;
+        g.heat = Math.max(g.heat || 0, 2); g.wantedT = Math.max(g.wantedT || 0, 90);
+        if (g.wire) { g.wire.note = "THE TRACE REACHED THE STREET · RHPD HAS YOUR BLOCK"; g.wire.noteT = 4; }
+        g.pickupFlash = { nm: "lift:THE TRACE REACHED THE STREET", t: 2.4 };
+      } else if (g.wire) { g.wire.note = "TRACE " + WIRE_HEAT.n + " OF " + WTOOL.badgesMax + " · THE PROGRAMS ARE COMING"; g.wire.noteT = 3; }
+    }
+    /* LAYER 778: the first WINDI run ends in a rescue, not a derail. WINDI cuts him out; her talk waits on the holophone */
+    function wireWindiRescue() {
+      const g = G.current; if (!g || !g.wire) return;
+      RUNNER_API.wmRescue();
+      wireExit();
+    }
+    function wireDerail() {
+      { const g0 = G.current; if (g0 && g0.wire && g0.wire.windi) { wireWindiRescue(); return; } }   // LAYER 778
+      wireHeatAdd(1);
+      const g = G.current; wireExit();
+      if (g) g.pickupFlash = { nm: "lift:DERAILED · THE PROGRAMS TOOK THE RIG", t: 2.4 };
+    }
+    /* dropping a live pad logs the trace, however the pad is let go of */
+    function wireDropPad(W0) {
+      if (W0.pad && !W0.pad.res) { W0.pad = null; wireHeatAdd(1); } else W0.pad = null;
+    }
+    /* Q or Esc asks to jack out, and a second press (or A on the pad) does it. You can do it at any time. */
+    function wireJackRequest(W0) {
+      if (W0.confirmT > 0) { W0.pad = null; wireExit(); return; }
+      W0.confirmT = 3; W0.note = "JACK OUT? PRESS Q AGAIN · A ON THE PAD"; W0.noteT = 3;
+    }
+    function wireDerez(W0, c) {
+      if (c.dead) return;
+      c.dead = true; W0.kills = (W0.kills || 0) + 1; W0.respawnT = Math.max(W0.respawnT, WTOOL.respawn);
+      for (let k = 0; k < 10; k++) { const a = (k / 10) * 6.283 + Math.random() * 0.4, s = 24 + Math.random() * 30;
+        W0.bits.push({ x: c.x, y: c.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, t: 0 }); }
+    }
+    function wirePulse(W0) {
+      if (W0.pad && !W0.pad.res) return;
+      if (W0.pulseCd > 0) { W0.note = "PULSE RECHARGING · " + Math.ceil(W0.pulseCd) + "S"; W0.noteT = 1.2; return; }
+      W0.pulseCd = WTOOL.pulseCd; W0.pulses.push({ x: W0.x, y: W0.y, t: 0 });
+      let k = 0;
+      for (const c of W0.cops) if (!c.dead && c.age >= 0.6 && Math.hypot(c.x - W0.x, c.y - W0.y) < WTOOL.pulseR) { wireDerez(W0, c); k++; }
+      W0.note = k ? "PULSE · " + k + " PROGRAM" + (k > 1 ? "S" : "") + " DOWN" : "PULSE · NOTHING IN RANGE"; W0.noteT = 2;
+    }
+    function wireMine(W0) {
+      if (W0.pad && !W0.pad.res) return;
+      if (W0.mineCd > 0) { W0.note = "MINE RECHARGING · " + Math.ceil(W0.mineCd) + "S"; W0.noteT = 1.2; return; }
+      if (W0.mines.length >= WTOOL.mineMax) { W0.note = "TWO MINES ARE ALREADY DOWN."; W0.noteT = 1.5; return; }
+      W0.mineCd = WTOOL.mineCd;
+      W0.mines.push({ x: W0.x, y: W0.y, t: 0 });
+      W0.note = "MINE DOWN · " + (WTOOL.mineMax - W0.mines.length) + " LEFT"; W0.noteT = 1.5;
+    }
+    /* PROGRAMS KEEP TO THE STREETS. The grid is the power lines: one line per street, the same both ways, so a node is
+       where two lines cross. A program stands on a node or runs one street between two nodes. It makes for the node
+       nearest the bike, and only when it is at that node, with the bike close, does it cut the last few px straight. */
+    function wireM(x) { return (x - WORLD_MIN) / WIRE_SCALE; }
+    function wireNearLine(grid, v) {
+      let best = 0, bd = Infinity;
+      for (let i = 0; i < grid.length; i++) { const d = Math.abs(grid[i] - v); if (d < bd) { bd = d; best = i; } }
+      return best;
+    }
+    function wireCopMove(W0, c, dt) {
+      const Gd = W0.grid, S = WTOOL.copSpeed * dt, top = Gd.length - 1;
+      if (c.i == null) { c.i = wireNearLine(Gd, c.x); c.j = wireNearLine(Gd, c.y); c.e = null; c.f = 0; c.pi = -1; c.pj = -1; }   // a program made without its route
+      if (c.leave) {                                   // out of the HQ node, onto the grid
+        const tx = Gd[c.i], ty = Gd[c.j], dx = tx - c.x, dy = ty - c.y, d = Math.hypot(dx, dy);
+        if (d <= S) { c.x = tx; c.y = ty; c.leave = false; } else { c.x += dx / d * S; c.y += dy / d * S; }
+        return;
+      }
+      if (c.lunge) {                                   // the last cut, straight at the bike
+        if (Math.hypot(W0.x - c.x, W0.y - c.y) < 40) {
+          const dx = W0.x - c.x, dy = W0.y - c.y, d = Math.hypot(dx, dy);
+          if (d > 0.01) { const st = Math.min(d, S); c.x += dx / d * st; c.y += dy / d * st; }
+          return;
+        }
+        c.lunge = false; c.x = Gd[c.i]; c.y = Gd[c.j];   // the bike got away: back onto the street
+        return;
+      }
+      if (c.e) {                                       // between two nodes, on a street
+        const e = c.e, dx = Gd[e.i] - Gd[c.i], dy = Gd[e.j] - Gd[c.j], len = Math.abs(dx) + Math.abs(dy) || 1;
+        c.f += S / len;
+        if (c.f >= 1) { c.i = e.i; c.j = e.j; c.e = null; c.f = 0; c.x = Gd[c.i]; c.y = Gd[c.j]; }
+        else { c.x = Gd[c.i] + dx * c.f; c.y = Gd[c.j] + dy * c.f; }
+        return;
+      }
+      // on a node
+      const gi = wireNearLine(Gd, W0.x), gj = wireNearLine(Gd, W0.y);
+      if (c.i === gi && c.j === gj) {
+        if (Math.hypot(W0.x - c.x, W0.y - c.y) < 40) { c.lunge = true; wireCopMove(W0, c, dt); }
+        return;
+      }
+      const dist = (a, b) => Math.abs(a - gi) + Math.abs(b - gj);
+      const cands = [[c.i + 1, c.j], [c.i - 1, c.j], [c.i, c.j + 1], [c.i, c.j - 1]]
+        .filter(([a, b]) => a >= 0 && a <= top && b >= 0 && b <= top);
+      const back = (q) => q[0] === c.pi && q[1] === c.pj;   // do not double back unless there is no other way
+      cands.sort((p, q) => (dist(p[0], p[1]) + (back(p) ? 2.5 : 0)) - (dist(q[0], q[1]) + (back(q) ? 2.5 : 0)));
+      const pick = cands[0];
+      c.pi = c.i; c.pj = c.j;
+      c.e = { i: pick[0], j: pick[1] }; c.f = 0;
+    }
+    /* the tools, the trail, the trace and the programs. Returns true when the bike has taken its last hit and must leave. */
+    function wireToolsStep(W0, g, dt) {
+      if (!W0.hq) W0.hq = wireHQ(W0);
+      if (!W0.grid) W0.grid = Array.from({ length: N + 1 }, (_, i) => wireM(SX(i)));
+      W0.pulseCd = Math.max(0, W0.pulseCd - dt);
+      W0.mineCd = Math.max(0, (W0.mineCd || 0) - dt);
+      W0.confirmT = Math.max(0, (W0.confirmT || 0) - dt);
+      const L = W0.trail, last = L[L.length - 1];
+      if (!last || Math.hypot(W0.x - last.x, W0.y - last.y) > 2) L.push({ x: W0.x, y: W0.y, t: W0.t });
+      while (L.length && W0.t - L[0].t > WTOOL.trailLife) L.shift();
+      if (L.length > 400) L.splice(0, L.length - 400);
+      for (const p of W0.pulses) p.t += dt;
+      W0.pulses = W0.pulses.filter((p) => p.t < 0.6);
+      for (const b of W0.bits) { b.t += dt; b.x += b.vx * dt; b.y += b.vy * dt; }
+      W0.bits = W0.bits.filter((b) => b.t < 0.7);
+      for (const m of W0.mines) m.t += dt;
+      W0.mines = W0.mines.filter((m) => m.t < WTOOL.mineLife);
+      if (WIRE_HEAT.n > 0) {
+        WIRE_HEAT.cold += dt;
+        if (WIRE_HEAT.cold >= WTOOL.coldS) { WIRE_HEAT.n--; WIRE_HEAT.cold = 0; W0.note = "A TRACE BADGE WENT COLD · " + WIRE_HEAT.n + " LEFT"; W0.noteT = 2.5; }
+      }
+      // one program per badge. A lost one comes back from the HQ node a few seconds later.
+      const want = WIRE_HEAT.n;
+      if (want === 0) for (const c of W0.cops) c.dead = true;
+      const alive = W0.cops.filter((c) => !c.dead).length;
+      if (alive < want) {
+        W0.respawnT -= dt;
+        if (W0.respawnT <= 0) {
+          const hi = wireNearLine(W0.grid, W0.hq.x), hj = wireNearLine(W0.grid, W0.hq.y);
+          W0.cops.push({ x: W0.hq.x, y: W0.hq.y, i: hi, j: hj, leave: true, lunge: false, e: null, f: 0, pi: -1, pj: -1, age: 0, ph: Math.random() * 6, dead: false });
+          W0.respawnT = alive + 1 < want ? 1.2 : WTOOL.respawn;
+        }
+      }
+      let derail = false;
+      for (const c of W0.cops) {
+        if (c.dead) continue;
+        c.age += dt; c.ph += dt * 9;
+        if (c.age < 0.6) continue;                       // it comes out of the HQ node first
+        wireCopMove(W0, c, dt);
+        for (const p of L) {
+          const a = W0.t - p.t;
+          if (a >= WTOOL.trailMin && a < WTOOL.trailLife && Math.hypot(p.x - c.x, p.y - c.y) < 3.5) {
+            wireDerez(W0, c); W0.note = "A PROGRAM RAN THE TRAIL AND BROKE."; W0.noteT = 2; break;
+          }
+        }
+        if (c.dead) continue;
+        for (const m of W0.mines) if (Math.hypot(m.x - c.x, m.y - c.y) < 5) {
+          m.t = WTOOL.mineLife; wireDerez(W0, c); W0.note = "MINE · PROGRAM CAUGHT."; W0.noteT = 2; break;
+        }
+        if (c.dead) continue;
+        if (Math.hypot(W0.x - c.x, W0.y - c.y) < 6) {
+          wireDerez(W0, c); W0.hp -= 1; W0.note = "THE PROGRAM HIT YOUR RIG · " + W0.hp + " LEFT"; W0.noteT = 2.5;
+          if (W0.hp <= 0) derail = true;
+        }
+      }
+      W0.mines = W0.mines.filter((m) => m.t < WTOOL.mineLife);
+      W0.cops = W0.cops.filter((c) => !c.dead);
+      return derail;
+    }
+    function wireBadge(ctx, cx, cy, on) {
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + 8, cy + 3); ctx.lineTo(cx + 6, cy + 13); ctx.lineTo(cx, cy + 16);
+      ctx.lineTo(cx - 6, cy + 13); ctx.lineTo(cx - 8, cy + 3); ctx.closePath();
+      if (on) { ctx.fillStyle = "#FF9A2E"; ctx.fill(); } else { ctx.strokeStyle = "rgba(255,154,46,0.35)"; ctx.lineWidth = 1; ctx.stroke(); }
+    }
+    /* drawn in map space: the trail, the mines, the pulse rings, the HQ, the orange programs, and the bits they break into */
+    function wireToolsDraw(ctx, W0, now) {
+      const L = W0.trail;
+      ctx.lineWidth = 2; ctx.lineCap = "round";
+      for (let i = 1; i < L.length; i++) {
+        const a = 1 - (W0.t - L[i].t) / WTOOL.trailLife; if (a <= 0) continue;
+        ctx.strokeStyle = "rgba(120,235,255," + (0.75 * a).toFixed(3) + ")";
+        ctx.beginPath(); ctx.moveTo(L[i - 1].x, L[i - 1].y); ctx.lineTo(L[i].x, L[i].y); ctx.stroke();
+      }
+      for (const m of W0.mines) {
+        const a = 0.55 + 0.35 * Math.sin(now / 160 + m.x);
+        ctx.fillStyle = "rgba(255,178,60," + a.toFixed(3) + ")";
+        ctx.beginPath(); ctx.moveTo(m.x, m.y - 4); ctx.lineTo(m.x + 4, m.y); ctx.lineTo(m.x, m.y + 4); ctx.lineTo(m.x - 4, m.y); ctx.closePath(); ctx.fill();
+      }
+      for (const p of W0.pulses) {
+        const f = Math.min(1, p.t / 0.5);
+        ctx.strokeStyle = "rgba(255,178,60," + (0.9 * (1 - f)).toFixed(3) + ")"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(p.x, p.y, WTOOL.pulseR * f, 0, 6.283); ctx.stroke();
+      }
+      if (W0.hq && (W0.cops.length || WIRE_HEAT.n > 0)) {
+        ctx.strokeStyle = "rgba(255,178,60,0.8)"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(W0.hq.x, W0.hq.y, 9, 0, 6.283); ctx.stroke();
+        ctx.fillStyle = "rgba(255,178,60,0.85)"; ctx.font = "10px ui-monospace, Menlo, Consolas, monospace";
+        ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillText("RHPD HQ", W0.hq.x, W0.hq.y - 11);
+        ctx.textAlign = "left"; ctx.textBaseline = "top";
+      }
+      const torso = imgs.current.cop_orange_torso, aL = imgs.current.cop_orange_arm_L, aR = imgs.current.cop_orange_arm_R;
+      const lL = imgs.current.cop_orange_leg_L, lR = imgs.current.cop_orange_leg_R;
+      const rig = !!(torso && torso.width && aL && aL.width && aR && aR.width && lL && lL.width && lR && lR.width);
+      const piv = (im, px, py, a) => { ctx.save(); ctx.translate(px, py); ctx.rotate(a); ctx.translate(-px, -py); ctx.drawImage(im, 0, 0); ctx.restore(); };
+      if (rig) for (const c of W0.cops) {
+        const k = Math.min(1, c.age / 0.6), sw = c.age < 0.6 ? 0 : Math.sin(c.ph) * 0.42, s = WTOOL.copH / 877;
+        ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.9 * k;
+        ctx.translate(c.x, c.y); ctx.scale(s, s); ctx.translate(-394.5, -877);
+        piv(lL, 306, 540, sw); piv(lR, 481, 540, -sw); piv(aL, 151, 205, -sw * 0.6); piv(aR, 635, 205, sw * 0.6);
+        ctx.drawImage(torso, 0, 0);
+        ctx.restore();
+      }
+      for (const b of W0.bits) { ctx.fillStyle = "rgba(255,178,60," + (1 - b.t / 0.7).toFixed(3) + ")"; ctx.fillRect(b.x - 1, b.y - 1, 2, 2); }
+    }
+    /* the Wire's panel, top right: the rig, the programs, the tools, and the trace in orange badges */
+    function wireToolsHud(ctx, W0, W) {
+      const bw = 280, x0 = W - bw + 14, ink = "#8dffc0", amber = "#FFB23C";
+      const living = W0.cops.filter((c) => !c.dead).length;
+      const rows = [
+        ["RIG   " + "■".repeat(Math.max(0, W0.hp)) + "□".repeat(Math.max(0, WTOOL.hpMax - W0.hp)), ink],
+        ["PROGRAMS " + living + "   KILLS " + (W0.kills || 0), ink],
+        ["PULSE [F]  " + (W0.pulseCd > 0 ? Math.ceil(W0.pulseCd) + "S" : "READY"), W0.pulseCd > 0 ? "rgba(141,255,192,0.6)" : amber],
+        ["MINE [G]  " + (W0.mineCd > 0 ? "RECHARGING " + Math.ceil(W0.mineCd) + "S" : (WTOOL.mineMax - W0.mines.length) + " OF " + WTOOL.mineMax), W0.mineCd > 0 ? "rgba(141,255,192,0.6)" : "rgba(141,255,192,0.8)"],
+      ];
+      const lh = 17, bh = 12 + (rows.length + 1) * lh + 6;
+      ctx.fillStyle = "rgba(2,14,10,0.78)"; ctx.fillRect(W - bw, 0, bw, bh);
+      ctx.font = "12px ui-monospace, Menlo, Consolas, monospace"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+      rows.forEach((r, i) => { ctx.fillStyle = r[1]; ctx.fillText(r[0], x0, 12 + i * lh); });
+      const ty = 12 + rows.length * lh;
+      ctx.fillStyle = "#FF9A2E"; ctx.fillText("TRACE", x0, ty + 1);
+      for (let i = 0; i < WTOOL.badgesMax; i++) wireBadge(ctx, x0 + 92 + i * 24, ty, i < WIRE_HEAT.n);
+    }
+    /* the pad, on the gamepad: the stick rides, A hacks, B pulses, X mines, Y asks to jack out. With a pad up, the D-pad
+       walks its buttons, A presses the one under the cursor and B drops it. A answers a jack-out question. */
+    function wirePadGamepad(B, was) {
+      const g = G.current, W0 = g && g.wire; if (!W0) return;
+      const press = (i) => B(i) && !was[i];
+      if (W0.confirmT > 0 && press(0)) { W0.pad = null; wireExit(); return; }
+      const P = W0.pad;
+      if (P && !P.res) {
+        const n = P.n, cols = P.cols || 4; let s = P.sel || 0;
+        if (press(15) && s % cols !== cols - 1 && s + 1 < n) s++;
+        if (press(14) && s % cols !== 0) s--;
+        if (press(13) && s + cols < n) s += cols;
+        if (press(12) && s - cols >= 0) s -= cols;
+        P.sel = s;
+        if (press(0)) wirePadPress(s + 1);
+        if (press(1)) G.wireKey("escape");
+        if (press(3)) { wireDropPad(W0); wireJackRequest(W0); }
+        return;
+      }
+      if (press(0)) wireHackNearest();
+      if (press(1)) wirePulse(W0);
+      if (press(2)) wireMine(W0);
+      if (press(3)) wireJackRequest(W0);
+    }
+    function wireFrame(now) {
+      const g = G.current, W0 = g && g.wire, cv = wireCv.current;
+      if (!W0 || !cv) return;
+      cv.style.display = "block";
+      const cw = cv.clientWidth, chh = cv.clientHeight, dpr0 = Math.min(2, window.devicePixelRatio || 1);
+      if (cv.width !== Math.round(cw * dpr0) || cv.height !== Math.round(chh * dpr0)) { cv.width = Math.round(cw * dpr0); cv.height = Math.round(chh * dpr0); }
+      const ctx = cv.getContext("2d");
+      const W = cv.clientWidth, H = cv.clientHeight, dpr = cv.width / Math.max(1, W);
+      const dt = Math.min(0.05, Math.max(0, (now - W0.last) / 1000)); W0.last = now; W0.t += dt;
+      W0.noteT = Math.max(0, W0.noteT - dt);
+      const P = W0.pad;
+      if (P) {
+        P.flash = Math.max(0, P.flash - dt); P.bad = Math.max(0, P.bad - dt);
+        if (P.res) { P.resT -= dt; if (P.resT <= 0) W0.pad = null; }
+        else { P.t -= dt; if (P.t <= 0) wirePadMiss(W0, P, "TOO SLOW"); }
+      }
+      const mapW = (WORLD_MAX - WORLD_MIN) / WIRE_SCALE;
+      if (!W0.pad) {
+        const K = input.current.keys || {};
+        const ax = (K.arrowright || K.d ? 1 : 0) - (K.arrowleft || K.a ? 1 : 0) + (input.current.x || 0);
+        const ay = (K.arrowdown || K.s ? 1 : 0) - (K.arrowup || K.w ? 1 : 0) + (input.current.y || 0);
+        if (ax || ay) { const l = Math.hypot(ax, ay), sp = 170 * dt; W0.x += (ax / l) * sp; W0.y += (ay / l) * sp; W0.ang = Math.atan2(ay, ax); W0.goal = null; }
+        else if (W0.goal) {
+          const dx = W0.goal.x - W0.x, dy = W0.goal.y - W0.y, d = Math.hypot(dx, dy), sp = 170 * dt;
+          if (d <= Math.max(sp, 3)) {
+            W0.x = W0.goal.x; W0.y = W0.goal.y; W0.goal = null;
+            let hit = null; for (const h of W0.hosts) if (Math.hypot(h.mx - W0.x, h.my - W0.y) < 26) { hit = h; break; }
+            if (hit) wireHackNearest();
+          } else { W0.x += (dx / d) * sp; W0.y += (dy / d) * sp; W0.ang = Math.atan2(dy, dx); }
+        }
+      }
+      W0.x = clamp(W0.x, 0, mapW); W0.y = clamp(W0.y, 0, mapW);
+      if (W0.windi && W0.t > WTOOL.windiT) { wireWindiRescue(); return; }   // LAYER 778: the programs have him after the time
+      if (wireToolsStep(W0, g, dt)) { wireDerail(); return; }
+      const camX = mapW <= W ? (W - mapW) / 2 : clamp(W / 2 - W0.x, W - mapW, 0);
+      const camY = mapW <= H ? (H - mapW) / 2 : clamp(H / 2 - W0.y, H - mapW, 0);
+      W0.camX = camX; W0.camY = camY;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "#02080a"; ctx.fillRect(0, 0, W, H);
+      ctx.save(); ctx.translate(camX, camY);
+      const M = (x) => (x - WORLD_MIN) / WIRE_SCALE;
+      const ink = "rgba(124,255,178,";
+      // the city: blocks between the streets
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+        const x0 = M(SX(i) + halfW(i)), x1 = M(SX(i + 1) - halfW(i + 1));
+        const y0 = M(SX(j) + halfW(j)), y1 = M(SX(j + 1) - halfW(j + 1));
+        ctx.fillStyle = ink + "0.035)"; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+        ctx.strokeStyle = ink + "0.16)"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y0 + 0.5, x1 - x0, y1 - y0);
+      }
+      // the power lines along the streets, with a node where they cross
+      ctx.strokeStyle = ink + "0.45)"; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
+      for (let i = 0; i <= N; i++) { const x = M(SX(i)); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, mapW); ctx.stroke(); }
+      for (let j = 0; j <= N; j++) { const y = M(SX(j)); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(mapW, y); ctx.stroke(); }
+      ctx.setLineDash([]);
+      const node = wireHoloOf(imgs.current.wire_node, 14, 14, "node");
+      if (node) for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
+        if ((i + j) % 2) continue;
+        ctx.drawImage(node, M(SX(i)) - 7, M(SX(j)) - 7);
+      }
+      // the terminals: every host is a computer on its block
+      const comp = wireHoloOf(imgs.current.wire_computer, 18, 19, "comp");
+      let near = null, nd = 1e9;
+      for (const h of W0.hosts) {
+        const d = Math.hypot(h.mx - W0.x, h.my - W0.y); if (d < nd) { nd = d; near = h; }
+        if (comp) ctx.drawImage(comp, h.mx - 9, h.my - 9.5);
+        else { ctx.fillStyle = ink + "0.9)"; ctx.fillRect(h.mx - 3, h.my - 3, 6, 6); }
+        if (h.hacked) { ctx.strokeStyle = "rgba(255,178,60,0.9)"; ctx.lineWidth = 1; ctx.strokeRect(h.mx - 11.5, h.my - 11.5, 23, 23); }
+      }
+      if (near && nd < 60) {
+        ctx.strokeStyle = "rgba(255,178,60,0.8)"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(near.mx, near.my, 15, 0, Math.PI * 2); ctx.stroke();
+      }
+      // the bike, the player
+      const bike = wireHoloOf(imgs.current.wire_bike, 14, 33, "bike");
+      ctx.save(); ctx.translate(W0.x, W0.y); ctx.rotate(W0.ang + Math.PI / 2);
+      if (bike) { ctx.globalCompositeOperation = "lighter"; ctx.drawImage(bike, -7, -16.5); }
+      else { ctx.fillStyle = "#8dffc0"; ctx.fillRect(-3, -7, 6, 14); }
+      ctx.restore();
+      wireToolsDraw(ctx, W0, now);
+      ctx.restore();
+      // the HUD: green phosphor, the way the desktop reads
+      ctx.globalCompositeOperation = "source-over";
+      ctx.textBaseline = "top"; ctx.textAlign = "left";
+      ctx.font = "13px ui-monospace, Menlo, Consolas, monospace";
+      /* a dark strip behind each line of text, so the words read over the grid and the hosts */
+      const hudNear = near && nd < 60 && !W0.pad, hudNote = W0.noteT > 0;
+      const hudLines = 1 + (hudNear ? 1 : 0) + (hudNote ? 1 : 0);
+      ctx.fillStyle = "rgba(2,14,10,0.78)";
+      ctx.fillRect(0, 0, W, 12 + hudLines * 22 + 6);
+      ctx.fillRect(0, H - 34, W, 34);
+      ctx.fillStyle = "#8dffc0";
+      ctx.fillText("THE WIRE · " + W0.hosts.length + " HOSTS · " + (W0.hacked || 0) + " OPEN · DEBIT CARD $" + Math.round(g.p.debit || 0).toLocaleString(), 14, 12);
+      ctx.fillStyle = "rgba(141,255,192,0.8)";
+      ctx.fillText("ARROWS RIDE · E HACK · F PULSE · G MINE · Q TWICE JACKS OUT", 14, H - 26);
+      if (hudNear) {
+        ctx.fillStyle = "#FFB23C";
+        ctx.fillText(near.label + " · TIER " + near.tier + (near.hacked ? " · OPEN" : " · E TO HACK"), 14, 34);
+      }
+      if (hudNote) { ctx.fillStyle = "#8dffc0"; ctx.fillText(W0.note, 14, hudNear ? 56 : 34); }
+      wireToolsHud(ctx, W0, W);
+      if (P) wirePadDraw(ctx, W, H, P);
+    }
+    function wirePadDraw(ctx, W, H, P) {
+      const cols = P.n <= 3 ? P.n : P.n <= 6 ? 3 : P.n <= 12 ? 4 : 5, rows = Math.ceil(P.n / cols);
+      P.cols = cols;
+      const bw = 58, bh = 40, gap = 8;
+      const title = "HOST · " + P.h.label.slice(0, 46);
+      ctx.font = "bold 14px ui-monospace, Menlo, Consolas, monospace";
+      /* the panel is at least as wide as its title, so a long host name never runs past the frame */
+      const pw = Math.max(340, cols * (bw + gap) - gap + 40, Math.ceil(ctx.measureText(title).width) + 32), ph = 116 + rows * (bh + gap) + 34;
+      const px = Math.round((W - pw) / 2), py = Math.round((H - ph) / 2);
+      ctx.fillStyle = "rgba(2,14,10,0.94)"; ctx.fillRect(px, py, pw, ph);
+      ctx.strokeStyle = P.bad > 0 ? "#FF5A4E" : "#8dffc0"; ctx.lineWidth = 2; ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+      ctx.fillStyle = "#8dffc0"; ctx.fillText(title, px + 16, py + 14);
+      for (let k = 0; k < 4; k++) { ctx.fillStyle = k < P.mist ? "#FF5A4E" : "rgba(124,255,178,0.22)"; ctx.fillRect(px + 16 + k * 18, py + 42, 12, 12); }
+      ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+      ctx.fillStyle = "#8dffc0"; ctx.fillText("TRACE " + P.mist + "/4 · TIER " + P.n, px + 90, py + 43);
+      const frac = P.res ? 0 : clamp(P.t / P.dur, 0, 1);
+      ctx.fillStyle = "rgba(124,255,178,0.18)"; ctx.fillRect(px + 16, py + 68, pw - 32, 8);
+      ctx.fillStyle = frac < 0.3 ? "#FF5A4E" : "#FFB23C"; ctx.fillRect(px + 16, py + 68, (pw - 32) * frac, 8);
+      P.rects = [];
+      const gx = px + (pw - (cols * (bw + gap) - gap)) / 2;
+      for (let k = 1; k <= P.n; k++) {
+        const c = (k - 1) % cols, r = Math.floor((k - 1) / cols);
+        const x = gx + c * (bw + gap), y = py + 90 + r * (bh + gap);
+        const lit = !P.res && k === P.lit, done = P.pressed.has(k);
+        ctx.fillStyle = lit ? "#FFB23C" : done ? "rgba(124,255,178,0.12)" : "rgba(124,255,178,0.06)";
+        ctx.fillRect(x, y, bw, bh);
+        ctx.strokeStyle = lit ? "#FFD28A" : "rgba(124,255,178,0.5)"; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, bw - 1, bh - 1);
+        ctx.fillStyle = lit ? "#1a0f00" : done ? "rgba(124,255,178,0.35)" : "#8dffc0";
+        ctx.font = "bold 16px ui-monospace, Menlo, Consolas, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(done ? "✓" : String(k), x + bw / 2, y + bh / 2);
+        ctx.textAlign = "left"; ctx.textBaseline = "top";
+        P.rects.push({ k, x, y, w: bw, h: bh });
+      }
+      if (!P.res && P.sel != null && P.rects[P.sel]) { const r = P.rects[P.sel]; ctx.strokeStyle = "#8dffc0"; ctx.lineWidth = 2; ctx.strokeRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4); }
+      const msg = P.res === "win" ? "OPEN · DEBIT +$" + P.pay : P.res === "fail" ? "KICKED OUT · THE PROGRAMS HAVE THE TRACE" : "PRESS THE LIT BUTTON · ESC DROPS THE PAD";
+      ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
+      ctx.fillStyle = P.res === "win" ? "#8dffc0" : P.res === "fail" ? "#FF5A4E" : "#FFB23C";
+      ctx.fillText(msg, px + 16, py + ph - 24);
+    }
+    G.wireSitFn = () => {
+      const g = G.current;
+      if (!g || g.wire || g.mode !== "foot" || !g.inside || !g.inside.wireTerm) return false;
+      const t = g.inside.wireTerm, c = t.chair;
+      if (g.floor !== t.f || Math.hypot(g.p.x - (c.x + c.w / 2), g.p.y - (c.y + c.h / 2)) > 64) return false;
+      wireJackIn(); return true;
+    };
+    G.wireDoorFn = (b) => {
+      const g = G.current;
+      if (!g || !wireLocked(b) || b === g.aptHomeB) return false;
+      g.pickupFlash = { nm: "LOCKED · NO KEY · THE WIRE CAN OPEN IT", t: 2.4 };
+      return true;
+    };
+    G.wireKey = (k) => {
+      const g = G.current; const W0 = g && g.wire; if (!W0) return false;
+      const P = W0.pad;
+      if (P && !P.res) {
+        if (k === "escape") { W0.pad = null; wireHeatAdd(1); W0.note = "PAD DROPPED. THE HOST LOGS THE TRACE."; W0.noteT = 3; return true; }
+        if (k === "q") { wireDropPad(W0); wireJackRequest(W0); return true; }
+        const n = k === "0" ? 10 : /^[1-9]$/.test(k) ? +k : 0;
+        if (n && n <= Math.min(10, P.n)) wirePadPress(n);
+        return true;
+      }
+      if (k === "escape" || k === "q") { wireJackRequest(W0); return true; }
+      if (k === "e") { wireHackNearest(); return true; }
+      if (k === "f") { wirePulse(W0); return true; }
+      if (k === "g") { wireMine(W0); return true; }
+      return true;
+    };
+    G.wireAct = () => wireHackNearest();
+    G.wirePadGamepad = (B, was) => wirePadGamepad(B, was);   // the gamepad frame is another scope; it reaches the Wire through G
     function frameBody(now) {
+      if (G.current && G.current.wire) { wireFrame(now); return; }   // jacked in: the Wire has the frame
       // LAYER 701: the vest takes the damage first. Any drop in his health since last frame, from any source, goes to the vest
       // (RUNNER_API.soakHit); only what the vest cannot take comes off his own health.
       if (g.p && Number.isFinite(g.p.hp)) {
@@ -66780,6 +67628,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         style={{ width: "100%", height: "100%", display: "block", touchAction: "none",
           userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }} />
 
+      <canvas ref={wireCv} style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", zIndex: 60, display: "none", touchAction: "none" }} />
+
       {/* top-left HUD */}
       <div style={{ position: "absolute", top: 12, left: 12, fontFamily: mono, color: "#e8d9b5",
         pointerEvents: "none", opacity: hud.title ? 0 : 1 }}>
@@ -68663,9 +69513,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             ))}
             <span style={{ fontSize: 10, color: "#9a9486", alignSelf: "center", marginLeft: 6 }}>RB</span>
           </div>
-          {pauseTab !== 0 && <PauseTabBody tab={pauseTab} padSel={padSel} acts={{
+          {pauseTab !== 0 && <PauseTabBody tab={pauseTab} padSel={padSel} card={G.current && G.current.p ? { bal: Math.round(G.current.p.debit || 0), cash: Math.round(G.current.p.cash || 0), ledger: (G.current.p.ledger || []).slice().reverse(), said: G.current.cardSaid || "" } : null} acts={{
             spend: (k) => { if (RUNNER_API.spendStat(k)) setPadTick((x) => x + 1); },
             pick: (i) => { if (G.current) G.current.padRow = i; setPadSel(i); },
+            card: (a) => { const g = G.current; if (g) g.cardSaid = debitAct(g, a); setPadTick((x) => x + 1); },
             sys: (id) => {
               if (id === "recon") { setMapOpen(false); RUNNER_API.toggleLog(); }
               else if (id === "save") { G.saveFn && G.saveFn(); setMapOpen(false); }   // LAYER 717: the flash says it, and the pause menu closes back to the game
