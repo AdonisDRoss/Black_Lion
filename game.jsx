@@ -18024,6 +18024,7 @@ const RUNNER_API = (function () {
     if (packOn) L.push({ cat: 'equipment', nm: (PACK_KIND[packOn] && PACK_KIND[packOn].name) || 'BACKPACK', kg: 2.5, desc: 'Carries the gear that does not fit in your hands. Take it off from the wheel to hide it; its weight stays with you.' });
     if (gasOwned) L.push({ cat: 'equipment', nm: 'GAS MASK', kg: 0.6, desc: 'Keeps the haze out while you wear it. Put it on from the wheel.' });
     if (sleepOwned) L.push({ cat: 'equipment', nm: 'SLEEPING BAG', kg: 1.8, desc: 'Lay it out on the ground and lie down until morning. Rolled up it rides light on the back.' });
+    if (RJ.active && RJ.active.carry === 'COOLER') L.push({ cat: 'equipment', nm: "MICAH'S COOLER", kg: 4.0, icon: PD_ART.yd_cooler, desc: "Micah's sealed cooler. Cold to the touch. It goes to the cold store at the Halcyon works, and you do not ask what is in it." });   // LAYER 779: the job's cooler is in the pack, not in his hand
     for (const c of RUNNER_CYBER) L.push({ cat: 'cyber', nm: c.name || 'CYBERWEAR', kg: c.kg || 0.3, desc: c.desc || 'Fitted cyberwear. Equipping it needs a cybersurgeon.' });
     return L;
   }
@@ -20133,7 +20134,7 @@ const RUNNER_API = (function () {
     const opts = MICAH_ST.code ? ['HAND IT OVER · $300', 'OPEN IT WITH THE CODE · $150'] : ['HAND IT OVER · $300'];
     Object.assign(yMenu, { open: true, mode: 'menu', sel: 0, li: 0, lines: [], title: 'THE COOLER', speaker: c.name, face: null, done: null, opts,
       onPick: (o) => {
-        A.choice = o.indexOf('OPEN') === 0 ? 'open' : 'clean';
+        A.choice = o.indexOf('OPEN') === 0 ? 'open' : 'clean'; A.carry = null;   // the cooler is handed over (or opened) here
         const lines = A.choice === 'open' ? s.openLines : s.lines;
         for (const l of lines) A.entry.talk.push({ who: c.name, line: l });
         openTalk(c.name, c.look.profile, lines, () => rjNext(), s.hud);
@@ -20680,7 +20681,7 @@ const RUNNER_API = (function () {
     if (s.k === 'talk') { const c = rjNearest(RJ.contacts); if (c && c === A.contact) { rjTalk(c); return true; } return false; }
     if (s.k === 'drop') { const c = rjNearest(RJ.contacts); if (c && c === A.contact) { rjDrop(c); return true; } return false; }   // LAYER 779: the cooler is handed over (or opened)
     if ((s.k === 'pick' || s.k === 'job') && A.spot && Math.hypot(walker.x - A.spot.x, walker.y - A.spot.y) < 110) {
-      if (s.k === 'pick') { A.carry = s.item; say('GOT ' + s.item + '.', 3); if (s.got) s.got(A); rjNext(); return true; }
+      if (s.k === 'pick') { if (s.item !== 'CODE') A.carry = s.item; say('GOT ' + s.item + '.', 3); if (s.got) s.got(A); rjNext(); return true; }   // the search for the code does not drop the cooler from the inventory
       if (Math.random() < s.odds) { say('IT WORKED. NOBODY SAW.', 3); rjNext(); }
       else rjFail('BLOWN: ' + s.hud);
       return true;
@@ -21924,7 +21925,7 @@ function PauseTabBody({ tab, padSel, acts, card }) {
                 <div style={{ fontSize: 10, letterSpacing: '0.2em', color: '#9a9486' }}>{RUN_CAT_LABEL[cat]}</div>
                 {mine.length ? mine.map((it) => {
                   const i = items.indexOf(it);
-                  return (<div key={i} data-padrow="1" onClick={() => acts.pick(i)} style={row(padSel === i)}><span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{it.isCard && PD_ART.hud_debit_card && <img src={PD_ART.hud_debit_card} alt="" style={{ width: 22, height: 22, imageRendering: 'pixelated' }} />}<span>{it.nm}</span></span><span>{it.isCard ? '$' + Math.round(card.bal).toLocaleString() : it.kg.toFixed(1) + ' KG'}</span></div>);
+                  return (<div key={i} data-padrow="1" onClick={() => acts.pick(i)} style={row(padSel === i)}><span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{it.isCard && PD_ART.hud_debit_card && <img src={PD_ART.hud_debit_card} alt="" style={{ width: 22, height: 22, imageRendering: 'pixelated' }} />}{it.icon && <img src={it.icon} alt="" style={{ width: 22, height: 22, imageRendering: 'pixelated' }} />}<span>{it.nm}</span></span><span>{it.isCard ? '$' + Math.round(card.bal).toLocaleString() : it.kg.toFixed(1) + ' KG'}</span></div>);
                 }) : (<div style={{ fontSize: 11, color: '#6b6b76', padding: '4px 10px' }}>NONE ON YOU YET · {RUN_CAT_DESC[cat]}</div>)}
               </div>
             );
