@@ -14973,6 +14973,7 @@ function FootballShell({ onExit }) {
 let RUN_CUTSCENE = false;   // the opening (the cutscene): no keys or pad until the city
 const RUNNER_API = (function () {
   let RUN_ON = false;
+  let RUN_CLOCK = false;   // the day runs only once he is in the city: the title, the intro, the builder and the opening pass no hours and send no news
   let ctx = null, W = 960, H = 540;
   let placed = false, lastT = 0, t = 0;
   let camNow = { x: 0, y: 0, z: 0.5 };
@@ -16456,7 +16457,7 @@ const RUNNER_API = (function () {
       kind, weight: RWEIGHT[kind] || 1, text: '' };
     e.text = rFill(pool[(Math.random() * pool.length) | 0], e);
     RLOG.push(e); if (RLOG.length > 600) RLOG.shift();
-    if (!phoneAlert) { phoneAlert = true; phoneNextT = 0; }   // LAYER 743: a new line of news: the phone is on the alert
+    if (!phoneAlert && RUN_CLOCK) { phoneAlert = true; phoneNextT = 0; }   // LAYER 743: a new line of news: the phone is on the alert
     return e;
   }
   // the lines of news: each event has two or three, and {who}, {team}, {place} and {time} are filled in when it happens
@@ -16525,7 +16526,7 @@ const RUNNER_API = (function () {
   }
   // the clock: while Runner Mode is on, the hours pass, the background teams act each hour, and the news goes out at eight
   function rClockTick(dt) {
-    if (!RUN_ON) return;
+    if (!RUN_ON || !RUN_CLOCK) return;
     RCLK.min += dt * RCLK.rate;
     if (RCLK.min >= 1440) { RCLK.min -= 1440; RCLK.day++; }
     const hour = Math.floor(RCLK.min / 60);
@@ -22450,6 +22451,7 @@ const RUNNER_API = (function () {
     },
     getLook: () => Object.assign({}, RUNNER_LOOK),
     setCutscene: (on) => { RUN_CUTSCENE = !!on; },
+    setClock: (on) => { RUN_CLOCK = !!on; },   // the day starts when the runner is in the city (RunnerShell: built)
     // RUNNER SAVES: the look, the cash and the mission stage. The streets and the hunters start fresh on a load.
     saveData: () => ({ v: 1, t: Date.now(), name: RUNNER_LOOK.name, look: Object.assign({}, RUNNER_LOOK), cash: runnerCash, mission: MISSION.stage }),
     loadData: (d) => {
@@ -23477,7 +23479,7 @@ function RunnerOpening({ onDone }) {
     {pic('plane_topdown.png', { left: 0, top: '26%', width: '16vw', height: '16vw', animation: `roPlane ${dur.plane}ms linear both` })}</>);
   else if (sc === 'van') visual = (<>
     {pic('street_side_view.png', full)}
-    {pic('can_van_side.png', { left: '18%', bottom: '17%', width: '38vw', animation: `roVan ${dur.van}ms ease-in-out both` })}
+    {pic('can_van_side.png', { left: '18%', bottom: '17%', width: '44vw', animation: `roVan ${dur.van}ms ease-in-out both` })}
     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 55%, rgba(120,60,170,0.42))' }} /></>);
   else if (sc === 'tower') visual = (<>
     {pic('night_haze_sky.png', { ...full, opacity: 0.4 })}
@@ -23579,6 +23581,9 @@ function RunnerShell({ onExit, onStart, onLoad }) {
   // the cutscene runs from the intro through the builder to the handover; the title's menu is not one
   useEffect(() => { RUNNER_API.setCutscene(intro || (titled && !built) || opening); }, [intro, titled, built, opening]);
   useEffect(() => () => RUNNER_API.setCutscene(false), []);
+  // the runner's day starts once he is in the city (the builder's START and the opening, or a loaded run), not at the title
+  useEffect(() => { RUNNER_API.setClock(built); }, [built]);
+  useEffect(() => () => RUNNER_API.setClock(false), []);
   const beginNew = () => setOpening(true);   // START in the builder: the opening first
   const finishOpening = () => { setOpening(false); setBuilt(true); if (onStart) onStart(); };
   const begin = () => { setBuilt(true); if (onStart) onStart(); };
