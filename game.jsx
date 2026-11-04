@@ -15695,6 +15695,7 @@ const RUNNER_API = (function () {
     if (Math.hypot(car.x - walker.x, car.y - walker.y) > SUMMON_R) return say('THE BIKE IS TOO FAR AWAY TO CALL. GO BACK TOWARD IT.', 3);   // LAYER 722
     const sp = clearSpot(walker.x + 60, walker.y, null) || { x: walker.x + 60, y: walker.y };
     car.x = sp.x; car.y = sp.y; car.z = AIR_Z; car.mode = 'down'; car.speed = 0; car.lean = 0; car.heading = -Math.PI / 2;
+    TUT.calls++;   // the night run's lesson on calling the bike (see TUT_LESSONS)
     say('YOUR BIKE IS COMING DOWN BESIDE YOU');
   }
   // LAYER 668: where he steps off the landed bike. It is beside the bike, and on the roof when the bike is on the roof. The old spot
@@ -18321,7 +18322,7 @@ const RUNNER_API = (function () {
     say('C.A.N. HAS YOU. THE HUNTERS ARE COMING.', 5);
   }
   // LAYER 741: the C.A.N. is out only once the partner is found, and only at night (9:30 PM to 6 AM)
-  function canUp() { return houseSeen && (RCLK.min >= 21 * 60 + 30 || RCLK.min < 6 * 60); }
+  function canUp() { if (MISSION.stage === 'tutorial') return false; return houseSeen && (RCLK.min >= 21 * 60 + 30 || RCLK.min < 6 * 60); }   // the night run's tutorial has no C.A.N. drones
   function canTick(dt) {
     if (!RUN_ON || lobby) return;
     if (!canUp()) { canDrones.length = 0; return; }
@@ -18996,7 +18997,7 @@ const RUNNER_API = (function () {
   const INF_NAMES = ['MARCUS TULL', 'LUIS ORTEGA', 'NELL HARROW', 'TOMMY VASQUEZ', 'OTIS BLANK', 'RUBY SALAS', 'FRANK DOYLE', 'CHINA LEE', 'DEV PATEL', 'KAI MORROW', 'JOSIE FAY', 'RONNIE BELL'];
   const DOC_FACE = 'male_03';
   let storeSpot = null, docSpot = null, docMan = null, informants = [], chain = [], chainLink = 0, runnerCash = 0, bedHint = 0;
-  const STORY_STAGES = ['pistol', 'teammate', 'house', 'bed', 'store', 'ask', 'informant', 'doctor', 'mission', 'micah', 'arrest', 'back', 'wire', 'rescue'];   // LAYER 778: the first WINDI mission's steps
+  const STORY_STAGES = ['pistol', 'teammate', 'house', 'bed', 'tutorial', 'store', 'ask', 'informant', 'doctor', 'mission', 'micah', 'arrest', 'back', 'wire', 'rescue'];   // LAYER 778: the first WINDI mission's steps
   // the opening: the mission's line, arrows and minimap pip stay off until the first mission starts
   let missionHidden = false;
   // the trapdoor ring on the street where the player came up (see trapdoorExit)
@@ -19004,6 +19005,7 @@ const RUNNER_API = (function () {
   function missionOn() { return !missionHidden && STORY_STAGES.includes(MISSION.stage); }
   function missionTitle() {
     if (MISSION.stage === 'mission') return rjTitle();   // LAYER 707: the current job step
+    if (MISSION.stage === 'tutorial') { const L = TUT_LESSONS[TUT.i]; return 'NIGHT RUN: ' + ((L && L.hud) || 'THE PARTNER'); }
     return { pistol: 'FIRST MISSION: GET YOUR PISTOL', teammate: 'SECOND MISSION: FIND YOUR TEAMMATE', house: 'SECOND MISSION: THE HOUSE ON SAUNDERS',
       bed: 'THE PARTNER: LIE DOWN ON THE BAG', store: 'FIND THE DOCTOR: GO TO THE STORE', ask: 'FIND THE DOCTOR: ASK AROUND',
       informant: 'FIND THE DOCTOR: FOLLOW THE LEAD', doctor: 'FIND THE DOCTOR: THE DOCTOR',
@@ -19157,6 +19159,64 @@ const RUNNER_API = (function () {
     MISSION.stage = 'store'; MISSION.label = 'STORE'; MISSION.x = storeSpot.x; MISSION.y = storeSpot.y;
     runBanner('NEW MISSION', 2.2); runBanner('FIND THE DOCTOR', 2.8);
     say('THE PARTNER SAYS THE DOCTOR SELLS THE CHIP. GO TO THE STORE AND ASK AROUND.', 6);
+  }
+  /* MAIN 1, STEP 3 (claude/runner-opening-main-missions.md): THE FIRST NIGHT RUN IS A TUTORIAL. Woken at midnight in the house, the
+     runner goes through the night run with the partner. Each lesson is a talk, then one thing to do, and it moves on only when the
+     game sees that the runner has done it. No C.A.N. drones or hunters while it runs. The last talk ends the run: the game saves (the
+     checkpoint), and the doctor's store mission starts, as it did at midnight before (see the doc's open items). */
+  const TUT = { i: -1, active: false, mark: { shots: 0, calls: 0 }, x0: 0, y0: 0, shots: 0, calls: 0 };   // shots and calls count from the run's start
+  const TUT_LESSONS = [
+    { lines: ['Night is the run. Before we go, three places to get the news.',
+      'The phone: NEWS shows the C.A.N. live feed. Who is on the run, and where the hunters are looking.',
+      'The bulletin: when C.A.N. calls a stop, a face comes up in the street. Read it. That is who to watch for.',
+      'The street: people talk if you ask them. Press A to talk. Most of them lie.'] },
+    { lines: ['These are the buttons. A talks to people, picks things up, and gets on the bike and off it.',
+      'B lifts the hover bike off and lands it, once you have one. On foot, B punches.',
+      'The left stick steers. Hold RT to go. RB draws the pistol, and RB again fires it. LB locks on the nearest target. R3 calls the bike down to you. Y opens the action wheel.',
+      'On the keyboard: W goes, S brakes, the arrows steer, E is A and L is B.'] },
+    { hud: 'GET ON THE BIKE: PRESS A ON IT. R3 CALLS IT IF IT IS FAR.', lines: ['Your bike. Get on it.'], ok: () => !walker.on },
+    { hud: 'LIFT OFF: PRESS B', skip: () => !tutCanFly(), lines: ['Lift off. B. Keep it low for now.'], ok: () => car.mode === 'up' || car.mode === 'air' },
+    { hud: 'FLY ONE BLOCK: HOLD RT AND STEER', skip: () => !tutCanFly(), lines: ['Hold RT and it goes. Let go and it slows.', 'Go round the block once.'], ok: () => Math.hypot(car.x - TUT.x0, car.y - TUT.y0) >= 500 },
+    { hud: 'LAND: PRESS B ON A CLEAR SPOT', skip: () => !tutCanFly(), lines: ['Bring it down. B again, on a clear spot, with no people under it.'], ok: () => car.mode === 'landed' },
+    { hud: 'GET OFF: PRESS A', lines: ['Get off. A.'], ok: () => walker.on },
+    { hud: 'DRAW THE PISTOL: RB, THEN RB AGAIN', at: 'me', skip: () => !LASER.has, lines: ['RB draws it. Then RB fires. The pistol is on stun: it puts people down, it does not kill them.', 'Fire it at the wall.'], ok: () => TUT.shots - TUT.mark.shots >= 1 },
+    { hud: 'CALL THE BIKE: PRESS R3', lines: ['Walk a few steps off, then call it down.'], ok: () => TUT.calls - TUT.mark.calls >= 1 },
+    { hud: 'GET BACK ON: PRESS A', lines: ['Good. Get back on it.'], ok: () => !walker.on },
+    { end: true, lines: ['That is the night run. You know the buttons now.', 'Now the partner has a lead for you.'] }
+  ];
+  // the runner's first bike is the dirt bike, which stays on the ground (toggleLand): the lift, fly and land lessons wait for the hover bike
+  function tutCanFly() { return !/^rtbike_/.test(CAR_FILES[car.sprite] || ''); }
+  function tutOpen() {   // the talk for lesson TUT.i, then its one thing to do
+    const L = TUT_LESSONS[TUT.i];
+    if (L.skip && L.skip()) return tutNext();
+    const f = mates.find((m) => m.friend);
+    TUT.active = false; TUT.mark = { shots: TUT.shots, calls: TUT.calls }; TUT.x0 = car.x; TUT.y0 = car.y;
+    openTalk(f ? f.name : 'PARTNER', f ? f.look.profile : null, L.lines, tutTalkDone, 'THE NIGHT RUN · ' + (TUT.i + 1) + ' OF ' + TUT_LESSONS.length);
+  }
+  function tutTalkDone() {
+    const L = TUT_LESSONS[TUT.i];
+    if (L.end) return tutEnd();
+    if (L.hud) { TUT.active = true; say(L.hud, 6); } else tutNext();   // a talk with nothing to do moves straight on
+  }
+  function tutNext() { TUT.i++; if (TUT.i >= TUT_LESSONS.length) return tutEnd(); tutOpen(); }
+  function tutorialStart() {
+    TUT.i = -1; TUT.active = false; TUT.shots = 0; TUT.calls = 0; TUT.mark = { shots: 0, calls: 0 };
+    MISSION.stage = 'tutorial'; MISSION.label = 'NIGHT RUN';
+    runBanner('THE FIRST NIGHT RUN', 2.8);
+    tutNext();
+  }
+  // each frame during the run: the arrow on the bike (or on him, for the pistol), and the check for the lesson's one thing
+  function tutorialTick() {
+    const L = TUT_LESSONS[TUT.i];
+    if (!L) return;
+    MISSION.label = 'NIGHT RUN';
+    if (L.at === 'me') { MISSION.x = walker.x; MISSION.y = walker.y; } else { MISSION.x = car.x; MISSION.y = car.y; }
+    if (TUT.active && L.ok && L.ok()) { TUT.active = false; say('GOOD.', 2); tutNext(); }
+  }
+  function tutEnd() {
+    TUT.active = false; TUT.i = TUT_LESSONS.length;
+    if (saveHook) saveHook();   // the checkpoint: the game saves at the end of the night run
+    storyStore();
   }
   // at the store: the informants are on the street, one of them knows, and the rest don't
   function storeArrived() {
@@ -19329,6 +19389,8 @@ const RUNNER_API = (function () {
     if (st === 'bed') {
       const t = sleepDown || houseSpot; MISSION.label = 'BED'; MISSION.x = t.x; MISSION.y = t.y;
       if (sleepDown && bedHint === 0) { bedHint = 1; say('NOW LIE DOWN ON IT: STAND ON THE BAG AND PRESS A (OR E).', 6); }
+    } else if (st === 'tutorial') {
+      tutorialTick();
     } else if (st === 'store') {
       MISSION.label = 'STORE'; MISSION.x = storeSpot.x; MISSION.y = storeSpot.y;
       if (walker.on && Math.hypot(walker.x - storeSpot.x, walker.y - storeSpot.y) < 130) storeArrived();
@@ -21093,7 +21155,7 @@ const RUNNER_API = (function () {
     const now = performance.now();
     if (now - LASER.lastFire < 450) return true;
     LASER.lastFire = now;
-    playLaserShot();
+    playLaserShot(); TUT.shots++;   // the night run's lesson on firing counts this shot
     const aim = aimAngle();   // LAYER 683: toward the locked target, or the way he faces
     const dx = Math.cos(aim), dy = Math.sin(aim);
     const ox = walker.x + dx * 18, oy = walker.y + dy * 18, kill = LASER.mode === 'kill';
@@ -21294,7 +21356,7 @@ const RUNNER_API = (function () {
     const min = SLEEP_AT[k]; if (min === undefined) return;
     lying.phase = 'waking';
     // the fade's card shows the day and the time after this runs; the bag goes back into his kit
-    if (sleepHook) sleepHook.fade(() => { sleepDown = null; lying = null; sleepHook.rest(min); if (k === 'mid' && MISSION.stage === 'bed') storyStore(); });
+    if (sleepHook) sleepHook.fade(() => { sleepDown = null; lying = null; sleepHook.rest(min); if (k === 'mid' && MISSION.stage === 'bed') tutorialStart(); });
   }
   // the body is gone: the head sits out of the top of the bag
   function drawLying() {
@@ -21455,6 +21517,7 @@ const RUNNER_API = (function () {
   let sleepOwned = false;     // LAYER 690: a sleeping bag from the pistol stash
   let sleepDown = null;       // LAYER 691: the bag laid out on the ground, { x, y, h }; null while it is rolled up in his kit
   let lying = null;           // LAYER 692: { phase, t } while he lies on the bag: fade to black, the question, the time card, then up
+  let saveHook = null;        // the game's save, set from the component (setSaveHook): the checkpoint at the end of the night run
   let sleepHook = null;       // LAYER 692: the game's black, radial and sleep fade, set from the component (setSleepHook)
   let packsPlaced = false;
   const PACK_STASH = [];      // { kind, x, y, got }
@@ -22351,7 +22414,7 @@ const RUNNER_API = (function () {
     augments,
     augmentAt,
     takeDismount,
-    wake, hunterTick, worldHud, hunterReset, hoverSoundTick, setVest, soakHit, vestBar, setPhone, setIndoors, talking: () => !!(yMenu.open && yMenu.mode === 'talk'), setLaserChip, setCash: (c) => { runnerCash = +c || 0; }, jobLog, huntDbg, fire, laserItems, laserPick, gearItems, gearPick, setSleepHook: (h) => { sleepHook = h; }, sleepWheelClosed, takeCash,
+    wake, hunterTick, worldHud, hunterReset, hoverSoundTick, setVest, soakHit, vestBar, setPhone, setIndoors, talking: () => !!(yMenu.open && yMenu.mode === 'talk'), setLaserChip, setCash: (c) => { runnerCash = +c || 0; }, jobLog, huntDbg, fire, laserItems, laserPick, gearItems, gearPick, setSleepHook: (h) => { sleepHook = h; }, setSaveHook: (h) => { saveHook = h; }, sleepWheelClosed, takeCash,
     groundTrash, groundStash, onFoot: () => walker.on, armed: () => LASER.has,
     setPeople: (p, groups) => { PEOPLE = (p || []).concat(...(groups || [])); },
     hoverKid,
@@ -22367,7 +22430,7 @@ const RUNNER_API = (function () {
     alertHere: (x, y) => canAlert(x, y),   // the C.A.N. call-in, at the hunters' own distance (used by the tests)
     // LAYER 690: where the runner's objective is, for the minimap's blue star (the pistol stash, then the teammate)
     // TEST ONLY: lets the headless checks put the mission and the walker where they need to be
-    dbg: { setMission: (st) => { MISSION.stage = st; }, placeWalker: (x, y) => { walker.x = x; walker.y = y; walker.on = true; }, stage: () => MISSION.stage, bar: () => barSpot, pos: () => [walker.x, walker.y, walker.on], near: () => bartenderNear(), menuOpen: () => yMenu.open, houseInfo: () => ({ spot: houseSpot, bldg: houseBldg ? { x: houseBldg.x, y: houseBldg.y, w: houseBldg.w, h: houseBldg.h, kind: houseBldg.kind } : null, seen: houseSeen, inside: runnerInside ? { x: runnerInside.x, y: runnerInside.y, kind: runnerInside.kind } : null, barSpot: barSpot }), gateInfo: () => ({ stash: !!stashNear(), pack: !!packStashNear(), bag: !!nearBag(), bartender: !!bartenderNear(), story: !!storyNear(), caseN: !!caseNear(), inside: !!runnerInside }) },
+    dbg: { tutorial: () => tutorialStart(), tut: () => ({ i: TUT.i, active: TUT.active, hud: (TUT_LESSONS[TUT.i] || {}).hud || '', shots: TUT.shots, calls: TUT.calls }), setMission: (st) => { MISSION.stage = st; }, placeWalker: (x, y) => { walker.x = x; walker.y = y; walker.on = true; }, stage: () => MISSION.stage, bar: () => barSpot, pos: () => [walker.x, walker.y, walker.on], near: () => bartenderNear(), menuOpen: () => yMenu.open, houseInfo: () => ({ spot: houseSpot, bldg: houseBldg ? { x: houseBldg.x, y: houseBldg.y, w: houseBldg.w, h: houseBldg.h, kind: houseBldg.kind } : null, seen: houseSeen, inside: runnerInside ? { x: runnerInside.x, y: runnerInside.y, kind: runnerInside.kind } : null, barSpot: barSpot }), gateInfo: () => ({ stash: !!stashNear(), pack: !!packStashNear(), bag: !!nearBag(), bartender: !!bartenderNear(), story: !!storyNear(), caseN: !!caseNear(), inside: !!runnerInside }) },
     missionPip: () => (missionOn()) ? { x: MISSION.x, y: MISSION.y, tone: missionTone() } : null,
     // LAYER 778: the first WINDI mission's hooks for the Wire (App scope)
     wmJackIn: () => wmJackIn(), wmJackOut: () => wmJackOut(), wmRescue: () => wmRescue(),
@@ -23301,11 +23364,22 @@ function RunnerOpening({ onDone }) {
     RUNNER_API.setLook({ stats: Object.fromEntries(RB_STATS.map((k) => [k, stats[k]])) });
     setBi((b) => b + 1);
   };
-  // one place for every key, click and pad press: a timed beat takes skip or ok, a pick takes its own arrows and ok
+  // a beat's sound cue (enter: 'music' or 'cheer'), played when the beat comes up, or when a skip passes over it
+  const enterCue = (bt) => {
+    if (bt.enter === 'music') RUNNER_API.playTrack('Midnight_In_The_Sprawl');
+    if (bt.enter === 'cheer') { try { const a = new Audio(RO_DIR + 'runner_crowd_cheer.mp3'); a.play().catch(() => {}); cheer.current = a; } catch (e) { /* no audio */ } }
+  };
+  // one place for every key and pad press: on a timed beat, Enter or A skips that scene only and Escape skips the whole opening
+  // (a click does not skip: a stray click ended the opening early). A pick takes its own arrows and ok.
   const press = (a) => {
     const bt = beats[bi];
     if (!bt) return;
-    if (!bt.pick) { if ((a === 'skip' || a === 'ok') && Date.now() - t0.current > 1000) finish(); return; }
+    if (!bt.pick) {
+      if (Date.now() - t0.current <= 1000) return;   // the first second: the key or tap that started the opening does not skip it
+      if (a === 'skip') finish();
+      else if (a === 'ok') { enterCue(bt); setBi((b) => b + 1); }
+      return;
+    }
     if (bt.pick === 'team') {
       if (a === 'left') setSel((s) => Math.max(0, s - 1));
       else if (a === 'right') setSel((s) => Math.min(suits.length - 1, s + 1));
@@ -23328,8 +23402,7 @@ function RunnerOpening({ onDone }) {
   useEffect(() => {
     if (bi >= beats.length) { finish(); return; }
     const bt = beats[bi];
-    if (bt.enter === 'music') RUNNER_API.playTrack('Midnight_In_The_Sprawl');
-    if (bt.enter === 'cheer') { try { const a = new Audio(RO_DIR + 'runner_crowd_cheer.mp3'); a.play().catch(() => {}); cheer.current = a; } catch (e) { /* no audio */ } }
+    enterCue(bt);
     if (!bt.ms) return;
     const tm = setTimeout(() => setBi((b) => b + 1), bt.ms);
     return () => clearTimeout(tm);
@@ -23339,9 +23412,8 @@ function RunnerOpening({ onDone }) {
       const m = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Enter: 'ok', ' ': 'ok', Escape: 'skip' }[e.key];
       if (m) pressRef.current(m);
     };
-    const down = () => pressRef.current('skip');   // a click skips a timed beat; the picks have their own buttons
-    window.addEventListener('keydown', key); window.addEventListener('pointerdown', down);
-    return () => { window.removeEventListener('keydown', key); window.removeEventListener('pointerdown', down); };
+    window.addEventListener('keydown', key);   // no click skip: the picks have their own buttons
+    return () => { window.removeEventListener('keydown', key); };
   }, []);
   useEffect(() => {
     const prev = {};
@@ -23485,7 +23557,7 @@ function RunnerOpening({ onDone }) {
       {line}
       {pickUI}
       <div style={{ position: 'absolute', right: 14, bottom: 10, fontSize: 10, color: '#9a9486', letterSpacing: '0.2em', opacity: 0.7 }}>
-        {beat && beat.pick ? 'ARROWS TO CHOOSE · ENTER OR A TO CONFIRM' : 'ENTER OR A TO SKIP'}</div>
+        {beat && beat.pick ? 'ARROWS TO CHOOSE · ENTER OR A TO CONFIRM' : 'ENTER OR A: NEXT SCENE · ESC: SKIP THE OPENING'}</div>
     </div>);
 }
 
@@ -24969,6 +25041,7 @@ export default function IronLionLayer004() {
     G.radialOpen = (spec) => { if (!spec || !spec.items || !spec.items.length) return false; setPadWheel(spec);
       const gg = G.current; if (gg && !gg.paused) { gg.paused = true; gg.wheelPause = 1; } return true; };     // the world holds while the wheel is open (layer 519)
     G.wheelClose = () => { if (G.onWheelClose) G.onWheelClose(); setPadWheel(null); const gg = G.current; if (gg && gg.wheelPause) { gg.wheelPause = 0; gg.paused = false; } };
+    RUNNER_API.setSaveHook(() => { if (G.saveFn) G.saveFn(); });   // the night run's checkpoint: the same save as the pause menu's SAVE
     RUNNER_API.setSleepHook({   // LAYER 692: the black, the wheel and the sleep fade, for the runner's bag
       black: (a) => { const g1 = G.current; if (g1) g1.blackA = a; },
       ask: (items, title) => { G.radialOpen({ kind: 'sleep', title: title || 'SLEEP UNTIL', items }); },
