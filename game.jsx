@@ -2923,7 +2923,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 785";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 787";   // the notes for each layer are in the chat, not on screen
 // LAYER 737: DEBUG -- the first few errors are printed on the screen (the TV has no console). Remove once the red-screen bug is found.
 (function () {
   const shown = [];
@@ -15768,7 +15768,9 @@ const RUNNER_API = (function () {
     if (!walker.on) return say('YOU ARE ON THE BIKE');
     // LAYER 635: reach is wider -- the bike is a small thing on a phone screen
     const dd = Math.hypot(walker.x - car.x, walker.y - car.y);
-    if (dd < GET_IN_R && car.mode !== 'landed') say('WAIT. THE BIKE IS STILL COMING DOWN');
+    const isDirt = CAR_FILES[car.sprite] && /^rtbike_/.test(CAR_FILES[car.sprite]);   // LAYER 787: the dirt bike never flies -- it drives the moment you get on, straight to 'ground', not through 'landed'
+    if (dd < GET_IN_R && isDirt) { walker.on = false; dismountAt = null; car.mode = 'ground'; car.speed = 0; car.lean = 0; say('ON THE BIKE · WASD TO RIDE · E TO GET OFF'); }
+    else if (dd < GET_IN_R && car.mode !== 'landed') say('WAIT. THE BIKE IS STILL COMING DOWN');
     else if (dd < GET_IN_R) { walker.on = false; dismountAt = null; say('ON THE BIKE · L OR B TO LIFT OFF · E OR A TO GET OFF WHEN LANDED'); }
     else if (car.mode === 'landed') callBike();      // LAYER 639: too far to get on -- the bike comes down to you
     else say('THE BIKE IS IN THE AIR. L OR B TO LAND IT');
@@ -15835,6 +15837,14 @@ const RUNNER_API = (function () {
   }
   function getOffBike() {
     if (walker.on) return say('YOU ARE ON FOOT');
+    const isDirt = CAR_FILES[car.sprite] && /^rtbike_/.test(CAR_FILES[car.sprite]);   // LAYER 787: the dirt bike gets off from 'ground', stopped, not 'landed' -- it never lands, it just stops
+    if (isDirt) {
+      if (Math.abs(car.speed) > TEAM_CAR_STOP) return say('STOP THE BIKE FIRST.', 2);
+      car.speed = 0; car.lean = 0; car.mode = 'landed';   // back to 'landed' so boardBike() recognizes it as parked and ready to re-board
+      const dm = dismountSpot(); walker.on = true; dismountAt = dm; walker.heading = 0;
+      say('ON FOOT · E NEAR THE BIKE TO GET BACK ON');
+      return;
+    }
     if (car.mode !== 'landed') return say('LAND FIRST · L OR B');
     const dm = dismountSpot(); walker.on = true; dismountAt = dm; walker.heading = 0;   // LAYER 668: keepOut places him there (the body is g.p, and figureAt copies it into walker every frame)
     say('ON FOOT · E NEAR THE VEHICLE TO GET BACK IN');
@@ -21282,6 +21292,7 @@ const RUNNER_API = (function () {
   function fire() {
     if (PMB.inside) return false;   // LAYER 709: no shooting in the bar
     if (!walker.on && car && car.mode === 'ground' && car.sprite === FIS_CAR_IDX && RUN_ON && !lobby) return fireTurret();   // LAYER 757: in the FIS car, strike fires the guns
+    if (!walker.on && car && car.mode === 'ground' && CAR_FILES[car.sprite] && /^rtbike_/.test(CAR_FILES[car.sprite]) && RUN_ON && !lobby) return fireFromBike();   // LAYER 787: the dirt bike has no turret, but the pistol still fires straight ahead while riding
     if (LASER.has && !LASER.drawn && RUN_ON && walker.on && !lobby) { LASER.drawn = true; say('LASER PISTOL IN HAND. RB OR F TO FIRE.', 2.5); return true; }   // LAYER 683: the first press draws it
     if (PSTUN.t > 0 && walker.on) return true;   // LAYER 679: stunned, he cannot fire
     if (!LASER.has || !RUN_ON || !walker.on || lobby) return houseThugPunch();   // LAYER 748: a fist in the house goes to the thugs
@@ -21294,6 +21305,40 @@ const RUNNER_API = (function () {
     const ox = walker.x + dx * 18, oy = walker.y + dy * 18, kill = LASER.mode === 'kill';
     let ex = ox + dx * LASER_RANGE, ey = oy + dy * LASER_RANGE, hit = null, bt = LASER_RANGE;
     // LAYER 680: the drone is a target. A beam within 30 px of it downs it, unless a hunter stands closer on the line.
+    let downed = null;
+    for (const cd of canDrones) { const ax = cd.x - ox, ay = (cd.y - CAN.lift) - oy, t = ax * dx + ay * dy; if (t < 0 || t > bt) continue; if (Math.abs(ax * dy - ay * dx) < 30) { downed = cd; bt = t; } }
+    const downedT = bt;
+    for (const h of hunters.concat(mates, PEOPLE || [], houseThugs && thugsHere() ? houseThugs : [])) {
+      if (h.dead || h.friend) continue;
+      const rx = h.x - ox, ry = h.y - oy, t = rx * dx + ry * dy;
+      if (t < 0 || t > bt) continue;
+      if (Math.abs(rx * dy - ry * dx) < 22) { hit = h; bt = t; }
+    }
+    if (downed && bt === downedT) { ex = ox + dx * bt; ey = oy + dy * bt; canShootDown(downed); }
+    else if (hit) {
+      ex = ox + dx * bt; ey = oy + dy * bt;
+      if (houseThugs && houseThugs.includes(hit)) thugDown(hit);   // LAYER 748: the pistol puts a house thug down either way
+      else if (mates.includes(hit)) mateHit(hit);   // LAYER 679: a teammate is stunned, not killed
+      else if (!hunters.includes(hit)) { if (kill) harmHit(hit); else { hit.stunT = HUNT.stun; say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); } }   // LAYER 683: a civilian, gang member or cop; LAYER 703: HARM hurts them
+      else if (kill) { rlog('hunter_down', { who: hit.name, zone: rZoneAt(hit.x, hit.y) }); hit.dead = true; hit.dying = HUNT.dyingT; puff(hit.x, hit.y, 'medium'); neutralize(hit); say('HUNTER DOWN.', 2); }
+      else { rlog('hunter_stun', { who: hit.name, zone: rZoneAt(hit.x, hit.y) }); hit.stunT = HUNT.stun; neutralize(hit); say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); }
+    }
+    LASER.beams.push({ x0: ox, y0: oy, x1: ex, y1: ey, kill, until: now + 180 });
+    return true;
+  }
+  /* LAYER 787: the dirt bike. It has no turret, so the laser pistol itself fires straight out ahead of the bike, the same beam
+     (and the same stun/harm/down rules) as firing on foot -- just sourced from the bike's nose instead of the walker. No draw
+     step and no aim-lock while riding (aimValid() stands down off foot already); it simply shoots the way the bike is pointed. */
+  function fireFromBike() {
+    if (!LASER.has) return false;
+    const now = performance.now();
+    if (now - LASER.lastFire < 450) return true;
+    LASER.lastFire = now;
+    playLaserShot(); TUT.shots++;   // the night run's lesson on firing counts this shot
+    const aim = car.heading || 0;
+    const dx = Math.cos(aim), dy = Math.sin(aim);
+    const ox = car.x + dx * 30, oy = car.y + dy * 30, kill = LASER.mode === 'kill';
+    let ex = ox + dx * LASER_RANGE, ey = oy + dy * LASER_RANGE, hit = null, bt = LASER_RANGE;
     let downed = null;
     for (const cd of canDrones) { const ax = cd.x - ox, ay = (cd.y - CAN.lift) - oy, t = ax * dx + ay * dy; if (t < 0 || t > bt) continue; if (Math.abs(ax * dy - ay * dx) < 30) { downed = cd; bt = t; } }
     const downedT = bt;
