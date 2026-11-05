@@ -2923,7 +2923,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 778";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 785";   // the notes for each layer are in the chat, not on screen
 // LAYER 737: DEBUG -- the first few errors are printed on the screen (the TV has no console). Remove once the red-screen bug is found.
 (function () {
   const shown = [];
@@ -4573,7 +4573,22 @@ const inCulvert = (x, y) => Math.abs(x - CULVERT.x) < CULVERT.hw - 10 && y > CUL
    drawn end of the network -- walk south far enough and you were in the black. */
 const inSewerNet = (x, y) => {
   const lim = SX(SEWER_MAX) - 12;
-  return (onTunnelV(x) && y > -TUN_HW + 12 && y < lim) || (onTunnelH(y) && x > -TUN_HW + 12 && x < lim) || inCulvert(x, y);
+  return (onTunnelV(x) && y > -TUN_HW + 12 && y < lim) || (onTunnelH(y) && x > -TUN_HW + 12 && x < lim) || inCulvert(x, y) || inSubway(x, y);
+};
+/* LAYER 785: THE SUBWAY, in the sewer cell south-east of the pump house. A station: gravel floor, rails running north to south down
+   the middle, a concrete platform along its west side (Tess's car is on it). Openings in the west, north and south walls, where the
+   cell's corridors meet it; the east wall stays solid. The floor sits 60 px in from the cell's corridors. */
+const SUB = { x0: SX(4) + TUN_HW + 60, x1: SX(8) - TUN_HW - 60, y0: SX(20) + TUN_HW + 60, y1: SX(24) - TUN_HW - 60 };
+const SUB_NX = (SUB.x0 + SUB.x1) / 2;             // the north and south openings' centre column
+const SUB_WY = SX(20) + 400;                       // the west opening's centre row
+const SUB_PLAT = SUB.x0 + 380;                     // the platform's east edge
+const TESS_DOOR = { x: SUB.x0 + 174, y: 31000 };   // the car's door, on the platform
+const inSubway = (x, y) => {
+  if (x >= SUB.x0 && x <= SUB.x1 && y >= SUB.y0 && y <= SUB.y1) return true;                          // the floor
+  if (Math.abs(y - SUB_WY) < 96 && x >= SX(4) + TUN_HW - 4 && x <= SUB.x0) return true;               // west opening
+  if (Math.abs(x - SUB_NX) < 96 && y >= SX(20) + TUN_HW - 4 && y <= SUB.y0) return true;              // north opening
+  if (Math.abs(x - SUB_NX) < 96 && y >= SUB.y1 && y <= SX(24) - TUN_HW + 4) return true;              // south opening
+  return false;
 };
 function nearestManhole(x, y) {
   const i0 = Math.round(x / PITCH), j0 = Math.round(y / PITCH);
@@ -16407,6 +16422,7 @@ const RUNNER_API = (function () {
   }
   const RZONE_NAME = ['', 'NORTH-WEST', 'NORTH-CENTRE-WEST', 'NORTH-CENTRE-EAST', 'NORTH-EAST', 'SOUTH-WEST', 'SOUTH-CENTRE-WEST', 'SOUTH-CENTRE-EAST', 'SOUTH-EAST'];
   const RTEAM_NAME = { red: 'RED', yellow: 'YELLOW', blue: 'BLUE', green: 'GREEN' };
+  let runnerPlace = null, pendingPlace = null, pendingHeal = false;   // LAYER 786: where the runner is (for saves), a load's place, a sleep's heal
   const RCLK = { day: 1, min: 6 * 60, rate: 2, lastHour: 6, castDay: 0 };   // 2 game minutes a real second: an hour is 30 s, a day is 12 minutes
   const RLOG = [];                  // the record: { id, abs, day, min, zone, team, who, kind, weight, text }
   let RLOG_ID = 0, RCAST_ABS = 0;   // the last moment the news went out, in game minutes from day 1
@@ -16773,8 +16789,11 @@ const RUNNER_API = (function () {
   }
 
   // a projector on the roof: the beam starts narrow at its lens and widens to exactly the width of the hologram at the far end
+  // LAYER 783: nothing drew the projectors (drawRoofs had no caller), so no hologram ever came up. augments calls drawBillboards now.
+  // Time comes from the clock here: the old code read a bare `t`, which the runner never defines. The ad changes every 6 seconds.
   function drawProjection(bb) {
-    const cycle = Math.floor(bb.t / 6);
+    const tNow = performance.now() / 1000;
+    const cycle = Math.floor(tNow / 6);
     const idx = (bb.ad + cycle) % ADS.length;
     const p = img['holo_' + HOLO_PORTRAITS[idx % HOLO_PORTRAITS.length]];
     const flick = 0.85 + 0.15 * Math.sin(bb.t * 9) * Math.sin(bb.t * 2.3);
@@ -16786,7 +16805,7 @@ const RUNNER_API = (function () {
     const lensY = py + pjH / 2 - 4, endY = lensY + reach;   // the beam leaves the lens at the bottom edge of the unit
     // not every projector is on at once: each one has its own slot in a 15-second cycle and is on for 5 of them,
     // so about a third of the street's holograms are up at any time (enough to be annoying, not a wall of ads)
-    const on = ((t + bb.t * 3.75) % 15) < 5;
+    const on = ((tNow + bb.t * 3.75) % 15) < 5;
     if (!on) return;
     // the beam: narrow at the lens, exactly the picture's width at the far end
     ctx.save();
@@ -16811,6 +16830,16 @@ const RUNNER_API = (function () {
     ctx.fillStyle = 'rgba(110,240,255,0.95)'; ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
     ctx.fillText(ADS[idx], px, endY + 22);
     ctx.restore();
+  }
+  // the projectors on the big buildings in view (boardFor decides which ones, as before): collected, then drawn
+  function drawBillboards(v) {
+    beams.length = 0;
+    for (let i = v.i0; i <= v.i1; i++) for (let j = v.j0; j <= v.j1; j++) {
+      const c = cellAt(i, j);
+      if (!c || !c.blds) continue;
+      for (const b of c.blds) { const bb = boardFor(b); if (bb) beams.push(bb); }
+    }
+    for (const bb of beams) drawProjection(bb);
   }
 
   // LAYER 594: the jacket takes the suit colour, the rest of the body goes black, the gold trim goes white
@@ -17787,6 +17816,7 @@ const RUNNER_API = (function () {
     }
     if (RUN_ON && outdoors) trashTick(cam, traffic, performance.now());     // the litter moves here; it is drawn on the ground (groundTrash)
     if (RUN_ON && outdoors && traffic && peds) droneFrame(cam, traffic, peds, performance.now());   // LAYER 608
+    if (RUN_ON && outdoors) drawBillboards(cellRange({ x0, x1, y0, y1 }));   // LAYER 783: the holo billboards on the big buildings
     ctx.restore();
   }
 
@@ -18864,9 +18894,12 @@ const RUNNER_API = (function () {
     const nx = side === 3 ? -1 : side === 1 ? 1 : 0, ny = side === 0 ? -1 : side === 2 ? 1 : 0;
     return { x: wx + nx * 46, y: wy + ny * 46 };
   }
+  // the bar's building, kept with its door spot: the trapdoor exit needs the door point to stand clear of it (LAYER 783)
+  let barBldg = null;
   function barDoorSpot() {
     const c = cellOf(SX(6) + PITCH / 2, SX(9) + PITCH / 2);
     const b = c && c.blds ? (c.blds.find((q) => q.civic === 'venue_rh') || null) : null;
+    if (b && b.door) barBldg = b;
     return b && b.door ? doorSpotOf(b) : null;
   }
   function houseDoorSpot() {
@@ -20315,7 +20348,35 @@ const RUNNER_API = (function () {
       }
     }
   }
-  function sideFrame() { windiFrame(); tessFrame(); chainFrame(); poolFrame(); micahFrame(); }   // LAYER 779: Micah's jobs too
+  // LAYER 781: the main missions 7 and 8 (zone 2, Penny Vasko). They come one night after the first WINDI mission (main 6), one at a time.
+  // Main 8 stands in for the Wire jack-in, which is not built yet: the host gives the zone 2 code at once.
+  const RUN_POT = { sum: 0 };   // the prize pot: the mains pay into it, not into cash (decided 2026-11-04)
+  const MAIN_ST = { m: { 7: false, 8: false }, code: { 1: true, 2: false }, next: {}, start: -1 };   // code 1 comes from main 6 (WINDI's first Wire meet)
+  const MAIN_7 = { id: 'M7', main: 7, kind: 'MISSION', title: 'CUT THE FEED', pay: 1000, keep: true, giver: 'PENNY VASKO', zone: 2,
+    offer: ['The hunters are watching Raven Tower through the drone. The feed runs off a camera van on the lot.', 'Cut the feed. One block of quiet is all we need.'],
+    steps: [
+      sGo('THE CAMERA VAN ON THE RAVEN LOT', 'GO TO THE RAVEN LOT IN ZONE 2. THE ARROW IS ON THE VAN.', 'AT THE CAMERA VAN.', { z: 2 }),
+      sJob(0.6, 'CUT THE FEED', 'PRESS A AT THE VAN. CUT THE FEED BEFORE THE GUARD COMES OUT.') ] };
+  const MAIN_8 = { id: 'M8', main: 8, kind: 'MISSION', title: 'THE STUDIO HOST', pay: 3000, keep: true, giver: 'PENNY VASKO', zone: 2,
+    offer: ['The Raven host sits in the studio basement. It holds the zone two code.', 'Get in and pull the code. Then the next zone opens to you.'],
+    steps: [
+      sGo('THE RAVEN STUDIO BASEMENT', 'GO TO THE RAVEN STUDIO BASEMENT. THE ARROW IS ON THE DOOR.', 'AT THE BASEMENT DOOR.', { z: 2 }),
+      sPick('CODE', 'JACK IN AT THE HOST', 'PRESS A AT THE HOST TO PULL THE ZONE TWO CODE.', { got: () => { MAIN_ST.code[2] = true; } }) ] };
+  function mainDone(d) { MAIN_ST.m[d.main] = true; }
+  // the next main in order: main 7 one night after the WINDI mission, then main 8. One at a time; a blown one is offered again after a night
+  function mainFrame() {
+    if (!WM.done || RJ.active) return;
+    if (MAIN_ST.start < 0) MAIN_ST.start = rAbs() + TS_NIGHT;
+    if (rAbs() < MAIN_ST.start) return;
+    for (const def of [MAIN_7, MAIN_8]) {
+      const n = def.main;
+      if (MAIN_ST.m[n]) continue;
+      const key = 'main' + n;
+      if (!hasKeep(key) && !activeIs((a) => a.id === def.id) && rAbs() >= (MAIN_ST.next[n] || 0)) { const p = rjSpotIn(2); if (p) keepGiver(key, def, p, 'PENNY VASKO'); }
+      return;   // one at a time, in order
+    }
+  }
+  function sideFrame() { windiFrame(); tessFrame(); chainFrame(); poolFrame(); micahFrame(); mainFrame(); }   // LAYER 779: Micah's jobs too; LAYER 781: the mains 7 and 8
   // a job is over, one way or the other: its slot (if it had one) refills at the next dawn or dusk; a rail moves its zone on;
   // the meet and Tess's supplies and finals are booked; a chain's job moves the chain on (a blown one waits a night and retries)
   function sideEnd(A, ok) {
@@ -20329,6 +20390,7 @@ const RUNNER_API = (function () {
     }
     if (d.tess === 'F' && ok) TESS_ST.fin[d.n] = true;
     if (d.chain) { const c = CHAINS_ST[d.chain]; if (ok) c.i++; c.avail = rAbs() + TS_NIGHT; }
+    if (d.main) { if (ok) mainDone(d); else MAIN_ST.next[d.main] = rAbs() + TS_NIGHT; }   // LAYER 781: a main moves the line on; a blown one is offered again after a night
     if (d.windi && ok) windiDone(d);   // LAYER 775: a WINDI mission moves the WINDI arc on
     if (d.micah) { if (ok) micahDone(A); else micahFail(A); }   // LAYER 779: Micah's trust, cred, the cooler's road, and the pound
   }
@@ -20759,10 +20821,80 @@ const RUNNER_API = (function () {
 
 
   // A on foot: a giver with a job, the contact of the current talk step, or the spot of a pick or a job
+  // LAYER 782: TESS'S BASE. The old subway cars under the sewer, emptied out: a couch, a bed and the Wire chair. The door is at the pump house,
+  // once she has met the runner. For now the cars are a picture you step into, not a walkable tunnel.
+  const TESS_BASE = { open: false, el: null };
+  const TB_LINES = { couch: 'YOU SIT ON THE COUCH. NOTHING DOWN HERE CAN SEE YOU.', bed: 'YOU LIE ON THE BED. THE CITY CANNOT FIND YOU DOWN HERE.', wire: 'THE CHAIR HUMS. THE WIRE IS NOT OPEN TO YOU YET.' };
+  /* LAYER 786: THE SLEEP PROMPT. Lying on the bed opens this panel: a slider from 1 to 24 hours. SLEEP passes the hours, heals the
+     runner and saves; NOT YET goes back to the bed. */
+  let TB_SLEEP = null;
+  function tessSleepShow(on) {
+    if (!TB_SLEEP) {
+      const d = document.createElement('div');
+      d.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);display:none;z-index:9100;align-items:center;justify-content:center;flex-direction:column;gap:14px';
+      const BTN = 'font:bold 14px monospace;padding:10px 14px;background:#222;color:#e8c46a;border:2px solid #e8c46a;cursor:pointer';
+      d.innerHTML =
+        '<div style="font:bold 18px monospace;color:#e8c46a">HOW MANY HOURS DO YOU SLEEP?</div>' +
+        '<input data-k="hrs" type="range" min="1" max="24" value="8" style="width:min(80vw,420px)">' +
+        '<div data-k="out" style="font:bold 16px monospace;color:#f1ead8">8 HOURS</div>' +
+        `<div style="display:flex;gap:10px"><button data-k="go" style="${BTN}">SLEEP</button><button data-k="no" style="${BTN}">NOT YET</button></div>`;
+      const inp = d.querySelector('[data-k="hrs"]'), out = d.querySelector('[data-k="out"]');
+      inp.oninput = () => { out.textContent = inp.value + ' HOURS'; };
+      d.querySelector('[data-k="no"]').onclick = (e) => { e.stopPropagation(); tessSleepShow(false); };
+      d.querySelector('[data-k="go"]').onclick = (e) => {
+        e.stopPropagation();
+        const h = +inp.value; tessSleepShow(false); tessBaseShow(false);
+        RUNNER_API.sleepHours(h);
+        try { runSaveWrite(runSlot); } catch (err) {}
+        say('YOU SLEEP ' + h + ' HOURS. YOU WAKE UP HEALED. THE CITY CANNOT FIND YOU DOWN HERE.', 5);
+      };
+      document.body.appendChild(d); TB_SLEEP = d;
+    }
+    if (on) { TB_SLEEP.querySelector('[data-k="hrs"]').value = '8'; TB_SLEEP.querySelector('[data-k="out"]').textContent = '8 HOURS'; }
+    TB_SLEEP.style.display = on ? 'flex' : 'none';
+  }
+  function tessBaseShow(on) {
+    if (!TESS_BASE.el) {
+      const d = document.createElement('div');
+      d.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.86);display:none;z-index:9000;align-items:center;justify-content:center;flex-direction:column;gap:12px';
+      const BTN = 'font:bold 14px monospace;padding:10px 14px;background:#222;color:#e8c46a;border:2px solid #e8c46a;cursor:pointer';
+      d.innerHTML =
+        '<img alt="" src="assets/runner/base/tess_base_interior.png" style="max-width:94vw;max-height:60vh;image-rendering:pixelated">' +
+        "<div style=\"font:bold 18px monospace;color:#e8c46a\">TESS'S BASE</div>" +
+        '<div style="font:13px monospace;color:#c9c2b0">TESS IS IN HER BASE. SHE LOOKS UP FROM THE WIRE CHAIR.</div>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">' +
+        `<button data-k="couch" style="${BTN}">SIT ON THE COUCH</button>` +
+        `<button data-k="bed" style="${BTN}">LIE ON THE BED</button>` +
+        `<button data-k="wire" style="${BTN}">SIT IN THE WIRE CHAIR</button>` +
+        '<button data-k="leave" style="font:bold 14px monospace;padding:10px 14px;background:#222;color:#c9c2b0;border:2px solid #c9c2b0;cursor:pointer">LEAVE</button></div>' +
+        '<div style="font:12px monospace;color:#9a9486">E or A: leave</div>';
+      for (const k of ['couch', 'bed', 'wire', 'leave']) {
+        d.querySelector(`[data-k="${k}"]`).onclick = (e) => {
+          e.stopPropagation();
+          if (k === 'bed') { tessSleepShow(true); return; }   // the bed asks how long to sleep; the sleep panel does the rest
+          tessBaseShow(false); if (TB_LINES[k]) say(TB_LINES[k], 5);
+        };
+      }
+      document.body.appendChild(d); TESS_BASE.el = d;
+    }
+    /* LAYER 786: leaving the base is an exit save; the bed button goes through here too, so it saves the same way */
+    if (!on && TESS_BASE.open) { try { runSaveWrite(runSlot); } catch (e) {} if (TB_SLEEP) TB_SLEEP.style.display = 'none'; }
+    TESS_BASE.el.style.display = on ? 'flex' : 'none'; TESS_BASE.open = on;
+  }
+  // E or A at the car's door opens the base, once she has met the runner. The door is in the subway station, on its platform
+  // (LAYER 785), well away from the pump house, where her job givers stand: E at the pump still offers the job.
+  function tessBaseHere() {
+    if (!TESS_ST.met) return false;
+    const d = TESS_DOOR;
+    if (Math.hypot(walker.x - d.x, walker.y - d.y) >= 110) return false;
+    tessBaseShow(true); say("YOU GO IN. TESS LOOKS UP FROM THE WIRE CHAIR.", 4);
+    return true;
+  }
   function rjAction() {
     if (!walker.on) return false;
+    if (TESS_BASE.open) { tessBaseShow(false); return true; }   // E or A inside the base leaves it
     const A = RJ.active;
-    if (!A) { const g = rjNearest(RJ.givers); if (!g) return false; rjOffer(g); return true; }
+    if (!A) { const g = rjNearest(RJ.givers); if (g) { rjOffer(g); return true; } return tessBaseHere(); }
     const s = A.def.steps[A.step]; if (!s) return false;
     if (s.k === 'talk') { const c = rjNearest(RJ.contacts); if (c && c === A.contact) { rjTalk(c); return true; } return false; }
     if (s.k === 'drop') { const c = rjNearest(RJ.contacts); if (c && c === A.contact) { rjDrop(c); return true; } return false; }   // LAYER 779: the cooler is handed over (or opened)
@@ -20825,7 +20957,7 @@ const RUNNER_API = (function () {
     const pay = rjPayOf(A.def, A);   // LAYER 779: the pay can depend on the job's own choice (the cooler) or on trust and cred
     A.entry.status = 'DONE'; A.entry.paid = pay;
     RJ.active = null; RJ.contacts = [];
-    cashOwed += pay; pmDone(A.def);   // LAYER 708: an act's part moves the act on
+    if (A.def.main) RUN_POT.sum += pay; else cashOwed += pay; pmDone(A.def);   // LAYER 708: an act's part moves the act on
     credEarn({ zone: A.def.zone, pay });    // LAYER 777: the job's cred goes to its zone (pay / 20); without this call the second way never opens
     sideEnd(A, true);   // LAYER 760: a rail is done (its zone's next one is offered); a Tess, chain or side job is booked
     MISSION.stage = 'done'; MISSION.kind = 'story';
@@ -22376,7 +22508,14 @@ const RUNNER_API = (function () {
   // the bike at the kerb beside him. The trapdoor's ring grows out under him as he comes up, then fades over its last second.
   function trapdoorExit() {
     const b = ensureBarSpot();
-    const sp = streetSpot(b.x, b.y);
+    // The bar's door spot sits 46 px out from its wall, and the door reaches 46 px from its own point (6 px out), so standing on
+    // the spot E walked him straight into the bar, and then E did nothing next to the bike (LAYER 783). He comes up 30 px further out.
+    let sx = b.x, sy = b.y;
+    if (barBldg && barBldg.door) {
+      const [dx, dy] = doorPoint(barBldg), L = Math.hypot(b.x - dx, b.y - dy) || 1;
+      sx = b.x + (b.x - dx) / L * 30; sy = b.y + (b.y - dy) / L * 30;
+    }
+    const sp = streetSpot(sx, sy);
     const bike = streetSpot(sp.x - 46, sp.y);
     car.sprite = ownBikeIndex();
     lobby = false; placed = true; pend.exit = false; pend.land = false;
@@ -22451,14 +22590,41 @@ const RUNNER_API = (function () {
     },
     getLook: () => Object.assign({}, RUNNER_LOOK),
     setCutscene: (on) => { RUN_CUTSCENE = !!on; },
+    isCut: () => !!RUN_CUTSCENE,
+    /* LAYER 786: SLEEP. Passes the hours one at a time (each one runs the hourly simulation and the 8 o'clock news), then asks the
+       host to heal. The host reads takeHeal() on its next frame. */
+    sleepHours: (h) => {
+      const n = clamp(Math.round(+h || 0), 1, 24);
+      for (let k = 0; k < n; k++) {
+        RCLK.min += 60;
+        if (RCLK.min >= 1440) { RCLK.min -= 1440; RCLK.day++; }
+        RCLK.lastHour = Math.floor(RCLK.min / 60);
+        rSimHour();
+        if (RCLK.min >= 480 && RCLK.castDay !== RCLK.day) { RCLK.castDay = RCLK.day; rBroadcast(); }
+      }
+      pendingHeal = true;
+      return n;
+    },
+    takeHeal: () => { const v = pendingHeal; pendingHeal = false; return v; },
+    setPlace: (p) => { runnerPlace = p; },
+    takePlace: () => { const v = pendingPlace; pendingPlace = null; return v; },
     setClock: (on) => { RUN_CLOCK = !!on; },   // the day starts when the runner is in the city (RunnerShell: built)
     // RUNNER SAVES: the look, the cash and the mission stage. The streets and the hunters start fresh on a load.
-    saveData: () => ({ v: 1, t: Date.now(), name: RUNNER_LOOK.name, look: Object.assign({}, RUNNER_LOOK), cash: runnerCash, mission: MISSION.stage }),
+    /* LAYER 786: the saves also carry Tess's, Windi's and Micah's progress, so a load picks the story up where it was. Active jobs
+       and the givers on the street are NOT saved: they come back the way they do on a fresh start. */
+    saveData: () => ({ v: 2, t: Date.now(), name: RUNNER_LOOK.name, look: Object.assign({}, RUNNER_LOOK), cash: runnerCash, mission: MISSION.stage,
+      tess: JSON.parse(JSON.stringify(TESS_ST)), windi: JSON.parse(JSON.stringify(WINDI_ST)), micah: JSON.parse(JSON.stringify(MICAH_ST)),
+      place: runnerPlace, clock: { day: RCLK.day, min: RCLK.min } }),
     loadData: (d) => {
       if (!d || !d.look) return false;
       RUNNER_API.setLook(d.look);
       runnerCash = +d.cash || 0;
       if (d.mission) MISSION.stage = d.mission;
+      if (d.tess) Object.assign(TESS_ST, d.tess);
+      if (d.windi) Object.assign(WINDI_ST, d.windi);
+      if (d.micah) Object.assign(MICAH_ST, d.micah);
+      if (d.clock) { RCLK.day = +d.clock.day || 1; RCLK.min = +d.clock.min || 360; RCLK.lastHour = Math.floor(RCLK.min / 60); RCLK.castDay = RCLK.min >= 480 ? RCLK.day : RCLK.day - 1; }
+      if (d.place) pendingPlace = d.place;
       missionHidden = false;
       return true;
     },
@@ -33352,6 +33518,73 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       ctx.restore();
     }
+    /* LAYER 785: the subway's gravel, one speckled tile made once. The station itself is drawn by drawSubwayRoom, after the tunnels. */
+    let subGravelTile = null;
+    function subGravel() {
+      if (subGravelTile) return subGravelTile;
+      const c = document.createElement("canvas"); c.width = 128; c.height = 128;
+      const x = c.getContext("2d");
+      x.fillStyle = "#34302b"; x.fillRect(0, 0, 128, 128);
+      let seed = 911;
+      const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+      for (let k = 0; k < 1100; k++) {
+        const v = Math.floor(58 + rnd() * 96);
+        x.fillStyle = "rgb(" + v + "," + (v - 4) + "," + (v - 10) + ")";
+        x.fillRect(Math.floor(rnd() * 128), Math.floor(rnd() * 128), 1 + Math.floor(rnd() * 2), 1 + Math.floor(rnd() * 2));
+      }
+      subGravelTile = c; return c;
+    }
+    function drawSubwayRoom(view) {
+      const { x0, x1, y0, y1 } = SUB;
+      if (view.x1 < x0 - 200 || view.x0 > x1 + 200 || view.y1 < y0 - 200 || view.y0 > y1 + 200) return;
+      const cy0 = Math.max(y0, view.y0 - 100), cy1 = Math.min(y1, view.y1 + 100);
+      // the cell's walls: brick, like the tunnels
+      const wim = imgs.current["tx_sw_brick"];
+      ctx.fillStyle = wim && wim.width ? ctx.createPattern(wim, "repeat") : "#3a2a24";
+      ctx.fillRect(SX(4) + TUN_HW, SX(20) + TUN_HW, SX(8) - SX(4) - 2 * TUN_HW, SX(24) - SX(20) - 2 * TUN_HW);
+      // the gravel floor, and the three openings through the walls
+      ctx.fillStyle = ctx.createPattern(subGravel(), "repeat");
+      ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+      ctx.fillRect(SX(4) + TUN_HW - 4, SUB_WY - 96, x0 - (SX(4) + TUN_HW - 4), 192);
+      ctx.fillRect(SUB_NX - 96, SX(20) + TUN_HW - 4, 192, y0 - (SX(20) + TUN_HW - 4));
+      ctx.fillRect(SUB_NX - 96, y1, 192, SX(24) - TUN_HW + 4 - y1);
+      // the platform: concrete, with the yellow edge
+      const pim = imgs.current["tx_sw_concrete"];
+      ctx.fillStyle = pim && pim.width ? ctx.createPattern(pim, "repeat") : "#5a5852";
+      ctx.fillRect(x0, y0, SUB_PLAT - x0, y1 - y0);
+      ctx.fillStyle = "rgba(214,170,40,0.85)";
+      ctx.fillRect(SUB_PLAT, y0, 8, y1 - y0);
+      // the track: the sleepers first, then the two rails, north to south
+      for (let y = Math.floor(cy0 / 64) * 64; y < cy1; y += 64) { ctx.fillStyle = "#4a3626"; ctx.fillRect(SUB_NX - 70, y, 140, 16); }
+      ctx.fillStyle = "#8d959c"; ctx.fillRect(SUB_NX - 45, cy0, 7, cy1 - cy0); ctx.fillRect(SUB_NX + 38, cy0, 7, cy1 - cy0);
+      ctx.fillStyle = "#5b6268"; ctx.fillRect(SUB_NX - 45, cy0, 2, cy1 - cy0); ctx.fillRect(SUB_NX + 38, cy0, 2, cy1 - cy0);
+      // underground: the same dark wash as the tunnels
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.fillRect(x0, cy0, x1 - x0, cy1 - cy0);
+      // LAYER 786: candles. A wax stub with a flame every 360 px, on the platform and either side of the track, each with a warm pool of
+      // light round it (drawn 'lighter', so it brightens the dark wash underneath). The flicker is slow, so the light breathes.
+      const flick = 0.86 + 0.14 * Math.sin(g.t * 6.5);
+      for (let y = Math.ceil(cy0 / 360) * 360; y < cy1; y += 360) {
+        for (const cx of [x0 + 110, SUB_NX - 110, SUB_NX + 110]) {
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          const gr = ctx.createRadialGradient(cx, y - 16, 6, cx, y - 16, 230);
+          gr.addColorStop(0, `rgba(255,186,96,${0.5 * flick})`);
+          gr.addColorStop(0.45, `rgba(255,150,70,${0.18 * flick})`);
+          gr.addColorStop(1, "rgba(255,150,70,0)");
+          ctx.fillStyle = gr; ctx.fillRect(cx - 230, y - 246, 460, 460);
+          ctx.restore();
+          ctx.fillStyle = "#e9e0c4"; ctx.fillRect(cx - 4, y - 14, 8, 14);
+          ctx.fillStyle = `rgba(255,206,120,${flick})`; ctx.beginPath(); ctx.ellipse(cx, y - 19, 3.6, 6.5, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "rgba(255,250,224,0.95)"; ctx.beginPath(); ctx.ellipse(cx, y - 18, 1.6, 3.2, 0, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      // a marker at the car's door, so you can find it
+      ctx.save(); ctx.fillStyle = "rgba(232,196,106,0.9)"; ctx.font = "bold 18px monospace"; ctx.textAlign = "center";
+      ctx.fillText("TESS", TESS_DOOR.x, TESS_DOOR.y - 26);
+      ctx.fillRect(TESS_DOOR.x - 24, TESS_DOOR.y - 4, 48, 6);
+      ctx.restore();
+    }
     function drawSewer(view) {
       if (!g.sewer) return;
       // black everything out: you are underground, the city is gone
@@ -33428,6 +33661,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           else { ctx.fillRect(q + 300, r.c - span, 3, span * 2); ctx.fillRect(q + 353, r.c - span, 3, span * 2); }
         }
       }
+      drawSubwayRoom(view);   // LAYER 785: the subway station, after the tunnels
       // junction furniture, seeded per junction so a corner is the same corner every time
       for (let i = Math.max(0, i0); i <= Math.min(SEWER_MAX, i1); i++) {
         if (i % SEWER_EVERY) continue;
@@ -60913,7 +61147,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         })() });
         if (RUNNER_API.isOn() && !g.title) { g.job = null; g.pmission = null; g.call537 = null; if (g.runnerCopsOut) { g.heat = 0; g.wantedT = 0; g.copScene = null; g.copTimer = 0; g.police = null; g.policeMore = []; g.detectives = null; g.runnerCopsOut = 0; } } frameBody(now); RUNNER_API.arrestHold(g.p); if (RUNNER_API.isOn() && !g.title) RUNNER_API.hazeTick(!g.inside && !g.sewer); if (RUNNER_API.isOn() && !g.title && g.peds) RUNNER_API.keepYouthOut(g.peds); if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { const hz = RUNNER_API.hazeLevel(); if (hz > 0 && g.p.hp > (g.p.maxHp || 100) * (1 - hz)) g.p.hp = (g.p.maxHp || 100) * (1 - hz); } /* LAYER 648: the haze caps health, like a debuff */ if (RUNNER_API.isOn() && !g.title && RUNNER_API.riding()) { g.grap = null; g.jump = null; g.roof = null; RUNNER_API.keepOut(g.p); } else if (RUNNER_API.isOn() && !g.title && g.mode === 'foot') RUNNER_API.keepOut(g.p); RUNNER_API.figureAt(canvasRef.current, g.p.x, g.p.y, g.cam, g.p.vx, g.p.vy); /* LAYER 669: the hunters' alert and the hover sounds */ if (RUNNER_API.isOn() && !g.title) { const inHosp = !!(g.inside && g.inside.kind === "hospital"); const tg = g.inside ? doorPoint(g.inside) : [g.p.x, g.p.y]; RUNNER_API.hunterTick(tg[0], tg[1], inHosp); RUNNER_API.worldHud(canvasRef.current, g.cam, !g.inside); } else RUNNER_API.hunterReset(); RUNNER_API.hoverSoundTick(RUNNER_API.isOn() && !g.title && !g.inside, g.traffic); RUNNER_API.setVest(!!g.vestHave, !!g.vestOn, (patch) => Object.assign(g, patch));
         RUNNER_API.setIndoors(g.inside || null, g.floor, (t) => !!SOLID_PROP[t]); RUNNER_API.setPhone(!!g.phoneOwned, () => setTimeout(() => { if (G.phoneWheel) G.phoneWheel(); }, 60));
-        RUNNER_API.setLaserChip(!!g.laserChip); RUNNER_API.setCash(g.p ? (g.p.cash || 0) : 0); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setAudio(() => audio.current); { const rc = RUNNER_API.rideCam(); if (rc) { g.cam.x = rc.x; g.cam.y = rc.y; } } RUNNER_API.arrestDraw(canvasRef.current); RUNNER_API.tvDraw(canvasRef.current); /* LAYER 730: the TV, over everything */ RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside)); } catch (err) {
+        RUNNER_API.setLaserChip(!!g.laserChip); RUNNER_API.setCash(g.p ? (g.p.cash || 0) : 0); if (RUNNER_API.isOn() && !g.inside && RUNNER_API.inLobby()) RUNNER_API.leaveLobby(g.p.x, g.p.y); if (RUNNER_API.isOn() && !g.inside) RUNNER_API.overlay(canvasRef.current); if (RUNNER_API.isOn() && g.inside && g.floor >= buildingPlans(g.inside).length - 1) RUNNER_API.roofIn(canvasRef.current, g.inside, g.cam); RUNNER_API.setArt(imgs.current); RUNNER_API.setAudio(() => audio.current); { const rc = RUNNER_API.rideCam(); if (rc) { g.cam.x = rc.x; g.cam.y = rc.y; } } RUNNER_API.arrestDraw(canvasRef.current); RUNNER_API.tvDraw(canvasRef.current); /* LAYER 730: the TV, over everything */ RUNNER_API.setCivs({ pick: pickCiv, draw: drawCivilian }); RUNNER_API.augments(canvasRef.current, g.title || g.inside ? null : g.traffic, g.title || g.inside ? null : g.peds, g.cam, !(g.title || g.inside || g.sewer)); } catch (err) {
         g.frameCrash = String((err && err.message) || err); g.frameStack = String((err && err.stack) || "").slice(0, 600);
         g.frameCrashN = (g.frameCrashN || 0) + 1;
         // straight to React: the HUD payload lives inside the tick that just died, so
@@ -61580,8 +61814,20 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         g.saveCd = (g.saveCd == null ? 25 : g.saveCd) - dt;
         if (g.saveCd <= 0) { saveGame(); g.saveCd = 25; }
         if (!window.__ilHide) { window.__ilHide = 1;     // the page going away (tab switched, app closed, Xbox home): save right then
-          const bye = () => { const gg = G.current; if (gg && !gg.title) saveGame(); };
+          const bye = () => { const gg = G.current; if (gg && !gg.title) saveGame(); if (RUNNER_API.isOn()) { try { runSaveWrite(runSlot); } catch (e) {} } };
           window.addEventListener("pagehide", bye); document.addEventListener("visibilitychange", () => { if (document.hidden) bye(); }); }
+      }
+      /* LAYER 786: the place the save records, a load's place put back on the runner, and the sleep heal */
+      if (!g.title && RUNNER_API.isOn() && !RUNNER_API.isCut()) {
+        if (!g.inside) RUNNER_API.setPlace({ x: g.p.x, y: g.p.y, sewer: !!g.sewer });
+        const pl = RUNNER_API.takePlace();
+        if (pl) { g.p.x = pl.x; g.p.y = pl.y; g.p.vx = 0; g.p.vy = 0; g.sewer = !!pl.sewer; g.inside = null; }
+        if (RUNNER_API.takeHeal()) { g.p.hp = g.p.maxHp || 100; if (g.p.maxStamina) g.p.stamina = g.p.maxStamina; }
+      }
+      /* LAYER 786: a runner save every 25 seconds while the runner is live (not the title, not a cutscene) */
+      if (!g.title && RUNNER_API.isOn() && !RUNNER_API.isCut()) {
+        g.runSaveCd = (g.runSaveCd == null ? 25 : g.runSaveCd) - dt;
+        if (g.runSaveCd <= 0) { try { runSaveWrite(runSlot); } catch (e) {} g.runSaveCd = 25; }
       }
       if (!g.title) updateThrown(dt);
       if (!g.title) updateBlasts(dt);
@@ -68621,6 +68867,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       gg.p.x = m[0]; gg.p.y = m[1];
       gg.p.vx = 0; gg.p.vy = 0;
       gg.pickupFlash = { nm: gg.sewer ? "down_the_hole" : "back_up", t: 1.6 };
+      if (RUNNER_API.isOn()) { try { runSaveWrite(runSlot); } catch (e) {} }   // LAYER 786: an exit save, down or up
       return true;
     };
     G.raceTalkFn = openRaceTalk;
