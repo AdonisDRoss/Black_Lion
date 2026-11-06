@@ -2923,7 +2923,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 787";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 788";   // the notes for each layer are in the chat, not on screen
 // LAYER 737: DEBUG -- the first few errors are printed on the screen (the TV has no console). Remove once the red-screen bug is found.
 (function () {
   const shown = [];
@@ -19040,7 +19040,7 @@ const RUNNER_API = (function () {
   const DECOY_LINES = ['Never heard of him.', "I don't know nothing, man. Move along.", 'Doctor? Which one? Every doctor round here is a liar.', 'Ask somebody else.', 'Not my business. Not yours either.'];
   const INF_NAMES = ['MARCUS TULL', 'LUIS ORTEGA', 'NELL HARROW', 'TOMMY VASQUEZ', 'OTIS BLANK', 'RUBY SALAS', 'FRANK DOYLE', 'CHINA LEE', 'DEV PATEL', 'KAI MORROW', 'JOSIE FAY', 'RONNIE BELL'];
   const DOC_FACE = 'male_03';
-  let storeSpot = null, docSpot = null, docMan = null, informants = [], chain = [], chainLink = 0, runnerCash = 0, bedHint = 0;
+  let storeSpot = null, docSpot = null, docMan = null, informants = [], chain = [], chainLink = 0, runnerCash = 0, bedHint = 0, bagOutHint = 0;   // LAYER 788: bagOutHint -- the "lay the bag out" line waits for him to actually be outside
   const STORY_STAGES = ['pistol', 'teammate', 'house', 'bed', 'tutorial', 'store', 'ask', 'informant', 'doctor', 'mission', 'micah', 'arrest', 'back', 'wire', 'rescue'];   // LAYER 778: the first WINDI mission's steps
   // the opening: the mission's line, arrows and minimap pip stay off until the first mission starts
   let missionHidden = false;
@@ -19192,9 +19192,12 @@ const RUNNER_API = (function () {
   function partnerSaved() {
     const f = mates.find((m) => m.friend);
     if (f && houseSpot) { f.companion = true; f.x = houseSpot.x + 34; f.y = houseSpot.y + 22; f.stunT = 0; f.target = null; }
-    MISSION.stage = 'bed'; bedHint = 0;
+    MISSION.stage = 'bed'; bedHint = 0; bagOutHint = 0;
     runBanner('PARTNER SAVED', 2.6);
-    openTalk(f ? f.name : 'PARTNER', f ? f.look.profile : null, PARTNER_LINES, () => { say('THE PARTNER IS WITH YOU NOW. LAY THE BAG OUT: WHEEL (Y) > EQUIPMENT > PUT DOWN SLEEPING BAG.', 6); }, 'THE HOUSE');
+    // LAYER 788: this fires while he is still inside the house (that's what inHouse() means above) -- the bag can't go down
+    // indoors (LAYER 746), so the old line told him to do it right here. Now it just sends him out the door; missionStoryTick's
+    // 'bed' branch gives the actual "lay the bag out" instruction once he is outside and can follow it.
+    openTalk(f ? f.name : 'PARTNER', f ? f.look.profile : null, PARTNER_LINES, () => { say('THE PARTNER IS WITH YOU NOW. HEAD OUTSIDE.', 5); }, 'THE HOUSE');
   }
   // midnight: the new mission starts at the store
   function storyStore() {
@@ -19432,6 +19435,7 @@ const RUNNER_API = (function () {
     const st = MISSION.stage;
     if (st === 'bed') {
       const t = sleepDown || houseSpot; MISSION.label = 'BED'; MISSION.x = t.x; MISSION.y = t.y;
+      if (!sleepDown && !runnerInside && bagOutHint === 0) { bagOutHint = 1; say('LAY THE BAG OUT: WHEEL (Y) > EQUIPMENT > PUT DOWN SLEEPING BAG.', 6); }   // LAYER 788: only said once he is actually outside, where the bag can go down
       if (sleepDown && bedHint === 0) { bedHint = 1; say('NOW LIE DOWN ON IT: STAND ON THE BAG AND PRESS A (OR E).', 6); }
     } else if (st === 'tutorial') {
       tutorialTick();
