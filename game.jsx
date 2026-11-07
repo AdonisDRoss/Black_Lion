@@ -2926,7 +2926,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 792";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 794";   // the notes for each layer are in the chat, not on screen
 // LAYER 737: DEBUG -- the first few errors are printed on the screen (the TV has no console). Remove once the red-screen bug is found.
 (function () {
   const shown = [];
@@ -15305,7 +15305,7 @@ const RUNNER_API = (function () {
   // for anyone without a physical pad or a keyboard. readPad() below folds these into the same x/y/a/b/lb/rb/r3 fields
   // the gamepad poll fills, so nothing downstream (updateWalker, updateCar, the pend.* handlers) has to know the
   // difference -- a tap does exactly what the matching gamepad button already does.
-  const TOUCH = { x: 0, y: 0, a: false, b: false, lb: false, rb: false, r3: false };
+  const TOUCH = { x: 0, y: 0, a: false, b: false, lb: false, rb: false, r3: false, lt: false, rt: false };   // LAYER 793: lt/rt -- gas and brake had no touch equivalent at all
   // LAYER 589: the C.A.N. lobby. While the player is inside a building the runner's camera and overlay stand down;
   // the hover bike waits parked outside the door (lobbyBike), and leaving the lobby lands it there.
   let lobby = false, lobbyBike = null, camSmooth = null;
@@ -16150,6 +16150,7 @@ const RUNNER_API = (function () {
     out.x = out.x || TOUCH.x; out.y = out.y || TOUCH.y;
     out.a = out.a || TOUCH.a; out.b = out.b || TOUCH.b;
     out.lb = out.lb || TOUCH.lb; out.rb = out.rb || TOUCH.rb; out.r3 = out.r3 || TOUCH.r3;
+    out.rt = out.rt || TOUCH.rt; out.lt = out.lt || TOUCH.lt;   // LAYER 793: both are only ever read as a threshold (> 0.1 / > 0.5), so a held true/false touch button satisfies them exactly like a half-pressed trigger
     return out;
   }
 
@@ -24308,7 +24309,7 @@ export default function IronLionLayer004() {
   const [hud, setHud] = useState({ mode: "foot", mph: 0, place: "", night: false });
   const [mapOpen, setMapOpen] = useState(false);
   const [pauseTab, setPauseTab] = useState(0), [padSel, setPadSel] = useState(0), [padTick, setPadTick] = useState(0);   // LAYER 694: 0 MAP, 1 CHARACTER, 2 INVENTORY, 3 SYSTEM
-  useEffect(() => { if (mapOpen) { setPauseTab(0); if (G.current) G.current.pauseTab = 0; } }, [mapOpen]);
+  useEffect(() => { if (mapOpen) { const t0 = rnOn ? 3 : 0; setPauseTab(t0); if (G.current) G.current.pauseTab = t0; } }, [mapOpen]);   // LAYER 794: Runner Mode opens on SYSTEM (resume/save/quit), not the Raven Hook city map, which is a different game's geography
   const [statsOpen, setStatsOpen] = useState(false), [statsI, setStatsI] = useState(0), [statsV, setStatsV] = useState(0);     // REY & THE CREW (layer 503)
   const [mapErr, setMapErr] = useState(null);
   const [cutErr, setCutErr] = useState(null);
@@ -71135,15 +71136,44 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }} />
       </div>
 
-      {/* LAYER 790: RUNNER MODE'S TOUCH CLUSTER -- an Xbox-shaped A/B/X/Y diamond with LB/RB shoulders
-          above it, bottom-right, mirroring the joystick opposite it. Same show/hide gate as the stick
-          (rnOn, not the title, no physical pad plugged in -- a pad reads its own buttons directly), so
-          the two always appear and vanish together. Each button writes straight into Runner's TOUCH
-          state through RUNNER_API.touchBtn -- the same field readPad() already folds in alongside a
-          real gamepad -- except Y, which opens the action wheel directly (G.openWheel, exposed above)
-          since the wheel was never a TOUCH field to begin with. A deliberately self-contained renderer,
-          not the shared btn() factory: that one also registers into G.acts for the pad-bridge `tap()`
-          system and the wheel's `live()` scan, which these buttons have no business joining. */}
+      {/* LAYER 794: a touch way into the pause menu. Before this there was none in Runner Mode --
+          the old per-mode bar's MAP/pause button (LAYER 792 hid it along with the rest of that
+          bar) and a physical pad's Start button were the only doors in, and a tap on Y > the
+          wheel > MAP is the only path left for touch. Top-left, clear of the scan log and the
+          minimap (both canvas-drawn, both top-right) and clear of the new touch cluster
+          (bottom-right). Hidden while the menu is already open -- the backdrop itself closes it. */}
+      {rnOn && !hud.title && !padOn && !mapOpen && (
+        <div
+          onContextMenu={(e) => e.preventDefault()}
+          onPointerDown={(e) => { e.preventDefault(); setMapOpen(true); }}
+          style={{
+            position: "absolute", left: 12, top: 12, zIndex: 30, width: 40, height: 40, borderRadius: "50%",
+            display: "flex", alignItems: "center", justifyContent: "center", userSelect: "none", touchAction: "none",
+            pointerEvents: "auto", background: "rgba(10,11,14,0.72)", border: "1px solid #6ef0ff", color: "#6ef0ff",
+            WebkitUserSelect: "none", WebkitTouchCallout: "none", WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          {/* two bars -- a plain, universal pause glyph, no font or label needed to read it */}
+          <div style={{ display: "flex", gap: 4 }}>
+            <div style={{ width: 4, height: 14, background: "#6ef0ff" }} />
+            <div style={{ width: 4, height: 14, background: "#6ef0ff" }} />
+          </div>
+        </div>
+      )}
+
+      {/* LAYER 790/793: RUNNER MODE'S TOUCH CLUSTER -- an Xbox-shaped A/B/X/Y diamond with LB/RB
+          shoulders and LT/RT triggers above it, bottom-right, mirroring the joystick opposite it.
+          Same show/hide gate as the stick (rnOn, not the title, no physical pad plugged in -- a pad
+          reads its own buttons directly), so the two always appear and vanish together. Each button
+          writes straight into Runner's TOUCH state through RUNNER_API.touchBtn -- the same field
+          readPad() already folds in alongside a real gamepad -- except Y, which opens the action
+          wheel directly (G.openWheel, exposed above) since the wheel was never a TOUCH field to begin
+          with. LT and RT (LAYER 793) are read downstream only as a threshold (pad.rt > 0.1, pad.lt >
+          0.1 or > 0.5), never as a true analog value, so a plain held/not-held touch button satisfies
+          them exactly -- no half-pressed-trigger feel needed, there was never one to match. A
+          deliberately self-contained renderer, not the shared btn() factory: that one also registers
+          into G.acts for the pad-bridge `tap()` system and the wheel's `live()` scan, which these
+          buttons have no business joining. */}
       {rnOn && !hud.title && !padOn && (() => {
         const face = (key, label, sub, onDown, onUp, big) => {
           const s = big ? 62 : 56;
@@ -71192,6 +71222,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             position: "absolute", right: 18, bottom: 22, zIndex: 30, pointerEvents: "none",
             display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
           }}>
+            <div style={{ display: "flex", justifyContent: "space-between", width: 204 }}>
+              {shoulder("lt", "LT", "brake/sneak", hold("lt").onDown, hold("lt").onUp)}
+              {shoulder("rt", "RT", "gas", hold("rt").onDown, hold("rt").onUp)}
+            </div>
             <div style={{ display: "flex", justifyContent: "space-between", width: 204 }}>
               {shoulder("lb", "LB", "target", hold("lb").onDown, hold("lb").onUp)}
               {shoulder("rb", "RB", "fire", hold("rb").onDown, hold("rb").onUp)}
@@ -71356,7 +71390,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           </div>); })()}
       {mapOpen && (
         <div onClick={() => setMapOpen(false)}
-          style={{ position: "absolute", inset: 0, background: "rgba(6,7,9,0.93)", zIndex: 60,
+          style={{ position: "absolute", inset: 0, zIndex: 60,
+            // LAYER 794: Runner Mode's own pause backdrop -- the arcade title card, dimmed enough
+            // to read the menu over it. The other mode keeps its plain dark backdrop.
+            background: rnOn
+              ? "linear-gradient(rgba(6,7,9,0.82), rgba(6,7,9,0.90)), url('assets/runner/pause_bg.jpg') center/cover no-repeat"
+              : "rgba(6,7,9,0.93)",
             display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center",
             gap: 18, padding: 8 }}>
           {mapErr && (
@@ -71393,9 +71432,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           {/* the reading column sits beside the map in landscape rather than under it */}
           <div style={{ display: pauseTab === 0 ? "flex" : "none", flexDirection: "column", alignItems: "flex-start",
             maxWidth: "34vw", maxHeight: "94vh", overflowY: "auto" }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.24em", color: C.gold }}>
-            {hud.flash76 ? "RAVEN HOOK \u00b7 1976" : "RAVEN HOOK \u00b7 1986"}
+          <div style={{ fontSize: 11, letterSpacing: "0.24em", color: rnOn ? "#6ef0ff" : C.gold }}>
+            {rnOn ? "RAVEN CITY \u00b7 RUNNER" : hud.flash76 ? "RAVEN HOOK \u00b7 1976" : "RAVEN HOOK \u00b7 1986"}
           </div>
+          {/* LAYER 794: these four are Rey's story -- the job board, the RCASE, the prison-skip cheat, the gun
+              heists -- and don't exist in Raven City. Runner Mode doesn't default to this tab any more (see the
+              pauseTab effect above), but if he clicks back to MAP out of curiosity, these shouldn't be sitting
+              there as if they still applied. */}
+          {!rnOn && <>
           {/* Call a job from the map instead of waiting out the cooldown. It closes the map on
               its way, because the point of the button is to go now. */}
           <div data-mapopt="1" onClick={(e) => { e.stopPropagation();
@@ -71421,6 +71465,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "9px 14px", border: "1px solid #d0703c", color: "#f0a77a", fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", background: "rgba(208,112,60,0.12)" }}>
             GUN HEISTS {"\u00b7"} THE STORE {"\u00b7"} THE TRUCK {"\u00b7"} THE BOAT
           </div>}
+          </>}
           {/* REY & THE CREW (layer 503): levels and stats. Y on the pad. */}
           <div data-mapopt="1" onClick={(e) => { e.stopPropagation(); G.statsToggle && G.statsToggle(true); }}
             style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "9px 14px", border: "1px solid #f2c45a", color: "#f2c45a", fontSize: 11, fontWeight: 700,
