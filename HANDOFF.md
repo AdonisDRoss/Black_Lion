@@ -1,10 +1,118 @@
 # IRON LION / RAVEN HOOK 1986 — HANDOFF
 
-Continues the LAYER 575 handoff. LAYERS 787-791 are this session (790 is a touch-controls rework still in progress,
-not yet finished or documented here); LAYERS 576 through 786 were built independently (not in this file -- that run
-of sessions isn't in my copy of this handoff, so there's a gap here rather than a guess at what changed in it).
-Everything from LAYER 575 down is the older history, with STILL OPEN updated in place.
-Current build: `game.jsx` is **71,663 lines**.
+Continues the LAYER 575 handoff. LAYERS 787-792 are this session; LAYERS 576 through 786 were built independently
+(not in this file -- that run of sessions isn't in my copy of this handoff, so there's a gap here rather than a
+guess at what changed in it). Everything from LAYER 575 down is the older history, with STILL OPEN updated in place.
+Current build: `game.jsx` is **71,827 lines**.
+
+---
+
+## LAYER 792 -- RUNNER MODE BECOMES THE WHOLE GAME: TOUCH CONTROLS, A LOCKED TITLE SCREEN, A PHONE-HEIGHT BUG
+
+Three asks in the same message: finish the Xbox-style touch controls from earlier this session, make Runner Mode
+the only mode on the title screen (lock the rest, put it on top), and fix the screen sometimes running too big
+for the player's phone to see all of it. The touch-control plumbing underneath this (the `TOUCH` state object,
+`readPad()`'s merge, `RUNNER_API.touchStick`/`touchBtn`, the joystick bridge) was built earlier this session and is
+still commented `LAYER 790` in the code -- that work is finished now, under this entry, alongside the other two.
+
+### 1. The Xbox-style touch cluster (finishing LAYER 790)
+
+Runner Mode read a physical gamepad directly (`readPad()`, its own copy inside the Runner closure) and had no
+touch equivalent at all: the shared on-screen joystick never reached it, and target-lock, call-bike, board/exit,
+land/punch and fire had no touch input path whatsoever. Earlier this session the joystick was bridged in
+(`move()`/`stickEnd()` now also call `RUNNER_API.touchStick`) and a `TOUCH` state object was added that
+`readPad()` folds into its normal gamepad reading (`out.a = out.a || TOUCH.a`, etc.) so a tap reads exactly like
+the matching pad button to everything downstream.
+
+This entry adds the actual buttons. A self-contained Xbox-shaped cluster, bottom-right (mirroring the joystick,
+bottom-left): Y/X/B/A in the real controller's diamond (Y top, X left, B right, A bottom, A a little larger as
+the primary action) with LB/RB as two shoulder buttons above. Mapped to match what Runner's own pad-reading code
+(`update()`, around the `pend.exit`/`pend.land`/`pend.call`/`pend.target`/`pend.fire` lines) already does with
+each button:
+- **A** -- board / exit / talk (`TOUCH.a`)
+- **B** -- land the bike, or punch on foot (`TOUCH.b`)
+- **X** -- call the bike down (`TOUCH.r3`, same field R3 used on a pad)
+- **Y** -- the action wheel (calls `G.openWheel()` directly -- the wheel was never a TOUCH field, just a function,
+  so it's exposed onto `G` right after its own definition so render scope can reach it, same as `G.radialOpen`
+  and the rest of that namespace)
+- **LB** -- target lock (`TOUCH.lb`)
+- **RB** -- fire (`TOUCH.rb`)
+
+Built as its own renderer, not the shared `btn()` factory: `btn()` also registers every button into `G.acts` for
+the physical-pad bridge's `tap()` system and the action wheel's `live()` DOM scan, and this cluster has no
+business joining either. Same robustness as `btn()` though -- `onPointerCancel`/`onPointerLeave` release the
+button too, not just `onPointerUp`, so a thumb sliding off RB mid-fire doesn't leave it stuck firing.
+
+Shown only when `rnOn && !hud.title && !padOn` -- the same gate the joystick uses, so the two always appear and
+disappear together, and a real gamepad still takes over cleanly (the old per-mode action bar, and this new
+cluster, both step aside for a pad).
+
+The old bottom-right action bar (LION/MASK/ROPE/MAP/N/RADIO/etc.) is the *other* modes' button set and was still
+rendering underneath Runner Mode the whole time -- harmless since most of its conditions read `hud.who`/`hud.roof`
+fields Runner Mode doesn't set, but it was clutter on top of clutter, which was the actual complaint ("so many
+buttons without a controller is confusing"). It now hides for Runner Mode too (`display: (hud.title || rnOn) ?
+"none" : "flex"`) the same way it already hid at the title screen and on a pad -- still mounted, not unmounted,
+so `BOOK`/`MAP` stay "live" for the action wheel exactly as they did before.
+
+### 2. The title screen: Runner Mode only, locked and up top
+
+"Make runner mode the only mode, lock the others, put it up top." The title screen already had a kill switch for
+this, half-built and unused: `const TITLE_OTHER_MODES = true;` (LAYER 711) already gated NEW GAME, DETECTIVE MODE
+and STUDENT MODE out when set false -- it just wasn't set, and FOOTBALL MODE, CONTINUE and the four-slot save
+picker weren't wired to it at all, so flipping it alone would have left three ways back into a "locked" mode.
+
+Fix: flipped `TITLE_OTHER_MODES` to `false`, and gated CONTINUE and the slot picker on it too (`TITLE_OTHER_MODES
+&& G.newestSlot && ...`, `TITLE_OTHER_MODES && G.slotsFn && ...`) -- both belong to the prison/detective/student
+save system that's now locked, and CONTINUE would otherwise have dropped the player straight back into Rey's
+story. FOOTBALL MODE was already behind the same flag. RUNNER MODE itself moved out of the bottom of the list
+and into CONTINUE's old spot, right under the logo, with CONTINUE's old prominence (the glow, the bigger padding)
+since it's the one thing on the screen now. With the flag off, the title screen is just the logo and one button.
+
+Flip `TITLE_OTHER_MODES` back to `true` to bring everything back exactly as it was -- nothing else was removed,
+only gated.
+
+### 3. "The screen sometimes is too big for my phone and I can't see it all"
+
+This is the classic mobile `100vh` bug, and the game's root container had it: `height: "100vh"` on the outermost
+div, with the joystick, the new touch cluster, the minimap and everything else positioned `absolute` inside it.
+On a phone, `100vh` is the height of the viewport with the browser's address bar fully collapsed -- the LARGEST
+it's ever going to get, not the space actually on screen. Load the page with the address bar showing (the normal
+case) and the whole shell renders taller than what's visible, pushing the bottom-anchored controls off the bottom
+edge. Normally a page like that can just be scrolled down to reach the rest, but this one deliberately can't be
+(`touchAction: "none"` on the root, on purpose, so a drag doesn't scroll the page out from under the joystick) --
+so the cut-off controls weren't just below the fold, they were unreachable.
+
+Fix: the root div now takes its height from a CSS class (`.il-shell`) instead of an inline value, declared three
+ways in a row -- `height: 100vh; height: -webkit-fill-available; height: 100dvh;` -- so each browser keeps the
+last line it understands and throws out the rest. `100dvh` (dynamic viewport height) is the one that actually
+answers this: it tracks the address bar live and shrinks/grows with it, which `100vh` never does. (It has to be a
+class, not another inline value -- inline styles beat stylesheet rules regardless of order, so a plain inline
+`100dvh` with no fallback would just go unrendered on anything too old to know what `dvh` means.) Also added a
+small belt-and-suspenders reset next to the existing viewport-meta code -- `margin: 0` and `height: 100%` on
+`<html>`/`<body>`, `overflow: hidden` on `<body>` -- in case a leftover default body margin was adding its own
+sliver of unreachable page on top of the vh bug.
+
+### Test
+- Touch cluster: open Runner Mode on a touch device (or a browser's device-emulation mode) with no gamepad
+  connected -- Y/X/B/A and LB/RB should appear bottom-right, the joystick bottom-left, and each should do what
+  its label says (A boards/exits/talks, B lands or punches, X calls the bike, Y opens the wheel, LB locks a
+  target, RB fires). Plug in a real pad and the cluster (and the old action bar) should both disappear in favor
+  of the pad.
+- Title screen: load fresh -- only the logo and RUNNER MODE should show, nothing else, with RUNNER MODE right
+  under the logo.
+- Phone sizing: on an actual phone (not just a resized desktop browser window, which doesn't reproduce the
+  address-bar behavior), the bottom controls should be on screen and reachable immediately, address bar showing
+  or not.
+
+### STILL OPEN
+- The title's slot picker and CONTINUE are fully hidden now rather than shown-but-disabled; if the intent is ever
+  "show the other modes greyed out" instead of "hide them," that's a different, larger change (each button would
+  need its own disabled look rather than just not rendering).
+- The touch cluster's hit targets are sized for a thumb on a normal phone, not tested on a small/old device or a
+  tablet; if it ever feels too small or too close to the screen edge, the sizes are the `s`/`56`/`76` constants in
+  the new block, easy to bump.
+
+BUILD_TAG bumped to `LAYER 792`.
 
 ---
 

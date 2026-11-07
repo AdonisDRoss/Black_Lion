@@ -10,7 +10,10 @@ try { if (typeof navigator !== "undefined" && "gamepadInputEmulation" in navigat
    ============================================================ */
 
 // TITLE SCREEN: NEW GAME, DETECTIVE, STUDENT and FOOTBALL are listed with RUNNER MODE (LAYER 711). Set false to shelve them again.
-const TITLE_OTHER_MODES = true;
+// LAYER 790: shelved -- RUNNER MODE is the only mode on the title now. CONTINUE and the save-slot
+// picker are the other modes' own save system (the prison/detective/student story), so they're
+// gated on this flag too; set it back to true to bring everything back, exactly as it was.
+const TITLE_OTHER_MODES = false;
 
 const A = {
   idle: "data:image/webp;base64,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",
@@ -2923,7 +2926,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 791";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 792";   // the notes for each layer are in the chat, not on screen
 // LAYER 737: DEBUG -- the first few errors are printed on the screen (the TV has no console). Remove once the red-screen bug is found.
 (function () {
   const shown = [];
@@ -25213,7 +25216,13 @@ export default function IronLionLayer004() {
        The browser's own zoom on the triggers is blocked: Gamepad* keys, ctrl+wheel and ctrl +/- are swallowed, the
        page can't be pinch-scaled, and the pad is handed to the page at load (top of the file) as well as here. */
     try { let m = document.querySelector('meta[name="viewport"]'); if (!m) { m = document.createElement("meta"); m.name = "viewport"; document.head.appendChild(m); }
-      m.content = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"; document.body.style.touchAction = "none"; document.documentElement.style.touchAction = "none"; } catch (e) {}
+      m.content = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"; document.body.style.touchAction = "none"; document.documentElement.style.touchAction = "none";
+      // LAYER 790: belt and suspenders for the "screen too big for my phone" report -- a stray default
+      // body margin (browsers default to 8px) or a body/html that isn't itself 100% tall adds its own
+      // sliver of extra, unreachable page around the game on top of the vh/dvh fix above.
+      document.documentElement.style.margin = "0"; document.documentElement.style.height = "100%";
+      document.body.style.margin = "0"; document.body.style.height = "100%"; document.body.style.overflow = "hidden";
+    } catch (e) {}
     const eatKey = (e) => { if (/^Gamepad/.test(e.key || "") || ((e.ctrlKey || e.metaKey) && /^[-+=0_]$/.test(e.key))) { e.preventDefault(); e.stopPropagation(); } };
     const eatWheel = (e) => { if (e.ctrlKey) e.preventDefault(); };
     const eatGesture = (e) => e.preventDefault();
@@ -25270,6 +25279,7 @@ export default function IronLionLayer004() {
       if (g0w && g0w.prisonMode) list.push({ label: "POCKETS", sub: "what's on you", icon: PD_ART.ac_pockets });
       setPadWheel({ kind: "action", title: "ACTION WHEEL", items: list.filter((o, i, A) => A.findIndex((q) => q.label === o.label) === i) });
       const gg = G.current; if (gg && !gg.paused) { gg.paused = true; gg.wheelPause = 1; } };
+    G.openWheel = openWheel;   // LAYER 790: so the Runner touch cluster's Y button can call it from render scope, same as the pad's press(3)
     /* THE RADIAL WHEELS (layer 520): the action wheel, the WEAPON wheel and the POCKETS wheel are all a ring now. The stick
        points at a slot (the nearest one round the ring), the D-pad steps round it, A takes it, B / LB put it away; the
        middle names whatever is lit. G.radialOpen({kind, title, items:[{label, sub, icon, id}]}) -- an item with an id
@@ -69364,10 +69374,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
 
   return (
     <div
+      className="il-shell"
       onContextMenu={(e) => e.preventDefault()}
       onDragStart={(e) => e.preventDefault()}
       style={{
-        position: "relative", width: "100%", height: "100vh", background: "#0b0c0f",
+        position: "relative", width: "100%", background: "#0b0c0f",
         overflow: "hidden", touchAction: "none",
         /* A long press on a phone selects text and raises the copy/paste callout, which is
            exactly what a held button looks like to the browser. These four have to be set
@@ -69389,6 +69400,15 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         .il-root ::selection { background: transparent; }
         .il-root ::-moz-selection { background: transparent; }
         .il-root canvas { touch-action: none; }
+        /* LAYER 790: "100vh" on a phone is the LARGEST the address bar ever lets the page get --
+           it does not shrink when the bar is actually on screen, so a flat height:100vh here ran
+           taller than what was really visible and pushed the bottom controls (the stick, the
+           buttons) off the bottom edge with no way to scroll down to them (touch-action is none
+           on purpose, for the game, not for a page that needs scrolling). 100dvh tracks the
+           address bar live; -webkit-fill-available covers older iOS Safari between the two.
+           Declared in this order on purpose: each browser keeps the last line it understands and
+           throws out the rest, so the best one available always wins. */
+        .il-shell { height: 100vh; height: -webkit-fill-available; height: 100dvh; }
       `}</style>
       <canvas ref={canvasRef} className="il-root"
         style={{ width: "100%", height: "100%", display: "block", touchAction: "none",
@@ -69744,7 +69764,18 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             </div>
           </div>
 
-          {G.newestSlot && G.newestSlot() > 0 && <div
+          {/* RUNNER MODE (LAYER 790): the only mode on the title now, so it leads -- CONTINUE's old
+              spot and CONTINUE's old glow, right under the logo, no scrolling past locked modes to
+              find it. */}
+          <div
+            onClick={() => { if (G.runnerOpen) G.runnerOpen(); }}
+            style={{ marginTop: 34, padding: "15px 46px", border: "1px solid #6ef0ff",
+              background: "rgba(10,11,14,0.72)", color: "#d8fbff", fontSize: 13,
+              letterSpacing: "0.28em", cursor: "pointer", userSelect: "none",
+              boxShadow: "0 0 22px rgba(110,240,255,0.22)" }}>
+            RUNNER MODE
+          </div>
+          {TITLE_OTHER_MODES && G.newestSlot && G.newestSlot() > 0 && <div
             onClick={() => {
               const gg = G.current;
               // CONTINUE (layer 501): the newest save in any of the four slots
@@ -69758,7 +69789,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               }
               setHud((h) => ({ ...h, title: false }));
             }}
-            style={{ marginTop: 34, padding: "13px 42px", border: `1px solid ${C.gold}`,
+            style={{ marginTop: 12, padding: "13px 42px", border: `1px solid ${C.gold}`,
               background: "rgba(10,11,14,0.72)", color: "#e8d9b5", fontSize: 12,
               letterSpacing: "0.28em", cursor: "pointer", userSelect: "none",
               boxShadow: "0 0 22px rgba(217,164,65,0.18)" }}>
@@ -69778,7 +69809,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               letterSpacing: "0.28em", cursor: "pointer", userSelect: "none" }}>
             {"NEW GAME" + (G.firstEmptySlot && !G.firstEmptySlot() ? " \u00b7 OVERWRITES SLOT " + (G.slotsFn ? G.slotsFn().find((q) => q.on).n : 1) : "")}
           </div>}
-          {G.slotsFn && (
+          {TITLE_OTHER_MODES && G.slotsFn && (
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap", justifyContent: "center", maxWidth: "92vw" }}>
               {G.slotsFn().map((q) => (
                 <div key={q.n} data-pickopt="1" onClick={() => { G.slotPick(q.n); if (q.empty) return; const gg = G.current; const how = G.loadFn ? G.loadFn() : false;     // a slot loads (layer 501)
@@ -69827,14 +69858,6 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               letterSpacing: "0.26em", cursor: "pointer", userSelect: "none" }}>
             FOOTBALL MODE
           </div>}
-          {/* RUNNER MODE: the futurist hunt, from the title like FOOTBALL MODE. */}
-          <div
-            onClick={() => { if (G.runnerOpen) G.runnerOpen(); }}
-            style={{ marginTop: 12, padding: "11px 30px", border: "1px solid #6ef0ff",
-              background: "rgba(10,11,14,0.72)", color: "#d8fbff", fontSize: 11,
-              letterSpacing: "0.26em", cursor: "pointer", userSelect: "none" }}>
-            RUNNER MODE
-          </div>
           <div style={{ position: "absolute", bottom: 16, textAlign: "center",
             fontSize: 8, letterSpacing: "0.18em", color: "rgba(232,217,181,0.35)", pointerEvents: "none" }}>
             A RAVEN HOOK STORY · DARIUS KING
@@ -71112,6 +71135,80 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         }} />
       </div>
 
+      {/* LAYER 790: RUNNER MODE'S TOUCH CLUSTER -- an Xbox-shaped A/B/X/Y diamond with LB/RB shoulders
+          above it, bottom-right, mirroring the joystick opposite it. Same show/hide gate as the stick
+          (rnOn, not the title, no physical pad plugged in -- a pad reads its own buttons directly), so
+          the two always appear and vanish together. Each button writes straight into Runner's TOUCH
+          state through RUNNER_API.touchBtn -- the same field readPad() already folds in alongside a
+          real gamepad -- except Y, which opens the action wheel directly (G.openWheel, exposed above)
+          since the wheel was never a TOUCH field to begin with. A deliberately self-contained renderer,
+          not the shared btn() factory: that one also registers into G.acts for the pad-bridge `tap()`
+          system and the wheel's `live()` scan, which these buttons have no business joining. */}
+      {rnOn && !hud.title && !padOn && (() => {
+        const face = (key, label, sub, onDown, onUp, big) => {
+          const s = big ? 62 : 56;
+          return (
+            <div key={key}
+              onContextMenu={(e) => e.preventDefault()}
+              onPointerDown={(e) => { e.preventDefault(); onDown && onDown(); }}
+              onPointerUp={(e) => { e.preventDefault(); onUp && onUp(); }}
+              onPointerCancel={(e) => { e.preventDefault(); onUp && onUp(); }}
+              onPointerLeave={() => { onUp && onUp(); }}
+              style={{
+                width: s, height: s, borderRadius: "50%", display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center", userSelect: "none", touchAction: "none",
+                pointerEvents: "auto", background: "rgba(10,11,14,0.72)", border: "1px solid #6ef0ff",
+                color: "#6ef0ff", fontFamily: mono, letterSpacing: "0.05em",
+                WebkitUserSelect: "none", WebkitTouchCallout: "none", WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{label}</div>
+              {sub && <div style={{ fontSize: 7, opacity: 0.65, marginTop: 1 }}>{sub}</div>}
+            </div>
+          );
+        };
+        const shoulder = (key, label, sub, onDown, onUp) => (
+          <div key={key}
+            onContextMenu={(e) => e.preventDefault()}
+            onPointerDown={(e) => { e.preventDefault(); onDown && onDown(); }}
+            onPointerUp={(e) => { e.preventDefault(); onUp && onUp(); }}
+            onPointerCancel={(e) => { e.preventDefault(); onUp && onUp(); }}
+            onPointerLeave={() => { onUp && onUp(); }}
+            style={{
+              width: 76, height: 30, borderRadius: 6, display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center", userSelect: "none", touchAction: "none",
+              pointerEvents: "auto", background: "rgba(10,11,14,0.72)", border: "1px solid #6ef0ff",
+              color: "#6ef0ff", fontFamily: mono, letterSpacing: "0.08em",
+              WebkitUserSelect: "none", WebkitTouchCallout: "none", WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 700 }}>{label}</div>
+            {sub && <div style={{ fontSize: 6, opacity: 0.6 }}>{sub}</div>}
+          </div>
+        );
+        const hold = (k) => ({ onDown: () => RUNNER_API.touchBtn(k, true), onUp: () => RUNNER_API.touchBtn(k, false) });
+        return (
+          <div style={{
+            position: "absolute", right: 18, bottom: 22, zIndex: 30, pointerEvents: "none",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", width: 204 }}>
+              {shoulder("lb", "LB", "target", hold("lb").onDown, hold("lb").onUp)}
+              {shoulder("rb", "RB", "fire", hold("rb").onDown, hold("rb").onUp)}
+            </div>
+            <div style={{
+              display: "grid", gridTemplateColumns: "56px 56px 56px", gridTemplateRows: "56px 56px 66px",
+              columnGap: 8, rowGap: 8, justifyItems: "center", alignItems: "center",
+            }}>
+              <div style={{ gridColumn: 2, gridRow: 1 }}>{face("y", "Y", "wheel", () => { G.openWheel && G.openWheel(); }, null)}</div>
+              <div style={{ gridColumn: 1, gridRow: 2 }}>{face("x", "X", "call bike", hold("r3").onDown, hold("r3").onUp)}</div>
+              <div style={{ gridColumn: 3, gridRow: 2 }}>{face("b", "B", "land/punch", hold("b").onDown, hold("b").onUp)}</div>
+              <div style={{ gridColumn: 2, gridRow: 3 }}>{face("a", "A", "board/talk", hold("a").onDown, hold("a").onUp, true)}</div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Under the minimap, not above the buttons. The button row is `wrap-reverse` and grows
           UPWARD from bottom: 22, so anything anchored to the bottom right gets covered the
           moment a button is added -- which is exactly what happened when DRAW appeared. The
@@ -71491,8 +71588,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       {/* bottom-right: buttons */}
       <div style={{ position: "absolute", right: 18, bottom: 22, display: "flex", flexWrap: "wrap-reverse",
         justifyContent: "flex-end", gap: 8, alignItems: "flex-end", maxWidth: "calc(100vw - 200px)",
-        pointerEvents: "none", display: hud.title ? "none" : "flex",
-        visibility: padOn ? "hidden" : "visible" }}>          {/* hidden, not removed, on a pad: the ACTION WHEEL reads what's live from here */}
+        pointerEvents: "none", display: (hud.title || rnOn) ? "none" : "flex",   // LAYER 790: the old per-mode bar hides for Runner too now -- its own Xbox cluster covers everything it did
+        visibility: padOn ? "hidden" : "visible" }}>          {/* hidden, not removed, on a pad (or in Runner Mode): the ACTION WHEEL reads what's live from here */}
         {/* The Lion's, and only his. Rio has smoke and Sho has his hands; handing either of
              them slow time would make the swap a costume change. */}
         {hud.who === "lion" && !hud.detMode && !hud.plainMan && btn("LION", hud.lionOn ? "ON" : hud.lion > 4 ? "slow time" : "empty",
