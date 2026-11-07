@@ -2923,7 +2923,7 @@ const ASSET_BASE = "";
 /* Bump this every build. It is printed under the title, and it is the only way to tell from
    the running game whether the file you just uploaded is the one being served -- this label
    read "LAYER 170" for forty-odd layers, so it could never answer that question. */
-const BUILD_TAG = "LAYER 788";   // the notes for each layer are in the chat, not on screen
+const BUILD_TAG = "LAYER 791";   // the notes for each layer are in the chat, not on screen
 // LAYER 737: DEBUG -- the first few errors are printed on the screen (the TV has no console). Remove once the red-screen bug is found.
 (function () {
   const shown = [];
@@ -15298,6 +15298,11 @@ const RUNNER_API = (function () {
   }
   let cycleCooldown = 0, msg = '', msgT = 0;
   const pend = { land: false, exit: false, call: false, fire: false, target: false };
+  // LAYER 790: the touch stick (bottom-left, same one the main game uses) and a touch-only button cluster, Xbox-shaped,
+  // for anyone without a physical pad or a keyboard. readPad() below folds these into the same x/y/a/b/lb/rb/r3 fields
+  // the gamepad poll fills, so nothing downstream (updateWalker, updateCar, the pend.* handlers) has to know the
+  // difference -- a tap does exactly what the matching gamepad button already does.
+  const TOUCH = { x: 0, y: 0, a: false, b: false, lb: false, rb: false, r3: false };
   // LAYER 589: the C.A.N. lobby. While the player is inside a building the runner's camera and overlay stand down;
   // the hover bike waits parked outside the door (lobbyBike), and leaving the lobby lands it there.
   let lobby = false, lobbyBike = null, camSmooth = null;
@@ -16136,6 +16141,12 @@ const RUNNER_API = (function () {
       out.r3 = !!(g.buttons[11] && g.buttons[11].pressed);   // LAYER 690: R3 calls the bike
       break;
     }
+    // LAYER 790: the touch stick and the touch button cluster fold in here -- a tap reads exactly like the matching
+    // gamepad button to everything downstream. `||` so a real pad connected at the same time still wins when it's
+    // actually being pushed (both idle-false/idle-zero is the normal case; this only matters if someone has both).
+    out.x = out.x || TOUCH.x; out.y = out.y || TOUCH.y;
+    out.a = out.a || TOUCH.a; out.b = out.b || TOUCH.b;
+    out.lb = out.lb || TOUCH.lb; out.rb = out.rb || TOUCH.rb; out.r3 = out.r3 || TOUCH.r3;
     return out;
   }
 
@@ -22598,6 +22609,11 @@ const RUNNER_API = (function () {
     setCivs: (c) => { CIV = c || null; },
     setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); WAYPT = null; startSong(); } else { stopSong(); lobby = false; tvStop(); missionHidden = false; } { const G0 = (window.__ironlion = window.__ironlion || {}); G0.runOn698 = RUN_ON; if (G0.hqSync) G0.hqSync(RUN_ON); } },   // LAYER 698: the headquarters follow Runner Mode
     lockCam,
+    // LAYER 790: the touch controls (the shared stick, plus a new Xbox-shaped button cluster for anyone without a
+    // pad or keyboard). The stick calls this every frame it's held; the buttons set one flag true on press, false
+    // on release -- readPad() folds both into the same fields the gamepad poll already fills.
+    touchStick: (x, y) => { TOUCH.x = x || 0; TOUCH.y = y || 0; },
+    touchBtn: (k, on) => { if (TOUCH.hasOwnProperty(k)) TOUCH[k] = !!on; },
     keepOut, canSpawn, windTrash,
     overlay,
     augments,
@@ -22696,7 +22712,7 @@ const RUNNER_API = (function () {
     startFirstMission: () => {
       missionHidden = false;
       LASER.has = true; LASER.drawn = false; LASER.mode = 'stun'; LASER.locked = true;
-      gasOwned = true;
+      gasOwned = true; sleepOwned = true;   // LAYER 789: pickLaser() (the dumpster-stash path) grants the bag too -- the opening's shortcut into 'teammate' skipped it, so it was never in the inventory at all
       MISSION.stage = 'teammate'; MISSION.label = 'TEAMMATE';
     },
     faceList: (sex) => faceListFor(sex),
@@ -23422,7 +23438,7 @@ function roBeats(name) {
 const RO_TEX = { floor: "assets/tex/tx_ivory_tile.png", velvet: "assets/tex/tx_studio_carpet.png", marble: "assets/tex/tx_marble.png" };
 const RO_CAN = { sign: "assets/runner/can/facade_can_sign.png", doors: "assets/runner/can/tunnel_doors.png", suits: "assets/runner/can/suit_rail.png", racks: "assets/runner/can/transmission_racks.png" };
 const RO_GOLD = "linear-gradient(180deg, #f6e4a6 0%, #c9a24a 50%, #6e5118 100%)";
-const RO_KIT = ['BACKPACK', 'GAS MASK', 'HOLO PHONE', 'LASER PISTOL (ON STUN)', 'DEBIT CARD', 'DIRT BIKE', 'CALL REMOTE'];
+const RO_KIT = ['BACKPACK', 'GAS MASK', 'SLEEPING BAG', 'HOLO PHONE', 'LASER PISTOL (ON STUN)', 'DEBIT CARD', 'DIRT BIKE', 'CALL REMOTE'];   // LAYER 791: startFirstMission() grants the bag same as the mask -- this card just never listed it
 
 // the studio's curtains: blue carpet with folds and a gold edge at the seam; they part to the sides when shut is false
 function RoCurtains({ shut }) {
@@ -69249,10 +69265,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     if (d > R) { dx = (dx / d) * R; dy = (dy / d) * R; }
     input.current.x = dx / R; input.current.y = dy / R;
     setKnob({ x: dx, y: dy, on: true });
+    RUNNER_API.touchStick(dx / R, dy / R);   // LAYER 790: the same stick drives Runner Mode's walker/bike too
   };
   const stickMove = (e) => { if (stickOn.current && !RUN_CUTSCENE) { e.preventDefault(); move(e); } };
   const stickEnd = (e) => {
     input.current.x = 0; input.current.y = 0;
+    RUNNER_API.touchStick(0, 0);   // LAYER 790
     setKnob({ x: 0, y: 0, on: false });
   };
 
