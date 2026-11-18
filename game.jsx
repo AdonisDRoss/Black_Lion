@@ -19480,7 +19480,8 @@ const RUNNER_API = (function () {
   function missionStoryTick() {
     const st = MISSION.stage;
     if (st === 'bed') {
-      const t = sleepDown || houseSpot; MISSION.label = 'BED'; MISSION.x = t.x; MISSION.y = t.y;
+      const t = sleepDown || houseSpot || { x: walker.x, y: walker.y }; MISSION.label = 'BED';   // houseSpot is null until the house has been found (a load straight into this stage): that null was the frame crash 't.x'
+       MISSION.x = t.x; MISSION.y = t.y;
       if (!sleepDown && !runnerInside && bagOutHint === 0) { bagOutHint = 1; say('LAY THE BAG OUT: WHEEL (Y) > EQUIPMENT > PUT DOWN SLEEPING BAG.', 6); }   // LAYER 788: only said once he is actually outside, where the bag can go down
       if (sleepDown && bedHint === 0) { bedHint = 1; say('NOW LIE DOWN ON IT: STAND ON THE BAG AND PRESS A (OR E).', 6); }
     } else if (st === 'tutorial') {
@@ -61268,7 +61269,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         // straight to React: the HUD payload lives inside the tick that just died, so
         // routing the message through it would never arrive
         if (g.frameCrashN < 3 || g.frameCrashN % 120 === 0) {
-          setHud((h) => ({ ...h, frameCrash: g.frameCrash, frameCrashN: g.frameCrashN }));
+          setHud((h) => ({ ...h, frameCrash: g.frameCrash, frameStack: g.frameStack, frameCrashN: g.frameCrashN }));
         }
       }
     }
@@ -71119,6 +71120,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           fontFamily: mono, fontSize: 10, color: "#ff7a6c", background: "rgba(20,6,6,0.92)",
           border: "1px solid rgba(235,70,60,0.7)", padding: "6px 8px", pointerEvents: "none" }}>
           FRAME ERROR ×{hud.frameCrashN}: {hud.frameCrash}
+          {hud.frameStack ? <div style={{ fontSize: 9, opacity: 0.8, whiteSpace: "pre-wrap" }}>{String(hud.frameStack).split("\n").slice(0, 3).join("\n")}</div> : null}
         </div>
       )}
       {hud.lionOn && (
