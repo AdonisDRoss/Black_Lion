@@ -16411,6 +16411,7 @@ const RUNNER_API = (function () {
   function tvDraw(canvas) { try { tvDrawInner(canvas); } catch (e) { console.error('TV draw failed', e); tvSkipAll(); } }
   function tvDrawInner(canvas) {
     if (!canvas) return;
+    const W = 960, H = 540;   // the scene's own fixed space. The runner's W and H are the live screen size (set each frame), which is what stretched and cropped the news
     if (!TV.on) { tvHide(); return; }
     const cv = tvLayerFor(canvas), g = cv.getContext('2d');
     const t = performance.now() / 1000, gap = TV.gap > 0;
