@@ -9419,14 +9419,13 @@ function makeFloor(b, f, rnd) {
         /* Divided by SHRINK so the panels actually butt. P() takes 12% off every prop, which
            is right for a table you want to walk past and wrong for a floor made of four
            pieces -- it left a 17-unit gap between each one. */
-        for (let n = 0; n < 4; n++)
-          P(q2.x0 + pad + n * sw, sy, sw / SHRINK, sh2 / SHRINK, "vn_main_stage");
+        P(q2.x0 + pad, sy, (sw * 4) / SHRINK, sh2 / SHRINK, "vn_main_stage");   // one deck, edge to edge, not four panels
         P(cx - 20, sy + 12, 40, 40, "vn_drum_riser");
         // the kit itself, on the riser. 1.62:1 to match the plate rather than squash it.
         /* Turned round. The kit was drawn facing the room, which put the drummer in front of
            his own snare looking at the audience -- he sits BEHIND it facing the band. */
         // facing south, at the crowd, so the kit is the plate as drawn rather than the flip
-        P(cx - 26, sy + 6, 52, 32, "vn_drumkit");
+        P(cx - 26, sy + 6, 52, 32, "vn_drumkit_flip");   // turned round: it read backwards as drawn
         P(q2.x0 + pad + 4, sy + 8, 26, 40, "vn_pastack");
         P(q2.x1 - pad - 30, sy + 8, 26, 40, "vn_pastack");
         P(cx - 62, sy + 34, 24, 18, "vn_amp_stack");
@@ -15258,8 +15257,14 @@ const RUNNER_API = (function () {
       runHold = RUN_HOLD[0] + Math.random() * (RUN_HOLD[1] - RUN_HOLD[0]);
     } catch (e) { /* no audio here */ }
   }
+  // the band venue owns the speakers: the runner playlist is paused while he is inside and picks up where it was on the way out
+  let songSuspended = false;
+  function songHold(on) {
+    on = !!on; if (on === songSuspended) return; songSuspended = on;
+    try { if (RUN_ON && runCur >= 0) { const a = runAudio(runCur); if (on) a.pause(); else if (runPhase !== 'gap') a.play().catch(() => {}); } } catch (e) { /* no audio here */ }
+  }
   function runStep() {   // every 100 ms while Runner Mode is on
-    if (!RUN_ON || runCur < 0) return;
+    if (!RUN_ON || runCur < 0 || songSuspended) return;
     if (runPhase === 'gap') { runT += 0.1; if (runT >= runGap) runStart(runPick()); return; }
     const a = runAudio(runCur);
     if (a.paused) return;                                  // waiting on a tap (phones)
@@ -15283,6 +15288,7 @@ const RUNNER_API = (function () {
     } catch (e) { /* no audio here */ }
   }
   function stopSong() {
+    songSuspended = false;
     try {
       if (runTick) { clearInterval(runTick); runTick = null; }
       runEl.forEach((a) => { if (a) a.pause(); });
@@ -21341,6 +21347,11 @@ const RUNNER_API = (function () {
     c.strokeStyle = 'rgba(255,60,60,' + (0.5 + 0.5 * pulse) + ')'; c.lineWidth = 2;
     c.beginPath(); c.arc(t.x, t.y, 22 + 3 * pulse, 0, Math.PI * 2); c.stroke();
   }
+  // HOLSTER: put the pistol away without digging through the wheel (H on a keyboard, the HOLSTER button on a touch screen)
+  function holsterLaser() {
+    if (LASER.has && LASER.drawn) { LASER.drawn = false; LASER.beams = []; say('LASER PISTOL PUT AWAY.', 2.5); return true; }
+    return false;
+  }
   function fire() {
     if (PMB.inside) return false;   // LAYER 709: no shooting in the bar
     if (!walker.on && car && car.mode === 'ground' && car.sprite === FIS_CAR_IDX && RUN_ON && !lobby) return fireTurret();   // LAYER 757: in the FIS car, strike fires the guns
@@ -21963,11 +21974,11 @@ const RUNNER_API = (function () {
     if (!RUN_ON || !c) return;
     ctx = c;
     const s = tall || 1, bob = Math.sin(performance.now() / 260 + x * 0.013) * 1.6;
-    const py = y + 13 * s + bob, rx = 15 * s, ry = 3.6 * s;
+    const py = y + 8 * s + bob, rx = 15 * s, ry = 3.6 * s;   // under the feet (it used to sit lower and was drawn over the kid, which put it across his head)
     const hb = img.hoverboard;                                   // the hoverboard art (hover/hoverboard.png), when it is there
     if (hb && hb.width) {
       // LAYER 617: the board runs up and down under the kid (the art is drawn long-side across, so it is turned a quarter)
-      const L = 44 * s, w = L, h = L * (hb.height / hb.width);
+      const L = 36 * s, w = L, h = L * (hb.height / hb.width);
       ctx.save(); ctx.translate(x, py); ctx.rotate(Math.PI / 2);
       ctx.drawImage(hb, -w / 2, -h / 2, w, h); ctx.restore();
       return;
@@ -21994,6 +22005,7 @@ const RUNNER_API = (function () {
     if (!RUN_ON) return;
     if ((e.key === 'c' || e.key === 'C') && cycleCooldown <= 0 && !parkedHover) { car.sprite = (car.sprite + 1) % CAR_FILES.length; cycleCooldown = 0.2; }
     if (e.key === 'l' || e.key === 'L') pend.land = true;
+    if (e.key === 'h' || e.key === 'H') { if (LASER.drawn) holsterLaser(); else if (LASER.has && walker.on && !lobby && !PMB.inside) { LASER.drawn = true; say('LASER PISTOL IN HAND. RB OR F TO FIRE.', 2.5); } }   // H draws and holsters
     if (e.key === 'e' || e.key === 'E') pend.exit = true;
     if (e.key === 'r' || e.key === 'R') resetRunner();
     if (e.key.startsWith('Arrow')) e.preventDefault();
@@ -22641,7 +22653,7 @@ const RUNNER_API = (function () {
     setArt: (a) => { ART = a || {}; },
     setAudio: (get) => { audioGet = get; },
     arrestBooked, arrestHold, rideCam, takeLeave, arrestDraw,
-    tvPlay, tvOn: () => TV.on, tvDraw, news: RUNNER_NEWS,   // LAYER 730: the TV scenes
+    tvPlay, tvOn: () => TV.on, tvDraw, news: RUNNER_NEWS, songHold, holster: holsterLaser, laserDrawn: () => !!(LASER.has && LASER.drawn),   // LAYER 730: the TV scenes
     waypoint: () => WAYPT, setWaypoint, clearWaypoint,   // LAYER 733: the waypoint the pause map sets
     setCivs: (c) => { CIV = c || null; },
     setOn: (on) => { RUN_ON = !!on; if (RUN_ON) { resetRunner(); WAYPT = null; startSong(); } else { stopSong(); lobby = false; tvStop(); missionHidden = false; } { const G0 = (window.__ironlion = window.__ironlion || {}); G0.runOn698 = RUN_ON; if (G0.hqSync) G0.hqSync(RUN_ON); } },   // LAYER 698: the headquarters follow Runner Mode
@@ -24178,7 +24190,7 @@ export default function IronLionLayer004() {
       const ctx = audio.current;
       if (!ctx || MUS.cur === key) return;
       // Runner Mode plays its own song; the city's tracks stay off the speaker until it is turned off
-      if (key !== "title" && RUNNER_API.isOn()) return;
+      if (key !== "title" && RUNNER_API.isOn() && !/^band\d/.test(key)) return;   // the band venue is the one place the city track beats the runner playlist
       if (ctx.state === "suspended" && ctx.resume) ctx.resume();
       const buf = MUS.buf[key];
       if (!buf) { musicLoad(key); return; }        // load on demand, switch when it arrives
@@ -24206,10 +24218,10 @@ export default function IronLionLayer004() {
       const tried = keys.filter((k) => MUS.tried[k]).length;
       return `${MUS.cur || "-"}/${MUS.want || "-"} ld${loaded} tr${tried}`;
     }
-    function musicUpdate({ title, zone, chase, indoors, paused, night }) {
+    function musicUpdate({ title, zone, chase, indoors, paused, night, venue }) {
       const ctx = audio.current;
       if (!ctx) return;
-      if (RUNNER_API.isOn() && !title) { if (MUS.gain) MUS.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.2); return; }
+      if (RUNNER_API.isOn() && !title && !venue) { if (MUS.gain MUS.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.2); return; }
       let want = "drive";
       if (title) want = "title";
       else if (chase) want = "chase";
@@ -31113,11 +31125,17 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (!g.gig.band) {
         const n = +(g.gigBand || "band1").slice(4) || 1;
         const b2 = g.inside;
-        const sy = b2.y + b2.h * 0.10;
+        let sy = b2.y + b2.h * 0.10, kx = b2.x + b2.w * 0.50, ky = sy + 6, gx0 = b2.x + b2.w * 0.34, gx1 = b2.x + b2.w * 0.66, gy = sy + 26;
+        try {   // the deck and the kit are props of the room: stand the band on THEM, whatever size this venue came out
+          const pr = (buildingPlans(b2)[0] || {}).props || [];
+          const dk = pr.find((q) => q.t === "vn_main_stage"), kit = pr.find((q) => String(q.t).indexOf("vn_drumkit") === 0);
+          if (dk) { gx0 = dk.x + dk.w * 0.26; gx1 = dk.x + dk.w * 0.74; gy = dk.y + dk.h * 0.66; ky = dk.y + dk.h * 0.40; kx = dk.x + dk.w * 0.50; }
+          if (kit) { kx = kit.x + kit.w / 2; ky = kit.y + kit.h / 2; }
+        } catch (e) { /* the old fractions stand */ }
         g.gig.band = [
-          { x: b2.x + b2.w * 0.50, y: sy + 6, role: "drums" },
-          { x: b2.x + b2.w * 0.34, y: sy + 26, role: "guitar" },
-          { x: b2.x + b2.w * 0.66, y: sy + 26, role: "bass" },
+          { x: kx, y: ky, role: "drums" },
+          { x: gx0, y: gy, role: "guitar" },
+          { x: gx1, y: gy, role: "bass" },
         ].map((m, i) => ({
           ...m, n,
           yt: "bd_" + n + "_" + m.role,
@@ -31126,8 +31144,18 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       for (const m of g.gig.band) m.anim += dt * 5;
     }
+    /* The crowd was a mix of plates at their own scales: the grown-ups came out ~1.8x the player and the little ones ~0.5x.
+       Each one is sized once, from its own plate, to a width near the player's 36 (adults a touch over, kids a touch under). */
+    function gigSize(c, wantW) {
+      if (c.sized || !G.ytSizeT) return;
+      const sz = G.ytSizeT(c.yt, 1);
+      if (!sz || !sz.w) return;                     // plate not loaded yet: try again next frame
+      c.tall = clamp(wantW / (sz.w * 0.9), 0.45, 2.4); c.big = true; c.sized = 1;   // big: skip the plate caps, the size is ours
+    }
     function drawGig() {
       if (!g.gig) return;
+      for (const m of g.gig.band || []) gigSize(m, 36);
+      for (const c of g.gig.crowd) gigSize(c, /^st_/.test(c.yt) ? 36 : 31);
       // blue wash from the rig, and the whole room pulses on the beat
       const pulse = 0.5 + 0.5 * Math.sin(g.gig.t * 4.2);
       const b = g.inside;
@@ -31875,8 +31903,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     // LAYER 596: the hoverboard is drawn ON TOP of the kid, after the kid's own facing is undone, so it covers the skateboard
     function youthHover(p, tr) { if (p && /^yt_skater/.test(p.yt || "") && RUNNER_API.isOn()) { ctx.setTransform(tr); RUNNER_API.hoverKid(ctx, p.x, p.y, p.tall || 1); } }
     function drawYouth(p, angOverride, backOff) { const tr = ctx.getTransform(); const r = p && swimClip538(p.x, p.y, (p.tall || 1) * (p.hero ? 1.1 : 1));
-      if (!r) { const o0 = drawYouth0(p, angOverride, backOff); youthHover(p, tr); return o0; }
-      const out = drawYouth0(p, angOverride, backOff); swimRing538(p.x, p.y, r); youthHover(p, tr); return out; }
+      if (!r) { youthHover(p, tr); const o0 = drawYouth0(p, angOverride, backOff); return o0; }   // the board first, so the kid stands ON it
+      youthHover(p, tr); const out = drawYouth0(p, angOverride, backOff); swimRing538(p.x, p.y, r); return out; }
     G.ytSizeT = (yt, tall) => { const A0 = ARM_BY_YT[yt], AP = A0 && armsReady(A0) ? A0 : null; const im = AP ? imgs.current[AP.torso] : imgs.current[yt]; if (!im || !im.width) return null;
       const h = AP && AP.wid ? 30 * 0.82 * (tall || 1) * AP.wid * 0.8 / (im.width / im.height) : 30 * 0.82 * (tall || 1) * (AP ? AP.scale : (YT_SCALE[yt] || 1)), w = h * (im.width / im.height); return { w: +w.toFixed(1), h: +h.toFixed(1), arms: !!AP }; };   // test hook (layer 567)
     function drawYouth0(p, angOverride, backOff) {
@@ -32039,7 +32067,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ctx.save();
       ctx.translate(p.x + fdx, p.y + fdy);
       ctx.rotate(p.bang + (p.spin || 0));
-      if (im && im.width && !(RUNNER_API.isOn() && /^yt_skater/.test(p.yt || ""))) ctx.drawImage(im, -17, -7, 34, 14);   // LAYER 598: no skateboard in Runner Mode, the hoverboard is under the kid
+      if (RUNNER_API.isOn() && /^yt_skater/.test(p.yt || "")) { /* hoverboard only: no skateboard, and no black stand-in deck either */ }
+      else if (im && im.width) ctx.drawImage(im, -17, -7, 34, 14);
       else { ctx.fillStyle = "#15161a"; ctx.fillRect(-17, -5, 34, 10); }
       ctx.restore();
       // and the kid on it: sideways across the deck, back over the tail, turning with the spin
@@ -61161,7 +61190,9 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         rural: isRural(clamp(Math.floor(pv.x / PITCH), 0, N - 1), clamp(Math.floor(pv.y / PITCH), 0, N - 1)),
         night: g.night, paused: !!g.paused,
       });
+      RUNNER_API.songHold(!!(g.inside && g.inside.kind === "bandvenue" && !g.title));
       musicUpdate({
+        venue: !!(g.inside && g.inside.kind === "bandvenue"),
         title: !!g.title,
         zone: zoneOf(clamp(Math.floor(pv.x / PITCH), 0, N - 1), clamp(Math.floor(pv.y / PITCH), 0, N - 1)),
         chase: !!g.police || g.suspicion > 55 || g.crews.some((c) => c.state === "hostile"),
@@ -69301,8 +69332,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     if (knobRef.current) knobRef.current.style.transform = `translate(${k.x}px, ${k.y}px)`;
   };
 
+  const stickTap = useRef({ t0: 0, last: 0, moved: false });   // a quick double tap on the stick (no drag) is L3: the scan
   const stickStart = (e) => {
     e.preventDefault();
+    stickTap.current.t0 = performance.now(); stickTap.current.moved = false;
     const r = stick.current.getBoundingClientRect();
     move(e, r);
     const el = e.currentTarget;
@@ -69314,6 +69347,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     let dx = e.clientX - cx, dy = e.clientY - cy;
     const R = r.width / 2;
     const d = Math.hypot(dx, dy);
+    if (d > R * 0.3) stickTap.current.moved = true;
     if (d > R) { dx = (dx / d) * R; dy = (dy / d) * R; }
     input.current.x = dx / R; input.current.y = dy / R;
     setKnob({ x: dx, y: dy, on: true });
@@ -69321,6 +69355,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
   };
   const stickMove = (e) => { if (stickOn.current && !RUN_CUTSCENE) { e.preventDefault(); move(e); } };
   const stickEnd = (e) => {
+    { const tp = stickTap.current, now = performance.now();
+      if (!tp.moved && tp.t0 && now - tp.t0 < 260) {
+        if (tp.last && now - tp.last < 420) { tp.last = 0; if (RUNNER_API.isOn()) RUNNER_API.toggleLog(); }
+        else tp.last = now;
+      }
+      tp.t0 = 0; }
     input.current.x = 0; input.current.y = 0;
     RUNNER_API.touchStick(0, 0);   // LAYER 790
     setKnob({ x: 0, y: 0, on: false });
@@ -71216,6 +71256,34 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           deliberately self-contained renderer, not the shared btn() factory: that one also registers
           into G.acts for the pad-bridge `tap()` system and the wheel's `live()` scan, which these
           buttons have no business joining. */}
+      {/* a second way into the pause menu, lower centre where a thumb finds it (the top-left one sits under the title) */}
+      {rnOn && !hud.title && !padOn && !mapOpen && (
+        <div
+          onContextMenu={(e) => e.preventDefault()}
+          onPointerDown={(e) => { e.preventDefault(); setMapOpen(true); }}
+          style={{
+            position: "absolute", left: "50%", transform: "translateX(-50%)", bottom: 44, zIndex: 30, height: 40, padding: "0 20px",
+            borderRadius: 20, display: "flex", alignItems: "center", gap: 9, userSelect: "none", touchAction: "none", pointerEvents: "auto",
+            background: "rgba(10,11,14,0.72)", border: "1px solid #6ef0ff", color: "#6ef0ff", fontFamily: mono, fontSize: 12, letterSpacing: "0.14em",
+            WebkitUserSelect: "none", WebkitTouchCallout: "none", WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          <div style={{ display: "flex", gap: 3 }}><div style={{ width: 3, height: 12, background: "#6ef0ff" }} /><div style={{ width: 3, height: 12, background: "#6ef0ff" }} /></div>
+          MENU
+        </div>
+      )}
+      {rnOn && !hud.title && !padOn && RUNNER_API.laserDrawn() && (
+        <div
+          onContextMenu={(e) => e.preventDefault()}
+          onPointerDown={(e) => { e.preventDefault(); RUNNER_API.holster(); }}
+          style={{
+            position: "absolute", right: 236, bottom: 227, zIndex: 31, width: 88, height: 32, borderRadius: 6,
+            display: "flex", alignItems: "center", justifyContent: "center", userSelect: "none", touchAction: "none", pointerEvents: "auto",
+            background: "rgba(10,11,14,0.78)", border: "1px solid #e8c46a", color: "#e8c46a", fontFamily: mono, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em",
+            WebkitUserSelect: "none", WebkitTouchCallout: "none", WebkitTapHighlightColor: "transparent",
+          }}
+        >HOLSTER</div>
+      )}
       {rnOn && !hud.title && !padOn && (() => {
         const face = (key, label, sub, onDown, onUp, big) => {
           const s = big ? 62 : 56;
