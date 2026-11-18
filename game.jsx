@@ -16306,7 +16306,7 @@ const RUNNER_API = (function () {
      presses, it closes itself after TV_HOLD seconds. Scenes queue, with a burst of static between them. */
   const TV = { on: false, gap: 0, next: null, pic: null, full: '', tag: '', after: null, t: 0, shown: 0, done: false, hold: 0, queue: [], rep: null };
   const TV_HOLD = 20, TV_CPS = 40, TV_GAP = 0.6, TV_LOGO = 72;
-  const TV_PIC = { x: 64, y: 16, w: 832, h: 340 }, TV_BOX = { x: 64, y: 372, w: 760, h: 128 };
+  const TV_PIC = { x: 64, y: 16, w: 832, h: 340 }, TV_BOX = { x: 64, y: 372, w: 832, h: 128 };
   const TV_ART = {};   // the pictures as they are, with no keying: a card keeps every colour it has
   function loadTV(key, path) {
     const i = new Image();
@@ -16338,7 +16338,8 @@ const RUNNER_API = (function () {
     if (after) after();
   }
   // every frame: the typing, the hold, and the static between scenes
-  function tvTick(dt) {
+  function tvTick(dt) { try { tvTickInner(dt); } catch (e) { console.error('TV tick failed', e); tvSkipAll(); } }
+  function tvTickInner(dt) {
     if (!TV.on) { TV.clock = 0; return; }
     const nowS = performance.now() / 1000; dt = TV.clock ? Math.min(0.5, nowS - TV.clock) : dt; TV.clock = nowS;   // LAYER 738: the scene runs on the clock, not on the frame rate
     if (TV.gap > 0) { TV.gap -= dt; if (TV.gap <= 0) { const s = TV.next; if (s) tvStart(s); else tvEnd(); } return; }
@@ -16372,25 +16373,53 @@ const RUNNER_API = (function () {
   }
   // the screen: the picture, the caption, the replay look, and the C.A.N. logo last, in the bottom corner
   // the TV is drawn on a layer of its own, over the whole screen: the HUD and the menus sit under it, and it is placed over the game canvas
-  let tvLayer = null;
+  let tvLayer = null, tvSkipBtn = null;
+  // SKIP: drop the whole news run at once (every queued story), but still run each scene's "after" so nothing waits on it
+  function tvSkipAll() {
+    const afters = [TV.after].concat(TV.next ? [TV.next.after] : [], TV.queue.map((q) => q.after)).filter(Boolean);
+    Object.assign(TV, { on: false, gap: 0, next: null, queue: [], pic: null, full: '', after: null, tag: '', t: 0, shown: 0, done: false, hold: 0, rep: null, typeFrom: 0, clock: 0 });
+    tvHide();
+    afters.forEach((f) => { try { f(); } catch (e) { /* a dead callback must not trap the player */ } });
+  }
   function tvLayerFor(canvas) {
-    if (!tvLayer) { tvLayer = document.createElement('canvas'); tvLayer.style.cssText = 'position:fixed;pointer-events:none;z-index:1000;display:none'; document.body.appendChild(tvLayer); }
-    const r = canvas.getBoundingClientRect();
+    if (!tvLayer) {
+      // the layer takes taps itself: a tap finishes the caption, the next one closes the scene. Nothing underneath
+      // (the invisible touch buttons, the pause button, QUIT) can be hit by accident while a report is up.
+      tvLayer = document.createElement('canvas');
+      tvLayer.style.cssText = 'position:fixed;pointer-events:auto;touch-action:none;z-index:1000;display:none;background:#000';
+      tvLayer.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); tvKey(); });
+      tvLayer.addEventListener('contextmenu', (e) => e.preventDefault());
+      document.body.appendChild(tvLayer);
+      tvSkipBtn = document.createElement('div');
+      tvSkipBtn.textContent = 'SKIP \u25B8\u25B8';
+      tvSkipBtn.style.cssText = 'position:fixed;z-index:1001;display:none;transform:translateX(-50%);padding:10px 22px;border:1px solid #e8c46a;border-radius:20px;background:rgba(10,11,14,.82);color:#e8c46a;font:700 14px monospace;letter-spacing:.12em;user-select:none;-webkit-user-select:none;touch-action:none;-webkit-tap-highlight-color:transparent';
+      tvSkipBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); tvSkipAll(); });
+      document.body.appendChild(tvSkipBtn);
+    }
+    const r = canvas.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2);
     tvLayer.style.left = r.left + 'px'; tvLayer.style.top = r.top + 'px'; tvLayer.style.width = r.width + 'px'; tvLayer.style.height = r.height + 'px';
-    if (tvLayer.width !== canvas.width) tvLayer.width = canvas.width;
-    if (tvLayer.height !== canvas.height) tvLayer.height = canvas.height;
+    const pw = Math.max(1, Math.round(r.width * d)), ph = Math.max(1, Math.round(r.height * d));
+    if (tvLayer.width !== pw) tvLayer.width = pw;
+    if (tvLayer.height !== ph) tvLayer.height = ph;
     tvLayer.style.display = 'block';
+    tvSkipBtn.style.left = (r.left + r.width / 2) + 'px'; tvSkipBtn.style.top = (r.top + 10) + 'px'; tvSkipBtn.style.display = 'block';
     return tvLayer;
   }
-  function tvHide() { if (tvLayer) tvLayer.style.display = 'none'; }
+  function tvHide() { if (tvLayer) tvLayer.style.display = 'none'; if (tvSkipBtn) tvSkipBtn.style.display = 'none'; }
   // the runner is switched off in the middle of a scene: the scene is taken off the screen, and the queue with it
   function tvStop() { TV.on = false; TV.gap = 0; TV.next = null; TV.queue = []; TV.after = null; tvHide(); }
-  function tvDraw(canvas) {
+  function tvDraw(canvas) { try { tvDrawInner(canvas); } catch (e) { console.error('TV draw failed', e); tvSkipAll(); } }
+  function tvDrawInner(canvas) {
     if (!canvas) return;
     if (!TV.on) { tvHide(); return; }
     const cv = tvLayerFor(canvas), g = cv.getContext('2d');
-    const dpr = cv.width / W, t = performance.now() / 1000, gap = TV.gap > 0;
-    g.save(); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const t = performance.now() / 1000, gap = TV.gap > 0;
+    // fit the W x H scene inside the layer and centre it: a wide phone in landscape gets black bars at the sides
+    // instead of a stretched picture and a caption box pushed off the bottom
+    const fit = Math.min(cv.width / W, cv.height / H), ox = (cv.width - W * fit) / 2, oy = (cv.height - H * fit) / 2;
+    g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#000'; g.fillRect(0, 0, cv.width, cv.height);
+    g.save(); g.setTransform(fit, 0, 0, fit, ox, oy);
+    g.beginPath(); g.rect(0, 0, W, H); g.clip();
     g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
     if (!gap && TV.pic) {
       const pic = TV.rep ? null : TV_ART[TV.pic];
@@ -16429,10 +16458,10 @@ const RUNNER_API = (function () {
       g.font = '700 13px monospace'; g.textAlign = 'left'; g.fillStyle = 'rgba(255,40,40,.85)';
       if (Math.floor(t * 2) % 2 === 0) { g.beginPath(); g.arc(22, 22, 5, 0, 6.3); g.fill(); }
       g.fillText(TV.tag, 34, 27);
-      if (TV.done) { g.font = 'bold 12px monospace'; g.textAlign = 'right'; g.fillStyle = 'rgba(240,230,200,.8)'; g.fillText('PRESS A TO CLOSE', W - 22, 27); }
+      { g.font = 'bold 12px monospace'; g.textAlign = 'right'; g.fillStyle = 'rgba(240,230,200,.8)'; g.fillText(TV.done ? 'TAP OR PRESS A TO CLOSE' : 'TAP TO FINISH THE TEXT', W - 22, 27); }
     }
     const logo = TV_ART.tv_logo;
-    if (logo && logo.width) { g.globalAlpha = 0.9; g.drawImage(logo, W - 84, H - 84, TV_LOGO, TV_LOGO); g.globalAlpha = 1; }
+    if (logo && logo.width) { g.globalAlpha = 0.9; g.drawImage(logo, TV_PIC.x + TV_PIC.w - TV_LOGO - 10, TV_PIC.y + TV_PIC.h - TV_LOGO - 10, TV_LOGO, TV_LOGO); g.globalAlpha = 1; }
     g.restore();
   }
   /* ============ LAYER 732: THE CLOCK, THE RECORD, THE BACKGROUND TEAMS AND THE NEWS ============
@@ -16586,8 +16615,10 @@ const RUNNER_API = (function () {
     fresh.sort((a, b) => b.weight - a.weight || b.id - a.id);
     if (fresh.length) rOpener();   // LAYER 743
     fresh.slice(0, 4).forEach((e) => {
-      const figs = [{ pose: rPoseFor(e), col: e.team ? rTeamCol(e.team) : '#8a8f98', name: e.who }];
-      tvPlay('rep', ['REPORTING FROM ' + RZONE_NAME[e.zone] + '. ZONE ' + e.zone + '.', e.text], null, 'MORNING NEWS', { zone: e.zone, figs });
+      try {
+        const figs = [{ pose: rPoseFor(e), col: e.team ? rTeamCol(e.team) : '#8a8f98', name: e.who }];
+        tvPlay('rep', ['REPORTING FROM ' + (RZONE_NAME[e.zone] || '') + '. ZONE ' + e.zone + '.', e.text], null, 'MORNING NEWS', { zone: e.zone, figs });
+      } catch (err) { console.error('news story skipped', err); }
     });
   }
   // THE REPORTER. The zone's picture behind her, the zone's name on the screen, and the cohost at full length; then she
@@ -25900,6 +25931,14 @@ export default function IronLionLayer004() {
     };
     resize();
     window.addEventListener("resize", resize);
+    // phones fire "resize" before the rotated layout has settled, so the canvas kept its old pixel size and the picture
+    // came out stretched. Watch the canvas itself, and measure again once the rotation has finished.
+    let resizeTimer = 0;
+    const resizeSoon = () => { resize(); clearTimeout(resizeTimer); resizeTimer = setTimeout(resize, 300); };
+    window.addEventListener("orientationchange", resizeSoon);
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", resizeSoon);
+    const resizeObs = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => { if (cv.clientWidth !== W || cv.clientHeight !== H) resize(); }) : null;
+    if (resizeObs) resizeObs.observe(cv);
 
     /* ---------- textures ---------- */
     const PAT = {};
@@ -69248,7 +69287,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       };
     }
     raf = requestAnimationFrame(frame);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); window.removeEventListener("orientationchange", resizeSoon); if (window.visualViewport) window.visualViewport.removeEventListener("resize", resizeSoon); if (resizeObs) resizeObs.disconnect(); clearTimeout(resizeTimer); };
   }, [ready]);
 
   /* ---------- touch controls ---------- */
