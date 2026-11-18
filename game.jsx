@@ -24221,7 +24221,7 @@ export default function IronLionLayer004() {
     function musicUpdate({ title, zone, chase, indoors, paused, night, venue }) {
       const ctx = audio.current;
       if (!ctx) return;
-      if (RUNNER_API.isOn() && !title && !venue) { if (MUS.gain MUS.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.2); return; }
+      if (RUNNER_API.isOn() && !title && !venue) { if (MUS.gain) MUS.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.2); return; }
       let want = "drive";
       if (title) want = "title";
       else if (chase) want = "chase";
