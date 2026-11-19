@@ -15320,7 +15320,7 @@ const RUNNER_API = (function () {
     const buttons = []; for (let i = 0; i < 17; i++) buttons.push(btn(false));
     buttons[0] = btn(TOUCH.a); buttons[1] = btn(TOUCH.b); buttons[4] = btn(TOUCH.lb); buttons[5] = btn(TOUCH.rb);
     buttons[6] = btn(TOUCH.lt); buttons[7] = btn(TOUCH.rt); buttons[11] = btn(TOUCH.r3);
-    return { connected: true, axes: [TOUCH.x, TOUCH.y, 0, 0], buttons };
+    return { connected: true, virtual: true, axes: [TOUCH.x, TOUCH.y, 0, 0], buttons };   // virtual: the main game must not take this for a real pad (that hid the touch controls)
   }
   let cycleCooldown = 0, msg = '', msgT = 0;
   const pend = { land: false, exit: false, call: false, fire: false, target: false };
@@ -25384,7 +25384,7 @@ export default function IronLionLayer004() {
       else if (rmag541 < 0.3) G.rAim541 = null;
       if (armed541) {} else if (Math.abs(rx506) > 0.7 && Math.abs(rx506) > Math.abs(ry)) { if (!G.rxLatch && !menuOpts().length && G.switchTargetFn) { G.rxLatch = 1; G.switchTargetFn(rx506 > 0 ? 1 : -1); } } else if (Math.abs(rx506) < 0.35) G.rxLatch = 0;   // SWITCH target (layer 506b)
       const moving = Math.hypot(ax, ay) > dz;
-      if (!G.padOnNow && (moving || gp.buttons.some((q) => q && (q.pressed || q.value > 0.35)))) { G.padOnNow = 1; setPadOn(true); }
+      if (!gp.virtual && !G.padOnNow && (moving || gp.buttons.some((q) => q && (q.pressed || q.value > 0.35)))) { G.padOnNow = 1; setPadOn(true); }
       if (moving) { input.current.x = ax; input.current.y = ay; input.current.pad = 1; } else if (input.current.pad) { input.current.x = 0; input.current.y = 0; input.current.pad = 0; sprint = 0; }
       if (g && g.wire && G.wirePadGamepad) { G.wirePadGamepad(B, was); for (let i = 0; i < gp.buttons.length; i++) was[i] = B(i); return; }
       /* XBOX: THE TABLE (craps, slots, roulette, blackjack, poker). Stick / D-pad walk the buttons on screen, A presses the lit one,
