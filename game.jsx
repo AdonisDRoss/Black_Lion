@@ -15739,6 +15739,7 @@ const RUNNER_API = (function () {
   const SUMMON_R = 900;
   // LAYER 639: the bike comes down on a clear spot beside you, so you can always get to it from the ground
   function callBike() {
+    if (hoverOwned) return callHoverBike();   // the caller has no range
     if (Math.hypot(car.x - walker.x, car.y - walker.y) > SUMMON_R) return say('THE BIKE IS TOO FAR AWAY TO CALL. GO BACK TOWARD IT.', 3);   // LAYER 722
     const sp = clearSpot(walker.x + 60, walker.y, null) || { x: walker.x + 60, y: walker.y };
     car.x = sp.x; car.y = sp.y; car.z = AIR_Z; car.mode = 'down'; car.speed = 0; car.lean = 0; car.heading = -Math.PI / 2;
@@ -15779,6 +15780,7 @@ const RUNNER_API = (function () {
     if (storyTalk()) return;   // LAYER 705: an informant or the doctor beside him
     if (PMB.inside) return;    // LAYER 709: in the bar the bike and the pack stay put
     if (runnerInside) { if (fromPad && worldActHook) worldActHook(); return; }   // LAYER 746: indoors, the bike, the cars, the bag and the stashes are outside things: only the building's own action runs
+    if (secretNear()) { secretOpen(); return; }   // the secret stash: no prompt, you have to know
     const packSpot = packStashNear(); if (packSpot) { packPickup(packSpot); return; }   // LAYER 673: E by a pack stash
     if (stashNear()) { pickLaser(); return; }   // LAYER 670: E by the stash picks up the laser pistol
     if (caseNear()) { pickCase(); return; }     // LAYER 679: E by the case picks it up
@@ -18298,7 +18300,7 @@ const RUNNER_API = (function () {
     if (canKnown && !inHosp) { tx = canKnown.x; ty = canKnown.y; }   // LAYER 680: they go to his last reported place
     if (RUN_ESC.search > 0 && RUN_ESC.at && !inHosp) { tx = RUN_ESC.at.x; ty = RUN_ESC.at.y; }   // LAYER 694: searching, they go to where they last saw him
     const now = performance.now(), dt = Math.min(0.05, (now - (huntLast || now)) / 1000); huntLast = now;
-    if (inHosp && !alertOn) {
+    if (inHosp && !alertOn && (!houseSeen || canUp())) {   // the opening's hospital chase is the story; after it, the hospital only brings them at night
       alertOn = true; hunters = []; const arts = huntArts();
       for (let k = 0; k < HUNT.n; k++) {
         const a = (k / HUNT.n) * Math.PI * 2 + rnd(-0.4, 0.4);
@@ -18307,6 +18309,11 @@ const RUNNER_API = (function () {
       say('THE HUNTERS KNOW WHERE YOU ARE. GET FAR ENOUGH AWAY FOR THE BAR TO EMPTY.', 5);
     }
     if (!alertOn) { ROB.h = null; ROB.t = 0; return; }
+    // daylight sends them home: once he has a house, a hunt that is still running when the night window closes (06:00) is called off
+    if (houseSeen && !inHosp && !canUp() && MISSION.stage !== 'tutorial') {
+      alertOn = false; hunters = []; canKnown = null; RUN_ESC.t = 0; RUN_ESC.search = 0; RUN_ESC.at = null;
+      say('DAYLIGHT. THE HUNTERS HAVE GONE BACK IN.', 4); return;
+    }
     let dmin = Infinity;
     for (const h of hunters) {
       if (h.dead) { h.dying -= dt; continue; }
@@ -21513,6 +21520,7 @@ const RUNNER_API = (function () {
         { label: 'EQUIPMENT', sub: kit ? kit + ' ON YOU' : 'NONE YET', icon: PD_ART.hud_equipment, id: 'cat:equipment' },
         { label: 'ITEMS', sub: 'FOOD · MEDS · DRUGS', icon: PD_ART.hud_items, id: 'cat:items' },
         ...(phoneOwned ? [{ label: 'PHONE', sub: 'HOLO · THE CONTACTS', icon: PD_ART.hud_holophone || null, id: 'gear:phone' }] : []),
+        ...(hoverOwned ? [{ label: 'HOVER BIKE', sub: 'CALL IT · ON THE PHONE', icon: PD_ART.hud_holophone || null, id: 'gear:hover' }] : []),
         { label: 'CYBERWEAR', sub: RUNNER_CYBER.length ? RUNNER_CYBER.length + ' FITTED' : 'NONE FITTED', icon: PD_ART.hud_cyberwear, id: 'cat:cyber' },
       ];
     }
@@ -21537,7 +21545,7 @@ const RUNNER_API = (function () {
     if (cat === 'food' || cat === 'meds' || cat === 'drugs') return [{ label: 'NOTHING YET', sub: 'THIS KIND IS NOT BUILT YET', icon: null, id: 'gear:none' }, back('items')];
     if (cat === 'cyber') {
       const out = RUNNER_CYBER.length
-        ? RUNNER_CYBER.map((c, i) => ({ label: c.name || 'CYBERWEAR', sub: 'VIEW · EQUIP NEEDS A CYBERSURGEON', icon: PD_ART.hud_cyberwear, id: 'gear:cyber' + i }))
+        ? RUNNER_CYBER.map((c, i) => ({ label: c.name || 'CYBERWEAR', sub: 'FITTED', icon: PD_ART.hud_cyberwear, id: 'gear:cyber' + i }))
         : [{ label: 'NO CYBERWEAR', sub: 'A CYBERSURGEON FITS IT', icon: null, id: 'gear:none' }];
       return [...out, back('top')];
     }
@@ -21629,6 +21637,7 @@ const RUNNER_API = (function () {
     if (k === 'pack') { if (!packOn) return; packOff = !packOff; say(packOff ? 'BACKPACK TAKEN OFF. NOT SHOWING.' : 'BACKPACK ON.', 3); }
     else if (k === 'vest') { if (!vestHave || !vestSet) return; const on = !vestWorn; vestWorn = on; if (on && vestHp == null) vestHp = VEST_MAX; vestSet({ vestOn: on ? 1 : 0 }); say(on ? 'VEST ON. THE BLUE BAR IS YOUR VEST.' : 'VEST OFF.', 3); }
     else if (k === 'phone') { if (!phoneOwned) return; if (phoneHook) phoneHook(); }
+    else if (k === 'hover') { if (hoverOwned) callHoverBike(); }
     else if (k === 'mask') { if (!gasOwned) return; setMask(!mask); say(mask ? 'GAS MASK ON.' : 'GAS MASK OFF.', 3); }
     else if (k === 'bag') { if (!sleepOwned || lying) return; if (sleepDown) pickBag(); else putBag(); }   // LAYER 692: not while he lies on it
     else if (k === 'lie') startLie();
@@ -21637,7 +21646,7 @@ const RUNNER_API = (function () {
     else if (k === 'bed:no') return;                                               // LAYER 717: NEVER MIND
     else if (k.startsWith('sleep:')) wakeAt(k.slice(6));
     else if (k === 'none') say('NOTHING TO USE HERE YET.', 2.5);
-    else if (k.startsWith('cyber')) say('TO EQUIP CYBERWEAR YOU NEED A CYBERSURGEON. SURGEONS COME LATER.', 4);
+    else if (k.startsWith('cyber')) { const c1 = RUNNER_CYBER[+k.slice(5)]; say(c1 ? c1.name + ' IS FITTED.' : 'TO EQUIP CYBERWEAR YOU NEED A CYBERSURGEON. SURGEONS COME LATER.', 4); }
   }
   // THE SHOCK COLLAR: a translucent red light on the neck. It blinks, faster the closer the nearest hunter is.
   function collarHz() { return 0.7 + 7 * clamp((1100 - collarNear) / 1100, 0, 1); }
@@ -21778,6 +21787,35 @@ const RUNNER_API = (function () {
   let saveHook = null;        // the game's save, set from the component (setSaveHook): the checkpoint at the end of the night run
   let sleepHook = null;       // LAYER 692: the game's black, radial and sleep fade, set from the component (setSleepHook)
   let packsPlaced = false;
+  /* THE SECRET STASH (Donny's): nothing marks it, no prompt, no dot on the map. It is out past the east edge of the C.A.N. lot. Stand on it
+     and press A or E and it gives you everything: every weapon, the cyberwear fitted, the vest and the phone, the pistol chip, and a
+     hover bike caller. The hover bike REPLACES the dirt bike for good, and it is called from the Y wheel or X, from anywhere. */
+  const SECRET = { x: 0, y: 0, set: false, got: false };
+  let hoverOwned = false, secretReq = false;
+  const CYBER_KIT = [['CYBER EYES', 'Both eyes. Night, thermal, range.'], ['CHEST PLATE', 'Subdermal armour weave.'], ['SPINAL LINK', 'Reflex booster on the spine.'], ['L ARM SERVO', 'Left arm: strength.'],
+    ['R ARM SERVO', 'Right arm: strength.'], ['L HAND MODS', 'Left hand: grip, blades.'], ['R HAND MODS', 'Right hand: grip, blades.'], ['L LEG ACTUATOR', 'Left leg: speed.'], ['R LEG ACTUATOR', 'Right leg: speed.']];
+  function fillCyber() { RUNNER_CYBER.length = 0; CYBER_KIT.forEach((c) => RUNNER_CYBER.push({ name: c[0], desc: c[1], kg: 0.3, icon: null })); }
+  function secretNear() {
+    if (SECRET.got || !walker.on || runnerInside || lobby || !CAN_LOT_RECT) return false;
+    if (!SECRET.set) { const L = canRect().lot, sp = clearSpot(L[2] + 420, (L[1] + L[3]) / 2 + 90, null) || { x: L[2] + 420, y: (L[1] + L[3]) / 2 + 90 }; SECRET.x = sp.x; SECRET.y = sp.y; SECRET.set = true; }
+    return Math.hypot(walker.x - SECRET.x, walker.y - SECRET.y) < 70;
+  }
+  function secretOpen() {
+    SECRET.got = true; secretReq = true;
+    LASER.has = true; LASER.chip = true; LASER.locked = false;
+    gasOwned = true; sleepOwned = true; phoneOwned = true; hoverOwned = true; fillCyber();
+    car.sprite = ownBikeIndex();   // the dirt bike is gone: the hover bike is the one he has
+    say('THE STASH. EVERY WEAPON, ALL THE CYBERWEAR, A HOVER BIKE CALLER. THE HOVER BIKE REPLACES THE DIRT BIKE.', 7);
+  }
+  function takeStash() { const r = secretReq; secretReq = false; return r; }
+  // the hover bike comes from anywhere: down from the sky beside him, no range
+  function callHoverBike() {
+    if (!walker.on) return say('YOU ARE ON THE BIKE', 2);
+    if (lobby || runnerInside) return say('GET OUTSIDE FIRST. THE BIKE CANNOT COME IN.', 3);
+    const sp = clearSpot(walker.x + 60, walker.y, null) || { x: walker.x + 60, y: walker.y };
+    car.sprite = ownBikeIndex(); car.x = sp.x; car.y = sp.y; car.z = AIR_Z; car.mode = 'down'; car.speed = 0; car.lean = 0; car.heading = -Math.PI / 2;
+    say('HOVER BIKE INBOUND.', 3);
+  }
   const PACK_STASH = [];      // { kind, x, y, got }
   function packStashStart() {
     packsPlaced = true;
@@ -22625,6 +22663,7 @@ const RUNNER_API = (function () {
   // THE RUNNER'S OWN BIKE: the dirt bike in his team's colour (the suit is the team; the four rtbike sprites are the four teams).
   // The hover bike is a later unlock, so it is no longer his bike at the start.
   function ownBikeIndex() {
+    if (hoverOwned && BIKE_INDEX >= 0) return BIKE_INDEX;   // the stash's hover bike replaces the dirt bike
     const t = RTEAMS.find((q) => q.col === RUNNER_LOOK.suit) || RTEAMS[0];
     const i = CAR_FILES.indexOf('rtbike_' + t.k);
     return i >= 0 ? i : BIKE_INDEX;
@@ -22680,7 +22719,7 @@ const RUNNER_API = (function () {
     // on release -- readPad() folds both into the same fields the gamepad poll already fills.
     touchStick: (x, y) => { TOUCH.x = x || 0; TOUCH.y = y || 0; },
     touchBtn: (k, on) => { if (TOUCH.hasOwnProperty(k)) TOUCH[k] = !!on; },
-    touchPad,
+    touchPad, takeStash,
     keepOut, canSpawn, windTrash,
     overlay,
     augments,
@@ -22751,7 +22790,7 @@ const RUNNER_API = (function () {
       gear: { laser: { has: LASER.has, mode: LASER.mode, locked: LASER.locked, chip: LASER.chip }, evidence: RPOL.evidence ? Object.assign({}, RPOL.evidence) : null,
         gas: gasOwned, sleep: sleepOwned, bag: sleepDown ? { x: sleepDown.x, y: sleepDown.y, h: sleepDown.h } : null,
         packOn, packOff, packsPlaced, stash: PACK_STASH.map((q) => ({ kind: q.kind, x: q.x, y: q.y, got: q.got })),
-        vest: { have: vestHave, worn: vestWorn, hp: vestHp }, phone: phoneOwned } }),
+        vest: { have: vestHave, worn: vestWorn, hp: vestHp }, phone: phoneOwned, secretGot: SECRET.got, hover: hoverOwned } }),
     loadData: (d) => {
       if (!d || !d.look) return false;
       RUNNER_API.setLook(d.look);
@@ -22771,6 +22810,7 @@ const RUNNER_API = (function () {
         if (k.packsPlaced) { packsPlaced = true; PACK_STASH.length = 0; (k.stash || []).forEach((q) => PACK_STASH.push({ kind: q.kind, x: q.x, y: q.y, got: !!q.got })); }
         if (k.vest) { vestHave = !!k.vest.have; vestWorn = !!k.vest.worn; vestHp = k.vest.hp == null ? null : +k.vest.hp; }
         phoneOwned = !!k.phone;
+        SECRET.got = !!k.secretGot; hoverOwned = !!k.hover; if (SECRET.got) { LASER.has = true; fillCyber(); }
       }
       missionHidden = false;
       return true;
@@ -24383,6 +24423,7 @@ export default function IronLionLayer004() {
 
   const [zoomUI, setZoomUI] = useState(1);
   const [padWheel, setPadWheel] = useState(null);
+  const [wireUI, setWireUI] = useState(false);       // jacked in: the Wire's touch controls show above its canvas
   const [padOn, setPadOn] = useState(false);          // a controller is being used: the touch buttons and stick get out of the way (layer 508)     // the pad's ACTION WHEEL (layer 507) -- its own state: the HUD tick replaces hud wholesale
   const [hud, setHud] = useState({ mode: "foot", mph: 0, place: "", night: false });
   const [mapOpen, setMapOpen] = useState(false);
@@ -44921,6 +44962,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        carry: he takes a gun off a man who was carrying it, uses it until it is empty, and it is
        gone. That gives ammo scarcity for free, keeps the weapon somebody else's, and makes
        every shot a decision rather than a loadout. Melee stays the default and always works. */
+    G.wpnKeys = () => Object.keys(WPN_AMMO);
     const WPN_AMMO = { pistol_compact: 5, pistol_large: 6, pistol_saw: 4,
                        revolver_snub: 5, revolver_long: 6,
                        pistol_auto: 7, beretta: 12, revolver: 6, smg_uzi: 14, smg_hk: 16,
@@ -61224,6 +61266,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         night: g.night, paused: !!g.paused,
       });
       RUNNER_API.songHold(!!(g.inside && g.inside.kind === "bandvenue" && !g.title));
+      if (RUNNER_API.takeStash()) grantAllGear();
       musicUpdate({
         venue: !!(g.inside && g.inside.kind === "bandvenue"),
         title: !!g.title,
@@ -61341,6 +61384,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     function wireJackIn() {
       const g = G.current; if (!g || g.wire || !g.inside) return;
       if (wireCv.current) wireCv.current.style.display = "block";
+      setWireUI(true);
       const hosts = wireBuildIndex();
       const here = hosts.find((h) => h.b === g.inside) || null;
       g.wire = { hosts, home: { x: g.p.x, y: g.p.y }, x: here ? here.mx : 0, y: here ? here.my : 0,
@@ -61356,6 +61400,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       window.removeEventListener("pointerdown", wireClick, true);
       RUNNER_API.wmJackOut();   // LAYER 778: a jack-out in the WINDI run leaves it to be done again from the terminal
       if (wireCv.current) wireCv.current.style.display = "none";
+      setWireUI(false);
       g.wire = null;
       /* only the traces left on hosts carry over: the Wire's own trace badges go with you */
       WIRE_HEAT.n = 0; WIRE_HEAT.cold = 0;
@@ -61367,6 +61412,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function wireClick(e) {
       const g = G.current; const W0 = g && g.wire; if (!W0) return;
+      if (e.target && e.target.closest && e.target.closest("[data-wirectl]")) return;   // a tap on the Wire's own buttons or stick is not a click-to-move
       const cv = wireCv.current; if (!cv) return;
       const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       const P = W0.pad;
@@ -61861,6 +61907,16 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     };
     G.wireAct = () => wireHackNearest();
     G.wirePadGamepad = (B, was) => wirePadGamepad(B, was);   // the gamepad frame is another scope; it reaches the Wire through G
+    // THE SECRET STASH, the main game's half: every weapon in the rack, the chip, the phone, the vest on
+    function grantAllGear(quiet) {
+      const keys = G.wpnKeys ? G.wpnKeys() : [];
+      g.rack = g.rack || [];
+      keys.forEach((k) => { if (g.rack.indexOf(k) < 0) g.rack.push(k); });
+      g.laserChip = 1; g.phoneOwned = 1; g.vestHave = 1;
+      if (!g.vestOn && G.vestWear548) G.vestWear548(true);
+      if (!quiet) g.pickupFlash = { nm: "lift:THE STASH \u00b7 EVERY WEAPON, THE CYBERWEAR, A HOVER BIKE", t: 3.5 };
+    }
+    G.grantAllGear = grantAllGear;
     function frameBody(now) {
       if (G.current && G.current.wire) { wireFrame(now); return; }   // jacked in: the Wire has the frame
       // LAYER 701: the vest takes the damage first. Any drop in his health since last frame, from any source, goes to the vest
@@ -69855,7 +69911,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         </div>
       ) : null}
       {fbOn && <FootballShell onExit={() => setFbOn(false)} />}
-      {rnOn && <RunnerShell onStart={() => G.runnerEnterCan && G.runnerEnterCan()} onLoad={(d) => { const g0 = G.current; if (g0 && g0.p) g0.p.cash = +d.cash || 0; if (g0 && d.gear) { g0.vestHave = d.gear.vest && d.gear.vest.have ? 1 : 0; g0.vestOn = d.gear.vest && d.gear.vest.worn ? 1 : 0; g0.phoneOwned = d.gear.phone ? 1 : 0; } }} onExit={() => { setRnOn(false); if (G.current) G.current.title = true; setHud((h) => ({ ...h, title: true })); }} />}
+      {rnOn && <RunnerShell onStart={() => G.runnerEnterCan && G.runnerEnterCan()} onLoad={(d) => { const g0 = G.current; if (g0 && g0.p) g0.p.cash = +d.cash || 0; if (g0 && d.gear) { g0.vestHave = d.gear.vest && d.gear.vest.have ? 1 : 0; g0.vestOn = d.gear.vest && d.gear.vest.worn ? 1 : 0; g0.phoneOwned = d.gear.phone ? 1 : 0; if (d.gear.secretGot && G.grantAllGear) G.grantAllGear(true); } }} onExit={() => { setRnOn(false); if (G.current) G.current.title = true; setHud((h) => ({ ...h, title: true })); }} />}
       {/* ---------- title ----------
           Drawn over the live attract-mode flyover, so the background is the actual city with
           its actual traffic and lights rather than a still. */}
@@ -71230,6 +71286,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       {/* bottom-left: joystick */}
       <div
         ref={stick}
+        data-wirectl="1"
         onContextMenu={(e) => e.preventDefault()}
         onPointerDown={stickStart}
         onPointerMove={stickMove}
@@ -71239,7 +71296,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           position: "absolute", left: 18, bottom: 22, width: 132, height: 132, borderRadius: "50%",
           display: hud.title || padOn ? "none" : "block",
           border: "1px solid rgba(217,164,65,0.35)", background: "rgba(12,13,17,0.5)",
-          touchAction: "none", zIndex: 30, pointerEvents: "auto",
+          touchAction: "none", zIndex: wireUI ? 70 : 30, pointerEvents: "auto",
           userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none",
           WebkitTapHighlightColor: "transparent",
         }}
@@ -71289,6 +71346,20 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           deliberately self-contained renderer, not the shared btn() factory: that one also registers
           into G.acts for the pad-bridge `tap()` system and the wheel's `live()` scan, which these
           buttons have no business joining. */}
+      {/* the Wire's touch controls: its canvas (z 60) covers the normal ones, so these ride above it */}
+      {wireUI && !hud.title && !padOn && (
+        <div data-wirectl="1" style={{ position: "absolute", right: 18, bottom: 22, zIndex: 70, display: "flex", flexDirection: "column", gap: 8, pointerEvents: "none" }}>
+          {[["HACK", "e", "#6ef0ff"], ["PULSE", "f", "#8dffc0"], ["MINE", "g", "#8dffc0"], ["JACK OUT", "q", "#ff9a6a"]].map(([label, key, col]) => (
+            <div key={key}
+              onContextMenu={(e) => e.preventDefault()}
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); G.wireKey && G.wireKey(key); }}
+              style={{ width: 104, height: 44, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", touchAction: "none",
+                userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none", WebkitTapHighlightColor: "transparent",
+                background: "rgba(2,14,10,0.82)", border: "2px solid " + col, color: col, fontFamily: mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.12em" }}
+            >{label}</div>
+          ))}
+        </div>
+      )}
       {/* a second way into the pause menu, lower centre where a thumb finds it (the top-left one sits under the title) */}
       {rnOn && !hud.title && !padOn && !mapOpen && (
         <div
