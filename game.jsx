@@ -15002,7 +15002,7 @@ const RUNNER_API = (function () {
     cars_39e0f112_1: { len: 100, nose: Math.PI, dark: [20, 60, 62], light: [120, 220, 215], glow: '#3affe0' },  // Halcyon sedan (guessed nose)
     cars_4eb54de1_1: { len: 100, nose: Math.PI, dark: [20, 60, 62], light: [120, 220, 215], glow: '#3affe0' },  // Halcyon taxi (guessed nose)
     cars_6093fd94_1: { len: 104, nose: Math.PI, dark: [70, 35, 10], light: [240, 150, 60], glow: '#ff8a2a' },  // Meridian cargo
-    cars_a9a16625_1: { len: 100, nose: Math.PI / 2, dark: [70, 35, 10], light: [240, 150, 60], glow: '#ff8a2a', open: true },   // the news van (a box van with a satellite dish; open: its riders show)  // Meridian news: nose at the top of the art, so +PI/2 (was -PI/2, which flew it backwards)
+    cars_a9a16625_1: { len: 100, nose: Math.PI / 2, dark: [70, 35, 10], light: [240, 150, 60], glow: '#ff8a2a' },   // the news van: a roofed box van with a dish, so its riders are hidden (it was flagged open, which drew them on top of the roof)  // Meridian news: nose at the top of the art, so +PI/2 (was -PI/2, which flew it backwards)
     cars_d049053c_1: { len: 102, nose: Math.PI, dark: [14, 52, 22], light: [90, 200, 110], glow: '#4dff7a', alt: { rect: [410, 124, 884, 392], dark: [70, 36, 14], light: [240, 170, 80] } },  // Kestrel patrol: LAYER 659, the open cabin (seats and bed) in amber
     cars_f238fa36_1: { len: 102, nose: Math.PI, dark: [14, 52, 22], light: [90, 200, 110], glow: '#4dff7a' },  // Kestrel armed patrol: a turret in the bed
     cars_6775c1f3_1: { len: 104, nose: 0, dark: [40, 46, 30], light: [150, 160, 110], glow: '#b8ff3a' },    // bank armoured car
@@ -15304,6 +15304,23 @@ const RUNNER_API = (function () {
     const press = y && !padYPrev; padYPrev = y;
     const out = dismountWanted || press; dismountWanted = false;
     return out;
+  }
+  /* The touch cluster is also a gamepad to the MAIN game. The main game's pad poll quit the moment no real controller was connected,
+     so A on the screen only ever reached Runner's own handlers: talking, computers, doors and the rest of doAction() answered to a
+     real A button and nothing else. Now, while a touch button is held (and for a few frames after, so the poll sees the release),
+     the poll is handed a pad built from the same TOUCH state. Menus are left to direct taps: no virtual pad while one is open. */
+  let touchPadHold = 0;
+  function touchPad() {
+    if (!RUN_ON || RUN_CUTSCENE) return null;
+    const down = TOUCH.a || TOUCH.b || TOUCH.lb || TOUCH.rb || TOUCH.lt || TOUCH.rt || TOUCH.r3;
+    if (down) touchPadHold = 4; else if (touchPadHold > 0) touchPadHold--;
+    if (!touchPadHold) return null;
+    if (down && document.querySelector('[data-mapopt],[data-tabbar],[data-radialinfo],[data-talkwheel],[data-statopt]')) return null;
+    const btn = (on) => ({ pressed: !!on, value: on ? 1 : 0 });
+    const buttons = []; for (let i = 0; i < 17; i++) buttons.push(btn(false));
+    buttons[0] = btn(TOUCH.a); buttons[1] = btn(TOUCH.b); buttons[4] = btn(TOUCH.lb); buttons[5] = btn(TOUCH.rb);
+    buttons[6] = btn(TOUCH.lt); buttons[7] = btn(TOUCH.rt); buttons[11] = btn(TOUCH.r3);
+    return { connected: true, axes: [TOUCH.x, TOUCH.y, 0, 0], buttons };
   }
   let cycleCooldown = 0, msg = '', msgT = 0;
   const pend = { land: false, exit: false, call: false, fire: false, target: false };
@@ -22663,6 +22680,7 @@ const RUNNER_API = (function () {
     // on release -- readPad() folds both into the same fields the gamepad poll already fills.
     touchStick: (x, y) => { TOUCH.x = x || 0; TOUCH.y = y || 0; },
     touchBtn: (k, on) => { if (TOUCH.hasOwnProperty(k)) TOUCH[k] = !!on; },
+    touchPad,
     keepOut, canSpawn, windTrash,
     overlay,
     augments,
@@ -25355,7 +25373,7 @@ export default function IronLionLayer004() {
       return false; };
     const poll = () => {
       raf2 = requestAnimationFrame(poll);
-      const pads = navigator.getGamepads ? navigator.getGamepads() : []; const gp = pads && [...pads].find((q) => q && q.connected); if (!gp) return;
+      const pads = navigator.getGamepads ? navigator.getGamepads() : []; let gp = pads && [...pads].find((q) => q && q.connected); if (!gp) { gp = RUNNER_API.touchPad(); if (!gp) return; }   // no real pad: the touch cluster stands in for one
       if (RUN_CUTSCENE) { input.current.x = 0; input.current.y = 0; input.current.run = false; input.current.fire = false; input.current.pad = 0; return; }   // the cutscene: the pad moves nothing until the city
       const g = G.current, car = g && g.mode !== "foot";
       const B = (i) => !!(gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > 0.35));
