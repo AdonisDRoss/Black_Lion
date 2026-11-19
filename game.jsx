@@ -11312,6 +11312,7 @@ const OPTIONAL_ART = new Set(["ui_cuffs", "pr_roof_donblock", "plate_emblem", "a
 for (const k of ["st_wood_up", "st_wood_2", "st_conc", "st_lino", "dr_shop_door", "dr_shop_double"]) PD_ART[k] = "assets/interiors/" + k + ".png";      // layer 559: stairs, shop doors
 for (const a of ["grocery", "bar", "liquor", "diner", "pawn"]) for (const v of ["a", "b"]) { PD_ART["int_" + a + "_" + v] = "assets/interiors/int_" + a + "_" + v + ".png"; OPTIONAL_ART.add("int_" + a + "_" + v); }      // layer 556: the painted shops, as they come      // + the vest plate, when it comes (layer 548)
 PD_ART.ar_vest_kevlar = "assets/arms/ar_vest_kevlar.png";   // the manor roof came in with layer 477
+PD_ART.it_gamebox = "data:image/png;base64,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";   // the GAME BOX (8-BIT POCKET), cut from Donny's art, embedded so it needs no hosted file
 PD_ART.hud_holophone = "assets/runner/hud/icon_holophone.png";   // LAYER 702: the holophone's icon on the Y wheel (only shows once he has one)
 OPTIONAL_ART.add("hud_holophone");
 PD_ART.hud_lasermode = "assets/runner/hud/icon_lasermode.png"; OPTIONAL_ART.add("hud_lasermode");   // LAYER 735: the MODE (STUN / HARM) item on the laser wheel
@@ -15710,7 +15711,9 @@ const RUNNER_API = (function () {
   function resetRunner() {
     placed = false; camSmooth = null; car.speed = 0; car.lean = 0; walker.on = false; fliers.length = 0;
     if (!RUNNER_LOOK.chosen) rollRunnerLook();          // built in the builder: kept; otherwise a random look
-    RUNNER_LOOK.profile = profileFace(RUNNER_LOOK.body);   // LAYER 704: his profile picture, matched to his build, each run
+    // his profile picture is matched to his build and rolled only when none is set: the one he picked in the builder, or the one in a loaded
+    // slot, is KEPT (this line re-rolled it on every run start, which is why a reload came back with a face he never chose)
+    if (!RUNNER_LOOK.chosen || !RUNNER_LOOK.profile) RUNNER_LOOK.profile = profileFace(RUNNER_LOOK.body);
   }
   // the first frame in Runner Mode: the bike starts where the game camera is
   function place() {
@@ -15780,6 +15783,7 @@ const RUNNER_API = (function () {
     if (storyTalk()) return;   // LAYER 705: an informant or the doctor beside him
     if (PMB.inside) return;    // LAYER 709: in the bar the bike and the pack stay put
     if (runnerInside) { if (fromPad && worldActHook) worldActHook(); return; }   // LAYER 746: indoors, the bike, the cars, the bag and the stashes are outside things: only the building's own action runs
+    const bxf = boxNear(); if (bxf) { boxPick(bxf); return; }   // a Game Box lying in the street
     if (secretNear()) { secretOpen(); return; }   // the secret stash: no prompt, you have to know
     const packSpot = packStashNear(); if (packSpot) { packPickup(packSpot); return; }   // LAYER 673: E by a pack stash
     if (stashNear()) { pickLaser(); return; }   // LAYER 670: E by the stash picks up the laser pistol
@@ -16142,8 +16146,9 @@ const RUNNER_API = (function () {
     const m = Math.hypot(sx, sy);
     if (m > 0.05) {
       walker.step = (walker.step || 0) + dt * 11;     // LAYER 593: the legs swing while he walks
-      walker.x += sx / m * 150 * Math.min(1, m) * dt;
-      walker.y += sy / m * 150 * Math.min(1, m) * dt;
+      const wk = 150 * (1 + 0.08 * cybN('legL', 'legR'));   // the leg actuators
+      walker.x += sx / m * wk * Math.min(1, m) * dt;
+      walker.y += sy / m * wk * Math.min(1, m) * dt;
       walker.heading = Math.atan2(sy, sx);
     }
     walker.x = clamp(walker.x, 40, SX(N) - 40); walker.y = clamp(walker.y, 40, SX(N) - 40);
@@ -18705,9 +18710,10 @@ const RUNNER_API = (function () {
   // a teammate's shot lands on the Lion: he sits still for a while, and drops the case if he has it
   function stunPlayer(m) {
     rlog('runner_stunned', { who: m.name, zone: rZoneAt(walker.x, walker.y) });   // LAYER 732
-    PSTUN.t = STUN_PLAYER; PSTUN.x = walker.x; PSTUN.y = walker.y;
+    const stunLen = STUN_PLAYER * (cyb('spine') ? 0.5 : 1);   // the spinal link
+    PSTUN.t = stunLen; PSTUN.x = walker.x; PSTUN.y = walker.y;
     if (LOOSE.holder === 'player') { dropCaseAt(walker.x, walker.y); say(m.name + ' STUNNED YOU. THE CASE IS ON THE GROUND.', 4); }
-    else say(m.name + ' STUNNED YOU. SITTING STILL FOR ' + STUN_PLAYER + ' SECONDS.', 3);
+    else say(m.name + ' STUNNED YOU. SITTING STILL FOR ' + stunLen + ' SECONDS.', 3);
   }
   // the Lion's stun lands on a teammate: he drops the case if he has it
   function mateHit(m) {
@@ -18826,18 +18832,37 @@ const RUNNER_API = (function () {
     c.scale(S * hk, S * hk); c.drawImage(hd, -hd.width / 2, -hd.height / 2);
     c.restore();
   }
+  // THE PARTNER ON A BIKE: when you call yours or ride it, he calls his (it drops in beside him) and rides along. A dirt bike in his team
+  // colour, or the hover bike once you have the caller. He is drawn on it with his own look.
+  function drawMateBike(c, m) {
+    const t = RTEAMS.find((q) => q.col === (m.look && m.look.suit)) || RTEAMS[0];
+    const idx = hoverOwned ? BIKE_INDEX : CAR_FILES.indexOf('rtbike_' + t.k);
+    if (idx < 0) return false;
+    const L0 = { head: RUNNER_LOOK.head, suit: RUNNER_LOOK.suit, body: RUNNER_LOOK.body, bodyK: RUNNER_LOOK.bodyK, skin: RUNNER_LOOK.skin, hair: RUNNER_LOOK.hair };
+    const W0 = { on: walker.on, step: walker.step, heading: walker.heading };
+    const P0 = { packOn, mask, held };
+    Object.assign(RUNNER_LOOK, { skin: null, hair: null }, m.look);
+    walker.on = false; walker.heading = m.heading; packOn = null; mask = !!P0.mask; held = null; mateDrawing = true; ctx = c;
+    try { drawCar('car_' + CAR_FILES[idx], m.x, m.y, m.bikeZ || 0, m.heading, 0); }
+    finally {
+      mateDrawing = false; packOn = P0.packOn; mask = P0.mask; held = P0.held;
+      Object.assign(RUNNER_LOOK, L0); walker.on = W0.on; walker.step = W0.step; walker.heading = W0.heading;
+    }
+    return true;
+  }
   function drawMate(c, m) {
     const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 260);
     c.save(); c.strokeStyle = m.col; c.lineWidth = 2.5; c.globalAlpha = m.stunT > 0 ? 0.3 + 0.3 * pulse : 0.85;
     c.beginPath(); c.ellipse(m.x, m.y + 4, 24, 15, 0, 0, Math.PI * 2); c.stroke(); c.restore();
     const ck = CON_KEY[m.name], cparts = ck ? conArt(ck) : null;
     if (cparts) { c.save(); c.globalAlpha = m.stunT > 0 ? 0.6 : 1; drawContactRig(c, m, cparts, CON_RIG[ck]); c.restore(); return; }   // LAYER 735: the story contacts on their rig
+    if (m.companion && m.ride && drawMateBike(c, m)) return;   // he is on his own bike, the way you are
     const L0 = { head: RUNNER_LOOK.head, suit: RUNNER_LOOK.suit, body: RUNNER_LOOK.body, bodyK: RUNNER_LOOK.bodyK, skin: RUNNER_LOOK.skin, hair: RUNNER_LOOK.hair };
     const W0 = { on: walker.on, step: walker.step, heading: walker.heading, amp: walker.amp };
     const P0 = { packOn, mask, held };
     Object.assign(RUNNER_LOOK, { skin: null, hair: null }, m.look);   // LAYER 690: the teammate's own skin and hair
     walker.on = true; walker.step = m.step; walker.heading = m.heading; walker.amp = m.stunT > 0 ? 0 : 1;
-    packOn = null; mask = false; held = null; mateDrawing = true; ctx = c;
+    packOn = null; mask = !!(m.companion && P0.mask); held = null; mateDrawing = true; ctx = c;   // the partner puts his mask on when you put yours on
     try { drawWalker(m.x, m.y); }
     finally {
       mateDrawing = false; packOn = P0.packOn; mask = P0.mask; held = P0.held;
@@ -19530,6 +19555,11 @@ const RUNNER_API = (function () {
   // runner of another team that is in sight, is stunned by the blue beam. He never shoots the runner.
   function companionTick(m, dt, now) {
     m.cd = Math.max(0, m.cd - dt);
+    // his bike: he calls it when you call yours or get on it, and gets off when you do
+    { const fn = car && CAR_FILES[car.sprite], bikeCar = !!fn && (/^rtbike_/.test(fn) || car.sprite === BIKE_INDEX);
+      const want = bikeCar && (!walker.on ? car !== teamCarV : car.mode === 'down');
+      if (want && !m.ride) { m.ride = true; m.bikeZ = AIR_Z; } else if (!want && m.ride) m.ride = false;
+      if (m.ride) m.bikeZ = Math.max(0, (m.bikeZ == null ? AIR_Z : m.bikeZ) - dt * 220); }
     let best = null, bd = LASER_RANGE;
     for (const h of hunters) {
       if (h.dead || h.stunT > 0) continue;
@@ -21384,13 +21414,14 @@ const RUNNER_API = (function () {
     if (PSTUN.t > 0 && walker.on) return true;   // LAYER 679: stunned, he cannot fire
     if (!LASER.has || !RUN_ON || !walker.on || lobby) return houseThugPunch();   // LAYER 748: a fist in the house goes to the thugs
     const now = performance.now();
-    if (now - LASER.lastFire < 450) return true;
+    if (now - LASER.lastFire < 450 * (1 - 0.12 * cybN('armL', 'armR'))) return true;   // the arm servos
     LASER.lastFire = now;
+    const rng = LASER_RANGE * (cyb('eyes') ? 1.3 : 1), stunSec = Math.round(HUNT.stun * (1 + 0.25 * cybN('handL', 'handR')) * 10) / 10;   // the eyes, the hand mods
     playLaserShot(); TUT.shots++;   // the night run's lesson on firing counts this shot
     const aim = aimAngle();   // LAYER 683: toward the locked target, or the way he faces
     const dx = Math.cos(aim), dy = Math.sin(aim);
     const ox = walker.x + dx * 18, oy = walker.y + dy * 18, kill = LASER.mode === 'kill';
-    let ex = ox + dx * LASER_RANGE, ey = oy + dy * LASER_RANGE, hit = null, bt = LASER_RANGE;
+    let ex = ox + dx * rng, ey = oy + dy * rng, hit = null, bt = rng;
     // LAYER 680: the drone is a target. A beam within 30 px of it downs it, unless a hunter stands closer on the line.
     let downed = null;
     for (const cd of canDrones) { const ax = cd.x - ox, ay = (cd.y - CAN.lift) - oy, t = ax * dx + ay * dy; if (t < 0 || t > bt) continue; if (Math.abs(ax * dy - ay * dx) < 30) { downed = cd; bt = t; } }
@@ -21406,9 +21437,9 @@ const RUNNER_API = (function () {
       ex = ox + dx * bt; ey = oy + dy * bt;
       if (houseThugs && houseThugs.includes(hit)) thugDown(hit);   // LAYER 748: the pistol puts a house thug down either way
       else if (mates.includes(hit)) mateHit(hit);   // LAYER 679: a teammate is stunned, not killed
-      else if (!hunters.includes(hit)) { if (kill) harmHit(hit); else { hit.stunT = HUNT.stun; say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); } }   // LAYER 683: a civilian, gang member or cop; LAYER 703: HARM hurts them
+      else if (!hunters.includes(hit)) { if (kill) harmHit(hit); else { hit.stunT = stunSec; say('STUNNED FOR ' + stunSec + ' SECONDS.', 2); } }   // LAYER 683: a civilian, gang member or cop; LAYER 703: HARM hurts them
       else if (kill) { rlog('hunter_down', { who: hit.name, zone: rZoneAt(hit.x, hit.y) }); hit.dead = true; hit.dying = HUNT.dyingT; puff(hit.x, hit.y, 'medium'); neutralize(hit); say('HUNTER DOWN.', 2); }
-      else { rlog('hunter_stun', { who: hit.name, zone: rZoneAt(hit.x, hit.y) }); hit.stunT = HUNT.stun; neutralize(hit); say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); }
+      else { rlog('hunter_stun', { who: hit.name, zone: rZoneAt(hit.x, hit.y) }); hit.stunT = stunSec; neutralize(hit); say('STUNNED FOR ' + stunSec + ' SECONDS.', 2); }
     }
     LASER.beams.push({ x0: ox, y0: oy, x1: ex, y1: ey, kill, until: now + 180 });
     return true;
@@ -21419,13 +21450,14 @@ const RUNNER_API = (function () {
   function fireFromBike() {
     if (!LASER.has) return false;
     const now = performance.now();
-    if (now - LASER.lastFire < 450) return true;
+    if (now - LASER.lastFire < 450 * (1 - 0.12 * cybN('armL', 'armR'))) return true;   // the arm servos
     LASER.lastFire = now;
+    const rng = LASER_RANGE * (cyb('eyes') ? 1.3 : 1), stunSec = Math.round(HUNT.stun * (1 + 0.25 * cybN('handL', 'handR')) * 10) / 10;   // the eyes, the hand mods
     playLaserShot(); TUT.shots++;   // the night run's lesson on firing counts this shot
     const aim = car.heading || 0;
     const dx = Math.cos(aim), dy = Math.sin(aim);
     const ox = car.x + dx * 30, oy = car.y + dy * 30, kill = LASER.mode === 'kill';
-    let ex = ox + dx * LASER_RANGE, ey = oy + dy * LASER_RANGE, hit = null, bt = LASER_RANGE;
+    let ex = ox + dx * rng, ey = oy + dy * rng, hit = null, bt = rng;
     let downed = null;
     for (const cd of canDrones) { const ax = cd.x - ox, ay = (cd.y - CAN.lift) - oy, t = ax * dx + ay * dy; if (t < 0 || t > bt) continue; if (Math.abs(ax * dy - ay * dx) < 30) { downed = cd; bt = t; } }
     const downedT = bt;
@@ -21440,9 +21472,9 @@ const RUNNER_API = (function () {
       ex = ox + dx * bt; ey = oy + dy * bt;
       if (houseThugs && houseThugs.includes(hit)) thugDown(hit);   // LAYER 748: the pistol puts a house thug down either way
       else if (mates.includes(hit)) mateHit(hit);   // LAYER 679: a teammate is stunned, not killed
-      else if (!hunters.includes(hit)) { if (kill) harmHit(hit); else { hit.stunT = HUNT.stun; say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); } }   // LAYER 683: a civilian, gang member or cop; LAYER 703: HARM hurts them
+      else if (!hunters.includes(hit)) { if (kill) harmHit(hit); else { hit.stunT = stunSec; say('STUNNED FOR ' + stunSec + ' SECONDS.', 2); } }   // LAYER 683: a civilian, gang member or cop; LAYER 703: HARM hurts them
       else if (kill) { rlog('hunter_down', { who: hit.name, zone: rZoneAt(hit.x, hit.y) }); hit.dead = true; hit.dying = HUNT.dyingT; puff(hit.x, hit.y, 'medium'); neutralize(hit); say('HUNTER DOWN.', 2); }
-      else { rlog('hunter_stun', { who: hit.name, zone: rZoneAt(hit.x, hit.y) }); hit.stunT = HUNT.stun; neutralize(hit); say('STUNNED FOR ' + HUNT.stun + ' SECONDS.', 2); }
+      else { rlog('hunter_stun', { who: hit.name, zone: rZoneAt(hit.x, hit.y) }); hit.stunT = stunSec; neutralize(hit); say('STUNNED FOR ' + stunSec + ' SECONDS.', 2); }
     }
     LASER.beams.push({ x0: ox, y0: oy, x1: ex, y1: ey, kill, until: now + 180 });
     return true;
@@ -21520,6 +21552,7 @@ const RUNNER_API = (function () {
         { label: 'EQUIPMENT', sub: kit ? kit + ' ON YOU' : 'NONE YET', icon: PD_ART.hud_equipment, id: 'cat:equipment' },
         { label: 'ITEMS', sub: 'FOOD · MEDS · DRUGS', icon: PD_ART.hud_items, id: 'cat:items' },
         ...(phoneOwned ? [{ label: 'PHONE', sub: 'HOLO · THE CONTACTS', icon: PD_ART.hud_holophone || null, id: 'gear:phone' }] : []),
+        ...(boxOwned ? [{ label: 'GAME BOX', sub: 'ARCADE · RETRO', icon: PD_ART.it_gamebox || null, id: 'gear:box' }] : []),
         ...(hoverOwned ? [{ label: 'HOVER BIKE', sub: 'CALL IT · ON THE PHONE', icon: PD_ART.hud_holophone || null, id: 'gear:hover' }] : []),
         { label: 'CYBERWEAR', sub: RUNNER_CYBER.length ? RUNNER_CYBER.length + ' FITTED' : 'NONE FITTED', icon: PD_ART.hud_cyberwear, id: 'cat:cyber' },
       ];
@@ -21638,6 +21671,7 @@ const RUNNER_API = (function () {
     else if (k === 'vest') { if (!vestHave || !vestSet) return; const on = !vestWorn; vestWorn = on; if (on && vestHp == null) vestHp = VEST_MAX; vestSet({ vestOn: on ? 1 : 0 }); say(on ? 'VEST ON. THE BLUE BAR IS YOUR VEST.' : 'VEST OFF.', 3); }
     else if (k === 'phone') { if (!phoneOwned) return; if (phoneHook) phoneHook(); }
     else if (k === 'hover') { if (hoverOwned) callHoverBike(); }
+    else if (k === 'box') { if (boxOwned && boxHook) boxHook(); }
     else if (k === 'mask') { if (!gasOwned) return; setMask(!mask); say(mask ? 'GAS MASK ON.' : 'GAS MASK OFF.', 3); }
     else if (k === 'bag') { if (!sleepOwned || lying) return; if (sleepDown) pickBag(); else putBag(); }   // LAYER 692: not while he lies on it
     else if (k === 'lie') startLie();
@@ -21792,9 +21826,13 @@ const RUNNER_API = (function () {
      hover bike caller. The hover bike REPLACES the dirt bike for good, and it is called from the Y wheel or X, from anywhere. */
   const SECRET = { x: 0, y: 0, set: false, got: false };
   let hoverOwned = false, secretReq = false;
-  const CYBER_KIT = [['CYBER EYES', 'Both eyes. Night, thermal, range.'], ['CHEST PLATE', 'Subdermal armour weave.'], ['SPINAL LINK', 'Reflex booster on the spine.'], ['L ARM SERVO', 'Left arm: strength.'],
-    ['R ARM SERVO', 'Right arm: strength.'], ['L HAND MODS', 'Left hand: grip, blades.'], ['R HAND MODS', 'Right hand: grip, blades.'], ['L LEG ACTUATOR', 'Left leg: speed.'], ['R LEG ACTUATOR', 'Right leg: speed.']];
-  function fillCyber() { RUNNER_CYBER.length = 0; CYBER_KIT.forEach((c) => RUNNER_CYBER.push({ name: c[0], desc: c[1], kg: 0.3, icon: null })); }
+  // each piece does something (the buffs are read by cyb()/cybN() where the thing happens): [id, name, what it does]
+  const CYBER_KIT = [['eyes', 'CYBER EYES', 'Both eyes. LASER RANGE +30%.'], ['chest', 'CHEST PLATE', 'Subdermal weave. YOU TAKE 20% LESS DAMAGE.'], ['spine', 'SPINAL LINK', 'Reflex booster. A STUN ON YOU LASTS HALF AS LONG.'],
+    ['armL', 'L ARM SERVO', 'Left arm. THE LASER RECOVERS 12% FASTER.'], ['armR', 'R ARM SERVO', 'Right arm. THE LASER RECOVERS 12% FASTER.'], ['handL', 'L HAND MODS', 'Left hand. THE STUNS YOU LAND LAST 25% LONGER.'],
+    ['handR', 'R HAND MODS', 'Right hand. THE STUNS YOU LAND LAST 25% LONGER.'], ['legL', 'L LEG ACTUATOR', 'Left leg. YOU WALK 8% FASTER.'], ['legR', 'R LEG ACTUATOR', 'Right leg. YOU WALK 8% FASTER.']];
+  function fillCyber() { RUNNER_CYBER.length = 0; CYBER_KIT.forEach((c) => RUNNER_CYBER.push({ id: c[0], name: c[1], desc: c[2], kg: 0.3, icon: null })); }
+  const cyb = (id) => RUNNER_CYBER.some((c) => c.id === id);
+  const cybN = (a, b) => (cyb(a) ? 1 : 0) + (cyb(b) ? 1 : 0);
   function secretNear() {
     if (SECRET.got || !walker.on || runnerInside || lobby || !CAN_LOT_RECT) return false;
     if (!SECRET.set) { const L = canRect().lot, sp = clearSpot(L[2] + 420, (L[1] + L[3]) / 2 + 90, null) || { x: L[2] + 420, y: (L[1] + L[3]) / 2 + 90 }; SECRET.x = sp.x; SECRET.y = sp.y; SECRET.set = true; }
@@ -21803,7 +21841,7 @@ const RUNNER_API = (function () {
   function secretOpen() {
     SECRET.got = true; secretReq = true;
     LASER.has = true; LASER.chip = true; LASER.locked = false;
-    gasOwned = true; sleepOwned = true; phoneOwned = true; hoverOwned = true; fillCyber();
+    gasOwned = true; sleepOwned = true; phoneOwned = true; hoverOwned = true; fillCyber(); boxReq = true; boxOwned = true;
     car.sprite = ownBikeIndex();   // the dirt bike is gone: the hover bike is the one he has
     say('THE STASH. EVERY WEAPON, ALL THE CYBERWEAR, A HOVER BIKE CALLER. THE HOVER BIKE REPLACES THE DIRT BIKE.', 7);
   }
@@ -21816,6 +21854,21 @@ const RUNNER_API = (function () {
     car.sprite = ownBikeIndex(); car.x = sp.x; car.y = sp.y; car.z = AIR_Z; car.mode = 'down'; car.speed = 0; car.lean = 0; car.heading = -Math.PI / 2;
     say('HOVER BIKE INBOUND.', 3);
   }
+  /* THE GAME BOX: a pocket arcade (the console's four cartridges). Bought at a pawn shop, found lying in the world (two of them, out by the C.A.N.
+     lot), or in the secret stash. It lives on the Y wheel once you own one. */
+  let boxOwned = false, boxHook = null, boxReq = false, boxSet = false;
+  const BOX_FINDS = [{ x: 0, y: 0, got: false }, { x: 0, y: 0, got: false }];
+  const GAMEBOX_IMG = typeof Image !== 'undefined' ? Object.assign(new Image(), { src: PD_ART.it_gamebox }) : null;
+  function boxSpots() {
+    if (boxSet || !CAN_LOT_RECT) return;
+    const L = canRect().lot, want = [[L[0] - 260, L[3] + 300], [(L[0] + L[2]) / 2 + 60, L[1] - 300]];
+    BOX_FINDS.forEach((b, i) => { const sp = clearSpot(want[i][0], want[i][1], null) || { x: want[i][0], y: want[i][1] }; b.x = sp.x; b.y = sp.y; });
+    boxSet = true;
+  }
+  function boxNear() { if (!walker.on || runnerInside || lobby) return null; boxSpots(); return BOX_FINDS.find((b) => !b.got && Math.hypot(walker.x - b.x, walker.y - b.y) < 70) || null; }
+  function boxPick(b) { b.got = true; boxReq = true; say(boxOwned ? 'ANOTHER GAME BOX. YOU ALREADY HAVE ONE.' : 'A GAME BOX. 8-BIT POCKET. IT IS ON THE Y WHEEL.', 5); boxOwned = true; }
+  function takeBox() { const r = boxReq; boxReq = false; return r; }
+  function setBox(on, hook) { boxOwned = !!on; boxHook = hook || null; }
   const PACK_STASH = [];      // { kind, x, y, got }
   function packStashStart() {
     packsPlaced = true;
@@ -21844,6 +21897,7 @@ const RUNNER_API = (function () {
   function setVest(have, on, set) { vestHave = !!have; vestWorn = !!on; vestSet = set || null; if (vestHave && vestWorn && vestHp == null) vestHp = VEST_MAX; }
   // the part of a hit that gets through to his own health, after the vest has taken its share
   function soakHit(d) {
+    if (d > 0 && cyb('chest')) d *= 0.8;   // the chest plate: 20% off every hit, before the vest
     if (!vestHave || !vestWorn || !(d > 0)) return d;
     if (vestHp == null) vestHp = VEST_MAX;
     const s = Math.min(vestHp, d); vestHp -= s;
@@ -22021,6 +22075,11 @@ const RUNNER_API = (function () {
       c.strokeStyle = PACK_KIND[s.kind].line; c.lineWidth = 2.5; c.globalAlpha = 0.45 + 0.35 * (0.5 + 0.5 * Math.sin(now / 260));
       c.beginPath(); c.arc(s.x, s.y, 40, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
     }
+    if (!runnerInside && !lobby) { boxSpots(); for (const b of BOX_FINDS) if (!b.got) {   // a Game Box lying in the street: a small bobbing glint
+      const bob = Math.sin(now / 300) * 2, gl = 0.35 + 0.35 * (0.5 + 0.5 * Math.sin(now / 240));
+      c.strokeStyle = 'rgba(141,255,192,' + gl + ')'; c.lineWidth = 2; c.beginPath(); c.arc(b.x, b.y, 24, 0, Math.PI * 2); c.stroke();
+      if (GAMEBOX_IMG && GAMEBOX_IMG.width) c.drawImage(GAMEBOX_IMG, b.x - 13, b.y - 17 + bob, 26, 30); else { c.fillStyle = '#c9c6b8'; c.fillRect(b.x - 8, b.y - 10, 16, 20); }
+    } }
     c.restore();
   }
   /* LAYER 586: the skater kids ride hoverboards. A glowing pad floats under the feet, bobbing, with a rim on each side.
@@ -22719,7 +22778,7 @@ const RUNNER_API = (function () {
     // on release -- readPad() folds both into the same fields the gamepad poll already fills.
     touchStick: (x, y) => { TOUCH.x = x || 0; TOUCH.y = y || 0; },
     touchBtn: (k, on) => { if (TOUCH.hasOwnProperty(k)) TOUCH[k] = !!on; },
-    touchPad, takeStash,
+    touchPad, takeStash, takeBox, setBox,
     keepOut, canSpawn, windTrash,
     overlay,
     augments,
@@ -22790,7 +22849,7 @@ const RUNNER_API = (function () {
       gear: { laser: { has: LASER.has, mode: LASER.mode, locked: LASER.locked, chip: LASER.chip }, evidence: RPOL.evidence ? Object.assign({}, RPOL.evidence) : null,
         gas: gasOwned, sleep: sleepOwned, bag: sleepDown ? { x: sleepDown.x, y: sleepDown.y, h: sleepDown.h } : null,
         packOn, packOff, packsPlaced, stash: PACK_STASH.map((q) => ({ kind: q.kind, x: q.x, y: q.y, got: q.got })),
-        vest: { have: vestHave, worn: vestWorn, hp: vestHp }, phone: phoneOwned, secretGot: SECRET.got, hover: hoverOwned } }),
+        vest: { have: vestHave, worn: vestWorn, hp: vestHp }, phone: phoneOwned, secretGot: SECRET.got, hover: hoverOwned, box: boxOwned, boxGot: BOX_FINDS.map((b) => b.got) } }),
     loadData: (d) => {
       if (!d || !d.look) return false;
       RUNNER_API.setLook(d.look);
@@ -22810,6 +22869,7 @@ const RUNNER_API = (function () {
         if (k.packsPlaced) { packsPlaced = true; PACK_STASH.length = 0; (k.stash || []).forEach((q) => PACK_STASH.push({ kind: q.kind, x: q.x, y: q.y, got: !!q.got })); }
         if (k.vest) { vestHave = !!k.vest.have; vestWorn = !!k.vest.worn; vestHp = k.vest.hp == null ? null : +k.vest.hp; }
         phoneOwned = !!k.phone;
+        boxOwned = !!k.box; BOX_FINDS.forEach((b, i) => { b.got = !!(k.boxGot && k.boxGot[i]); });
         SECRET.got = !!k.secretGot; hoverOwned = !!k.hover; if (SECRET.got) { LASER.has = true; fillCyber(); }
       }
       missionHidden = false;
@@ -30438,6 +30498,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
                  (g.pfol || []).some((f) => f.crew === C.id) ? { id: "crewx:stay", label: "STAY HERE" } : { id: "crewx:follow", label: "WITH ME" },
                  { id: "close", label: "LATER" }] };
       }
+      if (kind === "gamebox") return { title: "GAME BOX \u00b7 8-BIT POCKET", face: null, text: "The little green screen lights up. Four cartridges.",
+        opts: [{ id: "console:pong", label: "RALLY '86" }, { id: "console:curtain", label: "THE IRON CURTAIN" }, { id: "console:front", label: "THE FRONT" }, { id: "console:brawl", label: "HOOK CITY BRAWLER" }, { id: "close", label: "PUT IT AWAY" }] };
       if (kind === "console") return { title: "THE CONSOLE \u00b7 PICK A CARTRIDGE", face: null,
         text: "Home. Door locked, radio off. One game.",
         opts: [{ id: "console:pong", label: "RALLY '86" }, { id: "console:curtain", label: "THE IRON CURTAIN" },
@@ -34299,7 +34361,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
        crew -- the big one says the dice are loaded. */
     function crapsRoll(t, comeOut) { if (t.rolling) return; t.rolling = 1; t.msg = comeOut ? "COMING OUT..." : "ROLLING FOR " + t.point + "...";
       const d6 = () => 1 + ((Math.random() * 6) | 0); let n = 0;
-      const iv = setInterval(() => { if (g.table !== t) { clearInterval(iv); return; } t.dice = [d6(), d6()]; t.rollN = (t.rollN || 0) + 1; tableSync();
+      const iv = setInterval(() => { try { if (g.table !== t) { clearInterval(iv); t.rolling = 0; return; } t.dice = [d6(), d6()]; t.rollN = (t.rollN || 0) + 1; tableSync();
         if (++n < 7) return; clearInterval(iv); t.rolling = 0; const s = t.dice[0] + t.dice[1]; let win = null;
         if (comeOut) { if (s === 7 || s === 11) win = true; else if (s === 2 || s === 3 || s === 12) win = false; else { t.point = s; t.stage = "point"; t.msg = s + " \u2014 THE POINT IS " + s + ". HIT IT AGAIN BEFORE A SEVEN."; } }
         else { if (s === t.point) win = true; else if (s === 7) win = false; else t.msg = s + " \u2014 STILL LOOKING FOR " + t.point + ". ROLL."; }
@@ -34307,7 +34369,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           t.msg = win ? (comeOut ? (s === 7 ? "SEVEN" : "YO-LEVEN") + " \u2014 NATURAL. YOU TAKE $" + pay : "THERE IT IS \u2014 " + s + ". YOU TAKE $" + pay) : (comeOut ? "CRAPS \u2014 " + s : "SEVEN-OUT") + ". THEY TAKE $" + t.bet;
           if (win) { t.streak = (t.streak || 0) + 1; if (t.streak >= 3 && Math.random() < 0.35) { t.msg += " \u00b7 BIG TONY: \u201cThem dice is loaded. Let me see 'em.\u201d"; t.heat = 1; } } else t.streak = 0;
           t.point = 0; }
-        tableSync(); }, 70); tableSync(); }
+        tableSync(); } catch (e) { clearInterval(iv); t.rolling = 0; t.stage = "bet"; t.msg = "THE DICE ROLLED OFF THE TABLE. ROLL AGAIN."; try { tableSync(); } catch (e2) { /* nothing more to do */ } } }, 70); tableSync(); }   // an error in a tick used to leave the table stuck on ROLLING
     function tableAct(act) {
       const t = g.table;
       if (!t) return;
@@ -45480,7 +45542,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       liquor: [["FORTY OUNCE", 2, "drink", 1], ["PINT OF WHISKEY", 6, "drink", 2], ["SIX-PACK", 5, "drink", 2], ["CIGARETTES", 2], ["LOTTO TICKET", 1]],
       bar:    [["DRAFT BEER", 2, "drink", 1], ["WHISKEY, NEAT", 4, "drink", 1], ["SHOT AND A BEER", 5, "drink", 2], ["BOWL OF PEANUTS", 1, "food", 1], ["BUY THE ROOM A ROUND", 40, "round"]],
       diner:  [["CUP OF COFFEE", 1, "drink", 1], ["SLICE OF PIE", 2, "food", 2], ["BURGER AND FRIES", 4, "food", 4], ["STEAK AND EGGS", 6, "food", 6], ["BLUE PLATE SPECIAL", 5, "food", 5]],
-      pawn:   [["BRASS KNUCKLES", 25], ["TRANSISTOR RADIO", 30], ["WRISTWATCH", 60], ["GOLD CHAIN", 120], ["SELL WHAT YOU'RE CARRYING", 0, "sell"]],
+      pawn:   [["BRASS KNUCKLES", 25], ["TRANSISTOR RADIO", 30], ["WRISTWATCH", 60], ["GOLD CHAIN", 120], ["GAME BOX", 45, "gamebox"], ["SELL WHAT YOU'RE CARRYING", 0, "sell"]],
     };
     /* RAVEN HOOK FIREARMS (layer 521): guns you can BUY, not cheat. [name, price, "gun", 0, weapon key, under the
        counter]. Over the counter needs a clean record: no heat on you, and an escaped con needs NEW PAPERS (the
@@ -45729,6 +45791,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (kind === "bag") g.p.bag.splice(+arg, 1); else if (kind === "gun") g.rack = g.rack.filter((k) => k !== arg); else if (kind === "drug") { g.p.drugs[arg] = 0; } else g.pinv = [];
         e2.till -= q.val; g.p.cash = (g.p.cash || 0) + q.val; g.bizSaid = "He turns it over, nods, counts out $" + q.val + ". You have $" + g.p.cash.toLocaleString() + "."; return; } const b = S.b, M = BIZ_MENU[b.biz] || [], it = M[+id.split(":")[2]]; if (!it) return; const e = econOf(b);
       if (it[2] === "sell") { g.bizView = "sell"; g.bizSaid = null; return; }
+      if (it[2] === "gamebox") {   // the GAME BOX: arcade and retro cartridges in your pocket
+        if (g.gameBox) { g.bizSaid = "\u201cYou already got one. Go play it.\u201d"; return; }
+        const pr = price513(it[1]); if ((g.p.cash || 0) < pr) { g.bizSaid = "\u201cThat's $" + pr + ". You're short.\u201d"; return; }
+        g.p.cash -= pr; e.till += pr; g.gameBox = 1;
+        g.bizSaid = "He blows the dust off a grey plastic brick with a little green screen. \u201cEight-bit pocket. Four games, no batteries to find.\u201d Y WHEEL > GAME BOX. $" + (g.p.cash || 0).toLocaleString() + " left."; return; }
       if (it[2] === "gun" || it[2] === "ammo") { buyGun(it, e); return; }                                   // layer 521
       if (!it[2] && it[1] > 0 && carryKg() + itemKg({ nm: it[0] }) > carryMax()) { g.bizSaid = "You can't carry any more -- " + carryKg() + " of " + carryMax() + " kg. Put something in the trunk."; return; }   // layer 504
       if ((g.p.cash || 0) < price513(it[1])) { g.bizSaid = "\u201cThat's $" + price513(it[1]) + ". You're short.\u201d"; return; }
@@ -61267,6 +61334,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       });
       RUNNER_API.songHold(!!(g.inside && g.inside.kind === "bandvenue" && !g.title));
       if (RUNNER_API.takeStash()) grantAllGear();
+      if (RUNNER_API.takeBox()) { g.gameBox = 1; g.pickupFlash = { nm: "lift:GAME BOX", t: 2.5 }; }
+      RUNNER_API.setBox(!!g.gameBox, () => setTimeout(() => { if (G.pickOpen) G.pickOpen("gamebox"); }, 60));
       musicUpdate({
         venue: !!(g.inside && g.inside.kind === "bandvenue"),
         title: !!g.title,
@@ -61912,7 +61981,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       const keys = G.wpnKeys ? G.wpnKeys() : [];
       g.rack = g.rack || [];
       keys.forEach((k) => { if (g.rack.indexOf(k) < 0) g.rack.push(k); });
-      g.laserChip = 1; g.phoneOwned = 1; g.vestHave = 1;
+      g.laserChip = 1; g.phoneOwned = 1; g.vestHave = 1; g.gameBox = 1;
       if (!g.vestOn && G.vestWear548) G.vestWear548(true);
       if (!quiet) g.pickupFlash = { nm: "lift:THE STASH \u00b7 EVERY WEAPON, THE CYBERWEAR, A HOVER BIKE", t: 3.5 };
     }
@@ -69911,7 +69980,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         </div>
       ) : null}
       {fbOn && <FootballShell onExit={() => setFbOn(false)} />}
-      {rnOn && <RunnerShell onStart={() => G.runnerEnterCan && G.runnerEnterCan()} onLoad={(d) => { const g0 = G.current; if (g0 && g0.p) g0.p.cash = +d.cash || 0; if (g0 && d.gear) { g0.vestHave = d.gear.vest && d.gear.vest.have ? 1 : 0; g0.vestOn = d.gear.vest && d.gear.vest.worn ? 1 : 0; g0.phoneOwned = d.gear.phone ? 1 : 0; if (d.gear.secretGot && G.grantAllGear) G.grantAllGear(true); } }} onExit={() => { setRnOn(false); if (G.current) G.current.title = true; setHud((h) => ({ ...h, title: true })); }} />}
+      {rnOn && <RunnerShell onStart={() => G.runnerEnterCan && G.runnerEnterCan()} onLoad={(d) => { const g0 = G.current; if (g0 && g0.p) g0.p.cash = +d.cash || 0; if (g0 && d.gear) { g0.vestHave = d.gear.vest && d.gear.vest.have ? 1 : 0; g0.vestOn = d.gear.vest && d.gear.vest.worn ? 1 : 0; g0.phoneOwned = d.gear.phone ? 1 : 0; g0.gameBox = d.gear.box ? 1 : 0; if (d.gear.secretGot && G.grantAllGear) G.grantAllGear(true); } }} onExit={() => { setRnOn(false); if (G.current) G.current.title = true; setHud((h) => ({ ...h, title: true })); }} />}
       {/* ---------- title ----------
           Drawn over the live attract-mode flyover, so the background is the actual city with
           its actual traffic and lights rather than a still. */}
