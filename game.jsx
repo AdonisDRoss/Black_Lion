@@ -22746,7 +22746,12 @@ const RUNNER_API = (function () {
        and the givers on the street are NOT saved: they come back the way they do on a fresh start. */
     saveData: () => ({ v: 2, t: Date.now(), name: RUNNER_LOOK.name, look: Object.assign({}, RUNNER_LOOK), cash: runnerCash, mission: MISSION.stage,
       tess: JSON.parse(JSON.stringify(TESS_ST)), windi: JSON.parse(JSON.stringify(WINDI_ST)), micah: JSON.parse(JSON.stringify(MICAH_ST)),
-      place: runnerPlace, clock: { day: RCLK.day, min: RCLK.min } }),
+      place: runnerPlace, clock: { day: RCLK.day, min: RCLK.min },
+      // the kit he carries: none of this was in the slot, so a load came back with the cash and the mission but an empty pack
+      gear: { laser: { has: LASER.has, mode: LASER.mode, locked: LASER.locked, chip: LASER.chip }, evidence: RPOL.evidence ? Object.assign({}, RPOL.evidence) : null,
+        gas: gasOwned, sleep: sleepOwned, bag: sleepDown ? { x: sleepDown.x, y: sleepDown.y, h: sleepDown.h } : null,
+        packOn, packOff, packsPlaced, stash: PACK_STASH.map((q) => ({ kind: q.kind, x: q.x, y: q.y, got: q.got })),
+        vest: { have: vestHave, worn: vestWorn, hp: vestHp }, phone: phoneOwned } }),
     loadData: (d) => {
       if (!d || !d.look) return false;
       RUNNER_API.setLook(d.look);
@@ -22757,6 +22762,16 @@ const RUNNER_API = (function () {
       if (d.micah) Object.assign(MICAH_ST, d.micah);
       if (d.clock) { RCLK.day = +d.clock.day || 1; RCLK.min = +d.clock.min || 360; RCLK.lastHour = Math.floor(RCLK.min / 60); RCLK.castDay = RCLK.min >= 480 ? RCLK.day : RCLK.day - 1; }
       if (d.place) pendingPlace = d.place;
+      if (d.gear) {   // a slot from before the kit was saved has no gear: it is left as it is
+        const k = d.gear;
+        if (k.laser) { LASER.has = !!k.laser.has; LASER.drawn = false; LASER.mode = k.laser.mode === 'kill' ? 'kill' : 'stun'; LASER.locked = k.laser.locked !== false; LASER.chip = !!k.laser.chip; LASER.beams = []; }
+        RPOL.evidence = k.evidence || null;
+        gasOwned = !!k.gas; sleepOwned = !!k.sleep; sleepDown = k.bag || null; lying = null;
+        packOn = k.packOn || null; packOff = !!k.packOff;
+        if (k.packsPlaced) { packsPlaced = true; PACK_STASH.length = 0; (k.stash || []).forEach((q) => PACK_STASH.push({ kind: q.kind, x: q.x, y: q.y, got: !!q.got })); }
+        if (k.vest) { vestHave = !!k.vest.have; vestWorn = !!k.vest.worn; vestHp = k.vest.hp == null ? null : +k.vest.hp; }
+        phoneOwned = !!k.phone;
+      }
       missionHidden = false;
       return true;
     },
@@ -69840,7 +69855,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         </div>
       ) : null}
       {fbOn && <FootballShell onExit={() => setFbOn(false)} />}
-      {rnOn && <RunnerShell onStart={() => G.runnerEnterCan && G.runnerEnterCan()} onLoad={(d) => { if (G.current && G.current.p) G.current.p.cash = +d.cash || 0; }} onExit={() => { setRnOn(false); if (G.current) G.current.title = true; setHud((h) => ({ ...h, title: true })); }} />}
+      {rnOn && <RunnerShell onStart={() => G.runnerEnterCan && G.runnerEnterCan()} onLoad={(d) => { const g0 = G.current; if (g0 && g0.p) g0.p.cash = +d.cash || 0; if (g0 && d.gear) { g0.vestHave = d.gear.vest && d.gear.vest.have ? 1 : 0; g0.vestOn = d.gear.vest && d.gear.vest.worn ? 1 : 0; g0.phoneOwned = d.gear.phone ? 1 : 0; } }} onExit={() => { setRnOn(false); if (G.current) G.current.title = true; setHud((h) => ({ ...h, title: true })); }} />}
       {/* ---------- title ----------
           Drawn over the live attract-mode flyover, so the background is the actual city with
           its actual traffic and lights rather than a still. */}
