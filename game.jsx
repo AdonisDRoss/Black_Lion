@@ -17370,6 +17370,36 @@ const RUNNER_API = (function () {
     drawOverlay();
     drawHud();
     drawScanLog();
+    drawDownCard();
+  }
+  // KNOCKED OUT: when he goes down and wakes in the hospital, a title card says so (the one small line at the top was all there was)
+  const DOWNCARD = { until: 0, why: '' };
+  // what hurt him, guessed from who is near when his health drops: the main game calls this on every drop and keeps the last answer
+  function hurtWhy(x, y, gg) {
+    const near = (a, r) => Array.isArray(a) && a.some((q) => q && !q.dead && Math.hypot(q.x - x, q.y - y) < r);
+    if (near(hunters, 160)) return 'THE HUNTERS GOT YOU';
+    if (houseThugs && thugsHere() && near(houseThugs, 130)) return 'A HOUSE THUG BEAT YOU DOWN';
+    if (canDrones.some((d) => Math.hypot(d.x - x, d.y - y) < 280)) return 'A C.A.N. DRONE SHOT YOU';
+    if (gg) {
+      if (near(gg.police, 280)) return 'THE POLICE TOOK YOU DOWN';
+      if (Array.isArray(gg.traffic) && gg.traffic.some((v) => v && !v.dead && Math.hypot(v.x - x, v.y - y) < 95 && Math.abs((v.speed != null ? v.speed : v.sp) || 0) > 60)) return 'A CAR HIT YOU';
+      if (near(gg.fires, 80)) return 'THE FIRE GOT YOU';
+    }
+    return 'YOU TOOK TOO MANY HITS';
+  }
+  function drawDownCard() {
+    const left = DOWNCARD.until - performance.now();
+    if (left <= 0) return;
+    const a = Math.max(0, Math.min(1, (6000 - left) / 300, left / 1200)), y = H * 0.32, bh = DOWNCARD.why ? 138 : 116;
+    ctx.save(); ctx.globalAlpha = a; ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(8,4,6,0.8)'; ctx.fillRect(0, y, W, bh);
+    ctx.fillStyle = '#d94a3a'; ctx.fillRect(0, y, W, 2); ctx.fillRect(0, y + bh - 2, W, 2);
+    ctx.fillStyle = '#ff5a48'; ctx.font = 'bold 40px monospace'; ctx.fillText('K N O C K E D   O U T', W / 2, y + 54);
+    let yy = y + 54;
+    if (DOWNCARD.why) { yy += 26; ctx.fillStyle = '#e8c46a'; ctx.font = 'bold 17px monospace'; ctx.fillText(DOWNCARD.why, W / 2, yy); }
+    ctx.fillStyle = '#f2e8d0'; ctx.font = 'bold 14px monospace'; ctx.fillText('YOU WOKE UP IN ' + HOSPITAL_NAME, W / 2, yy + 26);
+    ctx.fillStyle = 'rgba(226,220,206,0.85)'; ctx.font = '12px monospace'; ctx.fillText('HALF HEALTH  \u00b7  YOUR BIKE IS WHERE YOU LEFT IT', W / 2, yy + 46);
+    ctx.restore();
   }
 
   // always on (every mode): a drawn augment on some civilians, and the alt-fuel kit on ground traffic.
@@ -21719,11 +21749,12 @@ const RUNNER_API = (function () {
     } catch (e) { /* no sound here */ }
   }
   // a downed runner wakes in the ward, on foot. The bike keeps the place he left it (it comes down if it was in the air).
-  function wake(msg) {
+  function wake(msg, why) {
     walker.on = true; dismountAt = null; canRoof = false; lobby = false; lobbyBike = null;
     if (car.mode !== 'landed') car.mode = 'down';
     car.speed = 0; car.lean = 0;
     say(msg, 5);
+    DOWNCARD.until = performance.now() + 6000; DOWNCARD.why = why || '';   // wake() is only called when he goes down
   }
   // the hover sounds (placeholders). Attachment 1 = hover bike, 2 = hover trucks, 3 = average hover cars, 4 = sports hover cars.
   // Each class is one loop. Its loudness is the nearest moving vehicle of that class, falling off with distance from the runner.
@@ -22784,7 +22815,7 @@ const RUNNER_API = (function () {
     augments,
     augmentAt,
     takeDismount,
-    wake, hunterTick, worldHud, hunterReset, hoverSoundTick, setVest, soakHit, vestBar, setPhone, setIndoors, talking: () => !!(yMenu.open && yMenu.mode === 'talk'), setLaserChip, setCash: (c) => { runnerCash = +c || 0; }, jobLog, huntDbg, fire, laserItems, laserPick, gearItems, gearPick, setSleepHook: (h) => { sleepHook = h; }, setSaveHook: (h) => { saveHook = h; }, sleepWheelClosed, takeCash,
+    wake, hurtWhy, hunterTick, worldHud, hunterReset, hoverSoundTick, setVest, soakHit, vestBar, setPhone, setIndoors, talking: () => !!(yMenu.open && yMenu.mode === 'talk'), setLaserChip, setCash: (c) => { runnerCash = +c || 0; }, jobLog, huntDbg, fire, laserItems, laserPick, gearItems, gearPick, setSleepHook: (h) => { sleepHook = h; }, setSaveHook: (h) => { saveHook = h; }, sleepWheelClosed, takeCash,
     groundTrash, groundStash, onFoot: () => walker.on, armed: () => LASER.has,
     setPeople: (p, groups) => { PEOPLE = (p || []).concat(...(groups || [])); },
     hoverKid,
@@ -62398,6 +62429,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       }
       /* KILLED BY THE COPS (layer 519): you don't just get up somewhere -- you wake up in custody. An escaped con goes
          back to Kestrel in the jumpsuit (the SHU, like a recapture); anyone else with the police on him is booked. */
+      /* what hurt the runner: on every drop in health, guess it from who is close (the last guess goes on the KNOCKED OUT card) */
+      if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { if (g.pHpPrev != null && g.p.hp < g.pHpPrev - 0.01) g.lastHurt = RUNNER_API.hurtWhy(g.p.x, g.p.y, g); g.pHpPrev = g.p.hp; }
       /* LAYER 669: in Runner Mode a downed runner wakes in the hospital ward, on foot, at half health. The bike stays where he left it. */
       if (RUNNER_API.isOn() && !g.title && g.p.hp != null && g.p.hp <= 0) {
         const hb = getCell(HOSPITAL_CELL.i, HOSPITAL_CELL.j), hosp = hb && (hb.blds || []).find((q) => q.kind === "hospital");
@@ -62409,7 +62442,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           g.p.x = ix; g.p.y = iy; g.p.vx = g.p.vy = 0; g.cam.x = ix; g.cam.y = iy;
         }
         g.p.hp = Math.max(1, Math.round((g.p.maxHp || 100) * 0.5)); g.hurtT = 0;
-        RUNNER_API.wake("YOU WOKE UP IN " + HOSPITAL_NAME + ". YOUR BIKE IS WHERE YOU LEFT IT.");
+        RUNNER_API.wake("YOU WOKE UP IN " + HOSPITAL_NAME + ". YOUR BIKE IS WHERE YOU LEFT IT.", g.lastHurt); g.lastHurt = null; g.pHpPrev = g.p.hp;
       }
       else if (g.p.hp <= 0 && !((g.arrested || 0) > 0) && g.prisonMode && g.pescaped) { g.p.hp = Math.max(30, (g.p.maxHp || 100) * 0.5); arrestPlayer(); g.jobNote = "You went down in the street. You woke up in a Kestrel ambulance, cuffed to the rail -- 72 hours in the SHU."; }
       else if (g.p.hp <= 0 && !((g.arrested || 0) > 0) && ((g.heat || 0) > 0 || (g.wantedT || 0) > 0) && !g.prisonMode && !g.studentMode) downHero("arrest");
