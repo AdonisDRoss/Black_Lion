@@ -9295,7 +9295,7 @@ function makeFloor(b, f, rnd) {
               72, 70, "cafetable");
         }
         // only the venue's bar is staffed; every other bar in the city keeps its own furniture
-        if (kind === "bandvenue") P(cx - 12, cy - 19, 24, 38, "st_bar");
+        if (kind === "bandvenue") P(cx - 20, cy - 26, 40, 52, "st_bar");
         break;
       // third label collision. The club's run won; Il Corvo's m_booth/c_booth plates were dead.
       case "booth": {
@@ -9433,16 +9433,16 @@ function makeFloor(b, f, rnd) {
         P(cx - 11, sy + sh2 - 22, 22, 14, "vn_monitor");
         P(cx - 8, sy + sh2 - 30, 16, 24, "vn_mic_stands");
         P(q2.x1 - pad - 30, q2.y0 + pad + 58, 30, 20, "vn_stage_steps");
-        P(q2.x0 + pad + 32, q2.y0 + pad + 62, 24, 38, "st_sound");
+        P(q2.x0 + pad + 26, q2.y0 + pad + 50, 40, 52, "st_sound");   // staff at the player's size (were 24x38)
         // barriers across the front of the stage, the light bar over the floor
         for (let rx = q2.x0 + pad; rx < q2.x1 - 44; rx += 46) P(rx, q2.y0 + pad + 84, 44, 8, "vn_barrier");
         P(cx - 25, cy + 6, 50, 12, "vn_lights");
         P(q2.x0 + pad, q2.y1 - pad - 22, 30, 22, "vn_cases");
         // the bar and the merch table along the back wall, in the same room
         P(q2.x0 + pad, q2.y1 - pad - 32, 60, 26, "bartop");
-        P(q2.x0 + pad + 70, q2.y1 - pad - 34, 24, 38, "st_bar");
+        P(q2.x0 + pad + 62, q2.y1 - pad - 48, 40, 52, "st_bar");
         P(q2.x1 - pad - 44, q2.y1 - pad - 20, 44, 20, "vn_merch");
-        P(q2.x1 - pad - 76, q2.y1 - pad - 38, 24, 38, "st_door");
+        P(q2.x1 - pad - 84, q2.y1 - pad - 52, 40, 52, "st_door");
         break;
       }
       case "pit":
@@ -15466,7 +15466,7 @@ const RUNNER_API = (function () {
     if (!lobby && teamCarV && car !== teamCarV) drawCar('car_' + CAR_FILES[teamCarV.sprite], teamCarV.x, teamCarV.y, 0, teamCarV.heading || 0, 0);   // LAYER 723
     if (!lobby && parkedHover) drawCar('car_' + CAR_FILES[parkedHover.sprite], parkedHover.x, parkedHover.y, parkedHover.z, parkedHover.heading || 0, 0);   // LAYER 723: the hover bike, parked
     if (walker.on) drawSneakWalker(x, y);
-    else if (!lobby) {                                   // LAYER 638: on the bike, he is drawn sitting on it, turned the way it faces
+    else if (!lobby && car !== teamCarV && car !== ownCar) {   // LAYER 638 (a ground car hides its driver: he is IN it, not on the roof): on the bike, he is drawn sitting on it, turned the way it faces
       const h = walker.heading; walker.heading = car.heading || 0;
       drawWalker(car.x, car.y - car.z);
       walker.heading = h;
@@ -15720,7 +15720,7 @@ const RUNNER_API = (function () {
     placed = true;
     car.z = AIR_Z; car.mode = 'air'; car.speed = 0; car.lean = 0; walker.on = false;
     fliers.length = 0; for (let k = 0; k < 16; k++) fliers.push(newFlier(car.x, car.y));
-    if (teamCarV) { teamCarV.route = null; teamCarV.driver = null; }   // LAYER 726
+    if (teamCarV) { teamCarV.route = null; teamCarV.driver = null; teamCarV.pax = false; }   // LAYER 726
     ownCar = null; hotwire = null;   // LAYER 727
     spawnTeam();   // LAYER 679: the teammates and the case
     say('FUTURE CITY · L TO LAND · E TO GET OUT', 4);
@@ -15739,7 +15739,7 @@ const RUNNER_API = (function () {
     else if (car.mode === 'up') { car.mode = 'down'; say('LANDING'); }
   }
   // LAYER 722: how far from the bike you can be and still call it. Beyond this the call is refused.
-  const SUMMON_R = 900;
+  const SUMMON_R = 3200;   // how far away he can still call the bike (it was 900)
   // LAYER 639: the bike comes down on a clear spot beside you, so you can always get to it from the ground
   function callBike() {
     if (hoverOwned) return callHoverBike();   // the caller has no range
@@ -15826,7 +15826,7 @@ const RUNNER_API = (function () {
   function leaveTeamCar() {
     if (!parkedHover) return say('YOU ARE ON FOOT');
     if (Math.abs(car.speed) > TEAM_CAR_STOP) return say('STOP THE CAR FIRST.', 2);
-    car.speed = 0; car.lean = 0;
+    car.speed = 0; car.lean = 0; if (teamCarV) teamCarV.pax = false;
     const dm = dismountSpot();
     const hv = parkedHover; parkedHover = null; car = hv;
     walker.on = true; dismountAt = dm; walker.heading = 0;
@@ -15960,10 +15960,11 @@ const RUNNER_API = (function () {
   }
   function teamDriver() { return mates.find((m) => m.friend) || null; }
   function teamDriverName() { const d = teamDriver(); return d ? d.name : 'YOUR TEAMMATE'; }
-  function teamCarOK() { return !!(teamCarV && RUN_ON && !lobby && car !== teamCarV); }
+  function teamCarOK() { return !!(teamCarV && RUN_ON && !lobby && (car !== teamCarV || !walker.on)); }   // on foot beside it, or sitting in it
   function teamCarSub() {
     const c = teamCarV; if (!c) return '';
     if (c.route && c.route.ready) return teamDriverName() + ' DRIVING TO ' + c.route.label;
+    if (car === c && !c.route) return 'IN THE CAR · HE DRIVES, PICK A PLACE';
     if (c.route) return teamDriverName() + ' ON HIS WAY TO THE CAR';
     return 'PARKED · PICK A PLACE';
   }
@@ -15986,15 +15987,17 @@ const RUNNER_API = (function () {
   }
   function endTeamRoute(c, msg) {
     const d = c.driver; c.route = null; c.speed = 0; c.driver = null;
-    if (d) { stepOut(d, c); say(d.name + ': ' + msg, 4); }
+    if (d) { if (c.pax) { d.driving = false; d.order = null; say(d.name + ': ' + msg, 4); } else { stepOut(d, c); say(d.name + ': ' + msg, 4); } }
+    c.pax = false;   // you have the wheel back
   }
   function teamOrder(dest) {
     const c = teamCarV;
-    if (!c || car === c) return;
+    if (!c) return;
     if (dest === 'stop') {
       if (!c.route) return say('SHE IS NOT GOING ANYWHERE.', 2);
       const d = c.driver; c.route = null; c.speed = 0; c.driver = null;
-      if (d) { stepOut(d, c); say(d.name + ': PULLING OVER.', 3); }
+      if (d) { if (c.pax) { d.driving = false; d.order = null; say(d.name + ': PULLING OVER.', 3); } else { stepOut(d, c); say(d.name + ': PULLING OVER.', 3); } }
+      c.pax = false;
       return;
     }
     let spot = null, label = '';
@@ -16013,6 +16016,12 @@ const RUNNER_API = (function () {
     const pts = roadPath(c.x, c.y, stop.x, stop.y);
     if (!pts) return say('NO ROAD GETS THERE.', 3);
     pts.push({ x: clamp(stop.x, 60, SX(N) - 60), y: clamp(stop.y, 60, SX(N) - 60) });
+    if (car === c) {   // you are IN the car: he takes the wheel at once and you ride along
+      c.pax = true; c.driver = d; d.driving = true; d.order = null;
+      c.route = { pts, i: 0, slow: 0, label, ready: true, dest: stop };
+      say(d.name + ': GOT IT. SIT BACK. GOING TO THE ' + label + '.', 4);
+      return;
+    }
     if (c.driver && c.driver !== d) stepOut(c.driver, c);
     const aboard = c.driver === d && d.driving;   // already at the wheel: the car goes at once
     c.route = { pts, i: 0, slow: 0, label, ready: aboard, dest: stop };
@@ -16032,7 +16041,7 @@ const RUNNER_API = (function () {
   // if it cannot move for 2.5 seconds (a wall it cannot get round)
   function teamDriveTick(dt) {
     const c = teamCarV, R = c && c.route;
-    if (!R || !R.ready || car === c) return;
+    if (!R || !R.ready || (car === c && !c.pax)) return;   // not while YOU drive it (a passenger run is fine)
     if (R.i >= R.pts.length) return endTeamRoute(c, "WE'RE HERE.");
     const wp = R.pts[R.i], dx = wp.x - c.x, dy = wp.y - c.y, L = Math.hypot(dx, dy);
     if (L < 36) { R.i++; return; }
@@ -16775,7 +16784,8 @@ const RUNNER_API = (function () {
       if (PMB.inside) pmRoomMove(dt, pad); else updateWalker(dt, pad);   // LAYER 709: in the bar he walks the room
       // LAYER 640: a bike called down to you still comes down while you walk; nothing steers it
       if (car.mode === 'down' || car.mode === 'up') updateCar(dt, { rt: 0, lt: 0, x: 0 });
-    } else updateCar(dt, pad);
+    } else if (car === teamCarV && teamCarV && teamCarV.pax && teamCarV.route) { /* he has the wheel: teamDriveTick steers it, not you */ }
+    else updateCar(dt, pad);
     const v = view();
     fliers.forEach((f) => updateFlier(f, dt, v.x0 + (v.x1 - v.x0) / 2, v.y0 + (v.y1 - v.y0) / 2));
   }
@@ -18758,7 +18768,7 @@ const RUNNER_API = (function () {
     const now = performance.now();
     for (const m of mates) {
       if (m.stunT > 0) { m.stunT = Math.max(0, m.stunT - dt); continue; }
-      if (m.companion) { companionTick(m, dt, now); continue; }   // LAYER 705: the partner
+      if (m.companion && !m.order && !m.driving) { companionTick(m, dt, now); continue; }   // LAYER 705: the partner (with a drive order he goes to the car and gets in, like any teammate)
       if (m.order) {   // LAYER 726: he jogs to the car to drive it
         const c = teamCarV;
         if (!c) { m.order = null; continue; }
@@ -19585,6 +19595,10 @@ const RUNNER_API = (function () {
   // runner of another team that is in sight, is stunned by the blue beam. He never shoots the runner.
   function companionTick(m, dt, now) {
     m.cd = Math.max(0, m.cd - dt);
+    // your car: he rides in it with you (hidden, he is inside), and steps out beside it when you get out
+    { const inCar = !walker.on && (car === teamCarV || car === ownCar);
+      if (inCar) { m.aboard = car; m.ride = false; m.x = car.x; m.y = car.y; m.hx = m.x; m.hy = m.y; return; }
+      if (m.aboard) { const c0 = m.aboard; m.aboard = null; m.x = clamp(c0.x - Math.sin(c0.heading || 0) * 44, 40, SX(N) - 40); m.y = clamp(c0.y + Math.cos(c0.heading || 0) * 44, 40, SX(N) - 40); m.hx = m.x; m.hy = m.y; } }
     // his bike: he calls it when you call yours or get on it, and gets off when you do
     { const fn = car && CAR_FILES[car.sprite], bikeCar = !!fn && (/^rtbike_/.test(fn) || car.sprite === BIKE_INDEX);
       const want = bikeCar && (!walker.on ? car !== teamCarV : car.mode === 'down');
@@ -21286,7 +21300,7 @@ const RUNNER_API = (function () {
     if (outdoors && cam && !PMB.inside) {
       c.save(); c.translate(W / 2, H / 2); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y);
       for (const h of hunters) drawHunter(c, h);
-      for (const m of mates) if (!m.driving) drawMate(c, m);   // LAYER 679: the teammates (LAYER 726: not the one at the wheel)
+      for (const m of mates) if (!m.driving && !m.aboard) drawMate(c, m);   // LAYER 679: the teammates (LAYER 726: not the one at the wheel)
       for (const m of informants) drawMate(c, m);   // LAYER 705: the people who may know the doctor
       rjDrawWorld(c, now);   // LAYER 707: the job givers (gold !), the job's contacts and its spot
       if (RUN_ON) drawTurrets(c);   // LAYER 709: the roof guns on the Pheromone
