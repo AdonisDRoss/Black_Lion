@@ -15783,6 +15783,7 @@ const RUNNER_API = (function () {
     if (barTalkNow()) return;   // LAYER 747: E by one of the LAST CALL's people talks to him, as A does on the pad
     if (storyTalk()) return;   // LAYER 705: an informant or the doctor beside him
     if (PMB.inside) return;    // LAYER 709: in the bar the bike and the pack stay put
+    if (runnerInside && secretNear()) { secretOpen(); return; }   // the secret stash, in the house
     if (runnerInside) { if (fromPad && worldActHook) worldActHook(); return; }   // LAYER 746: indoors, the bike, the cars, the bag and the stashes are outside things: only the building's own action runs
     const bxf = boxNear(); if (bxf) { boxPick(bxf); return; }   // a Game Box lying in the street
     if (secretNear()) { secretOpen(); return; }   // the secret stash: no prompt, you have to know
@@ -17388,6 +17389,7 @@ const RUNNER_API = (function () {
   /* PUNCH FEEDBACK. The main game animates the swing on ITS player sprite, which Runner Mode does not draw, so a punch looked like nothing at all.
      Now: an arm and fist swing out from the shoulder (left, right, left...), a landed punch bursts with a POW, and getting hit flashes red
      with an OOF at him. All of it in world space around the walker. */
+  const COUGH = { next: 0, until: 0, n: 0 };   // the haze: one cough every ten seconds while he breathes it
   const PUNCHFX = { swingUntil: 0, hand: 1, ang: 0, hit: false, popUntil: 0, pop: '', px: 0, py: 0, spin: 0, red: false, hurtUntil: 0 };
   function punchSwing(hit) {
     if (!walker.on) return;
@@ -17399,7 +17401,8 @@ const RUNNER_API = (function () {
     PUNCHFX.hit = h;
     if (h) { PUNCHFX.popUntil = now + 480; PUNCHFX.pop = ['POW!', 'WHAM!', 'BAM!', 'THWACK!'][(Math.random() * 4) | 0]; PUNCHFX.px = fx; PUNCHFX.py = fy; PUNCHFX.spin = (Math.random() - 0.5) * 0.5; PUNCHFX.red = false; }
   }
-  function hurtFlash() {   // he took a hit: red at the edges, an OOF over him
+  function hurtFlash(dmg) {   // he took a hit: red at the edges, an OOF over him
+    if (dmg < 2.5 && haze > 0.02 && !mask) return;   // the haze eating his health is a cough (below), not a punch
     const now = performance.now();
     if (PUNCHFX.hurtUntil - now > 200) return;   // continuous damage (fire) does not spam it
     PUNCHFX.hurtUntil = now + 380;
@@ -17412,9 +17415,9 @@ const RUNNER_API = (function () {
   }
   function drawPunchFx() {
     const now = performance.now();
-    if (!walker.on || lobby) return;
+    if (lobby) return;
     const sl = PUNCHFX.swingUntil - now;
-    if (sl > 0) {   // the arm: out and back, from the shoulder
+    if (sl > 0 && walker.on) {   // the arm: out and back, from the shoulder
       const pr = 1 - sl / 300, ext = Math.sin(pr * Math.PI), a = PUNCHFX.ang, nx = Math.cos(a + Math.PI / 2), ny = Math.sin(a + Math.PI / 2);
       const sx = walker.x + nx * 11 * PUNCHFX.hand, sy = walker.y + ny * 11 * PUNCHFX.hand, len = 6 + 26 * ext;
       const ex = sx + Math.cos(a) * len, ey = sy + Math.sin(a) * len;
@@ -17425,8 +17428,18 @@ const RUNNER_API = (function () {
       if (!PUNCHFX.hit) { ctx.strokeStyle = 'rgba(255,255,255,' + (0.5 * ext) + ')'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(walker.x, walker.y, 30, a - 0.5, a + 0.5); ctx.stroke(); }   // a miss: a whoosh
       ctx.restore();
     }
+    const cl = COUGH.until - now;
+    if (cl > 0) {   // *cough*: small grey puffs and the word, rising off his head (on the bike too)
+      const pr = 1 - cl / 1500, rise = pr * 10, wx = walker.on ? walker.x : car.x, wy = walker.on ? walker.y : car.y - car.z;
+      ctx.save(); ctx.globalAlpha = Math.min(1, cl / 500) * 0.9;
+      for (let i = 0; i < 3; i++) { ctx.fillStyle = 'rgba(190,175,205,0.7)'; ctx.beginPath(); ctx.arc(wx + (i - 1) * 6, wy - 16 - rise - i * 2, 2.2 + pr * 2, 0, Math.PI * 2); ctx.fill(); }
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'italic 700 7px monospace';
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(10,6,14,0.85)'; const w0 = COUGH.n % 2 ? '*COUGH*' : '*COUGH COUGH*';
+      ctx.strokeText(w0, wx, wy - 26 - rise); ctx.fillStyle = '#d9c8ee'; ctx.fillText(w0, wx, wy - 26 - rise);
+      ctx.restore();
+    }
     const pl = PUNCHFX.popUntil - now;
-    if (pl > 0) {   // the impact: a star and the word, popping in then fading
+    if (pl > 0 && walker.on) {   // the impact: a star and the word, popping in then fading
       const pr = 1 - pl / 480, sc = Math.min(1, pr * 5) * (1 + 0.15 * Math.sin(pr * 6)), al = Math.min(1, pl / 160), c0 = PUNCHFX.red;
       ctx.save(); ctx.globalAlpha = al;
       burst(PUNCHFX.px, PUNCHFX.py, 17 * sc, PUNCHFX.spin + pr * 0.4, c0 ? '#ff4a3a' : '#ffe14a', c0 ? '#7a0f08' : '#d9531a');
@@ -18146,6 +18159,8 @@ const RUNNER_API = (function () {
     const now = performance.now(), dt = Math.min(0.2, (now - (hazeT || now)) / 1000); hazeT = now;
     if (outdoors && !mask) haze = Math.min(1, haze + dt * 0.05);    // full in about 20 seconds
     else haze = Math.max(0, haze - dt * 0.025);                     // clears in about 40 seconds
+    if (haze > 0.05 && !mask) { if (!COUGH.next) COUGH.next = now + 4000; if (now >= COUGH.next) { COUGH.next = now + 10000; COUGH.until = now + 1500; COUGH.n++; } }   // one cough every ten seconds
+    else if (haze < 0.02) COUGH.next = 0;
   }
   const HAZE_CAP = 0.7;   // LAYER 648: the purple never takes more than 70% of the bar, so a full haze can't drop health to zero
   function hazeLevel() { return Math.min(haze, HAZE_CAP); }
@@ -21926,10 +21941,11 @@ const RUNNER_API = (function () {
   let saveHook = null;        // the game's save, set from the component (setSaveHook): the checkpoint at the end of the night run
   let sleepHook = null;       // LAYER 692: the game's black, radial and sleep fade, set from the component (setSleepHook)
   let packsPlaced = false;
-  /* THE SECRET STASH (Donny's): nothing marks it, no prompt, no dot on the map. It is out past the east edge of the C.A.N. lot. Stand on it
-     and press A or E and it gives you everything: every weapon, the cyberwear fitted, the vest and the phone, the pistol chip, and a
-     hover bike caller. The hover bike REPLACES the dirt bike for good, and it is called from the Y wheel or X, from anywhere. */
-  const SECRET = { x: 0, y: 0, set: false, got: false };
+  /* THE SECRET STASH (Donny's): nothing marks it, no prompt, no dot on the map. It is INSIDE THE HOUSE, the first one the teammate gets: on the
+     floor in the back corner, the far (upper right) end from the door. Stand on it and press A or E and it gives you everything: every weapon,
+     the cyberwear fitted, the vest and the phone, the pistol chip, a Game Box, and a hover bike caller. The hover bike REPLACES the dirt bike
+     for good, and it is called from the Y wheel or X, from anywhere. (The Game Boxes in the shops and lying in the world are separate.) */
+  const SECRET = { x: 0, y: 0, set: false, got: false, key: '' };
   let hoverOwned = false, secretReq = false;
   // each piece does something (the buffs are read by cyb()/cybN() where the thing happens): [id, name, what it does]
   const CYBER_KIT = [['eyes', 'CYBER EYES', 'Both eyes. LASER RANGE +30%.'], ['chest', 'CHEST PLATE', 'Subdermal weave. YOU TAKE 20% LESS DAMAGE.'], ['spine', 'SPINAL LINK', 'Reflex booster. A STUN ON YOU LASTS HALF AS LONG.'],
@@ -21939,16 +21955,17 @@ const RUNNER_API = (function () {
   const cyb = (id) => RUNNER_CYBER.some((c) => c.id === id);
   const cybN = (a, b) => (cyb(a) ? 1 : 0) + (cyb(b) ? 1 : 0);
   function secretNear() {
-    if (SECRET.got || !walker.on || runnerInside || lobby || !CAN_LOT_RECT) return false;
-    if (!SECRET.set) { const L = canRect().lot, sp = clearSpot(L[2] + 420, (L[1] + L[3]) / 2 + 90, null) || { x: L[2] + 420, y: (L[1] + L[3]) / 2 + 90 }; SECRET.x = sp.x; SECRET.y = sp.y; SECRET.set = true; }
-    return Math.hypot(walker.x - SECRET.x, walker.y - SECRET.y) < 70;
+    if (SECRET.got || !walker.on || lobby || !houseBldg || !runnerInside || runnerInside.x !== houseBldg.x || runnerInside.y !== houseBldg.y) return false;
+    const key = houseBldg.x + ',' + houseBldg.y;
+    if (!SECRET.set || SECRET.key !== key) { const sp = thugFreeSpot(houseBldg, houseBldg.x + houseBldg.w * 0.8, houseBldg.y + houseBldg.h * 0.22); SECRET.x = sp.x; SECRET.y = sp.y; SECRET.set = true; SECRET.key = key; }
+    return Math.hypot(walker.x - SECRET.x, walker.y - SECRET.y) < 50;
   }
   function secretOpen() {
     SECRET.got = true; secretReq = true;
     LASER.has = true; LASER.chip = true; LASER.locked = false;
     gasOwned = true; sleepOwned = true; phoneOwned = true; hoverOwned = true; fillCyber(); boxReq = true; boxOwned = true;
     car.sprite = ownBikeIndex();   // the dirt bike is gone: the hover bike is the one he has
-    say('THE STASH. EVERY WEAPON, ALL THE CYBERWEAR, A HOVER BIKE CALLER. THE HOVER BIKE REPLACES THE DIRT BIKE.', 7);
+    say('THE STASH. EVERY WEAPON, ALL THE CYBERWEAR, A GAME BOX, A HOVER BIKE CALLER. THE HOVER BIKE REPLACES THE DIRT BIKE.', 7);
   }
   function takeStash() { const r = secretReq; secretReq = false; return r; }
   // the hover bike comes from anywhere: down from the sky beside him, no range
@@ -62089,7 +62106,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       keys.forEach((k) => { if (g.rack.indexOf(k) < 0) g.rack.push(k); });
       g.laserChip = 1; g.phoneOwned = 1; g.vestHave = 1; g.gameBox = 1;
       if (!g.vestOn && G.vestWear548) G.vestWear548(true);
-      if (!quiet) g.pickupFlash = { nm: "lift:THE STASH \u00b7 EVERY WEAPON, THE CYBERWEAR, A HOVER BIKE", t: 3.5 };
+      if (!quiet) g.pickupFlash = { nm: "lift:THE STASH \u00b7 EVERY WEAPON, THE CYBERWEAR, A GAME BOX, A HOVER BIKE", t: 3.5 };
     }
     G.grantAllGear = grantAllGear;
     function frameBody(now) {
@@ -62505,7 +62522,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       /* KILLED BY THE COPS (layer 519): you don't just get up somewhere -- you wake up in custody. An escaped con goes
          back to Kestrel in the jumpsuit (the SHU, like a recapture); anyone else with the police on him is booked. */
       /* what hurt the runner: on every drop in health, guess it from who is close (the last guess goes on the KNOCKED OUT card) */
-      if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { if (g.pHpPrev != null && g.p.hp < g.pHpPrev - 0.01) { g.lastHurt = RUNNER_API.hurtWhy(g.p.x, g.p.y, g); RUNNER_API.hurtFlash(); } g.pHpPrev = g.p.hp; }
+      if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { if (g.pHpPrev != null && g.p.hp < g.pHpPrev - 0.01) { g.lastHurt = RUNNER_API.hurtWhy(g.p.x, g.p.y, g); RUNNER_API.hurtFlash(g.pHpPrev - g.p.hp); } g.pHpPrev = g.p.hp; }
       /* LAYER 669: in Runner Mode a downed runner wakes in the hospital ward, on foot, at half health. The bike stays where he left it. */
       if (RUNNER_API.isOn() && !g.title && g.p.hp != null && g.p.hp <= 0) {
         const hb = getCell(HOSPITAL_CELL.i, HOSPITAL_CELL.j), hosp = hb && (hb.blds || []).find((q) => q.kind === "hospital");
