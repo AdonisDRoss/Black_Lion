@@ -9295,7 +9295,7 @@ function makeFloor(b, f, rnd) {
               72, 70, "cafetable");
         }
         // only the venue's bar is staffed; every other bar in the city keeps its own furniture
-        if (kind === "bandvenue") P(cx - 20, cy - 26, 40, 52, "st_bar");
+        if (kind === "bandvenue") P(cx - 16, cy - 21, 32, 42, "st_bar");
         break;
       // third label collision. The club's run won; Il Corvo's m_booth/c_booth plates were dead.
       case "booth": {
@@ -9433,16 +9433,16 @@ function makeFloor(b, f, rnd) {
         P(cx - 11, sy + sh2 - 22, 22, 14, "vn_monitor");
         P(cx - 8, sy + sh2 - 30, 16, 24, "vn_mic_stands");
         P(q2.x1 - pad - 30, q2.y0 + pad + 58, 30, 20, "vn_stage_steps");
-        P(q2.x0 + pad + 26, q2.y0 + pad + 50, 40, 52, "st_sound");   // staff at the player's size (were 24x38)
+        P(q2.x0 + pad + 28, q2.y0 + pad + 56, 32, 42, "st_sound");   // staff at the player's size (were 24x38)
         // barriers across the front of the stage, the light bar over the floor
         for (let rx = q2.x0 + pad; rx < q2.x1 - 44; rx += 46) P(rx, q2.y0 + pad + 84, 44, 8, "vn_barrier");
         P(cx - 25, cy + 6, 50, 12, "vn_lights");
         P(q2.x0 + pad, q2.y1 - pad - 22, 30, 22, "vn_cases");
         // the bar and the merch table along the back wall, in the same room
         P(q2.x0 + pad, q2.y1 - pad - 32, 60, 26, "bartop");
-        P(q2.x0 + pad + 62, q2.y1 - pad - 48, 40, 52, "st_bar");
+        P(q2.x0 + pad + 66, q2.y1 - pad - 40, 32, 42, "st_bar");
         P(q2.x1 - pad - 44, q2.y1 - pad - 20, 44, 20, "vn_merch");
-        P(q2.x1 - pad - 84, q2.y1 - pad - 52, 40, 52, "st_door");
+        P(q2.x1 - pad - 80, q2.y1 - pad - 42, 32, 42, "st_door");
         break;
       }
       case "pit":
@@ -17127,25 +17127,25 @@ const RUNNER_API = (function () {
     c2.putImageData(d, 0, 0); sprCache[key] = cv; return cv;
   }
   // one piece, turned about its joint piv (picture px). X0, Y0: the picture's top-left on the canvas; s: picture px -> canvas px
-  function femPiece(k, o, piv, ang, X0, Y0, s) {
+  function femPiece(k, o, piv, ang, X0, Y0, s, ky) {
     const im = femSrc(k), px = X0 + piv[0] * s, py = Y0 + piv[1] * s;
-    ctx.save(); ctx.translate(px, py); ctx.rotate(ang);
+    ctx.save(); ctx.translate(px, py); ctx.rotate(ang); if (ky && ky !== 1) ctx.scale(1, ky);
     ctx.drawImage(im, X0 + o[0] * s - px, Y0 + o[1] * s - py, im.width * s, im.height * s);
     ctx.restore();
   }
   // ph: -1 to 1 as he walks. At rest (0) the pieces are where they were cut, so the picture is as it was.
-  function drawFemRig(x, y, bw, bh, ph) {
+  function drawFemRig(x, y, bw, bh, ph, pa) {
     const s = bw / FEM.size[0], X0 = x - bw / 2, Y0 = y - bh / 2, o = FEM.o;
     femPiece('fem_leg_L', o.leg_L, FEM.hip[0], ph * 0.16, X0, Y0, s);
     femPiece('fem_leg_R', o.leg_R, FEM.hip[1], -ph * 0.16, X0, Y0, s);
     femPiece('fem_torso', o.torso, [0, 0], 0, X0, Y0, s);
-    femPiece('fem_arm_L', o.arm_L, FEM.sh[0], -ph * 0.07, X0, Y0, s);
-    femPiece('fem_arm_R', o.arm_R, FEM.sh[1], ph * 0.07, X0, Y0, s);
+    femPiece('fem_arm_L', o.arm_L, FEM.sh[0], -ph * 0.07, X0, Y0, s, pa && pa.side === 'L' ? 1 + 1.5 * pa.e : 1);
+    femPiece('fem_arm_R', o.arm_R, FEM.sh[1], ph * 0.07, X0, Y0, s, pa && pa.side === 'R' ? 1 + 1.5 * pa.e : 1);
   }
   // LAYER 693: where each baked body is cut, in its own art px. big: the original cut. heavy_b: measured from its art (the legs and arms part at y 380,
   // the arm gap at x 170 and 627, the legs split at x 400, the shoulder joint at y 190).
   const BIG_CUTS = { big: { HIP_Y: 430, SH_Y: 200, MID: 416, LX: 182, RX: 650 }, heavy_b: { HIP_Y: 380, SH_Y: 190, MID: 400, LX: 170, RX: 627, hands: [[0, 480, 150, 600], [650, 480, 798, 600]] } };   // hands: the boxes (art px) where the skin is recoloured to the player's skin
-  function drawBigCut(bs, x, y, bw, bh, ph) {
+  function drawBigCut(bs, x, y, bw, bh, ph, pa) {
     const AW = bs.width, AH = bs.height, s = bw / AW, X0 = x - bw / 2, Y0 = y - bh / 2, M = 60;   // M: art px of margin, so a stretched piece is not cut at its old edge
     const CUT = BIG_CUTS[RUNNER_LOOK.body] || BIG_CUTS.big;
     const HIP_Y = CUT.HIP_Y, SH_Y = CUT.SH_Y, MID = CUT.MID, LX = CUT.LX, RX = CUT.RX;   // art px: hips, shoulders, the crotch, and the arm edges
@@ -17156,8 +17156,9 @@ const RUNNER_API = (function () {
       ctx.translate(qx, qy); ctx.scale(1, k); ctx.translate(-qx, -qy);
       ctx.drawImage(bs, X0, Y0, bw, bh); ctx.restore();
     };
-    piece(-M, LX, -M, AH + M, 125, SH_Y, 1 - 0.14 * ph);            // left arm
-    piece(RX, AW + M, -M, AH + M, 708, SH_Y, 1 + 0.14 * ph);        // right arm
+    const PK = 1.5, pL = pa && pa.side === 'L', pR = pa && pa.side === 'R', ex = (AH - SH_Y) * PK + M;   // a punch stretches that arm PK times over, so its clip box grows with it
+    piece(-M, LX, -M, AH + (pL ? ex : M), 125, SH_Y, (1 - 0.14 * ph) * (pL ? 1 + PK * pa.e : 1));            // left arm
+    piece(RX, AW + M, -M, AH + (pR ? ex : M), 708, SH_Y, (1 + 0.14 * ph) * (pR ? 1 + PK * pa.e : 1));        // right arm
     piece(LX, MID, HIP_Y, AH + M, 318, HIP_Y, 1 + 0.35 * ph);       // left leg
     piece(MID, RX, HIP_Y, AH + M, 515, HIP_Y, 1 - 0.35 * ph);       // right leg
     piece(LX, RX, -M, HIP_Y, 0, 0, 1);                              // body, above the hips
@@ -17207,8 +17208,8 @@ const RUNNER_API = (function () {
       });
     }
     // the body: the Lion's jacket in the suit colour, or the old disc if the art is not there yet
-    if (bs && RUNNER_LOOK.body === 'female' && femReady()) drawFemRig(x, y, bw, bh, walker.on && walker.step ? Math.sin(walker.step) : 0);   // LAYER 688: the female body in pieces, so the limbs swing
-    else if (bs && BAKED_BODY[RUNNER_LOOK.body]) drawBigCut(bs, x, y, bw, bh, walker.on ? (walker.amp || 0) * Math.sin(walker.step || 0) : 0);   // LAYER 667
+    if (bs && RUNNER_LOOK.body === 'female' && femReady()) drawFemRig(x, y, bw, bh, walker.on && walker.step ? Math.sin(walker.step) : 0, punchArm());   // LAYER 688: the female body in pieces, so the limbs swing
+    else if (bs && BAKED_BODY[RUNNER_LOOK.body]) drawBigCut(bs, x, y, bw, bh, walker.on ? (walker.amp || 0) * Math.sin(walker.step || 0) : 0, punchArm());   // LAYER 667
     else if (bs) ctx.drawImage(bs, x - bw / 2, y - bh / 2, bw, bh);
     drawPackBack(x, y, bw, bh);   // LAYER 671: the pack is on the back, under the arms and the head
     const arms = BODY_ARMS[RUNNER_LOOK.body];
@@ -17221,8 +17222,10 @@ const RUNNER_API = (function () {
       for (const side of ['L', 'R']) {
         const a = arms[side];
         const ex = x - bw / 2 + a.E[0] * sx, ey = y - bh / 2 + a.E[1] * sy;
-        const hx = x - bw / 2 + a.H[0] * sx, hy = y - bh / 2 + (a.H[1] + dropPx) * sy;
-        drawArm(ex, ey, hx, hy, arms.W * sx, sk, RUNNER_LOOK.suit, copL ? copL.sleeve : (RUNNER_LOOK.body === 'heavy' ? sleeveTone(bs) : null));
+        let hx = x - bw / 2 + a.H[0] * sx, hy = y - bh / 2 + (a.H[1] + dropPx) * sy, ex2 = ex, ey2 = ey;
+        const pa = punchArm();
+        if (pa && pa.side === side) { const rch = 110 * sy * pa.e; hy += rch; ey2 += rch * 0.35; hx += (x - hx) * 0.25 * pa.e; }   // the punch: the hand goes out down the front, the elbow follows
+        drawArm(ex2, ey2, hx, hy, arms.W * sx, sk, RUNNER_LOOK.suit, copL ? copL.sleeve : (RUNNER_LOOK.body === 'heavy' ? sleeveTone(bs) : null));
         if (side === 'R') rHand = { hx, hy, ang: Math.atan2(hy - ey, hx - ex) };
       }
       if (holding && rHand) drawHeld(rHand.hx, rHand.hy, aimAngle() - hdg + Math.PI / 2, bw / 40)   // the body is turned by hdg - PI/2 here, so the barrel is turned back by the same;   // LAYER 731: the barrel points where he aims
@@ -17391,11 +17394,17 @@ const RUNNER_API = (function () {
      with an OOF at him. All of it in world space around the walker. */
   const COUGH = { next: 0, until: 0, n: 0 };   // the haze: one cough every ten seconds while he breathes it
   const PUNCHFX = { swingUntil: 0, hand: 1, ang: 0, hit: false, popUntil: 0, pop: '', px: 0, py: 0, spin: 0, red: false, hurtUntil: 0 };
+  function punchArm() {   // the arm that is punching right now and how far out it is (0..1..0), or null
+    const sl = PUNCHFX.swingUntil - performance.now();
+    if (sl <= 0 || held || mateDrawing || !walker.on) return null;
+    const pr = 1 - sl / 300, e = pr < 0.3 ? pr / 0.3 : 1 - (pr - 0.3) / 0.7;   // snaps out fast, comes back slower
+    return { side: PUNCHFX.hand > 0 ? 'R' : 'L', e: Math.max(0, Math.min(1, e)) };
+  }
   function punchSwing(hit) {
     if (!walker.on) return;
     const now = performance.now(), a = walker.heading || 0;
     PUNCHFX.swingUntil = now + 300; PUNCHFX.hand = -PUNCHFX.hand; PUNCHFX.ang = a;
-    const fx = walker.x + Math.cos(a) * 44, fy = walker.y + Math.sin(a) * 44;
+    const fx = walker.x + Math.cos(a) * 36, fy = walker.y + Math.sin(a) * 36;
     let h = !!hit;
     if (!h) for (const q of [].concat(hunters || [], mates.filter((m) => !m.companion), houseThugs || [])) { if (q && !q.dead && (q.hp == null || q.hp > 0) && Math.hypot(q.x - fx, q.y - fy) < 40) { h = true; break; } }
     PUNCHFX.hit = h;
@@ -17417,16 +17426,9 @@ const RUNNER_API = (function () {
     const now = performance.now();
     if (lobby) return;
     const sl = PUNCHFX.swingUntil - now;
-    if (sl > 0 && walker.on) {   // the arm: out and back, from the shoulder
-      const pr = 1 - sl / 300, ext = Math.sin(pr * Math.PI), a = PUNCHFX.ang, nx = Math.cos(a + Math.PI / 2), ny = Math.sin(a + Math.PI / 2);
-      const sx = walker.x + nx * 11 * PUNCHFX.hand, sy = walker.y + ny * 11 * PUNCHFX.hand, len = 6 + 26 * ext;
-      const ex = sx + Math.cos(a) * len, ey = sy + Math.sin(a) * len;
-      ctx.save(); ctx.lineCap = 'round';
-      ctx.strokeStyle = typeof RUNNER_LOOK.suit === 'string' ? RUNNER_LOOK.suit : '#3a4658'; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
-      ctx.fillStyle = typeof RUNNER_LOOK.skin === 'string' ? RUNNER_LOOK.skin : '#d9a77a'; ctx.beginPath(); ctx.arc(ex, ey, 5.5, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1; ctx.stroke();
-      if (!PUNCHFX.hit) { ctx.strokeStyle = 'rgba(255,255,255,' + (0.5 * ext) + ')'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(walker.x, walker.y, 30, a - 0.5, a + 0.5); ctx.stroke(); }   // a miss: a whoosh
-      ctx.restore();
+    if (sl > 0 && walker.on && !PUNCHFX.hit) {   // the arm itself is stretched in drawWalker; a miss also gets a whoosh
+      const pr = 1 - sl / 300, ext = Math.sin(pr * Math.PI), a = PUNCHFX.ang;
+      ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,' + (0.5 * ext) + ')'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(walker.x, walker.y, 30, a - 0.5, a + 0.5); ctx.stroke(); ctx.restore();
     }
     const cl = COUGH.until - now;
     if (cl > 0) {   // *cough*: small grey puffs and the word, rising off his head (on the bike too)
@@ -20714,6 +20716,24 @@ const RUNNER_API = (function () {
     if (A && A.spot) {
       c.save(); c.strokeStyle = 'rgba(59,108,255,0.85)'; c.lineWidth = 3; c.setLineDash([10, 8]);
       c.beginPath(); c.arc(A.spot.x, A.spot.y, 46 + 4 * Math.sin(now / 200), 0, Math.PI * 2); c.stroke(); c.restore();
+      const st = A.def.steps[A.step];
+      if (st && st.k === 'pick') {   // a pick step had only the ring: no envelope, nothing to see. Now the thing itself lies there.
+        const near = Math.hypot(walker.x - A.spot.x, walker.y - A.spot.y) < 110, bob = Math.sin(now / 260) * 1.6;
+        c.save(); c.translate(A.spot.x, A.spot.y + bob);
+        c.fillStyle = 'rgba(255,240,170,' + (0.2 + 0.12 * Math.sin(now / 200)) + ')'; c.beginPath(); c.arc(0, 0, 24, 0, Math.PI * 2); c.fill();
+        c.lineJoin = 'round';
+        if (/ENVELOPE|NOTE|LETTER/i.test(st.item || '')) {
+          c.fillStyle = '#efe6cf'; c.strokeStyle = '#4a3a1e'; c.lineWidth = 1.2; c.fillRect(-12, -8, 24, 16); c.strokeRect(-12, -8, 24, 16);
+          c.beginPath(); c.moveTo(-12, -8); c.lineTo(0, 2); c.lineTo(12, -8); c.stroke();
+          c.fillStyle = '#c0392b'; c.beginPath(); c.arc(0, 2, 2.6, 0, Math.PI * 2); c.fill();
+        } else {
+          c.fillStyle = '#a07a45'; c.strokeStyle = '#3d2a12'; c.lineWidth = 1.2; c.fillRect(-10, -9, 20, 18); c.strokeRect(-10, -9, 20, 18);
+          c.beginPath(); c.moveTo(-10, -2); c.lineTo(10, -2); c.stroke();
+        }
+        c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = 'bold 8px monospace'; c.lineWidth = 2.5; c.strokeStyle = 'rgba(0,0,0,0.85)';
+        const tx = near ? 'PRESS A' : String(st.item || 'PICK UP'); c.strokeText(tx, 0, -19); c.fillStyle = near ? '#ffe14a' : '#ffffff'; c.fillText(tx, 0, -19);
+        c.restore();
+      }
     }
   }
   /*PM_BEGIN*/
@@ -21525,10 +21545,11 @@ const RUNNER_API = (function () {
     if (LASER.has && LASER.drawn) { LASER.drawn = false; LASER.beams = []; say('LASER PISTOL PUT AWAY.', 2.5); return true; }
     return false;
   }
-  function fire() {
+  function fire(fromPunch) {   // fromPunch: the PUNCH button (B or F). It fires a pistol that is already out, but never draws one.
     if (PMB.inside) return false;   // LAYER 709: no shooting in the bar
     if (!walker.on && car && car.mode === 'ground' && car.sprite === FIS_CAR_IDX && RUN_ON && !lobby) return fireTurret();   // LAYER 757: in the FIS car, strike fires the guns
     if (!walker.on && car && car.mode === 'ground' && CAR_FILES[car.sprite] && /^rtbike_/.test(CAR_FILES[car.sprite]) && RUN_ON && !lobby) return fireFromBike();   // LAYER 787: the dirt bike has no turret, but the pistol still fires straight ahead while riding
+    if (fromPunch && LASER.has && !LASER.drawn && RUN_ON && walker.on && !lobby) return false;   // the pistol is away: the button punches
     if (LASER.has && !LASER.drawn && RUN_ON && walker.on && !lobby) { LASER.drawn = true; say('LASER PISTOL IN HAND. RB OR F TO FIRE.', 2.5); return true; }   // LAYER 683: the first press draws it
     if (PSTUN.t > 0 && walker.on) return true;   // LAYER 679: stunned, he cannot fire
     if (!LASER.has || !RUN_ON || !walker.on || lobby) return houseThugPunch();   // LAYER 748: a fist in the house goes to the thugs
@@ -25727,7 +25748,7 @@ export default function IronLionLayer004() {
       // LAYER 683: in Runner Mode Y opens the wheel, LB is the target (read by the runner), and RB punches on foot until he has the pistol
       if (press(3)) { if (onRun675) openWheel(); else if (G.coverFn) G.coverFn(); }   // Y: the action wheel, in Runner Mode too
       if (press(4) && !onRun675) openWheel();
-      if (press(5)) { if (onRun675) { if (RUNNER_API.onFoot() && !RUNNER_API.armed() && G.strikeFn) G.strikeFn(); } else if (!tap(["TGT"])) tap(["DRAW", "PUT UP"]); }
+      if (press(5)) { if (onRun675) { if (RUNNER_API.onFoot() && !RUNNER_API.armed()) { if (!RUNNER_API.fire() && G.strikeFn) G.strikeFn(); } } /* RB is the gun button: it draws the pistol, or punches when there is none */ else if (!tap(["TGT"])) tap(["DRAW", "PUT UP"]); }
       // the triggers: a car's pedals, or on foot draw / run
       if (press(7)) { if (car) K["w"] = true; else input.current.run = true; }
       if (rel(7)) { K["w"] = false; input.current.run = !!sprint && !car; }
@@ -31412,8 +31433,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
     function drawGig() {
       if (!g.gig) return;
-      for (const m of g.gig.band || []) gigSize(m, 36);
-      for (const c of g.gig.crowd) gigSize(c, /^st_/.test(c.yt) ? 36 : 31);
+      for (const m of g.gig.band || []) gigSize(m, 29);
+      for (const c of g.gig.crowd) gigSize(c, /^st_/.test(c.yt) ? 29 : 25);
       // blue wash from the rig, and the whole room pulses on the beat
       const pulse = 0.5 + 0.5 * Math.sin(g.gig.t * 4.2);
       const b = g.inside;
@@ -56627,7 +56648,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
 
     function strike() {
-      if (RUNNER_API.isOn() && RUNNER_API.fire()) return;   // LAYER 670: the laser pistol, when the runner has it
+      if (RUNNER_API.isOn() && RUNNER_API.fire(true)) return;   // LAYER 670: the laser pistol, once it is out (the punch button never draws it)
       // a strike thrown inside the Lion's minute lands with everything behind it; a punch
       // thrown in a jacket and jeans does not
       const lionHit = (g.lionOn ? 2 : 1) * (g.plain ? 0.55 : 1);
