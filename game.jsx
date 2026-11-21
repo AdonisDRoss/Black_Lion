@@ -15471,6 +15471,7 @@ const RUNNER_API = (function () {
       drawWalker(car.x, car.y - car.z);
       walker.heading = h;
     }
+    drawPunchFx();   // the swing, the POW, the OOF
     ctx.restore();
   }
   function insideFigure(canvas, x, y, cam) {
@@ -17380,9 +17381,68 @@ const RUNNER_API = (function () {
     drawOverlay();
     drawHud();
     drawScanLog();
+    drawHurtFlash();
     drawDownCard();
   }
   // KNOCKED OUT: when he goes down and wakes in the hospital, a title card says so (the one small line at the top was all there was)
+  /* PUNCH FEEDBACK. The main game animates the swing on ITS player sprite, which Runner Mode does not draw, so a punch looked like nothing at all.
+     Now: an arm and fist swing out from the shoulder (left, right, left...), a landed punch bursts with a POW, and getting hit flashes red
+     with an OOF at him. All of it in world space around the walker. */
+  const PUNCHFX = { swingUntil: 0, hand: 1, ang: 0, hit: false, popUntil: 0, pop: '', px: 0, py: 0, spin: 0, red: false, hurtUntil: 0 };
+  function punchSwing(hit) {
+    if (!walker.on) return;
+    const now = performance.now(), a = walker.heading || 0;
+    PUNCHFX.swingUntil = now + 300; PUNCHFX.hand = -PUNCHFX.hand; PUNCHFX.ang = a;
+    const fx = walker.x + Math.cos(a) * 44, fy = walker.y + Math.sin(a) * 44;
+    let h = !!hit;
+    if (!h) for (const q of [].concat(hunters || [], mates.filter((m) => !m.companion), houseThugs || [])) { if (q && !q.dead && (q.hp == null || q.hp > 0) && Math.hypot(q.x - fx, q.y - fy) < 40) { h = true; break; } }
+    PUNCHFX.hit = h;
+    if (h) { PUNCHFX.popUntil = now + 480; PUNCHFX.pop = ['POW!', 'WHAM!', 'BAM!', 'THWACK!'][(Math.random() * 4) | 0]; PUNCHFX.px = fx; PUNCHFX.py = fy; PUNCHFX.spin = (Math.random() - 0.5) * 0.5; PUNCHFX.red = false; }
+  }
+  function hurtFlash() {   // he took a hit: red at the edges, an OOF over him
+    const now = performance.now();
+    if (PUNCHFX.hurtUntil - now > 200) return;   // continuous damage (fire) does not spam it
+    PUNCHFX.hurtUntil = now + 380;
+    PUNCHFX.popUntil = now + 480; PUNCHFX.pop = ['OOF!', 'UGH!', 'OW!'][(Math.random() * 3) | 0]; PUNCHFX.px = walker.x; PUNCHFX.py = walker.y - 14; PUNCHFX.spin = (Math.random() - 0.5) * 0.5; PUNCHFX.red = true;
+  }
+  function burst(x, y, r, rot, fill, edge) {   // a comic impact star
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.beginPath();
+    for (let i = 0; i < 16; i++) { const rr = i % 2 ? r * 0.55 : r, aa = i * Math.PI / 8; ctx.lineTo(Math.cos(aa) * rr, Math.sin(aa) * rr); }
+    ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = edge; ctx.stroke(); ctx.restore();
+  }
+  function drawPunchFx() {
+    const now = performance.now();
+    if (!walker.on || lobby) return;
+    const sl = PUNCHFX.swingUntil - now;
+    if (sl > 0) {   // the arm: out and back, from the shoulder
+      const pr = 1 - sl / 300, ext = Math.sin(pr * Math.PI), a = PUNCHFX.ang, nx = Math.cos(a + Math.PI / 2), ny = Math.sin(a + Math.PI / 2);
+      const sx = walker.x + nx * 11 * PUNCHFX.hand, sy = walker.y + ny * 11 * PUNCHFX.hand, len = 6 + 26 * ext;
+      const ex = sx + Math.cos(a) * len, ey = sy + Math.sin(a) * len;
+      ctx.save(); ctx.lineCap = 'round';
+      ctx.strokeStyle = typeof RUNNER_LOOK.suit === 'string' ? RUNNER_LOOK.suit : '#3a4658'; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.fillStyle = typeof RUNNER_LOOK.skin === 'string' ? RUNNER_LOOK.skin : '#d9a77a'; ctx.beginPath(); ctx.arc(ex, ey, 5.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1; ctx.stroke();
+      if (!PUNCHFX.hit) { ctx.strokeStyle = 'rgba(255,255,255,' + (0.5 * ext) + ')'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(walker.x, walker.y, 30, a - 0.5, a + 0.5); ctx.stroke(); }   // a miss: a whoosh
+      ctx.restore();
+    }
+    const pl = PUNCHFX.popUntil - now;
+    if (pl > 0) {   // the impact: a star and the word, popping in then fading
+      const pr = 1 - pl / 480, sc = Math.min(1, pr * 5) * (1 + 0.15 * Math.sin(pr * 6)), al = Math.min(1, pl / 160), c0 = PUNCHFX.red;
+      ctx.save(); ctx.globalAlpha = al;
+      burst(PUNCHFX.px, PUNCHFX.py, 17 * sc, PUNCHFX.spin + pr * 0.4, c0 ? '#ff4a3a' : '#ffe14a', c0 ? '#7a0f08' : '#d9531a');
+      ctx.translate(PUNCHFX.px, PUNCHFX.py - 1 - pr * 6); ctx.rotate(PUNCHFX.spin * 0.8); ctx.scale(sc, sc);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'italic 900 11px Impact, "Arial Black", sans-serif';
+      ctx.lineWidth = 3; ctx.strokeStyle = '#1a0a05'; ctx.strokeText(PUNCHFX.pop, 0, 0); ctx.fillStyle = c0 ? '#fff2e8' : '#fffbe0'; ctx.fillText(PUNCHFX.pop, 0, 0);
+      ctx.restore();
+    }
+  }
+  function drawHurtFlash() {   // the red at the screen edges when he is hit
+    const left = PUNCHFX.hurtUntil - performance.now();
+    if (left <= 0) return;
+    const a = Math.min(1, left / 380) * 0.5, g0 = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.65);
+    g0.addColorStop(0, 'rgba(200,20,10,0)'); g0.addColorStop(1, 'rgba(200,20,10,' + a + ')');
+    ctx.save(); ctx.fillStyle = g0; ctx.fillRect(0, 0, W, H); ctx.restore();
+  }
   const DOWNCARD = { until: 0, why: '' };
   // what hurt him, guessed from who is near when his health drops: the main game calls this on every drop and keeps the last answer
   function hurtWhy(x, y, gg) {
@@ -22829,7 +22889,7 @@ const RUNNER_API = (function () {
     augments,
     augmentAt,
     takeDismount,
-    wake, hurtWhy, hunterTick, worldHud, hunterReset, hoverSoundTick, setVest, soakHit, vestBar, setPhone, setIndoors, talking: () => !!(yMenu.open && yMenu.mode === 'talk'), setLaserChip, setCash: (c) => { runnerCash = +c || 0; }, jobLog, huntDbg, fire, laserItems, laserPick, gearItems, gearPick, setSleepHook: (h) => { sleepHook = h; }, setSaveHook: (h) => { saveHook = h; }, sleepWheelClosed, takeCash,
+    wake, hurtWhy, punchSwing, hurtFlash, hunterTick, worldHud, hunterReset, hoverSoundTick, setVest, soakHit, vestBar, setPhone, setIndoors, talking: () => !!(yMenu.open && yMenu.mode === 'talk'), setLaserChip, setCash: (c) => { runnerCash = +c || 0; }, jobLog, huntDbg, fire, laserItems, laserPick, gearItems, gearPick, setSleepHook: (h) => { sleepHook = h; }, setSaveHook: (h) => { saveHook = h; }, sleepWheelClosed, takeCash,
     groundTrash, groundStash, onFoot: () => walker.on, armed: () => LASER.has,
     setPeople: (p, groups) => { PEOPLE = (p || []).concat(...(groups || [])); },
     hoverKid,
@@ -56558,6 +56618,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
          fire out of the window. On foot as before; at the wheel himself, no. */
       const riding = g.auto && inVehicle() && g.p.wpn && !g.p.holstered;
       if ((g.mode !== "foot" && !riding) || g.p.atkCd > 0) return;
+      if (RUNNER_API.isOn() && (!g.p.wpn || g.p.holstered)) { try { RUNNER_API.punchSwing(hostilesNear(g.p.x, g.p.y, 58).length > 0); } catch (e) { /* the swing is only a picture */ } }   // the runner's punch, drawn
       /* MAXINE'S STRIKE IS THE WHIP. Nothing was gating her out of melee -- she was throwing
          the same bare-handed punch as everyone else, at the same reach, which on a woman built
          to stay out of arm's reach reads as the button doing nothing. She has a whip on her
@@ -62444,7 +62505,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       /* KILLED BY THE COPS (layer 519): you don't just get up somewhere -- you wake up in custody. An escaped con goes
          back to Kestrel in the jumpsuit (the SHU, like a recapture); anyone else with the police on him is booked. */
       /* what hurt the runner: on every drop in health, guess it from who is close (the last guess goes on the KNOCKED OUT card) */
-      if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { if (g.pHpPrev != null && g.p.hp < g.pHpPrev - 0.01) g.lastHurt = RUNNER_API.hurtWhy(g.p.x, g.p.y, g); g.pHpPrev = g.p.hp; }
+      if (RUNNER_API.isOn() && !g.title && g.p && g.p.hp != null) { if (g.pHpPrev != null && g.p.hp < g.pHpPrev - 0.01) { g.lastHurt = RUNNER_API.hurtWhy(g.p.x, g.p.y, g); RUNNER_API.hurtFlash(); } g.pHpPrev = g.p.hp; }
       /* LAYER 669: in Runner Mode a downed runner wakes in the hospital ward, on foot, at half health. The bike stays where he left it. */
       if (RUNNER_API.isOn() && !g.title && g.p.hp != null && g.p.hp <= 0) {
         const hb = getCell(HOSPITAL_CELL.i, HOSPITAL_CELL.j), hosp = hb && (hb.blds || []).find((q) => q.kind === "hospital");
