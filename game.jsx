@@ -15221,6 +15221,7 @@ const RUNNER_API = (function () {
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const hash = (x, y) => { const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); };
   const ADS = ['DRINK HALCYON COLA', 'VORTEX: FASTER THAN YOU', 'KESTREL BANK: SAFE AS THE GRID', 'MERIDIAN MOVES YOU', 'RAVEN STUDIOS: WATCH LIVE', 'GET A NEW FACE: NOVA CLINIC'];
+  const COAST_STOP_S = 1.1;   // a ground car with the gas let off rolls to a stop from top speed in about this many seconds (raise it for more roll, lower for a quicker stop)
   const DEFAULT_HANDLING = { max: 380, accel: 260, brake: 300, turn: 2.6, drag: 0.35, lean: 0 };
   function handlingOf(index) { return (CAR_META[CAR_FILES[index]] && CAR_META[CAR_FILES[index]].handling) || DEFAULT_HANDLING; }
 
@@ -15461,10 +15462,17 @@ const RUNNER_API = (function () {
     ctx.translate(W / 2, H / 2); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y);
     drawGreenWater(cam);
     drawHideoutLot(ctx);   // LAYER 704: the lot behind the hideout, under the bike and the parked car
-    if (!lobby) drawCar('car_' + CAR_FILES[car.sprite], car.x, car.y, car.z, car.heading || 0, car.lean || 0, car.turret || 0);   // LAYER 631: the bike, with its rider, in every mode
-    if (!lobby && ownCar && car !== ownCar) drawCar('car_' + CAR_FILES[ownCar.sprite], ownCar.x, ownCar.y, 0, ownCar.heading || 0, 0, ownCar.turret || 0);   // LAYER 727
-    if (!lobby && teamCarV && car !== teamCarV) drawCar('car_' + CAR_FILES[teamCarV.sprite], teamCarV.x, teamCarV.y, 0, teamCarV.heading || 0, 0);   // LAYER 723
+    if (!lobby) skewDraw(car, () => drawCar('car_' + CAR_FILES[car.sprite], car.x, car.y, car.z, car.heading || 0, car.lean || 0, car.turret || 0));   // LAYER 631: the bike, with its rider, in every mode
+    if (!lobby && ownCar && car !== ownCar) skewDraw(ownCar, () => drawCar('car_' + CAR_FILES[ownCar.sprite], ownCar.x, ownCar.y, 0, ownCar.heading || 0, 0, ownCar.turret || 0));   // LAYER 727
+    if (!lobby && teamCarV && car !== teamCarV) skewDraw(teamCarV, () => drawCar('car_' + CAR_FILES[teamCarV.sprite], teamCarV.x, teamCarV.y, 0, teamCarV.heading || 0, 0));   // LAYER 723
     if (!lobby && parkedHover) drawCar('car_' + CAR_FILES[parkedHover.sprite], parkedHover.x, parkedHover.y, parkedHover.z, parkedHover.heading || 0, 0);   // LAYER 723: the hover bike, parked
+    { const e = ENTERFX, nw = performance.now();   // the runner climbing in: he slides to the car's middle, shrinking, then he is gone
+      if (e && e.in && e.until > nw && !lobby && !walker.on) {
+        const pr = 1 - (e.until - nw) / ENTER_MS, px = e.fx + (e.car.x - e.fx) * pr, py = e.fy + (e.car.y - e.fy) * pr, sc = 1 - 0.65 * pr, h0 = walker.heading;
+        walker.heading = Math.atan2(e.car.y - e.fy, e.car.x - e.fx);
+        ctx.save(); ctx.globalAlpha = 1 - 0.75 * pr; ctx.translate(px, py); ctx.scale(sc, sc); ctx.translate(-px, -py); drawWalker(px, py); ctx.restore();
+        walker.heading = h0;
+      } }
     if (walker.on) drawSneakWalker(x, y);
     else if (!lobby && car !== teamCarV && car !== ownCar) {   // LAYER 638 (a ground car hides its driver: he is IN it, not on the roof): on the bike, he is drawn sitting on it, turned the way it faces
       const h = walker.heading; walker.heading = car.heading || 0;
@@ -15821,6 +15829,8 @@ const RUNNER_API = (function () {
     if (!c) return;
     if (c.route) return say(teamDriverName() + ' HAS THE WHEEL. STOP HER FIRST.', 3);   // LAYER 726
     if (car.mode !== 'landed') return say('LAND THE BIKE FIRST, THEN GET IN THE CAR.', 3);
+    { const hh = c.heading || 0, ddx = walker.x - c.x, ddy = walker.y - c.y;
+      ENTERFX = { car: c, in: true, fx: walker.x, fy: walker.y, until: performance.now() + ENTER_MS, side: (Math.cos(hh) * ddy - Math.sin(hh) * ddx) >= 0 ? 1 : -1 }; }
     parkedHover = car; car = c; car.mode = 'ground';
     walker.on = false; dismountAt = null;
     say('IN THE CAR. WASD TO DRIVE. E TO GET OUT.', 3);
@@ -15829,6 +15839,7 @@ const RUNNER_API = (function () {
     if (!parkedHover) return say('YOU ARE ON FOOT');
     if (Math.abs(car.speed) > TEAM_CAR_STOP) return say('STOP THE CAR FIRST.', 2);
     car.speed = 0; car.lean = 0; if (teamCarV) teamCarV.pax = false;
+    ENTERFX = { car, in: false, until: performance.now() + ENTER_MS, side: 1 };   // the car skews as he gets out
     const dm = dismountSpot();
     const hv = parkedHover; parkedHover = null; car = hv;
     walker.on = true; dismountAt = dm; walker.heading = 0;
@@ -16134,6 +16145,10 @@ const RUNNER_API = (function () {
     car.speed += acc * dt;
     if (brk) car.speed -= hd.brake * dt;
     car.speed *= (1 - hd.drag * dt);
+    if (car.mode === 'ground' && !acc && !brk) {   // gas let off: it stops soon. You hold the button to keep speed and to build it, you do not tap and coast.
+      const cd = (hd.max / COAST_STOP_S) * dt;
+      car.speed = Math.abs(car.speed) <= cd ? 0 : car.speed - Math.sign(car.speed) * cd;
+    }
     car.speed = clamp(car.speed, -hd.max * 0.35, hd.max);
     const turn = steer * hd.turn * clamp(Math.abs(car.speed) / 200, 0, 1) * Math.sign(car.speed || 1);
     const leanTarget = steer * clamp(Math.abs(car.speed) / hd.max, 0, 1) * (hd.lean || 0) * Math.sign(car.speed || 1);
@@ -17392,6 +17407,17 @@ const RUNNER_API = (function () {
   /* PUNCH FEEDBACK. The main game animates the swing on ITS player sprite, which Runner Mode does not draw, so a punch looked like nothing at all.
      Now: an arm and fist swing out from the shoulder (left, right, left...), a landed punch bursts with a POW, and getting hit flashes red
      with an OOF at him. All of it in world space around the walker. */
+  /* GETTING IN AND OUT OF A CAR: the runner walks into it and shrinks away (about half a second) while the car skews, like a door swinging
+     and the weight dropping in; getting out, the car skews the same way. */
+  let ENTERFX = null;
+  const ENTER_MS = 520;
+  function carFx(obj) { const e = ENTERFX; if (!e || e.car !== obj) return 0; const l = e.until - performance.now(); return l <= 0 ? 0 : Math.sin((1 - l / ENTER_MS) * Math.PI); }
+  function skewDraw(obj, fn) {
+    const k = carFx(obj);
+    if (!k) { fn(); return; }
+    ctx.save(); ctx.translate(obj.x, obj.y); ctx.transform(1 + 0.04 * k, 0, 0.16 * k * (ENTERFX.side || 1), 1 - 0.07 * k, 0, 0); ctx.translate(-obj.x, -obj.y);
+    fn(); ctx.restore();
+  }
   const COUGH = { next: 0, until: 0, n: 0 };   // the haze: one cough every ten seconds while he breathes it
   const PUNCHFX = { swingUntil: 0, hand: 1, ang: 0, hit: false, popUntil: 0, pop: '', px: 0, py: 0, spin: 0, red: false, hurtUntil: 0 };
   function punchArm() {   // the arm that is punching right now and how far out it is (0..1..0), or null
@@ -18967,6 +18993,20 @@ const RUNNER_API = (function () {
     }
     return true;
   }
+  function mateBikeIdx(m) { const t = RTEAMS.find((q) => q.col === (m.look && m.look.suit)) || RTEAMS[0]; return hoverOwned ? BIKE_INDEX : CAR_FILES.indexOf('rtbike_' + t.k); }
+  function drawMateBikeEmpty(c, m) {   // his bike, with nobody on it
+    const idx = mateBikeIdx(m); if (idx < 0 || !m.bike) return;
+    const w0 = walker.on; walker.on = true; ctx = c;   // walker.on stops drawCar putting a rider on it
+    try { drawCar('car_' + CAR_FILES[idx], m.bike.x, m.bike.y, m.bike.z, m.bike.hd || 0, 0); } finally { walker.on = w0; }
+  }
+  // a mate on the way into a car or onto his bike shrinks a little as he goes
+  function drawMateFx(c, m) {
+    let sc = 1;
+    if (m.boarding) sc = 1 - 0.45 * Math.min(1, m.boarding.t / 0.6);
+    else if (m.bike && m.bike.ph === 'mount') sc = 1 - 0.3 * Math.min(1, m.bike.t / 0.5);
+    if (m.bike) drawMateBikeEmpty(c, m);
+    if (sc !== 1) { c.save(); c.translate(m.x, m.y); c.scale(sc, sc); c.translate(-m.x, -m.y); drawMate(c, m); c.restore(); } else drawMate(c, m);
+  }
   function drawMate(c, m) {
     const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 260);
     c.save(); c.strokeStyle = m.col; c.lineWidth = 2.5; c.globalAlpha = m.stunT > 0 ? 0.3 + 0.3 * pulse : 0.85;
@@ -19674,13 +19714,36 @@ const RUNNER_API = (function () {
     m.cd = Math.max(0, m.cd - dt);
     // your car: he rides in it with you (hidden, he is inside), and steps out beside it when you get out
     { const inCar = !walker.on && (car === teamCarV || car === ownCar);
-      if (inCar) { m.aboard = car; m.ride = false; m.x = car.x; m.y = car.y; m.hx = m.x; m.hy = m.y; return; }
+      if (inCar) {
+        m.ride = false; m.bike = null;
+        if (!m.aboard) {   // he walks to the car and gets in
+          if (!m.boarding) m.boarding = { t: 0 };
+          m.boarding.t += dt;
+          const kk = Math.min(1, 7 * dt); m.x += (car.x - m.x) * kk; m.y += (car.y - m.y) * kk; m.hx = m.x; m.hy = m.y;
+          if (m.boarding.t >= 0.6 || Math.hypot(car.x - m.x, car.y - m.y) < 10) { m.aboard = car; m.boarding = null; }
+          return;
+        }
+        m.x = car.x; m.y = car.y; m.hx = m.x; m.hy = m.y; return;
+      }
+      m.boarding = null;
       if (m.aboard) { const c0 = m.aboard; m.aboard = null; m.x = clamp(c0.x - Math.sin(c0.heading || 0) * 44, 40, SX(N) - 40); m.y = clamp(c0.y + Math.cos(c0.heading || 0) * 44, 40, SX(N) - 40); m.hx = m.x; m.hy = m.y; } }
     // his bike: he calls it when you call yours or get on it, and gets off when you do
     { const fn = car && CAR_FILES[car.sprite], bikeCar = !!fn && (/^rtbike_/.test(fn) || car.sprite === BIKE_INDEX);
       const want = bikeCar && (!walker.on ? car !== teamCarV : car.mode === 'down');
-      if (want && !m.ride) { m.ride = true; m.bikeZ = AIR_Z; } else if (!want && m.ride) m.ride = false;
-      if (m.ride) m.bikeZ = Math.max(0, (m.bikeZ == null ? AIR_Z : m.bikeZ) - dt * 220); }
+      // his bike comes down EMPTY beside him, lands, and only then does he get on it (he does not appear on it)
+      if (want && !m.ride && !m.bike) m.bike = { x: m.x + 58, y: m.y + 8, z: AIR_Z, ph: 'down', t: 0, hd: m.heading || 0 };
+      else if (!want && (m.ride || m.bike)) { m.ride = false; m.bike = null; }
+      if (m.bike) {
+        const b = m.bike;
+        if (b.ph === 'down') { b.z = Math.max(0, b.z - dt * 220); if (b.z <= 0) { b.ph = 'wait'; b.t = 0; } }
+        else if (b.ph === 'wait') { b.t += dt; if (b.t >= 0.35) { b.ph = 'mount'; b.t = 0; } }
+        else if (b.ph === 'mount') {
+          b.t += dt; const kk = Math.min(1, 10 * dt); m.x += (b.x - m.x) * kk; m.y += (b.y - m.y) * kk; m.hx = m.x; m.hy = m.y;
+          if (b.t >= 0.5) { m.ride = true; m.bikeZ = 0; m.x = b.x; m.y = b.y; m.bike = null; }
+        }
+        if (m.bike) return;   // he waits for his bike: no following until he is on it
+      }
+      if (m.ride) m.bikeZ = 0; }
     let best = null, bd = LASER_RANGE;
     for (const h of hunters) {
       if (h.dead || h.stunT > 0) continue;
@@ -21395,7 +21458,7 @@ const RUNNER_API = (function () {
     if (outdoors && cam && !PMB.inside) {
       c.save(); c.translate(W / 2, H / 2); c.scale(cam.z, cam.z); c.translate(-cam.x, -cam.y);
       for (const h of hunters) drawHunter(c, h);
-      for (const m of mates) if (!m.driving && !m.aboard) drawMate(c, m);   // LAYER 679: the teammates (LAYER 726: not the one at the wheel)
+      for (const m of mates) if (!m.driving && !m.aboard) drawMateFx(c, m);   // LAYER 679: the teammates (LAYER 726: not the one at the wheel)
       for (const m of informants) drawMate(c, m);   // LAYER 705: the people who may know the doctor
       rjDrawWorld(c, now);   // LAYER 707: the job givers (gold !), the job's contacts and its spot
       if (RUN_ON) drawTurrets(c);   // LAYER 709: the roof guns on the Pheromone
