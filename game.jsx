@@ -6230,6 +6230,13 @@ const WX_ODDS_RUN = [["clear", 0.30], ["light", 0.30], ["med", 0.22], ["storm", 
 const WX_SPELL = [110, 260];
 const rogueIds = () => Object.keys(ROGUE_JOB);
 const isJewelCell = (i, j) => JEWEL_CELLS.some((c) => c.i === i && c.j === j);
+/* CYBER SHOPS: three, placed. They are built like the jewellers (same lot, same room) but they sell and fit cyberwear. */
+const CYBER_CELLS = [
+  { i: 6,  j: 12 },   // neon flats, beside the Pheromone
+  { i: 14, j: 12 },   // la perla
+  { i: 20, j: 6  },   // the yards
+];
+const isCyberCell = (i, j) => CYBER_CELLS.some((c) => c.i === i && c.j === j);
 
 const SHOP_KEYS = ["ps_counter", "ps_shelf", "ps_display_case", "ps_safe_large",
   "ps_camera_lot", "ps_guitar_rack", "ps_toolbox", "ps_sign", "ps_stool",
@@ -6499,7 +6506,7 @@ function getCell(i, j) {
     || isBankCell(i, j)
     || isFoodCell(i, j)
     || isTradeCell(i, j)
-    || isPawnCell(i, j) || isJewelCell(i, j)
+    || isPawnCell(i, j) || isJewelCell(i, j) || isCyberCell(i, j)
     || isAsylumCell(i, j) || isHospitalCell(i, j);
   if (gasLot) walls = null;
   else if (landmark) {
@@ -10375,15 +10382,16 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
      something that happens to appear in a neighbourhood. Behind the civic check, so the one
      Arden cell that carries the mayor's house is never contested. */
   /* Bars, cafes and gun shops. One branch: they differ only in kind and the sign over it. */
-  if ((isPawnCell(i, j) || isJewelCell(i, j)) && !civicAt(i, j)) {
-    const jew = isJewelCell(i, j);
+  if ((isPawnCell(i, j) || isJewelCell(i, j) || isCyberCell(i, j)) && !civicAt(i, j)) {
+    const cy = isCyberCell(i, j), jew = isJewelCell(i, j) || cy;
     const tw = Math.min(LW * 0.52, 18 * MU), th = Math.min(LH * 0.42, 14 * MU);
     const b = mkB(lx0 + (LW - tw) / 2, ly0 + (LH - th) * 0.50, tw, th, 1, "store", rnd, key);
     b.retail = true; b.eatery = false;
     b.biz = jew ? "jewel" : "pawn";
     b.arch = jew ? "jewel" : "pawn";
     b.signKey = jew ? "sign_wood" : "sign_pawnshop";
-    b.name = jew ? "ALDRIDGE FINE JEWELRY" : "THIRD ST PAWN";
+    b.name = cy ? "CHROME & BONE \u00b7 CYBERWARE" : jew ? "ALDRIDGE FINE JEWELRY" : "THIRD ST PAWN";
+    if (cy) b.cyber = true;
     b.tone = jew ? 0.6 : 0.36;
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
     return dryOut(out);
@@ -18804,7 +18812,7 @@ const RUNNER_API = (function () {
   const PSTUN = { t: 0, x: 0, y: 0 };                      // the Lion's stun: time left, and where he was stunned
   const LOOSE = { x: 0, y: 0, on: false, holder: null };   // the case: holder is null, 'player', or a teammate
   let mates = [], mateDrawing = false;
-  const BODY_KEYS = ['slim', 'average', 'athletic', 'heavy', 'big', 'female'];
+  const BODY_KEYS = ['big', 'female'];   // the two builds a player can pick (RUNNER_API.bodyList): the partner and the teammates use them too, with the same full-body rig and animations
   // LAYER 684: a runner's look on a team. The suit is the team's colour, so both runners on a team wear the same suit.
   // A female build gets a female head.
   function mateLook(suit) {
@@ -19018,8 +19026,10 @@ const RUNNER_API = (function () {
     const W0 = { on: walker.on, step: walker.step, heading: walker.heading, amp: walker.amp };
     const P0 = { packOn, mask, held };
     Object.assign(RUNNER_LOOK, { skin: null, hair: null }, m.look);   // LAYER 690: the teammate's own skin and hair
-    walker.on = true; walker.step = m.step; walker.heading = m.heading; walker.amp = m.stunT > 0 ? 0 : 1;
-    packOn = null; mask = !!(m.companion && P0.mask); held = null; mateDrawing = true; ctx = c;   // the partner puts his mask on when you put yours on
+    // the walk cycle only runs while he is actually moving (standing still he stands, like the player); a stunned one does not swing at all
+    const mv = m.lx != null && Math.hypot(m.x - m.lx, m.y - m.ly) > 0.25; m.lx = m.x; m.ly = m.y;
+    walker.on = true; walker.step = m.step; walker.heading = m.heading; walker.amp = m.stunT > 0 ? 0 : (mv ? 1 : 0);
+    packOn = null; mask = !!(m.companion && P0.mask); held = (m.stunT <= 0 && m.cd > MATE_SHOT_CD - 1.0) ? 'laser' : null; mateDrawing = true; ctx = c;   // the pistol is in his hand for a moment after he fires   // the partner puts his mask on when you put yours on
     try { drawWalker(m.x, m.y); }
     finally {
       mateDrawing = false; packOn = P0.packOn; mask = P0.mask; held = P0.held;
@@ -22037,6 +22047,7 @@ const RUNNER_API = (function () {
     ['handR', 'R HAND MODS', 'Right hand. THE STUNS YOU LAND LAST 25% LONGER.'], ['legL', 'L LEG ACTUATOR', 'Left leg. YOU WALK 8% FASTER.'], ['legR', 'R LEG ACTUATOR', 'Right leg. YOU WALK 8% FASTER.']];
   function fillCyber() { RUNNER_CYBER.length = 0; CYBER_KIT.forEach((c) => RUNNER_CYBER.push({ id: c[0], name: c[1], desc: c[2], kg: 0.3, icon: null })); }
   const cyb = (id) => RUNNER_CYBER.some((c) => c.id === id);
+  function fitCyber(id) { const c = CYBER_KIT.find((q) => q[0] === id); if (c && !cyb(id)) { RUNNER_CYBER.push({ id: c[0], name: c[1], desc: c[2], kg: 0.3, icon: null }); say(c[1] + ' FITTED. ' + c[2].split('. ')[1], 4); } }
   const cybN = (a, b) => (cyb(a) ? 1 : 0) + (cyb(b) ? 1 : 0);
   function secretNear() {
     if (SECRET.got || !walker.on || lobby || !houseBldg || !runnerInside || runnerInside.x !== houseBldg.x || runnerInside.y !== houseBldg.y) return false;
@@ -22984,7 +22995,7 @@ const RUNNER_API = (function () {
     // on release -- readPad() folds both into the same fields the gamepad poll already fills.
     touchStick: (x, y) => { TOUCH.x = x || 0; TOUCH.y = y || 0; },
     touchBtn: (k, on) => { if (TOUCH.hasOwnProperty(k)) TOUCH[k] = !!on; },
-    touchPad, takeStash, takeBox, setBox,
+    touchPad, takeStash, takeBox, setBox, fitCyber, hasCyber: (id) => cyb(id),
     keepOut, canSpawn, windTrash,
     overlay,
     augments,
@@ -23055,7 +23066,7 @@ const RUNNER_API = (function () {
       gear: { laser: { has: LASER.has, mode: LASER.mode, locked: LASER.locked, chip: LASER.chip }, evidence: RPOL.evidence ? Object.assign({}, RPOL.evidence) : null,
         gas: gasOwned, sleep: sleepOwned, bag: sleepDown ? { x: sleepDown.x, y: sleepDown.y, h: sleepDown.h } : null,
         packOn, packOff, packsPlaced, stash: PACK_STASH.map((q) => ({ kind: q.kind, x: q.x, y: q.y, got: q.got })),
-        vest: { have: vestHave, worn: vestWorn, hp: vestHp }, phone: phoneOwned, secretGot: SECRET.got, hover: hoverOwned, box: boxOwned, boxGot: BOX_FINDS.map((b) => b.got) } }),
+        vest: { have: vestHave, worn: vestWorn, hp: vestHp }, phone: phoneOwned, secretGot: SECRET.got, hover: hoverOwned, box: boxOwned, boxGot: BOX_FINDS.map((b) => b.got), cyber: RUNNER_CYBER.map((c) => c.id) } }),
     loadData: (d) => {
       if (!d || !d.look) return false;
       RUNNER_API.setLook(d.look);
@@ -23077,6 +23088,7 @@ const RUNNER_API = (function () {
         phoneOwned = !!k.phone;
         boxOwned = !!k.box; BOX_FINDS.forEach((b, i) => { b.got = !!(k.boxGot && k.boxGot[i]); });
         SECRET.got = !!k.secretGot; hoverOwned = !!k.hover; if (SECRET.got) { LASER.has = true; fillCyber(); }
+        else if (Array.isArray(k.cyber)) { RUNNER_CYBER.length = 0; k.cyber.forEach((id) => { const c = CYBER_KIT.find((q) => q[0] === id); if (c) RUNNER_CYBER.push({ id: c[0], name: c[1], desc: c[2], kg: 0.3, icon: null }); }); }
       }
       missionHidden = false;
       return true;
@@ -45762,6 +45774,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     ["pub", "tavern"].forEach((k) => { BIZ_MENU[k] = BIZ_MENU.bar; });
     ["pizza", "chicken", "soul", "taqueria", "noodle", "italian"].forEach((k) => { BIZ_MENU[k] = BIZ_MENU.diner; });
     ["grocer", "general", "news", "deli"].forEach((k) => { BIZ_MENU[k] = BIZ_MENU.corner; });
+    // CYBERWARE: [label with what it does, price, "cyber:<slot id>"]. Buying one fits it at once (the buffs are in the Runner, see CYBER_KIT).
+    BIZ_MENU.cyber = [["CYBER EYES \u00b7 LASER RANGE +30%", 900, "cyber:eyes"], ["CHEST PLATE \u00b7 20% LESS DAMAGE", 1200, "cyber:chest"], ["SPINAL LINK \u00b7 STUNS ON YOU HALF AS LONG", 1500, "cyber:spine"],
+      ["L ARM SERVO \u00b7 LASER 12% FASTER", 700, "cyber:armL"], ["R ARM SERVO \u00b7 LASER 12% FASTER", 700, "cyber:armR"], ["L HAND MODS \u00b7 YOUR STUNS +25%", 500, "cyber:handL"],
+      ["R HAND MODS \u00b7 YOUR STUNS +25%", 500, "cyber:handR"], ["L LEG ACTUATOR \u00b7 WALK 8% FASTER", 600, "cyber:legL"], ["R LEG ACTUATOR \u00b7 WALK 8% FASTER", 600, "cyber:legR"]];
     // layer 487: the item icons (assets/items/it_*.png) by menu name
     const ITEM_ICON = { "SODA POP": "soda", "CANDY BAR": "candy", "CIGARETTES": "cigarettes", "BAG OF CHIPS": "chips", "HAM SANDWICH": "sandwich", "SUN-TIMES": "newspaper",
       "LOTTO TICKET": "lotto", "FORTY OUNCE": "forty", "PINT OF WHISKEY": "whiskey", "SIX-PACK": "sixpack", "DRAFT BEER": "beer", "WHISKEY, NEAT": "whiskey", "SHOT AND A BEER": "shot",
@@ -45969,7 +45985,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if ((g.pinv || []).length) L.push({ id: "biz:sell:pockets:0", nm: "WHAT'S IN YOUR POCKETS (" + g.pinv.length + ")", val: g.pinv.length * 15 });
       return L; }
     function bizShopPanel() {
-      const S = g.shop; if (!S) return null; const b = S.b, M = BIZ_MENU[b.biz], e = econOf(b);
+      const S = g.shop; if (!S) return null; const b = S.b, M = b.cyber ? BIZ_MENU.cyber : BIZ_MENU[b.biz], e = econOf(b);
       if (g.bizView === "sell") { const L = sellList();
         return { title: (b.name || "THE PAWN SHOP") + " \u00b7 SELLING", face: null,
           text: g.bizSaid || (L.length ? "\u201cLet's see what you got.\u201d He has $" + Math.round(e.till).toLocaleString() + " in the till." : "\u201cYou got nothing I want.\u201d"),
@@ -45995,8 +46011,14 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (e2.till < q.val) { g.bizSaid = "\u201cI ain't got that kind of cash on hand.\u201d"; return; }
         const [, , kind, arg] = id.split(":");
         if (kind === "bag") g.p.bag.splice(+arg, 1); else if (kind === "gun") g.rack = g.rack.filter((k) => k !== arg); else if (kind === "drug") { g.p.drugs[arg] = 0; } else g.pinv = [];
-        e2.till -= q.val; g.p.cash = (g.p.cash || 0) + q.val; g.bizSaid = "He turns it over, nods, counts out $" + q.val + ". You have $" + g.p.cash.toLocaleString() + "."; return; } const b = S.b, M = BIZ_MENU[b.biz] || [], it = M[+id.split(":")[2]]; if (!it) return; const e = econOf(b);
+        e2.till -= q.val; g.p.cash = (g.p.cash || 0) + q.val; g.bizSaid = "He turns it over, nods, counts out $" + q.val + ". You have $" + g.p.cash.toLocaleString() + "."; return; } const b = S.b, M = b.cyber ? BIZ_MENU.cyber : BIZ_MENU[b.biz] || [], it = M[+id.split(":")[2]]; if (!it) return; const e = econOf(b);
       if (it[2] === "sell") { g.bizView = "sell"; g.bizSaid = null; return; }
+      if (typeof it[2] === "string" && it[2].indexOf("cyber:") === 0) {   // CYBERWARE: paid for and fitted here
+        const cid = it[2].slice(6);
+        if (RUNNER_API.hasCyber(cid)) { g.bizSaid = "\u201cThat one is already in you.\u201d"; return; }
+        const pr = price513(it[1]); if ((g.p.cash || 0) < pr) { g.bizSaid = "\u201c$" + pr + " for the part. You're short.\u201d"; return; }
+        g.p.cash -= pr; e.till += pr; RUNNER_API.fitCyber(cid);
+        g.bizSaid = "\u201cLie back. It will hurt less than it should.\u201d " + it[0].split(" \u00b7 ")[0] + " IS FITTED. $" + (g.p.cash || 0).toLocaleString() + " left."; return; }
       if (it[2] === "gamebox") {   // the GAME BOX: arcade and retro cartridges in your pocket
         if (g.gameBox) { g.bizSaid = "\u201cYou already got one. Go play it.\u201d"; return; }
         const pr = price513(it[1]); if ((g.p.cash || 0) < pr) { g.bizSaid = "\u201cThat's $" + pr + ". You're short.\u201d"; return; }
@@ -49009,7 +49031,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     G.plainCellsT = () => { const out = [], FL = ["capPlate", "landmark", "hideout", "dealer", "repair", "school", "homeOf", "stuHome", "pd", "mercBar", "inPrison", "den", "club", "bank", "uterm", "rowhouse", "biz", "named"];
       for (let i = 0; i < 22; i++) for (let j = 0; j < 22; j++) { const c = getCell(i, j); if (!c) continue; const z = zoneOf(i, j);
         if (/park|projects|terminal|cemetery|skate|mountain|water|kestrel/.test(z || "")) continue;
-        if (isGasCell(i, j) || isShopCell(i, j) || isFireCell(i, j) || isBankCell(i, j) || isTradeCell(i, j) || isPawnCell(i, j) || isJewelCell(i, j) || isFoodCell(i, j)) continue;
+        if (isGasCell(i, j) || isShopCell(i, j) || isFireCell(i, j) || isBankCell(i, j) || isTradeCell(i, j) || isPawnCell(i, j) || isJewelCell(i, j) || isCyberCell(i, j) || isFoodCell(i, j)) continue;
         if (MARKS.some((m) => m.i === i && m.j === j)) continue;
         if ((c.blds || []).some((b) => FL.some((f) => b[f]) || b.kind === "landmark")) continue;
         if (c.lx1 - c.lx0 < 1000 || c.ly1 - c.ly0 < 1000) continue;
@@ -56103,7 +56125,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       for (let i = ci - 2; i <= ci + 2; i++) for (let j = cj - 2; j <= cj + 2; j++) { if (i < 0 || j < 0 || i >= CITY_N || j >= CITY_N) continue; const c = getCell(i, j); if (!c) continue;
         if (c.stan) return c;
         const z = zoneOf(i, j); if (/park|projects|terminal|cemetery|skate|mountain|water|kestrel/.test(z || "")) continue;
-        if (isGasCell(i, j) || isShopCell(i, j) || isFireCell(i, j) || isBankCell(i, j) || isTradeCell(i, j) || isPawnCell(i, j) || isJewelCell(i, j) || isFoodCell(i, j)) continue;
+        if (isGasCell(i, j) || isShopCell(i, j) || isFireCell(i, j) || isBankCell(i, j) || isTradeCell(i, j) || isPawnCell(i, j) || isJewelCell(i, j) || isCyberCell(i, j) || isFoodCell(i, j)) continue;
         if (MARKS.some((m) => m.i === i && m.j === j)) continue;
         if ((c.blds || []).some((b) => FL.some((f) => b[f]) || b.kind === "garage" || b.kind === "warehouse")) continue;   // a garage block might be where the scrapyard goes: leave those alone
         if (c.lx1 - c.lx0 < 1000 || c.ly1 - c.ly0 < 1000) continue;
@@ -56177,7 +56199,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         if (c.apt) return c;
         if (c.stan || (i === DEN_CELL.i && j === DEN_CELL.j) || (i === WOLVES_CELL.i && j === WOLVES_CELL.j) || (i === CLUB_CELL.i && j === CLUB_CELL.j) || (i === CORVO_CELL.i && j === CORVO_CELL.j)) continue;
         const z = zoneOf(i, j); if (/park|projects|terminal|cemetery|skate|mountain|water|kestrel/.test(z || "")) continue;
-        if (isGasCell(i, j) || isShopCell(i, j) || isFireCell(i, j) || isBankCell(i, j) || isTradeCell(i, j) || isPawnCell(i, j) || isJewelCell(i, j) || isFoodCell(i, j)) continue;
+        if (isGasCell(i, j) || isShopCell(i, j) || isFireCell(i, j) || isBankCell(i, j) || isTradeCell(i, j) || isPawnCell(i, j) || isJewelCell(i, j) || isCyberCell(i, j) || isFoodCell(i, j)) continue;
         if (MARKS.some((m) => m.i === i && m.j === j)) continue;
         if ((c.blds || []).some((b) => FL.some((f) => b[f]) || b.kind === "garage" || b.kind === "warehouse")) continue;
         if (c.lx1 - c.lx0 < 1040 || c.ly1 - c.ly0 < 980) continue;
@@ -59132,7 +59154,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         // after the pumps and the body shop, so those keep the surfaces they draw for themselves
         // the Arden bank keeps a forecourt, not a front lawn
         if (c.zone === "arden" && !isBankCell(i, j) && !isFoodCell(i, j) && !isTradeCell(i, j)
-            && !isPawnCell(i, j) && !isJewelCell(i, j)) { drawArdenYard(c); continue; }
+            && !isPawnCell(i, j) && !isJewelCell(i, j) && !isCyberCell(i, j)) { drawArdenYard(c); continue; }
         ctx.fillStyle = (c.lawn || (inOldTown(i, j) && (c.type === 0 || c.type === 2 || c.type === 3))) ? PF("grass", "#3f5a33")      // layer 472: Old Town was all gravel
           : c.type === 0 ? PF("gravel", C.gravel) : c.type === 1 ? PF("lot", C.lotAsphalt) : c.type === 2 ? PF("dirt", C.dirt) : c.type === 3 ? PF("dirt", "#34322c") : PF("slab", "#3d3d3b");
         ctx.fillRect(c.lx0, c.ly0, lw, lh);
