@@ -1,0 +1,752 @@
+[
+ {
+  "kind": "cityhall",
+  "name": "Raven Hook City Hall",
+  "i": 10.5,
+  "j": 8.5
+ },
+ {
+  "kind": "police",
+  "name": "RHPD Sixth Precinct",
+  "i": 8.5,
+  "j": 11.5
+ },
+ {
+  "kind": "cyber",
+  "name": "Chrome & Bone Cyberware",
+  "i": 6.5,
+  "j": 12.5
+ },
+ {
+  "kind": "cyber",
+  "name": "Chrome & Bone Cyberware",
+  "i": 14.5,
+  "j": 12.5
+ },
+ {
+  "kind": "cyber",
+  "name": "Chrome & Bone Cyberware",
+  "i": 20.5,
+  "j": 6.5
+ },
+ {
+  "kind": "hospital",
+  "name": "Raven Hook General",
+  "i": 7.5,
+  "j": 11.5
+ },
+ {
+  "kind": "fis",
+  "name": "FIS Field Office",
+  "i": 11.5,
+  "j": 6.5
+ },
+ {
+  "kind": "can",
+  "name": "C.A.N. Studios",
+  "i": 9.5,
+  "j": 6.5
+ },
+ {
+  "kind": "news",
+  "name": "WRAV News",
+  "i": 10.5,
+  "j": 5.5
+ },
+ {
+  "kind": "arcade",
+  "name": "Galaxy Lanes Arcade",
+  "i": 5.5,
+  "j": 9.5
+ },
+ {
+  "kind": "venue",
+  "name": "The Last Call",
+  "i": 6.5,
+  "j": 9.5
+ },
+ {
+  "kind": "motel",
+  "name": "The Pheromone Motel",
+  "i": 7.5,
+  "j": 12.5
+ },
+ {
+  "kind": "motel",
+  "name": "The Starlite Motel",
+  "i": 25.5,
+  "j": 21.5
+ },
+ {
+  "kind": "home",
+  "name": "The Vance Residence",
+  "i": 4.5,
+  "j": 19.5
+ },
+ {
+  "kind": "home",
+  "name": "Safehouse",
+  "i": 7.5,
+  "j": 13.5
+ },
+ {
+  "kind": "cityhall",
+  "name": "Ember Flats Town Hall",
+  "i": 27.5,
+  "j": 22.5
+ },
+ {
+  "kind": "fis",
+  "name": "Kestrel House Security",
+  "i": 29.5,
+  "j": 22.5
+ },
+ {
+  "kind": "casino",
+  "name": "The Kestrel Casino",
+  "i": 28.5,
+  "j": 23.5
+ },
+ {
+  "kind": "prison",
+  "name": "Kestrel State Correctional",
+  "i": 16.5,
+  "j": 23.5
+ },
+ {
+  "kind": "asylum",
+  "name": "Cormorant Island Asylum",
+  "i": 28.5,
+  "j": 10.5
+ },
+ {
+  "kind": "airport",
+  "name": "Airport",
+  "i": 27.0,
+  "j": 27.0
+ },
+ {
+  "kind": "stadium",
+  "name": "Stadium",
+  "i": 24.5,
+  "j": 5.5
+ },
+ {
+  "kind": "port",
+  "name": "The Port",
+  "i": 16.0,
+  "j": 7.0
+ },
+ {
+  "kind": "town",
+  "name": "Hazelbrook",
+  "i": 25.5,
+  "j": 25.5
+ },
+ {
+  "kind": "pass",
+  "name": "Hollow Pass",
+  "i": 26.0,
+  "j": 1.5
+ },
+ {
+  "kind": "skate",
+  "name": "Skate Park",
+  "i": 6.0,
+  "j": 8.0
+ },
+ {
+  "kind": "cemetery",
+  "name": "Cemetery",
+  "i": 9.5,
+  "j": 17.0
+ },
+ {
+  "kind": "rail",
+  "name": "Rail Terminal",
+  "i": 14.0,
+  "j": 7.0
+ },
+ {
+  "kind": "bank",
+  "name": "First Merchants Bank",
+  "i": 9.5,
+  "j": 7.5
+ },
+ {
+  "kind": "bank",
+  "name": "State Trust",
+  "i": 8.5,
+  "j": 1.5
+ },
+ {
+  "kind": "bank",
+  "name": "Raven Hook Savings",
+  "i": 3.5,
+  "j": 6.5
+ },
+ {
+  "kind": "bank",
+  "name": "East Gate Savings",
+  "i": 2.5,
+  "j": 13.5
+ },
+ {
+  "kind": "bank",
+  "name": "Sixth Ward Savings",
+  "i": 14.5,
+  "j": 1.5
+ },
+ {
+  "kind": "bank",
+  "name": "Banco La Perla",
+  "i": 15.5,
+  "j": 11.5
+ },
+ {
+  "kind": "bank",
+  "name": "Yards Industrial Bank",
+  "i": 18.5,
+  "j": 5.5
+ },
+ {
+  "kind": "bank",
+  "name": "Arden Trust & Deposit",
+  "i": 4.5,
+  "j": 18.5
+ },
+ {
+  "kind": "bank",
+  "name": "Holloway National",
+  "i": 6.5,
+  "j": 14.5
+ },
+ {
+  "kind": "gun",
+  "name": "Gun shop",
+  "i": 17.5,
+  "j": 4.5
+ },
+ {
+  "kind": "gun",
+  "name": "Gun shop",
+  "i": 1.5,
+  "j": 5.5
+ },
+ {
+  "kind": "gun",
+  "name": "Gun shop",
+  "i": 12.5,
+  "j": 2.5
+ },
+ {
+  "kind": "gun",
+  "name": "Gun shop",
+  "i": 0.5,
+  "j": 21.5
+ },
+ {
+  "kind": "pawn",
+  "name": "Pawn shop",
+  "i": 1.5,
+  "j": 6.5
+ },
+ {
+  "kind": "pawn",
+  "name": "Pawn shop",
+  "i": 1.5,
+  "j": 13.5
+ },
+ {
+  "kind": "pawn",
+  "name": "Pawn shop",
+  "i": 13.5,
+  "j": 11.5
+ },
+ {
+  "kind": "pawn",
+  "name": "Pawn shop",
+  "i": 17.5,
+  "j": 5.5
+ },
+ {
+  "kind": "jewel",
+  "name": "Jeweller",
+  "i": 6.5,
+  "j": 6.5
+ },
+ {
+  "kind": "jewel",
+  "name": "Jeweller",
+  "i": 6.5,
+  "j": 2.5
+ },
+ {
+  "kind": "jewel",
+  "name": "Jeweller",
+  "i": 3.5,
+  "j": 18.5
+ },
+ {
+  "kind": "fire",
+  "name": "Engine 6",
+  "i": 3.5,
+  "j": 9.5
+ },
+ {
+  "kind": "fire",
+  "name": "Engine 1",
+  "i": 9.5,
+  "j": 5.5
+ },
+ {
+  "kind": "fire",
+  "name": "Engine 11",
+  "i": 18.5,
+  "j": 4.5
+ },
+ {
+  "kind": "fire",
+  "name": "Engine 9",
+  "i": 16.5,
+  "j": 12.5
+ },
+ {
+  "kind": "fire",
+  "name": "Engine 4",
+  "i": 13.5,
+  "j": 2.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 13.5,
+  "j": 3.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 6.5,
+  "j": 13.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 7.5,
+  "j": 2.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 6.5,
+  "j": 3.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 18.5,
+  "j": 1.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 2.5,
+  "j": 6.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 7.5,
+  "j": 7.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 11.5,
+  "j": 12.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 16.5,
+  "j": 4.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 21.5,
+  "j": 10.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 3.5,
+  "j": 13.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 13.5,
+  "j": 17.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 18.5,
+  "j": 14.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 8.5,
+  "j": 19.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 18.5,
+  "j": 19.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 2.5,
+  "j": 19.5
+ },
+ {
+  "kind": "gas",
+  "name": "Gas station",
+  "i": 3.5,
+  "j": 3.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 6.5,
+  "j": 4.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 8.5,
+  "j": 6.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 10.5,
+  "j": 10.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 12.5,
+  "j": 10.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 1.5,
+  "j": 3.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 5.5,
+  "j": 10.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 1.5,
+  "j": 11.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 5.5,
+  "j": 15.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 12.5,
+  "j": 0.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 16.5,
+  "j": 3.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 13.5,
+  "j": 9.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 18.5,
+  "j": 13.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 17.5,
+  "j": 2.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 21.5,
+  "j": 8.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 6.5,
+  "j": 0.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 11.5,
+  "j": 2.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 3.5,
+  "j": 16.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 5.5,
+  "j": 21.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 6.5,
+  "j": 16.5
+ },
+ {
+  "kind": "food",
+  "name": "Food",
+  "i": 7.5,
+  "j": 20.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 6.5,
+  "j": 5.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 9.5,
+  "j": 8.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 1.5,
+  "j": 4.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 1.5,
+  "j": 12.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 3.5,
+  "j": 14.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 12.5,
+  "j": 1.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 14.5,
+  "j": 3.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 13.5,
+  "j": 10.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 15.5,
+  "j": 13.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 17.5,
+  "j": 3.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 19.5,
+  "j": 6.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 6.5,
+  "j": 1.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 8.5,
+  "j": 2.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 3.5,
+  "j": 17.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 4.5,
+  "j": 17.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 0.5,
+  "j": 20.5
+ },
+ {
+  "kind": "bar",
+  "name": "Bar",
+  "i": 13.5,
+  "j": 18.5
+ },
+ {
+  "kind": "cafe",
+  "name": "Cafe",
+  "i": 12.5,
+  "j": 9.5
+ },
+ {
+  "kind": "cafe",
+  "name": "Cafe",
+  "i": 5.5,
+  "j": 6.5
+ },
+ {
+  "kind": "cafe",
+  "name": "Cafe",
+  "i": 5.5,
+  "j": 14.5
+ },
+ {
+  "kind": "cafe",
+  "name": "Cafe",
+  "i": 16.5,
+  "j": 2.5
+ },
+ {
+  "kind": "cafe",
+  "name": "Cafe",
+  "i": 18.5,
+  "j": 12.5
+ },
+ {
+  "kind": "cafe",
+  "name": "Cafe",
+  "i": 21.5,
+  "j": 7.5
+ },
+ {
+  "kind": "cafe",
+  "name": "Cafe",
+  "i": 11.5,
+  "j": 1.5
+ },
+ {
+  "kind": "cafe",
+  "name": "Cafe",
+  "i": 5.5,
+  "j": 19.5
+ },
+ {
+  "kind": "cafe",
+  "name": "Cafe",
+  "i": 21.5,
+  "j": 21.5
+ },
+ {
+  "kind": "shop",
+  "name": "Shop",
+  "i": 20.5,
+  "j": 3.5
+ },
+ {
+  "kind": "shop",
+  "name": "Shop",
+  "i": 0.5,
+  "j": 4.5
+ },
+ {
+  "kind": "shop",
+  "name": "Shop",
+  "i": 7.5,
+  "j": 14.5
+ },
+ {
+  "kind": "shop",
+  "name": "Shop",
+  "i": 15.5,
+  "j": 8.5
+ },
+ {
+  "kind": "shop",
+  "name": "Shop",
+  "i": 1.5,
+  "j": 18.5
+ },
+ {
+  "kind": "shop",
+  "name": "Shop",
+  "i": 17.5,
+  "j": 20.5
+ },
+ {
+  "kind": "shop",
+  "name": "Shop",
+  "i": 13.5,
+  "j": 1.5
+ },
+ {
+  "kind": "shop",
+  "name": "Shop",
+  "i": 5.5,
+  "j": 20.5
+ },
+ {
+  "kind": "shop",
+  "name": "Shop",
+  "i": 4.5,
+  "j": 3.5
+ }
+]
