@@ -3127,7 +3127,22 @@ const MAP_ZONE_COL = {
    of every street, the dashed centre line, parks and the cemetery with their trees, and every building that has art drawn
    with its own roof plate (the same plate the street shows, via `roofFn` = platedRoof), the rest in a roof tone by kind. A
    plate still loading means the map is rebuilt a few seconds later (up to six times) so the art fills in. */
+/* THE PAINTED MAP. Three files in assets/map/ next to the game:  map_base.png  (2048 x 2048, the whole world, north up),
+   map_icons.png (same size, transparent: the shop and landmark icons, laid over the big map only)  and  map_key.png (the key, shown
+   beside the big map).  If map_base.png is there, mapBase() returns it, so the big map AND the minimap both show it.  If it is
+   not there, nothing changes: the map is drawn from the world as before. */
+const MAP_ART = { base: null, icons: null, key: null, tried: false };
+function mapArtLoad() {
+  if (MAP_ART.tried || typeof Image === "undefined") return;
+  MAP_ART.tried = true;
+  for (const [k, f] of [["base", "map_base.png"], ["icons", "map_icons.png"]]) { const im = new Image(); im.onload = () => { MAP_ART[k] = im; }; im.onerror = () => { /* not there: the drawn map stands */ }; im.src = "assets/map/" + f; }
+}
 function mapBase(roofFn) {
+  mapArtLoad();
+  if (MAP_ART.base && MAP_ART.base.width) {
+    if (!mapBase._art) { const c0 = document.createElement("canvas"); c0.width = 2048; c0.height = 2048; c0.getContext("2d").drawImage(MAP_ART.base, 0, 0, 2048, 2048); mapBase._art = c0; }
+    mapBase._miss = 0; return mapBase._art;
+  }
   if (mapBase._c && !(mapBase._miss > 0 && (mapBase._n || 0) < 6 && Date.now() - (mapBase._t || 0) > 4000 && roofFn)) return mapBase._c;
   mapBase._n = (mapBase._n || 0) + (mapBase._c ? 1 : 0); mapBase._t = Date.now(); let miss = 0;
   const S = 2048, span = SX(N), k = S / span;
@@ -17428,11 +17443,12 @@ const RUNNER_API = (function () {
   }
   const COUGH = { next: 0, until: 0, n: 0 };   // the haze: one cough every ten seconds while he breathes it
   const PUNCHFX = { swingUntil: 0, hand: 1, ang: 0, hit: false, popUntil: 0, pop: '', px: 0, py: 0, spin: 0, red: false, hurtUntil: 0 };
+  let mateMirror = false;   // true while the PARTNER is being drawn: he throws the punch you throw, with the other hand
   function punchArm() {   // the arm that is punching right now and how far out it is (0..1..0), or null
     const sl = PUNCHFX.swingUntil - performance.now();
-    if (sl <= 0 || held || mateDrawing || !walker.on) return null;
+    if (sl <= 0 || held || (mateDrawing && !mateMirror) || !walker.on) return null;
     const pr = 1 - sl / 300, e = pr < 0.3 ? pr / 0.3 : 1 - (pr - 0.3) / 0.7;   // snaps out fast, comes back slower
-    return { side: PUNCHFX.hand > 0 ? 'R' : 'L', e: Math.max(0, Math.min(1, e)) };
+    return { side: (mateMirror ? -PUNCHFX.hand : PUNCHFX.hand) > 0 ? 'R' : 'L', e: Math.max(0, Math.min(1, e)) };
   }
   function punchSwing(hit) {
     if (!walker.on) return;
@@ -19029,10 +19045,14 @@ const RUNNER_API = (function () {
     // the walk cycle only runs while he is actually moving (standing still he stands, like the player); a stunned one does not swing at all
     const mv = m.lx != null && Math.hypot(m.x - m.lx, m.y - m.ly) > 0.25; m.lx = m.x; m.ly = m.y;
     walker.on = true; walker.step = m.step; walker.heading = m.heading; walker.amp = m.stunT > 0 ? 0 : (mv ? 1 : 0);
-    packOn = null; mask = !!(m.companion && P0.mask); held = (m.stunT <= 0 && m.cd > MATE_SHOT_CD - 1.0) ? 'laser' : null; mateDrawing = true; ctx = c;   // the pistol is in his hand for a moment after he fires   // the partner puts his mask on when you put yours on
-    try { drawWalker(m.x, m.y); }
+    const pkOff0 = packOff; packOff = false;
+    packOn = m.companion ? (P0.packOn || 'daypack') : null;   // the partner carries a pack: yours, or a daypack of his own
+    mateMirror = !!m.companion;   // and throws the punch you throw
+    mask = !!(m.companion && P0.mask); held = (m.stunT <= 0 && m.cd > MATE_SHOT_CD - 1.0) ? 'laser' : null; mateDrawing = true; ctx = c;   // the pistol is in his hand for a moment after he fires   // the partner puts his mask on when you put yours on
+    const snk = m.companion && RUN_SNEAK;   // he sneaks when you sneak: smaller and lower
+    try { if (snk) { ctx.save(); ctx.translate(m.x, m.y); ctx.scale(0.78, 0.78); ctx.translate(-m.x, -m.y); } drawWalker(m.x, m.y); if (snk) ctx.restore(); }
     finally {
-      mateDrawing = false; packOn = P0.packOn; mask = P0.mask; held = P0.held;
+      mateMirror = false; packOff = pkOff0; mateDrawing = false; packOn = P0.packOn; mask = P0.mask; held = P0.held;
       Object.assign(RUNNER_LOOK, L0); walker.on = W0.on; walker.step = W0.step; walker.heading = W0.heading; walker.amp = W0.amp;
     }
   }
@@ -24812,6 +24832,7 @@ export default function IronLionLayer004() {
         const base = mapBase(G.mapRoof564);
         x.save(); x.imageSmoothingEnabled = true;
         x.drawImage(base, ox, oy, span * k, span * k);
+        if (MAP_ART.icons && MAP_ART.icons.width) x.drawImage(MAP_ART.icons, ox, oy, span * k, span * k);   // the shop and landmark icons
         x.restore();
         painted = true;
       }
@@ -71949,6 +71970,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
           <div style={{ fontSize: 11, letterSpacing: "0.24em", color: rnOn ? "#6ef0ff" : C.gold }}>
             {rnOn ? "RAVEN CITY \u00b7 RUNNER" : hud.flash76 ? "RAVEN HOOK \u00b7 1976" : "RAVEN HOOK \u00b7 1986"}
           </div>
+          <img src="assets/map/map_key.png" alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: "100%", maxWidth: 250, marginTop: 8, imageRendering: "auto" }} />
           {/* LAYER 794: these four are Rey's story -- the job board, the RCASE, the prison-skip cheat, the gun
               heists -- and don't exist in Raven City. Runner Mode doesn't default to this tab any more (see the
               pauseTab effect above), but if he clicks back to MAP out of curiosity, these shouldn't be sitting
