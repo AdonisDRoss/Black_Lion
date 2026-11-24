@@ -15353,7 +15353,7 @@ const RUNNER_API = (function () {
   // for anyone without a physical pad or a keyboard. readPad() below folds these into the same x/y/a/b/lb/rb/r3 fields
   // the gamepad poll fills, so nothing downstream (updateWalker, updateCar, the pend.* handlers) has to know the
   // difference -- a tap does exactly what the matching gamepad button already does.
-  const TOUCH = { x: 0, y: 0, a: false, b: false, lb: false, rb: false, r3: false, lt: false, rt: false };   // LAYER 793: lt/rt -- gas and brake had no touch equivalent at all
+  const TOUCH = { x: 0, y: 0, a: false, b: false, xb: false, lb: false, rb: false, r3: false, lt: false, rt: false };   // LAYER 793: lt/rt -- gas and brake had no touch equivalent at all
   // LAYER 589: the C.A.N. lobby. While the player is inside a building the runner's camera and overlay stand down;
   // the hover bike waits parked outside the door (lobbyBike), and leaving the lobby lands it there.
   let lobby = false, lobbyBike = null, camSmooth = null;
@@ -15488,7 +15488,7 @@ const RUNNER_API = (function () {
     if (!lobby) skewDraw(car, () => drawCar('car_' + CAR_FILES[car.sprite], car.x, car.y, car.z, car.heading || 0, car.lean || 0, car.turret || 0));   // LAYER 631: the bike, with its rider, in every mode
     if (!lobby && ownCar && car !== ownCar) skewDraw(ownCar, () => drawCar('car_' + CAR_FILES[ownCar.sprite], ownCar.x, ownCar.y, 0, ownCar.heading || 0, 0, ownCar.turret || 0));   // LAYER 727
     if (!lobby && teamCarV && car !== teamCarV) skewDraw(teamCarV, () => drawCar('car_' + CAR_FILES[teamCarV.sprite], teamCarV.x, teamCarV.y, 0, teamCarV.heading || 0, 0));   // LAYER 723
-    if (!lobby && parkedHover) drawCar('car_' + CAR_FILES[parkedHover.sprite], parkedHover.x, parkedHover.y, parkedHover.z, parkedHover.heading || 0, 0);   // LAYER 723: the hover bike, parked
+    if (!lobby && parkedHover) { const wOn = walker.on; walker.on = true; try { drawCar('car_' + CAR_FILES[parkedHover.sprite], parkedHover.x, parkedHover.y, parkedHover.z, parkedHover.heading || 0, 0); } finally { walker.on = wOn; } }   // LAYER 723: the bike, parked. Empty: walker.on true stops drawCar putting a rider on it (it was drawing YOU on the parked bike while you drove the car)
     { const e = ENTERFX, nw = performance.now();   // the runner climbing in: he slides to the car's middle, shrinking, then he is gone
       if (e && e.in && e.until > nw && !lobby && !walker.on) {
         const pr = 1 - (e.until - nw) / ENTER_MS, px = e.fx + (e.car.x - e.fx) * pr, py = e.fy + (e.car.y - e.fy) * pr, sc = 1 - 0.65 * pr, h0 = walker.heading;
@@ -15503,6 +15503,7 @@ const RUNNER_API = (function () {
       walker.heading = h;
     }
     drawPunchFx();   // the swing, the POW, the OOF
+    drawSirenLights();
     ctx.restore();
   }
   function insideFigure(canvas, x, y, cam) {
@@ -16195,7 +16196,7 @@ const RUNNER_API = (function () {
     const m = Math.hypot(sx, sy);
     if (m > 0.05) {
       walker.step = (walker.step || 0) + dt * 11;     // LAYER 593: the legs swing while he walks
-      const wk = 150 * (1 + 0.08 * cybN('legL', 'legR'));   // the leg actuators
+      const wk = 150 * (1 + 0.08 * cybN('legL', 'legR')) * (jumpH() > 0 ? 1.25 : 1);   // the leg actuators; a jump carries him a little faster
       walker.x += sx / m * wk * Math.min(1, m) * dt;
       walker.y += sy / m * wk * Math.min(1, m) * dt;
       walker.heading = Math.atan2(sy, sx);
@@ -16229,6 +16230,7 @@ const RUNNER_API = (function () {
     out.x = out.x || TOUCH.x; out.y = out.y || TOUCH.y;
     out.a = out.a || TOUCH.a; out.b = out.b || TOUCH.b;
     out.lb = out.lb || TOUCH.lb; out.rb = out.rb || TOUCH.rb; out.r3 = out.r3 || TOUCH.r3;
+    out.xb = out.xb || TOUCH.xb || !!keys.x || !!keys.X;   // X: the pad's X, the touch X, or the X key
     out.rt = out.rt || TOUCH.rt; out.lt = out.lt || TOUCH.lt;   // LAYER 793: both are only ever read as a threshold (> 0.1 / > 0.5), so a held true/false touch button satisfies them exactly like a half-pressed trigger
     return out;
   }
@@ -16269,6 +16271,50 @@ const RUNNER_API = (function () {
     } catch (e) { /* no sound here */ }
   }
   // the engine turns over: a low note climbs and settles, with a rasp, when a car you have hot-wired starts
+  /* THE X BUTTON. On foot: a TAP is a jump, a HOLD (about half a second) calls the bike. In a car or on a bike: a TAP is the horn. In a cop
+     car: a HOLD turns the sirens on, and another hold turns them off. */
+  const XB = { t: 0, on: false, fired: false }, JUMP = { until: 0, cd: 0 }, SIREN = { on: false, osc: null, lfo: null, gn: null };
+  function isCopCar(c) { return /police|patrol|FIS/i.test(CAR_NAMES[c && c.sprite] || ''); }
+  function doJump() { if (!walker.on || lobby || lying || PSTUN.t > 0) return; const nw = performance.now(); if (nw < JUMP.cd) return; JUMP.until = nw + 540; JUMP.cd = nw + 800; TUT.jumps++; }
+  function jumpH() { const l = JUMP.until - performance.now(); return l <= 0 ? 0 : Math.sin((1 - l / 540) * Math.PI); }
+  function honk(long) {
+    try {
+      const cx = gameCtx(); if (!cx) return;
+      const t0 = cx.currentTime, d = long ? 0.9 : 0.28;
+      for (const f of [392, 494]) { const o = cx.createOscillator(), gn = cx.createGain(); o.type = 'square'; o.frequency.value = f;
+        gn.gain.setValueAtTime(0.0001, t0); gn.gain.exponentialRampToValueAtTime(0.06, t0 + 0.02); gn.gain.setValueAtTime(0.06, t0 + d - 0.05); gn.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+        o.connect(gn); gn.connect(cx.destination); o.start(t0); o.stop(t0 + d + 0.02); }
+    } catch (e) { /* no sound here */ }
+  }
+  function sirenSet(on) {
+    if (on === SIREN.on) return;
+    SIREN.on = on;
+    try {
+      if (on) {
+        const cx = gameCtx(); if (!cx) { SIREN.on = false; return; }
+        const o = cx.createOscillator(), lfo = cx.createOscillator(), lg = cx.createGain(), gn = cx.createGain();
+        o.type = 'sawtooth'; o.frequency.value = 900; lfo.type = 'triangle'; lfo.frequency.value = 1.1; lg.gain.value = 320;
+        gn.gain.value = 0.05; lfo.connect(lg); lg.connect(o.frequency); o.connect(gn); gn.connect(cx.destination); o.start(); lfo.start();
+        SIREN.osc = o; SIREN.lfo = lfo; SIREN.gn = gn;
+      } else { for (const n of [SIREN.osc, SIREN.lfo]) { try { n.stop(); } catch (e) { /* stopped */ } } SIREN.osc = SIREN.lfo = SIREN.gn = null; }
+    } catch (e) { SIREN.on = false; }
+  }
+  function xTap() { if (walker.on) { doJump(); return; } honk(false); }
+  function xHold() {
+    if (walker.on) { callBike(); return; }
+    if (isCopCar(car)) { sirenSet(!SIREN.on); say(SIREN.on ? 'SIRENS ON.' : 'SIRENS OFF.', 2); } else honk(true);
+  }
+  function drawSirenLights() {   // red and blue washing over a cop car while its sirens are on
+    if (!SIREN.on) return;
+    if (walker.on || !isCopCar(car)) { sirenSet(false); return; }
+    const ph = Math.floor(performance.now() / 160) % 2, cx0 = car.x, cy0 = car.y - car.z;
+    for (const sd of [-1, 1]) {
+      const red = (sd < 0) === (ph === 0), col = red ? '255,40,40' : '60,110,255';
+      const gr = ctx.createRadialGradient(cx0 + sd * 14, cy0, 2, cx0 + sd * 14, cy0, 62);
+      gr.addColorStop(0, 'rgba(' + col + ',0.75)'); gr.addColorStop(1, 'rgba(' + col + ',0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx0 + sd * 14, cy0, 62, 0, Math.PI * 2); ctx.fill();
+    }
+  }
   function engineStartSound() {
     try {
       const ctx = gameCtx(); if (!ctx) return;
@@ -16811,6 +16857,11 @@ const RUNNER_API = (function () {
     if (!tvOpen && pad.r3 && !padPrev.r3) pend.call = true;         // LAYER 690: R3 calls the bike down beside him (it was X, and X caught A's presses inside)
     if (!tvOpen && pad.lb && !padPrev.lb) pend.target = true;       // LAYER 683: LB locks the aim on the nearest target, again lets go
     if (!tvOpen && pad.rb && !padPrev.rb) pend.fire = true;         // LAYER 683: RB shoots with the pistol; without it, RB punches (the main pad poll)
+    if (!tvOpen) {   // X: tap or hold (see XB)
+      if (pad.xb && !padPrev.xb) { XB.t = 0; XB.fired = false; XB.on = true; }
+      if (pad.xb && XB.on) { XB.t += dt; if (!XB.fired && XB.t >= 0.45) { XB.fired = true; xHold(); } }
+      if (!pad.xb && padPrev.xb && XB.on) { XB.on = false; if (!XB.fired) xTap(); }
+    }
     padPrev = { a: pad.a, b: pad.b, xb: pad.xb, yb: pad.yb, rb: pad.rb, lb: pad.lb, r3: pad.r3 };
     RUN_SNEAK = walker.on && (pad.lt > 0.5 || !!keys.Control) && !PMB.inside;   // LAYER 717: hold LT (L2) on foot to sneak. LAYER 721: hold Control on the keyboard too.
     coverTick(dt);
@@ -17283,19 +17334,17 @@ const RUNNER_API = (function () {
 
   function drawHud() {
     const state = walker.on ? 'ON FOOT' : ({ air: 'FLYING', down: 'LANDING', landed: 'LANDED', up: 'LIFTING OFF' })[car.mode];
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(12, 12, 400, 84);
-    ctx.fillStyle = '#e8d9b5'; ctx.font = '13px monospace';
-    ctx.fillText('CAR: ' + CAR_NAMES[car.sprite] + '   SPEED ' + Math.round(Math.abs(car.speed)), 22, 34);
-    ctx.fillText('STATE: ' + state + '   ALT ' + Math.round(car.z * 0.047) + ' M', 22, 56);
-    ctx.fillText('FLYING TRAFFIC ' + fliers.length, 22, 78);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, W, 22);   // one strip across the whole top (it was a four-line box in the corner)
+    ctx.fillStyle = '#e8d9b5'; ctx.font = '12px monospace';
+    ctx.fillText('RAVEN HOOK 1986  \u00b7  CAR: ' + CAR_NAMES[car.sprite] + '  \u00b7  SPEED ' + Math.round(Math.abs(car.speed)) + '  \u00b7  STATE: ' + state + '  \u00b7  ALT ' + Math.round(car.z * 0.047) + ' M  \u00b7  FLYING TRAFFIC ' + fliers.length, 12, 15);
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(12, H - 40, W - 24, 28);
     ctx.fillStyle = '#e8d9b5'; ctx.font = '12px monospace';
     ctx.fillText('stick / WASD  RT gas  LT brake  A act  B punch/land  R3 bike  LB target  RB shoot/punch  Y wheel  C car  R reset', 22, H - 21);
     if (msgT > 0) {
       ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.font = 'bold 16px monospace';
       const tw = ctx.measureText(msg).width;
-      ctx.fillRect(W / 2 - tw / 2 - 14, 22, tw + 28, 30);
-      ctx.fillStyle = '#6ef0ff'; ctx.textAlign = 'center'; ctx.fillText(msg, W / 2, 43); ctx.textAlign = 'left';
+      ctx.fillRect(W / 2 - tw / 2 - 14, 28, tw + 28, 30);
+      ctx.fillStyle = '#6ef0ff'; ctx.textAlign = 'center'; ctx.fillText(msg, W / 2, 49); ctx.textAlign = 'left';
     }
   }
 
@@ -17453,7 +17502,7 @@ const RUNNER_API = (function () {
   function punchSwing(hit) {
     if (!walker.on) return;
     const now = performance.now(), a = walker.heading || 0;
-    PUNCHFX.swingUntil = now + 300; PUNCHFX.hand = -PUNCHFX.hand; PUNCHFX.ang = a;
+    PUNCHFX.swingUntil = now + 300; PUNCHFX.hand = -PUNCHFX.hand; PUNCHFX.ang = a; TUT.punches++;
     const fx = walker.x + Math.cos(a) * 36, fy = walker.y + Math.sin(a) * 36;
     let h = !!hit;
     if (!h) for (const q of [].concat(hunters || [], mates.filter((m) => !m.companion), houseThugs || [])) { if (q && !q.dead && (q.hp == null || q.hp > 0) && Math.hypot(q.x - fx, q.y - fy) < 40) { h = true; break; } }
@@ -18286,8 +18335,9 @@ const RUNNER_API = (function () {
     ctx.restore();
   }
   function drawSneakWalker(x, y) {
-    const s = RUN_SNEAK ? 0.78 : 1;
-    ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.translate(-x, -y);
+    const s = RUN_SNEAK ? 0.78 : 1, jh = jumpH();
+    if (jh > 0) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,' + (0.32 - 0.16 * jh) + ')'; ctx.beginPath(); ctx.ellipse(x, y + 6, 15 * (1 - 0.25 * jh), 6 * (1 - 0.25 * jh), 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }   // the shadow stays on the ground
+    ctx.save(); ctx.translate(x, y - 20 * jh); ctx.scale(s * (1 + 0.14 * jh), s * (1 + 0.14 * jh)); ctx.translate(-x, -y);   // the jump: up and a little bigger
     drawWalker(x, y);
     ctx.restore();
     if (walker.on && (RUN_SNEAK || RUN_COVER > 0.02)) drawCoverMeter(x, y);
@@ -19184,6 +19234,12 @@ const RUNNER_API = (function () {
   const TIP_ADDRESS = '612 SAUNDERS AVE';
   const yMenu = { open: false, mode: 'menu', sel: 0, opts: [], lines: [], li: 0, title: '', speaker: '', stickY: 0, face: null, done: null, onPick: null };
   let barSpot = null, houseSpot = null, houseSeen = false, houseBldg = null;
+  /* The partner's missions (M2, M3) are given at the house. A save never kept the house, so after any load houseSpot was null, micahFrame
+     found nothing to spawn the giver at, and the main chain stopped dead after the chip. houseSpotNow() finds the house again if needed. */
+  function houseSpotNow() {
+    if (!houseSpot) { const b = barSpot || (() => { const L = canRect().lot; return clearSpot(L[2] + 700, L[3] - 40, null) || { x: L[2] + 700, y: L[3] - 40 }; })(); houseSpot = houseDoorSpot() || clearSpot(b.x - 900, b.y + 300, null) || { x: b.x - 900, y: b.y + 300 }; }
+    return houseSpot;
+  }
   // LAYER 714/716: the first mission goes to real buildings. THE LAST CALL is the venue on civic cell (6,9); the arrow ends at its
   // door, out on the street. The house is a real house with a door, at least three blocks from the bar, the nearest such one.
   function doorSpotOf(b) {
@@ -19500,23 +19556,27 @@ const RUNNER_API = (function () {
      runner goes through the night run with the partner. Each lesson is a talk, then one thing to do, and it moves on only when the
      game sees that the runner has done it. No C.A.N. drones or hunters while it runs. The last talk ends the run: the game saves (the
      checkpoint), and the doctor's store mission starts, as it did at midnight before (see the doc's open items). */
-  const TUT = { i: -1, active: false, mark: { shots: 0, calls: 0 }, x0: 0, y0: 0, shots: 0, calls: 0 };   // shots and calls count from the run's start
+  const TUT = { i: -1, active: false, mark: { shots: 0, calls: 0, jumps: 0, punches: 0 }, x0: 0, y0: 0, shots: 0, calls: 0, jumps: 0, punches: 0 };   // shots and calls count from the run's start
   const TUT_LESSONS = [
     { lines: ['Night is the run. Before we go, three places to get the news.',
       'The phone: NEWS shows the C.A.N. live feed. Who is on the run, and where the hunters are looking.',
       'The bulletin: when C.A.N. calls a stop, a face comes up in the street. Read it. That is who to watch for.',
       'The street: people talk if you ask them. Press A to talk. Most of them lie.'] },
-    { lines: ['These are the buttons. A talks to people, picks things up, and gets on the bike and off it.',
-      'B lifts the hover bike off and lands it, once you have one. On foot, B punches.',
-      'The left stick steers. Hold RT to go. RB draws the pistol, and RB again fires it. LB locks on the nearest target. R3 calls the bike down to you. Y opens the action wheel.',
-      'On the keyboard: W goes, S brakes, the arrows steer, E is A and L is B.'] },
-    { hud: 'GET ON THE BIKE: PRESS A ON IT. R3 CALLS IT IF IT IS FAR.', lines: ['Your bike. Get on it.'], ok: () => !walker.on },
+    { lines: ['These are the buttons. A talks to people, picks things up, and gets you on the bike, in a car, and off again.',
+      'On foot, B punches. It never pulls the pistol. On the hover bike, B lifts off and lands.',
+      'X is two buttons in one. On foot, tap X to jump, and hold X to call the bike. In a car, tap X for the horn. In a cop car, hold X for the sirens.',
+      'The left stick steers. Hold RT to go. RB draws the pistol, and RB again fires it. The HOLSTER button, or H, puts it away. LB locks on the nearest target. LT sneaks, and your partner sneaks with you. Y opens the action wheel. MENU, bottom middle, pauses.',
+      'On the keyboard: W goes, S brakes, the arrows steer, E is A, L is B, and X is X.'] },
+    { hud: 'GET ON THE BIKE: PRESS A ON IT. HOLD X CALLS IT IF IT IS FAR.', lines: ['Your bike. Get on it.'], ok: () => !walker.on },
     { hud: 'LIFT OFF: PRESS B', skip: () => !tutCanFly(), lines: ['Lift off. B. Keep it low for now.'], ok: () => car.mode === 'up' || car.mode === 'air' },
     { hud: 'FLY ONE BLOCK: HOLD RT AND STEER', skip: () => !tutCanFly(), lines: ['Hold RT and it goes. Let go and it slows.', 'Go round the block once.'], ok: () => Math.hypot(car.x - TUT.x0, car.y - TUT.y0) >= 500 },
     { hud: 'LAND: PRESS B ON A CLEAR SPOT', skip: () => !tutCanFly(), lines: ['Bring it down. B again, on a clear spot, with no people under it.'], ok: () => car.mode === 'landed' },
     { hud: 'GET OFF: PRESS A', lines: ['Get off. A.'], ok: () => walker.on },
+    { hud: 'JUMP: TAP X', lines: ['On foot, tap X and you jump. Not far, and it carries you a little faster. Try it.'], ok: () => TUT.jumps - TUT.mark.jumps >= 1 },
+    { hud: 'PUNCH: PRESS B', lines: ['B throws a punch. Your partner throws one with you. The pistol stays where it is.'], ok: () => TUT.punches - TUT.mark.punches >= 1 },
     { hud: 'DRAW THE PISTOL: RB, THEN RB AGAIN', at: 'me', skip: () => !LASER.has, lines: ['RB draws it. Then RB fires. The pistol is on stun: it puts people down, it does not kill them.', 'Fire it at the wall.'], ok: () => TUT.shots - TUT.mark.shots >= 1 },
-    { hud: 'CALL THE BIKE: PRESS R3', lines: ['Walk a few steps off, then call it down.'], ok: () => TUT.calls - TUT.mark.calls >= 1 },
+    { hud: 'PUT THE PISTOL AWAY: HOLSTER, OR H', skip: () => !LASER.has, lines: ['Put it away. The HOLSTER button by LB, or H on a keyboard.'], ok: () => !LASER.drawn },
+    { hud: 'CALL THE BIKE: HOLD X', lines: ['Walk a few steps off, then hold X. The bike comes down to you, from any distance.'], ok: () => TUT.calls - TUT.mark.calls >= 1 },
     { hud: 'GET BACK ON: PRESS A', lines: ['Good. Get back on it.'], ok: () => !walker.on },
     { end: true, lines: ['That is the night run. You know the buttons now.', 'Now the partner has a lead for you.'] }
   ];
@@ -19526,7 +19586,7 @@ const RUNNER_API = (function () {
     const L = TUT_LESSONS[TUT.i];
     if (L.skip && L.skip()) return tutNext();
     const f = mates.find((m) => m.friend);
-    TUT.active = false; TUT.mark = { shots: TUT.shots, calls: TUT.calls }; TUT.x0 = car.x; TUT.y0 = car.y;
+    TUT.active = false; TUT.mark = { shots: TUT.shots, calls: TUT.calls, jumps: TUT.jumps, punches: TUT.punches }; TUT.x0 = car.x; TUT.y0 = car.y;
     openTalk(f ? f.name : 'PARTNER', f ? f.look.profile : null, L.lines, tutTalkDone, 'THE NIGHT RUN · ' + (TUT.i + 1) + ' OF ' + TUT_LESSONS.length);
   }
   function tutTalkDone() {
@@ -19536,7 +19596,7 @@ const RUNNER_API = (function () {
   }
   function tutNext() { TUT.i++; if (TUT.i >= TUT_LESSONS.length) return tutEnd(); tutOpen(); }
   function tutorialStart() {
-    TUT.i = -1; TUT.active = false; TUT.shots = 0; TUT.calls = 0; TUT.mark = { shots: 0, calls: 0 };
+    TUT.i = -1; TUT.active = false; TUT.shots = 0; TUT.calls = 0; TUT.jumps = 0; TUT.punches = 0; TUT.mark = { shots: 0, calls: 0, jumps: 0, punches: 0 };
     MISSION.stage = 'tutorial'; MISSION.label = 'NIGHT RUN';
     runBanner('THE FIRST NIGHT RUN', 2.8);
     tutNext();
@@ -20599,11 +20659,13 @@ const RUNNER_API = (function () {
   function micahFrame() {
     if (!LASER.chip || WM.started) return;
     const partner = teamDriverName();
-    const seq = [[2, MIC_M2, () => houseSpot, partner], [3, MIC_M3, () => houseSpot, partner], [4, MIC_M4, pmArrive, 'MICAH'], [5, MIC_M5, pmArrive, 'MICAH']];
+    // the partner's giver stands off-screen while he is beside you: you talk to HIM (rjAction). Without a partner he waits at the house.
+    for (const q of RJ.givers) if (q.partner) { const cm = mates.find((m) => m.companion); if (cm) { q.x = -1e6; q.y = -1e6; } else { const hq = houseSpotNow(); q.x = hq.x; q.y = hq.y; } }
+    const seq = [[2, MIC_M2, houseSpotNow, partner], [3, MIC_M3, houseSpotNow, partner], [4, MIC_M4, pmArrive, 'MICAH'], [5, MIC_M5, pmArrive, 'MICAH']];
     for (const [n, def, at, who] of seq) {
       if (MICAH_ST.m[n]) continue;
       const key = 'micah' + def.id;
-      if (!hasKeep(key) && !activeIs((a) => a.id === def.id) && rAbs() >= (MICAH_ST.next[def.micah] || 0)) { const p = at(); if (p) keepGiver(key, def, p, who); }
+      if (!hasKeep(key) && !activeIs((a) => a.id === def.id) && rAbs() >= (MICAH_ST.next[def.micah] || 0)) { const p = at(); if (p) { const gg = keepGiver(key, def, p, who); if (who === partner) gg.partner = true; } }
       return;   // one at a time, in order
     }
     // main 5 is done: after one night, Micah's betrayal starts (the first WINDI mission); until then his commissions run at trust 2
@@ -21248,7 +21310,11 @@ const RUNNER_API = (function () {
     if (!walker.on) return false;
     if (TESS_BASE.open) { tessBaseShow(false); return true; }   // E or A inside the base leaves it
     const A = RJ.active;
-    if (!A) { const g = rjNearest(RJ.givers); if (g) { rjOffer(g); return true; } return tessBaseHere(); }
+    if (!A) {
+      const pg = RJ.givers.find((q) => q.partner), cm = pg && mates.find((m) => m.companion);   // his own partner offers him the job
+      if (cm && Math.hypot(walker.x - cm.x, walker.y - cm.y) < 120) { rjOffer(pg); return true; }
+      const g = rjNearest(RJ.givers); if (g) { rjOffer(g); return true; } return tessBaseHere();
+    }
     const s = A.def.steps[A.step]; if (!s) return false;
     if (s.k === 'talk') { const c = rjNearest(RJ.contacts); if (c && c === A.contact) { rjTalk(c); return true; } return false; }
     if (s.k === 'drop') { const c = rjNearest(RJ.contacts); if (c && c === A.contact) { rjDrop(c); return true; } return false; }   // LAYER 779: the cooler is handed over (or opened)
@@ -23082,6 +23148,7 @@ const RUNNER_API = (function () {
     saveData: () => ({ v: 2, t: Date.now(), name: RUNNER_LOOK.name, look: Object.assign({}, RUNNER_LOOK), cash: runnerCash, mission: MISSION.stage,
       tess: JSON.parse(JSON.stringify(TESS_ST)), windi: JSON.parse(JSON.stringify(WINDI_ST)), micah: JSON.parse(JSON.stringify(MICAH_ST)),
       place: runnerPlace, clock: { day: RCLK.day, min: RCLK.min },
+      story: { house: houseSpot ? { x: houseSpot.x, y: houseSpot.y } : null, bar: barSpot ? { x: barSpot.x, y: barSpot.y } : null, houseSeen, houseTalked, wm: Object.assign({}, WM) },
       // the kit he carries: none of this was in the slot, so a load came back with the cash and the mission but an empty pack
       gear: { laser: { has: LASER.has, mode: LASER.mode, locked: LASER.locked, chip: LASER.chip }, evidence: RPOL.evidence ? Object.assign({}, RPOL.evidence) : null,
         gas: gasOwned, sleep: sleepOwned, bag: sleepDown ? { x: sleepDown.x, y: sleepDown.y, h: sleepDown.h } : null,
@@ -23097,6 +23164,7 @@ const RUNNER_API = (function () {
       if (d.micah) Object.assign(MICAH_ST, d.micah);
       if (d.clock) { RCLK.day = +d.clock.day || 1; RCLK.min = +d.clock.min || 360; RCLK.lastHour = Math.floor(RCLK.min / 60); RCLK.castDay = RCLK.min >= 480 ? RCLK.day : RCLK.day - 1; }
       if (d.place) pendingPlace = d.place;
+      if (d.story) { const st = d.story; if (st.house) houseSpot = st.house; if (st.bar) barSpot = st.bar; houseSeen = !!st.houseSeen; houseTalked = !!st.houseTalked; if (st.wm) Object.assign(WM, st.wm); }
       if (d.gear) {   // a slot from before the kit was saved has no gear: it is left as it is
         const k = d.gear;
         if (k.laser) { LASER.has = !!k.laser.has; LASER.drawn = false; LASER.mode = k.laser.mode === 'kill' ? 'kill' : 'stun'; LASER.locked = k.laser.locked !== false; LASER.chip = !!k.laser.chip; LASER.beams = []; }
@@ -24247,10 +24315,7 @@ function RunnerShell({ onExit, onStart, onLoad }) {
       {intro && <RunnerIntro onDone={() => { setIntro(false); setTitled(true); }} />}
       {titled && !built && !opening && !intro && <RunnerBuilder onStart={beginNew} onCancel={() => setTitled(false)} />}
       {opening && <RunnerOpening onDone={finishOpening} />}
-      {!onTitle && !opening && !intro && <div onClick={onExit}
-        style={{ pointerEvents: 'auto', position: 'absolute', top: 14, right: 14, padding: '8px 14px',
-          border: '1px solid #6ef0ff', background: 'rgba(10,11,14,0.72)', color: '#6ef0ff', fontSize: 11,
-          letterSpacing: '0.26em', cursor: 'pointer', userSelect: 'none' }}>BACK</div>}
+      {/* the BACK button is gone: MENU (lower centre) opens the pause menu, which has QUIT */}
     </div>
   );
 }
@@ -61340,11 +61405,12 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
     }
 
     function drawMinimap() {
-      const S = Math.min(150, Math.max(96, Math.min(W, H) * 0.22));
+      const rn = RUNNER_API.isOn();
+      const S = rn ? 76 : Math.min(150, Math.max(96, Math.min(W, H) * 0.22));   // Runner Mode: smaller, up in the corner above RB
       /* In a car (or on a bike) the CAR CARD sits above the map and the plate under it (layer 514): the map moves down
          to make room, and tells the HUD where it is (g.mm) so both line up with it at any screen size. */
       const carded = g.mode === "car" || g.mode === "moto" || !!(g.stu && g.stu.bike && g.stu.bike.on);
-      const pad = 12, ox = W - S - pad, oy = carded ? pad + MM_CARD_H + 4 : pad + 46;
+      const pad = 12, ox = rn ? W - S - 18 : W - S - pad, oy = rn ? 10 : (carded ? pad + MM_CARD_H + 4 : pad + 46);
       g.mm = { x: ox, y: oy, S, carded };
       const span = MM_SPANS[MM_ZOOM.i];
       const cx = inVehicle() ? activeVeh().x : g.p.x;
@@ -69909,10 +69975,10 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       <canvas ref={wireCv} style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", zIndex: 60, display: "none", touchAction: "none" }} />
 
       {/* top-left HUD */}
-      <div style={{ position: "absolute", top: 12, left: 12, fontFamily: mono, color: "#e8d9b5",
+      <div style={{ position: "absolute", top: rnOn ? 26 : 12, left: 12, fontFamily: mono, color: "#e8d9b5",   /* Runner: under the top strip, with its title lines gone (they are in the strip) */
         pointerEvents: "none", opacity: hud.title ? 0 : 1 }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.22em", color: C.gold }}>{GAME_TITLE + " \u00b7 1986"}</div>
-        <div style={{ fontSize: 9, letterSpacing: "0.18em", opacity: 0.55, marginTop: 2 }}>{BUILD_TAG}</div>
+        <div style={{ fontSize: 11, letterSpacing: "0.22em", color: C.gold, display: rnOn ? "none" : undefined }}>{GAME_TITLE + " \u00b7 1986"}</div>
+        <div style={{ fontSize: 9, letterSpacing: "0.18em", opacity: 0.55, marginTop: 2, display: rnOn ? "none" : undefined }}>{BUILD_TAG}</div>
         {/* Fold the panel away when it is in the way; tap again to bring it back. */}
         <div onClick={() => { const gg = G.current; gg.objMin = !gg.objMin; setHud((h) => ({ ...h, objMin: gg.objMin })); }}
           style={{ pointerEvents: "auto", display: "inline-block", marginTop: 6, padding: "3px 10px", cursor: "pointer",
@@ -70375,10 +70441,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         </div>)}
       {/* MONEY AND JUICE (layer 503): bold, top right, under the map */}
       {!hud.title && hud.money != null && (
-        <div style={{ position: "absolute", top: (() => { const g0 = G.current; if (g0 && (g0.mode === "car" || g0.mode === "moto") && g0.mm) { const S = g0.mm.S, ph = Math.min(S, 132) * 220 / 412; return Math.max(216, g0.mm.y + S + 6 + ph + 8); } return 216; })(),
+        <div style={{ position: "absolute", top: (() => { const g0 = G.current; if (g0 && (g0.mode === "car" || g0.mode === "moto") && g0.mm) { const S = g0.mm.S, ph = Math.min(S, 132) * 220 / 412; return Math.max(rnOn ? 240 : 216, g0.mm.y + S + 6 + ph + 8); } return rnOn ? 240 : 216; })(),
           right: 12, textAlign: "right", pointerEvents: "none", zIndex: 7, fontFamily: mono }}>
           <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "0.04em", color: hud.payFly ? "#9be37a" : "#f2c45a", textShadow: "0 2px 0 #000, 0 0 10px rgba(0,0,0,0.8)", transition: "color .3s" }}>${hud.money.toLocaleString()}</div>
           <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.22em", color: "#e8d9b5", textShadow: "0 2px 0 #000" }}>CRED {hud.juiceNow ?? 0}</div>
+          {!rnOn && (<>
           {/* THE ZOOM, standing up, under the money (layer 567) -- up is closer */}
           <div style={{ position: "relative", width: 30, height: 150, marginLeft: "auto", marginTop: 8, pointerEvents: "auto" }} onPointerDown={(e) => e.stopPropagation()}>
             <div style={{ position: "absolute", right: 0, top: -2, fontSize: 7, letterSpacing: "0.16em", color: "#e8d9b5", opacity: 0.6, whiteSpace: "nowrap" }}>ZOOM</div>
@@ -70387,10 +70454,23 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               style={{ position: "absolute", width: 130, left: 15 - 65, top: 80 - 8, transform: "rotate(-90deg)", accentColor: "#d9a441", background: "transparent", touchAction: "none" }} />
             <div style={{ position: "absolute", right: 0, bottom: -12, fontSize: 7, color: "#e8d9b5", opacity: 0.6 }}>{zoomUI.toFixed(1)}×</div>
           </div>
+          </>)}
           {hud.caseBar && <div style={{ marginTop: 6, fontSize: 9, fontWeight: 800, letterSpacing: "0.18em", color: hud.caseBar.fill >= 80 ? "#ff6a5a" : "#ffb09a", textShadow: "0 2px 0 #000" }}>
             THE RCASE {"\u00b7"} DRUMMOND {hud.caseBar.fill}%
             <div style={{ width: 130, height: 6, marginLeft: "auto", marginTop: 3, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,138,106,0.6)" }}><div style={{ width: hud.caseBar.fill + "%", height: "100%", background: hud.caseBar.fill >= 80 ? "#e8302a" : "#ff8a6a" }} /></div>
           </div>}
+        </div>)}
+      {/* THE ZOOM, Runner Mode: standing up the right edge, top down to the middle */}
+      {rnOn && !hud.title && (
+        <div style={{ position: "absolute", right: 0, top: 10, zIndex: 21 }}>
+          
+          <div style={{ position: "relative", width: 18, height: 150, pointerEvents: "auto" }} onPointerDown={(e) => e.stopPropagation()}>
+            <div style={{ position: "absolute", right: 0, top: -2, fontSize: 7, letterSpacing: "0.16em", color: "#e8d9b5", opacity: 0.6, whiteSpace: "nowrap" }}>ZOOM</div>
+            <input type="range" min="0.45" max="3.4" step="0.05" value={zoomUI}
+              onChange={(e) => { const v = parseFloat(e.target.value); zoomRef.current = v; setZoomUI(v); }}
+              style={{ position: "absolute", width: 130, left: 9 - 65, top: 80 - 8, transform: "rotate(-90deg)", accentColor: "#d9a441", background: "transparent", touchAction: "none" }} />
+            <div style={{ position: "absolute", right: 0, bottom: -12, fontSize: 7, color: "#e8d9b5", opacity: 0.6 }}>{zoomUI.toFixed(1)}×</div>
+          </div>
         </div>)}
       {hud.payFly && !hud.title && (
         <div key={"pf" + hud.payFly} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 41, overflow: "hidden" }}>
@@ -71770,7 +71850,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               columnGap: 8, rowGap: 8, justifyItems: "center", alignItems: "center",
             }}>
               <div style={{ gridColumn: 2, gridRow: 1 }}>{face("y", "Y", "wheel", () => { G.openWheel && G.openWheel(); }, null)}</div>
-              <div style={{ gridColumn: 1, gridRow: 2 }}>{face("x", "X", "call bike", hold("r3").onDown, hold("r3").onUp)}</div>
+              <div style={{ gridColumn: 1, gridRow: 2 }}>{face("x", "X", "jump \u00b7 hold bike", hold("xb").onDown, hold("xb").onUp)}</div>
               <div style={{ gridColumn: 3, gridRow: 2 }}>{face("b", "B", "land/punch", hold("b").onDown, hold("b").onUp)}</div>
               <div style={{ gridColumn: 2, gridRow: 3 }}>{face("a", "A", "board/talk", hold("a").onDown, hold("a").onUp, true)}</div>
             </div>
@@ -71813,18 +71893,18 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
         const k = onBicycle ? "bike_player" : g0.mode === "moto" ? (g0.moto.model || (g0.moto.skin && g0.moto.skin.k) || "moto") : (V.skin && V.skin.k); if (!k) return null;
         if (V && g0.mode === "moto") V.cardK = k;
         const I = !onBicycle && G.carInfoFn ? G.carInfoFn(V) : null, M = carModel(k), tier = "$".repeat(M.tier || 1);
-        const mm = g0.mm || { S: 150, y: 12 + MM_CARD_H + 4 }, S = mm.S, pw = Math.min(S, 132), ph = pw * 220 / 412, moto = g0.mode === "moto";
+        const mm = g0.mm || { S: 150, y: 12 + MM_CARD_H + 4 }, S = mm.S, pw = rnOn ? 100 : Math.min(S, 132), ph = pw * 220 / 412, moto = g0.mode === "moto";
         const L568 = G.lic568 && !g0.detMode && !g0.studentMode ? G.lic568() : null, LC = L568 ? { valid: ["VALID", "#7fd35a"], suspended: ["SUSPENDED", "#ff6a5a"], none: ["NO LICENSE", "#ff6a5a"], forged: ["Q " + (L568.q || 0), "#f2c45a"] }[L568.st] || ["?", "#aaa"] : null;
         return (<>
           {/* THE LICENSE, left of the car card (layer 568): whose name, and what it'll do for you if you get pulled over */}
-          {L568 && <div style={{ position: "absolute", right: 12 + S + 6, top: 12, width: 104, height: MM_CARD_H, zIndex: 20, fontFamily: mono, color: "#1d1f24", pointerEvents: "none",
+          {L568 && <div style={{ position: "absolute", right: rnOn ? 18 : 12 + S + 6, top: rnOn ? undefined : 12, bottom: rnOn ? 160 : undefined, width: rnOn ? 96 : 104, height: MM_CARD_H, zIndex: 20, fontFamily: mono, color: "#1d1f24", pointerEvents: "none",
             background: "linear-gradient(#2f4f7a 0 15px, #d9d3c2 15px)", border: "1px solid rgba(0,0,0,0.5)", boxSizing: "border-box", padding: "1px 5px", overflow: "hidden" }}>
             <div style={{ fontSize: 7, letterSpacing: "0.16em", color: "#e8e2d0", fontWeight: 700 }}>KESTREL · DRIVER</div>
             <div style={{ fontSize: 9, fontWeight: 800, marginTop: 4, whiteSpace: "nowrap", overflow: "hidden" }}>{L568.st === "forged" ? "(NOT YOU)" : g0.prisonMode ? "REY" : "DRIVER"}</div>
             <div style={{ fontSize: 7, opacity: 0.7 }}>{L568.st === "forged" ? "BY " + (L568.by || "THE FORGER") : "POINTS " + (L568.pts || 0)}</div>
             <div style={{ display: "inline-block", marginTop: 3, padding: "1px 4px", border: "2px solid " + LC[1], color: LC[1], fontSize: 9, fontWeight: 900, letterSpacing: "0.08em", transform: "rotate(-6deg)", background: "rgba(0,0,0,0.65)" }}>{LC[0]}</div>
           </div>}
-          <div style={{ position: "absolute", right: 12, top: 12, width: S, height: MM_CARD_H, zIndex: 20, fontFamily: mono, color: "#e8d9b5", pointerEvents: "none",
+          <div style={{ position: "absolute", right: rnOn ? 18 + S + 6 + pw + 6 : 12, top: rnOn ? 10 : 12, width: rnOn ? 118 : S, height: MM_CARD_H, zIndex: 20, fontFamily: mono, color: "#e8d9b5", pointerEvents: "none",
             background: "rgba(10,11,14,0.82)", border: "1px solid rgba(217,164,65,0.35)", boxSizing: "border-box", padding: "3px 6px", overflow: "hidden", textAlign: "center" }}>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, height: 24 }}>
               {M.make && <img key={M.make} src={"assets/logos/logo_" + M.make + ".png"} alt=""
@@ -71836,7 +71916,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             <div style={{ fontSize: S < 120 ? 8 : 9, letterSpacing: "0.08em", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{M.model + " \u00b7 " + M.year}</div>
             <div style={{ fontSize: 7, opacity: 0.6, letterSpacing: "0.06em", whiteSpace: "nowrap", overflow: "hidden" }}>{onBicycle ? "BICYCLE" : (V && g0.mode === "car" ? carLbs(V).toLocaleString() + " LB \u00b7 " : "") + "TOP " + Math.round(M.s * 100) + " \u00b7 PICK " + Math.round(M.a * 100) + " \u00b7 GRIP " + Math.round(M.g * 100)}</div>
           </div>
-          {I && I.plate && <div style={{ position: "absolute", right: 12 + (S - pw) / 2, top: mm.y + S + 6, width: pw, height: ph, zIndex: 20, pointerEvents: "none", fontFamily: mono, color: "#1d2a4a" }}>
+          {I && I.plate && <div style={{ position: "absolute", right: rnOn ? 18 + S + 6 : 12 + (S - pw) / 2, top: rnOn ? 10 : mm.y + S + 6, width: pw, height: ph, zIndex: 20, pointerEvents: "none", fontFamily: mono, color: "#1d2a4a" }}>
             <img src="assets/ui/ui_plate.png" alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", imageRendering: "pixelated" }} />
             <div style={{ position: "absolute", inset: 0, background: "#f2efe4", border: "2px solid #1d2a4a", borderRadius: 4, zIndex: -1 }} />
