@@ -4222,22 +4222,54 @@ PD_ART.clinic_room = "assets/runner/cyber/clinic_sewer_room.png";
 /* LAYER 692-693: THE SEWER CLINIC. E or A by the clinic stall opens its back room. In the room: LIE ON THE COT ($50:
    health back to full, the health cap cleared) or LEAVE. E or A does the cot if you can pay, otherwise it just leaves. */
 let CLINIC_OPEN = false, CLINIC_EL = null, CLINIC_CTX = null;
+/* THE CLINIC IS THE CYBER SHOP. Behind the cot, the doctor fits cyberwear: [slot id, name, what it does, price]. The same nine parts the Runner
+   reads its buffs from (CYBER_KIT in the Runner). Fitted ones are saved with the slot. */
+const CYBER_PARTS = [['eyes', 'CYBER EYES', 'LASER RANGE +30%', 900], ['chest', 'CHEST PLATE', '20% LESS DAMAGE', 1200], ['spine', 'SPINAL LINK', 'STUNS ON YOU LAST HALF AS LONG', 1500],
+  ['armL', 'L ARM SERVO', 'LASER 12% FASTER', 700], ['armR', 'R ARM SERVO', 'LASER 12% FASTER', 700], ['handL', 'L HAND MODS', 'YOUR STUNS +25%', 500],
+  ['handR', 'R HAND MODS', 'YOUR STUNS +25%', 500], ['legL', 'L LEG ACTUATOR', 'WALK 8% FASTER', 600], ['legR', 'R LEG ACTUATOR', 'WALK 8% FASTER', 600]];
+function clinicCyberRender() {
+  const box = CLINIC_EL && CLINIC_EL.querySelector("#clinic-cyber"); if (!box) return;
+  const g = CLINIC_CTX && CLINIC_CTX.g, cash = g && g.p ? (g.p.cash || 0) : 0;
+  let h = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><img alt="" src="assets/runner/cyber/doctor_bald.png" style="height:54px;image-rendering:pixelated" onerror="this.style.display=\'none\'">' +
+    '<div style="font:12px monospace;color:#c9c2b0">\u201cLie back. It hurts less than it should.\u201d  YOU HAVE $' + cash.toLocaleString() + '</div></div>';
+  for (const [id, nm, fx, pr] of CYBER_PARTS) {
+    const have = RUNNER_API.hasCyber(id);
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid #333">' +
+      '<div style="font:bold 13px monospace;color:#e8e8f0">' + nm + '<div style="font:11px monospace;color:#9a9486">' + fx + '</div></div>' +
+      (have ? '<div style="font:bold 12px monospace;color:#6ef0ff">FITTED</div>' : '<button data-cy="' + id + '" style="font:bold 12px monospace;padding:7px 10px;background:#222;color:' + (cash >= pr ? '#e8c46a' : '#6a665a') + ';border:2px solid ' + (cash >= pr ? '#e8c46a' : '#6a665a') + ';cursor:pointer">$' + pr + '</button>') + '</div>';
+  }
+  box.innerHTML = h;
+  box.querySelectorAll("button[data-cy]").forEach((b) => { b.onclick = (e) => {
+    e.stopPropagation();
+    const id = b.getAttribute("data-cy"), part = CYBER_PARTS.find((q) => q[0] === id), gg = CLINIC_CTX && CLINIC_CTX.g;
+    if (!part || !gg || !gg.p || RUNNER_API.hasCyber(id)) return;
+    if ((gg.p.cash || 0) < part[3]) { gg.pickupFlash = { nm: "NOT ENOUGH CASH. $" + part[3] + ".", t: 2.2 }; return; }
+    gg.p.cash -= part[3]; RUNNER_API.fitCyber(id);
+    if (CLINIC_CTX.setHud) CLINIC_CTX.setHud((hh) => ({ ...hh, cash: gg.p.cash }));
+    gg.pickupFlash = { nm: part[1] + " FITTED. $" + part[3] + ".", t: 2.4 };
+    clinicCyberRender();
+  }; });
+}
 function clinicShow(on) {
   if (!CLINIC_EL) {
     const d = document.createElement("div");
-    d.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.86);display:none;z-index:9000;align-items:center;justify-content:center;flex-direction:column;gap:12px";
+    d.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.86);display:none;z-index:9000;align-items:center;justify-content:flex-start;flex-direction:column;gap:12px;overflow:auto;padding:14px 0";
     d.innerHTML =
-      '<img alt="" src="assets/runner/cyber/clinic_sewer_room.png" style="max-width:94vw;max-height:66vh;image-rendering:pixelated">' +
+      '<img alt="" src="assets/runner/cyber/clinic_sewer_room.png" style="max-width:94vw;max-height:40vh;image-rendering:pixelated">' +
       '<div style="font:bold 18px monospace;color:#e8c46a">THE CLINIC</div>' +
       '<div style="display:flex;gap:12px">' +
       '<button id="clinic-cot" style="font:bold 15px monospace;padding:10px 16px;background:#222;color:#e8c46a;border:2px solid #e8c46a;cursor:pointer">LIE ON THE COT \u00b7 $50</button>' +
+      '<button id="clinic-cyberbtn" style="font:bold 15px monospace;padding:10px 16px;background:#222;color:#6ef0ff;border:2px solid #6ef0ff;cursor:pointer">CYBERWARE</button>' +
       '<button id="clinic-leave" style="font:bold 15px monospace;padding:10px 16px;background:#222;color:#c9c2b0;border:2px solid #c9c2b0;cursor:pointer">LEAVE</button></div>' +
+      '<div id="clinic-cyber" style="display:none;width:min(92vw,440px);padding:10px 12px;background:#101218;border:2px solid #6ef0ff"></div>' +
       '<div style="font:12px monospace;color:#9a9486">E or A: the cot if you can pay, otherwise leave</div>';
     d.querySelector("#clinic-cot").onclick = (e) => { e.stopPropagation(); if (CLINIC_CTX) clinicCot(CLINIC_CTX.g, CLINIC_CTX.setHud); };
     d.querySelector("#clinic-leave").onclick = (e) => { e.stopPropagation(); clinicShow(false); };
+    d.querySelector("#clinic-cyberbtn").onclick = (e) => { e.stopPropagation(); const bx = d.querySelector("#clinic-cyber"); const open = bx.style.display === "none"; bx.style.display = open ? "block" : "none"; if (open) clinicCyberRender(); };
     document.body.appendChild(d); CLINIC_EL = d;
   }
   CLINIC_EL.style.display = on ? "flex" : "none"; CLINIC_OPEN = on;
+  if (on) { const bx = CLINIC_EL.querySelector("#clinic-cyber"); if (bx) bx.style.display = "none"; }
 }
 function clinicCot(g, setHud) {
   const COST = 50;
@@ -8317,6 +8349,12 @@ function makeFloor(b, f, rnd) {
          everything of value is on the far side of glass -- which is what makes a smash-and-grab
          a different problem here than in the pawn shop next door. */
       case "jewel":
+        if (b.cyber) {   // the cyber shop (Chrome & Bone): a surgery bed in the middle of the room, a table beside it, the tray of instruments on the table. Not the jeweller's cases.
+          P(cx - 22, cy - 38, 44, 76, "cy_bed");
+          P(cx + 30, cy - 26, 30, 22, "table");
+          P(cx + 35, cy - 22, 20, 13, "cy_tray");
+          break;
+        }
         P(q2.x0 + 8, cy - 10, Math.max(40, W2 - 16), 22, "jw_counter");
         if (wide) runX(q2, q2.y0 + pad, 3, 40, 24, "jw_display_high", pad);
         else runY(q2, q2.x0 + pad, 3, 24, 40, "jw_display_high", pad);
@@ -10406,9 +10444,15 @@ function genBuildings(zone, lx0, ly0, lx1, ly1, rnd, i, j) {
     b.arch = jew ? "jewel" : "pawn";
     b.signKey = jew ? "sign_wood" : "sign_pawnshop";
     b.name = cy ? "CHROME & BONE \u00b7 CYBERWARE" : jew ? "ALDRIDGE FINE JEWELRY" : "THIRD ST PAWN";
-    if (cy) b.cyber = true;
+    if (cy) { b.cyber = true; b.doctor = ["doctor_cap", "doctor_grey_bun", "doctor_grey_knot"][Math.max(0, CYBER_CELLS.findIndex((q) => q.i === i && q.j === j)) % 3]; }   // a different doctor in each shop (the sewer clinic has the bald one)
     b.tone = jew ? 0.6 : 0.36;
     out.push(faceDoor(b, lx0, ly0, lx1, ly1, rnd));
+    if (cy) {   // Donny's Chrome & Bone roof: the footprint takes the art's shape, the roof is the art
+      const sd = b.door.side, L = Math.min(Math.max(LW, LH) * 0.74, 560), cx0 = b.x + b.w / 2, cy0 = b.y + b.h / 2;
+      if (sd === 0 || sd === 2) { b.w = Math.min(L, LW - 60); b.h = b.w / 1.59; } else { b.h = Math.min(L, LH - 60); b.w = b.h / 1.59; }
+      b.x = clamp(cx0 - b.w / 2, lx0 + 20, lx1 - 20 - b.w); b.y = clamp(cy0 - b.h / 2, ly0 + 20, ly1 - 20 - b.h);
+      b.door.pos = 0.5; b.roofKey = "rf_cyber_shop"; b._plate = undefined; b.plans = null;
+    }
     return dryOut(out);
   }
   if (isTradeCell(i, j) && !civicAt(i, j)) {
@@ -11445,7 +11489,8 @@ const ARM_SETS = {
 ARM_BY_YT.yt_crew_leroy = ARM_SETS.leroy; ARM_BY_YT.yt_crew_viejo = ARM_SETS.pablo;
 PD_ART.vh_hippy_truck = "assets/vehicles/vh_hippy_truck.png";   // the Happy Hippie Laundry Co. truck (layer 485)
 PD_ART.pr_phone_booth = "assets/city/pr_phone_booth.png"; PD_ART.fu_phone = "assets/home2/fu_phone.png";   // layer 480
-for (const k of ["rf_apartment", "rf_gun_store", "ap_pool", "ap_tree_big", "ap_tree_small", "ap_fountain"]) PD_ART[k] = "assets/city/" + k + ".png";
+for (const k of ["rf_apartment", "rf_gun_store", "rf_cyber_shop", "ap_pool", "ap_tree_big", "ap_tree_small", "ap_fountain"]) PD_ART[k] = "assets/city/" + k + ".png";
+PD_ART.cy_bed = "assets/runner/cyber/surgery_bed.png"; PD_ART.cy_tray = "assets/runner/cyber/tray_instruments.png";   // the cyber shop rooms
 for (const k of ["int_apt_long_f0", "int_apt_long_f1", "int_apt_side_f0", "int_apt_side_f1", "int_gun_store", "int_happy_hippy"]) PD_ART[k] = "assets/interiors/" + k + ".png";
 for (const k of ["tx_pool_water", "tx_carpet_blue", "tx_carpet_tan"]) PD_ART[k] = "assets/tex/" + k + ".png";
 // Don Matteo's men in the Old Block (layer 516)
@@ -37980,6 +38025,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       vn_pastack: "vn_pastack", vn_lights: "vn_lights", vn_merch: "vn_merch",
       vn_barrier: "vn_barrier", vn_cases: "vn_cases", vn_monitor: "vn_monitor",
       vn_drumkit_flip: "vn_drumkit_flip",
+      cy_bed: "cy_bed", cy_tray: "cy_tray",
       /* The staff are props. They stand at a post and never move, so routing them through the
          prop pipeline costs nothing and cannot desync from the room they belong to. */
       st_change: "st_change", st_mech: "st_mech", st_owner: "st_owner",
@@ -39661,6 +39707,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       ar_cab_ironcurtain: 1, ar_cab_thefront: 1, ar_cab_curtain2: 1, ar_cab_brawler: 1,
       ar_cocktail: 1, vn_drumkit: 1,
       ar_change: 1, ar_snack: 1, ar_photo: 1,
+      cy_bed: 1,
       vn_main_stage: 1, vn_drum_riser: 1, vn_pastack: 1, vn_amp_stack: 1,
       vn_amp_combo: 1, vn_merch: 1, vn_cases: 1, vn_barrier: 1, vn_stage_steps: 1,
       sk_rack: 1, sk_shelf: 1, sk_counter: 1,
@@ -46081,7 +46128,7 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
       if (b.biz === "guns") g.bizSaid = g.bizSaid || gunGreeting();
       if (b.biz === "pawn" && g.prisonMode) { const sk = pawnForger536(b); opts.push({ id: "biz:fakeid:0", label: "\u201cYOU DO PAPERS?\u201d \u00b7 A FAKE ID \u00b7 $" + sk.price }); }     // layer 536
       opts.push({ id: "close", label: "THAT'S ALL" });
-      return { title: (b.name || "THE STORE") + " \u00b7 THE COUNTER", face: null,
+      return { title: (b.name || "THE STORE") + " \u00b7 THE COUNTER", face: b.cyber ? "assets/runner/cyber/" + (b.doctor || "doctor_bald") + ".png" : null,
         text: g.bizSaid || (M ? "\u201cWhat can I get you?\u201d You have $" + (g.p.cash || 0).toLocaleString() + "." : "\u201cHelp you?\u201d Nothing here you'd buy over the counter."), opts };
     }
     /* the man in the back of a pawn shop: how good he is goes by the shop, and so does the price (layer 536) */
@@ -72071,6 +72118,11 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
             style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "9px 14px", border: "1px solid #ff8a6a", color: "#ffb09a", fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", background: "rgba(255,138,106,0.10)" }}>
             THE RCASE {"\u00b7"} DRUMMOND {hud.caseBar.fill}% {"\u00b7"} PABLO'S JOBS, ALONZO
           </div>}
+          {/* CHEAT: money, for testing (the cyber shops, the pawn shop, the gun shops...) */}
+          <div data-mapopt="1" onClick={(e) => { e.stopPropagation(); const g0 = G.current; if (g0 && g0.p) { g0.p.cash = (g0.p.cash || 0) + 5000; g0.pickupFlash = { nm: "lift:CHEAT \u00b7 +$5,000", t: 2 }; } }}
+            style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "9px 14px", border: "1px solid #b48cff", color: "#d6c2ff", fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", background: "rgba(180,140,255,0.12)" }}>
+            CHEAT {"\u00b7"} ADD $5,000
+          </div>
           {/* CHEAT (layer 526): after Eddie's dropped you off, straight to the next morning */}
           {hud.skipPrison && <div data-mapopt="1" onClick={(e) => { e.stopPropagation(); setMapOpen(false); setTimeout(() => G.skipPrisonFn && G.skipPrisonFn(), 60); }}
             style={{ cursor: "pointer", margin: "0 0 10px 0", padding: "9px 14px", border: "1px solid #b48cff", color: "#d6c2ff", fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", background: "rgba(180,140,255,0.12)" }}>
