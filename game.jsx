@@ -11490,6 +11490,7 @@ ARM_BY_YT.yt_crew_leroy = ARM_SETS.leroy; ARM_BY_YT.yt_crew_viejo = ARM_SETS.pab
 PD_ART.vh_hippy_truck = "assets/vehicles/vh_hippy_truck.png";   // the Happy Hippie Laundry Co. truck (layer 485)
 PD_ART.pr_phone_booth = "assets/city/pr_phone_booth.png"; PD_ART.fu_phone = "assets/home2/fu_phone.png";   // layer 480
 for (const k of ["rf_apartment", "rf_gun_store", "rf_cyber_shop", "ap_pool", "ap_tree_big", "ap_tree_small", "ap_fountain"]) PD_ART[k] = "assets/city/" + k + ".png";
+for (const k of ["jk_french_long", "jk_french_short", "jk_biker", "jk_duster", "sh_tee", "sh_mesh", "ht_fedora", "ht_beanie", "ht_visor"]) PD_ART["cl_" + k] = "assets/runner/clothes/" + k + "_icon.png";   // the outfit icons
 PD_ART.cy_bed = "assets/runner/cyber/surgery_bed.png"; PD_ART.cy_tray = "assets/runner/cyber/tray_instruments.png";   // the cyber shop rooms
 for (const k of ["int_apt_long_f0", "int_apt_long_f1", "int_apt_side_f0", "int_apt_side_f1", "int_gun_store", "int_happy_hippy"]) PD_ART[k] = "assets/interiors/" + k + ".png";
 for (const k of ["tx_pool_water", "tx_carpet_blue", "tx_carpet_tan"]) PD_ART[k] = "assets/tex/" + k + ".png";
@@ -15239,7 +15240,54 @@ const RUNNER_API = (function () {
   // LAYER 732: the four team colours. The suit you wear is your team; the other three teams are the background teams.
   const RTEAMS = [{ k: 'red', col: '#d6453d' }, { k: 'yellow', col: '#e8c46a' }, { k: 'blue', col: '#3d7ee8' }, { k: 'green', col: '#3fbf6a' }];
   const RSUITS = RTEAMS.map((q) => q.col);
-  const RUNNER_LOOK = { head: 'mhead_curly', suit: RSUITS[0], body: 'big', bodyK: 1, name: 'RUNNER', stats: null, chosen: false, skin: null, hair: null };   // LAYER 690: hair = the hair colour (null: black)
+  const RUNNER_LOOK = { head: 'mhead_curly', suit: RSUITS[0], body: 'big', bodyK: 1, name: 'RUNNER', stats: null, chosen: false, skin: null, hair: null, jacket: null, shirt: null, hat: null };   // LAYER 690: hair = the hair colour (null: black)
+  /* CLOTHES. Each garment is drawn on the body's own canvas (800 wide, 900 tall; the body art is 800 square at the top), already cut into a torso
+     and two sleeve layers: the sleeves swing and stretch with the arms, in a walk and in a punch, exactly like the body's own arms. Hats sit on the
+     head. A jacket goes over a shirt. The garments are cut for the BIG build; hats fit any head. k: a hat's width as a multiple of the head's,
+     dy: a hat's shift (head heights). Files: assets/runner/clothes/<id>_torso.png, _armL.png, _armR.png (and <id>.png for a hat). */
+  const CLOTHES = {
+    jk_french_long:  { slot: 'jacket', name: 'LONG FRENCH COAT', price: 900 },
+    jk_french_short: { slot: 'jacket', name: 'SHORT FRENCH COAT', price: 650 },
+    jk_biker:        { slot: 'jacket', name: 'FUTURE BIKER JACKET', price: 800 },
+    jk_duster:       { slot: 'jacket', name: 'FUR-COLLAR DUSTER', price: 700 },
+    sh_tee:          { slot: 'shirt', name: 'SUNSET TEE', price: 80 },
+    sh_mesh:         { slot: 'shirt', name: 'CIRCUIT MESH SHIRT', price: 220 },
+    ht_fedora:       { slot: 'hat', name: 'NOIR FEDORA', price: 160, k: 1.5, dy: -0.03 },
+    ht_beanie:       { slot: 'hat', name: 'GLOW-BADGE BEANIE', price: 60, k: 1.14, dy: -0.02 },
+    ht_visor:        { slot: 'hat', name: 'VISOR CAP', price: 240, k: 1.18, dy: 0 },
+  };
+  const CL_BODIES = { big: 1 }, CL_W = 800, CL_H = 900, clothOwned = new Set(), CL_IMG = {};
+  function clImg(file) { if (!CL_IMG[file]) { const im = new Image(); im.src = 'assets/runner/clothes/' + file + '.png'; CL_IMG[file] = im; } return CL_IMG[file]; }
+  const clReady = (im) => im && im.complete && im.naturalWidth > 0;
+  function giveClothes(ids) { const before = clothOwned.size; (ids || Object.keys(CLOTHES)).forEach((id) => { if (CLOTHES[id]) clothOwned.add(id); }); if (clothOwned.size > before) say('CLOTHES: ' + clothOwned.size + ' PIECES. Y WHEEL > CLOTHES.', 4); }
+  function wearCloth(id) {
+    const c = CLOTHES[id]; if (!c || !clothOwned.has(id)) return;
+    if (c.slot !== 'hat' && !CL_BODIES[RUNNER_LOOK.body]) { say('THESE ARE CUT FOR THE BIG BUILD. HERS ARE COMING.', 4); return; }
+    const on = RUNNER_LOOK[c.slot] === id; RUNNER_LOOK[c.slot] = on ? null : id;
+    say(c.name + (on ? ' TAKEN OFF.' : ' ON.'), 3);
+  }
+  // the shirt and jacket layers, over the body, under the head. kL/kR: the arm stretch the body's own arms use (walk and punch)
+  function drawClothes(X0, Y0, bw, AWv, SH_Y, kL, kR) {
+    if (!CL_BODIES[RUNNER_LOOK.body]) return;
+    const s = bw / AWv, dw = bw, dh = bw * CL_H / CL_W;
+    for (const slot of ['shirt', 'jacket']) {
+      const id = RUNNER_LOOK[slot]; if (!id || !CLOTHES[id]) continue;
+      const t = clImg(id + '_torso'), L = clImg(id + '_armL'), R = clImg(id + '_armR');
+      if (!clReady(t)) continue;
+      ctx.drawImage(t, X0, Y0, dw, dh);
+      for (const [im, pvx, k] of [[L, 125, kL], [R, 708, kR]]) {
+        if (!clReady(im)) continue;
+        const qx = X0 + pvx * s, qy = Y0 + SH_Y * s;
+        ctx.save(); ctx.translate(qx, qy); ctx.scale(1, k); ctx.translate(-qx, -qy); ctx.drawImage(im, X0, Y0, dw, dh); ctx.restore();
+      }
+    }
+  }
+  function drawHat(x, hy, hw, hh) {
+    const id = RUNNER_LOOK.hat, c = id && CLOTHES[id]; if (!c) return;
+    const im = clImg(id); if (!clReady(im)) return;
+    const W = hw * (c.k || 1.2), Hh = W * im.naturalHeight / im.naturalWidth, cy = hy + hh * (0.5 + (c.dy || 0));
+    ctx.drawImage(im, x - W / 2, cy - Hh / 2, W, Hh);
+  }
   const BODY_TYPES = { slim: 1, average: 1, athletic: 1, heavy: 1, big: 1, female: 1 };
   /* LAYER 704: EVERY RUNNER HAS A PROFILE PICTURE, a random face from the portrait set that matches his build. The pools are
      the forward-facing portraits in assets/runner/portraits (female_01..10, male_01..10), picked by eye: slim for the lean
@@ -17290,12 +17338,14 @@ const RUNNER_API = (function () {
       ctx.translate(qx, qy); ctx.scale(1, k); ctx.translate(-qx, -qy);
       ctx.drawImage(bs, X0, Y0, bw, bh); ctx.restore();
     };
-    const PK = 1.5, pL = pa && pa.side === 'L', pR = pa && pa.side === 'R', ex = (AH - SH_Y) * PK + M;   // a punch stretches that arm PK times over, so its clip box grows with it
-    piece(-M, LX, -M, AH + (pL ? ex : M), 125, SH_Y, (1 - 0.14 * ph) * (pL ? 1 + PK * pa.e : 1));            // left arm
-    piece(RX, AW + M, -M, AH + (pR ? ex : M), 708, SH_Y, (1 + 0.14 * ph) * (pR ? 1 + PK * pa.e : 1));        // right arm
+    const PK = 1.5, pL = pa && pa.side === 'L', pR = pa && pa.side === 'R', ex = (AH - SH_Y) * PK + M;
+    const kL = (1 - 0.14 * ph) * (pL ? 1 + PK * pa.e : 1), kR = (1 + 0.14 * ph) * (pR ? 1 + PK * pa.e : 1);   // a punch stretches that arm PK times over, so its clip box grows with it
+    piece(-M, LX, -M, AH + (pL ? ex : M), 125, SH_Y, kL);            // left arm
+    piece(RX, AW + M, -M, AH + (pR ? ex : M), 708, SH_Y, kR);        // right arm
     piece(LX, MID, HIP_Y, AH + M, 318, HIP_Y, 1 + 0.35 * ph);       // left leg
     piece(MID, RX, HIP_Y, AH + M, 515, HIP_Y, 1 - 0.35 * ph);       // right leg
     piece(LX, RX, -M, HIP_Y, 0, 0, 1);                              // body, above the hips
+    drawClothes(X0, Y0, bw, AW, SH_Y, kL, kR);                      // the shirt, then the jacket, over the body (the head comes after)
   }
   function drawWalker(x, y) {
     if (trapFx && performance.now() < trapFx.until && Math.hypot(x - trapFx.x, y - trapFx.y) < 2) drawTrapRing(x, y);
@@ -17373,7 +17423,7 @@ const RUNNER_API = (function () {
     const hd = bs && bodyKey() && bodyKey().startsWith('body_cop_') ? null : headSprite(RUNNER_LOOK.head);   // LAYER 657: the cops' heads are in their art
     if (hd) { const hk = HEAD_SCALE[RUNNER_LOOK.head] || 1, hw = (HEAD_WF[RUNNER_LOOK.body] || 0.36) * bw * hk, hh = hd.height * (hw / hd.width); const cyF = HEAD_CY[RUNNER_LOOK.body];
       const hy = cyF != null ? y - bh / 2 + cyF * bh - hh / 2 : y - bh / 2 + 0.02 * bh - (hk - 1) * 0.06 * bh + (HEAD_DROP[RUNNER_LOOK.body] || 0) * bh;
-      ctx.drawImage(hd, x - hw / 2, hy, hw, hh); if (mask) drawRunnerMask(x, hy + hh * 0.62, hw / 25); drawCollarDot(x + hw * 0.38, hy + hh * 0.5, hw); }   // LAYER 684: every runner wears the shock collar, teammates too   // LAYER 677: the collar light on the right side of the head, not on the nose
+      ctx.drawImage(hd, x - hw / 2, hy, hw, hh); drawHat(x, hy, hw, hh); if (mask) drawRunnerMask(x, hy + hh * 0.62, hw / 25); drawCollarDot(x + hw * 0.38, hy + hh * 0.5, hw); }   // LAYER 684: every runner wears the shock collar, teammates too   // LAYER 677: the collar light on the right side of the head, not on the nose
     ctx.restore();
   }
 
@@ -18788,10 +18838,10 @@ const RUNNER_API = (function () {
   }
   // draws a runner's figure with the given look at x,y, then puts the player's own look and walker state back
   function drawLookFigure(target, x, y, look, step, heading) {
-    const L0 = { head: RUNNER_LOOK.head, suit: RUNNER_LOOK.suit, body: RUNNER_LOOK.body, bodyK: RUNNER_LOOK.bodyK, skin: RUNNER_LOOK.skin, hair: RUNNER_LOOK.hair };
+    const L0 = { head: RUNNER_LOOK.head, suit: RUNNER_LOOK.suit, body: RUNNER_LOOK.body, bodyK: RUNNER_LOOK.bodyK, skin: RUNNER_LOOK.skin, hair: RUNNER_LOOK.hair, jacket: RUNNER_LOOK.jacket, shirt: RUNNER_LOOK.shirt, hat: RUNNER_LOOK.hat };
     const W0 = { on: walker.on, step: walker.step, heading: walker.heading, amp: walker.amp };
     const P0 = { packOn, mask, held }, prevCtx = ctx;
-    Object.assign(RUNNER_LOOK, { skin: null, hair: null }, look);   // LAYER 690: the figure's own skin and hair, if it has them
+    Object.assign(RUNNER_LOOK, { skin: null, hair: null, jacket: null, shirt: null, hat: null }, look);   // LAYER 690: the figure's own skin and hair, if it has them
     walker.on = true; walker.step = step; walker.heading = heading; walker.amp = 1;
     packOn = null; mask = false; held = null; mateDrawing = true; ctx = target;
     try { drawWalker(x, y); }
@@ -19100,10 +19150,10 @@ const RUNNER_API = (function () {
     const t = RTEAMS.find((q) => q.col === (m.look && m.look.suit)) || RTEAMS[0];
     const idx = hoverOwned ? BIKE_INDEX : CAR_FILES.indexOf('rtbike_' + t.k);
     if (idx < 0) return false;
-    const L0 = { head: RUNNER_LOOK.head, suit: RUNNER_LOOK.suit, body: RUNNER_LOOK.body, bodyK: RUNNER_LOOK.bodyK, skin: RUNNER_LOOK.skin, hair: RUNNER_LOOK.hair };
+    const L0 = { head: RUNNER_LOOK.head, suit: RUNNER_LOOK.suit, body: RUNNER_LOOK.body, bodyK: RUNNER_LOOK.bodyK, skin: RUNNER_LOOK.skin, hair: RUNNER_LOOK.hair, jacket: RUNNER_LOOK.jacket, shirt: RUNNER_LOOK.shirt, hat: RUNNER_LOOK.hat };
     const W0 = { on: walker.on, step: walker.step, heading: walker.heading };
     const P0 = { packOn, mask, held };
-    Object.assign(RUNNER_LOOK, { skin: null, hair: null }, m.look);
+    Object.assign(RUNNER_LOOK, { skin: null, hair: null, jacket: null, shirt: null, hat: null }, m.look);
     walker.on = false; walker.heading = m.heading; packOn = null; mask = !!P0.mask; held = null; mateDrawing = true; ctx = c;
     try { drawCar('car_' + CAR_FILES[idx], m.x, m.y, m.bikeZ || 0, m.heading, 0); }
     finally {
@@ -19133,10 +19183,10 @@ const RUNNER_API = (function () {
     const ck = CON_KEY[m.name], cparts = ck ? conArt(ck) : null;
     if (cparts) { c.save(); c.globalAlpha = m.stunT > 0 ? 0.6 : 1; drawContactRig(c, m, cparts, CON_RIG[ck]); c.restore(); return; }   // LAYER 735: the story contacts on their rig
     if (m.companion && m.ride && drawMateBike(c, m)) return;   // he is on his own bike, the way you are
-    const L0 = { head: RUNNER_LOOK.head, suit: RUNNER_LOOK.suit, body: RUNNER_LOOK.body, bodyK: RUNNER_LOOK.bodyK, skin: RUNNER_LOOK.skin, hair: RUNNER_LOOK.hair };
+    const L0 = { head: RUNNER_LOOK.head, suit: RUNNER_LOOK.suit, body: RUNNER_LOOK.body, bodyK: RUNNER_LOOK.bodyK, skin: RUNNER_LOOK.skin, hair: RUNNER_LOOK.hair, jacket: RUNNER_LOOK.jacket, shirt: RUNNER_LOOK.shirt, hat: RUNNER_LOOK.hat };
     const W0 = { on: walker.on, step: walker.step, heading: walker.heading, amp: walker.amp };
     const P0 = { packOn, mask, held };
-    Object.assign(RUNNER_LOOK, { skin: null, hair: null }, m.look);   // LAYER 690: the teammate's own skin and hair
+    Object.assign(RUNNER_LOOK, { skin: null, hair: null, jacket: null, shirt: null, hat: null }, m.look);   // LAYER 690: the teammate's own skin and hair
     // the walk cycle only runs while he is actually moving (standing still he stands, like the player); a stunned one does not swing at all
     const mv = m.lx != null && Math.hypot(m.x - m.lx, m.y - m.ly) > 0.25; m.lx = m.x; m.ly = m.y;
     walker.on = true; walker.step = m.step; walker.heading = m.heading; walker.amp = m.stunT > 0 ? 0 : (mv ? 1 : 0);
@@ -21899,7 +21949,14 @@ const RUNNER_API = (function () {
         ...(boxOwned ? [{ label: 'GAME BOX', sub: 'ARCADE · RETRO', icon: PD_ART.it_gamebox || null, id: 'gear:box' }] : []),
         ...(hoverOwned ? [{ label: 'HOVER BIKE', sub: 'CALL IT · ON THE PHONE', icon: PD_ART.hud_holophone || null, id: 'gear:hover' }] : []),
         { label: 'CYBERWEAR', sub: RUNNER_CYBER.length ? RUNNER_CYBER.length + ' FITTED' : 'NONE FITTED', icon: PD_ART.hud_cyberwear, id: 'cat:cyber' },
+        ...(clothOwned.size ? [{ label: 'CLOTHES', sub: ['jacket', 'shirt', 'hat'].filter((q) => RUNNER_LOOK[q]).length + ' ON · ' + clothOwned.size + ' OWNED', icon: PD_ART['cl_' + (RUNNER_LOOK.jacket || RUNNER_LOOK.shirt || RUNNER_LOOK.hat || 'jk_biker')] || null, id: 'cat:clothes' }] : []),
       ];
+    }
+    if (cat === 'clothes') {
+      const out = [];
+      for (const slot of ['jacket', 'shirt', 'hat']) for (const id of Object.keys(CLOTHES)) { const c = CLOTHES[id]; if (c.slot !== slot || !clothOwned.has(id)) continue; const on = RUNNER_LOOK[slot] === id;
+        out.push({ label: c.name, sub: slot.toUpperCase() + (on ? ' · ON · PICK TO TAKE OFF' : ' · PICK TO WEAR'), icon: PD_ART['cl_' + id] || null, id: 'gear:cl:' + id }); }
+      out.push(back('top')); return out;
     }
     if (cat === 'weapons') return [...laserItems(), back('top')];
     if (cat === 'equipment') {
@@ -22022,6 +22079,7 @@ const RUNNER_API = (function () {
     else if (k === 'bed:sleep') startLie();                                        // LAYER 717: the bag menu's SLEEP
     else if (k === 'bed:pack') { if (sleepDown && !lying) pickBag(); }           // LAYER 717: the bag menu's PACK IT UP
     else if (k === 'bed:no') return;                                               // LAYER 717: NEVER MIND
+    else if (k.startsWith('cl:')) wearCloth(k.slice(3));
     else if (k.startsWith('sleep:')) wakeAt(k.slice(6));
     else if (k === 'none') say('NOTHING TO USE HERE YET.', 2.5);
     else if (k.startsWith('cyber')) { const c1 = RUNNER_CYBER[+k.slice(5)]; say(c1 ? c1.name + ' IS FITTED.' : 'TO EQUIP CYBERWEAR YOU NEED A CYBERSURGEON. SURGEONS COME LATER.', 4); }
@@ -22189,7 +22247,7 @@ const RUNNER_API = (function () {
   function secretOpen() {
     SECRET.got = true; secretReq = true;
     LASER.has = true; LASER.chip = true; LASER.locked = false;
-    gasOwned = true; sleepOwned = true; phoneOwned = true; hoverOwned = true; fillCyber(); boxReq = true; boxOwned = true;
+    gasOwned = true; sleepOwned = true; phoneOwned = true; hoverOwned = true; fillCyber(); boxReq = true; boxOwned = true; giveClothes();
     car.sprite = ownBikeIndex();   // the dirt bike is gone: the hover bike is the one he has
     say('THE STASH. EVERY WEAPON, ALL THE CYBERWEAR, A GAME BOX, A HOVER BIKE CALLER. THE HOVER BIKE REPLACES THE DIRT BIKE.', 7);
   }
@@ -23126,7 +23184,7 @@ const RUNNER_API = (function () {
     // on release -- readPad() folds both into the same fields the gamepad poll already fills.
     touchStick: (x, y) => { TOUCH.x = x || 0; TOUCH.y = y || 0; },
     touchBtn: (k, on) => { if (TOUCH.hasOwnProperty(k)) TOUCH[k] = !!on; },
-    touchPad, takeStash, takeBox, setBox, fitCyber, hasCyber: (id) => cyb(id),
+    touchPad, takeStash, takeBox, setBox, giveClothes, fitCyber, hasCyber: (id) => cyb(id),
     keepOut, canSpawn, windTrash,
     overlay,
     augments,
@@ -23198,7 +23256,7 @@ const RUNNER_API = (function () {
       gear: { laser: { has: LASER.has, mode: LASER.mode, locked: LASER.locked, chip: LASER.chip }, evidence: RPOL.evidence ? Object.assign({}, RPOL.evidence) : null,
         gas: gasOwned, sleep: sleepOwned, bag: sleepDown ? { x: sleepDown.x, y: sleepDown.y, h: sleepDown.h } : null,
         packOn, packOff, packsPlaced, stash: PACK_STASH.map((q) => ({ kind: q.kind, x: q.x, y: q.y, got: q.got })),
-        vest: { have: vestHave, worn: vestWorn, hp: vestHp }, phone: phoneOwned, secretGot: SECRET.got, hover: hoverOwned, box: boxOwned, boxGot: BOX_FINDS.map((b) => b.got), cyber: RUNNER_CYBER.map((c) => c.id) } }),
+        vest: { have: vestHave, worn: vestWorn, hp: vestHp }, phone: phoneOwned, secretGot: SECRET.got, hover: hoverOwned, box: boxOwned, boxGot: BOX_FINDS.map((b) => b.got), cyber: RUNNER_CYBER.map((c) => c.id), outfit: { owned: Array.from(clothOwned), worn: { jacket: RUNNER_LOOK.jacket, shirt: RUNNER_LOOK.shirt, hat: RUNNER_LOOK.hat } } } }),
     loadData: (d) => {
       if (!d || !d.look) return false;
       RUNNER_API.setLook(d.look);
@@ -23219,6 +23277,7 @@ const RUNNER_API = (function () {
         if (k.packsPlaced) { packsPlaced = true; PACK_STASH.length = 0; (k.stash || []).forEach((q) => PACK_STASH.push({ kind: q.kind, x: q.x, y: q.y, got: !!q.got })); }
         if (k.vest) { vestHave = !!k.vest.have; vestWorn = !!k.vest.worn; vestHp = k.vest.hp == null ? null : +k.vest.hp; }
         phoneOwned = !!k.phone;
+        if (k.outfit) { clothOwned.clear(); (k.outfit.owned || []).forEach((id) => { if (CLOTHES[id]) clothOwned.add(id); }); const w = k.outfit.worn || {}; for (const sl of ['jacket', 'shirt', 'hat']) RUNNER_LOOK[sl] = w[sl] && CLOTHES[w[sl]] && clothOwned.has(w[sl]) ? w[sl] : null; }
         boxOwned = !!k.box; BOX_FINDS.forEach((b, i) => { b.got = !!(k.boxGot && k.boxGot[i]); });
         SECRET.got = !!k.secretGot; hoverOwned = !!k.hover; if (SECRET.got) { LASER.has = true; fillCyber(); }
         else if (Array.isArray(k.cyber)) { RUNNER_CYBER.length = 0; k.cyber.forEach((id) => { const c = CYBER_KIT.find((q) => q[0] === id); if (c) RUNNER_CYBER.push({ id: c[0], name: c[1], desc: c[2], kg: 0.3, icon: null }); }); }
@@ -23472,7 +23531,7 @@ function PauseTabBody({ tab, padSel, acts, card }) {
       </div>
     );
   }
-  const opts = [['recon', 'RECON', 'the scan log'], ['save', 'SAVE GAME', 'write the game to this slot'], ['load', 'LOAD GAME', 'put back the last save'], ['quit', 'QUIT GAME', 'back to the title']];
+  const opts = [['recon', 'RECON', 'the scan log'], ['save', 'SAVE GAME', 'write the game to this slot'], ['load', 'LOAD GAME', 'put back the last save'], ['quit', 'QUIT GAME', 'back to the title'], ['cash', 'CHEAT · ADD $5,000', 'for testing: tap as often as you like'], ['clothes', 'CHEAT · ALL CLOTHES', 'every jacket, shirt and hat: Y wheel > CLOTHES']];
   return (
     <div style={{ ...frame, flexDirection: 'column', width: 'min(60vw, 520px)' }} onClick={(e) => e.stopPropagation()}>
       <div style={head}>SYSTEM</div>
@@ -72085,6 +72144,8 @@ const EV_TOPIC = { glass: "there", bottle: "there", lock: "there", toolmarks: "t
               if (id === "recon") { setMapOpen(false); RUNNER_API.toggleLog(); }
               else if (id === "save") { G.saveFn && G.saveFn(); setMapOpen(false); }   // LAYER 717: the flash says it, and the pause menu closes back to the game
               else if (id === "load") { G.loadFn && G.loadFn(); }
+              else if (id === "clothes") { RUNNER_API.giveClothes(); }
+              else if (id === "cash") { const g0 = G.current; if (g0 && g0.p) { g0.p.cash = (g0.p.cash || 0) + 5000; g0.pickupFlash = { nm: "lift:CHEAT \u00b7 +$5,000", t: 2 }; } }   // the cheat: money, the menu stays open
               else if (id === "quit") { setMapOpen(false); setRnOn(false); if (G.current) G.current.title = true; setHud((h) => ({ ...h, title: true })); }
             } }} />}
           {/* studying the map should not dismiss it -- closing is the backdrop or the button */}
